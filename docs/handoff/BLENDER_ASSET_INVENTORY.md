@@ -28,6 +28,8 @@
 | v2.1／Phase C.1 | basics-v2.1/LogicLab_Basics_Island_v2.1.blend＋GLB | 9,800tri／46nodes／2mats／24calls；實際已製作，人工狀態與本次指示不一致，**保留候選待確認，不擅自採用** |
 | 規格 | LogicLab_3D_Art_Style_Guide.md、LogicLab_Basics_Island_Scene_Plan.md | 精緻low-poly、三層地形、燈塔／工坊／碼頭／航道、互動契約與預算；文件完成不等於所有驗收完成 |
 
+> 2026-10-29 更新：v2.1 已由使用者有條件批准為 Phase D 候選資產；上表與後方完整清單中「保留候選待確認」「待確認批准」等描述為盤點當時的原始紀錄，保留不改。決議見 [ROADMAP](ROADMAP.md)。
+
 三 GLB 本輪重新 validateBytes：全 0 errors／0 warnings；v2.1 有1 unused UV info。原有 Validator／Three.js報告皆存在且manifest比對無差異。Three.js部分本輪只核對舊報告，未重跑renderer；來源限制見 [測試狀態](TESTING_STATUS.md)。
 
 ## 互動契約與正式資產差異

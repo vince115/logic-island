@@ -34,7 +34,7 @@
 - `package.json`／`pnpm-lock.yaml`／`pnpm-workspace.yaml`：固定依賴；不要因交接隨意更新。
 - 外部資產根：`/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/`。
 - v2候選：`basics-v2/LogicLab_Basics_Island_v2.blend`、`basics-v2/logiclab-basics-island-v2.glb`。
-- v2.1待確認候選：`basics-v2.1/LogicLab_Basics_Island_v2.1.blend`、`basics-v2.1/logiclab-basics-island-v2.1.glb`。
+- v2.1 Phase D候選（2026-10-29有條件批准）：`basics-v2.1/LogicLab_Basics_Island_v2.1.blend`、`basics-v2.1/logiclab-basics-island-v2.1.glb`。
 
 完整每檔絕對路徑與SHA見 `evidence/asset-inventory.json`；不要只憑檔名中的v2決定目前開啟版本。MCP目前場景仍叫Basics_Island_v2，但filepath實為v2.1；已核對於 `evidence/blender-current.json`。
 
