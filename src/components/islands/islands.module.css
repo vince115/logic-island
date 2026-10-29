@@ -142,6 +142,15 @@
 .previewBack:hover {
   background: var(--panel);
 }
+.previewLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.previewBack[aria-current='page'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
 
 .fallbackNotice {
   margin: 0;
@@ -724,6 +733,23 @@
   font-size: 16px;
   line-height: 1;
   cursor: pointer;
+}
+
+/* Scale prototype: short light markers that sit just below an anchor, so they do not cover the building. */
+.hexPoi {
+  display: inline-block;
+  transform: translateY(70%);
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  border: 1px solid #ffffffd9;
+  border-radius: 999px;
+  background: #ffffffcc;
+  color: #2d3e55;
+  font-size: 11px;
+  font-weight: 650;
+  padding: 1px 7px;
+  box-shadow: 0 2px 6px #172b481f;
 }
 
 /* Hex World preview labels: full names on desktop, colored pins on phones. */

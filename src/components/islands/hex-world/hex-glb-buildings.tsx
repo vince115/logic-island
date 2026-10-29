@@ -20,8 +20,11 @@ class PartsBoundary extends Component<{fallback:ReactNode;onError:()=>void;child
   render(){return this.state.failed?this.props.fallback:this.props.children;}
 }
 
-function LoadedParts({world,layout,selected,onReady,onInvalid,onNavigate}:{
-  world:HexWorld;layout:HexGlbSettlement;selected:boolean;
+/** `compact` shows short light markers set just below each anchor instead of dark labels over the door. */
+export type AnchorStyle = 'default' | 'compact';
+
+function LoadedParts({world,layout,selected,anchorStyle,onReady,onInvalid,onNavigate}:{
+  world:HexWorld;layout:HexGlbSettlement;selected:boolean;anchorStyle:AnchorStyle;
   onReady:()=>void;onInvalid:(problems:string[])=>void;onNavigate:(href:string)=>void;
 }) {
   const asset:GlbAsset=glbAssets[layout.asset];
@@ -67,7 +70,9 @@ function LoadedParts({world,layout,selected,onReady,onInvalid,onNavigate}:{
       const position=anchorOf(entry.node);
       return position?<Html key={entry.node} position={position} center zIndexRange={[14,0]}
         wrapperClass={styles.anchorWrapper} style={{pointerEvents:'none'}}>
-        <span className={`${styles.anchorLabel} ${styles.hexAnchorLabel}`} data-anchor={entry.node}>{entry.label}</span>
+        {anchorStyle==='compact'
+          ?<span className={styles.hexPoi} data-anchor={entry.node}>{entry.label.split(' · ')[0]}</span>
+          :<span className={`${styles.anchorLabel} ${styles.hexAnchorLabel}`} data-anchor={entry.node}>{entry.label}</span>}
       </Html>:null;
     })}
     {info&&info.action.type==='info'&&<Html position={anchorOf(info.anchor)} center zIndexRange={[16,0]}>
@@ -80,9 +85,9 @@ function LoadedParts({world,layout,selected,onReady,onInvalid,onNavigate}:{
 }
 
 /** GLB buildings for one settlement; the placeholder landmarks show while loading and on any failure. */
-export function HexGlbBuildings({world,layout,selected,fallback,onSourceChange,onNavigate}:{
+export function HexGlbBuildings({world,layout,selected,fallback,onSourceChange,onNavigate,anchorStyle='default'}:{
   world:HexWorld;layout:HexGlbSettlement;selected:boolean;fallback:ReactNode;
-  onSourceChange:(source:ModelSource)=>void;onNavigate:(href:string)=>void;
+  onSourceChange:(source:ModelSource)=>void;onNavigate:(href:string)=>void;anchorStyle?:AnchorStyle;
 }) {
   const [failed,setFailed]=useState(false);
   const fail=useCallback(()=>{setFailed(true);onSourceChange('geometry');},[onSourceChange]);
@@ -94,7 +99,7 @@ export function HexGlbBuildings({world,layout,selected,fallback,onSourceChange,o
   if(failed) return <>{fallback}</>;
   return <PartsBoundary fallback={fallback} onError={fail}>
     <Suspense fallback={fallback}>
-      <LoadedParts world={world} layout={layout} selected={selected} onReady={ready} onInvalid={invalid} onNavigate={onNavigate}/>
+      <LoadedParts world={world} layout={layout} selected={selected} anchorStyle={anchorStyle} onReady={ready} onInvalid={invalid} onNavigate={onNavigate}/>
     </Suspense>
   </PartsBoundary>;
 }

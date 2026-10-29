@@ -12,6 +12,7 @@
 | [2026-10-29-phase-d2b-trial.md](2026-10-29-phase-d2b-trial.md) | D.2b 第一階段試作：基礎程式島 GLB 建築上六角地塊、Anchor 相對位移、互動與 fallback、風格問題 |
 | [2026-10-29-d2b-visual-analysis.md](2026-10-29-d2b-visual-analysis.md) | D.2b 視覺改善分析：實測數據、A1／A2／B 比較、A2 決議 |
 | [2026-10-29-phase-d2b-terrain.md](2026-10-29-phase-d2b-terrain.md) | D.2b 第二階段：基礎程式島連續六角地形、跨格工坊、低岸碼頭、手機名牌 |
+| [2026-10-29-island-scale-prototype.md](2026-10-29-island-scale-prototype.md) | 島嶼尺度與世界構圖原型：19／37 格配置、比較表、效能拆解、待決事項 |
 | [../docs/handoff/SCENE_MODULES.md](../docs/handoff/SCENE_MODULES.md) | 2026-10-29 模組化 3D 場景架構規劃（12 模組、藍圖、驗證、D／E／F 分層；只規劃） |
 
 ## 撰寫規則

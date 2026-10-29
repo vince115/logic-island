@@ -40,7 +40,7 @@
 | Phase B | `LogicLab_3D_Art_Style_Guide.md`、`LogicLab_Basics_Island_Scene_Plan.md` | 兩文件存在且完整，後續模型依此製作 | Implemented（文件完成）；不表示所有模型與效能項目已達規格 |
 | Phase C | `basics-v2/` 完整模型、渲染與 GLB | 使用者於對話給「有條件通過」；0/0 Validator，歷史 viewer 成功 | 製作完成候選；有人工條件，不等於 Phase D 授權 |
 | Phase C.1 | **`basics-v2.1/` 實際已存在 BLEND、GLB、兩視圖、驗證與差異報告** | 本輪重新 Validator 0/0＋1 info；**2026-10-29 使用者正式批准 v2.1 為 Phase D 候選資產**（技術通過、視覺有條件接受） | Approved（有條件）；決議與後續美術項見 [ROADMAP](ROADMAP.md) |
-| Phase D | D.0：runtime GLB、provenance、registry（`e4e7375`）；D.1：基礎程式島改用 GLB（`9c79937`）；D.2a：獨立的六角聚落預覽 `/islands/hex`（`063f0d4`）；D.2b 第一階段：預覽中的基礎程式島改用 GLB 建築（`c14e975`）；D.2b 第二階段：基礎程式島連續六角地形（方案 A2，分支上未 commit） | D.0 已驗收；D.1 工程整合已接受；D.2a 工程驗收通過；D.2b 第一階段技術驗收通過；第二階段完成，等待確認視覺方向後才能 commit；其他兩島的遷移、D.2c、D.3 未批准 | Partial；分支未 merge、未 push，見 [ROADMAP](ROADMAP.md) 與 [TESTING_STATUS](TESTING_STATUS.md) |
+| Phase D | D.0：runtime GLB、provenance、registry（`e4e7375`）；D.1：基礎程式島改用 GLB（`9c79937`）；D.2a：獨立的六角聚落預覽 `/islands/hex`（`063f0d4`）；D.2b 第一階段：預覽中的基礎程式島改用 GLB 建築（`c14e975`）；D.2b 第二階段：基礎程式島連續六角地形（方案 A2，分支上未 commit）；島嶼尺度原型 `/islands/hex/scale/{19,37}`（未 commit） | D.0 已驗收；D.1 工程整合已接受；D.2a 工程驗收通過；D.2b 第一階段技術驗收通過；第二階段 A2 視覺方向**未通過**（島嶼尺度與世界構圖），已做 19／37 格尺度原型，等待使用者選定；其他兩島的遷移、D.2c、D.3 未批准 | Partial；分支未 merge、未 push，見 [ROADMAP](ROADMAP.md) 與 [TESTING_STATUS](TESTING_STATUS.md) |
 | Phase E | Data-Driven Islands（schema 定義島嶼、GLB 引用、課程、互動、解鎖、關聯） | 無實作 | Planned；D 完成後才開始，見 [ROADMAP](ROADMAP.md) |
 | Phase F | RPG Learning System（NPC、任務、EXP、等級、徽章、解鎖） | 無實作 | Planned；依賴 E，進度層與 3D 層分離 |
 | Phase G | APCS Challenges（試煉島、中央島、跨島任務、完成紀錄） | 無實作 | Planned；依賴 F，判題 adapter 預留自動判題擴充，首版方式待決 |

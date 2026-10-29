@@ -106,7 +106,7 @@ describe('ramps and road profiles', () => {
         expect(rise, `${road.routeId} segment ${i}`).toBeLessThanOrEqual(Math.tan((35 * Math.PI) / 180) * run + 1e-9);
       }
       const plain = settlementRoads(hexWorld).find(r => r.routeId === road.routeId && r.islandId === road.islandId)!;
-      const last = road.points.at(-1)!, [px, pz] = portPoint(hexWorld, plain.port);
+      const last = road.points.at(-1)!, [px, pz] = portPoint(hexWorld, plain.port!);
       expect(close(last[0], px) && close(last[2], pz)).toBe(true);
     }
   });

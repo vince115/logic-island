@@ -8,7 +8,7 @@ import { LAND_TOP, WATER_LEVEL, tileHeight, type HexTerrain, type HexWorld } fro
 
 // Simple generated materials for D.2a; a Blender tile kit can replace them without touching the layout data.
 const terrainColors: Record<HexTerrain, string> = {
-  plaza: '#e9e2cc', grass: '#7ccf5b', meadow: '#a5d86a', sand: '#efd9a0', stone: '#b8c0c8', shore: '#efd9a0',
+  plaza: '#e9e2cc', grass: '#7ccf5b', meadow: '#a5d86a', sand: '#efd9a0', stone: '#b8c0c8', shore: '#efd9a0', forest: '#5fae4a',
 };
 export const BASE_TOP = LAND_TOP;
 export const WATER_Y = WATER_LEVEL;

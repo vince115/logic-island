@@ -4,10 +4,10 @@ import {
 } from './hex';
 import type { IslandDefinition } from './types';
 
-export type HexTerrain = 'plaza' | 'grass' | 'meadow' | 'sand' | 'stone' | 'shore';
+export type HexTerrain = 'plaza' | 'grass' | 'meadow' | 'sand' | 'stone' | 'shore' | 'forest';
 export interface HexTile extends Axial { terrain: HexTerrain; /** Raises the tile top; 0 is the base land height. */ height?: number }
-/** A road from the plaza to a water-facing edge without a bridge, e.g. down to a dock. */
-export interface HexSpur { id: string; tile: Axial; edge: HexEdge }
+/** A road from the plaza without a bridge: to a water-facing edge (a dock), or with no edge to a tile center. */
+export interface HexSpur { id: string; tile: Axial; edge?: HexEdge }
 /**
  * One island as a cluster of tiles. The tile list may have any size or shape, as long as it is contiguous.
  * `surface: 'continuous'` merges the tiles into one terrain mesh with cliffs and ramps (D.2b); otherwise
@@ -70,9 +70,9 @@ export function findTile(world: HexWorld, islandId: string, hex: Axial) {
 /** World x/z where a bridge meets its tile: the midpoint of the port edge. */
 export const portPoint = (world: HexWorld, port: HexPort) => hexEdgeMidpoint(port.tile, port.edge, world.size);
 
-/** Tile path from the settlement center to `target`, staying on the settlement's own tiles. */
-export function settlementPath(settlement: HexSettlement, target: Axial): Axial[] {
-  const land = new Set(settlement.tiles.map(hexKey));
+/** Tile path from the settlement center to `target`, staying on the settlement's own tiles and out of forests. */
+export function settlementPath(settlement: HexSettlement, target: Axial, avoidForest = true): Axial[] {
+  const land = new Set(settlement.tiles.filter(t => !avoidForest || t.terrain !== 'forest' || at(t, target)).map(hexKey));
   const previous = new Map<string, Axial | null>([[hexKey(settlement.center), null]]);
   const queue = [settlement.center];
   while (queue.length) {
@@ -91,14 +91,15 @@ export function settlementPath(settlement: HexSettlement, target: Axial): Axial[
 
 /** Road polylines (world x/z): settlement center → port tile → port edge midpoint, per bridge end and spur. */
 export function settlementRoads(world: HexWorld) {
-  const road = (routeId: string, port: HexPort, bridgeId?: string) => {
-    const settlement = world.settlements.find(s => s.islandId === port.islandId)!;
-    const tiles = settlementPath(settlement, port.tile);
-    return { islandId: port.islandId, routeId, bridgeId, port, tiles, points: [...tiles.map(t => hexToWorld(t, world.size)), portPoint(world, port)] };
+  const road = (routeId: string, islandId: string, tile: Axial, edge?: HexEdge, bridgeId?: string) => {
+    const settlement = world.settlements.find(s => s.islandId === islandId)!;
+    const tiles = settlementPath(settlement, tile);
+    const port: HexPort | undefined = edge === undefined ? undefined : { islandId, tile, edge };
+    return { islandId, routeId, bridgeId, port, tiles, points: [...tiles.map(t => hexToWorld(t, world.size)), ...(port ? [portPoint(world, port)] : [])] };
   };
   return [
-    ...world.bridges.flatMap(bridge => [bridge.from, bridge.to].map(port => road(bridge.id, port, bridge.id))),
-    ...world.settlements.flatMap(s => (s.spurs ?? []).map(spur => road(spur.id, { islandId: s.islandId, tile: spur.tile, edge: spur.edge }))),
+    ...world.bridges.flatMap(bridge => [bridge.from, bridge.to].map(port => road(bridge.id, port.islandId, port.tile, port.edge, bridge.id))),
+    ...world.settlements.flatMap(s => (s.spurs ?? []).map(spur => road(spur.id, s.islandId, spur.tile, spur.edge))),
   ];
 }
 
@@ -111,7 +112,7 @@ export function validateHexWorld(world: HexWorld, islandIds: readonly string[]):
     if (new Set(keys).size !== keys.length) problems.push(`${settlement.islandId}: duplicate tiles`);
     if (!keys.includes(hexKey(settlement.center))) problems.push(`${settlement.islandId}: center is not a tile`);
     else {
-      const reached = settlement.tiles.filter(t => settlementPath(settlement, t).length).length;
+      const reached = settlement.tiles.filter(t => settlementPath(settlement, t, false).length).length;
       if (reached !== settlement.tiles.length) problems.push(`${settlement.islandId}: tiles are not contiguous`);
     }
     for (const key of keys) {
@@ -130,7 +131,7 @@ export function validateHexWorld(world: HexWorld, islandIds: readonly string[]):
 
   for (const settlement of world.settlements) for (const spur of settlement.spurs ?? []) {
     if (owner.get(hexKey(spur.tile)) !== settlement.islandId) problems.push(`${spur.id}: ${hexKey(spur.tile)} is not a ${settlement.islandId} tile`);
-    if (owner.has(hexKey(hexNeighbor(spur.tile, spur.edge)))) problems.push(`${spur.id}: edge ${spur.edge} does not face water`);
+    if (spur.edge !== undefined && owner.has(hexKey(hexNeighbor(spur.tile, spur.edge)))) problems.push(`${spur.id}: edge ${spur.edge} does not face water`);
   }
   const bridgeIds = world.bridges.map(b => b.id);
   if (new Set(bridgeIds).size !== bridgeIds.length) problems.push('duplicate bridge ids');

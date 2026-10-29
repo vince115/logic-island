@@ -1,0 +1,127 @@
+import { readFileSync } from 'node:fs';
+import { beforeAll, describe, expect, it } from 'vitest';
+import type { Object3D } from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { glbAssets } from '@/lib/islands/asset-registry';
+import { checkGlbContract } from '@/lib/islands/glb-contract';
+import { extractGlbParts, type GlbPart } from '@/lib/islands/glb-parts';
+import { hexDistance, hexKey, hexSpiral, hexToWorld, worldToHex } from '@/lib/islands/hex';
+import { placementPose } from '@/lib/islands/hex-buildings';
+import { buildSettlementTerrain, roadProfiles, tileTop } from '@/lib/islands/hex-terrain';
+import { WATER_LEVEL, portPoint, validateHexWorld } from '@/lib/islands/hex-world';
+import {
+  SCALE_VARIANTS, coastFoam, coastRocks, forestInstances, roadTiles, scalePrototypes, shallowHexes,
+} from '@/lib/islands/hex-scale-prototype';
+import { islands } from '@/lib/islands/data';
+
+const asset = glbAssets['basics-island-v2.1'];
+let parts: GlbPart[];
+beforeAll(async () => {
+  const bytes = readFileSync(`public${asset.url}`);
+  const scene: Object3D = (await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '')).scene;
+  expect(checkGlbContract(scene, asset)).toEqual({ ok: true });
+  parts = extractGlbParts(scene, asset, ['Landmark_Lighthouse', 'Building_Workshop', 'Dock_Entry']).parts;
+});
+const segDist = ([ax, az]: number[], [bx, bz]: number[], [px, pz]: number[]) => {
+  const t = Math.max(0, Math.min(1, ((px - ax) * (bx - ax) + (pz - az) * (bz - az)) / ((bx - ax) ** 2 + (bz - az) ** 2 || 1)));
+  return Math.hypot(px - (ax + t * (bx - ax)), pz - (az + t * (bz - az)));
+};
+
+describe.each(SCALE_VARIANTS)('scale prototype %s', variant => {
+  const { world, glb, forests } = scalePrototypes[variant];
+  const layout = glb[0];
+  const foundations = world.settlements[0];
+  const land = new Map(world.settlements.flatMap(s => s.tiles.map(t => [hexKey(t), t] as const)));
+  const footprint = (node: string, n = 7) => {
+    const part = parts.find(p => p.node === node)!, pose = placementPose(world, layout.islandId, layout.placements.find(p => p.node === node)!);
+    const cos = Math.cos(pose.rotation), sin = Math.sin(pose.rotation), s = asset.scale, out: [number, number][] = [];
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+      const x = part.bounds.min[0] + (part.bounds.max[0] - part.bounds.min[0]) * i / (n - 1), z = part.bounds.min[2] + (part.bounds.max[2] - part.bounds.min[2]) * j / (n - 1);
+      out.push([pose.position[0] + s * (x * cos + z * sin), pose.position[2] + s * (-x * sin + z * cos)]);
+    }
+    return { points: out, base: pose.position[1], pose };
+  };
+  const segments = () => [
+    ...roadProfiles(world).flatMap(r => r.points.slice(1).map((p, i) => ({ id: r.routeId, a: [r.points[i][0], r.points[i][2]], b: [p[0], p[2]] }))),
+    ...world.bridges.map(b => ({ id: b.id, a: portPoint(world, b.from), b: portPoint(world, b.to) })),
+  ];
+
+  it('is a valid world with the agreed foundations size, not a perfect hexagon', () => {
+    expect(validateHexWorld(world, islands.map(i => i.id))).toEqual([]);
+    expect(foundations.tiles).toHaveLength(Number(variant));
+    const radius = variant === '19' ? 2 : 3;
+    const perfect = new Set(hexSpiral({ q: 0, r: 0 }, radius).map(hexKey));
+    expect(foundations.tiles.some(t => !perfect.has(hexKey(t)))).toBe(true);
+    expect(world.settlements.every(s => s.surface === 'continuous')).toBe(true);
+  });
+
+  it('keeps building scale at 0.6 and spreads workshop, lighthouse and dock apart', () => {
+    expect(asset.scale).toBe(0.6);
+    const tileOf = (node: string) => layout.placements.find(p => p.node === node)!.tile;
+    const pairs = [['Building_Workshop', 'Landmark_Lighthouse'], ['Building_Workshop', 'Dock_Entry'], ['Landmark_Lighthouse', 'Dock_Entry']];
+    const min = variant === '19' ? 2 : 3;
+    for (const [a, b] of pairs) expect(hexDistance(tileOf(a), tileOf(b)), `${a}–${b}`).toBeGreaterThanOrEqual(min);
+  });
+
+  it('stands each building on level land (dock aside) and clear of roads and bridges', () => {
+    for (const node of ['Landmark_Lighthouse', 'Building_Workshop']) {
+      const { points, base } = footprint(node);
+      for (const [x, z] of points) {
+        const tile = foundations.tiles.find(t => hexKey(t) === hexKey(worldToHex(x, z, world.size)));
+        expect(tile, `${node} ${x.toFixed(2)},${z.toFixed(2)}`).toBeDefined();
+        expect(tileTop(tile!)).toBeCloseTo(base, 9);
+        for (const s of segments()) expect(segDist(s.a, s.b, [x, z]), `${node} vs ${s.id}`).toBeGreaterThan(0.3);
+      }
+    }
+    const dock = footprint('Dock_Entry', 5);
+    for (const s of segments().filter(s => s.id !== 'foundations-dock')) for (const p of dock.points) expect(segDist(s.a, s.b, p)).toBeGreaterThan(0.5);
+    expect(dock.base + 0.04 * asset.scale - WATER_LEVEL).toBeGreaterThan(0.25);
+    expect(dock.base + 0.04 * asset.scale - WATER_LEVEL).toBeLessThan(0.4);
+  });
+
+  it('reaches the dock, the lighthouse lookout and both bridges by road, with ramps on every height change', () => {
+    const profiles = roadProfiles(world);
+    expect(profiles.filter(r => r.islandId === 'foundations').map(r => r.routeId).sort())
+      .toEqual(['foundations-dock', 'foundations-lighthouse', 'foundations-structures']);
+    for (const r of profiles) for (let i = 1; i < r.points.length; i++) {
+      const [a, b] = [r.points[i - 1], r.points[i]];
+      expect(Math.abs(b[1] - a[1])).toBeLessThanOrEqual(Math.tan((35 * Math.PI) / 180) * Math.hypot(b[0] - a[0], b[2] - a[2]) + 1e-9);
+    }
+    const ramps = world.settlements.flatMap(s => buildSettlementTerrain(world, s).ramps);
+    expect(ramps.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('plants forests only on forest tiles, off roads, inside the tile and away from buildings', () => {
+    const trees = forestInstances(world, forests), roads = roadTiles(world);
+    expect(trees.length).toBeGreaterThan(variant === '19' ? 20 : 40);
+    const buildings = ['Landmark_Lighthouse', 'Building_Workshop', 'Dock_Entry'].map(n => footprint(n, 5).points);
+    for (const tree of trees) {
+      const tile = land.get(hexKey(tree.tile))!;
+      expect(tile.terrain).toBe('forest');
+      expect(roads.has(`${tree.islandId}:${hexKey(tree.tile)}`)).toBe(false);
+      const [cx, cz] = hexToWorld(tile, world.size);
+      expect(Math.hypot(tree.position[0] - cx, tree.position[2] - cz)).toBeLessThan(0.7);
+      if (tree.islandId === 'foundations') for (const fp of buildings) for (const p of fp) {
+        expect(Math.hypot(tree.position[0] - p[0], tree.position[2] - p[1])).toBeGreaterThan(0.45);
+      }
+    }
+  });
+
+  it('puts rocks, foam and shallows only on water, never on land or the dock and bridge edges', () => {
+    for (const rock of coastRocks(world)) expect(land.has(hexKey(worldToHex(rock.position[0], rock.position[2], world.size)))).toBe(false);
+    expect(coastFoam(world).length).toBe(world.settlements.flatMap(s => buildSettlementTerrain(world, s).walls).filter(w => w.kind === 'coast').length);
+    for (const h of shallowHexes(world, 1)) expect(land.has(hexKey(h))).toBe(false);
+  });
+});
+
+describe('scale prototype bridges', () => {
+  it('span one water hex at 19 tiles and two at 37', () => {
+    for (const variant of SCALE_VARIANTS) {
+      const { world } = scalePrototypes[variant];
+      for (const b of world.bridges) {
+        const [ax, az] = portPoint(world, b.from), [bx, bz] = portPoint(world, b.to);
+        expect(Math.hypot(bx - ax, bz - az)).toBeCloseTo((variant === '19' ? 1 : 2) * Math.sqrt(3) * world.size, 9);
+      }
+    }
+  });
+});

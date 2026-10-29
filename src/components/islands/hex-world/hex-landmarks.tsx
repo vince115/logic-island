@@ -72,9 +72,14 @@ const pieces: Record<string, { at: Axial; node: React.ReactNode; offset?: [numbe
   ],
 };
 
+// `pieces` use D.2a coordinates; a settlement centered elsewhere (the scale prototype) shifts them along.
+const D2A_CENTERS: Record<string, Axial> = { foundations: { q: 0, r: 0 }, structures: { q: 4, r: -4 }, algorithms: { q: 8, r: -4 } };
+
 export function HexLandmarks({world,settlement}:{world:HexWorld;settlement:HexSettlement}) {
+  const base = D2A_CENTERS[settlement.islandId] ?? settlement.center;
   return <group>{(pieces[settlement.islandId] ?? []).map(({at, node, offset = [0, 0]}, i) => {
-    const tile = settlement.tiles.find(t => t.q === at.q && t.r === at.r);
+    const q = at.q - base.q + settlement.center.q, r = at.r - base.r + settlement.center.r;
+    const tile = settlement.tiles.find(t => t.q === q && t.r === r);
     if (!tile) return null;
     const [x, z] = hexToWorld(tile, world.size);
     return <group key={i} position={[x + offset[0], BASE_TOP + tileHeight(tile), z + offset[1]]}>{node}</group>;

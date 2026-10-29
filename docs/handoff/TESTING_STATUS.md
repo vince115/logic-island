@@ -10,6 +10,18 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## 島嶼尺度原型實測（2026-10-29，分支 `phase-d/basics-glb`，未 commit）
+
+| 檢查 | 結果 |
+|---|---|
+| ESLint／TypeScript | 都是 exit 0 |
+| Vitest | 9 files，115 passed／6 skipped；新增 `tests/hex-scale.test.ts` 13 項 |
+| Next Build | 成功，新增 `/islands/hex/scale/19`、`/islands/hex/scale/37` |
+| E2E `hex-scale.spec.ts`＋`hex-world.spec.ts`＋`islands.spec.ts` | 44 項，重複 3 次 132/132；`hex-scale` 在 37 格手機版略過碼頭點擊（P1-18） |
+| E2E 全套（單次） | 62 passed／4 failed：3 個既有 player（P1-11）＋1 個 `islands.spec` 手機版偶發失敗；單獨重複 5 次 70/70（P1-19） |
+| 效能（原型內建 `canvas.__hexPerf()`） | 19 格：207 draw call／35k 三角形；37 格：241／50k（含陰影） |
+| 受保護檔案 | D.0／D.1 檔案、正式 `/islands`、`camera-controller.tsx` 與 `c14e975` 無差異；保全庫 81/81 SHA 相符 |
+
 ## Phase D.2b 第二階段實測（2026-10-29，分支 `phase-d/basics-glb`，未 commit）
 
 | 檢查 | 結果 |

@@ -82,7 +82,7 @@ describe('D.2a hex world layout', () => {
     for (const road of roads) {
       const settlement = hexWorld.settlements.find(s => s.islandId === road.islandId)!;
       close(road.points[0], hexToWorld(settlement.center, R));
-      close(road.points.at(-1)!, portPoint(hexWorld, road.port));
+      close(road.points.at(-1)!, portPoint(hexWorld, road.port!));
     }
   });
 

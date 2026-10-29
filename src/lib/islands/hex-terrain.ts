@@ -36,7 +36,7 @@ export interface SettlementTerrain { islandId: string; triangles: TerrainTriangl
 
 const faceColors: Record<HexTerrain, [PaletteKey, PaletteKey]> = {
   grass: ['grass', 'grassEdge'], meadow: ['grass', 'grassEdge'], plaza: ['path', 'grassEdge'],
-  shore: ['path', 'cliffTop'], sand: ['path', 'cliffTop'], stone: ['cliffTop', 'cliff'],
+  shore: ['path', 'cliffTop'], sand: ['path', 'cliffTop'], stone: ['cliffTop', 'cliff'], forest: ['grassEdge', 'grass'],
 };
 export const tileTop = (tile: HexTile) => LAND_TOP + tileHeight(tile);
 
@@ -147,8 +147,8 @@ export function roadProfiles(world: HexWorld): RoadProfile[] {
       else if (tileTop(to) > tileTop(from) + EPSILON) { const r = rampFor(world, to, from, ((edge + 3) % 6) as HexEdge); points.push(r.to, r.from); }
       points.push(at(to));
     }
-    const last = tiles.at(-1), [px, pz] = road.points.at(-1)!;
-    if (last) points.push([px, tileTop(last), pz]);
+    const last = tiles.at(-1);
+    if (last && road.port) { const [px, pz] = road.points.at(-1)!; points.push([px, tileTop(last), pz]); }
     return { islandId: road.islandId, routeId: road.routeId, points };
   });
 }
