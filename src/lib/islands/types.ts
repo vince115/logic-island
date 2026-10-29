@@ -3,6 +3,23 @@ import type { Course } from '@/content/courses';
 export type Vec3 = [number, number, number];
 export type IslandModelId = 'beacon-workshop' | 'data-harbor' | 'algorithm-observatory';
 export interface IslandBounds { min: Vec3; max: Vec3 }
+export type GlbAssetId = 'basics-island-v2.1';
+/** A target is a clickable node with meshes; an anchor only positions an HTML label. */
+export type GlbNodeKind = 'target' | 'anchor';
+/** Keyed by node name: one interaction_id can belong to both a target and its anchor. */
+export interface GlbSemanticNode { node: string; kind: GlbNodeKind; role: string; interactionId: string }
+export interface GlbAsset {
+  source: 'glb';
+  url: `/models/${string}.glb`;
+  /** Tracked here because the GLB root asset_id was not bumped for v2.1. */
+  version: string;
+  sha256: string;
+  bytes: number;
+  root: string;
+  scale: number;
+  fallback: IslandModelId;
+  nodes: readonly GlbSemanticNode[];
+}
 export interface IslandDefinition {
   id: string;
   name: string;
