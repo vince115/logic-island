@@ -61,8 +61,10 @@ const f19 = tiles(A(0, 0), F19, t => {
 /* ---------------------------------------------------------------- 37 tiles */
 
 const F37 = shape(3, [A(0, 3), A(-1, 3), A(3, -1)], [A(0, -4), A(1, -4), A(-4, 1)]);
+// Scale refinement: gentler 0.3 terraces (foot, slope, peak) instead of 0.45 steps, so hills read as
+// rolling ground and the lighthouse path climbs in matching steps.
 const F37_HILLS: Record<string, number> = {
-  '-2,0': .45, '-1,-1': .45, '-2,1': .45, '-2,-1': .9, '-3,0': .9, '-3,1': .9, '-1,-2': .9, '-4,1': 1.35,
+  '-2,0': .3, '-1,-1': .3, '-2,1': .3, '-2,-1': .6, '-3,0': .6, '-3,1': .6, '-1,-2': .6, '-4,1': .9,
 };
 // (-1, 2) stays a clearing: the dock road runs through it to the south-west cove.
 const F37_FOREST = [A(-3, 2), A(-3, 3), A(-2, 2), A(1, -3), A(2, -3)];
@@ -73,7 +75,7 @@ const f37 = tiles(A(0, 0), F37, t => {
   if (['-2,3', '0,2', '1,2'].includes(k)) return { terrain: 'shore', height: -.55 };
   if (['0,-4', '1,-4', '0,-3'].includes(k)) return { terrain: 'grass', height: .6 };
   if (k === '0,-2') return { terrain: 'grass', height: .3 };
-  if (k in F37_HILLS) return { terrain: F37_HILLS[k] >= 1.3 ? 'stone' : 'grass', height: F37_HILLS[k] };
+  if (k in F37_HILLS) return { terrain: F37_HILLS[k] >= .9 ? 'stone' : 'grass', height: F37_HILLS[k] };
   if (inList(F37_FOREST)(t)) return { terrain: 'forest' };
   return { terrain: ['1,0', '1,1', '2,0', '2,1', '3,0'].includes(k) ? 'meadow' : 'grass' };
 });

@@ -10,6 +10,17 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## D.2b Scale Refinement 實測（37 格，2026-10-29，未 commit）
+
+| 檢查 | 結果 |
+|---|---|
+| ESLint／TypeScript | 都是 exit 0 |
+| Vitest | 119 passed／6 skipped |
+| Next Build | 成功 |
+| E2E `hex-scale`＋`hex-world`＋`islands` | 重複 3 次 150/150；沒有略過任何項目（37 格手機版碼頭已可點） |
+| E2E 全套（單次） | 69 passed／3 failed（既有 player，P1-11） |
+| 效能（同時段 A/B） | 37 格 draw call 241 → 80（聚焦 219 → 75）；每幀時間桌機約少 40～50%、手機模擬（4× CPU）約少 50%；rAF 幀率在 headless 不穩定，不列為依據（P1-20） |
+
 ## 島嶼尺度原型實測（2026-10-29，分支 `phase-d/basics-glb`，未 commit）
 
 | 檢查 | 結果 |

@@ -13,6 +13,8 @@ import {
   SCALE_VARIANTS, coastFoam, coastRocks, forestInstances, roadTiles, scalePrototypes, shallowHexes,
 } from '@/lib/islands/hex-scale-prototype';
 import { islands } from '@/lib/islands/data';
+import { HIT_PROXY_MIN_WORLD, hitProxyBox } from '@/lib/islands/interaction-targets';
+import { ROAD, bridgeParts, roadParts } from '@/lib/islands/hex-route-parts';
 
 const asset = glbAssets['basics-island-v2.1'];
 let parts: GlbPart[];
@@ -122,6 +124,73 @@ describe('scale prototype bridges', () => {
         const [ax, az] = portPoint(world, b.from), [bx, bz] = portPoint(world, b.to);
         expect(Math.hypot(bx - ax, bz - az)).toBeCloseTo((variant === '19' ? 1 : 2) * Math.sqrt(3) * world.size, 9);
       }
+    }
+  });
+});
+
+describe('37 tile refinement: hit proxies', () => {
+  const { world, glb } = scalePrototypes['37'];
+  const proxies = () => ['Landmark_Lighthouse', 'Building_Workshop', 'Dock_Entry'].map(node => {
+    const part = parts.find(p => p.node === node)!, box = hitProxyBox(part.bounds, asset.scale);
+    const pose = placementPose(world, 'foundations', glb[0].placements.find(p => p.node === node)!);
+    const cos = Math.cos(pose.rotation), sin = Math.sin(pose.rotation), s = asset.scale;
+    const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([i, j]) => {
+      const x = box.center[0] + i * box.size[0] / 2, z = box.center[2] + j * box.size[2] / 2;
+      return [pose.position[0] + s * (x * cos + z * sin), pose.position[2] + s * (-x * sin + z * cos)];
+    });
+    return { node, part, box, corners };
+  });
+
+  it('enclose each target and are at least the minimum tap size on the map', () => {
+    for (const { node, part, box } of proxies()) {
+      for (const i of [0, 1, 2]) {
+        expect(box.center[i] - box.size[i] / 2, `${node} min[${i}]`).toBeLessThanOrEqual(part.bounds.min[i] + 1e-9);
+        expect(box.center[i] + box.size[i] / 2, `${node} max[${i}]`).toBeGreaterThanOrEqual(part.bounds.max[i] - 1e-9);
+      }
+      expect(box.size[0] * asset.scale).toBeGreaterThanOrEqual(HIT_PROXY_MIN_WORLD - 1e-9);
+      expect(box.size[2] * asset.scale).toBeGreaterThanOrEqual(HIT_PROXY_MIN_WORLD - 1e-9);
+    }
+    // The dock is the target that needed it: its own footprint is smaller than the minimum.
+    const dock = parts.find(p => p.node === 'Dock_Entry')!;
+    expect((dock.bounds.max[0] - dock.bounds.min[0]) * asset.scale).toBeLessThan(HIT_PROXY_MIN_WORLD);
+  });
+
+  it('do not overlap each other, so a tap always resolves to one target', () => {
+    const boxes = proxies().map(p => ({ node: p.node, minX: Math.min(...p.corners.map(c => c[0])), maxX: Math.max(...p.corners.map(c => c[0])),
+      minZ: Math.min(...p.corners.map(c => c[1])), maxZ: Math.max(...p.corners.map(c => c[1])) }));
+    for (const [i, a] of boxes.entries()) for (const b of boxes.slice(i + 1)) {
+      expect(a.minX < b.maxX && b.minX < a.maxX && a.minZ < b.maxZ && b.minZ < a.maxZ, `${a.node} vs ${b.node}`).toBe(false);
+    }
+  });
+});
+
+describe('37 tile refinement: merged route parts', () => {
+  const { world } = scalePrototypes['37'];
+
+  it('describe one strip and one joint per road segment, sloped like the road profile', () => {
+    const { boxes, joints } = roadParts(world);
+    const segments = roadProfiles(world).reduce((n, r) => n + r.points.length - 1, 0);
+    expect(boxes).toHaveLength(segments);
+    expect(joints).toHaveLength(segments);
+    for (const b of boxes) {
+      expect(b.size[1]).toBe(ROAD.thickness);
+      expect(Math.abs(b.pitch)).toBeLessThan((35 * Math.PI) / 180);
+    }
+  });
+
+  it('keep every bridge part inside its bridge corridor', () => {
+    const { boxes, arches } = bridgeParts(world);
+    const planks = world.bridges.filter(b => b.kind === 'wood').reduce((n, b) => {
+      const [ax, az] = portPoint(world, b.from), [bx, bz] = portPoint(world, b.to);
+      return n + Math.round(Math.hypot(bx - ax, bz - az) / .2);
+    }, 0);
+    // planks + one deck per stone bridge + two rails and their posts per bridge
+    const expected = planks + world.bridges.reduce((n, b) => n + (b.kind === 'stone' ? 1 + 2 + 14 : 2 + 10), 0);
+    expect(boxes).toHaveLength(expected);
+    expect(arches).toHaveLength(world.bridges.filter(b => b.kind === 'stone').length);
+    for (const box of boxes) {
+      const near = world.bridges.some(b => segDist(portPoint(world, b.from), portPoint(world, b.to), [box.position[0], box.position[2]]) < 0.5);
+      expect(near).toBe(true);
     }
   });
 });
