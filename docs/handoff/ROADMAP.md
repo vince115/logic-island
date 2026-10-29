@@ -105,6 +105,7 @@ C.1 → D → E → F → G          （Coding Archipelago）
 ### 架構原則
 
 - 以 TypeScript 模組＋`satisfies` 型別檢查為主，必要時再輸出 JSON；不為此引入新的 schema 套件，除非另行批准。
+- 場景的 12 個模組（地形、海洋、高低差、植被、建築、道路、橋樑、地標、NPC、任務點、特效、互動）規劃為本 schema 的 `scene` 區塊，不另立第二套 schema，見 [SCENE_MODULES](SCENE_MODULES.md)（規劃，未批准）。
 - 位置與邊界由資料計算（延續 `getWorldBounds`／`getFocusBounds`），鏡頭與渲染元件不依島數改寫。
 - 每座島的 schema 需有單元測試：課程 slug 存在、interaction_id 能在對應 GLB 中找到、關聯不指向不存在的島。
 - 目前只有三座島有定義；其餘島嶼的名稱與主題待產品規劃，不在 E 中預先虛構內容。
