@@ -10,7 +10,7 @@ import { placementPose } from '@/lib/islands/hex-buildings';
 import { buildSettlementTerrain, roadProfiles, tileTop } from '@/lib/islands/hex-terrain';
 import { WATER_LEVEL, portPoint, validateHexWorld } from '@/lib/islands/hex-world';
 import {
-  SCALE_VARIANTS, coastFoam, coastRocks, forestInstances, roadTiles, scalePrototypes, shallowHexes,
+  SCALE_VARIANTS, WORKSHOP_DOOR, coastFoam, coastRocks, forestInstances, roadTiles, scalePrototypes, shallowHexes,
 } from '@/lib/islands/hex-scale-prototype';
 import { islands } from '@/lib/islands/data';
 import { HIT_PROXY_MIN_WORLD, hitProxyBox } from '@/lib/islands/interaction-targets';
@@ -72,7 +72,10 @@ describe.each(SCALE_VARIANTS)('scale prototype %s', variant => {
         const tile = foundations.tiles.find(t => hexKey(t) === hexKey(worldToHex(x, z, world.size)));
         expect(tile, `${node} ${x.toFixed(2)},${z.toFixed(2)}`).toBeDefined();
         expect(tileTop(tile!)).toBeCloseTo(base, 9);
-        for (const s of segments()) expect(segDist(s.a, s.b, [x, z]), `${node} vs ${s.id}`).toBeGreaterThan(0.3);
+        // The workshop's own road ends at its door; that approach is checked in its own test below.
+        for (const s of segments().filter(s => !(node === 'Building_Workshop' && s.id === 'foundations-workshop'))) {
+          expect(segDist(s.a, s.b, [x, z]), `${node} vs ${s.id}`).toBeGreaterThan(0.3);
+        }
       }
     }
     const dock = footprint('Dock_Entry', 5);
@@ -84,7 +87,8 @@ describe.each(SCALE_VARIANTS)('scale prototype %s', variant => {
   it('reaches the dock, the lighthouse lookout and both bridges by road, with ramps on every height change', () => {
     const profiles = roadProfiles(world);
     expect(profiles.filter(r => r.islandId === 'foundations').map(r => r.routeId).sort())
-      .toEqual(['foundations-dock', 'foundations-lighthouse', 'foundations-structures']);
+      .toEqual(variant === '37' ? ['foundations-dock', 'foundations-lighthouse', 'foundations-structures', 'foundations-workshop']
+        : ['foundations-dock', 'foundations-lighthouse', 'foundations-structures']);
     for (const r of profiles) for (let i = 1; i < r.points.length; i++) {
       const [a, b] = [r.points[i - 1], r.points[i]];
       expect(Math.abs(b[1] - a[1])).toBeLessThanOrEqual(Math.tan((35 * Math.PI) / 180) * Math.hypot(b[0] - a[0], b[2] - a[2]) + 1e-9);
@@ -192,5 +196,110 @@ describe('37 tile refinement: merged route parts', () => {
       const near = world.bridges.some(b => segDist(portPoint(world, b.from), portPoint(world, b.to), [box.position[0], box.position[2]]) < 0.5);
       expect(near).toBe(true);
     }
+  });
+});
+
+describe('37 tile workshop entrance road', () => {
+  const { world, glb } = scalePrototypes['37'];
+  const layout = glb[0], foundations = world.settlements[0];
+  const pose = placementPose(world, 'foundations', layout.placements.find(p => p.node === 'Building_Workshop')!);
+  const s = asset.scale;
+  // Map point -> Building_Workshop local GLB units (the workshop is not rotated).
+  const local = ([x, z]: number[]) => [(x - pose.position[0]) / s, (z - pose.position[2]) / s];
+  const road = () => roadProfiles(world).find(r => r.routeId === 'foundations-workshop')!;
+  const mesh = () => {
+    let found: Object3D | undefined;
+    parts.find(p => p.node === 'Building_Workshop')!.object.traverse(o => { if (o.name === 'Workshop_Architecture') found = o; });
+    return (found as unknown as { geometry: { attributes: Record<string, { count: number; getX: (i: number) => number; getY: (i: number) => number; getZ: (i: number) => number }> } }).geometry.attributes;
+  };
+
+  it('uses the real door: +z wall, Anchor_Workshop x/z, between the porch posts', () => {
+    const anchor = parts.find(p => p.node === 'Building_Workshop')!.anchor!.offset;
+    expect(anchor[0]).toBeCloseTo(WORKSHOP_DOOR.x, 5);
+    expect(anchor[2]).toBeCloseTo(WORKSHOP_DOOR.z, 5);
+    const { position, normal } = mesh();
+    // The front (+z) wall sits at z ≈ 1.2; posts below 0.5 high stand in front of it.
+    const posts: number[] = [];
+    for (let i = 0; i < position.count; i++) if (position.getY(i) < .5 && position.getZ(i) > 1.35) posts.push(position.getX(i));
+    const left = posts.filter(x => x < WORKSHOP_DOOR.x), right = posts.filter(x => x > WORKSHOP_DOOR.x);
+    expect(left.length && right.length).toBeTruthy();
+    // The road (0.5 wide on the map) fits between the inner faces of the two posts.
+    expect(Math.min(...right) - Math.max(...left)).toBeGreaterThan(ROAD.width / s);
+    let frontWall = -Infinity;
+    for (let i = 0; i < position.count; i++) if (normal.getZ(i) > .9 && position.getY(i) < 1.6 && position.getY(i) > .5) frontWall = Math.max(frontWall, position.getZ(i));
+    expect(frontWall).toBeLessThan(WORKSHOP_DOOR.z);
+  });
+
+  it('runs plaza -> south -> east -> straight north between the posts to the door, with no height gap', () => {
+    const points = road().points;
+    const [cx, cz] = hexToWorld(foundations.center, world.size);
+    expect(points[0][0]).toBeCloseTo(cx, 9);
+    expect(points[0][2]).toBeCloseTo(cz, 9);
+    const end = points.at(-1)!, front = points.at(-2)!;
+    const [ex, ez] = local([end[0], end[2]]), [fx, fz] = local([front[0], front[2]]);
+    expect(ex).toBeCloseTo(WORKSHOP_DOOR.x, 6);
+    expect(ez).toBeCloseTo(WORKSHOP_DOOR.z, 6);
+    expect(fx).toBeCloseTo(WORKSHOP_DOOR.x, 6);
+    expect(fz).toBeGreaterThan(1.83);
+    // Every road point is on the workshop's ground level: the road meets the door step without a drop.
+    for (const p of points) expect(p[1]).toBeCloseTo(pose.position[1], 9);
+  });
+
+  it('keeps every road on land, off forest, and clear of buildings except at its own destination', () => {
+    const footprints = Object.fromEntries(['Landmark_Lighthouse', 'Building_Workshop'].map(node => {
+      const part = parts.find(p => p.node === node)!, pl = placementPose(world, 'foundations', layout.placements.find(p => p.node === node)!);
+      return [node, { part, pl }];
+    }));
+    const inside = (node: string, x: number, z: number, margin: number) => {
+      const { part, pl } = footprints[node];
+      const lx = (x - pl.position[0]) / s, lz = (z - pl.position[2]) / s;
+      return lx > part.bounds.min[0] - margin && lx < part.bounds.max[0] + margin && lz > part.bounds.min[2] - margin && lz < part.bounds.max[2] + margin;
+    };
+    for (const r of roadProfiles(world).filter(r => r.islandId === 'foundations')) {
+      for (let i = 1; i < r.points.length; i++) {
+        const [a, b] = [r.points[i - 1], r.points[i]], approach = r.routeId === 'foundations-workshop' && i === r.points.length - 1;
+        // Bridge and dock roads end exactly on a coast edge; stop just short of that shared boundary.
+        const toEdge = r.routeId !== 'foundations-workshop' && r.routeId !== 'foundations-lighthouse' && i === r.points.length - 1;
+        for (let k = 0; k <= (toEdge ? 19 : 20); k++) {
+          const x = a[0] + (b[0] - a[0]) * k / 20, z = a[2] + (b[2] - a[2]) * k / 20;
+          const tile = foundations.tiles.find(t => hexKey(t) === hexKey(worldToHex(x, z, world.size)));
+          expect(tile, `${r.routeId} on land at ${x.toFixed(2)},${z.toFixed(2)}`).toBeDefined();
+          expect(tile!.terrain).not.toBe('forest');
+          expect(inside('Landmark_Lighthouse', x, z, .3 / s), `${r.routeId} vs lighthouse`).toBe(false);
+          // The final approach is meant to enter the workshop's porch; every other stretch stays clear.
+          if (!approach) expect(inside('Building_Workshop', x, z, .3 / s), `${r.routeId} vs workshop`).toBe(false);
+          else expect(local([x, z])[1]).toBeGreaterThanOrEqual(WORKSHOP_DOOR.z - 1e-9);
+        }
+      }
+    }
+  });
+
+  it('does not overlap or cross other roads: routes only meet at the plaza', () => {
+    const segs = roadProfiles(world).filter(r => r.islandId === 'foundations')
+      .flatMap(r => r.points.slice(1).map((p, i) => ({ id: r.routeId, a: [r.points[i][0], r.points[i][2]], b: [p[0], p[2]] })));
+    const cross = (p: number[], q: number[], r: number[], t: number[]) => {
+      const d = (a: number[], b: number[], c: number[]) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+      return d(p, q, r) * d(p, q, t) < -1e-9 && d(r, t, p) * d(r, t, q) < -1e-9;
+    };
+    for (const [i, u] of segs.entries()) for (const v of segs.slice(i + 1)) {
+      if (u.id === v.id) continue;
+      expect(cross(u.a, u.b, v.a, v.b), `${u.id} crosses ${v.id}`).toBe(false);
+      // Apart from the shared plaza start, no stretch of two different roads runs within a road width.
+      const sharesStart = [u.a, u.b].some(p => [v.a, v.b].some(q => Math.hypot(p[0] - q[0], p[1] - q[1]) < 1e-9));
+      if (!sharesStart) for (let k = 0; k <= 10; k++) {
+        const p = [u.a[0] + (u.b[0] - u.a[0]) * k / 10, u.a[1] + (u.b[1] - u.a[1]) * k / 10];
+        expect(segDist(v.a, v.b, p), `${u.id} runs along ${v.id}`).toBeGreaterThan(ROAD.width);
+      }
+    }
+  });
+
+  it('rejects a workshop road through non-adjacent tiles or off level land', () => {
+    const broken = structuredClone(world);
+    const spur = broken.settlements[0].spurs!.find(x => x.id === 'foundations-workshop')!;
+    spur.via = [{ q: 0, r: 2 }];
+    spur.approach = [[0, 6]];
+    const problems = validateHexWorld(broken, islands.map(i => i.id));
+    expect(problems.some(p => p.includes('is not adjacent'))).toBe(true);
+    expect(problems.some(p => p.includes('approach leaves level land'))).toBe(true);
   });
 });

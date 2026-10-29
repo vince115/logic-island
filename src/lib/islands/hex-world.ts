@@ -1,5 +1,5 @@
 import {
-  HEX_EDGES, addAxial, hexDirection, hexDistance, hexEdgeMidpoint, hexKey, hexNeighbor, hexSpiral, hexToWorld, oppositeEdge,
+  HEX_EDGES, addAxial, hexDirection, hexDistance, hexEdgeMidpoint, hexKey, hexNeighbor, hexSpiral, hexToWorld, oppositeEdge, worldToHex,
   type Axial, type HexEdge,
 } from './hex';
 import type { IslandDefinition } from './types';
@@ -7,7 +7,13 @@ import type { IslandDefinition } from './types';
 export type HexTerrain = 'plaza' | 'grass' | 'meadow' | 'sand' | 'stone' | 'shore' | 'forest';
 export interface HexTile extends Axial { terrain: HexTerrain; /** Raises the tile top; 0 is the base land height. */ height?: number }
 /** A road from the plaza without a bridge: to a water-facing edge (a dock), or with no edge to a tile center. */
-export interface HexSpur { id: string; tile: Axial; edge?: HexEdge }
+export interface HexSpur {
+  id: string; tile: Axial; edge?: HexEdge;
+  /** Explicit tiles between the plaza and `tile`, when the shortest path would cross a building. */
+  via?: Axial[];
+  /** Map points (x, z) after `tile`, all on level land: e.g. straight up to a door between porch posts. */
+  approach?: [number, number][];
+}
 /**
  * One island as a cluster of tiles. The tile list may have any size or shape, as long as it is contiguous.
  * `surface: 'continuous'` merges the tiles into one terrain mesh with cliffs and ramps (D.2b); otherwise
@@ -91,15 +97,17 @@ export function settlementPath(settlement: HexSettlement, target: Axial, avoidFo
 
 /** Road polylines (world x/z): settlement center → port tile → port edge midpoint, per bridge end and spur. */
 export function settlementRoads(world: HexWorld) {
-  const road = (routeId: string, islandId: string, tile: Axial, edge?: HexEdge, bridgeId?: string) => {
+  const road = (routeId: string, islandId: string, tile: Axial, edge?: HexEdge, bridgeId?: string, spur?: HexSpur) => {
     const settlement = world.settlements.find(s => s.islandId === islandId)!;
-    const tiles = settlementPath(settlement, tile);
+    const tiles = spur?.via ? [settlement.center, ...spur.via, tile] : settlementPath(settlement, tile);
     const port: HexPort | undefined = edge === undefined ? undefined : { islandId, tile, edge };
-    return { islandId, routeId, bridgeId, port, tiles, points: [...tiles.map(t => hexToWorld(t, world.size)), ...(port ? [portPoint(world, port)] : [])] };
+    const approach = spur?.approach ?? [];
+    return { islandId, routeId, bridgeId, port, approach, tiles,
+      points: [...tiles.map(t => hexToWorld(t, world.size)), ...(port ? [portPoint(world, port)] : []), ...approach] };
   };
   return [
     ...world.bridges.flatMap(bridge => [bridge.from, bridge.to].map(port => road(bridge.id, port.islandId, port.tile, port.edge, bridge.id))),
-    ...world.settlements.flatMap(s => (s.spurs ?? []).map(spur => road(spur.id, s.islandId, spur.tile, spur.edge))),
+    ...world.settlements.flatMap(s => (s.spurs ?? []).map(spur => road(spur.id, s.islandId, spur.tile, spur.edge, undefined, spur))),
   ];
 }
 
@@ -132,6 +140,27 @@ export function validateHexWorld(world: HexWorld, islandIds: readonly string[]):
   for (const settlement of world.settlements) for (const spur of settlement.spurs ?? []) {
     if (owner.get(hexKey(spur.tile)) !== settlement.islandId) problems.push(`${spur.id}: ${hexKey(spur.tile)} is not a ${settlement.islandId} tile`);
     if (spur.edge !== undefined && owner.has(hexKey(hexNeighbor(spur.tile, spur.edge)))) problems.push(`${spur.id}: edge ${spur.edge} does not face water`);
+    if (spur.edge !== undefined && spur.approach) problems.push(`${spur.id}: ends at an edge and at approach points`);
+    const chain = spur.via ? [settlement.center, ...spur.via, spur.tile] : [];
+    for (const [i, hex] of chain.entries()) {
+      const tile = settlement.tiles.find(t => at(t, hex));
+      if (!tile) problems.push(`${spur.id}: via ${hexKey(hex)} is not a ${settlement.islandId} tile`);
+      else if (tile.terrain === 'forest') problems.push(`${spur.id}: via ${hexKey(hex)} is forest`);
+      if (i > 0 && hexDistance(chain[i - 1], hex) !== 1) problems.push(`${spur.id}: via ${hexKey(chain[i - 1])} → ${hexKey(hex)} is not adjacent`);
+    }
+    // Approach points continue on the level of `tile`, so the road needs no ramp to reach them.
+    const level = tileHeight(settlement.tiles.find(t => at(t, spur.tile)) ?? { q: 0, r: 0, terrain: 'grass' });
+    let previous = hexToWorld(spur.tile, world.size);
+    for (const point of spur.approach ?? []) {
+      for (let k = 1; k <= 10; k++) {
+        const x = previous[0] + (point[0] - previous[0]) * k / 10, z = previous[1] + (point[1] - previous[1]) * k / 10;
+        const under = settlement.tiles.find(t => at(t, worldToHex(x, z, world.size)));
+        if (!under || under.terrain === 'forest' || Math.abs(tileHeight(under) - level) > 1e-9) {
+          problems.push(`${spur.id}: approach leaves level land near ${x.toFixed(2)},${z.toFixed(2)}`); break;
+        }
+      }
+      previous = point;
+    }
   }
   const bridgeIds = world.bridges.map(b => b.id);
   if (new Set(bridgeIds).size !== bridgeIds.length) problems.push('duplicate bridge ids');

@@ -14,6 +14,7 @@
 | [2026-10-29-phase-d2b-terrain.md](2026-10-29-phase-d2b-terrain.md) | D.2b 第二階段：基礎程式島連續六角地形、跨格工坊、低岸碼頭、手機名牌 |
 | [2026-10-29-island-scale-prototype.md](2026-10-29-island-scale-prototype.md) | 島嶼尺度與世界構圖原型：19／37 格配置、比較表、效能拆解、待決事項 |
 | [2026-10-29-d2b-scale-refinement.md](2026-10-29-d2b-scale-refinement.md) | 37 格 Scale Refinement：碰撞代理、HTML 地點入口、道路與橋樑合併、前後效能實測 |
+| [2026-10-29-d2b-workshop-road.md](2026-10-29-d2b-workshop-road.md) | 分功能 commit 紀錄；工坊入口方向（GLB 實測）、工坊位置調整、入口道路與道路網驗證 |
 | [../docs/handoff/SCENE_MODULES.md](../docs/handoff/SCENE_MODULES.md) | 2026-10-29 模組化 3D 場景架構規劃（12 模組、藍圖、驗證、D／E／F 分層；只規劃） |
 
 ## 撰寫規則

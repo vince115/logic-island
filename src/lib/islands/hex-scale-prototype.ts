@@ -2,6 +2,7 @@ import {
   HEX_EDGES, addAxial, hexCorner, hexDistance, hexEdgeMidpoint, hexKey, hexNeighbor, hexSpiral, hexToWorld,
   type Axial,
 } from './hex';
+import { glbAssets } from './asset-registry';
 import type { HexGlbSettlement } from './hex-buildings';
 import { tileTop } from './hex-terrain';
 import { WATER_LEVEL, settlementRoads, type HexSettlement, type HexTerrain, type HexTile, type HexWorld } from './hex-world';
@@ -113,13 +114,29 @@ function zones(settlement: HexSettlement, buildingTiles: Axial[]): ScalePrototyp
   };
 }
 
+/**
+ * The v2.1 workshop door, in Building_Workshop local GLB units: the door panel spans x 0.01–0.59 on the
+ * +z wall (Anchor_Workshop sits at x 0.30, z 1.55), between porch posts at x ≈ -0.45 and 1.05.
+ * Tests check these numbers against the GLB itself.
+ */
+export const WORKSHOP_DOOR = { x: 0.3, z: 1.55, approach: 1.5 } as const;
+/** Map point of the workshop door, and of the spot straight in front of it, for a workshop at `pivot`. */
+export function workshopDoor(pivot: [number, number], scale = glbAssets['basics-island-v2.1'].scale) {
+  const door: [number, number] = [pivot[0] + WORKSHOP_DOOR.x * scale, pivot[1] + WORKSHOP_DOOR.z * scale];
+  return { door, front: [door[0], door[1] + WORKSHOP_DOOR.approach * scale] as [number, number] };
+}
+
 function prototype(variant: ScaleVariant): ScalePrototype {
   const big = variant === '37';
+  // 37 tiles, workshop road: the workshop stands across (1, 0) and (2, 0) facing +z; the road leaves the
+  // plaza south, turns east across the meadow and runs straight north between the porch posts to the door.
+  const workshop = workshopDoor(hexEdgeMidpoint(A(1, 0), 0, 1.25));
   const foundations: HexSettlement = {
     islandId: 'foundations', center: A(0, 0), surface: 'continuous', tiles: big ? f37 : f19,
     // A lookout road climbs to the tile below the lighthouse; the dock road drops to the low shore.
     spurs: big
-      ? [{ id: 'foundations-dock', tile: A(-2, 3), edge: 5 }, { id: 'foundations-lighthouse', tile: A(0, -3) }]
+      ? [{ id: 'foundations-dock', tile: A(-2, 3), edge: 5 }, { id: 'foundations-lighthouse', tile: A(0, -3) },
+        { id: 'foundations-workshop', tile: A(1, 1), via: [A(0, 1)], approach: [workshop.front, workshop.door] }]
       : [{ id: 'foundations-dock', tile: A(1, 1), edge: 5 }, { id: 'foundations-lighthouse', tile: A(0, -2) }],
   };
   const sCenter = big ? A(8, -8) : A(6, -3), aCenter = big ? A(10, -2) : A(5, 3);
@@ -149,8 +166,8 @@ function prototype(variant: ScaleVariant): ScalePrototype {
     // Scale stays 0.6; the island grows around the buildings instead.
     placements: big ? [
       { node: 'Landmark_Lighthouse', tile: A(0, -4), offset: [0, -.15] },
-      // East of the plaza across (2, 1) and (2, 0), facing the open meadow.
-      { node: 'Building_Workshop', tile: A(2, 1), across: 2 },
+      // Across (1, 0) and (2, 0) east of the plaza, door facing the meadow so a road can reach it.
+      { node: 'Building_Workshop', tile: A(1, 0), across: 0 },
       { node: 'Dock_Entry', tile: A(-2, 3), edge: 5 },
     ] : [
       { node: 'Landmark_Lighthouse', tile: A(0, -3), offset: [0, -.15] },
@@ -163,7 +180,7 @@ function prototype(variant: ScaleVariant): ScalePrototype {
     { islandId: 'structures', tiles: shift(big ? S37_FOREST : S19_FOREST, sCenter), density: 4 },
     { islandId: 'algorithms', tiles: shift(big ? A37_FOREST : A19_FOREST, aCenter), density: 4 },
   ];
-  const buildingTiles = big ? [A(0, -4), A(2, 1), A(2, 0), A(-2, 3)] : [A(0, -3), A(-1, 1), A(-1, 0), A(1, 1)];
+  const buildingTiles = big ? [A(0, -4), A(1, 0), A(2, 0), A(-2, 3)] : [A(0, -3), A(-1, 1), A(-1, 0), A(1, 1)];
   return { variant, world, glb, forests, zones: zones(foundations, buildingTiles) };
 }
 

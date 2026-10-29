@@ -149,6 +149,8 @@ export function roadProfiles(world: HexWorld): RoadProfile[] {
     }
     const last = tiles.at(-1);
     if (last && road.port) { const [px, pz] = road.points.at(-1)!; points.push([px, tileTop(last), pz]); }
+    // Approach points stay on the last tile's level (validated by validateHexWorld).
+    if (last) for (const [x, z] of road.approach) points.push([x, tileTop(last), z]);
     return { islandId: road.islandId, routeId: road.routeId, points };
   });
 }
