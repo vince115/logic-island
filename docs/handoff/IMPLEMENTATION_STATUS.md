@@ -24,7 +24,7 @@
 | 共用播放器 | Implemented／Verified（jsdom）／Partial（瀏覽器） | `src/components/lab.tsx`；12 項 DOM 測試通過，實際 Web E2E 未跑 |
 | 深淺主題／響應式／可存取性 | Implemented／Partial | 原始碼存在，無目前瀏覽器／WCAG 完整驗收 |
 | Logic Islands（邏輯群島）原型 | Implemented／Partial／Blocked | `/islands`、三個 local geometry model；CSS 缺檔、型別與 lint 錯誤 |
-| GLB 正式載入與功能節點路由 | Not Started；規格 Planned | `asset-registry.ts` 只有 original-geometry；找不到 useGLTF／GLTFLoader／GLB URL |
+| GLB 正式載入與功能節點路由 | **Implemented／Verified（分支 `phase-d/basics-glb`，D.1）**：只有基礎程式島 | `glb-island-model.tsx`、`glb-contract.ts`；工坊→`/learn`，燈塔／碼頭顯示說明，Anchor 只放標籤；載入失敗或契約缺失回到原創幾何。尚未 merge main，真機未測 |
 | 原型整島 hover／click／聚焦 | Implemented、未實際驗證 | `island.tsx`／`camera-controller.tsx`；不是 GLB 子建物 click 整合 |
 | v2.1 獨立 GLB viewer 三地標 Raycast | 歷史報告 Verified | 外部 `Polish_Browser_Validation.json`；與正式 R3F 系統分離 |
 | 後端／登入／OJ／進度保存 | Not Started | 無對應 route／service／資料庫，不補猜產品計畫 |
@@ -39,7 +39,7 @@
 | Phase B | `LogicLab_3D_Art_Style_Guide.md`、`LogicLab_Basics_Island_Scene_Plan.md` | 兩文件存在且完整，後續模型依此製作 | Implemented（文件完成）；不表示所有模型與效能項目已達規格 |
 | Phase C | `basics-v2/` 完整模型、渲染與 GLB | 使用者於對話給「有條件通過」；0/0 Validator，歷史 viewer 成功 | 製作完成候選；有人工條件，不等於 Phase D 授權 |
 | Phase C.1 | **`basics-v2.1/` 實際已存在 BLEND、GLB、兩視圖、驗證與差異報告** | 本輪重新 Validator 0/0＋1 info；**2026-10-29 使用者正式批准 v2.1 為 Phase D 候選資產**（技術通過、視覺有條件接受） | Approved（有條件）；決議與後續美術項見 [ROADMAP](ROADMAP.md) |
-| Phase D | 正式網站沒有 Blender GLB 載入與子節點路由 | 實作計畫已提出，使用者尚未批准開始 | Planned／Blocked（批准門檻）；已安裝 R3F 不代表完成 D |
+| Phase D | D.0：runtime GLB、provenance、registry（`e4e7375`）；D.1：基礎程式島改用 GLB（分支 `phase-d/basics-glb`） | 2026-10-29 批准 D.0、D.1；D.0 已驗收；D.1 待驗收；D.2／D.3 未批准 | Partial；分支未 merge、未 push，見 [TESTING_STATUS](TESTING_STATUS.md) 的 D.1 結果 |
 | Phase E | Data-Driven Islands（schema 定義島嶼、GLB 引用、課程、互動、解鎖、關聯） | 無實作 | Planned；D 完成後才開始，見 [ROADMAP](ROADMAP.md) |
 | Phase F | RPG Learning System（NPC、任務、EXP、等級、徽章、解鎖） | 無實作 | Planned；依賴 E，進度層與 3D 層分離 |
 | Phase G | APCS Challenges（試煉島、中央島、跨島任務、完成紀錄） | 無實作 | Planned；依賴 F，判題 adapter 預留自動判題擴充，首版方式待決 |

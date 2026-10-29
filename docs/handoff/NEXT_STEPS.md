@@ -45,6 +45,8 @@
 
 ## 4. Phase D：只有明確批准後開始
 
+> 2026-10-29 更新：D.0、D.1 已批准並在分支 `phase-d/basics-glb` 完成；D.2（鏡頭／光照）與 D.3（效能、真機、最終驗收）仍需另外批准。以下為原始規劃要點。
+
 - 擴充 registry 的來源型別，保留原型或回退；新增GLB載入元件，而非改教材引擎。
 - 依實際選定模型包圍盒與Y up尺度更新bounds／鏡頭，不沿用原型較小的手填box導致裁切。
 - 映射穩定節點／interaction_id；Raycast從可見Mesh向父群組找語意；workshop→`/learn`、lighthouse／entry的行為需產品確認。

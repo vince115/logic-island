@@ -9,7 +9,7 @@ export const assetRegistry = {
 
 /**
  * Runtime GLBs derived by scripts/assets/derive-runtime-glb.mjs (provenance in docs/assets/).
- * Registered for Phase D.0 only: no island uses these until D.1 adds the loader and fallback.
+ * Islands opt in with `glbAssetId`; `fallback` geometry renders while loading and on failure.
  */
 export const glbAssets = {
   'basics-island-v2.1': {
@@ -22,12 +22,16 @@ export const glbAssets = {
     scale: 0.6,
     fallback: 'beacon-workshop',
     nodes: [
-      { node: 'Building_Workshop', kind: 'target', role: 'course_entry', interactionId: 'learn' },
-      { node: 'Landmark_Lighthouse', kind: 'target', role: 'learning_landmark', interactionId: 'lighthouse' },
-      { node: 'Dock_Entry', kind: 'target', role: 'entry', interactionId: 'entry' },
-      { node: 'Anchor_Workshop', kind: 'anchor', role: 'learn', interactionId: 'learn' },
-      { node: 'Anchor_Lighthouse', kind: 'anchor', role: 'lighthouse', interactionId: 'lighthouse' },
-      { node: 'Anchor_Entry', kind: 'anchor', role: 'entry', interactionId: 'entry' },
+      { node: 'Building_Workshop', kind: 'target', role: 'course_entry', interactionId: 'learn', anchor: 'Anchor_Workshop',
+        action: { type: 'route', href: '/learn' } },
+      { node: 'Landmark_Lighthouse', kind: 'target', role: 'learning_landmark', interactionId: 'lighthouse', anchor: 'Anchor_Lighthouse',
+        action: { type: 'info', title: '燈塔', text: '基礎程式島的地標，提醒你學習從理解開始。' } },
+      { node: 'Dock_Entry', kind: 'target', role: 'entry', interactionId: 'entry', anchor: 'Anchor_Entry',
+        action: { type: 'info', title: '碼頭', text: '群島的入口，從這裡出發前往其他島嶼。' } },
+      { node: 'Anchor_Workshop', kind: 'anchor', role: 'learn', interactionId: 'learn', label: '工坊 · 學習路線' },
+      { node: 'Anchor_Lighthouse', kind: 'anchor', role: 'lighthouse', interactionId: 'lighthouse', label: '燈塔' },
+      { node: 'Anchor_Entry', kind: 'anchor', role: 'entry', interactionId: 'entry', label: '碼頭' },
+      // route_exit has no label or behavior until Phase E island relations.
       { node: 'Anchor_Route_Exit', kind: 'anchor', role: 'route_exit', interactionId: 'route_exit' },
     ],
   },

@@ -34,7 +34,7 @@ Logic Islands（邏輯群島）是整個 3D 世界，規劃分成兩個群島，
 | 2A | 三島 R3F 原創幾何原型（`/islands`） | Implemented；lint／TS／build 已通過，尚無 islands E2E | Phase 1 |
 | A–C | Blender 資產管線、Style Guide、基礎島 v2 | 完成；v2 人工有條件通過 | — |
 | C.1 | 基礎島 v2.1 最終微調 | **2026-10-29 人工批准為 Phase D 候選資產**：技術驗收通過，視覺有條件接受 | Phase C |
-| D | 正式 GLB 整合（僅基礎程式島） | **Planned**：實作計畫已提出，待批准 | C.1 |
+| D | 正式 GLB 整合（僅基礎程式島） | **進行中**：D.0 已驗收、D.1 完成待驗收（分支 `phase-d/basics-glb`）；D.2／D.3 未批准 | C.1 |
 | E | Data-Driven Islands | **Planned** | D 完成驗收 |
 | F | RPG Learning System | **Planned** | E |
 | G | APCS Challenges | **Planned** | F |
@@ -65,7 +65,7 @@ C.1 → D → E → F → G          （Coding Archipelago）
 6. 保持既有 interaction_id、Anchor、Node Contract 相容。
 7. 以獨立資產版本資訊追蹤 v2.1，不依賴舊 `asset_id`（仍為 `logiclab-basics-island-v2`）判斷版本。
 
-## Phase D — 正式 3D 資產整合（Planned，待批准）
+## Phase D — 正式 3D 資產整合（分階段批准：D.0 已驗收，D.1 待驗收）
 
 範圍只有一件事：把基礎程式島的渲染來源由原創幾何換成 v2.1 runtime GLB，其餘兩島、地圖、教材與引擎不變。重點：
 

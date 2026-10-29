@@ -5,7 +5,8 @@ export const islands: IslandDefinition[] = [
     id: 'foundations', name: '基礎程式島', englishName: 'THE FIRST LIGHT',
     description: '從這座燈塔出發，找到適合自己的學習起點。此島作為導覽，尚無專屬教材。',
     landmark: '燈塔工作坊 · 從理解開始', modelId: 'beacon-workshop',
-    position: [-6.6, 0, 1.4], bounds: { min: [-3.2, -1.9, -2.8], max: [3.2, 5.4, 2.8] },
+    // Bounds follow the v2.1 GLB at scale 0.6; beacon-workshop stays as its fallback geometry.
+    position: [-6.6, 0, 1.4], bounds: { min: [-3.3, -2, -2.2], max: [3.2, 5.4, 3] }, glbAssetId: 'basics-island-v2.1',
     accent: '#4285f4', courseSlugs: [], catalogEntry: { href: '/learn', label: '瀏覽學習路線' },
   },
   {

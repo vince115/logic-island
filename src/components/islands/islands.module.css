@@ -658,3 +658,53 @@
     transform: none;
   }
 }
+
+/* GLB anchor labels: positioned by Anchor nodes, never clickable. */
+.anchorWrapper {
+  pointer-events: none;
+}
+.anchorLabel {
+  display: inline-block;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  border-radius: 6px;
+  background: #1d2b42d9;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 8px;
+  box-shadow: 0 3px 10px #172b4826;
+}
+.anchorInfo {
+  position: relative;
+  width: min(220px, 60vw);
+  border: 1px solid #ffffff;
+  border-radius: 10px;
+  background: #fffffff2;
+  color: #1d2b42;
+  padding: 10px 30px 10px 12px;
+  box-shadow: 0 6px 18px #172b4830;
+  transform: translateY(-54px);
+}
+.anchorInfo strong {
+  display: block;
+  font-size: 13px;
+}
+.anchorInfo p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #46576f;
+}
+.anchorInfo button {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  border: 0;
+  background: none;
+  color: #6d7d94;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}

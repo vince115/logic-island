@@ -6,7 +6,7 @@
 
 | ID | 問題／實際證據 | 影響 | 建議（本輪不修） |
 |---|---|---|---|
-| P0-01 | `src/components/islands/islands.module.css` 不存在，5 個引用；`evidence/actual-build.log` | 最新全站 production build 失敗；舊 .next 可誤導 | 取得下一個功能修復授權後，先確認缺失檔是否有外部副本，再修復原型樣式；不要臨時空白 CSS 當驗收成功 |
+| P0-01 | `src/components/islands/islands.module.css` 不存在，5 個引用；`evidence/actual-build.log` | 最新全站 production build 失敗；舊 .next 可誤導 | 取得下一個功能修復授權後，先確認缺失檔是否有外部副本，再修復原型樣式；不要臨時空白 CSS 當驗收成功。**2026-10-29：已解除，CSS 存在且 build 通過** |
 | P0-02 | 本次說 C.1 尚未批准，但 `basics-v2.1/` 與 MCP 開啟檔都證明已製作；Phase D 仍未批准 | Claude 可能重做／覆蓋模型，或誤把資產候選當整合授權 | 保留 v2 與 v2.1，請人工確認目前採用候選與 C.1 決策，D 保持凍結；見 IMPLEMENTATION_STATUS。**2026-10-29：C.1 已決議，v2.1 有條件批准為 D 候選；D 仍待批准開始，見 ROADMAP** |
 
 ## P1：接下來應優先處理
@@ -19,8 +19,11 @@
 | P1-04 | 81 個外部資產檔僅在 Codex 私有絕對路徑，模型／viewer 未在專案 public | 換機／換 agent 可能讀不到；先核對 inventory hashes，經批准複製候選及規格，再設 GLB 與源模型分流管理；本輪不搬 |
 | P1-05 | 原始嚴格共面檢查為 false，v2.1 仍有 113 組配對例外 | Validator 不測 Z-fighting；兩視角樣本不保證所有角度。依 Coplanar_Exceptions...逐區核對，不一律刪除合理端蓋 |
 | P1-06 | Blender addon 1.8／protocol 14，server 預期 15；MCP status 仍可回應 | Claude 的 MCP 設定／連線不會自動繼承；先 read-only 檢查，不擅自升級或重啟。get_format_items callback 是版本實作，不是穩定跨版 API |
-| P1-07 | Java 無 JDK；Web E2E 未跑；原型沒有 islands 測試；真實手機未測 | 目前單元成功不保證 hydration／WebGL／觸控。build 修復後再實測，工具／安裝需按新授權執行 |
-| P1-08 | 既有 R3F 原型是三座 local geometry，正式資產只有基礎島候選 | 原型≠Phase D。換 GLB 必須更新 registry union、尺度 bounds、光照、loading／fallback、node ID map、資源清理，不能直接替換路徑即完成 |
+| P1-07 | Java 無 JDK；Web E2E 未跑；原型沒有 islands 測試；真實手機未測 | 目前單元成功不保證 hydration／WebGL／觸控。build 修復後再實測，工具／安裝需按新授權執行。**2026-10-29（D.1）：Web E2E 已在隔離副本執行，新增 islands E2E；真機與 Java 仍未驗證，見 P1-11** |
+| P1-08 | 既有 R3F 原型是三座 local geometry，正式資產只有基礎島候選 | 原型≠Phase D。換 GLB 必須更新 registry union、尺度 bounds、光照、loading／fallback、node ID map、資源清理，不能直接替換路徑即完成。**2026-10-29（D.1）：基礎程式島已在分支改用 GLB（registry、bounds、fallback、節點名稱對照、clone 不 dispose 共用資源）；光照未調整，屬 D.2** |
+| P1-11 | 既有 `e2e/player.spec.ts` 3 個案例失敗：bfs 教材（desktop）「播放」按鈕不在 viewport；「播放中更換輸入」（desktop／mobile）找不到 `操作` 欄位。D.0 基線同樣失敗，與 D.1 無關 | 這套 E2E 先前從未執行過。需另案判斷是測試過時或播放器問題；不在 Phase D 範圍 |
+| P1-12 | D.1 手機視窗（390 px）上「工坊 · 學習路線」與「碼頭」標籤互相靠近，碼頭可點範圍小（大多在 START 標記） | 標籤不攔截點擊，但目標小、易誤觸工坊。屬 D.2 鏡頭拉近／標籤避讓評估 |
+| P1-13 | 燈塔／碼頭說明只能透過 3D 點擊觸發，鍵盤與螢幕閱讀器無對應入口 | 教材入口（工坊→`/learn`）在側欄有等價連結；說明內容屬補充資訊。若要完整等價，需在側欄或清單補說明，屬後續決定 |
 | P1-09 | 原型基礎島 catalogEntry=/learn；Blender Workshop metadata route=/learn | 不存在「基礎程式島專屬課程」路由。人工確認 lighthouse／learn／entry 的產品行為，不能自創教材或錯導所有點擊 |
 | P1-10 | .gitignore 不排除 .env*、沒有二進位策略 | 當前無秘密 env 檔，但未來建立 Git 前要審查 ignore／LFS／來源歸屬；不要把1.2G node_modules、298M .next 或整個 Codex folder 放入版控 |
 

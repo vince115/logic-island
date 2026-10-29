@@ -10,6 +10,24 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## Phase D.1 實測（2026-10-29，分支 `phase-d/basics-glb`）
+
+隔離副本：`/private/tmp/claude-501/-Users-vincelo-dev-hub-github-vince115-logic-island/3691c270-fad4-470d-8a89-a4e7513470b7/scratchpad/iso`（rsync 來源＋clone node_modules）。Playwright 使用副本外的覆寫設定，以 `node node_modules/next/dist/bin/next start` 在 127.0.0.1:3118 啟動，不經 pnpm；:3100 被其他專案占用。
+
+| 檢查 | 結果 |
+|---|---|
+| ESLint | exit 0 |
+| TypeScript | exit 0 |
+| Vitest | 5 files，67 passed／6 skipped（Java 無 JDK） |
+| Next Build | 成功 |
+| E2E `islands.spec.ts` | 14/14 passed（desktop＋mobile 各 7）；連續 5 次重複 70/70 |
+| E2E 全套 | 33 passed／3 failed；失敗的 3 個都在 `player.spec.ts`，以 D.0 commit 建立的另一副本重跑同樣失敗，見 KNOWN_ISSUES P1-11 |
+| 真實手機 | 未執行 |
+
+islands E2E 覆蓋：GLB 200 載入且無 Draco／外部請求、另外兩島維持原模型與教材連結、Anchor 標籤不攔截點擊且 route_exit 無標籤、燈塔／碼頭說明、工坊導向 `/learn`、GLB 404 與契約節點缺失時回到原創幾何。
+
+以下為交接當時的原始紀錄，保留不改。
+
 ## 當前實測結果（2026-10-29）
 
 | 檢查 | 等價工具與本輪指令（隔離副本） | 結果 | 依據 |

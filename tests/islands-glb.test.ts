@@ -106,10 +106,21 @@ describe('semantic nodes', () => {
 });
 
 describe('island models', () => {
-  it('still render original geometry for every island in D.0', () => {
-    expect(islands.find(i => i.id === 'foundations')?.modelId).toBe('beacon-workshop');
+  it('switch only the foundations island to the GLB and keep its geometry as fallback', () => {
+    const foundations = islands.find(i => i.id === 'foundations');
+    expect(foundations?.glbAssetId).toBe('basics-island-v2.1');
+    expect(foundations?.modelId).toBe(asset.fallback);
     for (const island of islands) expect(assetRegistry[island.modelId].source).toBe('original-geometry');
     expect(assetRegistry[asset.fallback].source).toBe('original-geometry');
+  });
+
+  it('leave the other two islands unchanged', () => {
+    const others = islands.filter(i => i.id !== 'foundations')
+      .map(({ id, modelId, position, bounds, glbAssetId }) => ({ id, modelId, position, bounds, glbAssetId }));
+    expect(others).toEqual([
+      { id: 'structures', modelId: 'data-harbor', position: [0.1, 0.15, -4.6], bounds: { min: [-3.6, -2, -2.9], max: [3.6, 4.2, 3.3] }, glbAssetId: undefined },
+      { id: 'algorithms', modelId: 'algorithm-observatory', position: [6.5, -0.05, 1.1], bounds: { min: [-3.4, -1.9, -2.9], max: [3.4, 4.8, 2.9] }, glbAssetId: undefined },
+    ]);
   });
 });
 
