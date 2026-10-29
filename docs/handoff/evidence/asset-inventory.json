@@ -1,0 +1,569 @@
+[
+  {
+    "relative_path": "LogicLab_3D_Art_Style_Guide.md",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/LogicLab_3D_Art_Style_Guide.md",
+    "bytes": 16475,
+    "sha256": "f9b7bb68c1106cf7091f6d6f2161dc57e5792a4238057d65cbd5e28fb8aff1be",
+    "suffix": ".md"
+  },
+  {
+    "relative_path": "LogicLab_Basics_Island_Scene_Plan.md",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/LogicLab_Basics_Island_Scene_Plan.md",
+    "bytes": 5184,
+    "sha256": "6d9a2bc9b546dd12c49b3e8b993a21e2294ef000c1a6076e5a3dcfba5de695ac",
+    "suffix": ".md"
+  },
+  {
+    "relative_path": "LogicLab_GLB_Validation_Report.md",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/LogicLab_GLB_Validation_Report.md",
+    "bytes": 10006,
+    "sha256": "7af01bf57994bbeba94f506466d7beaa87f577579ddc7d3ac648ba35d626c08c",
+    "suffix": ".md"
+  },
+  {
+    "relative_path": "LogicLab_Island_Art_QA.blend",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/LogicLab_Island_Art_QA.blend",
+    "bytes": 138806,
+    "sha256": "32207a1ea0e68e727ad11cd949ea10ba0201376e92646ea947546ef9d9693e9f",
+    "suffix": ".blend"
+  },
+  {
+    "relative_path": "LogicLab_Island_Art_QA_1600x900.png",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/LogicLab_Island_Art_QA_1600x900.png",
+    "bytes": 1294723,
+    "sha256": "b9829183f4612d7aad15ee0c87a8182aa9c08345eb6119820f021c4bff454d55",
+    "suffix": ".png"
+  },
+  {
+    "relative_path": "LogicLab_Island_Art_QA_Report.md",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/LogicLab_Island_Art_QA_Report.md",
+    "bytes": 7791,
+    "sha256": "5b8109723377f89ed393fc5a14a0879624fa1fb02a617c3edb1689799eec36b4",
+    "suffix": ".md"
+  },
+  {
+    "relative_path": "LogicLab_Island_Pipeline_Validated.blend",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/LogicLab_Island_Pipeline_Validated.blend",
+    "bytes": 140930,
+    "sha256": "260592d331dc70f90bec408391b685b527323db05be3d52099a51ddf4072db7c",
+    "suffix": ".blend"
+  },
+  {
+    "relative_path": "LogicLab_Island_QA_audit.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/LogicLab_Island_QA_audit.json",
+    "bytes": 30371,
+    "sha256": "2444d57e6d330038361fa07c0a7e50492fc76266cc255ed46d994dd44b9e12c3",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "LogicLab_Test_Island.blend",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/LogicLab_Test_Island.blend",
+    "bytes": 141735,
+    "sha256": "ff0d654d226dabe5bb66764d127edc5236f128a8d4c5da4edf1135b648587c2a",
+    "suffix": ".blend"
+  },
+  {
+    "relative_path": "LogicLab_before_island_20261028_163626_505264.blend",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/LogicLab_before_island_20261028_163626_505264.blend",
+    "bytes": 98050,
+    "sha256": "8d0af29ce5e9169673dc5795f522bd4d6d7301569fcc6fa2542b76f11cf95033",
+    "suffix": ".blend"
+  },
+  {
+    "relative_path": "PhaseA_Blender_Audit.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/PhaseA_Blender_Audit.json",
+    "bytes": 18143,
+    "sha256": "f511b894a6f6ff259d96b0874a2a71971a10f78a7da89e1485922e1832b2fdad",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "PhaseA_Browser_Validation.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/PhaseA_Browser_Validation.json",
+    "bytes": 1458,
+    "sha256": "5646260bd74930c5e94d9d8130c83cf005f266404d8c051adb25f5e70f16ba58",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "PhaseA_Delivery_Manifest.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/PhaseA_Delivery_Manifest.json",
+    "bytes": 1020,
+    "sha256": "0b50457ea759e41c4933dac1301d5567a165ca7be9d1af7b38e6b84ff33b8add",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "PhaseA_GLB_Audit.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/PhaseA_GLB_Audit.json",
+    "bytes": 30710,
+    "sha256": "4826aa3b72ee318bbf78d2f7bc882405d40121147fa874f7e553a806b611db64",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "PhaseA_Khronos_Validation.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/PhaseA_Khronos_Validation.json",
+    "bytes": 948,
+    "sha256": "579b48a71ef6d55a325cd2a329fca15ce1c85e88e793cb149dd1dccb1b97f390",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "PhaseA_ThreeJS_desktop.png",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/PhaseA_ThreeJS_desktop.png",
+    "bytes": 52425,
+    "sha256": "c37f44eeb8d4ee179e3b6f7b8e40df53ddbe494e50b0f0f2ea5e143041497c5c",
+    "suffix": ".png"
+  },
+  {
+    "relative_path": "PhaseA_ThreeJS_mobile.png",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/PhaseA_ThreeJS_mobile.png",
+    "bytes": 30506,
+    "sha256": "e48511f64928e1f1e5f33f1ce617ba5e3ebc449bfda59df6fde5885219d8c782",
+    "suffix": ".png"
+  },
+  {
+    "relative_path": "basics-v2/Before_PhaseC.blend",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/Before_PhaseC.blend",
+    "bytes": 140976,
+    "sha256": "f2dee4fb3bc9578a1471079721829c957fd0810a9a3a116637cb92fe474448c9",
+    "suffix": ".blend"
+  },
+  {
+    "relative_path": "basics-v2/C1.py",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/C1.py",
+    "bytes": 8317,
+    "sha256": "b554e20aff57413de41c90e26acc926452e216c8dd41971b98d00a6cda38001d",
+    "suffix": ".py"
+  },
+  {
+    "relative_path": "basics-v2/C1_Composition.png",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/C1_Composition.png",
+    "bytes": 1496808,
+    "sha256": "3a2737d36714e2f0e950a95c0aa5802cc21f5e58880d77b144a4260cb4a18345",
+    "suffix": ".png"
+  },
+  {
+    "relative_path": "basics-v2/C2.py",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/C2.py",
+    "bytes": 5386,
+    "sha256": "b628ce79f1a1f14d1acfdf989d97b317b6de6c38cb88b7ee3b165d98fa62be38",
+    "suffix": ".py"
+  },
+  {
+    "relative_path": "basics-v2/C2_Architecture.png",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/C2_Architecture.png",
+    "bytes": 1586760,
+    "sha256": "49417168efc282200e9988a2ca76cbc0c54b32255d0c49a91eeed27184f76470",
+    "suffix": ".png"
+  },
+  {
+    "relative_path": "basics-v2/C3.py",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/C3.py",
+    "bytes": 4856,
+    "sha256": "685db72e492361b67d9b852c6eadee828b73c41062871b705003732431402177",
+    "suffix": ".py"
+  },
+  {
+    "relative_path": "basics-v2/C3_Environment.png",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/C3_Environment.png",
+    "bytes": 1642361,
+    "sha256": "7cc119a5ec7e393a4c46e0a13101d5c0afe5655f49afcab6642a9e9ff82e0489",
+    "suffix": ".png"
+  },
+  {
+    "relative_path": "basics-v2/C4_Alternate_View.png",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/C4_Alternate_View.png",
+    "bytes": 1607411,
+    "sha256": "a94739379280d67f056fe38cd83cb4040e63990ac4b2fa4c857f662493b8a564",
+    "suffix": ".png"
+  },
+  {
+    "relative_path": "basics-v2/C4_C5.py",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/C4_C5.py",
+    "bytes": 3410,
+    "sha256": "f32cc45d522c198a6aa9226e92c7cdb2bf3a759bc0b1b7b0956760764d2b8973",
+    "suffix": ".py"
+  },
+  {
+    "relative_path": "basics-v2/C4_Final_1600x900.png",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/C4_Final_1600x900.png",
+    "bytes": 1652016,
+    "sha256": "955f562aef67a9642fdb7ee90c6371b1c98e4f3ff277aa7f0aaae19f3686d47b",
+    "suffix": ".png"
+  },
+  {
+    "relative_path": "basics-v2/C4_Main_Return.png",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/C4_Main_Return.png",
+    "bytes": 1651834,
+    "sha256": "c82c4caf4e2aacae08e63c0eb78a0a2041210d523c421283cedf56bd89d6905a",
+    "suffix": ".png"
+  },
+  {
+    "relative_path": "basics-v2/C5_Blender_Audit.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/C5_Blender_Audit.json",
+    "bytes": 3500,
+    "sha256": "157697134f91c03b2a210d5b1c8c74375b7c2064df224b2cef6d94a206187ba1",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "basics-v2/C5_Browser_Validation.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/C5_Browser_Validation.json",
+    "bytes": 1460,
+    "sha256": "14a21b7299b4a3cd4f8341ba802821fad2f91b528824f8ab7aacf9032666af5c",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "basics-v2/C5_Final_1600x900.png",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/C5_Final_1600x900.png",
+    "bytes": 1581529,
+    "sha256": "30cb0fbaf74583cbe994250d5de882a3e394e633e671e4993e188148b093806a",
+    "suffix": ".png"
+  },
+  {
+    "relative_path": "basics-v2/C5_GLB_Audit.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/C5_GLB_Audit.json",
+    "bytes": 19227,
+    "sha256": "e9c18234b2182bb7f7608246c4b913310b26c8d30c863036947df91ed5cf0ded",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "basics-v2/C5_Khronos_Validation.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/C5_Khronos_Validation.json",
+    "bytes": 955,
+    "sha256": "25538f0d9767af802cf8f77f13f57a7a3df0547fe72a6f6d3cd1a24a906a5afb",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "basics-v2/C5_ThreeJS_desktop.png",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/C5_ThreeJS_desktop.png",
+    "bytes": 115043,
+    "sha256": "2c6a7476a83d4631d24fcf317a923cb51a83525abd0bba4d97071a6291f6327b",
+    "suffix": ".png"
+  },
+  {
+    "relative_path": "basics-v2/C5_ThreeJS_mobile.png",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/C5_ThreeJS_mobile.png",
+    "bytes": 55253,
+    "sha256": "b37f911d85951021eae74ca7c1b1b67fbba9797697098f3ddec2b3e9573028b7",
+    "suffix": ".png"
+  },
+  {
+    "relative_path": "basics-v2/Delivery_Manifest.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/Delivery_Manifest.json",
+    "bytes": 2609,
+    "sha256": "f0c96d6d6e8477da1d97ba05adcf22c212d5f3848b3995cf70d8d7329cc254b0",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "basics-v2/LogicLab_Basics_Island_v2.blend",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/LogicLab_Basics_Island_v2.blend",
+    "bytes": 335226,
+    "sha256": "21b109db61252187640d3ec6af65239a949ea3563d45632cad7ed9d7f12e8328",
+    "suffix": ".blend"
+  },
+  {
+    "relative_path": "basics-v2/LogicLab_Basics_Island_v2_Art_Review.md",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/LogicLab_Basics_Island_v2_Art_Review.md",
+    "bytes": 7575,
+    "sha256": "d4010e6fb6e5156a7f0296e05930b89c47a002066d501b309c9e26bae1104f8d",
+    "suffix": ".md"
+  },
+  {
+    "relative_path": "basics-v2/browser-console.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/browser-console.json",
+    "bytes": 1461,
+    "sha256": "8512233471d88232da630e4b8171046a98548115763f3638a93c87a033e37b9c",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "basics-v2/logiclab-basics-island-v2.glb",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/logiclab-basics-island-v2.glb",
+    "bytes": 828192,
+    "sha256": "13305bad8fde16a94442d681e8368831d9773256745902dc9c6c9919fc781309",
+    "suffix": ".glb"
+  },
+  {
+    "relative_path": "basics-v2/refine.py",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/refine.py",
+    "bytes": 1942,
+    "sha256": "34298a2246671eeb2167580184b0d8cae0de0cde24c278bead2c03c5058b51c8",
+    "suffix": ".py"
+  },
+  {
+    "relative_path": "basics-v2/validation-console.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/validation-console.json",
+    "bytes": 4143,
+    "sha256": "ea2633830db3ca19e6eaad8e3f4d485638ce45f7c3c7c328e732feae3aecf095",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "basics-v2/viewer/browser-test.mjs",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/viewer/browser-test.mjs",
+    "bytes": 2045,
+    "sha256": "c1d122e45ab384fd656c4a635b2ebd9450170e87cee0363ba5aeb9a48a06f8cf",
+    "suffix": ".mjs"
+  },
+  {
+    "relative_path": "basics-v2/viewer/index.html",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/viewer/index.html",
+    "bytes": 3866,
+    "sha256": "bb2e011a6c4a10edb440e3127f7d9673327359cb041bb9e255eb2124ea122f5a",
+    "suffix": ".html"
+  },
+  {
+    "relative_path": "basics-v2/viewer/validate.mjs",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/viewer/validate.mjs",
+    "bytes": 5494,
+    "sha256": "98d6ff148388488e49fb668ec132fe5dd312d9d4fe9b463d9f28c985618e5bc3",
+    "suffix": ".mjs"
+  },
+  {
+    "relative_path": "basics-v2.1/Blender_Audit.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/Blender_Audit.json",
+    "bytes": 3554,
+    "sha256": "cf229871f28c635095b08de41bb56fec3601af83dbe82d51a331fd445332be15",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "basics-v2.1/Construction_Clearances.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/Construction_Clearances.json",
+    "bytes": 17798,
+    "sha256": "15a90812617e547a4581660f7a9bbfabdd006f051fafffd479a7034f422af901",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "basics-v2.1/Coplanar_Exceptions_and_Acceptance.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/Coplanar_Exceptions_and_Acceptance.json",
+    "bytes": 3217,
+    "sha256": "657101b8eff3ef763209e5d4d92aae8518a3adde4e4f885a24aad4059f9e165a",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "basics-v2.1/Coplanar_Visibility_Details.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/Coplanar_Visibility_Details.json",
+    "bytes": 43053,
+    "sha256": "469e82cc4b75445451e38ec95339f728e6c79c96498ee2b471bc745fd1763c3c",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "basics-v2.1/Delivery_Manifest.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/Delivery_Manifest.json",
+    "bytes": 3085,
+    "sha256": "f7b6e80f5229d8bd1dc83d93b0b1faab6895690bd7d0bfdef1adff24bc8ae596",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "basics-v2.1/Junction_Relief.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/Junction_Relief.json",
+    "bytes": 782,
+    "sha256": "4dfa22adb5f9e0778821ab6ae6a786bcdb62736e8ae531ea5d6e7cca9f5e409b",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "basics-v2.1/LogicLab_Basics_Island_v2.1.blend",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/LogicLab_Basics_Island_v2.1.blend",
+    "bytes": 364247,
+    "sha256": "d45323a779b771427cf9de01368619f009dada3eca918d2db1a830c91d89475f",
+    "suffix": ".blend"
+  },
+  {
+    "relative_path": "basics-v2.1/LogicLab_Basics_Island_v2.1_Review.md",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/LogicLab_Basics_Island_v2.1_Review.md",
+    "bytes": 6564,
+    "sha256": "0991683b9c173701e796eb499c90daf2fc5137390c5bfb526a08a0e6366c8fea",
+    "suffix": ".md"
+  },
+  {
+    "relative_path": "basics-v2.1/Node_Contract_Validation.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/Node_Contract_Validation.json",
+    "bytes": 174,
+    "sha256": "69a8e833a459b7bbb18b94dfb8adb1e0f314a58ff853baf1dd4b5fa00ccf37ba",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "basics-v2.1/Polish_Browser_Validation.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/Polish_Browser_Validation.json",
+    "bytes": 3796,
+    "sha256": "46126dccb23d06984dd00e65fad23eb67a60e1aa3565328cc966d59f0258a1a0",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "basics-v2.1/Polish_GLB_Audit.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/Polish_GLB_Audit.json",
+    "bytes": 18816,
+    "sha256": "76cb1a4ad3361aa894b61d5a432b55a5dc40f233a0df49e6d3102c5cfc9b791a",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "basics-v2.1/Polish_Khronos_Validation.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/Polish_Khronos_Validation.json",
+    "bytes": 1149,
+    "sha256": "f8e74ac14d883f8929e1f3349040ebad515b31742f6197ca643435ad29f99d83",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "basics-v2.1/Polish_Mobile_Sign_Detail.png",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/Polish_Mobile_Sign_Detail.png",
+    "bytes": 76320,
+    "sha256": "ac8184fb6592afeac73f488b4146b8157774b8454a108f097ae1741fd7b19640",
+    "suffix": ".png"
+  },
+  {
+    "relative_path": "basics-v2.1/Polish_ThreeJS_desktop.png",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/Polish_ThreeJS_desktop.png",
+    "bytes": 117002,
+    "sha256": "baba8e619dced64a25f71e1d9f4e4c67d39f5cc34b73fdfdd22ab8e847047a48",
+    "suffix": ".png"
+  },
+  {
+    "relative_path": "basics-v2.1/Polish_ThreeJS_mobile.png",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/Polish_ThreeJS_mobile.png",
+    "bytes": 56507,
+    "sha256": "acd3856293a193d33deafaa11431bbff5679d1265bf3ba86604d2e31a8aef30e",
+    "suffix": ".png"
+  },
+  {
+    "relative_path": "basics-v2.1/Roof_Adjustment.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/Roof_Adjustment.json",
+    "bytes": 1155,
+    "sha256": "09f08a8fed0327f4bdff79abe037875e6e76d22829f809fd4a53938c40b00a73",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "basics-v2.1/Source_Protection.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/Source_Protection.json",
+    "bytes": 338,
+    "sha256": "fa65345eaf82e97c380e2d4cae12bf4c535716a037bfe655ca18e86b3398bee5",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "basics-v2.1/browser-console.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/browser-console.json",
+    "bytes": 3797,
+    "sha256": "638ca3d3e22835294d56a0f2f5b0b6e2a70d2e95bba2e7f758c5cc1a263bf9b5",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "basics-v2.1/finish.py",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/finish.py",
+    "bytes": 2311,
+    "sha256": "8459e1f7b804b6420a71e4eb7615e91ccd8794010d571ad8581a70fbf0937a33",
+    "suffix": ".py"
+  },
+  {
+    "relative_path": "basics-v2.1/junction_relief.py",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/junction_relief.py",
+    "bytes": 2096,
+    "sha256": "f16a0b80eb45843ed2325e65d15c96e624378a3d47f8f9798c0ce8c4299ffc2c",
+    "suffix": ".py"
+  },
+  {
+    "relative_path": "basics-v2.1/logiclab-basics-island-v2.1.glb",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/logiclab-basics-island-v2.1.glb",
+    "bytes": 879748,
+    "sha256": "7cb4272734b5d1c7bcd68d2ba340206fdef55623bf0f011f6152a1b7bd468957",
+    "suffix": ".glb"
+  },
+  {
+    "relative_path": "basics-v2.1/polish.py",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/polish.py",
+    "bytes": 7033,
+    "sha256": "9459530b2a058e65994666a4365db9a2c193ce8e875e249125552c31582f7e9c",
+    "suffix": ".py"
+  },
+  {
+    "relative_path": "basics-v2.1/seams.py",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/seams.py",
+    "bytes": 1939,
+    "sha256": "9095ca4bf94acc03b96acf788a0e59eb939b9ff0335a037b731b2d7059ead6e5",
+    "suffix": ".py"
+  },
+  {
+    "relative_path": "basics-v2.1/v2.1_Alternate_1600x900.png",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/v2.1_Alternate_1600x900.png",
+    "bytes": 1631147,
+    "sha256": "80c21476bc9e106c6208279baacf6ab170b88beddb37137561bcb5c77489b663",
+    "suffix": ".png"
+  },
+  {
+    "relative_path": "basics-v2.1/v2.1_Main_1600x900.png",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/v2.1_Main_1600x900.png",
+    "bytes": 1584160,
+    "sha256": "2cf8cc64c48ab6baab87b2b0d95d35dcc6b454bb7858e34fa1620dbc5d679638",
+    "suffix": ".png"
+  },
+  {
+    "relative_path": "basics-v2.1/v2_Node_Contract.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/v2_Node_Contract.json",
+    "bytes": 11723,
+    "sha256": "d197dfeddcbac8eb88ae2ae8cc465f91330c4b4f2c8c4d12d1243aba49e4b997",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "basics-v2.1/validator-console.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/validator-console.json",
+    "bytes": 2744,
+    "sha256": "34133d68e9c8500685918e29a27acda6ce9766f65c91e2f7a41803dfaf7c2806",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "basics-v2.1/viewer/browser-test.mjs",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/viewer/browser-test.mjs",
+    "bytes": 2241,
+    "sha256": "8ed43f69139ff1c12b457e6bda59d9847e91db2a289c0d9ab96d2ce6302a81c7",
+    "suffix": ".mjs"
+  },
+  {
+    "relative_path": "basics-v2.1/viewer/index.html",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/viewer/index.html",
+    "bytes": 5055,
+    "sha256": "4b761894e4a744fe7cd5e1ae172f9e9b86a09ff9cfb7737999601e5866a428ca",
+    "suffix": ".html"
+  },
+  {
+    "relative_path": "basics-v2.1/viewer/validate.mjs",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/viewer/validate.mjs",
+    "bytes": 7263,
+    "sha256": "1cc1f391fbeb01d4d6898e795b69ec008cfa21e2aa256a204a087aee5969e97a",
+    "suffix": ".mjs"
+  },
+  {
+    "relative_path": "logiclab-test-island.glb",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/logiclab-test-island.glb",
+    "bytes": 74336,
+    "sha256": "0cd71dca95a17726ccf25feb217764f195282f7d28f061ed0c069114fafcf1ab",
+    "suffix": ".glb"
+  },
+  {
+    "relative_path": "pipeline-test/browser-test.mjs",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/pipeline-test/browser-test.mjs",
+    "bytes": 2043,
+    "sha256": "8895b0beabf1566dd8644f673181a7a008fddb44394374c6ecec6a928adfa8f8",
+    "suffix": ".mjs"
+  },
+  {
+    "relative_path": "pipeline-test/index.html",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/pipeline-test/index.html",
+    "bytes": 3865,
+    "sha256": "f2dd462ec2cb4426c5abfcfa6045f0a04cd9d52a4d85970de443d281f53654ea",
+    "suffix": ".html"
+  },
+  {
+    "relative_path": "pipeline-test/package-lock.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/pipeline-test/package-lock.json",
+    "bytes": 1750,
+    "sha256": "cdda60c9ac78060e36727fd4b6e31449e01a9cae73280310625c78131a8c4d37",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "pipeline-test/package.json",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/pipeline-test/package.json",
+    "bytes": 122,
+    "sha256": "1b890761c682b6508e49a9021bf51e21f5b72c53a4aa7cdfba4fd02e327c14ee",
+    "suffix": ".json"
+  },
+  {
+    "relative_path": "pipeline-test/validate.mjs",
+    "absolute_path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/pipeline-test/validate.mjs",
+    "bytes": 5492,
+    "sha256": "7ab07e9475e755daa4d38d4a3f4bff9d38f5952dbc80a117a6711e62af2c88d7",
+    "suffix": ".mjs"
+  }
+]

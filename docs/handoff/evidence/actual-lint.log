@@ -1,0 +1,17 @@
+
+/private/tmp/logiclab-handoff-20261029-4t4fgojd/isolated/src/components/islands/island-scene.tsx
+  51:18  error  Error: This value cannot be modified
+
+Modifying a value returned from a hook is not allowed. Consider moving the modification into the hook where the value is constructed.
+
+/private/tmp/logiclab-handoff-20261029-4t4fgojd/isolated/src/components/islands/island-scene.tsx:51:18
+  49 |   // The camera already owns its projection; this establishes the initial isometric view.
+  50 |   useEffect(()=>{camera.lookAt(new Vector3(0,0,0));},[camera]);
+> 51 |   useEffect(()=>{scene.background=new Color('#e2f0f7');return()=>{scene.background=null;};},[scene]);
+     |                  ^^^^^ `scene` cannot be modified
+  52 |   return null;
+  53 | }
+  54 |  react-hooks/immutability
+
+✖ 1 problem (1 error, 0 warnings)
+

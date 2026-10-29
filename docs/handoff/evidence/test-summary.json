@@ -1,0 +1,30 @@
+{
+  "lint": {
+    "exit_code": 1,
+    "log": "actual-lint.log"
+  },
+  "unit": {
+    "exit_code": 0,
+    "log": "actual-unit.log"
+  },
+  "typecheck": {
+    "exit_code": 2,
+    "log": "actual-typecheck.log"
+  },
+  "build": {
+    "exit_code": 1,
+    "log": "actual-build.log"
+  },
+  "e2e-list": {
+    "exit_code": 0,
+    "log": "actual-e2e-list.log"
+  },
+  "scope": {
+    "project": "/Users/vincelo/dev-hub/github/vince115/logic-lab",
+    "snapshot": "/private/tmp/logiclab-handoff-20261029-4t4fgojd/isolated",
+    "date": "2026-10-29",
+    "timezone": "Asia/Taipei",
+    "commands": "Local node CLI, no pnpm auto-install; all outputs confined to copied project",
+    "e2e_executed": false
+  }
+}

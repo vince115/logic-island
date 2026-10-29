@@ -1,0 +1,88 @@
+▲ Next.js 16.4.3 (Turbopack)
+✓ Running next.config took 8ms
+
+  Creating an optimized production build ...
+
+> Build error occurred
+Error: Turbopack build failed with 5 errors:
+./src/components/islands/island-scene.tsx:9:1
+Error: Module not found: Can't resolve './islands.module.css'
+   7 | import { CameraController } from './camera-controller';
+   8 | import { Island } from './island';
+>  9 | import styles from './islands.module.css';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  10 |
+  11 | /** Decorative navigation waters connect the composition, not course dependencies. */
+  12 | function Sea() {
+
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./src/components/islands/island.tsx:10:1
+Error: Module not found: Can't resolve './islands.module.css'
+   8 | import { DataHarbor } from './models/data-harbor';
+   9 | import { AlgorithmObservatory } from './models/algorithm-observatory';
+> 10 | import styles from './islands.module.css';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  11 |
+  12 | type ModelComponent = typeof assetRegistry[keyof typeof assetRegistry]['component'];
+  13 | const models: Record<ModelComponent, ComponentType> = { BeaconWorkshop, DataHarbor, Algori...
+
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./src/components/islands/islands-explorer.tsx:9:1
+Error: Module not found: Can't resolve './islands.module.css'
+   7 | import type { LearningIsland } from '@/lib/islands/types';
+   8 | import { LearningNavigation } from './learning-navigation';
+>  9 | import styles from './islands.module.css';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  10 |
+  11 | const IslandScene=dynamic(()=>import('./island-scene'),{
+  12 |   ssr:false,
+
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./src/components/islands/learning-navigation.tsx:6:1
+Error: Module not found: Can't resolve './islands.module.css'
+  4 | import { ArrowRight, Compass, MapPin } from 'lucide-react';
+  5 | import type { LearningIsland } from '@/lib/islands/types';
+> 6 | import styles from './islands.module.css';
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  7 |
+  8 | export function LearningNavigation({islands,selectedId,onSelect,listMode}:{
+  9 |   islands:LearningIsland[];selectedId:string|null;onSelect:(id:string)=>void;listMode:boolean;
+
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./src/app/islands/page.tsx:7:1
+Error: Module not found: Can't resolve '@/components/islands/islands.module.css'
+   5 | import { islands } from '@/lib/islands/data';
+   6 | import { IslandsExplorer } from '@/components/islands/islands-explorer';
+>  7 | import styles from '@/components/islands/islands.module.css';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   8 |
+   9 | export const metadata:Metadata={title:'Learning Islands · 學習群島',description:'在 Low-po...
+  10 |
+
+Import map: aliased to relative './src/components/islands/islands.module.css' inside of [project]/
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)

@@ -1,0 +1,6 @@
+src/components/islands/camera-controller.tsx(6,31): error TS7016: Could not find a declaration file for module 'three'. '/private/tmp/logiclab-handoff-20261029-4t4fgojd/isolated/node_modules/.pnpm/three@0.186.1/node_modules/three/build/three.module.js' implicitly has an 'any' type.
+  If the 'three' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/three'
+src/components/islands/island-scene.tsx(5,32): error TS7016: Could not find a declaration file for module 'three'. '/private/tmp/logiclab-handoff-20261029-4t4fgojd/isolated/node_modules/.pnpm/three@0.186.1/node_modules/three/build/three.module.js' implicitly has an 'any' type.
+  If the 'three' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/three'
+src/components/islands/models/terrain.tsx(4,23): error TS7016: Could not find a declaration file for module 'three'. '/private/tmp/logiclab-handoff-20261029-4t4fgojd/isolated/node_modules/.pnpm/three@0.186.1/node_modules/three/build/three.module.js' implicitly has an 'any' type.
+  If the 'three' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/three'

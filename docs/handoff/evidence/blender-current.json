@@ -1,0 +1,47 @@
+{
+  "addon": {
+    "up_to_date": false,
+    "protocol_version": 14,
+    "expected_protocol_version": 15,
+    "addon_version": [
+      1,
+      8
+    ],
+    "capabilities": [
+      "bpy_api_lookup",
+      "describe_node_type",
+      "drain_human_activity",
+      "execute_code",
+      "get_addon_info",
+      "get_object_info",
+      "get_scene_info",
+      "get_telemetry_consent",
+      "get_viewport_screenshot",
+      "get_world_state_snapshot",
+      "list_scene_items",
+      "pick_viewport_object",
+      "set_telemetry_consent"
+    ],
+    "blender_version": "5.2.2 LTS",
+    "premium_generators": [],
+    "libraries": {
+      "polyhaven": "off",
+      "sketchfab": "off",
+      "polypizza": "off"
+    },
+    "generators": {
+      "tripo": "off (Premium only)",
+      "hunyuan3d": "off",
+      "hyper3d": "off",
+      "meshy": "off"
+    },
+    "source": "native",
+    "warning": "Blender addon protocol 14 is behind expected 15. Run `uvx mcp-for-blender install-addon` to update it, then restart Blender or disable/enable 'Interface: MCP for Blender', then Start MCP Server. Trajectory still works via fallbacks.",
+    "telemetry_consent": false,
+    "update_command": "uvx mcp-for-blender install-addon",
+    "after_install": "If the addon file was updated: in Blender, Preferences → Add-ons → disable/enable 'Interface: Blender MCP', or restart Blender, then Start MCP Server."
+  },
+  "scene": "Scene 'Basics_Island_v2' | 1 camera, 22 empty, 3 light, 24 mesh | active Dock_START_Marker | selected Island_Basics_Root, Terrain.001, Buildings, Infrastructure, Vegetation.001 +41 more | mode OBJECT\n/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/LogicLab_Basics_Island_v2.1.blend | engine BLENDER_EEVEE | frames 1-250 (now 1) at 24 fps | 1600x900 | camera v2_Art_Camera | HDRI none | unit scale 1.0\n\nShowing 5 of 5 (name | type | parent):\nv2_Art_Camera | camera\nv2_Key | light\nv2_Fill | light\nv2_Rim | light\nIsland_Basics_Root | empty",
+  "checked_at": "2026-10-29 Asia/Taipei",
+  "scope": "Read-only MCP calls: get_addon_status and get_scene_info"
+}

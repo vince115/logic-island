@@ -1,0 +1,24 @@
+Listing tests:
+  [desktop-chromium] › player.spec.ts:25:1 › 首頁與兩個列表導航
+  [desktop-chromium] › player.spec.ts:39:3 › array 教材、語言切換與前進後退一致
+  [desktop-chromium] › player.spec.ts:39:3 › stack 教材、語言切換與前進後退一致
+  [desktop-chromium] › player.spec.ts:39:3 › queue 教材、語言切換與前進後退一致
+  [desktop-chromium] › player.spec.ts:39:3 › binary-search 教材、語言切換與前進後退一致
+  [desktop-chromium] › player.spec.ts:39:3 › bubble-sort 教材、語言切換與前進後退一致
+  [desktop-chromium] › player.spec.ts:39:3 › bfs 教材、語言切換與前進後退一致
+  [desktop-chromium] › player.spec.ts:68:1 › 播放結束立即停止，且可從結尾重播
+  [desktop-chromium] › player.spec.ts:84:1 › 暫停、重置取消計時並可重新播放
+  [desktop-chromium] › player.spec.ts:101:1 › 播放中更換輸入後重建步驟與更新值
+  [desktop-chromium] › player.spec.ts:123:1 › 深淺色切換、保存與頁面溢出檢查
+  [mobile-chromium] › player.spec.ts:25:1 › 首頁與兩個列表導航
+  [mobile-chromium] › player.spec.ts:39:3 › array 教材、語言切換與前進後退一致
+  [mobile-chromium] › player.spec.ts:39:3 › stack 教材、語言切換與前進後退一致
+  [mobile-chromium] › player.spec.ts:39:3 › queue 教材、語言切換與前進後退一致
+  [mobile-chromium] › player.spec.ts:39:3 › binary-search 教材、語言切換與前進後退一致
+  [mobile-chromium] › player.spec.ts:39:3 › bubble-sort 教材、語言切換與前進後退一致
+  [mobile-chromium] › player.spec.ts:39:3 › bfs 教材、語言切換與前進後退一致
+  [mobile-chromium] › player.spec.ts:68:1 › 播放結束立即停止，且可從結尾重播
+  [mobile-chromium] › player.spec.ts:84:1 › 暫停、重置取消計時並可重新播放
+  [mobile-chromium] › player.spec.ts:101:1 › 播放中更換輸入後重建步驟與更新值
+  [mobile-chromium] › player.spec.ts:123:1 › 深淺色切換、保存與頁面溢出檢查
+Total: 22 tests in 1 file

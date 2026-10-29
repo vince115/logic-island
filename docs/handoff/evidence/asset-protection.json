@@ -1,0 +1,9 @@
+{
+  "files_checked": 81,
+  "changed_or_missing_files": [],
+  "blender_calls": [
+    "get_addon_status",
+    "get_scene_info"
+  ],
+  "models_saved_or_exported_during_audit": false
+}

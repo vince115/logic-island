@@ -1,0 +1,1005 @@
+[
+  {
+    "path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/logiclab-test-island.glb",
+    "bytes": 74336,
+    "sha256": "0cd71dca95a17726ccf25feb217764f195282f7d28f061ed0c069114fafcf1ab",
+    "validatorVersion": "2.0.0-dev.3.10",
+    "issues": {
+      "numErrors": 0,
+      "numWarnings": 0,
+      "numInfos": 0,
+      "numHints": 0,
+      "messages": [],
+      "truncated": false
+    },
+    "nodes": 49,
+    "meshes": 39,
+    "materials": 15,
+    "triangles": 882,
+    "cameras": 0,
+    "lights": 0,
+    "requiredExtensions": [],
+    "namedNodes": [
+      {
+        "name": "Learning_Marker",
+        "extras": {
+          "source_name": "Learning_Marker",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Learning_Marker_Base",
+        "extras": {
+          "source_name": "Learning_Marker_Base",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "LearningMarker",
+        "extras": {
+          "role": "learning_marker"
+        },
+        "children": [
+          0,
+          1
+        ]
+      },
+      {
+        "name": "Lantern_Frame_00",
+        "extras": {
+          "source_name": "Lantern_Frame_00",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Lantern_Frame_01",
+        "extras": {
+          "source_name": "Lantern_Frame_01",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Lantern_Frame_02",
+        "extras": {
+          "source_name": "Lantern_Frame_02",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Lantern_Frame_03",
+        "extras": {
+          "source_name": "Lantern_Frame_03",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Lantern_Frame_04",
+        "extras": {
+          "source_name": "Lantern_Frame_04",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Lantern_Frame_05",
+        "extras": {
+          "source_name": "Lantern_Frame_05",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Lantern_Frame_06",
+        "extras": {
+          "source_name": "Lantern_Frame_06",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Lantern_Frame_07",
+        "extras": {
+          "source_name": "Lantern_Frame_07",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Lighthouse_Door",
+        "extras": {
+          "source_name": "Lighthouse_Door",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Lighthouse_Door_Canopy",
+        "extras": {
+          "source_name": "Lighthouse_Door_Canopy",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Lighthouse_Finial",
+        "extras": {
+          "source_name": "Lighthouse_Finial",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Lighthouse_Foundation",
+        "extras": {
+          "source_name": "Lighthouse_Foundation",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Lighthouse_Gallery",
+        "extras": {
+          "source_name": "Lighthouse_Gallery",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Lighthouse_Ivory_Band",
+        "extras": {
+          "source_name": "Lighthouse_Ivory_Band",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Lighthouse_Lantern",
+        "extras": {
+          "source_name": "Lighthouse_Lantern",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Lighthouse_Lower_Blue",
+        "extras": {
+          "source_name": "Lighthouse_Lower_Blue",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Lighthouse_Roof",
+        "extras": {
+          "source_name": "Lighthouse_Roof",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Lighthouse_Upper_Blue",
+        "extras": {
+          "source_name": "Lighthouse_Upper_Blue",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Lighthouse_Window",
+        "extras": {
+          "source_name": "Lighthouse_Window",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Lighthouse",
+        "extras": {
+          "role": "learning_landmark"
+        },
+        "children": [
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21
+        ]
+      },
+      {
+        "name": "Path_Step_01",
+        "extras": {
+          "source_name": "Path_Step_01",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Path_Step_02",
+        "extras": {
+          "source_name": "Path_Step_02",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Path_Step_03",
+        "extras": {
+          "source_name": "Path_Step_03",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Path_Step_04",
+        "extras": {
+          "source_name": "Path_Step_04",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Path",
+        "extras": {
+          "role": "walkway"
+        },
+        "children": [
+          23,
+          24,
+          25,
+          26
+        ]
+      },
+      {
+        "name": "Shore_Rock_1",
+        "extras": {
+          "source_name": "Shore_Rock_1",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Shore_Rock_2",
+        "extras": {
+          "source_name": "Shore_Rock_2",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Shore_Rock_3",
+        "extras": {
+          "source_name": "Shore_Rock_3",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Props",
+        "extras": {
+          "role": "environment"
+        },
+        "children": [
+          28,
+          29,
+          30
+        ]
+      },
+      {
+        "name": "Terrain_Grass",
+        "extras": {
+          "source_name": "Island_Triangulated_Grass",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Terrain_RockBase",
+        "extras": {
+          "source_name": "Island_Faceted_Rock_Base",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Terrain",
+        "extras": {
+          "role": "terrain"
+        },
+        "children": [
+          32,
+          33
+        ]
+      },
+      {
+        "name": "Tree_01_Lower_Crown",
+        "extras": {
+          "source_name": "Tree_1_Lower_Crown",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Tree_01_Trunk",
+        "extras": {
+          "source_name": "Tree_1_Trunk",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Tree_01_Upper_Crown",
+        "extras": {
+          "source_name": "Tree_1_Upper_Crown",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Tree_01",
+        "extras": {
+          "role": "tree"
+        },
+        "children": [
+          35,
+          36,
+          37
+        ]
+      },
+      {
+        "name": "Tree_02_Lower_Crown",
+        "extras": {
+          "source_name": "Tree_2_Lower_Crown",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Tree_02_Trunk",
+        "extras": {
+          "source_name": "Tree_2_Trunk",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Tree_02_Upper_Crown",
+        "extras": {
+          "source_name": "Tree_2_Upper_Crown",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Tree_02",
+        "extras": {
+          "role": "tree"
+        },
+        "children": [
+          39,
+          40,
+          41
+        ]
+      },
+      {
+        "name": "Tree_03_Lower_Crown",
+        "extras": {
+          "source_name": "Tree_3_Lower_Crown",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Tree_03_Trunk",
+        "extras": {
+          "source_name": "Tree_3_Trunk",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Tree_03_Upper_Crown",
+        "extras": {
+          "source_name": "Tree_3_Upper_Crown",
+          "role": "mesh_part"
+        }
+      },
+      {
+        "name": "Tree_03",
+        "extras": {
+          "role": "tree"
+        },
+        "children": [
+          43,
+          44,
+          45
+        ]
+      },
+      {
+        "name": "Vegetation",
+        "extras": {
+          "role": "vegetation"
+        },
+        "children": [
+          38,
+          42,
+          46
+        ]
+      },
+      {
+        "name": "LogicLab_TestIsland_Root",
+        "extras": {
+          "role": "island",
+          "asset_id": "logiclab-test-island",
+          "pipeline_version": "1"
+        },
+        "children": [
+          2,
+          22,
+          27,
+          31,
+          34,
+          47
+        ]
+      }
+    ]
+  },
+  {
+    "path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2/logiclab-basics-island-v2.glb",
+    "bytes": 828192,
+    "sha256": "13305bad8fde16a94442d681e8368831d9773256745902dc9c6c9919fc781309",
+    "validatorVersion": "2.0.0-dev.3.10",
+    "issues": {
+      "numErrors": 0,
+      "numWarnings": 0,
+      "numInfos": 0,
+      "numHints": 0,
+      "messages": [],
+      "truncated": false
+    },
+    "nodes": 43,
+    "meshes": 21,
+    "materials": 2,
+    "triangles": 9324,
+    "cameras": 0,
+    "lights": 0,
+    "requiredExtensions": [],
+    "namedNodes": [
+      {
+        "name": "Anchor_Entry",
+        "extras": {
+          "role": "entry",
+          "interaction_id": "entry"
+        }
+      },
+      {
+        "name": "Anchor_Lighthouse",
+        "extras": {
+          "role": "lighthouse",
+          "interaction_id": "lighthouse"
+        }
+      },
+      {
+        "name": "Anchor_Route_Exit",
+        "extras": {
+          "role": "route_exit",
+          "interaction_id": "route_exit"
+        }
+      },
+      {
+        "name": "Anchor_Workshop",
+        "extras": {
+          "role": "learn",
+          "interaction_id": "learn"
+        }
+      },
+      {
+        "name": "Anchors",
+        "children": [
+          0,
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "name": "Workshop_Architecture"
+      },
+      {
+        "name": "Building_Workshop",
+        "extras": {
+          "role": "course_entry",
+          "interaction_id": "learn",
+          "route": "/learn"
+        },
+        "children": [
+          5
+        ]
+      },
+      {
+        "name": "Light_Lantern"
+      },
+      {
+        "name": "Lighthouse_Structure"
+      },
+      {
+        "name": "Lighthouse_WindowGlow"
+      },
+      {
+        "name": "Landmark_Lighthouse",
+        "extras": {
+          "role": "learning_landmark",
+          "interaction_id": "lighthouse"
+        },
+        "children": [
+          7,
+          8,
+          9
+        ]
+      },
+      {
+        "name": "Buildings",
+        "children": [
+          6,
+          10
+        ]
+      },
+      {
+        "name": "Bridge_Timber"
+      },
+      {
+        "name": "Bridge_Gully",
+        "children": [
+          12
+        ]
+      },
+      {
+        "name": "Coastal_Ramp"
+      },
+      {
+        "name": "Dock_Timber_and_Ropes"
+      },
+      {
+        "name": "Dock_Entry",
+        "extras": {
+          "role": "entry",
+          "interaction_id": "entry"
+        },
+        "children": [
+          15
+        ]
+      },
+      {
+        "name": "StonePath_and_EntryStairs"
+      },
+      {
+        "name": "Path_Main",
+        "children": [
+          17
+        ]
+      },
+      {
+        "name": "Upper_Stairway"
+      },
+      {
+        "name": "Stairs_Upper",
+        "children": [
+          19
+        ]
+      },
+      {
+        "name": "Infrastructure",
+        "children": [
+          13,
+          14,
+          16,
+          18,
+          20
+        ]
+      },
+      {
+        "name": "Coast_Boulders"
+      },
+      {
+        "name": "Route_LampGlow"
+      },
+      {
+        "name": "Signs_and_LampFrames"
+      },
+      {
+        "name": "Props.001",
+        "children": [
+          22,
+          23,
+          24
+        ]
+      },
+      {
+        "name": "CliffRock"
+      },
+      {
+        "name": "GrassPlatforms"
+      },
+      {
+        "name": "Weathered_Cliff_Outcrops"
+      },
+      {
+        "name": "Terrain.001",
+        "children": [
+          26,
+          27,
+          28
+        ]
+      },
+      {
+        "name": "Shrubs_and_Wildflowers"
+      },
+      {
+        "name": "Tree_001_CanopyTrunk"
+      },
+      {
+        "name": "Tree_001",
+        "extras": {
+          "role": "tree"
+        },
+        "children": [
+          31
+        ]
+      },
+      {
+        "name": "Tree_002_CanopyTrunk"
+      },
+      {
+        "name": "Tree_002",
+        "extras": {
+          "role": "tree"
+        },
+        "children": [
+          33
+        ]
+      },
+      {
+        "name": "Tree_003_CanopyTrunk"
+      },
+      {
+        "name": "Tree_003",
+        "extras": {
+          "role": "tree"
+        },
+        "children": [
+          35
+        ]
+      },
+      {
+        "name": "Tree_004_CanopyTrunk"
+      },
+      {
+        "name": "Tree_004",
+        "extras": {
+          "role": "tree"
+        },
+        "children": [
+          37
+        ]
+      },
+      {
+        "name": "Tree_005_CanopyTrunk"
+      },
+      {
+        "name": "Tree_005",
+        "extras": {
+          "role": "tree"
+        },
+        "children": [
+          39
+        ]
+      },
+      {
+        "name": "Vegetation.001",
+        "children": [
+          30,
+          32,
+          34,
+          36,
+          38,
+          40
+        ]
+      },
+      {
+        "name": "Island_Basics_Root",
+        "extras": {
+          "role": "island",
+          "asset_id": "logiclab-basics-island-v2",
+          "schema_version": "1.0"
+        },
+        "children": [
+          4,
+          11,
+          21,
+          25,
+          29,
+          41
+        ]
+      }
+    ]
+  },
+  {
+    "path": "/Users/vincelo/.codex/visualizations/2026/10/28/01a181a6-111f-7253-aa8f-a6448848c162/basics-v2.1/logiclab-basics-island-v2.1.glb",
+    "bytes": 879748,
+    "sha256": "7cb4272734b5d1c7bcd68d2ba340206fdef55623bf0f011f6152a1b7bd468957",
+    "validatorVersion": "2.0.0-dev.3.10",
+    "issues": {
+      "numErrors": 0,
+      "numWarnings": 0,
+      "numInfos": 1,
+      "numHints": 0,
+      "messages": [
+        {
+          "code": "UNUSED_OBJECT",
+          "message": "This object may be unused.",
+          "severity": 2,
+          "pointer": "/meshes/7/primitives/0/attributes/TEXCOORD_0"
+        }
+      ],
+      "truncated": false
+    },
+    "nodes": 46,
+    "meshes": 24,
+    "materials": 2,
+    "triangles": 9800,
+    "cameras": 0,
+    "lights": 0,
+    "requiredExtensions": [],
+    "namedNodes": [
+      {
+        "name": "Anchor_Entry",
+        "extras": {
+          "role": "entry",
+          "interaction_id": "entry"
+        }
+      },
+      {
+        "name": "Anchor_Lighthouse",
+        "extras": {
+          "role": "lighthouse",
+          "interaction_id": "lighthouse"
+        }
+      },
+      {
+        "name": "Anchor_Route_Exit",
+        "extras": {
+          "role": "route_exit",
+          "interaction_id": "route_exit"
+        }
+      },
+      {
+        "name": "Anchor_Workshop",
+        "extras": {
+          "role": "learn",
+          "interaction_id": "learn"
+        }
+      },
+      {
+        "name": "Anchors",
+        "children": [
+          0,
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "name": "Workshop_Architecture"
+      },
+      {
+        "name": "Workshop_Code_Slash"
+      },
+      {
+        "name": "Building_Workshop",
+        "extras": {
+          "role": "course_entry",
+          "interaction_id": "learn",
+          "route": "/learn"
+        },
+        "children": [
+          5,
+          6
+        ]
+      },
+      {
+        "name": "Light_Lantern"
+      },
+      {
+        "name": "Lighthouse_Structure"
+      },
+      {
+        "name": "Lighthouse_WindowGlow"
+      },
+      {
+        "name": "Landmark_Lighthouse",
+        "extras": {
+          "role": "learning_landmark",
+          "interaction_id": "lighthouse"
+        },
+        "children": [
+          8,
+          9,
+          10
+        ]
+      },
+      {
+        "name": "Buildings",
+        "children": [
+          7,
+          11
+        ]
+      },
+      {
+        "name": "Bridge_Timber"
+      },
+      {
+        "name": "Bridge_Gully",
+        "children": [
+          13
+        ]
+      },
+      {
+        "name": "Coastal_Ramp"
+      },
+      {
+        "name": "Dock_START_Marker"
+      },
+      {
+        "name": "Dock_Timber_and_Ropes"
+      },
+      {
+        "name": "Dock_Entry",
+        "extras": {
+          "role": "entry",
+          "interaction_id": "entry"
+        },
+        "children": [
+          16,
+          17
+        ]
+      },
+      {
+        "name": "StonePath_and_EntryStairs"
+      },
+      {
+        "name": "Path_Main",
+        "children": [
+          19
+        ]
+      },
+      {
+        "name": "Upper_Stairway"
+      },
+      {
+        "name": "Stairs_Upper",
+        "children": [
+          21
+        ]
+      },
+      {
+        "name": "Infrastructure",
+        "children": [
+          14,
+          15,
+          18,
+          20,
+          22
+        ]
+      },
+      {
+        "name": "Central_Low_Planting"
+      },
+      {
+        "name": "Coast_Boulders"
+      },
+      {
+        "name": "Route_LampGlow"
+      },
+      {
+        "name": "Signs_and_LampFrames"
+      },
+      {
+        "name": "Props.001",
+        "children": [
+          24,
+          25,
+          26,
+          27
+        ]
+      },
+      {
+        "name": "CliffRock"
+      },
+      {
+        "name": "GrassPlatforms"
+      },
+      {
+        "name": "Weathered_Cliff_Outcrops"
+      },
+      {
+        "name": "Terrain.001",
+        "children": [
+          29,
+          30,
+          31
+        ]
+      },
+      {
+        "name": "Shrubs_and_Wildflowers"
+      },
+      {
+        "name": "Tree_001_CanopyTrunk"
+      },
+      {
+        "name": "Tree_001",
+        "extras": {
+          "role": "tree"
+        },
+        "children": [
+          34
+        ]
+      },
+      {
+        "name": "Tree_002_CanopyTrunk"
+      },
+      {
+        "name": "Tree_002",
+        "extras": {
+          "role": "tree"
+        },
+        "children": [
+          36
+        ]
+      },
+      {
+        "name": "Tree_003_CanopyTrunk"
+      },
+      {
+        "name": "Tree_003",
+        "extras": {
+          "role": "tree"
+        },
+        "children": [
+          38
+        ]
+      },
+      {
+        "name": "Tree_004_CanopyTrunk"
+      },
+      {
+        "name": "Tree_004",
+        "extras": {
+          "role": "tree"
+        },
+        "children": [
+          40
+        ]
+      },
+      {
+        "name": "Tree_005_CanopyTrunk"
+      },
+      {
+        "name": "Tree_005",
+        "extras": {
+          "role": "tree"
+        },
+        "children": [
+          42
+        ]
+      },
+      {
+        "name": "Vegetation.001",
+        "children": [
+          33,
+          35,
+          37,
+          39,
+          41,
+          43
+        ]
+      },
+      {
+        "name": "Island_Basics_Root",
+        "extras": {
+          "role": "island",
+          "asset_id": "logiclab-basics-island-v2",
+          "schema_version": "1.0"
+        },
+        "children": [
+          4,
+          12,
+          23,
+          28,
+          32,
+          44
+        ]
+      }
+    ]
+  }
+]

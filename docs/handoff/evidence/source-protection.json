@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-29",
+  "source_files_checked": 50,
+  "changed_protected_files": [],
+  "missing_protected_files": [],
+  "added_files": [
+    "CLAUDE.md",
+    "docs/handoff/ARCHITECTURE.md",
+    "docs/handoff/BLENDER_ASSET_INVENTORY.md",
+    "docs/handoff/CLAUDE_HANDOFF.md",
+    "docs/handoff/IMPLEMENTATION_STATUS.md",
+    "docs/handoff/KNOWN_ISSUES.md",
+    "docs/handoff/NEXT_STEPS.md",
+    "docs/handoff/PROJECT_OVERVIEW.md",
+    "docs/handoff/TESTING_STATUS.md",
+    "docs/handoff/evidence/actual-build.log",
+    "docs/handoff/evidence/actual-e2e-list.log",
+    "docs/handoff/evidence/actual-lint.log",
+    "docs/handoff/evidence/actual-typecheck.log",
+    "docs/handoff/evidence/actual-unit.log",
+    "docs/handoff/evidence/asset-inventory.json",
+    "docs/handoff/evidence/asset-protection.json",
+    "docs/handoff/evidence/blender-current.json",
+    "docs/handoff/evidence/glb-current.json",
+    "docs/handoff/evidence/project-facts.json",
+    "docs/handoff/evidence/source-before.json",
+    "docs/handoff/evidence/source-protection.json",
+    "docs/handoff/evidence/test-summary.json"
+  ],
+  "allowed_write_scope": [
+    "CLAUDE.md",
+    "docs/handoff/"
+  ],
+  "git_present": false,
+  "verification": "SHA-256 of original source/config/test/package/lock files; excluded original caches/dependencies, which were not used as test write targets"
+}
