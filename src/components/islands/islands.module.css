@@ -126,6 +126,23 @@
   opacity: 0.45;
 }
 
+/* Hex World preview (D.2a): link back to the production map. */
+.previewBack {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--soft);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+}
+.previewBack:hover {
+  background: var(--panel);
+}
+
 .fallbackNotice {
   margin: 0;
   padding: 10px 18px;

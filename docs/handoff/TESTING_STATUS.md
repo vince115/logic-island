@@ -10,6 +10,27 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## Phase D.2a 實測（2026-10-29，分支 `phase-d/basics-glb`）
+
+同一隔離副本與 Playwright 覆寫設定（127.0.0.1:3118）。
+
+| 檢查 | 結果 |
+|---|---|
+| ESLint／TypeScript | 都是 exit 0 |
+| Vitest | 6 files，81 passed／6 skipped；新增 `tests/hex-world.test.ts` 14 項 |
+| Next Build | 成功，新增靜態路由 `/islands/hex` |
+| E2E `hex-world.spec.ts` | 8/8（desktop＋mobile 各 4）；重複 5 次 40/40 |
+| E2E 全套 | 41 passed／3 failed；失敗的仍是 `player.spec.ts` 那 3 個既有案例（P1-11）；`islands.spec.ts` 14/14 不變 |
+
+hex 單元測試覆蓋：
+- flat-top 角點、鄰格距離 √3·R、邊中點與兩角點一致；
+- 地塊不重疊（座標與幾何）；
+- 橋頭位於地塊邊緣，兩端相對且跨一格水；
+- 道路從廣場連到橋頭；
+- 可接受不同格數的聚落與較長的橋；
+- 重疊、相鄰、橋不對邊、橋跨陸地、孤島、不連續聚落都會被拒絕；
+- 正式 `/islands` 的島嶼資料不變。
+
 ## Phase D.1 實測（2026-10-29，分支 `phase-d/basics-glb`）
 
 隔離副本：`/private/tmp/claude-501/-Users-vincelo-dev-hub-github-vince115-logic-island/3691c270-fad4-470d-8a89-a4e7513470b7/scratchpad/iso`（rsync 來源＋clone node_modules）。Playwright 使用副本外的覆寫設定，以 `node node_modules/next/dist/bin/next start` 在 127.0.0.1:3118 啟動，不經 pnpm；:3100 被其他專案占用。

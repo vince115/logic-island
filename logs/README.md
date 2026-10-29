@@ -7,6 +7,8 @@
 | [2026-10-29-rebrand-git-assets.md](2026-10-29-rebrand-git-assets.md) | 更名 Logic Island、命名一致性、Git 初始化、81 個 Blender 資產保全、C.1 美術審查與批准 |
 | [2026-10-29-roadmap-e-to-j.md](2026-10-29-roadmap-e-to-j.md) | Phase D 規劃、Roadmap E–J 與雙群島架構、文件 commit 與 push |
 | [2026-10-29-phase-d-pre-review.md](2026-10-29-phase-d-pre-review.md) | Phase D 實作前審查：v2.1 GLB 對照 C.1 七項條件、節點契約、修改範圍、步驟、測試與回滾 |
+| [2026-10-29-hex-world-analysis.md](2026-10-29-hex-world-analysis.md) | 六角聚落世界架構分析：GLB 可重用範圍、方案 A／B／C 比較、A＋ 決議與 D.2 拆分 |
+| [2026-10-29-phase-d2a-hex-world.md](2026-10-29-phase-d2a-hex-world.md) | D.2a 六角聚落預覽：hex 座標、橋樑資料、修改檔案與驗證 |
 
 ## 撰寫規則
 

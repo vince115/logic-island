@@ -23,6 +23,8 @@
 | P1-08 | 既有 R3F 原型是三座 local geometry，正式資產只有基礎島候選 | 原型≠Phase D。換 GLB 必須更新 registry union、尺度 bounds、光照、loading／fallback、node ID map、資源清理，不能直接替換路徑即完成。**2026-10-29（D.1）：基礎程式島已在分支改用 GLB（registry、bounds、fallback、節點名稱對照、clone 不 dispose 共用資源）；光照未調整，屬 D.2** |
 | P1-11 | 既有 `e2e/player.spec.ts` 3 個案例失敗：bfs 教材（desktop）「播放」按鈕不在 viewport；「播放中更換輸入」（desktop／mobile）找不到 `操作` 欄位。D.0 基線同樣失敗，與 D.1 無關 | 這套 E2E 先前從未執行過。需另案判斷是測試過時或播放器問題；不在 Phase D 範圍 |
 | P1-12 | D.1 手機視窗（390 px）上「工坊 · 學習路線」與「碼頭」標籤互相靠近，碼頭可點範圍小（大多在 START 標記） | 標籤不攔截點擊，但目標小、易誤觸工坊。屬 D.2 鏡頭拉近／標籤避讓評估 |
+| P1-14 | drei `Html` 在同一個 Canvas 中第一個掛載的標籤，若之後沒有重新 render，內容會一直是空的（D.2a 開發時發現）。`/islands` 因 onReady 會 setState 而沒有遇到 | D.2a 的預覽也改成 onReady 時 setState。根本原因尚未查明；之後新增 Html 標籤時要確認第一個有內容 |
+| P1-15 | camera-controls 3.1.2 的 `fitToBox` 會把鏡頭轉到最近的軸向（`camera-controls.module.js:1627` 附近的 round to closest axis）。`/islands` 共用的 `camera-controller.tsx` 因此實際上接近正側視，不是等距視角 | D.2a 預覽改用獨立的 `hex-camera.tsx`（固定視角方向，用正交 zoom 框選），`/islands` 未修改。是否修正正式鏡頭屬 D.2b 以後 |
 | P1-13 | 燈塔／碼頭說明只能透過 3D 點擊觸發，鍵盤與螢幕閱讀器無對應入口 | 教材入口（工坊→`/learn`）在側欄有等價連結；說明內容屬補充資訊。若要完整等價，需在側欄或清單補說明，屬後續決定 |
 | P1-09 | 原型基礎島 catalogEntry=/learn；Blender Workshop metadata route=/learn | 不存在「基礎程式島專屬課程」路由。人工確認 lighthouse／learn／entry 的產品行為，不能自創教材或錯導所有點擊 |
 | P1-10 | .gitignore 不排除 .env*、沒有二進位策略 | 當前無秘密 env 檔，但未來建立 Git 前要審查 ignore／LFS／來源歸屬；不要把1.2G node_modules、298M .next 或整個 Codex folder 放入版控 |
