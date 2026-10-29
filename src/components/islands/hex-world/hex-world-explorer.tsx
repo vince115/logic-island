@@ -15,7 +15,7 @@ const HexWorldScene=dynamic(()=>import('./hex-world-scene'),{
   loading:()=> <div className={styles.loading} role="status"><span className={styles.loadingMark}>⬡</span>正在鋪設六角聚落…<small>也可以使用右側清單選擇教材。</small></div>,
 });
 
-/** D.2a preview: same islands and navigation as /islands, laid out as connected hex settlements. */
+/** D.2 preview: same islands and navigation as /islands, laid out as connected hex settlements. */
 export function HexWorldExplorer({islands}:{islands:LearningIsland[]}) {
   const [selectedId,setSelectedId]=useState<string|null>(null);
   const [available,setAvailable]=useState(true);
@@ -28,7 +28,7 @@ export function HexWorldExplorer({islands}:{islands:LearningIsland[]}) {
   const selected=islands.find(i=>i.id===selectedId);
   return <section className={styles.explorer} aria-label="Hex World 六角聚落預覽">
     <div className={styles.toolbar}>
-      <div className={styles.viewCaption}><Hexagon size={15}/><span>{selected?selected.name:'聚落全景'}</span><small>HEX WORLD PREVIEW · D.2A</small></div>
+      <div className={styles.viewCaption}><Hexagon size={15}/><span>{selected?selected.name:'聚落全景'}</span><small>HEX WORLD PREVIEW · D.2B</small></div>
       <Link className={styles.previewBack} href="/islands"><ArrowLeft size={14}/>回到正式群島地圖</Link>
     </div>
     {!available&&<p className={styles.fallbackNotice} role="status">此裝置的 3D 場景無法使用，請使用清單導航。</p>}

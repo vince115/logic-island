@@ -27,7 +27,8 @@ export const hexWorld: HexWorld = {
   settlements: [
     {
       islandId: 'foundations', center: { q: 0, r: 0 },
-      tiles: cluster({ q: 0, r: 0 }, t => at(t, { q: 0, r: 0 }) ? 'plaza' : 'grass', t => at(t, { q: -1, r: 0 }) ? 0.12 : 0),
+      // D.2b: the north tile (0, -1) is a raised headland for the lighthouse.
+      tiles: cluster({ q: 0, r: 0 }, t => at(t, { q: 0, r: 0 }) ? 'plaza' : 'grass', t => at(t, { q: 0, r: -1 }) ? 0.5 : at(t, { q: -1, r: 0 }) ? 0.12 : 0),
     },
     {
       islandId: 'structures', center: { q: 4, r: -4 },
@@ -46,6 +47,8 @@ export const hexWorld: HexWorld = {
   ],
 };
 
+/** World y of a tile top at height 0; tiles, roads, bridges and buildings all stand on it. */
+export const LAND_TOP = 0.55;
 export const tileHeight = (tile: HexTile) => tile.height ?? 0;
 export function findTile(world: HexWorld, islandId: string, hex: Axial) {
   return world.settlements.find(s => s.islandId === islandId)?.tiles.find(t => at(t, hex));

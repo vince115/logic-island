@@ -4,13 +4,13 @@ import { useLayoutEffect, useMemo, useRef } from 'react';
 import type { ThreeEvent } from '@react-three/fiber';
 import { Color, CylinderGeometry, InstancedMesh, MeshStandardMaterial, Object3D } from 'three';
 import { hexKey, hexSpiral, hexToWorld } from '@/lib/islands/hex';
-import { tileHeight, type HexTerrain, type HexWorld } from '@/lib/islands/hex-world';
+import { LAND_TOP, tileHeight, type HexTerrain, type HexWorld } from '@/lib/islands/hex-world';
 
 // Simple generated materials for D.2a; a Blender tile kit can replace them without touching the layout data.
 const terrainColors: Record<HexTerrain, string> = {
   plaza: '#e9e2cc', grass: '#7ccf5b', meadow: '#a5d86a', sand: '#efd9a0', stone: '#b8c0c8',
 };
-export const BASE_TOP = 0.55;
+export const BASE_TOP = LAND_TOP;
 export const WATER_Y = -0.3;
 const CAP = 0.14, BOTTOM = -1.1, GAP = 0.965;
 

@@ -25,6 +25,7 @@
 | P1-12 | D.1 手機視窗（390 px）上「工坊 · 學習路線」與「碼頭」標籤互相靠近，碼頭可點範圍小（大多在 START 標記） | 標籤不攔截點擊，但目標小、易誤觸工坊。屬 D.2 鏡頭拉近／標籤避讓評估 |
 | P1-14 | drei `Html` 在同一個 Canvas 中第一個掛載的標籤，若之後沒有重新 render，內容會一直是空的（D.2a 開發時發現）。`/islands` 因 onReady 會 setState 而沒有遇到 | D.2a 的預覽也改成 onReady 時 setState。根本原因尚未查明；之後新增 Html 標籤時要確認第一個有內容 |
 | P1-15 | camera-controls 3.1.2 的 `fitToBox` 會把鏡頭轉到最近的軸向（`camera-controls.module.js:1627` 附近的 round to closest axis）。`/islands` 共用的 `camera-controller.tsx` 因此實際上接近正側視，不是等距視角 | D.2a 預覽改用獨立的 `hex-camera.tsx`（固定視角方向，用正交 zoom 框選），`/islands` 未修改。是否修正正式鏡頭屬 D.2b 以後 |
+| P1-16 | D.2b 試作：0.6 倍的 GLB 工坊（約 1.8×1.9）比一格六角地塊的有效面積大，只好把 pivot 往廣場方向推；GLB 建築細節多、用頂點色調色盤，另外兩島的暫代幾何與程式生成地塊較簡單、較鮮綠，風格不一致；碼頭甲板與地塊頂面同高，離水面約 0.85 | 屬視覺驗收與 D.2b 後續；可考慮六角專用縮放、地塊配色對齊 GLB 調色盤，或改用 Blender 六角組件（方案 B） |
 | P1-13 | 燈塔／碼頭說明只能透過 3D 點擊觸發，鍵盤與螢幕閱讀器無對應入口 | 教材入口（工坊→`/learn`）在側欄有等價連結；說明內容屬補充資訊。若要完整等價，需在側欄或清單補說明，屬後續決定 |
 | P1-09 | 原型基礎島 catalogEntry=/learn；Blender Workshop metadata route=/learn | 不存在「基礎程式島專屬課程」路由。人工確認 lighthouse／learn／entry 的產品行為，不能自創教材或錯導所有點擊 |
 | P1-10 | .gitignore 不排除 .env*、沒有二進位策略 | 當前無秘密 env 檔，但未來建立 Git 前要審查 ignore／LFS／來源歸屬；不要把1.2G node_modules、298M .next 或整個 Codex folder 放入版控 |

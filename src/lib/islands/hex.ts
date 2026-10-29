@@ -38,6 +38,15 @@ export function hexCorner(center: Axial, size: number, i: number): [number, numb
   const angle = (Math.PI / 3) * i;
   return [x + size * Math.cos(angle), z - size * Math.sin(angle)];
 }
+/** The hex containing world point (x, z): inverse of hexToWorld, rounded through cube coordinates. */
+export function worldToHex(x: number, z: number, size: number): Axial {
+  const q = (2 / 3) * x / size, r = (-x / 3 + (Math.sqrt(3) / 3) * z) / size, s = -q - r;
+  let rq = Math.round(q), rr = Math.round(r);
+  const rs = Math.round(s), dq = Math.abs(rq - q), dr = Math.abs(rr - r), ds = Math.abs(rs - s);
+  if (dq > dr && dq > ds) rq = -rr - rs;
+  else if (dr > ds) rr = -rq - rs;
+  return { q: rq + 0, r: rr + 0 };
+}
 /** The two corners bounding edge `edge` (corners at 60°·(edge-1) and 60°·edge). */
 export function hexEdgeCorners(hex: Axial, edge: HexEdge, size: number): [[number, number], [number, number]] {
   return [hexCorner(hex, size, (edge + 5) % 6), hexCorner(hex, size, edge)];

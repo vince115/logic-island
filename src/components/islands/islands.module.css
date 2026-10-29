@@ -725,3 +725,19 @@
   line-height: 1;
   cursor: pointer;
 }
+
+/* Hex World preview labels: compact on phones so they cover less of the settlements. */
+@media (max-width: 700px) {
+  .hexLabel {
+    gap: 5px;
+    font-size: 11px;
+    padding: 3px 9px 3px 7px;
+  }
+  .hexLabel small {
+    display: none;
+  }
+  .hexAnchorLabel {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+}

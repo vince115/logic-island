@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Vector3 } from 'three';
 import { Canvas, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
@@ -10,7 +11,10 @@ import type { IslandDefinition } from '@/lib/islands/types';
 import { HexCamera } from './hex-camera';
 import { HexTiles, WATER_Y } from './hex-tiles';
 import { HexBridges, HexRoads } from './hex-routes';
+import { hexGlbSettlements } from '@/lib/islands/hex-buildings';
+import type { ModelSource } from '../glb-island-model';
 import { HexLandmarks } from './hex-landmarks';
+import { HexGlbBuildings } from './hex-glb-buildings';
 import styles from '../islands.module.css';
 
 function Lifecycle({onReady,onUnavailable}:{onReady:()=>void;onUnavailable:()=>void}) {
@@ -35,6 +39,12 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,reduced
 }) {
   const frames=useMemo(()=>settlementFrames(world,islands),[world,islands]);
   const [ox,oz]=useMemo(()=>worldCenter(world),[world]);
+  const router=useRouter();
+  const navigate=useCallback((href:string)=>router.push(href),[router]);
+  // Which model each settlement shows: GLB buildings, or the placeholders while loading / on failure.
+  const [sources,setSources]=useState<Record<string,ModelSource>>({});
+  const sourceSetters=useMemo(()=>Object.fromEntries(hexGlbSettlements.map(layout=>
+    [layout.islandId,(source:ModelSource)=>setSources(current=>({...current,[layout.islandId]:source}))])),[]);
   return <div className={styles.canvasWrap}>
     <Canvas orthographic frameloop="demand" dpr={[1,1.5]} shadows="soft"
       camera={{position:[20,19,24],zoom:27,near:.1,far:400}}
@@ -57,13 +67,18 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,reduced
         <HexBridges world={world}/>
         {world.settlements.map(settlement=>{
           const island=islands.find(i=>i.id===settlement.islandId);
-          const [x,z]=hexToWorld(settlement.center,world.size);
+          const layout=hexGlbSettlements.find(l=>l.islandId===settlement.islandId);
+          const [x,z]=hexToWorld(layout?.label?.tile??settlement.center,world.size);
+          const placeholders=<HexLandmarks world={world} settlement={settlement}/>;
+          const selected=selectedId===settlement.islandId;
           return <group key={settlement.islandId}>
-            <HexLandmarks world={world} settlement={settlement}/>
-            {island&&<group position={[x,0,z]}><Html position={[0,3.4,0]} center zIndexRange={[15,0]}>
-              <button type="button" className={`${styles.islandLabel} ${selectedId===island.id?styles.labelSelected:''}`}
+            {layout?<HexGlbBuildings world={world} layout={layout} selected={selected} fallback={placeholders}
+              onSourceChange={sourceSetters[layout.islandId]} onNavigate={navigate}/>:placeholders}
+            {/* A focused settlement hands its space to the anchor labels; the toolbar still names it. */}
+            {island&&!selected&&<group position={[x,0,z]}><Html position={[0,layout?.label?.height??3.4,0]} center zIndexRange={[15,0]}>
+              <button type="button" className={`${styles.islandLabel} ${styles.hexLabel}`}
                 style={{'--island-accent':island.accent} as React.CSSProperties}
-                aria-pressed={selectedId===island.id} aria-label={`聚焦${island.name}`}
+                aria-pressed={false} aria-label={`聚焦${island.name}`} data-model-source={layout?sources[island.id]??'loading':'geometry'}
                 onClick={event=>{event.stopPropagation();onSelect(island.id);}}>
                 <span/>{island.name}<small>↗</small>
               </button>

@@ -9,6 +9,7 @@
 | [2026-10-29-phase-d-pre-review.md](2026-10-29-phase-d-pre-review.md) | Phase D 實作前審查：v2.1 GLB 對照 C.1 七項條件、節點契約、修改範圍、步驟、測試與回滾 |
 | [2026-10-29-hex-world-analysis.md](2026-10-29-hex-world-analysis.md) | 六角聚落世界架構分析：GLB 可重用範圍、方案 A／B／C 比較、A＋ 決議與 D.2 拆分 |
 | [2026-10-29-phase-d2a-hex-world.md](2026-10-29-phase-d2a-hex-world.md) | D.2a 六角聚落預覽：hex 座標、橋樑資料、修改檔案與驗證 |
+| [2026-10-29-phase-d2b-trial.md](2026-10-29-phase-d2b-trial.md) | D.2b 第一階段試作：基礎程式島 GLB 建築上六角地塊、Anchor 相對位移、互動與 fallback、風格問題 |
 
 ## 撰寫規則
 

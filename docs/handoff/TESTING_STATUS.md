@@ -10,6 +10,17 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## Phase D.2b 第一階段實測（2026-10-29，分支 `phase-d/basics-glb`，未 commit）
+
+| 檢查 | 結果 |
+|---|---|
+| ESLint／TypeScript | 都是 exit 0 |
+| Vitest | 7 files，90 passed／6 skipped；新增 `tests/hex-buildings.test.ts` 9 項 |
+| Next Build | 成功 |
+| E2E `hex-world.spec.ts`＋`islands.spec.ts` | 30 項，重複 5 次 150/150 |
+| E2E 全套 | 49 passed／3 failed；失敗的仍是 `player.spec.ts` 那 3 個既有案例（P1-11） |
+| D.0 資產與 D.1 檔案 | 與 `063f0d4` 比對無差異；保全庫 81/81 SHA 相符 |
+
 ## Phase D.2a 實測（2026-10-29，分支 `phase-d/basics-glb`）
 
 同一隔離副本與 Playwright 覆寫設定（127.0.0.1:3118）。
