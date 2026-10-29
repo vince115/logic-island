@@ -4,10 +4,16 @@ import {
 } from './hex';
 import type { IslandDefinition } from './types';
 
-export type HexTerrain = 'plaza' | 'grass' | 'meadow' | 'sand' | 'stone';
+export type HexTerrain = 'plaza' | 'grass' | 'meadow' | 'sand' | 'stone' | 'shore';
 export interface HexTile extends Axial { terrain: HexTerrain; /** Raises the tile top; 0 is the base land height. */ height?: number }
-/** One island as a cluster of tiles. The tile list may have any size or shape, as long as it is contiguous. */
-export interface HexSettlement { islandId: string; center: Axial; tiles: HexTile[] }
+/** A road from the plaza to a water-facing edge without a bridge, e.g. down to a dock. */
+export interface HexSpur { id: string; tile: Axial; edge: HexEdge }
+/**
+ * One island as a cluster of tiles. The tile list may have any size or shape, as long as it is contiguous.
+ * `surface: 'continuous'` merges the tiles into one terrain mesh with cliffs and ramps (D.2b); otherwise
+ * each tile is a separate prism (D.2a).
+ */
+export interface HexSettlement { islandId: string; center: Axial; tiles: HexTile[]; surface?: 'continuous'; spurs?: HexSpur[] }
 /** A bridge end: the outward edge of one land tile. */
 export interface HexPort { islandId: string; tile: Axial; edge: HexEdge }
 /** A straight bridge across one or more water hexes; any port can take more routes later. */
@@ -26,9 +32,15 @@ export const hexWorld: HexWorld = {
   size: 1.25,
   settlements: [
     {
-      islandId: 'foundations', center: { q: 0, r: 0 },
-      // D.2b: the north tile (0, -1) is a raised headland for the lighthouse.
-      tiles: cluster({ q: 0, r: 0 }, t => at(t, { q: 0, r: 0 }) ? 'plaza' : 'grass', t => at(t, { q: 0, r: -1 }) ? 0.5 : at(t, { q: -1, r: 0 }) ? 0.12 : 0),
+      islandId: 'foundations', center: { q: 0, r: 0 }, surface: 'continuous',
+      // D.2b: 8 tiles. (0, -1) is a raised headland for the lighthouse, (0, 1) a low shore for the dock,
+      // and (-2, 1) gives the workshop two level tiles to stand across.
+      tiles: [
+        ...cluster({ q: 0, r: 0 }, t => at(t, { q: 0, r: 0 }) ? 'plaza' : at(t, { q: 0, r: 1 }) ? 'shore' : 'grass',
+          t => at(t, { q: 0, r: -1 }) ? 0.5 : at(t, { q: 0, r: 1 }) ? -0.55 : 0),
+        { q: -2, r: 1, terrain: 'grass', height: 0 },
+      ],
+      spurs: [{ id: 'foundations-dock', tile: { q: 0, r: 1 }, edge: 5 }],
     },
     {
       islandId: 'structures', center: { q: 4, r: -4 },
@@ -49,6 +61,8 @@ export const hexWorld: HexWorld = {
 
 /** World y of a tile top at height 0; tiles, roads, bridges and buildings all stand on it. */
 export const LAND_TOP = 0.55;
+/** World y of the sea surface. */
+export const WATER_LEVEL = -0.3;
 export const tileHeight = (tile: HexTile) => tile.height ?? 0;
 export function findTile(world: HexWorld, islandId: string, hex: Axial) {
   return world.settlements.find(s => s.islandId === islandId)?.tiles.find(t => at(t, hex));
@@ -75,13 +89,17 @@ export function settlementPath(settlement: HexSettlement, target: Axial): Axial[
   return path;
 }
 
-/** Road polylines (world x/z): settlement center → port tile → port edge midpoint, one per bridge end. */
+/** Road polylines (world x/z): settlement center → port tile → port edge midpoint, per bridge end and spur. */
 export function settlementRoads(world: HexWorld) {
-  return world.bridges.flatMap(bridge => [bridge.from, bridge.to].map(port => {
+  const road = (routeId: string, port: HexPort, bridgeId?: string) => {
     const settlement = world.settlements.find(s => s.islandId === port.islandId)!;
     const tiles = settlementPath(settlement, port.tile);
-    return { islandId: port.islandId, bridgeId: bridge.id, tiles, points: [...tiles.map(t => hexToWorld(t, world.size)), portPoint(world, port)] };
-  }));
+    return { islandId: port.islandId, routeId, bridgeId, port, tiles, points: [...tiles.map(t => hexToWorld(t, world.size)), portPoint(world, port)] };
+  };
+  return [
+    ...world.bridges.flatMap(bridge => [bridge.from, bridge.to].map(port => road(bridge.id, port, bridge.id))),
+    ...world.settlements.flatMap(s => (s.spurs ?? []).map(spur => road(spur.id, { islandId: s.islandId, tile: spur.tile, edge: spur.edge }))),
+  ];
 }
 
 /** Returns every rule the world breaks; an empty list means the layout is valid. */
@@ -110,6 +128,10 @@ export function validateHexWorld(world: HexWorld, islandIds: readonly string[]):
   for (const id of islandIds) if (ids.filter(x => x === id).length !== 1) problems.push(`${id}: expected exactly one settlement`);
   for (const id of ids) if (!islandIds.includes(id)) problems.push(`${id}: unknown island`);
 
+  for (const settlement of world.settlements) for (const spur of settlement.spurs ?? []) {
+    if (owner.get(hexKey(spur.tile)) !== settlement.islandId) problems.push(`${spur.id}: ${hexKey(spur.tile)} is not a ${settlement.islandId} tile`);
+    if (owner.has(hexKey(hexNeighbor(spur.tile, spur.edge)))) problems.push(`${spur.id}: edge ${spur.edge} does not face water`);
+  }
   const bridgeIds = world.bridges.map(b => b.id);
   if (new Set(bridgeIds).size !== bridgeIds.length) problems.push('duplicate bridge ids');
   for (const bridge of world.bridges) {
@@ -119,6 +141,9 @@ export function validateHexWorld(world: HexWorld, islandIds: readonly string[]):
       if (owner.has(hexKey(hexNeighbor(port.tile, port.edge)))) problems.push(`${bridge.id}: ${port.islandId} edge ${port.edge} does not face water`);
     }
     if (from.islandId === to.islandId) problems.push(`${bridge.id}: connects an island to itself`);
+    for (const port of [from, to]) for (const spur of world.settlements.find(s => s.islandId === port.islandId)?.spurs ?? []) {
+      if (at(spur.tile, port.tile) && spur.edge === port.edge) problems.push(`${spur.id}: shares an edge with ${bridge.id}`);
+    }
     if (to.edge !== oppositeEdge(from.edge)) problems.push(`${bridge.id}: edges ${from.edge} and ${to.edge} do not face each other`);
     const span = hexDistance(from.tile, to.tile);
     if (!at(addAxial(from.tile, hexDirection(from.edge), span), to.tile)) problems.push(`${bridge.id}: ports are not on one straight line`);

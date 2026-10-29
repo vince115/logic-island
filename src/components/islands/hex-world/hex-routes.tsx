@@ -1,35 +1,35 @@
 'use client';
 
 import { useMemo } from 'react';
-import { findTile, portPoint, settlementRoads, tileHeight, type HexBridge, type HexWorld } from '@/lib/islands/hex-world';
+import { findTile, portPoint, tileHeight, type HexBridge, type HexWorld } from '@/lib/islands/hex-world';
+import { roadProfiles } from '@/lib/islands/hex-terrain';
+import type { Vec3 } from '@/lib/islands/types';
 import { BASE_TOP } from './hex-tiles';
 
 const ROAD_WIDTH = .5;
 const noRaycast = () => undefined;
 
-/** A flat strip between two x/z points at height y, plus a round joint so turns stay closed. */
-function Segment({from,to,y,width,color}:{from:[number,number];to:[number,number];y:number;width:number;color:string}) {
-  const dx = to[0] - from[0], dz = to[1] - from[1], length = Math.hypot(dx, dz);
+/** A strip between two 3D points (sloped on ramps), plus a round joint so turns stay closed. */
+function Segment({from,to,lift,width,color}:{from:Vec3;to:Vec3;lift:number;width:number;color:string}) {
+  const dx = to[0] - from[0], dy = to[1] - from[1], dz = to[2] - from[2], run = Math.hypot(dx, dz);
+  // Yaw turns the strip toward `to`, then pitch tilts it along the slope ('YZX' applies z before y).
   return <group>
-    <mesh position={[(from[0] + to[0]) / 2, y, (from[1] + to[1]) / 2]} rotation-y={-Math.atan2(dz, dx)} receiveShadow raycast={noRaycast}>
-      <boxGeometry args={[length, .03, width]}/><meshStandardMaterial color={color} roughness={.95}/>
+    <mesh position={[(from[0] + to[0]) / 2, (from[1] + to[1]) / 2 + lift, (from[2] + to[2]) / 2]}
+      rotation={[0, -Math.atan2(dz, dx), Math.atan2(dy, run), 'YZX']} receiveShadow raycast={noRaycast}>
+      <boxGeometry args={[Math.hypot(run, dy), .03, width]}/><meshStandardMaterial color={color} roughness={.95}/>
     </mesh>
-    <mesh position={[to[0], y, to[1]]} receiveShadow raycast={noRaycast}>
+    <mesh position={[to[0], to[1] + lift, to[2]]} receiveShadow raycast={noRaycast}>
       <cylinderGeometry args={[width / 2, width / 2, .03, 12]}/><meshStandardMaterial color={color} roughness={.95}/>
     </mesh>
   </group>;
 }
 
-/** Light cobblestone paths from each settlement plaza to its bridge edges. */
+/** Light cobblestone paths from each settlement plaza to its bridge and dock edges, following ramps. */
 export function HexRoads({world}:{world:HexWorld}) {
-  const roads = useMemo(() => settlementRoads(world), [world]);
-  return <group>{roads.map(road => {
-    // Roads sit just above the highest tile they cross.
-    const y = BASE_TOP + Math.max(...road.tiles.map(t => tileHeight(findTile(world, road.islandId, t)!))) + .018;
-    return <group key={`${road.bridgeId}-${road.islandId}`}>
-      {road.points.slice(1).map((point, i) => <Segment key={i} from={road.points[i]} to={point} y={y} width={ROAD_WIDTH} color="#f4efe1"/>)}
-    </group>;
-  })}</group>;
+  const roads = useMemo(() => roadProfiles(world), [world]);
+  return <group>{roads.map(road => <group key={`${road.routeId}-${road.islandId}`}>
+    {road.points.slice(1).map((point, i) => <Segment key={i} from={road.points[i]} to={point} lift={.018} width={ROAD_WIDTH} color="#e5dcc6"/>)}
+  </group>)}</group>;
 }
 
 /** A straight bridge between two port edge midpoints: wooden deck with rails, or a stone arch. */

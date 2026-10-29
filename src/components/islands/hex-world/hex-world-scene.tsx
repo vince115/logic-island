@@ -10,6 +10,7 @@ import { settlementFrames, worldCenter, type HexWorld } from '@/lib/islands/hex-
 import type { IslandDefinition } from '@/lib/islands/types';
 import { HexCamera } from './hex-camera';
 import { HexTiles, WATER_Y } from './hex-tiles';
+import { HexTerrainMesh } from './hex-terrain-mesh';
 import { HexBridges, HexRoads } from './hex-routes';
 import { hexGlbSettlements } from '@/lib/islands/hex-buildings';
 import type { ModelSource } from '../glb-island-model';
@@ -63,6 +64,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,reduced
       </mesh>
       <group position={[-ox,0,-oz]}>
         <HexTiles world={world} onSelect={onSelect}/>
+        {world.settlements.filter(s=>s.surface==='continuous').map(s=><HexTerrainMesh key={s.islandId} world={world} settlement={s} onSelect={onSelect}/>)}
         <HexRoads world={world}/>
         <HexBridges world={world}/>
         {world.settlements.map(settlement=>{
@@ -80,7 +82,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,reduced
                 style={{'--island-accent':island.accent} as React.CSSProperties}
                 aria-pressed={false} aria-label={`聚焦${island.name}`} data-model-source={layout?sources[island.id]??'loading':'geometry'}
                 onClick={event=>{event.stopPropagation();onSelect(island.id);}}>
-                <span/>{island.name}<small>↗</small>
+                <span/><strong className={styles.hexLabelText}>{island.name}</strong><small>↗</small>
               </button>
             </Html></group>}
           </group>;

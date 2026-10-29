@@ -33,16 +33,21 @@ export function HexCamera({frames,selectedId,reducedMotion}:{frames:IslandDefini
       halfWidth=Math.max(halfWidth,Math.abs(offset.dot(right)));
       halfHeight=Math.max(halfHeight,Math.abs(offset.dot(up)));
     }
+    // Overlays cover the stage: the caption at the top, the hint bar at the bottom (two rows on phones,
+    // one once a settlement is focused there). Frame into the space between them.
+    const phone=width<700;
+    const top=phone?72:40,bottom=phone?(selected?64:96):56;
     // An orthographic camera shows width/zoom world units across, so zoom = pixels / units.
-    const pad=width<700?1.15:1.12;
-    const zoom=Math.min(width/(2*halfWidth*pad),height/(2*halfHeight*pad));
+    const pad=phone?1.1:1.12;
+    const zoom=Math.min(width/(2*halfWidth*pad),(height-top-bottom)/(2*halfHeight*pad));
+    center.addScaledVector(up,(top-bottom)/(2*zoom));
     const eye=center.clone().addScaledVector(VIEW,40);
     const animate=initialized.current&&!reducedMotion;
     controller.stop();
     void controller.setLookAt(eye.x,eye.y,eye.z,center.x,center.y,center.z,animate);
     void controller.zoomTo(zoom,animate);
     initialized.current=true;
-  },[bounds,width,height,reducedMotion]);
+  },[bounds,width,height,reducedMotion,selected]);
   return <CameraControls ref={controls} makeDefault smoothTime={.65}
     minZoom={4} maxZoom={150}
     mouseButtons={{left:CameraControlsImpl.ACTION.NONE,middle:CameraControlsImpl.ACTION.NONE,right:CameraControlsImpl.ACTION.NONE,wheel:CameraControlsImpl.ACTION.NONE}}

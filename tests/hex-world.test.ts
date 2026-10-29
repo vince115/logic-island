@@ -45,10 +45,11 @@ describe('D.2a hex world layout', () => {
     expect(validateHexWorld(hexWorld, ids)).toEqual([]);
   });
 
-  it('has the three existing islands as 7-tile settlements at the agreed coordinates', () => {
+  it('has the three existing islands at the agreed coordinates; foundations grew to 8 tiles in D.2b', () => {
     expect(hexWorld.settlements.map(s => [s.islandId, s.center, s.tiles.length])).toEqual([
-      ['foundations', { q: 0, r: 0 }, 7], ['structures', { q: 4, r: -4 }, 7], ['algorithms', { q: 8, r: -4 }, 7],
+      ['foundations', { q: 0, r: 0 }, 8], ['structures', { q: 4, r: -4 }, 7], ['algorithms', { q: 8, r: -4 }, 7],
     ]);
+    expect(hexWorld.settlements[0].tiles.at(-1)).toMatchObject({ q: -2, r: 1 });
   });
 
   it('never overlaps tiles, by coordinate or by geometry', () => {
@@ -75,15 +76,13 @@ describe('D.2a hex world layout', () => {
     }
   });
 
-  it('runs a road from each plaza to each of its bridge edges', () => {
+  it('runs a road from each plaza to each of its bridge edges and to the dock', () => {
     const roads = settlementRoads(hexWorld);
-    expect(roads).toHaveLength(4);
+    expect(roads.map(r => r.routeId)).toEqual(['foundations-structures', 'foundations-structures', 'structures-algorithms', 'structures-algorithms', 'foundations-dock']);
     for (const road of roads) {
       const settlement = hexWorld.settlements.find(s => s.islandId === road.islandId)!;
-      const bridge = hexWorld.bridges.find(b => b.id === road.bridgeId)!;
-      const port = bridge.from.islandId === road.islandId ? bridge.from : bridge.to;
       close(road.points[0], hexToWorld(settlement.center, R));
-      close(road.points.at(-1)!, portPoint(hexWorld, port));
+      close(road.points.at(-1)!, portPoint(hexWorld, road.port));
     }
   });
 

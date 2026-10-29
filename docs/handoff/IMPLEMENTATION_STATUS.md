@@ -25,7 +25,7 @@
 | 深淺主題／響應式／可存取性 | Implemented／Partial | 原始碼存在，無目前瀏覽器／WCAG 完整驗收 |
 | Logic Islands（邏輯群島）原型 | Implemented／Partial／Blocked | `/islands`、三個 local geometry model；CSS 缺檔、型別與 lint 錯誤 |
 | GLB 正式載入與功能節點路由 | **Implemented／Verified（分支 `phase-d/basics-glb`，D.1）**：只有基礎程式島 | `glb-island-model.tsx`、`glb-contract.ts`；工坊→`/learn`，燈塔／碼頭顯示說明，Anchor 只放標籤；載入失敗或契約缺失回到原創幾何。尚未 merge main，真機未測 |
-| Hex World 六角聚落預覽（D.2a／D.2b 試作） | Implemented／Verified（分支） | `/islands/hex`，不連到網站導覽且設為 noindex；三座 7 格聚落、兩座橋與道路，地塊為程式生成。D.2b：基礎程式島改放 v2.1 GLB 的工坊、燈塔、碼頭與 3 棵樹，互動與 D.1 相同；另兩島仍是暫代幾何；正式 `/islands` 不讀取這份資料 |
+| Hex World 六角聚落預覽（D.2a／D.2b 試作） | Implemented／Verified（分支） | `/islands/hex`，不連到網站導覽且設為 noindex；三座 7 格聚落、兩座橋與道路，地塊為程式生成。D.2b：基礎程式島改放 v2.1 GLB 的工坊、燈塔、碼頭與 3 棵樹，互動與 D.1 相同；第二階段改為 8 格連續地形（崖壁、坡道、低岸碼頭、GLB 粉彩配色）；另兩島仍是暫代幾何與獨立六角柱；正式 `/islands` 不讀取這份資料 |
 | 原型整島 hover／click／聚焦 | Implemented、未實際驗證 | `island.tsx`／`camera-controller.tsx`；不是 GLB 子建物 click 整合 |
 | v2.1 獨立 GLB viewer 三地標 Raycast | 歷史報告 Verified | 外部 `Polish_Browser_Validation.json`；與正式 R3F 系統分離 |
 | 後端／登入／OJ／進度保存 | Not Started | 無對應 route／service／資料庫，不補猜產品計畫 |
@@ -40,7 +40,7 @@
 | Phase B | `LogicLab_3D_Art_Style_Guide.md`、`LogicLab_Basics_Island_Scene_Plan.md` | 兩文件存在且完整，後續模型依此製作 | Implemented（文件完成）；不表示所有模型與效能項目已達規格 |
 | Phase C | `basics-v2/` 完整模型、渲染與 GLB | 使用者於對話給「有條件通過」；0/0 Validator，歷史 viewer 成功 | 製作完成候選；有人工條件，不等於 Phase D 授權 |
 | Phase C.1 | **`basics-v2.1/` 實際已存在 BLEND、GLB、兩視圖、驗證與差異報告** | 本輪重新 Validator 0/0＋1 info；**2026-10-29 使用者正式批准 v2.1 為 Phase D 候選資產**（技術通過、視覺有條件接受） | Approved（有條件）；決議與後續美術項見 [ROADMAP](ROADMAP.md) |
-| Phase D | D.0：runtime GLB、provenance、registry（`e4e7375`）；D.1：基礎程式島改用 GLB（`9c79937`）；D.2a：獨立的六角聚落預覽 `/islands/hex`（`063f0d4`）；D.2b 第一階段：預覽中的基礎程式島改用 GLB 建築（分支 `phase-d/basics-glb`，未 commit） | D.0 已驗收；D.1 工程整合已接受；D.2a 工程驗收通過；D.2b 只有條件批准第一階段（僅基礎程式島），試作完成待驗收；其他兩島的遷移、D.2c、D.3 未批准 | Partial；分支未 merge、未 push，見 [ROADMAP](ROADMAP.md) 與 [TESTING_STATUS](TESTING_STATUS.md) |
+| Phase D | D.0：runtime GLB、provenance、registry（`e4e7375`）；D.1：基礎程式島改用 GLB（`9c79937`）；D.2a：獨立的六角聚落預覽 `/islands/hex`（`063f0d4`）；D.2b 第一階段：預覽中的基礎程式島改用 GLB 建築（`c14e975`）；D.2b 第二階段：基礎程式島連續六角地形（方案 A2，分支上未 commit） | D.0 已驗收；D.1 工程整合已接受；D.2a 工程驗收通過；D.2b 第一階段技術驗收通過；第二階段完成，等待確認視覺方向後才能 commit；其他兩島的遷移、D.2c、D.3 未批准 | Partial；分支未 merge、未 push，見 [ROADMAP](ROADMAP.md) 與 [TESTING_STATUS](TESTING_STATUS.md) |
 | Phase E | Data-Driven Islands（schema 定義島嶼、GLB 引用、課程、互動、解鎖、關聯） | 無實作 | Planned；D 完成後才開始，見 [ROADMAP](ROADMAP.md) |
 | Phase F | RPG Learning System（NPC、任務、EXP、等級、徽章、解鎖） | 無實作 | Planned；依賴 E，進度層與 3D 層分離 |
 | Phase G | APCS Challenges（試煉島、中央島、跨島任務、完成紀錄） | 無實作 | Planned；依賴 F，判題 adapter 預留自動判題擴充，首版方式待決 |

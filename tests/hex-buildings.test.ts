@@ -7,7 +7,8 @@ import { checkGlbContract, resolveTarget } from '@/lib/islands/glb-contract';
 import { extractGlbParts, type GlbPart } from '@/lib/islands/glb-parts';
 import { hexKey, hexNeighbor, hexToWorld, worldToHex } from '@/lib/islands/hex';
 import { hexGlbSettlements, placementPose } from '@/lib/islands/hex-buildings';
-import { hexWorld, portPoint, settlementRoads, tileHeight } from '@/lib/islands/hex-world';
+import { WATER_LEVEL, hexWorld, portPoint, tileHeight } from '@/lib/islands/hex-world';
+import { roadProfiles, tileTop } from '@/lib/islands/hex-terrain';
 
 const layout = hexGlbSettlements[0];
 const asset = glbAssets[layout.asset];
@@ -24,13 +25,21 @@ beforeAll(async () => {
   parts = result.parts;
 });
 const part = (node: string) => parts.find(p => p.node === node)!;
-/** Footprint corners on the map (x, z) after scale, rotation and placement. */
-function footprint(node: string) {
-  const { bounds } = part(node), pose = placementPose(hexWorld, layout.islandId, layout.placements.find(p => p.node === node)!);
-  const cos = Math.cos(pose.rotation), sin = Math.sin(pose.rotation), s = asset.scale;
-  return [[bounds.min[0], bounds.min[2]], [bounds.max[0], bounds.min[2]], [bounds.max[0], bounds.max[2]], [bounds.min[0], bounds.max[2]]]
-    .map(([x, z]) => [pose.position[0] + s * (x * cos + z * sin), pose.position[2] + s * (-x * sin + z * cos)] as [number, number]);
+const pose = (node: string) => placementPose(hexWorld, layout.islandId, layout.placements.find(p => p.node === node)!);
+/** Footprint points on the map (x, z) after scale, rotation and placement: corners, or an n×n grid. */
+function footprint(node: string, n = 2) {
+  const { bounds } = part(node), { position, rotation } = pose(node);
+  const cos = Math.cos(rotation), sin = Math.sin(rotation), s = asset.scale, out: [number, number][] = [];
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    const x = bounds.min[0] + (bounds.max[0] - bounds.min[0]) * i / (n - 1), z = bounds.min[2] + (bounds.max[2] - bounds.min[2]) * j / (n - 1);
+    out.push([position[0] + s * (x * cos + z * sin), position[2] + s * (-x * sin + z * cos)]);
+  }
+  return out;
 }
+const tileAt = (x: number, z: number) => settlement.tiles.find(t => hexKey(t) === hexKey(worldToHex(x, z, hexWorld.size)));
+const roadSegments = (filter: (routeId: string) => boolean) => roadProfiles(hexWorld).filter(r => filter(r.routeId))
+  .flatMap(r => r.points.slice(1).map((p, i) => [[r.points[i][0], r.points[i][2]], [p[0], p[2]]]));
+const bridgeSegments = hexWorld.bridges.map(b => [portPoint(hexWorld, b.from), portPoint(hexWorld, b.to)]);
 const segmentPointDistance = ([ax, az]: number[], [bx, bz]: number[], [px, pz]: number[]) => {
   const t = Math.max(0, Math.min(1, ((px - ax) * (bx - ax) + (pz - az) * (bz - az)) / ((bx - ax) ** 2 + (bz - az) ** 2)));
   return Math.hypot(px - (ax + t * (bx - ax)), pz - (az + t * (bz - az)));
@@ -40,6 +49,7 @@ describe('GLB parts for hex tiles', () => {
   it('only the foundations island uses GLB buildings in this trial', () => {
     expect(hexGlbSettlements.map(s => s.islandId)).toEqual(['foundations']);
     expect(layout.placements.map(p => p.node)).toEqual(['Landmark_Lighthouse', 'Building_Workshop', 'Dock_Entry', 'Tree_001', 'Tree_003', 'Tree_005']);
+    expect(asset.scale).toBe(0.6);
   });
 
   it('keep node names, userData and the D.1 contract', () => {
@@ -74,9 +84,32 @@ describe('placements on the hex map', () => {
     expect(tileHeight(tileOf('Landmark_Lighthouse'))).toBeGreaterThan(tileHeight(settlement.tiles.find(t => hexKey(t) === hexKey(settlement.center))!));
   });
 
-  it('keep every building except the dock on land', () => {
+  it('stand every building except the dock fully on level land at its base height', () => {
     for (const node of ['Landmark_Lighthouse', 'Building_Workshop', 'Tree_001', 'Tree_003', 'Tree_005']) {
-      for (const [x, z] of footprint(node)) expect(land.has(hexKey(worldToHex(x, z, hexWorld.size))), `${node} corner`).toBe(true);
+      const base = pose(node).position[1];
+      for (const [x, z] of footprint(node, 7)) {
+        const tile = tileAt(x, z);
+        expect(tile, `${node} at ${x.toFixed(2)},${z.toFixed(2)}`).toBeDefined();
+        expect(tileTop(tile!), `${node} base`).toBeCloseTo(base, 9);
+      }
+    }
+  });
+
+  it('span the workshop across (-1, 1) and (-1, 0) at scale 0.6', () => {
+    const tiles = new Set(footprint('Building_Workshop', 7).map(([x, z]) => hexKey(tileAt(x, z)!)));
+    expect(tiles.has('-1,1') && tiles.has('-1,0')).toBe(true);
+    const [w, d] = [part('Building_Workshop').bounds.max[0] - part('Building_Workshop').bounds.min[0], part('Building_Workshop').bounds.max[2] - part('Building_Workshop').bounds.min[2]];
+    // Wider than one tile's 2.165 flat-to-flat span once corners are counted, so it needs two tiles.
+    expect(w * asset.scale).toBeCloseTo(1.8, 2);
+    expect(d * asset.scale).toBeCloseTo(1.91, 2);
+  });
+
+  it('keep buildings clear of roads, ramps and bridges', () => {
+    const segments = [...roadSegments(() => true), ...bridgeSegments];
+    for (const node of ['Landmark_Lighthouse', 'Building_Workshop', 'Tree_001', 'Tree_003', 'Tree_005']) {
+      for (const point of footprint(node, 7)) for (const [a, b] of segments) {
+        expect(segmentPointDistance(a, b, point), node).toBeGreaterThan(0.3);
+      }
     }
   });
 
@@ -89,13 +122,32 @@ describe('placements on the hex map', () => {
     const corners = footprint('Dock_Entry');
     // The deck reaches out over water: its far corners leave the land tiles.
     expect(corners.filter(([x, z]) => !land.has(hexKey(worldToHex(x, z, hexWorld.size)))).length).toBeGreaterThan(0);
-    const segments = [
-      ...settlementRoads(hexWorld).flatMap(r => r.points.slice(1).map((p, i) => [r.points[i], p])),
-      ...hexWorld.bridges.map(b => [portPoint(hexWorld, b.from), portPoint(hexWorld, b.to)]),
-    ];
-    for (const [a, b] of segments) for (const corner of [...corners, hexToWorld(dock.tile, hexWorld.size)]) {
+    // Its own spur road ends at the dock; every other road and bridge stays well away.
+    const segments = [...roadSegments(id => id !== 'foundations-dock'), ...bridgeSegments];
+    for (const [a, b] of segments) for (const corner of [...footprint('Dock_Entry', 5), hexToWorld(dock.tile, hexWorld.size)]) {
       expect(segmentPointDistance(a, b, corner)).toBeGreaterThan(0.5);
     }
+    const spur = roadProfiles(hexWorld).find(r => r.routeId === 'foundations-dock')!.points.at(-1)!;
+    pose('Dock_Entry').position.forEach((v, i) => expect(spur[i]).toBeCloseTo(v, 9));
+  });
+
+  it('sit the dock deck about 0.3 above the water on the low shore', () => {
+    const levels = new Map<string, number>();
+    part('Dock_Entry').object.traverse(o => {
+      const geometry = (o as { geometry?: { attributes: Record<string, { count: number; getY: (i: number) => number }> } }).geometry;
+      if (!geometry || o.name !== 'Dock_Timber_and_Ropes') return;
+      const { position, normal } = geometry.attributes;
+      for (let i = 0; i < position.count; i++) if (normal.getY(i) > .9) {
+        const y = position.getY(i).toFixed(2);
+        levels.set(y, (levels.get(y) ?? 0) + 1);
+      }
+    });
+    // The deck planks are the most common upward-facing level of the dock timber.
+    const deck = Number([...levels.entries()].sort((a, b) => b[1] - a[1])[0][0]);
+    expect(deck).toBeCloseTo(0.04, 2);
+    const height = pose('Dock_Entry').position[1] + deck * asset.scale - WATER_LEVEL;
+    expect(height).toBeGreaterThan(0.25);
+    expect(height).toBeLessThan(0.4);
   });
 
   it('do not overlap each other', () => {

@@ -33,7 +33,7 @@ export function HexWorldExplorer({islands}:{islands:LearningIsland[]}) {
     </div>
     {!available&&<p className={styles.fallbackNotice} role="status">此裝置的 3D 場景無法使用，請使用清單導航。</p>}
     <div className={styles.explorerBody}>
-      <div className={styles.stage}>
+      <div className={`${styles.stage} ${styles.hexStage}`} data-focused={selectedId?'true':undefined}>
         <div className={styles.stageCaption}><span>LOGIC ISLANDS · HEX SETTLEMENTS</span><strong>三座聚落，<br/>以橋樑相連。</strong></div>
         {available&&<HexWorldScene world={hexWorld} islands={islands} selectedId={selectedId} onSelect={select}
           reducedMotion={Boolean(reducedMotion)} onReady={markReady} onUnavailable={unavailable}/>}

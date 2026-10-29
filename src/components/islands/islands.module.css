@@ -726,14 +726,33 @@
   cursor: pointer;
 }
 
-/* Hex World preview labels: compact on phones so they cover less of the settlements. */
+/* Hex World preview labels: full names on desktop, colored pins on phones. */
+.hexLabelText {
+  font-weight: inherit;
+}
 @media (max-width: 700px) {
+  /* Overview pins: colored dots only; the name stays as the accessible label and in the list below. */
   .hexLabel {
-    gap: 5px;
-    font-size: 11px;
-    padding: 3px 9px 3px 7px;
+    gap: 0;
+    padding: 5px;
   }
   .hexLabel small {
+    display: none;
+  }
+  .hexLabelText {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .hexLabel > span {
+    width: 12px;
+    height: 12px;
+  }
+  /* Once a settlement is focused, the hint text gives way so the dock stays reachable. */
+  .hexStage[data-focused='true'] .stageBottom > span {
     display: none;
   }
   .hexAnchorLabel {

@@ -123,3 +123,21 @@ base('必要契約節點缺失時基礎程式島回到暫代建築', async ({ pa
   await page.goto('/islands/hex');
   await expect(label(page, '基礎程式島')).toHaveAttribute('data-model-source', 'geometry', { timeout: 20_000 });
 });
+
+test('桌面顯示聚落名稱；手機全景改為圓點，聚焦後提示列不遮住碼頭', async ({ page }) => {
+  const phone = test.info().project.name.startsWith('mobile');
+  await page.goto('/islands/hex');
+  await expect(label(page, '基礎程式島')).toHaveAttribute('data-model-source', 'glb', { timeout: 20_000 });
+  const pin = (await label(page, '基礎程式島').boundingBox())!;
+  // Desktop keeps the full name; on phones the pin is a dot and the name stays as its accessible label.
+  if (phone) expect(pin.width).toBeLessThan(32);
+  else await expect(label(page, '基礎程式島')).toContainText('基礎程式島');
+  await label(page, '基礎程式島').click();
+  await expect(anchor(page, 'Anchor_Entry')).toBeVisible();
+  await page.locator('canvas').scrollIntoViewIfNeeded();
+  const hint = page.getByText('點擊地塊或名牌聚焦聚落');
+  if (phone) await expect(hint).toBeHidden();
+  const box = (await anchor(page, 'Anchor_Entry').boundingBox())!, canvas = (await page.locator('canvas').boundingBox())!;
+  const hit = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.tagName, [box.x + box.width / 2, box.y + box.height / 2 + .02 * canvas.height]);
+  expect(hit).toBe('CANVAS');
+});
