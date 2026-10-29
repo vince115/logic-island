@@ -10,6 +10,8 @@ Logic Island（程式邏輯島，原名 LogicLab）是繁體中文的程式邏�
 
 不含登入、API route、資料庫、OJ、伺服器程式碼執行、付款或學習進度保存；沒有對應實作。Logic Islands（邏輯群島）為教材的導航原型，不是演算法引擎替代品。
 
+> 2026-10-29：長期產品方向調整為「程式設計、資料結構、演算法與人工智慧的互動式學習世界」，規劃 Coding／AI 雙群島；AI 部分（Phase H–J）尚未批准實作，上述現況不變。見 [ROADMAP](ROADMAP.md)。
+
 ## 技術版本與依賴
 
 已逐一核對根目錄 `package.json` 與實際 `node_modules/<package>/package.json`，下列版本吻合；鎖定檔為 `pnpm-lock.yaml`。

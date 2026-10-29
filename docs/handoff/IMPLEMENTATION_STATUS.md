@@ -38,10 +38,18 @@
 | Phase A | `LogicLab_Island_Pipeline_Validated.blend`＋`logiclab-test-island.glb` | 當日 GLB Validator 再驗證 0/0；歷史獨立 Three.js 成功 | Verified 技術管線；非正式美術 |
 | Phase B | `LogicLab_3D_Art_Style_Guide.md`、`LogicLab_Basics_Island_Scene_Plan.md` | 兩文件存在且完整，後續模型依此製作 | Implemented（文件完成）；不表示所有模型與效能項目已達規格 |
 | Phase C | `basics-v2/` 完整模型、渲染與 GLB | 使用者於對話給「有條件通過」；0/0 Validator，歷史 viewer 成功 | 製作完成候選；有人工條件，不等於 Phase D 授權 |
-| Phase C.1 | **`basics-v2.1/` 實際已存在 BLEND、GLB、兩視圖、驗證與差異報告** | 有歷史執行／回報證據；本輪重新 Validator 0/0＋1 info；本次交接訊息卻說尚未批准執行 | **實作候選已完成，批准狀態有衝突；以本次要求凍結，不重做／覆蓋／自行採納** |
-| Phase D | 正式網站沒有 Blender GLB 載入與子節點路由 | 使用者明確「尚未批准」 | Not Started／Blocked（批准門檻）；已安裝 R3F 不代表完成 D |
+| Phase C.1 | **`basics-v2.1/` 實際已存在 BLEND、GLB、兩視圖、驗證與差異報告** | 本輪重新 Validator 0/0＋1 info；**2026-10-29 使用者正式批准 v2.1 為 Phase D 候選資產**（技術通過、視覺有條件接受） | Approved（有條件）；決議與後續美術項見 [ROADMAP](ROADMAP.md) |
+| Phase D | 正式網站沒有 Blender GLB 載入與子節點路由 | 實作計畫已提出，使用者尚未批准開始 | Planned／Blocked（批准門檻）；已安裝 R3F 不代表完成 D |
+| Phase E | Data-Driven Islands（schema 定義島嶼、GLB 引用、課程、互動、解鎖、關聯） | 無實作 | Planned；D 完成後才開始，見 [ROADMAP](ROADMAP.md) |
+| Phase F | RPG Learning System（NPC、任務、EXP、等級、徽章、解鎖） | 無實作 | Planned；依賴 E，進度層與 3D 層分離 |
+| Phase G | APCS Challenges（試煉島、中央島、跨島任務、完成紀錄） | 無實作 | Planned；依賴 F，判題 adapter 預留自動判題擴充，首版方式待決 |
+| Phase H | AI 群島課程規劃、知識依賴、AI-01～AI-06 島嶼設定、schema 擴充 | 無實作 | Proposed／Planned；依賴 E（任務整合需 F）；三項架構決議已定，見 ROADMAP |
+| Phase I | 互動式 AI 實驗室、模型展示、資料視覺化、運算服務規劃 | 無實作 | Proposed／Planned；依賴 H，瀏覽器優先 |
+| Phase J | AI 專題挑戰、跨島任務、學習成果展示 | 無實作 | Proposed／Planned；依賴 I、F，重用 G 判題格式 |
 
 ### C.1 不一致如何處理
+
+> 2026-10-29 更新：此不一致已由使用者決議解除，v2.1 有條件批准為 Phase D 候選；以下段落保留為當時的處理紀錄。
 
 不能把 `basics-v2.1/` 說成不存在或尚未完成製作，也不能用檔案存在推定人工批准。歷史對話包含 v2.1 Final Art Polish 的執行請求與回報；本次指示將其列為「尚未批准執行」。後者是**目前操作限制**，故下一個 Agent 應先呈交現存 v2.1 證據，請使用者決定「採用候選／補驗收／撤回」，不要重跑模型腳本或擅自進 D。檔案不會證明批准，對話也不能替代當前建置結果。
 

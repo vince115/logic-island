@@ -7,7 +7,7 @@
 1. 根目錄 `/Users/vincelo/dev-hub/github/vince115/logic-island`（原 `logic-lab`，專案已由 LogicLab 更名為 Logic Island）**沒有 .git**；不要假造branch／HEAD／remote，不自動init。
 2. 六教材及引擎存在、unit／DOM／Python／C++測試通過，但當前lint／TS／build失敗；不是可立即交付的乾淨基線。
 3. `/islands` 已有R3F三島**原創幾何原型**；正式Blender GLB載入與子節點路由尚未做。
-4. v2.1模型與報告已實際存在，但本次用戶說C.1未批准；先釐清批准，不重做或覆蓋。Phase D明確未批准。
+4. v2.1於2026-10-29正式批准為Phase D候選資產（有條件）；不重做或覆蓋。Phase D實作計畫已提出但尚未批准開始，E–J（含AI群島H／I／J）僅為Planned，見 [ROADMAP](ROADMAP.md)。
 5. GLB／BLEND／PNG／美術文件在Codex私有絕對路徑，不在repo；換機必須先按inventory核對與經批准複製。
 
 ## 建議閱讀順序
@@ -20,6 +20,7 @@
 6. [ARCHITECTURE](ARCHITECTURE.md)：六教材、播放器、3D原型依賴與耦合。
 7. [BLENDER_ASSET_INVENTORY](BLENDER_ASSET_INVENTORY.md)：完整資產路徑／bytes／用途／例外。
 8. [NEXT_STEPS](NEXT_STEPS.md)：批准關卡與最小修復順序。
+9. [ROADMAP](ROADMAP.md)：產品方向、雙群島架構、階段編號、C.1決議、Phase D–J規劃與依賴。
 
 ## 核心檔案地圖
 

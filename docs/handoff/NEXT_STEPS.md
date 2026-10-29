@@ -34,6 +34,8 @@
 
 接受條件：人工確認屋頂／文字／中央疏密、認可例外分類，確認選用GLB的SHA，必要時做真實手機／近遠鏡頭Z-fighting檢查。若需微調，只改指定區域、另存版本，不覆蓋v2或候選。**目前 C.1 批准尚未對齊，不再執行建模。**
 
+> 2026-10-29 更新：使用者已正式批准 v2.1 為 Phase D 候選資產（有條件），不需立即製作 v2.2；決議全文見 [ROADMAP](ROADMAP.md)。
+
 ## 3. 資產移交（經選版與搬移批准後）
 
 1. 先驗 inventory 中 bytes／SHA-256，再以複製方式將核准 GLB 放到產品資產路徑（例如未來 `public/models/logiclab/`，目前不存在）。
@@ -59,3 +61,29 @@
 5. 單島預算（Style Guide）：主pass手機≤25／桌機≤35、材質≤10、GLB約≤1.5MiB（不含外部共用圖）；多島總場景另profile，不能拿單島24calls保證整體。
 6. Z-fighting在核准鏡頭／距離／裝置檢查，例外有位置與理由；Validator通過不等於所有畫面正確。
 7. 部署是另一道授權；D批准不自動包含commit／push／上線。
+
+## 6. Phase E：Data-Driven Islands（Planned，D 驗收後）
+
+以型別化 schema 定義每座島（island_id、名稱／描述／主題、GLB 資產引用、課程對應、互動節點與入口、解鎖條件、島嶼關聯），讓未來八座島共用同一套渲染與互動架構。必須相容既有 GLB `interaction_id`、Anchor 與 Node Contract；解鎖條件只宣告、不判定。詳見 [ROADMAP](ROADMAP.md)。
+
+## 7. Phase F：RPG Learning System（Planned，依賴 E）
+
+NPC 與任務對話、答題 EXP、玩家等級與學習進度、島嶼徽章與成就、課程任務與解鎖。進度資料放獨立領域層與儲存 adapter，3D 層只接收唯讀衍生結果。題庫來源與無登入進度保存需先由產品決定。
+
+## 8. Phase G：APCS Challenges（Planned，依賴 F）
+
+APCS 試煉島、中央島綜合挑戰、跨島學習任務、題目完成紀錄、成就與進階內容解鎖。新島以 Phase E schema 加入，紀錄沿用 Phase F 進度層；判題以 adapter 隔離並預留程式碼自動判題擴充，首版方式（網站目前不執行程式碼、無 OJ）需另案決定。
+
+## 9. Phase H：AI 群島課程規劃與 Schema 擴充（Proposed／Planned，依賴 E）
+
+AI Archipelago 六座島 AI-01～AI-06 的課程目標、先修知識、互動實驗、任務與完成條件；知識依賴圖；在 Phase E schema 加入 `archipelago: 'ai'` 等欄位。AI 課程以 Python 為主，既有 C++／Python／Java 教學不變；不以完成全部 Coding 島為前提。已決議：Python 基礎教材歸 Coding Archipelago、AI 課程只引用必要單元；AI 島程式 id 用小寫 kebab-case（AI-01～AI-06 僅顯示編號）；AI 教材採獨立內容模組並共用既有課程型別、播放器與進度介面。
+
+## 10. Phase I：互動式 AI 實驗室與運算服務規劃（Proposed／Planned，依賴 H）
+
+瀏覽器優先：預先計算快照 → 瀏覽器端計算 → 進階模型運算另評估後端。新增套件、後端、外部 LLM API、相機／感測器權限都需另案批准。
+
+## 11. Phase J：AI 專題挑戰與成果展示（Proposed／Planned，依賴 I、F，重用 G 判題格式）
+
+AI 專題挑戰、跨島任務、學習成果與作品展示；沿用 F 進度層與 G 題目格式／判題 adapter。公開分享需另案批准。
+
+詳見 [ROADMAP](ROADMAP.md)。**E–J 都只是規劃，不得在 Phase D 中提前實作任何部分。**

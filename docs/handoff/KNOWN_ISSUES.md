@@ -7,7 +7,7 @@
 | ID | 問題／實際證據 | 影響 | 建議（本輪不修） |
 |---|---|---|---|
 | P0-01 | `src/components/islands/islands.module.css` 不存在，5 個引用；`evidence/actual-build.log` | 最新全站 production build 失敗；舊 .next 可誤導 | 取得下一個功能修復授權後，先確認缺失檔是否有外部副本，再修復原型樣式；不要臨時空白 CSS 當驗收成功 |
-| P0-02 | 本次說 C.1 尚未批准，但 `basics-v2.1/` 與 MCP 開啟檔都證明已製作；Phase D 仍未批准 | Claude 可能重做／覆蓋模型，或誤把資產候選當整合授權 | 保留 v2 與 v2.1，請人工確認目前採用候選與 C.1 決策，D 保持凍結；見 IMPLEMENTATION_STATUS |
+| P0-02 | 本次說 C.1 尚未批准，但 `basics-v2.1/` 與 MCP 開啟檔都證明已製作；Phase D 仍未批准 | Claude 可能重做／覆蓋模型，或誤把資產候選當整合授權 | 保留 v2 與 v2.1，請人工確認目前採用候選與 C.1 決策，D 保持凍結；見 IMPLEMENTATION_STATUS。**2026-10-29：C.1 已決議，v2.1 有條件批准為 D 候選；D 仍待批准開始，見 ROADMAP** |
 
 ## P1：接下來應優先處理
 
