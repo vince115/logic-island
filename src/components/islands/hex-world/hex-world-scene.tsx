@@ -1,12 +1,13 @@
 'use client';
 
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PCFShadowMap, Vector3, type Mesh } from 'three';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Vector3 } from 'three';
+import { Canvas, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import { hexCorner, hexToWorld } from '@/lib/islands/hex';
 import { tileTop } from '@/lib/islands/hex-terrain';
 import { WATER_LEVEL, settlementFrames, worldCenter, type HexWorld } from '@/lib/islands/hex-world';
+import { ENVIRONMENTS, PREVIEW_NOON } from '@/lib/islands/environments';
 import type { IslandDefinition } from '@/lib/islands/types';
 import { HexCamera, VIEW, viewAt, type CameraView } from './hex-camera';
 import { HexTiles, WATER_Y } from './hex-tiles';
@@ -22,6 +23,7 @@ import { MergedRoutes } from './hex-routes-merged';
 import { HexForest, HexRocks } from './hex-nature';
 import { HexNaturalOcean, HexOcean } from './hex-ocean';
 import { HexPlaza } from './hex-plaza';
+import { GlowProvider, HexEnvironment, STATIC_SHADOW_MAP } from './hex-environment';
 import styles from '../islands.module.css';
 
 /**
@@ -40,7 +42,8 @@ export interface HexSceneOptions {
   forests?: ForestPatch[];
   rocks?: boolean;
   perfProbe?: boolean;
-  /** `contrast` lowers fill light so pastel terrain keeps its shading (scale prototype only). */
+  /** `contrast` lowers fill light so pastel terrain keeps its shading: since D.3-6a the noon environment
+   * (src/lib/islands/environments.ts); `preview` (default) keeps the A2 preview's brighter fill. */
   lighting?: 'preview' | 'contrast';
   /** `merged`: one road mesh and instanced bridge parts instead of a mesh per segment and plank. */
   routes?: 'meshes' | 'merged';
@@ -101,30 +104,8 @@ function fitPoints(world:HexWorld,layouts:HexGlbSettlement[],[ox,oz]:[number,num
   const labels=captions?world.settlements.map(s=>{const {point:[x,z]}=captionPoint(world,s,4.2);return new Vector3(x-ox,WATER_LEVEL,z-oz);}):[];
   return {all:[...Object.values(byId).flat(),...labels],byId};
 }
-const LIGHTING = {
-  preview: { background: '#d4f0fb', ambient: 1.1, hemisphere: 1.2, sun: 2.4 },
-  contrast: { background: '#cbe9f4', ambient: .62, hemisphere: .95, sun: 2.9 },
-} as const;
 // Prototype-only measurement and review hooks; loaded only when `perfProbe` is on, so production never downloads it.
 const PerfProbe=lazy(()=>import('./hex-perf-probe'));
-
-/**
- * D.2c-2: the sun and every shadow caster stay put while the camera moves, so the shadow map is redrawn only
- * when the set of visible casters changes (models loading, placeholders on failure) instead of every frame.
- */
-function StaticShadows() {
-  const casters=useRef<string|null>(null);
-  // Runs before each rendered frame; a new caster's matrix is applied within that same render, before its shadow pass.
-  useFrame(({scene,gl})=>{
-    const list:string[]=[];
-    scene.traverseVisible(o=>{if((o as Mesh).isMesh&&o.castShadow){const m=o.matrixWorld.elements;list.push(`${o.id}:${m[12].toFixed(3)},${m[13].toFixed(3)},${m[14].toFixed(3)}`);}});
-    const key=list.join(';');
-    if(key!==casters.current){casters.current=key;gl.shadowMap.needsUpdate=true;}
-  });
-  return null;
-}
-/** Shadow map settings for `shadows: 'static'`: the type the `soft` preset resolves to in three r186, drawn on demand. */
-const STATIC_SHADOW_MAP={enabled:true,type:PCFShadowMap,autoUpdate:false};
 
 function Lifecycle({label,onReady,onUnavailable}:{label:string;onReady:()=>void;onUnavailable:()=>void}) {
   const {gl,camera}=useThree();
@@ -158,7 +139,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
   orbit?:boolean;onOrbitStop?:()=>void;
 }) {
   const glbLayouts=options.glbLayouts??hexGlbSettlements,continuousOcean=options.ocean==='continuous'||options.ocean==='natural';
-  const light=LIGHTING[options.lighting??'preview'];
+  const environment=options.lighting==='contrast'?ENVIRONMENTS.noon:PREVIEW_NOON;
   // Shadows must cover the whole map; the D.2a/D.2b world fits the original ±16 box.
   const shadowExtent=useMemo(()=>{
     const all=world.settlements.flatMap(s=>s.tiles.map(t=>hexToWorld(t,world.size)));
@@ -192,20 +173,13 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
       camera={{position:[20,19,24],zoom:27,near:.1,far:400}}
       gl={{antialias:true,alpha:false,powerPreference:'low-power'}}
       fallback={<p className={styles.canvasFallback}>此裝置無法顯示 3D，請使用清單導航。</p>}>
-      <color attach="background" args={[light.background]}/>
       <Lifecycle label={label} onReady={onReady} onUnavailable={onUnavailable}/>
       {options.perfProbe&&<Suspense fallback={null}><PerfProbe ox={ox} oz={oz}/></Suspense>}
-      {options.shadows==='static'&&<StaticShadows/>}
-      <ambientLight intensity={light.ambient}/>
-      <hemisphereLight args={['#f3fbff','#b9d7a8',light.hemisphere]}/>
-      <directionalLight position={[-12,22,10]} intensity={light.sun} castShadow
-        shadow-mapSize={[1024,1024]} shadow-camera-left={-shadowExtent} shadow-camera-right={shadowExtent}
-        shadow-camera-top={shadowExtent-2} shadow-camera-bottom={-shadowExtent+2} shadow-camera-far={70}
-        shadow-normalBias={.05} shadow-bias={-.0002}/>
+      <HexEnvironment environment={environment} shadowExtent={shadowExtent} staticShadows={options.shadows==='static'}/>
       {!continuousOcean&&<mesh rotation-x={-Math.PI/2} position-y={WATER_Y} receiveShadow raycast={()=>undefined}>
         <planeGeometry args={[250,250]}/><meshStandardMaterial color="#3db2e6" roughness={.7}/>
       </mesh>}
-      <group position={[-ox,0,-oz]}>
+      <GlowProvider value={environment.glow}><group position={[-ox,0,-oz]}>
         {options.ocean==='natural'?<HexNaturalOcean world={world}/>:continuousOcean?<HexOcean world={world}/>:<HexTiles world={world} onSelect={onSelect}/>}
         {options.forests&&<HexForest world={world} patches={options.forests} trees={options.nature?.trees} lod={options.treeLod}/>}
         {options.rocks&&<HexRocks world={world} rocks={options.nature?.rocks}/>}
@@ -244,7 +218,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
             </Html></group>}
           </group>;
         })}
-      </group>
+      </group></GlowProvider>
       <HexCamera frames={frames} selectedId={selectedId} reducedMotion={reducedMotion} fit={fit}
         free={free} resetKey={resetKey} onViewChange={free?viewChange:undefined} orbit={free&&orbit} onOrbitStop={free?onOrbitStop:undefined}/>
     </Canvas>

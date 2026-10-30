@@ -1,4 +1,4 @@
-import { Box3, Vector3, type Object3D } from 'three';
+import { Box3, Vector3, type Material, type Mesh, type MeshStandardMaterial, type Object3D } from 'three';
 import type { GlbAsset, Vec3 } from './types';
 
 export interface GlbPart {
@@ -36,4 +36,27 @@ export function extractGlbParts(scene: Object3D, asset: GlbAsset, nodes: readonl
     parts.push({ node: name, object, anchor, bounds: { min: box.min.toArray() as Vec3, max: box.max.toArray() as Vec3 } });
   }
   return { parts, missing };
+}
+
+/** A glowing material a mount owns, and its emissive intensity as loaded. */
+export interface Glow { material: MeshStandardMaterial; strength: number }
+
+/**
+ * D.3-6a: gives these parts their own copy of each glowing (emissive) material, one copy per original shared by all
+ * its meshes here, so the environment can dim or brighten lamps and windows without changing the GLB the loader
+ * caches for every other mount (the legacy /islands renderer included). Every other material stays shared.
+ */
+export function ownGlowMaterials(roots: readonly Object3D[]): Glow[] {
+  const copies = new Map<Material, MeshStandardMaterial>();
+  const own = (material: Material) => {
+    const standard = material as MeshStandardMaterial;
+    if (!standard.isMeshStandardMaterial || standard.emissiveIntensity === 0 || (standard.emissive.getHex() === 0 && !standard.emissiveMap)) return material;
+    if (!copies.has(material)) copies.set(material, standard.clone());
+    return copies.get(material)!;
+  };
+  for (const root of roots) root.traverse(object => {
+    const mesh = object as Mesh;
+    if (mesh.isMesh) mesh.material = Array.isArray(mesh.material) ? mesh.material.map(own) : own(mesh.material);
+  });
+  return [...copies.values()].map(material => ({ material, strength: material.emissiveIntensity }));
 }

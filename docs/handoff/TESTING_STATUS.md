@@ -10,6 +10,24 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## D.3-6a 環境架構重構（2026-10-31，獨立 commit「environment data and HexEnvironment for the world map (Phase D.3-6a)」）
+
+狀態：純重構，只有中午環境。六條 `/islands` 路由（實驗室頁、候選頁、19 格、A2 預覽、`/islands`、`/islands/legacy`）與 `57364a2` 0 像素差、按鈕與連結相同、編譯的 WebGL program／shader 數量相同。候選頁沒有啟用自由相機或 Auto Orbit。全部是 Chromium 模擬；D.3-4B 仍是 Not Measured。
+
+| 檢查 | 結果 |
+|---|---|
+| ESLint／TypeScript | 都是 exit 0 |
+| Vitest | 183 passed／6 skipped（新增 `tests/environments.test.ts` 6 項） |
+| Next Build | 成功；`/islands` 系列靜態頁、`/islands/hex/scale/{19,37}` SSG 不變 |
+| E2E 全套（單次） | 193 passed／22 skipped／3 failed（3 個都是既有 `player.spec.ts`，P1-11） |
+| E2E `hex-camera`＋`hex-scale`＋`islands-candidate`＋`islands-acceptance`＋`hex-environment`＋`hex-world` 重複 3 次 | 348 passed／60 skipped／0 failed |
+| 突變測試 | 拿掉發光材質的複製後，兩項單元測試失敗；還原後通過 |
+| 視覺 A/B | 6 路由 × 桌機／手機，24 張畫面 0 像素差；DOM 相同；program／shader 數量相同 |
+| 效能 | draw call、三角形、陰影 pass 逐項相同；時間指標 **Inconclusive（輕微）**：飛行與環繞 FPS 未觀察到可穩定重現的下降，桌機 A2 預覽首幀留有未確認訊號（KNOWN_ISSUES P1-30）。見 `logs/2026-10-31-d3-6a-environment.md` §6 |
+
+- `e2e/hex-environment.spec.ts`（新增，桌機＋手機）：實驗室頁的背景、霧、三盞燈、太陽陰影設定與中午資料一致；GLB 暖光材質只有一份本頁複本（強度 2），色盤材質仍共用。
+- scratch 實驗（不進 repo）：霧的成本（§3.4）、經由環境改太陽與陰影範圍只重畫一次陰影且與重新載入相同（§3.5）、P1-29 的確認（§3.6）、CDP profiling 與配對測試（§6）。
+
 ## D.3-5b Auto Orbit（2026-10-30，獨立 commit「auto orbit on the lab world map (Phase D.3-5b)」）
 
 狀態：**只在 37 格實驗室頁**；候選頁、`/islands`、`/islands/legacy` 不變（0 像素差、按鈕與連結標記相同、`git diff` 0）。觸控只在 Chromium 模擬驗證；D.3-4B 仍是 Not Measured。

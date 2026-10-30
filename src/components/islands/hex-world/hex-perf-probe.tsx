@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { Box3, Spherical, Vector3, type Mesh } from 'three';
+import { Box3, Spherical, Vector3, type Color, type DirectionalLight, type HemisphereLight, type Light, type Mesh, type MeshStandardMaterial, type OrthographicCamera } from 'three';
 import { useThree } from '@react-three/fiber';
 import type { CameraControlsImpl } from '@react-three/drei';
 import { VIEW } from './hex-camera';
@@ -20,6 +20,8 @@ type DrawnObject = { center: number[]; size: number[]; materials: string[]; inst
  * `__hexView(x, y, z, zoom)` looks at a map point at a given zoom (`__hexZoom()` reads the current one).
  * D.3-5a: `__hexCamera()` reads the camera: azimuth and elevation in degrees, zoom and its limits, the focal offset
  * and the touch-action of the element the controls listen on.
+ * D.3-6a: `__hexEnvironment()` reads what the scene draws around the map (background, fog, lights, the sun's shadow and
+ * shadow map), and which meshes use each material with the glowing ones' emissive intensity.
  */
 export default function PerfProbe({ox,oz}:{ox:number;oz:number}) {
   const {gl,scene,camera,invalidate,events}=useThree();
@@ -81,6 +83,33 @@ export default function PerfProbe({ox,oz}:{ox:number;oz:number}) {
     };
     Object.assign(gl.domElement,{__hexPerf:probe,__hexDraws:draws});
   },[gl,scene,camera,ox,oz]);
+  useEffect(()=>{
+    const hex=(color:Color)=>`#${color.getHexString()}`;
+    const environment=()=>{
+      const lights:Record<string,unknown>[]=[],materials=new Map<string,{name:string;glow:number|null;meshes:string[]}>();
+      scene.traverse(o=>{
+        if((o as Light).isLight){
+          const light=o as Light,sun=o as DirectionalLight,box=sun.shadow?.camera as OrthographicCamera|undefined;
+          lights.push({type:light.type,color:hex(light.color),intensity:light.intensity,
+            ...((o as HemisphereLight).isHemisphereLight?{ground:hex((o as HemisphereLight).groundColor)}:{}),
+            ...(sun.isDirectionalLight?{position:sun.position.toArray(),castShadow:sun.castShadow,shadow:{mapSize:sun.shadow.mapSize.toArray(),
+              bias:sun.shadow.bias,normalBias:sun.shadow.normalBias,box:[box!.left,box!.right,box!.top,box!.bottom,box!.far]}}:{})});
+        }
+        const mesh=o as Mesh;
+        if(!mesh.isMesh) return;
+        for(const material of [mesh.material].flat()){
+          const standard=material as MeshStandardMaterial,glowing=standard.isMeshStandardMaterial&&standard.emissiveIntensity>0&&standard.emissive.getHex()!==0;
+          const entry=materials.get(material.uuid)??{name:material.name,glow:glowing?standard.emissiveIntensity:null,meshes:[]};
+          entry.meshes.push(mesh.name||((mesh as {isInstancedMesh?:boolean}).isInstancedMesh?'InstancedMesh':mesh.type));
+          materials.set(material.uuid,entry);
+        }
+      });
+      const fog=scene.fog as {color:Color;near:number;far:number}|null;
+      return {background:hex(scene.background as Color),fog:fog&&{color:hex(fog.color),near:fog.near,far:fog.far},lights,
+        shadowMap:{enabled:gl.shadowMap.enabled,type:gl.shadowMap.type,autoUpdate:gl.shadowMap.autoUpdate},materials:[...materials.values()]};
+    };
+    Object.assign(gl.domElement,{__hexEnvironment:environment});
+  },[gl,scene]);
   return null;
 }
 

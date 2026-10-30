@@ -6,12 +6,13 @@ import type { ThreeEvent } from '@react-three/fiber';
 import { MeshBasicMaterial, Vector3, type Mesh, type Object3D } from 'three';
 import { glbAssets } from '@/lib/islands/asset-registry';
 import { checkGlbContract, resolveTarget } from '@/lib/islands/glb-contract';
-import { extractGlbParts } from '@/lib/islands/glb-parts';
+import { extractGlbParts, ownGlowMaterials } from '@/lib/islands/glb-parts';
 import { hitProxyBox } from '@/lib/islands/interaction-targets';
 import { placementPose, type HexGlbSettlement } from '@/lib/islands/hex-buildings';
 import type { HexWorld } from '@/lib/islands/hex-world';
 import type { GlbAsset, GlbTargetNode, Vec3 } from '@/lib/islands/types';
 import type { ModelSource } from '../glb-island-model';
+import { useGlow } from './hex-environment';
 import styles from '../islands.module.css';
 
 class PartsBoundary extends Component<{fallback:ReactNode;onError:()=>void;children:ReactNode},{failed:boolean}> {
@@ -47,11 +48,14 @@ function LoadedParts({world,layout,selected,anchorStyle,targets,onReady,onInvali
     const full=scene.clone(true);
     // The full-scene contract from D.1 must hold before any subtree is lifted out.
     const contract=checkGlbContract(full,asset);
-    if(!contract.ok) return {problems:contract.problems,parts:[]};
+    if(!contract.ok) return {problems:contract.problems,parts:[],glows:[]};
     const {parts,missing}=extractGlbParts(full,asset,layout.placements.map(p=>p.node));
     for(const part of parts) part.object.traverse(o=>{if((o as Mesh).isMesh){o.castShadow=true;o.receiveShadow=true;}});
-    return {problems:missing.map(name=>`${name}: missing`),parts};
+    // D.3-6a: lamps and windows get this mount's own glow material, so the environment never edits the cached GLB.
+    return {problems:missing.map(name=>`${name}: missing`),parts,glows:ownGlowMaterials(parts.map(part=>part.object))};
   },[scene,asset,layout]);
+  useEffect(()=>()=>result.glows.forEach(glow=>glow.material.dispose()),[result]);
+  useGlow(result.glows);
   const placed=useMemo(()=>result.parts.map(part=>{
     const pose=placementPose(world,layout.islandId,layout.placements.find(p=>p.node===part.node)!);
     // Anchor offsets are in GLB units: scale them, then turn them with the part.

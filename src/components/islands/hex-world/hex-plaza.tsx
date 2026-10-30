@@ -7,6 +7,7 @@ import {
 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { PlazaLayout } from '@/lib/islands/hex-natural-scene';
+import { useGlow } from './hex-environment';
 
 const noRaycast = () => undefined;
 // v2.1 GLB palette: path stone, darker kerb, timber, lamp iron and hedge green.
@@ -57,6 +58,9 @@ export function HexPlaza({layout,accent}:{layout:PlazaLayout;accent:string}) {
   const material=useMemo(()=>new MeshStandardMaterial({vertexColors:true,flatShading:true,roughness:.85,metalness:0}),[]);
   const lantern=useMemo(()=>({geometry:new BoxGeometry(.11,.11,.11),material:new MeshStandardMaterial({color:'#ffeec8',emissive:'#f3cf86',emissiveIntensity:.35,roughness:.6})}),[]);
   const lanterns=useRef<InstancedMesh>(null);
+  // D.3-6a: the lanterns are this plaza's own material, so they follow the environment's glow directly.
+  const glows=useMemo(()=>[{material:lantern.material,strength:lantern.material.emissiveIntensity}],[lantern]);
+  useGlow(glows);
   useLayoutEffect(()=>{
     const mesh=lanterns.current;
     if(!mesh) return;
