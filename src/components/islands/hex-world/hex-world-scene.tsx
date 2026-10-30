@@ -55,6 +55,8 @@ export interface HexSceneOptions {
   shadows?: 'dynamic' | 'static';
   /** D.2c-2: below this many device pixels per world unit the trees draw a low-detail copy (shadows keep the full trees). */
   treeLod?: number;
+  /** D.3-3 preflight: the mouse over something clickable shows the pointer cursor and lights the island's label; nothing is drawn. */
+  hover?: boolean;
 }
 type CaptionSide='left'|'right'|'above'|'below';
 /**
@@ -121,8 +123,6 @@ function StaticShadows() {
 /** Shadow map settings for `shadows: 'static'`: the type the `soft` preset resolves to in three r186, drawn on demand. */
 const STATIC_SHADOW_MAP={enabled:true,type:PCFShadowMap,autoUpdate:false};
 
-const CANVAS_LABEL='Hex World 預覽：三座六角聚落與兩座橋樑，亦可使用場景外的清單導航';
-
 function Lifecycle({label,onReady,onUnavailable}:{label:string;onReady:()=>void;onUnavailable:()=>void}) {
   const {gl,camera}=useThree();
   useEffect(()=>{
@@ -139,15 +139,15 @@ function Lifecycle({label,onReady,onUnavailable}:{label:string;onReady:()=>void;
   return null;
 }
 
-export default function HexWorldScene({world,islands,selectedId,onSelect,onNavigate,reducedMotion,onReady,onUnavailable,options={},infoNode,onInfoChange,label=CANVAS_LABEL}:{
+export default function HexWorldScene({world,islands,selectedId,onSelect,onNavigate,reducedMotion,onReady,onUnavailable,options={},infoNode,onInfoChange,label}:{
   world:HexWorld;islands:IslandDefinition[];selectedId:string|null;onSelect:(id:string)=>void;
   reducedMotion:boolean;onReady:()=>void;onUnavailable:()=>void;options?:HexSceneOptions;
   /** Controlled info bubble of the focused settlement, shared with the HTML target list. */
   infoNode?:string|null;onInfoChange?:(node:string|null)=>void;
   /** D.3-2: where a GLB route target leads is the explorer's call; the scene only reports the href. */
   onNavigate:(href:string)=>void;
-  /** Accessible name of the canvas. */
-  label?:string;
+  /** Accessible name of the canvas: the explorer's wording. */
+  label:string;
 }) {
   const glbLayouts=options.glbLayouts??hexGlbSettlements,continuousOcean=options.ocean==='continuous'||options.ocean==='natural';
   const light=LIGHTING[options.lighting??'preview'];
@@ -165,7 +165,13 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
   const [sources,setSources]=useState<Record<string,ModelSource>>({});
   const sourceSetters=useMemo(()=>Object.fromEntries(glbLayouts.map(layout=>
     [layout.islandId,(source:ModelSource)=>setSources(current=>({...current,[layout.islandId]:source}))])),[glbLayouts]);
-  return <div className={styles.canvasWrap}>
+  // Mouse hover: the island under the pointer (its terrain), and the island whose target the pointer is on. Only
+  // what a click would act on counts: another island, or a target of the focused one.
+  const [hovered,setHovered]=useState<string|null>(null);
+  const [onTarget,setOnTarget]=useState<string|null>(null);
+  const lit=hovered!==selectedId?hovered:null;
+  const pointer=options.hover&&(lit||(onTarget!==null&&onTarget===selectedId));
+  return <div className={styles.canvasWrap} style={pointer?{cursor:'pointer'}:undefined}>
     <Canvas orthographic frameloop="demand" dpr={[1,1.5]} shadows={options.shadows==='static'?STATIC_SHADOW_MAP:'soft'}
       camera={{position:[20,19,24],zoom:27,near:.1,far:400}}
       gl={{antialias:true,alpha:false,powerPreference:'low-power'}}
@@ -187,7 +193,8 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
         {options.ocean==='natural'?<HexNaturalOcean world={world}/>:continuousOcean?<HexOcean world={world}/>:<HexTiles world={world} onSelect={onSelect}/>}
         {options.forests&&<HexForest world={world} patches={options.forests} trees={options.nature?.trees} lod={options.treeLod}/>}
         {options.rocks&&<HexRocks world={world} rocks={options.nature?.rocks}/>}
-        {world.settlements.filter(s=>s.surface==='continuous').map(s=><HexTerrainMesh key={s.islandId} world={world} settlement={s} onSelect={onSelect} style={options.terrain}/>)}
+        {world.settlements.filter(s=>s.surface==='continuous').map(s=><HexTerrainMesh key={s.islandId} world={world} settlement={s} onSelect={onSelect} style={options.terrain}
+          onHover={options.hover?setHovered:undefined}/>)}
         {options.routes==='merged'?<MergedRoutes world={world} widths={options.nature?.roadWidths}/>:<><HexRoads world={world}/><HexBridges world={world}/></>}
         {options.nature&&<HexPlaza layout={options.nature.plaza} accent={islands.find(i=>i.id===options.nature!.plaza.islandId)?.accent??'#4285f4'}/>}
         {world.settlements.map(settlement=>{
@@ -200,7 +207,8 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
           const placeholders=<HexLandmarks world={world} settlement={settlement}/>;
           const selected=selectedId===settlement.islandId;
           const targets:TargetOptions={proxies:options.hitProxies,pads:options.targetPads,
-            info:selected&&onInfoChange?{node:infoNode??null,onChange:onInfoChange}:undefined};
+            info:selected&&onInfoChange?{node:infoNode??null,onChange:onInfoChange}:undefined,
+            hover:options.hover&&selected?(on:boolean)=>setOnTarget(on?settlement.islandId:null):undefined};
           return <group key={settlement.islandId}>
             {layout?<HexGlbBuildings world={world} layout={layout} selected={selected} fallback={placeholders}
               onSourceChange={sourceSetters[layout.islandId]} onNavigate={onNavigate} anchorStyle={options.anchorStyle} targets={targets}/>:placeholders}
@@ -209,6 +217,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
               <button type="button" className={`${styles.islandLabel} ${styles.hexLabel}${compact?` ${styles.hexLabelCompact}`:''}`}
                 style={{'--island-accent':island.accent} as React.CSSProperties}
                 aria-pressed={false} aria-label={`聚焦${island.name}`} data-model-source={layout?sources[island.id]??'loading':'geometry'} data-side={caption?.side}
+                data-hovered={lit===island.id?'true':undefined}
                 onClick={event=>{event.stopPropagation();onSelect(island.id);}}>
                 <span/><strong className={styles.hexLabelText}>{island.name}</strong><small>↗</small>
               </button>

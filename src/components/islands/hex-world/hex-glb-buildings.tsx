@@ -32,6 +32,8 @@ export interface TargetOptions {
   proxies?: boolean;
   pads?: boolean;
   info?: { node: string | null; onChange: (node: string | null) => void };
+  /** D.3-3 preflight: reports whether the mouse is on a target of this (focused) settlement. */
+  hover?: (onTarget: boolean) => void;
 }
 
 function LoadedParts({world,layout,selected,anchorStyle,targets,onReady,onInvalid,onNavigate}:{
@@ -81,8 +83,12 @@ function LoadedParts({world,layout,selected,anchorStyle,targets,onReady,onInvali
     if(target.action.type==='route') onNavigate(target.action.href);
     else setInfo(target);
   };
+  const hover=targets.hover;
+  const pointAt=(event:ThreeEvent<PointerEvent>)=>{
+    if(event.pointerType==='mouse') hover?.(Boolean(resolveTarget(event.object as Object3D,asset)));
+  };
   const anchorOf=(node:string)=>placed.find(p=>p.part.anchor?.node===node)?.anchor??undefined;
-  return <group onClick={onClick}>
+  return <group onClick={onClick} onPointerOver={hover&&pointAt} onPointerOut={hover&&(()=>hover(false))}>
     {placed.map(({part,pose,proxy})=><group key={part.node} position={pose.position} rotation-y={pose.rotation} scale={asset.scale}>
       <primitive object={part.object}>
         {proxy&&<mesh name={`${part.node}__hit`} position={proxy.center} material={proxyMaterial} userData={{hitProxy:true}}>

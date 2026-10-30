@@ -881,3 +881,26 @@
 .hexLabelCompact[data-side='above'] {
   transform: translateY(-60%);
 }
+/* D.3-3 preflight: the label lights when the mouse is on it or on its island in 3D (no 3D highlight is drawn). */
+.hexLabelCompact:hover,
+.hexLabelCompact[data-hovered='true'] {
+  border-color: var(--island-accent, #2563c5);
+  box-shadow: 0 0 0 2px var(--island-accent, #2563c5), 0 6px 18px #172b4830;
+}
+/* Production hex explorer: on phones the caption and the mode switch share one row; the small tag gives way. */
+@media (max-width: 430px) {
+  .singleRowToolbar {
+    flex-wrap: nowrap;
+  }
+  .singleRowToolbar .viewCaption span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .singleRowToolbar .viewCaption small {
+    display: none;
+  }
+  .singleRowToolbar .modeSwitch {
+    flex: none;
+  }
+}

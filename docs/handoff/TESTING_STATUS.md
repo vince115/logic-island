@@ -10,6 +10,20 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## D.3-3 Preflight 候選頁與回退頁（2026-10-30，獨立 commit「candidate and rollback routes for the world map switch (Phase D.3-3 preflight)」）
+
+| 檢查 | 結果 |
+|---|---|
+| ESLint／TypeScript | 都是 exit 0（ESLint 排除 scratch 量測腳本） |
+| Vitest | 167 passed／6 skipped；新增 `tests/islands-routes.test.ts` 3 項（候選頁＝實驗室減探針、候選頁只用共用 Explorer、`/islands/legacy` 就是 `/islands` 且 noindex） |
+| Next Build | 成功；`/islands/candidate`、`/islands/legacy` 都是靜態頁 |
+| E2E `islands-candidate`＋`islands`＋`hex-scale`＋`hex-world` | 重複 3 次 348 passed／12 skipped／0 failed（skipped：hover 只在桌機、360／390 px 與桌機標題檢查各只在對應裝置） |
+| E2E 全套（單次） | 135 passed／3 failed／4 skipped（失敗都是既有 player，P1-11） |
+| 渲染成本 | 候選頁與 37 格實驗室的全景／聚焦 draw call、三角形、陰影 draw call 逐項相同（43／28,569、26／38,339、0）；飛行 FPS 與首幀在誤差內，見 `logs/2026-10-30-d3-3-preflight.md` §5 |
+
+- `e2e/islands-candidate.spec.ts`：切換後 `/islands` 的契約（正式文案、無測試控制、3D／清單、BFS、數量、Error Boundary、context 遺失、GLB 失敗、聚焦與返回、hover、手機 360／390 px 工具列、桌機與手機的地圖標題不遮名牌、Skip Link、三條路由互不影響）。
+- `e2e/islands.spec.ts` 原有情境改為在 `/islands` 與 `/islands/legacy` 各跑一次。
+
 ## D.3-2 共用 Explorer（2026-10-30，獨立 commit「shared hex world explorer with the production safety net (Phase D.3-2)」）
 
 | 檢查 | 結果 |

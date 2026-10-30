@@ -5,8 +5,7 @@ import { SCALE_VARIANTS, scalePrototypes, type ScaleVariant } from '@/lib/island
 import type { LearningIsland } from '@/lib/islands/types';
 import { HexWorldExplorer } from './hex-world-explorer';
 import { PreviewBack } from './preview-back';
-import type { HexSceneOptions } from './hex-world-scene';
-import { SCENE_PRESETS, type HexScenePreset } from './hex-scene-presets';
+import { SCENE_PRESETS, sceneOptions, type HexScenePreset } from './hex-scene-presets';
 import styles from '../islands.module.css';
 
 /**
@@ -19,9 +18,8 @@ const PRESET: Record<ScaleVariant, HexScenePreset> = { '19': SCENE_PRESETS.scale
 /** Island Scale & World Composition Prototype: one of the candidate scales, with links to the other. */
 export function HexScaleExplorer({islands,variant}:{islands:LearningIsland[];variant:ScaleVariant}) {
   const prototype=scalePrototypes[variant];
-  const options:HexSceneOptions={...PRESET[variant],glbLayouts:prototype.glb,forests:prototype.forests,nature:prototype.natural};
-  return <HexWorldExplorer islands={islands} world={prototype.world} options={options} poiPanel={REFINED[variant]}
-    tag={`SCALE PROTOTYPE · ${variant} TILES${REFINED[variant]?' · D.2C-1 NATURAL':' · REFERENCE'}`}
+  return <HexWorldExplorer islands={islands} world={prototype.world} options={sceneOptions(prototype,PRESET[variant])} poiPanel={REFINED[variant]}
+    copy={{tag:`SCALE PROTOTYPE · ${variant} TILES${REFINED[variant]?' · D.2C-1 NATURAL':' · REFERENCE'}`}}
     toolbar={<>{SCALE_VARIANTS.map(v=><Link key={v} className={styles.previewBack} href={`/islands/hex/scale/${v}`}
       aria-current={v===variant?'page':undefined}>{v} 格</Link>)}<PreviewBack/></>}/>;
 }

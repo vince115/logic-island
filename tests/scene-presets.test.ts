@@ -10,7 +10,7 @@ const sources = files('src').map(path => ({ path, text: readFileSync(path, 'utf8
 
 describe('scene presets (D.3-1)', () => {
   it('production carries the accepted D.2c look and budget, and never the measurement probe', () => {
-    expect(SCENE_PRESETS.production).toMatchObject({ terrain: 'natural', ocean: 'natural', shadows: 'static', treeLod: 24 });
+    expect(SCENE_PRESETS.production).toMatchObject({ terrain: 'natural', ocean: 'natural', shadows: 'static', treeLod: 24, hover: true });
     expect('perfProbe' in SCENE_PRESETS.production).toBe(false);
   });
 

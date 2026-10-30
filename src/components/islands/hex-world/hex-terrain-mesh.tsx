@@ -11,8 +11,13 @@ import type { HexSettlement, HexWorld } from '@/lib/islands/hex-world';
 /** `natural` (D.2c-1, 37-tile prototype): quieter rims, faceted rock walls and beaches; `a2` is the D.2b terrain. */
 export type TerrainStyle = 'a2' | 'natural';
 
-/** One flat-shaded, vertex-colored mesh per continuous settlement, from the pure terrain data. */
-export function HexTerrainMesh({world,settlement,onSelect,style='a2'}:{world:HexWorld;settlement:HexSettlement;onSelect:(islandId:string)=>void;style?:TerrainStyle}) {
+/**
+ * One flat-shaded, vertex-colored mesh per continuous settlement, from the pure terrain data. `onHover` (D.3-3
+ * preflight) reports the mouse entering and leaving the island; touch never hovers.
+ */
+export function HexTerrainMesh({world,settlement,onSelect,onHover,style='a2'}:{
+  world:HexWorld;settlement:HexSettlement;onSelect:(islandId:string)=>void;onHover?:(islandId:string|null)=>void;style?:TerrainStyle;
+}) {
   const geometry=useMemo(()=>{
     const {triangles}=style==='natural'
       ?naturalTerrains(world).find(t=>t.islandId===settlement.islandId)!
@@ -39,5 +44,7 @@ export function HexTerrainMesh({world,settlement,onSelect,style='a2'}:{world:Hex
     event.stopPropagation();
     onSelect(settlement.islandId);
   };
-  return <mesh geometry={geometry} material={material} castShadow receiveShadow onClick={select}/>;
+  return <mesh geometry={geometry} material={material} castShadow receiveShadow onClick={select}
+    onPointerOver={onHover&&(event=>{if(event.pointerType==='mouse') onHover(settlement.islandId);})}
+    onPointerOut={onHover&&(()=>onHover(null))}/>;
 }

@@ -1,3 +1,4 @@
+import type { WorldLayout } from '@/lib/islands/hex-layout';
 import type { HexSceneOptions } from './hex-world-scene';
 
 /**
@@ -10,12 +11,12 @@ export type HexScenePreset = Omit<HexSceneOptions, 'glbLayouts' | 'forests' | 'n
 /**
  * The accepted D.2c look (natural terrain, sea and nature, compact labels, content framing) with the D.2c-2
  * rendering budget: static shadow map and the tree LOD threshold (device pixels per world unit, KNOWN_ISSUES P1-24).
- * Never loads the measurement probe.
+ * Mouse hover (D.3-3 preflight) only sets the cursor and lights an HTML label. Never loads the measurement probe.
  */
 const production = {
   ocean: 'natural', terrain: 'natural', anchorStyle: 'compact', rocks: true, lighting: 'contrast',
   routes: 'merged', hitProxies: true, targetPads: true, labels: 'compact', cameraFit: 'content',
-  shadows: 'static', treeLod: 24,
+  shadows: 'static', treeLod: 24, hover: true,
 } as const satisfies HexScenePreset;
 
 export const SCENE_PRESETS = {
@@ -27,3 +28,8 @@ export const SCENE_PRESETS = {
   /** The A2 preview (/islands/hex): the scene defaults. */
   a2Preview: {},
 } as const satisfies Record<string, HexScenePreset>;
+
+/** Scene options for one world layout under one preset; the candidate page and the lab build theirs the same way. */
+export function sceneOptions(layout: WorldLayout, preset: HexScenePreset): HexSceneOptions {
+  return { ...preset, glbLayouts: layout.glb, forests: layout.forests, nature: layout.natural };
+}
