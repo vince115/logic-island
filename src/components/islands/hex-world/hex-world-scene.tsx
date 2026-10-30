@@ -4,22 +4,24 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Vector3, type Mesh } from 'three';
 import { Canvas, useThree } from '@react-three/fiber';
-import { Html } from '@react-three/drei';
-import { hexToWorld } from '@/lib/islands/hex';
-import { settlementFrames, worldCenter, type HexWorld } from '@/lib/islands/hex-world';
+import { Html, type CameraControlsImpl } from '@react-three/drei';
+import { hexCorner, hexToWorld } from '@/lib/islands/hex';
+import { tileTop } from '@/lib/islands/hex-terrain';
+import { WATER_LEVEL, settlementFrames, worldCenter, type HexWorld } from '@/lib/islands/hex-world';
 import type { IslandDefinition } from '@/lib/islands/types';
-import { HexCamera } from './hex-camera';
+import { HexCamera, VIEW } from './hex-camera';
 import { HexTiles, WATER_Y } from './hex-tiles';
-import { HexTerrainMesh } from './hex-terrain-mesh';
+import { HexTerrainMesh, type TerrainStyle } from './hex-terrain-mesh';
 import { HexBridges, HexRoads } from './hex-routes';
-import { hexGlbSettlements, type HexGlbSettlement } from '@/lib/islands/hex-buildings';
-import type { ForestPatch } from '@/lib/islands/hex-scale-prototype';
+import { hexGlbSettlements, placementPose, type HexGlbSettlement } from '@/lib/islands/hex-buildings';
+import type { ForestPatch, ScalePrototype } from '@/lib/islands/hex-scale-prototype';
 import type { ModelSource } from '../glb-island-model';
 import { HexLandmarks } from './hex-landmarks';
 import { HexGlbBuildings, type AnchorStyle, type TargetOptions } from './hex-glb-buildings';
 import { MergedRoutes } from './hex-routes-merged';
 import { HexForest, HexRocks } from './hex-nature';
-import { HexOcean } from './hex-ocean';
+import { HexNaturalOcean, HexOcean } from './hex-ocean';
+import { HexPlaza } from './hex-plaza';
 import styles from '../islands.module.css';
 
 /**
@@ -28,7 +30,12 @@ import styles from '../islands.module.css';
  */
 export interface HexSceneOptions {
   glbLayouts?: HexGlbSettlement[];
-  ocean?: 'hex' | 'continuous';
+  /** `natural` (D.2c-1): a smooth shallow-to-deep gradient and foam that follows cliffs and beaches. */
+  ocean?: 'hex' | 'continuous' | 'natural';
+  terrain?: TerrainStyle;
+  /** D.2c-1: precomputed clustered trees and rocks (replace the per-tile forest and coast rocks), the plaza
+   * layout and the main route width. */
+  nature?: NonNullable<ScalePrototype['natural']>;
   anchorStyle?: AnchorStyle;
   forests?: ForestPatch[];
   rocks?: boolean;
@@ -42,6 +49,50 @@ export interface HexSceneOptions {
   targetPads?: boolean;
   /** Show the HTML list of focused targets (tap and keyboard equivalent of the 3D targets). */
   poiPanel?: boolean;
+  /** `compact` (D.2c-1) puts each overview label off the island's outer coast, hanging outward, so no tile is covered. */
+  labels?: 'default' | 'compact';
+  /** `content` (D.2c-1) frames the islands' own outline and buildings instead of their bounding boxes. */
+  cameraFit?: 'bounds' | 'content';
+}
+type CaptionSide='left'|'right'|'above'|'below';
+/**
+ * Where a compact caption goes: just off the coast on the side of the settlement facing away from the rest
+ * of the world, and which screen side that is, so the caption can hang outward instead of over the island.
+ */
+function captionPoint(world:HexWorld,settlement:HexWorld['settlements'][number],reach=1.2):{point:[number,number];side:CaptionSide} {
+  const [wx,wz]=worldCenter(world),[sx,sz]=hexToWorld(settlement.center,world.size);
+  const length=Math.hypot(sx-wx,sz-wz)||1,out=[(sx-wx)/length,(sz-wz)/length];
+  const far=settlement.tiles.reduce((best,t)=>{const [x,z]=hexToWorld(t,world.size),[bx,bz]=hexToWorld(best,world.size);
+    return x*out[0]+z*out[1]>bx*out[0]+bz*out[1]?t:best;},settlement.tiles[0]);
+  const [fx,fz]=hexToWorld(far,world.size);
+  // Screen right and up for a ground direction, from the fixed hex camera view.
+  const right=new Vector3().crossVectors(new Vector3(0,1,0),VIEW).normalize(),up=new Vector3().crossVectors(VIEW,right);
+  const r=right.x*out[0]+right.z*out[1],u=up.x*out[0]+up.z*out[1];
+  const side:CaptionSide=Math.abs(r)>Math.abs(u)?(r>0?'right':'left'):(u>0?'above':'below');
+  return {point:[fx+out[0]*world.size*reach,fz+out[1]*world.size*reach],side};
+}
+/** Points the camera must keep in view, in scene space: tile corners, the shore just beyond them, building tops. */
+function fitPoints(world:HexWorld,layouts:HexGlbSettlement[],[ox,oz]:[number,number],captions:boolean) {
+  const byId:Record<string,Vector3[]>={};
+  for(const settlement of world.settlements){
+    const points:Vector3[]=[];
+    for(const tile of settlement.tiles){
+      const [cx,cz]=hexToWorld(tile,world.size);
+      for(let i=0;i<6;i++){
+        const [x,z]=hexCorner(tile,world.size,i);
+        points.push(new Vector3(x-ox,tileTop(tile),z-oz),new Vector3(cx+(x-cx)*1.5-ox,WATER_LEVEL,cz+(z-cz)*1.5-oz));
+      }
+    }
+    for(const layout of layouts.filter(l=>l.islandId===settlement.islandId)) for(const placement of layout.placements){
+      const [x,y,z]=placementPose(world,layout.islandId,placement).position;
+      points.push(new Vector3(x-ox,y+2.7,z-oz));
+    }
+    byId[settlement.islandId]=points;
+  }
+  // The overview also keeps the island captions in view (only the overview shows them); a caption hangs
+  // outward from its point, so keep about a caption's width beyond it.
+  const labels=captions?world.settlements.map(s=>{const {point:[x,z]}=captionPoint(world,s,4.2);return new Vector3(x-ox,WATER_LEVEL,z-oz);}):[];
+  return {all:[...Object.values(byId).flat(),...labels],byId};
 }
 const LIGHTING = {
   preview: { background: '#d4f0fb', ambient: 1.1, hemisphere: 1.2, sun: 2.4 },
@@ -49,9 +100,27 @@ const LIGHTING = {
 } as const;
 type PerfStats = { calls: number; triangles: number; geometries: number; meshes: number; instanced: number; instances: number; shadowCasters: number };
 
-/** Prototype-only: `canvas.__hexPerf()` renders one frame and returns its draw stats (shadow pass included). */
-function PerfProbe() {
-  const {gl,scene,camera}=useThree();
+/**
+ * Prototype-only: `canvas.__hexPerf()` renders one frame and returns its draw stats (shadow pass included).
+ * For review screenshots, `__hexProject(x, y, z)` gives the canvas position of a map point and
+ * `__hexView(x, y, z, zoom)` looks at a map point at a given zoom (`__hexZoom()` reads the current one).
+ */
+function PerfProbe({ox,oz}:{ox:number;oz:number}) {
+  const {gl,scene,camera,invalidate}=useThree();
+  const controls=useThree(state=>state.controls) as CameraControlsImpl|null;
+  useEffect(()=>{
+    const project=(x:number,y:number,z:number)=>{
+      const v=new Vector3(x-ox,y,z-oz).project(camera),{width,height}=gl.domElement.getBoundingClientRect();
+      return [(v.x+1)/2*width,(1-v.y)/2*height];
+    };
+    const view=(x:number,y:number,z:number,zoom:number)=>{
+      const target=new Vector3(x-ox,y,z-oz),eye=target.clone().addScaledVector(VIEW,40);
+      void controls?.setLookAt(eye.x,eye.y,eye.z,target.x,target.y,target.z,false);
+      void controls?.zoomTo(zoom,false);
+      invalidate();
+    };
+    Object.assign(gl.domElement,{__hexProject:project,__hexView:view,__hexZoom:()=>camera.zoom});
+  },[gl,camera,controls,ox,oz,invalidate]);
   useEffect(()=>{
     const probe=():PerfStats=>{
       gl.render(scene,camera);
@@ -92,7 +161,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,reduced
   /** Controlled info bubble of the focused settlement, shared with the HTML target list. */
   infoNode?:string|null;onInfoChange?:(node:string|null)=>void;
 }) {
-  const glbLayouts=options.glbLayouts??hexGlbSettlements,continuousOcean=options.ocean==='continuous';
+  const glbLayouts=options.glbLayouts??hexGlbSettlements,continuousOcean=options.ocean==='continuous'||options.ocean==='natural';
   const light=LIGHTING[options.lighting??'preview'];
   // Shadows must cover the whole map; the D.2a/D.2b world fits the original ±16 box.
   const shadowExtent=useMemo(()=>{
@@ -102,6 +171,8 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,reduced
   },[world]);
   const frames=useMemo(()=>settlementFrames(world,islands),[world,islands]);
   const [ox,oz]=useMemo(()=>worldCenter(world),[world]);
+  const fit=useMemo(()=>options.cameraFit==='content'?fitPoints(world,glbLayouts,[ox,oz],options.labels==='compact'):undefined,
+    [options.cameraFit,options.labels,world,glbLayouts,ox,oz]);
   const router=useRouter();
   const navigate=useCallback((href:string)=>router.push(href),[router]);
   // Which model each settlement shows: GLB buildings, or the placeholders while loading / on failure.
@@ -115,7 +186,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,reduced
       fallback={<p className={styles.canvasFallback}>此裝置無法顯示 3D，請使用清單導航。</p>}>
       <color attach="background" args={[light.background]}/>
       <Lifecycle onReady={onReady} onUnavailable={onUnavailable}/>
-      {options.perfProbe&&<PerfProbe/>}
+      {options.perfProbe&&<PerfProbe ox={ox} oz={oz}/>}
       <ambientLight intensity={light.ambient}/>
       <hemisphereLight args={['#f3fbff','#b9d7a8',light.hemisphere]}/>
       <directionalLight position={[-12,22,10]} intensity={light.sun} castShadow
@@ -126,15 +197,19 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,reduced
         <planeGeometry args={[250,250]}/><meshStandardMaterial color="#3db2e6" roughness={.7}/>
       </mesh>}
       <group position={[-ox,0,-oz]}>
-        {continuousOcean?<HexOcean world={world}/>:<HexTiles world={world} onSelect={onSelect}/>}
-        {options.forests&&<HexForest world={world} patches={options.forests}/>}
-        {options.rocks&&<HexRocks world={world}/>}
-        {world.settlements.filter(s=>s.surface==='continuous').map(s=><HexTerrainMesh key={s.islandId} world={world} settlement={s} onSelect={onSelect}/>)}
-        {options.routes==='merged'?<MergedRoutes world={world}/>:<><HexRoads world={world}/><HexBridges world={world}/></>}
+        {options.ocean==='natural'?<HexNaturalOcean world={world}/>:continuousOcean?<HexOcean world={world}/>:<HexTiles world={world} onSelect={onSelect}/>}
+        {options.forests&&<HexForest world={world} patches={options.forests} trees={options.nature?.trees}/>}
+        {options.rocks&&<HexRocks world={world} rocks={options.nature?.rocks}/>}
+        {world.settlements.filter(s=>s.surface==='continuous').map(s=><HexTerrainMesh key={s.islandId} world={world} settlement={s} onSelect={onSelect} style={options.terrain}/>)}
+        {options.routes==='merged'?<MergedRoutes world={world} widths={options.nature?.roadWidths}/>:<><HexRoads world={world}/><HexBridges world={world}/></>}
+        {options.nature&&<HexPlaza layout={options.nature.plaza} accent={islands.find(i=>i.id===options.nature!.plaza.islandId)?.accent??'#4285f4'}/>}
         {world.settlements.map(settlement=>{
           const island=islands.find(i=>i.id===settlement.islandId);
           const layout=glbLayouts.find(l=>l.islandId===settlement.islandId);
-          const [x,z]=hexToWorld(layout?.label?.tile??settlement.center,world.size);
+          // Compact labels sit off the coast facing away from the other islands, so the overview shows each outline whole.
+          const compact=options.labels==='compact';
+          const caption=compact?captionPoint(world,settlement):null;
+          const [x,z]=caption?caption.point:hexToWorld(layout?.label?.tile??settlement.center,world.size);
           const placeholders=<HexLandmarks world={world} settlement={settlement}/>;
           const selected=selectedId===settlement.islandId;
           const targets:TargetOptions={proxies:options.hitProxies,pads:options.targetPads,
@@ -143,10 +218,10 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,reduced
             {layout?<HexGlbBuildings world={world} layout={layout} selected={selected} fallback={placeholders}
               onSourceChange={sourceSetters[layout.islandId]} onNavigate={navigate} anchorStyle={options.anchorStyle} targets={targets}/>:placeholders}
             {/* A focused settlement hands its space to the anchor labels; the toolbar still names it. */}
-            {island&&!selected&&<group position={[x,0,z]}><Html position={[0,layout?.label?.height??3.4,0]} center zIndexRange={[15,0]}>
-              <button type="button" className={`${styles.islandLabel} ${styles.hexLabel}`}
+            {island&&!selected&&<group position={[x,0,z]}><Html position={[0,compact?WATER_LEVEL:layout?.label?.height??3.4,0]} center zIndexRange={[15,0]}>
+              <button type="button" className={`${styles.islandLabel} ${styles.hexLabel}${compact?` ${styles.hexLabelCompact}`:''}`}
                 style={{'--island-accent':island.accent} as React.CSSProperties}
-                aria-pressed={false} aria-label={`聚焦${island.name}`} data-model-source={layout?sources[island.id]??'loading':'geometry'}
+                aria-pressed={false} aria-label={`聚焦${island.name}`} data-model-source={layout?sources[island.id]??'loading':'geometry'} data-side={caption?.side}
                 onClick={event=>{event.stopPropagation();onSelect(island.id);}}>
                 <span/><strong className={styles.hexLabelText}>{island.name}</strong><small>↗</small>
               </button>
@@ -154,7 +229,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,reduced
           </group>;
         })}
       </group>
-      <HexCamera frames={frames} selectedId={selectedId} reducedMotion={reducedMotion}/>
+      <HexCamera frames={frames} selectedId={selectedId} reducedMotion={reducedMotion} fit={fit}/>
     </Canvas>
   </div>;
 }

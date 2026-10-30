@@ -14,9 +14,9 @@ const matrixOf = (part: { position: number[]; yaw: number; pitch?: number }, sca
   new Matrix4().compose(new Vector3(...part.position), new Quaternion().setFromEuler(new Euler(0, part.yaw, part.pitch ?? 0, 'YZX')), scale);
 
 /** Every road strip and joint of the world merged into one mesh: one draw call, no shadow casting. */
-function MergedRoads({world}:{world:HexWorld}) {
+function MergedRoads({world,widths}:{world:HexWorld;widths?:Record<string,number>}) {
   const geometry=useMemo(()=>{
-    const {boxes,joints}=roadParts(world);
+    const {boxes,joints}=roadParts(world,widths);
     const parts:BufferGeometry[]=[
       ...boxes.map(b=>new BoxGeometry(...b.size).applyMatrix4(matrixOf(b))),
       ...joints.map(j=>new CylinderGeometry(j.radius,j.radius,ROAD.thickness,12).translate(...j.position)),
@@ -24,7 +24,7 @@ function MergedRoads({world}:{world:HexWorld}) {
     const merged=mergeGeometries(parts);
     parts.forEach(p=>p.dispose());
     return merged;
-  },[world]);
+  },[world,widths]);
   const material=useMemo(()=>new MeshStandardMaterial({color:ROAD.color,roughness:.95}),[]);
   useLayoutEffect(()=>()=>{geometry?.dispose();material.dispose();},[geometry,material]);
   return geometry?<mesh geometry={geometry} material={material} receiveShadow raycast={noRaycast}/>:null;
@@ -54,6 +54,7 @@ function InstancedBridges({world}:{world:HexWorld}) {
   </group>;
 }
 
-export function MergedRoutes({world}:{world:HexWorld}) {
-  return <group><MergedRoads world={world}/><InstancedBridges world={world}/></group>;
+/** `widths` (D.2c-1) widens chosen routes, e.g. the main route of the island. */
+export function MergedRoutes({world,widths}:{world:HexWorld;widths?:Record<string,number>}) {
+  return <group><MergedRoads world={world} widths={widths}/><InstancedBridges world={world}/></group>;
 }

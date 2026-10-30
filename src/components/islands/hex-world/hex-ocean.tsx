@@ -1,9 +1,12 @@
 'use client';
 
 import { useLayoutEffect, useMemo } from 'react';
-import { BufferGeometry, DoubleSide, Float32BufferAttribute, MeshStandardMaterial } from 'three';
+import {
+  BufferGeometry, Color, DataTexture, DoubleSide, Float32BufferAttribute, LinearFilter, MeshStandardMaterial, SRGBColorSpace,
+} from 'three';
 import { hexCorner, hexToWorld, type Axial } from '@/lib/islands/hex';
 import { coastFoam, shallowHexes } from '@/lib/islands/hex-scale-prototype';
+import { naturalTerrains, seaGrid } from '@/lib/islands/hex-natural-scene';
 import { WATER_LEVEL, type HexWorld } from '@/lib/islands/hex-world';
 import type { Vec3 } from '@/lib/islands/types';
 
@@ -62,5 +65,51 @@ export function HexOcean({world}:{world:HexWorld}) {
     <mesh geometry={geometry.mid} material={materials.mid} receiveShadow raycast={noRaycast}/>
     <mesh geometry={geometry.shallow} material={materials.shallow} receiveShadow raycast={noRaycast}/>
     <mesh geometry={geometry.foam} material={materials.foam} raycast={noRaycast}/>
+  </group>;
+}
+
+/**
+ * Natural sea (D.2c-1): the color fades smoothly from shallow to deep with the distance to land, so no hex
+ * outline shows in the water, plus foam along every cliff foot and beach waterline. The shade grid is baked
+ * into a small texture on one quad: a screen-filling mesh of many triangles cost about half the frame rate.
+ */
+export function HexNaturalOcean({world}:{world:HexWorld}) {
+  const parts=useMemo(()=>{
+    const {nx,nz,points,shade}=seaGrid(world),step=points[1][0]-points[0][0];
+    const stops=[OCEAN.shallow,OCEAN.mid,OCEAN.deep].map(c=>new Color(c)),srgb={r:0,g:0,b:0};
+    // Row j of the texture is grid row j (v runs along +z), so no flip is needed.
+    const data=new Uint8Array(points.length*4);
+    shade.forEach((v,i)=>{
+      const t=v*2,c=t<1?stops[0].clone().lerp(stops[1],t):stops[1].clone().lerp(stops[2],t-1);
+      c.getRGB(srgb,SRGBColorSpace);
+      data.set([srgb.r*255,srgb.g*255,srgb.b*255,255].map(Math.round),i*4);
+    });
+    const texture=new DataTexture(data,nx+1,nz+1);
+    texture.colorSpace=SRGBColorSpace;
+    texture.magFilter=texture.minFilter=LinearFilter;
+    texture.needsUpdate=true;
+    // Half a step past the outer grid points, so texel centers sit on them.
+    const [x0,z0]=points[0],[x1,z1]=points.at(-1)!,h=step/2;
+    const sea=new BufferGeometry();
+    sea.setAttribute('position',new Float32BufferAttribute([x0-h,WATER_LEVEL,z0-h,x1+h,WATER_LEVEL,z0-h,x1+h,WATER_LEVEL,z1+h,x0-h,WATER_LEVEL,z1+h],3));
+    sea.setAttribute('uv',new Float32BufferAttribute([0,0,1,0,1,1,0,1],2));
+    sea.setAttribute('normal',new Float32BufferAttribute([0,1,0,0,1,0,0,1,0,0,1,0],3));
+    sea.setIndex([0,3,1,1,3,2]);
+    return {texture,sea,foam:sheet(quads(naturalTerrains(world).flatMap(t=>t.foam)))};
+  },[world]);
+  const materials=useMemo(()=>({
+    deep:new MeshStandardMaterial({color:OCEAN.deep,roughness:.55,metalness:0}),
+    sea:new MeshStandardMaterial({map:parts.texture,roughness:.5,metalness:0}),
+    // Opaque, so overlapping foam at concave corners does not double up.
+    foam:new MeshStandardMaterial({color:OCEAN.foam,roughness:.45,side:DoubleSide}),
+  }),[parts]);
+  useLayoutEffect(()=>()=>{parts.sea.dispose();parts.foam.dispose();parts.texture.dispose();Object.values(materials).forEach(m=>m.dispose());},[parts,materials]);
+  // Land first, then the sea, then the plane under it, so hidden water fails the depth test early.
+  return <group>
+    <mesh rotation-x={-Math.PI/2} position-y={WATER_LEVEL-.004} material={materials.deep} receiveShadow raycast={noRaycast} renderOrder={2}>
+      <planeGeometry args={[400,400]}/>
+    </mesh>
+    <mesh geometry={parts.sea} material={materials.sea} receiveShadow raycast={noRaycast} renderOrder={1}/>
+    <mesh geometry={parts.foam} material={materials.foam} raycast={noRaycast} renderOrder={1}/>
   </group>;
 }

@@ -3,7 +3,10 @@ import {
   type Axial,
 } from './hex';
 import { glbAssets } from './asset-registry';
-import type { HexGlbSettlement } from './hex-buildings';
+import { placementPose, type HexGlbSettlement } from './hex-buildings';
+import {
+  MAIN_ROAD_WIDTH, MAIN_ROUTES, clusteredForest, naturalRocks, naturalTerrains, plazaLayout, type KeepOut, type NaturalRock, type PlazaLayout,
+} from './hex-natural-scene';
 import { tileTop } from './hex-terrain';
 import { WATER_LEVEL, settlementRoads, type HexSettlement, type HexTerrain, type HexTile, type HexWorld } from './hex-world';
 import type { Vec3 } from './types';
@@ -25,6 +28,11 @@ export interface ScalePrototype {
   forests: ForestPatch[];
   /** Zone summary for the comparison report: which tiles serve which purpose. */
   zones: Record<'plaza' | 'buildings' | 'forest' | 'hills' | 'shore' | 'open', number>;
+  /**
+   * D.2c-1 natural style (37 tiles only), placed once here: clustered trees, rocks, the plaza layout and the
+   * wider main route from the dock through the plaza to the lighthouse.
+   */
+  natural?: { trees: TreeInstance[]; rocks: NaturalRock[]; keepOut: KeepOut[]; plaza: PlazaLayout; roadWidths: Record<string, number> };
 }
 
 const at = (a: Axial, b: Axial) => a.q === b.q && a.r === b.r;
@@ -62,13 +70,17 @@ const f19 = tiles(A(0, 0), F19, t => {
 /* ---------------------------------------------------------------- 37 tiles */
 
 const F37 = shape(3, [A(0, 3), A(-1, 3), A(3, -1)], [A(0, -4), A(1, -4), A(-4, 1)]);
-// Scale refinement: gentler 0.3 terraces (foot, slope, peak) instead of 0.45 steps, so hills read as
-// rolling ground and the lighthouse path climbs in matching steps.
+// D.2c-1: the west hill is one mass on few levels, so neighbors share a surface instead of forming a stair
+// of hex plates: a 0.6 terrace (level with the lighthouse headland), a 1.2 shoulder and a 1.8 rock summit
+// on (-4, 1) that reads from the overview. (-1, -1) joins the 0.3 step of the lighthouse path. The D.2b
+// refinement used 0.3 steps up to 0.9.
 const F37_HILLS: Record<string, number> = {
-  '-2,0': .3, '-1,-1': .3, '-2,1': .3, '-2,-1': .6, '-3,0': .6, '-3,1': .6, '-1,-2': .6, '-4,1': .9,
+  '-1,-1': .3, '-2,0': .6, '-2,1': .6, '-3,1': .6, '-1,-2': .6, '-2,-1': 1.2, '-3,0': 1.2, '-4,1': 1.8,
 };
-// (-1, 2) stays a clearing: the dock road runs through it to the south-west cove.
-const F37_FOREST = [A(-3, 2), A(-3, 3), A(-2, 2), A(1, -3), A(2, -3)];
+// (-1, 2) stays a clearing: the dock road runs through it to the south-west cove. D.2c-1 grows the
+// south-west wood up the hill flank (-2, 1), (-3, 1), the north wood onto (1, -2), and plants a grove
+// on (2, -1) behind the workshop so its roof stands against dark trees.
+const F37_FOREST = [A(-3, 2), A(-3, 3), A(-2, 2), A(-2, 1), A(-3, 1), A(1, -3), A(2, -3), A(1, -2), A(2, -1)];
 const f37 = tiles(A(0, 0), F37, t => {
   const k = hexKey(t);
   if (k === '0,0') return { terrain: 'plaza' };
@@ -76,10 +88,16 @@ const f37 = tiles(A(0, 0), F37, t => {
   if (['-2,3', '0,2', '1,2'].includes(k)) return { terrain: 'shore', height: -.55 };
   if (['0,-4', '1,-4', '0,-3'].includes(k)) return { terrain: 'grass', height: .6 };
   if (k === '0,-2') return { terrain: 'grass', height: .3 };
-  if (k in F37_HILLS) return { terrain: F37_HILLS[k] >= .9 ? 'stone' : 'grass', height: F37_HILLS[k] };
-  if (inList(F37_FOREST)(t)) return { terrain: 'forest' };
+  const height = F37_HILLS[k];
+  if (inList(F37_FOREST)(t)) return { terrain: 'forest', height };
+  if (height !== undefined) return { terrain: height >= 1.5 ? 'stone' : 'grass', height };
   return { terrain: ['1,0', '1,1', '2,0', '2,1', '3,0'].includes(k) ? 'meadow' : 'grass' };
 });
+/**
+ * D.2c-1: grass coast tiles facing the camera that get a strip of beach at the foot of their cliff, so
+ * the south and east coast alternates cliff, beach and cove instead of one even wall. Rendering only.
+ */
+const F37_CLIFF_BEACHES = [A(2, 1), A(3, 0), A(-1, 2), A(3, -2)];
 
 /* -------------------------------------------- the other two islands (placeholders) */
 
@@ -125,17 +143,30 @@ export function workshopDoor(pivot: [number, number], scale = glbAssets['basics-
   const door: [number, number] = [pivot[0] + WORKSHOP_DOOR.x * scale, pivot[1] + WORKSHOP_DOOR.z * scale];
   return { door, front: [door[0], door[1] + WORKSHOP_DOOR.approach * scale] as [number, number] };
 }
+/**
+ * The v2.1 lighthouse in Landmark_Lighthouse local GLB units: its base reaches z 0.90 on the +z side, where
+ * Anchor_Lighthouse (the door) sits at z 0.78. D.2c-1 ends the lookout road `gap` in front of that base.
+ */
+export const LIGHTHOUSE_BASE = { front: 0.9, gap: 0.65 } as const;
+export function lighthouseFront(pivot: [number, number], scale = glbAssets['basics-island-v2.1'].scale): [number, number] {
+  return [pivot[0], pivot[1] + (LIGHTHOUSE_BASE.front + LIGHTHOUSE_BASE.gap) * scale];
+}
+
+const LIGHTHOUSE_OFFSET: [number, number] = [0, -.15];
 
 function prototype(variant: ScaleVariant): ScalePrototype {
   const big = variant === '37';
   // 37 tiles, workshop road: the workshop stands across (1, 0) and (2, 0) facing +z; the road leaves the
   // plaza south, turns east across the meadow and runs straight north between the porch posts to the door.
   const workshop = workshopDoor(hexEdgeMidpoint(A(1, 0), 0, 1.25));
+  // D.2c-1: the lookout road continues across the level headland to the lighthouse's door side.
+  const [lx, lz] = hexToWorld(A(0, -4), 1.25), lighthouse = lighthouseFront([lx + LIGHTHOUSE_OFFSET[0], lz + LIGHTHOUSE_OFFSET[1]]);
   const foundations: HexSettlement = {
     islandId: 'foundations', center: A(0, 0), surface: 'continuous', tiles: big ? f37 : f19,
+    ...(big ? { cliffBeaches: F37_CLIFF_BEACHES } : {}),
     // A lookout road climbs to the tile below the lighthouse; the dock road drops to the low shore.
     spurs: big
-      ? [{ id: 'foundations-dock', tile: A(-2, 3), edge: 5 }, { id: 'foundations-lighthouse', tile: A(0, -3) },
+      ? [{ id: 'foundations-dock', tile: A(-2, 3), edge: 5 }, { id: 'foundations-lighthouse', tile: A(0, -3), approach: [lighthouse] },
         { id: 'foundations-workshop', tile: A(1, 1), via: [A(0, 1)], approach: [workshop.front, workshop.door] }]
       : [{ id: 'foundations-dock', tile: A(1, 1), edge: 5 }, { id: 'foundations-lighthouse', tile: A(0, -2) }],
   };
@@ -165,7 +196,7 @@ function prototype(variant: ScaleVariant): ScalePrototype {
     label: big ? { tile: A(0, 1), height: 2.2 } : { tile: A(0, 1), height: 2.2 },
     // Scale stays 0.6; the island grows around the buildings instead.
     placements: big ? [
-      { node: 'Landmark_Lighthouse', tile: A(0, -4), offset: [0, -.15] },
+      { node: 'Landmark_Lighthouse', tile: A(0, -4), offset: LIGHTHOUSE_OFFSET },
       // Across (1, 0) and (2, 0) east of the plaza, door facing the meadow so a road can reach it.
       { node: 'Building_Workshop', tile: A(1, 0), across: 0 },
       { node: 'Dock_Entry', tile: A(-2, 3), edge: 5 },
@@ -181,7 +212,27 @@ function prototype(variant: ScaleVariant): ScalePrototype {
     { islandId: 'algorithms', tiles: shift(big ? A37_FOREST : A19_FOREST, aCenter), density: 4 },
   ];
   const buildingTiles = big ? [A(0, -4), A(1, 0), A(2, 0), A(-2, 3)] : [A(0, -3), A(-1, 1), A(-1, 0), A(1, 1)];
-  return { variant, world, glb, forests, zones: zones(foundations, buildingTiles) };
+  return { variant, world, glb, forests, zones: zones(foundations, buildingTiles), natural: big ? natural(world, glb[0], forests) : undefined };
+}
+
+/**
+ * Rough building footprints (map units) for keeping trees, rocks and plaza features clear; the unit tests check the
+ * results against the real GLB footprints. The workshop is about 1.8 × 1.9 at 0.6 scale, so three circles.
+ */
+const KEEP_OUT: Record<string, [number, number, number][]> = {
+  Landmark_Lighthouse: [[0, 0, 0.8]], Dock_Entry: [[0, 0, 0.9]], Building_Workshop: [[-0.55, 0.15, 1], [0, 0.15, 1], [0.55, 0.15, 1]],
+};
+function natural(world: HexWorld, layout: HexGlbSettlement, forests: ForestPatch[]): NonNullable<ScalePrototype['natural']> {
+  const keepOut: KeepOut[] = layout.placements.flatMap(p => {
+    const pose = placementPose(world, layout.islandId, p);
+    return (KEEP_OUT[p.node] ?? []).map(([x, z, r]): KeepOut => [pose.position[0] + x, pose.position[2] + z, r]);
+  });
+  const lighthouse = placementPose(world, layout.islandId, layout.placements.find(p => p.node === 'Landmark_Lighthouse')!).position;
+  // The terrace reaches from under the lighthouse base to the end of the lookout road.
+  const terrace: [number, number, number] = [lighthouse[0], lighthouse[2], (LIGHTHOUSE_BASE.front + LIGHTHOUSE_BASE.gap) * glbAssets[layout.asset].scale];
+  return { keepOut, trees: clusteredForest(world, forests, keepOut), rocks: naturalRocks(world, naturalTerrains(world), keepOut),
+    plaza: plazaLayout(world, layout.islandId, keepOut, { terrace }),
+    roadWidths: Object.fromEntries(MAIN_ROUTES.map(id => [id, MAIN_ROAD_WIDTH])) };
 }
 
 export const scalePrototypes: Record<ScaleVariant, ScalePrototype> = { '19': prototype('19'), '37': prototype('37') };

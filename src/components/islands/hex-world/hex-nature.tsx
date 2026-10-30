@@ -6,7 +6,7 @@ import {
   Color, ConeGeometry, DodecahedronGeometry, InstancedMesh, MeshStandardMaterial, Object3D, type Material, type Mesh,
 } from 'three';
 import { glbAssets } from '@/lib/islands/asset-registry';
-import { TREE_NODES, coastRocks, forestInstances, type ForestPatch, type TreeInstance } from '@/lib/islands/hex-scale-prototype';
+import { TREE_NODES, coastRocks, forestInstances, type ForestPatch, type RockInstance, type TreeInstance } from '@/lib/islands/hex-scale-prototype';
 import { TERRAIN_MATERIAL, TERRAIN_PALETTE } from '@/lib/islands/hex-terrain';
 import type { HexWorld } from '@/lib/islands/hex-world';
 
@@ -58,16 +58,17 @@ class ForestBoundary extends Component<{fallback:ReactNode;children:ReactNode},{
   render(){return this.state.failed?this.props.fallback:this.props.children;}
 }
 
-export function HexForest({world,patches}:{world:HexWorld;patches:ForestPatch[]}) {
-  const trees=useMemo(()=>forestInstances(world,patches),[world,patches]);
+/** Trees per forest patch, or (D.2c-1) a precomputed clustered layout passed as `trees`. */
+export function HexForest({world,patches,trees:given}:{world:HexWorld;patches:ForestPatch[];trees?:TreeInstance[]}) {
+  const trees=useMemo(()=>given??forestInstances(world,patches),[world,patches,given]);
   if(!trees.length) return null;
   const cones=<ConeForest trees={trees}/>;
   return <ForestBoundary fallback={cones}><Suspense fallback={cones}><GlbForest trees={trees}/></Suspense></ForestBoundary>;
 }
 
-/** Low-poly boulders along the coast, one instanced draw call, tinted with the cliff palette. */
-export function HexRocks({world}:{world:HexWorld}) {
-  const rocks=useMemo(()=>coastRocks(world),[world]);
+/** Low-poly boulders along the coast, one instanced draw call, tinted with the cliff palette; `rocks` overrides the layout. */
+export function HexRocks({world,rocks:given}:{world:HexWorld;rocks?:RockInstance[]}) {
+  const rocks=useMemo(()=>given??coastRocks(world),[world,given]);
   const mesh=useRef<InstancedMesh>(null);
   const geometry=useMemo(()=>new DodecahedronGeometry(1,0),[]);
   const material=useMemo(()=>new MeshStandardMaterial({flatShading:true,...TERRAIN_MATERIAL}),[]);

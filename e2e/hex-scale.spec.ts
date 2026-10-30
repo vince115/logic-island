@@ -1,8 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { test as base, expect, type Page } from '@playwright/test';
+import { hexToWorld } from '@/lib/islands/hex';
+import { tileTop } from '@/lib/islands/hex-terrain';
+import { scalePrototypes } from '@/lib/islands/hex-scale-prototype';
 
 // Island Scale & World Composition Prototype at /islands/hex/scale/{19,37}; preview only.
-// 37 tiles is the refined candidate (hit proxies, HTML targets, merged routes); 19 is the reference.
+// 37 tiles is the refined candidate (hit proxies, HTML targets, merged routes, D.2c-1 natural style); 19 is the reference.
 const GLB = '/models/islands/basics-island.v2.1.glb';
 const test = base.extend<{ consoleGuard: void }>({
   consoleGuard: [async ({ page }, use) => {
@@ -112,6 +115,36 @@ test('37 格：HTML 地點入口以觸控或鍵盤操作，結果與 3D 點擊�
   await expect(info(page, '群島的入口')).toHaveCount(0);
   await activate('Building_Workshop');
   await expect(page).toHaveURL(/\/learn$/);
+});
+
+test('37 格（D.2c-1）：全景名牌放在島嶼外側，不遮住任何地塊，也不超出畫面', async ({ page }) => {
+  await page.goto('/islands/hex/scale/37');
+  const names = ['基礎程式島', '資料結構島', '演算法島'];
+  for (const name of names) await expect(label(page, name)).toBeVisible({ timeout: 20_000 });
+  await expect(label(page, '基礎程式島')).toHaveAttribute('data-model-source', 'glb', { timeout: 20_000 });
+  await page.locator('canvas').scrollIntoViewIfNeeded();
+  // Wait until the labels stop moving (the camera settles first).
+  let last = '';
+  await expect.poll(async () => {
+    const now = JSON.stringify(await Promise.all(names.map(n => label(page, n).boundingBox())));
+    const settled = now === last;
+    last = now;
+    return settled;
+  }, { intervals: [150] }).toBe(true);
+  const { world } = scalePrototypes['37'];
+  const tiles = world.settlements.flatMap(s => s.tiles.map(t => { const [x, z] = hexToWorld(t, world.size); return [x, tileTop(t), z]; }));
+  const points = await page.evaluate(list => {
+    const canvas = document.querySelector('canvas') as HTMLCanvasElement & { __hexProject: (x: number, y: number, z: number) => number[] };
+    const box = canvas.getBoundingClientRect();
+    return list.map(([x, y, z]) => { const [px, py] = canvas.__hexProject(x, y, z); return [px + box.left, py + box.top]; });
+  }, tiles);
+  const canvas = (await page.locator('canvas').boundingBox())!;
+  for (const name of names) {
+    const b = (await label(page, name).boundingBox())!;
+    const covered = points.filter(([x, y]) => x > b.x && x < b.x + b.width && y > b.y && y < b.y + b.height);
+    expect(covered, `${name} covers tile centers`).toEqual([]);
+    expect(b.x >= canvas.x - 1 && b.y >= canvas.y - 1 && b.x + b.width <= canvas.x + canvas.width + 1 && b.y + b.height <= canvas.y + canvas.height + 1, `${name} inside the stage`).toBe(true);
+  }
 });
 
 base('37 格：GLB 載入失敗時回到暫代建築，HTML 地點入口仍可使用', async ({ page }) => {

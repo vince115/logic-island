@@ -10,6 +10,18 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## D.2c-1 視覺改善試作實測（37 格，2026-10-29，獨立 commit「natural terrain and settlement composition for the 37-tile prototype (Phase D.2c-1)」）
+
+| 檢查 | 結果 |
+|---|---|
+| ESLint／TypeScript | 都是 exit 0 |
+| Vitest | 153 passed／6 skipped；新增 `tests/hex-natural.test.ts` 29 項（地形連續性、沙灘、道路與橋接合、廣場與主動線、森林與岩石、A2／19 格不受影響） |
+| Next Build | 成功 |
+| E2E `hex-scale`＋`hex-world`＋`islands` | 重複 3 次 156/156，沒有略過任何項目；新增全景名牌不遮住地塊、不超出畫面（桌機與手機） |
+| E2E 全套（單次） | 71 passed／3 failed（既有 player，P1-11） |
+| 不變性 | A2 世界、道路、地形與 GLB 配置，以及整份 19 格原型，計算結果的 hash 與 `fa3a9a9` 相同；37 格 GLB 配置與橋樑相同，只有燈塔步道延伸；GLB、`public/`、`scripts/`、正式 `/islands`、`camera-controller.tsx` 無差異；保全庫 81/81 SHA 相符 |
+| 效能（production build，同時段 A/B） | draw call 全景 80 → 81、聚焦 75／71 → 64；三角形 50,316 → 74,042；閒置時兩版 rAF 請求都是 0；連續渲染幀率（5 次中位數）桌機 32.8 → 21.4、手機尺寸 41.9 → 31.0，成本主要來自樹木，見 P1-21 與 `logs/2026-10-29-d2c1-composition.md` |
+
 ## D.2b 工坊入口道路實測（37 格，2026-10-29，獨立 commit「add the 37-tile workshop entrance road」）
 
 | 檢查 | 結果 |

@@ -17,17 +17,18 @@ const BRIDGE = {
   stone: { deck: '#eeeae1', rail: '#ffffff', posts: 7 },
 } as const;
 
-/** Road strips (sloped along ramps) and the round joints that close their turns. */
-export function roadParts(world: HexWorld): { boxes: BoxPart[]; joints: DiscPart[] } {
+/** Road strips (sloped along ramps) and the round joints that close their turns; `widths` widens chosen routes. */
+export function roadParts(world: HexWorld, widths: Record<string, number> = {}): { boxes: BoxPart[]; joints: DiscPart[] } {
   const boxes: BoxPart[] = [], joints: DiscPart[] = [];
   for (const road of roadProfiles(world)) for (let i = 1; i < road.points.length; i++) {
+    const width = widths[road.routeId] ?? ROAD.width;
     const a = road.points[i - 1], b = road.points[i];
     const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], run = Math.hypot(dx, dz);
     boxes.push({
       position: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2 + ROAD.lift, (a[2] + b[2]) / 2],
-      yaw: -Math.atan2(dz, dx), pitch: Math.atan2(dy, run), size: [Math.hypot(run, dy), ROAD.thickness, ROAD.width], color: ROAD.color,
+      yaw: -Math.atan2(dz, dx), pitch: Math.atan2(dy, run), size: [Math.hypot(run, dy), ROAD.thickness, width], color: ROAD.color,
     });
-    joints.push({ position: [b[0], b[1] + ROAD.lift, b[2]], radius: ROAD.width / 2 });
+    joints.push({ position: [b[0], b[1] + ROAD.lift, b[2]], radius: width / 2 });
   }
   return { boxes, joints };
 }

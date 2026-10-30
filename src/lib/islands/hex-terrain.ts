@@ -41,13 +41,13 @@ const faceColors: Record<HexTerrain, [PaletteKey, PaletteKey]> = {
 export const tileTop = (tile: HexTile) => LAND_TOP + tileHeight(tile);
 
 /** Deterministic 0–1 value per position, so cliff facets look the same on every render. */
-function hash(x: number, y: number, z: number) {
+export function terrainHash(x: number, y: number, z: number) {
   const s = Math.sin(x * 12.9898 + y * 78.233 + z * 37.719) * 43758.5453;
   return s - Math.floor(s);
 }
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-function landIndex(settlement: HexSettlement) {
+export function landIndex(settlement: HexSettlement) {
   return new Map(settlement.tiles.map(t => [hexKey(t), t]));
 }
 
@@ -99,7 +99,7 @@ export function buildSettlementTerrain(world: HexWorld, settlement: HexSettlemen
       // The bulge only grows with depth, so the cliff flares toward its base and no face overhangs.
       const column = (y: number, row: number): Vec3[] => {
         let bulge = 0;
-        if (!neighbor) for (let k = 1; k <= row; k++) bulge += .03 + .04 * hash(mx, k, mz);
+        if (!neighbor) for (let k = 1; k <= row; k++) bulge += .03 + .04 * terrainHash(mx, k, mz);
         return [[a[0], y, a[2]], [mx + nx * bulge, y, mz + nz * bulge], [b[0], y, b[2]]];
       };
       for (let row = 0; row < colors.length; row++) {
@@ -111,6 +111,17 @@ export function buildSettlementTerrain(world: HexWorld, settlement: HexSettlemen
     }
   }
 
+  const built = buildRamps(world, settlement);
+  ramps.push(...built.ramps);
+  triangles.push(...built.triangles);
+  return { islandId: settlement.islandId, triangles, walls, ramps };
+}
+
+/** Ramp wedges where roads cross a step: a sloped path surface plus two side faces down to the lower tile. */
+export function buildRamps(world: HexWorld, settlement: HexSettlement): { ramps: TerrainRamp[]; triangles: TerrainTriangle[] } {
+  const triangles: TerrainTriangle[] = [], ramps: TerrainRamp[] = [];
+  const tri = (a: Vec3, b: Vec3, c: Vec3, color: PaletteKey) => triangles.push({ a, b, c, color });
+  const quad = (a: Vec3, b: Vec3, c: Vec3, d: Vec3, color: PaletteKey) => { tri(a, b, c, color); tri(a, c, d, color); };
   for (const crossing of roadCrossings(world, settlement)) {
     const [high, low, edge] = tileTop(crossing.from) > tileTop(crossing.to) + EPSILON
       ? [crossing.from, crossing.to, crossing.edge] : tileTop(crossing.to) > tileTop(crossing.from) + EPSILON
@@ -118,7 +129,6 @@ export function buildSettlementTerrain(world: HexWorld, settlement: HexSettlemen
     if (!high || !low || edge === null || ramps.some(r => hexKey(r.upper) === hexKey(high) && r.edge === edge)) continue;
     const ramp = rampFor(world, high, low, edge);
     ramps.push(ramp);
-    // Wedge: sloped path surface plus two side faces down to the lower tile.
     const dx = ramp.to[0] - ramp.from[0], dz = ramp.to[2] - ramp.from[2], len = Math.hypot(dx, dz);
     const sx = (-dz / len) * ramp.width / 2, sz = (dx / len) * ramp.width / 2;
     const fl: Vec3 = [ramp.from[0] + sx, ramp.from[1], ramp.from[2] + sz], fr: Vec3 = [ramp.from[0] - sx, ramp.from[1], ramp.from[2] - sz];
@@ -128,7 +138,7 @@ export function buildSettlementTerrain(world: HexWorld, settlement: HexSettlemen
     tri(fl, lift(fl, ramp.to[1]), tl, 'cliffTop');
     tri(fr, tr, lift(fr, ramp.to[1]), 'cliffTop');
   }
-  return { islandId: settlement.islandId, triangles, walls, ramps };
+  return { ramps, triangles };
 }
 
 /**

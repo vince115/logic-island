@@ -19,7 +19,11 @@ export interface HexSpur {
  * `surface: 'continuous'` merges the tiles into one terrain mesh with cliffs and ramps (D.2b); otherwise
  * each tile is a separate prism (D.2a).
  */
-export interface HexSettlement { islandId: string; center: Axial; tiles: HexTile[]; surface?: 'continuous'; spurs?: HexSpur[] }
+export interface HexSettlement {
+  islandId: string; center: Axial; tiles: HexTile[]; surface?: 'continuous'; spurs?: HexSpur[];
+  /** Natural terrain style only (D.2c-1): land tiles whose coast cliffs get a strip of beach at their foot. */
+  cliffBeaches?: Axial[];
+}
 /** A bridge end: the outward edge of one land tile. */
 export interface HexPort { islandId: string; tile: Axial; edge: HexEdge }
 /** A straight bridge across one or more water hexes; any port can take more routes later. */

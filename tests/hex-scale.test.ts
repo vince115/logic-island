@@ -5,7 +5,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { glbAssets } from '@/lib/islands/asset-registry';
 import { checkGlbContract } from '@/lib/islands/glb-contract';
 import { extractGlbParts, type GlbPart } from '@/lib/islands/glb-parts';
-import { hexDistance, hexKey, hexSpiral, hexToWorld, worldToHex } from '@/lib/islands/hex';
+import { HEX_EDGES, hexDistance, hexKey, hexNeighbor, hexSpiral, hexToWorld, worldToHex } from '@/lib/islands/hex';
 import { placementPose } from '@/lib/islands/hex-buildings';
 import { buildSettlementTerrain, roadProfiles, tileTop } from '@/lib/islands/hex-terrain';
 import { WATER_LEVEL, portPoint, validateHexWorld } from '@/lib/islands/hex-world';
@@ -97,16 +97,28 @@ describe.each(SCALE_VARIANTS)('scale prototype %s', variant => {
     expect(ramps.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('plants forests only on forest tiles, off roads, inside the tile and away from buildings', () => {
-    const trees = forestInstances(world, forests), roads = roadTiles(world);
-    expect(trees.length).toBeGreaterThan(variant === '19' ? 20 : 40);
+  // 19 tiles scatters trees inside each forest tile; 37 tiles (D.2c-1) uses the clustered layout, with a few
+  // trees spilling onto grass next to a forest (checked in detail in hex-natural.test.ts).
+  it(variant === '19' ? 'plants forests only on forest tiles, off roads, inside the tile and away from buildings'
+    : 'plants clustered forests on and beside forest tiles, off roads and away from buildings', () => {
+    const trees = variant === '19' ? forestInstances(world, forests) : scalePrototypes['37'].natural!.trees, roads = roadTiles(world);
+    expect(trees.length).toBeGreaterThan(variant === '19' ? 20 : 60);
     const buildings = ['Landmark_Lighthouse', 'Building_Workshop', 'Dock_Entry'].map(n => footprint(n, 5).points);
+    const forestKeys = new Set(forests.flatMap(f => f.tiles.map(t => `${f.islandId}:${hexKey(t)}`)));
     for (const tree of trees) {
       const tile = land.get(hexKey(tree.tile))!;
-      expect(tile.terrain).toBe('forest');
-      expect(roads.has(`${tree.islandId}:${hexKey(tree.tile)}`)).toBe(false);
-      const [cx, cz] = hexToWorld(tile, world.size);
-      expect(Math.hypot(tree.position[0] - cx, tree.position[2] - cz)).toBeLessThan(0.7);
+      if (variant === '19') {
+        expect(tile.terrain).toBe('forest');
+        expect(roads.has(`${tree.islandId}:${hexKey(tree.tile)}`)).toBe(false);
+        const [cx, cz] = hexToWorld(tile, world.size);
+        expect(Math.hypot(tree.position[0] - cx, tree.position[2] - cz)).toBeLessThan(0.7);
+      } else {
+        expect(tile.terrain === 'forest' || ['grass', 'meadow'].includes(tile.terrain)).toBe(true);
+        // Off a forest tile only right next to one (spill trees at the forest edge).
+        if (tile.terrain !== 'forest') expect(HEX_EDGES.some(e => forestKeys.has(`${tree.islandId}:${hexKey(hexNeighbor(tile, e))}`))).toBe(true);
+        for (const s of segments()) expect(segDist(s.a, s.b, [tree.position[0], tree.position[2]]), s.id).toBeGreaterThan(0.6);
+      }
+      expect(tree.position[1]).toBeCloseTo(tileTop(tile), 9);
       if (tree.islandId === 'foundations') for (const fp of buildings) for (const p of fp) {
         expect(Math.hypot(tree.position[0] - p[0], tree.position[2] - p[1])).toBeGreaterThan(0.45);
       }

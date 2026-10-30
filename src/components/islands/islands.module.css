@@ -868,3 +868,16 @@
     padding: 2px 6px;
   }
 }
+/* D.2c-1 compact labels: captions off each island's outer coast, hanging outward so they never cover the outline. */
+.hexLabelCompact[data-side='left'] {
+  transform: translateX(-50%);
+}
+.hexLabelCompact[data-side='right'] {
+  transform: translateX(50%);
+}
+.hexLabelCompact[data-side='below'] {
+  transform: translateY(60%);
+}
+.hexLabelCompact[data-side='above'] {
+  transform: translateY(-60%);
+}

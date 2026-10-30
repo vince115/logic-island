@@ -30,6 +30,8 @@
 | P1-18 | 37 格原型中，碼頭在 390 px 手機上太小，E2E 掃描找不到可點範圍（已在 `hex-scale.spec.ts` 標註略過） | 若選 37 格，需要擴大熱區、聚焦時拉近鏡頭，或在 DOM 加地點清單（同時解決 P1-13）。**2026-10-29：37 格原型已加透明碰撞代理（最小 1.6）與 HTML 地點入口，E2E 不再略過；正式 `/islands` 尚未採用** |
 | P1-19 | 全套 E2E 同時執行時，`islands.spec.ts` 手機版「燈塔與碼頭」偶發失敗；單獨重複 5 次為 70/70 | 3D 點擊位置受負載與鏡頭穩定時間影響；需要更穩定的等待條件，或改用 DOM 入口測試互動。2026-10-29 Scale Refinement 的全套執行中未再出現 |
 | P1-20 | headless Chromium 的 requestAnimationFrame 幀率在本機波動很大（同一份未改動的 19 格頁面兩次執行 33 → 12 fps），不能當作效能驗收依據 | 本輪以 draw call 與 GPU 同步的每幀時間作比較；實際幀率要在 D.3 用真機或非 headless 環境量測 |
+| P1-21 | D.2c-1 的 37 格原型在連續渲染時（鏡頭轉場、雙指縮放），幀率約為 D.2b 的 65%（桌機）與 74%（手機尺寸）：headless 實測 32.8 → 21.4、41.9 → 31.0。閒置時兩版都不 render。逐項關閉測試顯示主要成本是樹木數量，其次是較近的取景、岩壁分面與海面，每項約 1～2 fps | 已把樹由 123 棵減為 83 棵、以針葉樹為主，並把海面網格改成貼圖四邊形。若要再降：樹木 LOD 或遠景不投影、減少岩壁分面、合併陰影投射物件；真機數字需在 D.3 量測 |
+| P1-22 | 開發模式（`next dev`）下，`/islands/hex/scale/*` 的 console 會出現 3 次 React「Attempted to synchronously unmount a root while React was already rendering」。D.2b 的開發模式同樣出現；production build 不會出現（E2E 的 console 檢查通過） | 來自 drei `Html` 在 StrictMode 重複掛載時的卸載時機，不影響功能；若要處理，需另外調查 drei `Html` 的掛載方式 |
 | P1-13 | 燈塔／碼頭說明只能透過 3D 點擊觸發，鍵盤與螢幕閱讀器無對應入口 | 教材入口（工坊→`/learn`）在側欄有等價連結；說明內容屬補充資訊。若要完整等價，需在側欄或清單補說明，屬後續決定 |
 | P1-09 | 原型基礎島 catalogEntry=/learn；Blender Workshop metadata route=/learn | 不存在「基礎程式島專屬課程」路由。人工確認 lighthouse／learn／entry 的產品行為，不能自創教材或錯導所有點擊 |
 | P1-10 | .gitignore 不排除 .env*、沒有二進位策略 | 當前無秘密 env 檔，但未來建立 Git 前要審查 ignore／LFS／來源歸屬；不要把1.2G node_modules、298M .next 或整個 Codex folder 放入版控 |
