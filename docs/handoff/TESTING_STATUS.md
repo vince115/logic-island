@@ -10,6 +10,20 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## D.3-4A 自動化驗收（2026-10-30，獨立 commit「automated acceptance for the world map at phone widths and by keyboard (Phase D.3-4A)」）
+
+狀態：**D.3-4A Automated Acceptance Passed**（限已執行的自動化項目）・**D.3-4B Not Measured**・**iOS Safari／Screen Reader Not Verified**。
+
+D.3-4 分為 A 自動化驗收與 B 真機效能驗收（[DEVICE_ACCEPTANCE](DEVICE_ACCEPTANCE.md) §0）。A 只在 Chromium（桌機 1440 px、iPhone 13 模擬、360／390 px）執行，**不是**真機證據。
+
+| 檢查 | 結果 |
+|---|---|
+| 新增 `e2e/islands-acceptance.spec.ts`（兩版：360／390 px 整頁無水平溢出、鍵盤 Tab＋Enter 聚焦與返回全景含焦點框、清單模式全鍵盤進入教材、`main` 內按鈕與連結都有可讀名稱） | 重複 3 次 36 passed／24 skipped／0 failed（skipped：手機不跑鍵盤、桌機不跑窄寬度，依設計） |
+| `islands-candidate`＋`islands`＋`device-tool`＋`islands-acceptance` 同一次執行（相容性） | 92 passed／14 skipped／0 failed（106 項） |
+| ESLint／TypeScript／Vitest／Build | exit 0／exit 0／177 passed、6 skipped／成功（三條 `/islands` 路由仍是靜態頁） |
+| 全套其他 spec | 同一份 `src/` 的上一輪全套：149 passed／6 skipped／3 failed（皆為 P1-11 `player.spec.ts`） |
+| **B 真機效能** | **Not Measured**：iPhone SE（第 3 代）、iPhone 16、中階 Android |
+
 ## D.3-4 真機驗收準備（2026-10-30，獨立 commit「real-device acceptance tool and checklist for the world map (Phase D.3-4 preparation)」）
 
 提交前在新的隔離副本重跑完整工程驗證（含文件修正與量測工具的區網安全修正；`src/` 與 `72e3eb6` 0 行差異）：

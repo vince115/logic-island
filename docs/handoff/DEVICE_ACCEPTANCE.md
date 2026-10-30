@@ -1,8 +1,44 @@
 # D.3-4 真機驗收：流程、驗收表與量測方法
 
-> 狀態（2026-10-30）：**只完成驗收準備**。尚未在任何實體 iPhone／Android 上量測或操作，**D.3-4 未通過、未判定**。門檻是暫定值。下表的「狀態」欄在真機結果回來前一律是「未執行」。
+> 狀態（2026-10-30）：D.3-4 分成兩部分（§0）。
+>
+> - **D.3-4A：Automated Acceptance Passed**（限已執行的自動化項目，Chromium；§3.4）
+> - **D.3-4B：Not Measured**（iPhone SE 第 3 代、iPhone 16、中階 Android）
+> - **iOS Safari／Screen Reader：Not Verified**
+>
+> B 未完成**不阻擋其他開發階段**，但正式切換 `/islands` 仍需另行批准；**D.3-4 整體未判定**。
 >
 > 範圍：比較 `/islands/candidate`（新版）與 `/islands/legacy`（就是現行 `/islands`）。不切換正式路由；不改地形、GLB、材質或場景美術；量測工具不修改應用程式。
+
+## 0. 驗收結構、標準測試機與標準（2026-10-30 使用者決定）
+
+### 0.1 兩部分
+
+| 部分 | 內容 | 證明什麼 | 不能證明什麼 | 狀態 |
+|---|---|---|---|---|
+| **A 自動化驗收** | Playwright：Chromium 桌機（1440 px）與手機 viewport（iPhone 13 模擬、360／390 px）；互動、fallback、鍵盤、無障礙名稱、版面溢出 | 功能、版面、fallback、鍵盤操作在瀏覽器引擎上正確 | 真實 GPU 效能、真實觸控手感、iOS Safari（WebKit）上的行為 | **Automated Acceptance Passed**（限已執行項目，§3.4） |
+| **B 真機效能驗收** | 指定機型以 `perf/device/` 實測（§1、§2） | 標準測試機上的 FPS、首幀、觸控 | — | **Not Measured** |
+
+瀏覽器模擬（手機 viewport、CPU 降速、SwiftShader）**不能**代替真機 GPU 數據；B 未取得前一律標 Not Measured，不以 A 或桌機數字推定。
+
+### 0.2 標準測試機（不逐款驗收 iPhone）
+
+| 基準 | 代表機型 | 瀏覽器 | 目的 | 門檻適用 |
+|---|---|---|---|---|
+| 最低效能基準 | iPhone SE（第 3 代，2022） | Safari | 小螢幕（375 pt）、較舊硬體、效能壓力 | P-01～P-03 **以此機判定** |
+| 標準效能基準 | iPhone 16 | Safari | 主流使用體驗、畫面品質與流暢度 | P-01～P-03 |
+| Android 相容性 | 中階 Android（具體型號實測時記錄） | Chrome | 不同 GPU、瀏覽器與觸控行為 | P-01～P-03；高更新率螢幕依 §4.2 判讀 |
+
+### 0.3 D.3-4 驗收標準
+
+| 標準 | 對應 | 部分 |
+|---|---|---|
+| 鏡頭飛行 FPS ≥ 45，且達 Legacy 的 90% 以上 | P-01、P-02 | B |
+| 首幀 ≤ 2.5 秒 | P-03 | B |
+| 360 px、390 px 寬度無版面溢出 | `islands-acceptance` 溢出、`islands-candidate` 工具列；T-10 | A（真機 T-10 補看） |
+| 3D 點擊、縮放、清單切換、WebGL fallback 正常 | A：`islands-candidate`、`islands`、`device-tool`；B：T-01～T-05、T-08、F-01～F-03 | A＋B |
+| P-04、P-06、P-08 | 只記錄數值，**不設硬性門檻** | B |
+| T-06 單指滑動 | **使用體驗觀察項目**，不判通過與否 | B |
 
 ## 1. 工具：Mac 上的量測 proxy
 
@@ -68,14 +104,14 @@ node perf/device/server.mjs --upstream http://127.0.0.1:3118 --port 3119
 
 | ID | 項目 | 方式 | 門檻（暫定） | iPhone Safari | Android Chrome |
 |---|---|---|---|---|---|
-| P-01 | 鏡頭飛行 FPS（新版，中位數） | D | ≥ 45 | 未執行 | 未執行 |
-| P-02 | 新版／舊版 飛行 FPS | D | ≥ 90% | 未執行 | 未執行 |
-| P-03 | 首幀（新版，熱快取中位數） | D | ≤ 2.5 秒 | 未執行 | 未執行 |
-| P-04 | 飛行幀間隔中位數／p95、長幀（> 50 ms）數 | D | 記錄（D.3-3 草案 p95 ≤ 33 ms，未列入門檻） | 未執行 | 未執行 |
-| P-05 | GLB 就緒時間 | D | 記錄 | 未執行 | 未執行 |
-| P-06 | 閒置重畫幀（停止 2 秒內） | D | 記錄（D.3-3 草案 0） | 未執行 | 未執行 |
-| P-07 | 冷快取首幀（暖身那一次） | D | 記錄 | 未執行 | 未執行 |
-| P-08 | 雙指縮放 FPS（新版與舊版） | S | 記錄 | 未執行 | 未執行 |
+| P-01 | 鏡頭飛行 FPS（新版，中位數） | D | ≥ 45 | Not Measured | Not Measured |
+| P-02 | 新版／舊版 飛行 FPS | D | ≥ 90% | Not Measured | Not Measured |
+| P-03 | 首幀（新版，熱快取中位數） | D | ≤ 2.5 秒 | Not Measured | Not Measured |
+| P-04 | 飛行幀間隔中位數／p95、長幀（> 50 ms）數 | D | 只記錄，不設門檻 | Not Measured | Not Measured |
+| P-05 | GLB 就緒時間 | D | 記錄 | Not Measured | Not Measured |
+| P-06 | 閒置重畫幀（停止 2 秒內） | D | 只記錄，不設門檻 | Not Measured | Not Measured |
+| P-07 | 冷快取首幀（暖身那一次） | D | 記錄 | Not Measured | Not Measured |
+| P-08 | 雙指縮放 FPS（新版與舊版） | S | 只記錄，不設門檻 | Not Measured | Not Measured |
 | P-09 | 每幀 draw call（全景／聚焦／陰影） | D | 應與桌機相同（新版 43／26／0，舊版全景 146、陰影 112），用來確認手機畫的是同一個場景 | 未執行 | 未執行 |
 
 ### 3.2 功能與觸控（每台手機；新版與舊版各一次）
@@ -87,7 +123,7 @@ node perf/device/server.mjs --upstream http://127.0.0.1:3118 --port 3119
 | T-03 | 聚焦後點 3D 工坊建築 | M | 進入 `/learn` | 兩版都有 | 未執行 |
 | T-04 | HTML 地點入口（地點清單） | M | 燈塔說明可開關；工坊進入 `/learn`。舊版沒有地點清單（不適用） | 新版有 | 未執行 |
 | T-05 | 雙指縮放 | M | 地圖平順縮放，整頁不放大 | 無（只有本工具的模擬觸控） | 未執行 |
-| T-06 | 單指在地圖上滑動 | M | 記錄現況：兩版地圖都是 `touch-action: none`，預期頁面不捲動；註明是否造成困擾 | 無 | 未執行 |
+| T-06 | 單指在地圖上滑動（**使用體驗觀察，不判通過**） | M | 記錄現況：兩版地圖都是 `touch-action: none`，預期頁面不捲動；註明是否造成困擾 | 無 | 未執行 |
 | T-07 | 返回全景 | M | 回到全景，三座島名牌都出現 | 兩版都有 | 未執行 |
 | T-08 | 3D／清單切換與清單模式 | M | 不用 3D 也能進入教材；切回後場景重新載入 | 兩版都有 | 未執行 |
 | T-09 | BFS 導航 | M | 進入 `/learn/bfs`；瀏覽器返回後地圖正常 | 兩版都有（不含返回） | 未執行 |
@@ -103,8 +139,23 @@ node perf/device/server.mjs --upstream http://127.0.0.1:3118 --port 3119
 | ID | 項目 | 方式 | 通過條件 | 已自動（E2E） | 狀態 |
 |---|---|---|---|---|---|
 | K-01 | Skip Link | K | 第一個 Tab 是「跳至主要內容」，只在聚焦時出現；Enter 跳到主要內容 | 兩版都有（Chromium） | 未執行（Safari、Chrome） |
-| K-02 | 名牌與「返回全景」 | K | Tab 可到、Enter 可用，焦點框清楚 | 無（E2E 用滑鼠） | 未執行 |
-| K-03 | 清單模式全鍵盤 | K | 不用滑鼠完成切換、選島、進入教材 | 無 | 未執行 |
+| K-02 | 名牌與「返回全景」 | K | Tab 可到、Enter 可用，焦點框清楚 | 兩版都有（Chromium，`islands-acceptance`） | 未執行（Safari、Chrome） |
+| K-03 | 清單模式全鍵盤 | K | 不用滑鼠完成切換、選島、進入教材 | 兩版都有（Chromium，`islands-acceptance`） | 未執行（Safari、Chrome） |
+
+K 項的 Chromium 結果屬於 A；實體 Safari／Chrome 的人工確認是補強（Safari 的 Tab 行為與 Chromium 不同，§2.3），不屬於 B 的效能驗收。
+
+### 3.4 A 自動化驗收（Playwright，Chromium 桌機與手機 viewport）
+
+| 範圍 | spec | 內容 |
+|---|---|---|
+| 版面 360／390 px | `islands-acceptance` | 兩版的全景、聚焦、清單模式（三座島）整頁沒有水平溢出 |
+| 版面 360／390 px | `islands-candidate` | 新版工具列一行、島名不截字、地圖標題不遮名牌 |
+| 鍵盤 | `islands-acceptance`、`islands-candidate` | Skip Link；Tab＋Enter 聚焦名牌與返回全景（焦點框可見）；清單模式全鍵盤進入教材 |
+| 無障礙名稱 | `islands-acceptance` | 3D、聚焦、清單模式下 `main` 內每個按鈕與連結都有可讀名稱；畫布有 `aria-label`。不含色彩對比與螢幕閱讀器實測 |
+| 3D 點擊與聚焦 | `islands-candidate`、`islands` | 名牌聚焦、3D 工坊點擊進入 `/learn`、地點清單、返回全景、hover 游標 |
+| 縮放 | `device-tool` | 手機模擬的雙指觸控會讓場景重畫並被計時；**不證明縮放手感**（T-05 屬 B） |
+| 清單與 BFS | `islands-candidate`、`islands` | 不用 3D 進入全部教材、切回 3D、BFS 入口 |
+| Fallback | `islands-candidate`、`islands`、`device-tool` | WebGL 無法建立、context 遺失、GLB 404（另有 `hex-world` 的 GLB 損毀） |
 
 手機上的外接鍵盤、VoiceOver／TalkBack 不在本輪範圍；若要納入需另訂項目。
 
@@ -155,13 +206,16 @@ node perf/device/server.mjs --upstream http://127.0.0.1:3118 --port 3119
 
 | 裝置 | 系統／瀏覽器 | DPR／畫布 | 閒置更新率 | 新版 FPS | 舊版 FPS | 比例 | 新版首幀 | 工具判定 | 人工檢查 |
 |---|---|---|---|---|---|---|---|---|---|
-| （iPhone，待定） | Safari | — | — | 未執行 | 未執行 | — | 未執行 | — | 未執行 |
-| （Android，待定） | Chrome | — | — | 未執行 | 未執行 | — | 未執行 | — | 未執行 |
+| iPhone SE（第 3 代）— 最低效能基準 | Safari | — | — | Not Measured | Not Measured | — | Not Measured | — | 未執行 |
+| iPhone 16 — 標準效能基準 | Safari | — | — | Not Measured | Not Measured | — | Not Measured | — | 未執行 |
+| 中階 Android（型號待記錄）— 相容性 | Chrome | — | — | Not Measured | Not Measured | — | Not Measured | — | 未執行 |
 
 工具的判定只是計算；D.3-4 是否通過由審核決定。
 
 ## 6. 尚未完成與待決
 
-- 實體裝置量測與人工檢查：全部未執行。本輪沒有實體手機可用；這台 Mac 也沒有 adb、Xcode 或 iOS 模擬器，所以連模擬器 dry-run 都沒有（WebKit 相容性改用桌機 Safari dry-run，見 `logs/2026-10-30-d3-4-prep.md`）。
-- 待決：最低目標機型（P-01 的門檻是對「最低目標手機」訂的）；P-04（p95）、P-06（閒置）、P-08（雙指縮放）是否列入門檻；高更新率裝置的比例怎麼判讀。
-- T-06：兩版地圖都設 `touch-action: none`，單指在地圖上滑動時頁面可能不捲動；這是現況記錄，是否調整屬產品決定，不在 D.3-4 範圍。
+- **B 真機效能驗收：Not Measured**（三台標準測試機）。本輪沒有實體手機；這台 Mac 也沒有 adb、Xcode 或 iOS 模擬器（WebKit 相容性只有桌機 Safari dry-run，見 `logs/2026-10-30-d3-4-prep.md`）。不阻擋其他開發階段；正式切換 `/islands` 前需取得 B 的結果或另行批准。
+- 已決（2026-10-30）：標準測試機與門檻適用對象（§0.2）；P-04、P-06、P-08 只記錄；T-06 列為使用體驗觀察（§0.3）。
+- 仍待決：Android 的具體型號（實測時記錄）；高更新率 Android（90／120 Hz）上 P-02 比例的判讀方式（目前報告會提示，並要求連同原始 FPS 一起看）。
+- T-06：兩版地圖都設 `touch-action: none`，單指在地圖上滑動時頁面可能不捲動；是否調整屬產品決定，不在 D.3-4 範圍（KNOWN_ISSUES P1-27）。
+- A 的限制：自動化只在 Chromium（桌機與 iPhone 13 模擬）執行。**iOS Safari／Screen Reader：Not Verified**（VoiceOver／TalkBack 未測）；色彩對比也不在 A 的範圍。
