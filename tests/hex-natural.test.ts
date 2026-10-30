@@ -11,7 +11,8 @@ import {
   BEACH_TOP, NATURAL_INSET, STEP_LEAN_MAX, buildNaturalTerrain, reservedEdges, seamless, type NaturalTriangle,
 } from '@/lib/islands/hex-terrain-natural';
 import { MAIN_ROAD_WIDTH, MAIN_ROUTES, naturalTerrains, routeSegments, seaGrid, seaShade } from '@/lib/islands/hex-natural-scene';
-import { LIGHTHOUSE_BASE, scalePrototypes } from '@/lib/islands/hex-scale-prototype';
+import { LIGHTHOUSE_BASE } from '@/lib/islands/hex-layout';
+import { scalePrototypes } from '@/lib/islands/hex-scale-prototype';
 import { ROAD, roadParts } from '@/lib/islands/hex-route-parts';
 import { WATER_LEVEL, hexWorld, portPoint, validateHexWorld, type HexTile } from '@/lib/islands/hex-world';
 import { islands } from '@/lib/islands/data';

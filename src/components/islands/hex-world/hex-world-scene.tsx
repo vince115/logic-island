@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Box3, PCFShadowMap, Vector3, type Mesh } from 'three';
+import { PCFShadowMap, Vector3, type Mesh } from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Html, type CameraControlsImpl } from '@react-three/drei';
+import { Html } from '@react-three/drei';
 import { hexCorner, hexToWorld } from '@/lib/islands/hex';
 import { tileTop } from '@/lib/islands/hex-terrain';
 import { WATER_LEVEL, settlementFrames, worldCenter, type HexWorld } from '@/lib/islands/hex-world';
@@ -14,7 +14,8 @@ import { HexTiles, WATER_Y } from './hex-tiles';
 import { HexTerrainMesh, type TerrainStyle } from './hex-terrain-mesh';
 import { HexBridges, HexRoads } from './hex-routes';
 import { hexGlbSettlements, placementPose, type HexGlbSettlement } from '@/lib/islands/hex-buildings';
-import type { ForestPatch, ScalePrototype } from '@/lib/islands/hex-scale-prototype';
+import type { WorldLayout } from '@/lib/islands/hex-layout';
+import type { ForestPatch } from '@/lib/islands/hex-nature-data';
 import type { ModelSource } from '../glb-island-model';
 import { HexLandmarks } from './hex-landmarks';
 import { HexGlbBuildings, type AnchorStyle, type TargetOptions } from './hex-glb-buildings';
@@ -35,7 +36,7 @@ export interface HexSceneOptions {
   terrain?: TerrainStyle;
   /** D.2c-1: precomputed clustered trees and rocks (replace the per-tile forest and coast rocks), the plaza
    * layout and the main route width. */
-  nature?: NonNullable<ScalePrototype['natural']>;
+  nature?: NonNullable<WorldLayout['natural']>;
   anchorStyle?: AnchorStyle;
   forests?: ForestPatch[];
   rocks?: boolean;
@@ -102,69 +103,8 @@ const LIGHTING = {
   preview: { background: '#d4f0fb', ambient: 1.1, hemisphere: 1.2, sun: 2.4 },
   contrast: { background: '#cbe9f4', ambient: .62, hemisphere: .95, sun: 2.9 },
 } as const;
-type PerfStats = { calls: number; triangles: number; geometries: number; meshes: number; instanced: number; instances: number; shadowCasters: number };
-type DrawnObject = { center: number[]; size: number[]; materials: string[]; instanced: boolean };
-
-/**
- * Prototype-only: `canvas.__hexPerf()` renders one frame and returns its draw stats (shadow pass included, unless
- * the shadow map is static and up to date; `__hexPerf(true)` redraws it). `__hexDraws()` lists what the main pass drew.
- * For review screenshots, `__hexProject(x, y, z)` gives the canvas position of a map point and
- * `__hexView(x, y, z, zoom)` looks at a map point at a given zoom (`__hexZoom()` reads the current one).
- */
-function PerfProbe({ox,oz}:{ox:number;oz:number}) {
-  const {gl,scene,camera,invalidate}=useThree();
-  const controls=useThree(state=>state.controls) as CameraControlsImpl|null;
-  useEffect(()=>{
-    const project=(x:number,y:number,z:number)=>{
-      const v=new Vector3(x-ox,y,z-oz).project(camera),{width,height}=gl.domElement.getBoundingClientRect();
-      return [(v.x+1)/2*width,(1-v.y)/2*height];
-    };
-    const view=(x:number,y:number,z:number,zoom:number)=>{
-      const target=new Vector3(x-ox,y,z-oz),eye=target.clone().addScaledVector(VIEW,40);
-      void controls?.setLookAt(eye.x,eye.y,eye.z,target.x,target.y,target.z,false);
-      void controls?.zoomTo(zoom,false);
-      invalidate();
-    };
-    Object.assign(gl.domElement,{__hexProject:project,__hexView:view,__hexZoom:()=>camera.zoom});
-  },[gl,camera,controls,ox,oz,invalidate]);
-  useEffect(()=>{
-    const probe=(freshShadows=false):PerfStats=>{
-      // `freshShadows` redraws the shadow map in this frame even when it is static (D.2c-2 checks).
-      if(freshShadows) gl.shadowMap.needsUpdate=true;
-      gl.render(scene,camera);
-      const {calls,triangles}=gl.info.render;
-      let meshes=0,instanced=0,instances=0,shadowCasters=0;
-      scene.traverseVisible(o=>{
-        const m=o as Mesh&{isInstancedMesh?:boolean;count?:number};
-        if(!m.isMesh) return;
-        if(m.isInstancedMesh){instanced++;instances+=m.count??0;} else meshes++;
-        if(m.castShadow) shadowCasters++;
-      });
-      return {calls,triangles,geometries:gl.info.memory.geometries,meshes,instanced,instances,shadowCasters};
-    };
-    // D.3-0: what the main pass draws in one frame, per object, in map coordinates, so draw calls can be split by
-    // island. An object counts once it passes culling and still has instances after its own hook (LOD trees).
-    const draws=():DrawnObject[]=>{
-      const drawn:Mesh[]=[],hooks=new Map<Mesh,Mesh['onBeforeRender']>();
-      scene.traverse(o=>{
-        const mesh=o as Mesh&{isInstancedMesh?:boolean;count?:number};
-        if(!mesh.isMesh) return;
-        const own=mesh.onBeforeRender;
-        hooks.set(mesh,own);
-        mesh.onBeforeRender=(...args)=>{own.apply(mesh,args);if(!mesh.isInstancedMesh||mesh.count!==0) drawn.push(mesh);};
-      });
-      gl.render(scene,camera);
-      hooks.forEach((own,mesh)=>{mesh.onBeforeRender=own;});
-      return [...new Set(drawn)].map(mesh=>{
-        const box=new Box3().setFromObject(mesh),center=box.getCenter(new Vector3()),size=box.getSize(new Vector3());
-        const materials=(Array.isArray(mesh.material)?mesh.material:[mesh.material]).map(m=>m.uuid);
-        return {center:[center.x+ox,center.y,center.z+oz],size:size.toArray(),materials,instanced:(mesh as {isInstancedMesh?:boolean}).isInstancedMesh===true};
-      });
-    };
-    Object.assign(gl.domElement,{__hexPerf:probe,__hexDraws:draws});
-  },[gl,scene,camera,ox,oz]);
-  return null;
-}
+// Prototype-only measurement and review hooks; loaded only when `perfProbe` is on, so production never downloads it.
+const PerfProbe=lazy(()=>import('./hex-perf-probe'));
 
 /**
  * D.2c-2: the sun and every shadow caster stay put while the camera moves, so the shadow map is redrawn only
@@ -231,7 +171,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,reduced
       fallback={<p className={styles.canvasFallback}>此裝置無法顯示 3D，請使用清單導航。</p>}>
       <color attach="background" args={[light.background]}/>
       <Lifecycle onReady={onReady} onUnavailable={onUnavailable}/>
-      {options.perfProbe&&<PerfProbe ox={ox} oz={oz}/>}
+      {options.perfProbe&&<Suspense fallback={null}><PerfProbe ox={ox} oz={oz}/></Suspense>}
       {options.shadows==='static'&&<StaticShadows/>}
       <ambientLight intensity={light.ambient}/>
       <hemisphereLight args={['#f3fbff','#b9d7a8',light.hemisphere]}/>

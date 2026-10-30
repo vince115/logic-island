@@ -5,7 +5,7 @@ import {
   BufferGeometry, Color, DataTexture, DoubleSide, Float32BufferAttribute, LinearFilter, MeshStandardMaterial, SRGBColorSpace,
 } from 'three';
 import { hexCorner, hexToWorld, type Axial } from '@/lib/islands/hex';
-import { coastFoam, shallowHexes } from '@/lib/islands/hex-scale-prototype';
+import { coastFoam, shallowHexes } from '@/lib/islands/hex-nature-data';
 import { naturalTerrains, seaGrid } from '@/lib/islands/hex-natural-scene';
 import { WATER_LEVEL, type HexWorld } from '@/lib/islands/hex-world';
 import type { Vec3 } from '@/lib/islands/types';

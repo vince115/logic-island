@@ -10,6 +10,18 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## D.3-1 統一場景設定（2026-10-30，獨立 commit「unify the world map data and scene presets (Phase D.3-1)」）
+
+| 檢查 | 結果 |
+|---|---|
+| ESLint／TypeScript | 都是 exit 0 |
+| Vitest | 164 passed／6 skipped；新增 `tests/scene-presets.test.ts` 4 項；世界資料指紋搬移後不變 |
+| Next Build | 成功；量測探針是獨立 chunk，只有 `/islands/hex/scale/37` 會載入 |
+| E2E `hex-scale`＋`hex-world`＋`islands` | 重複 3 次 186/186 |
+| E2E 全套（單次） | 81 passed／3 failed（既有 player，P1-11） |
+| 畫面 | 37 格實驗室與 `42b32bc` 同鏡頭截圖逐像素相同（6 張，0 像素差） |
+| 效能 | draw call、三角形、依島拆分與基準相同；時間不低於基準 90%，見 `logs/2026-10-30-d3-1-scene-presets.md` §5 |
+
 ## D.3-0 正式版安全網與效能基準（2026-10-30，獨立 commit「safety net and rendering baseline for the world map (Phase D.3-0)」）
 
 | 檢查 | 結果 |

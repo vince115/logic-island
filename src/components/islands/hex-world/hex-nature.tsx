@@ -7,7 +7,7 @@ import {
   Color, ConeGeometry, DodecahedronGeometry, InstancedMesh, MeshStandardMaterial, Object3D, type Material, type Mesh,
 } from 'three';
 import { glbAssets } from '@/lib/islands/asset-registry';
-import { TREE_NODES, coastRocks, forestInstances, type ForestPatch, type RockInstance, type TreeInstance } from '@/lib/islands/hex-scale-prototype';
+import { TREE_NODES, coastRocks, forestInstances, type ForestPatch, type RockInstance, type TreeInstance } from '@/lib/islands/hex-nature-data';
 import { TERRAIN_MATERIAL, TERRAIN_PALETTE } from '@/lib/islands/hex-terrain';
 import type { HexWorld } from '@/lib/islands/hex-world';
 import { simplifyTree } from '@/lib/islands/tree-lod';

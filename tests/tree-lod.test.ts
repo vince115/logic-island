@@ -3,7 +3,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { Box3, Vector3, type BufferGeometry, type Mesh } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { glbAssets } from '@/lib/islands/asset-registry';
-import { TREE_NODES } from '@/lib/islands/hex-scale-prototype';
+import { TREE_NODES } from '@/lib/islands/hex-nature-data';
 import { lodParts, simplifyTree, treeParts } from '@/lib/islands/tree-lod';
 
 // D.2c-2: the distant-view trees are built from the GLB's own trees at runtime and must stay close to them.

@@ -2,7 +2,7 @@ import { HEX_EDGES, hexEdgeMidpoint, hexKey, hexNeighbor, hexToWorld, type Axial
 import { roadProfiles, tileTop } from './hex-terrain';
 import { buildNaturalTerrain, wallWaterline, type NaturalTerrain } from './hex-terrain-natural';
 import { WATER_LEVEL, portPoint, type HexTile, type HexWorld } from './hex-world';
-import type { ForestPatch, RockInstance, TreeInstance } from './hex-scale-prototype';
+import type { ForestPatch, RockInstance, TreeInstance } from './hex-nature-data';
 import type { Vec3 } from './types';
 
 /**

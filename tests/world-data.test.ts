@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { hexGlbSettlements } from '@/lib/islands/hex-buildings';
 import { naturalTerrains, seaGrid } from '@/lib/islands/hex-natural-scene';
 import { bridgeParts, roadParts } from '@/lib/islands/hex-route-parts';
-import { coastFoam, coastRocks, forestInstances, scalePrototypes, shallowHexes } from '@/lib/islands/hex-scale-prototype';
+import { coastFoam, coastRocks, forestInstances, shallowHexes } from '@/lib/islands/hex-nature-data';
+import { scalePrototypes } from '@/lib/islands/hex-scale-prototype';
+import { islandsWorld } from '@/lib/islands/islands-world';
 import { buildSettlementTerrain, roadProfiles } from '@/lib/islands/hex-terrain';
 import { hexWorld, type HexWorld } from '@/lib/islands/hex-world';
 
@@ -34,7 +36,9 @@ describe('world data fingerprints (D.3-0)', () => {
   });
 
   it('37-tile world (D.2c-1 layout and nature, the D.3 production candidate)', () => {
-    const p = scalePrototypes['37'];
+    const p = islandsWorld;
+    // D.3-1: the scale prototype's 37-tile variant is the production world itself.
+    expect(fingerprint({ ...scalePrototypes['37'], variant: undefined })).toBe(fingerprint(p));
     expect(fingerprint(p.world)).toBe('3742df3b903b4a77');
     expect(fingerprint(p.glb)).toBe('f34b217050267a21');
     expect(fingerprint(p.natural)).toBe('0c22934387995a06');

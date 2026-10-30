@@ -9,9 +9,9 @@ import { HEX_EDGES, hexDistance, hexKey, hexNeighbor, hexSpiral, hexToWorld, wor
 import { placementPose } from '@/lib/islands/hex-buildings';
 import { buildSettlementTerrain, roadProfiles, tileTop } from '@/lib/islands/hex-terrain';
 import { WATER_LEVEL, portPoint, validateHexWorld } from '@/lib/islands/hex-world';
-import {
-  SCALE_VARIANTS, WORKSHOP_DOOR, coastFoam, coastRocks, forestInstances, roadTiles, scalePrototypes, shallowHexes,
-} from '@/lib/islands/hex-scale-prototype';
+import { SCALE_VARIANTS, scalePrototypes } from '@/lib/islands/hex-scale-prototype';
+import { WORKSHOP_DOOR } from '@/lib/islands/hex-layout';
+import { coastFoam, coastRocks, forestInstances, roadTiles, shallowHexes } from '@/lib/islands/hex-nature-data';
 import { islands } from '@/lib/islands/data';
 import { HIT_PROXY_MIN_WORLD, hitProxyBox } from '@/lib/islands/interaction-targets';
 import { ROAD, bridgeParts, roadParts } from '@/lib/islands/hex-route-parts';
