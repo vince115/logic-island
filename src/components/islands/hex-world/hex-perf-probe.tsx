@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { Box3, Vector3, type Mesh } from 'three';
+import { Box3, Spherical, Vector3, type Mesh } from 'three';
 import { useThree } from '@react-three/fiber';
 import type { CameraControlsImpl } from '@react-three/drei';
 import { VIEW } from './hex-camera';
@@ -18,9 +18,11 @@ type DrawnObject = { center: number[]; size: number[]; materials: string[]; inst
  * the shadow map is static and up to date; `__hexPerf(true)` redraws it). `__hexDraws()` lists what the main pass drew.
  * For review screenshots, `__hexProject(x, y, z)` gives the canvas position of a map point and
  * `__hexView(x, y, z, zoom)` looks at a map point at a given zoom (`__hexZoom()` reads the current one).
+ * D.3-5a: `__hexCamera()` reads the camera: azimuth and elevation in degrees, zoom and its limits, the focal offset
+ * and the touch-action of the element the controls listen on.
  */
 export default function PerfProbe({ox,oz}:{ox:number;oz:number}) {
-  const {gl,scene,camera,invalidate}=useThree();
+  const {gl,scene,camera,invalidate,events}=useThree();
   const controls=useThree(state=>state.controls) as CameraControlsImpl|null;
   useEffect(()=>{
     const project=(x:number,y:number,z:number)=>{
@@ -30,11 +32,19 @@ export default function PerfProbe({ox,oz}:{ox:number;oz:number}) {
     const view=(x:number,y:number,z:number,zoom:number)=>{
       const target=new Vector3(x-ox,y,z-oz),eye=target.clone().addScaledVector(VIEW,40);
       void controls?.setLookAt(eye.x,eye.y,eye.z,target.x,target.y,target.z,false);
+      void controls?.setFocalOffset(0,0,0,false);
       void controls?.zoomTo(zoom,false);
       invalidate();
     };
-    Object.assign(gl.domElement,{__hexProject:project,__hexView:view,__hexZoom:()=>camera.zoom});
-  },[gl,camera,controls,ox,oz,invalidate]);
+    const read=()=>{
+      if(!controls) return null;
+      const {theta,phi}=controls.getSpherical(new Spherical(),false),offset=controls.getFocalOffset(new Vector3(),false);
+      const degrees=(radians:number)=>radians*180/Math.PI;
+      return {azimuth:degrees(Math.atan2(Math.sin(theta),Math.cos(theta))),elevation:90-degrees(phi),zoom:camera.zoom,minZoom:controls.minZoom,maxZoom:controls.maxZoom,
+        offset:[offset.x,offset.y],distance:controls.distance,touchAction:(events.connected as HTMLElement|undefined)?.style.touchAction??null,active:controls.active};
+    };
+    Object.assign(gl.domElement,{__hexProject:project,__hexView:view,__hexZoom:()=>camera.zoom,__hexCamera:read});
+  },[gl,camera,controls,events,ox,oz,invalidate]);
   useEffect(()=>{
     const probe=(freshShadows=false):PerfStats=>{
       // `freshShadows` redraws the shadow map in this frame even when it is static (D.2c-2 checks).

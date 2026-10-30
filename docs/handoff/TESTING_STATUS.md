@@ -10,6 +10,22 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## D.3-5a 自由相機（2026-10-30，獨立 commit「free camera on the lab world map (Phase D.3-5a)」）
+
+狀態：**只在 37 格實驗室頁**；候選頁、`/islands`、`/islands/legacy` 不變。觸控只在 Chromium 模擬驗證，**iOS Safari 待真機驗證**；D.3-4B 仍是 Not Measured。
+
+| 檢查 | 結果 |
+|---|---|
+| ESLint／TypeScript | 都是 exit 0（ESLint 範圍＝repo 檔案；隔離副本中不進 repo 的舊 scratch 資料夾 `capture/` 另行排除） |
+| Vitest | 177 passed／6 skipped（兩項 preset／路由測試更新） |
+| Next Build | 成功；三條 `/islands` 路由仍是靜態頁 |
+| E2E 全套（單次） | 173 passed／20 skipped／3 failed（3 個都是既有 `player.spec.ts`，P1-11） |
+| E2E `hex-camera`＋`hex-scale`＋`islands-candidate`＋`islands-acceptance` 重複 3 次 | 228 passed／54 skipped／0 failed（skipped 依設計：只在桌機或只在手機執行的項目） |
+| 畫面 | 實驗室頁全景與聚焦的 canvas、候選頁與 `/islands` 的畫面，與 `86efe53` 在桌機與手機都是 0 像素差 |
+| 效能 | draw call、三角形逐項相同；首幀與鏡頭飛行 FPS 在 ±10% 內（SwiftShader，交錯 A/B 各 6 輪）；拖曳旋轉與滾輪縮放 FPS 與鏡頭飛行同級，停止後重畫 0，見 `logs/2026-10-30-d3-5a-free-camera.md` §6 |
+
+- 新增 `e2e/hex-camera.spec.ts`：拖曳旋轉、名牌拖曳不誤選、滾輪與俯仰限制、低仰角最遠時不露底色、旋轉後聚焦與返回全景（像素復原）、鍵盤、視窗尺寸、觸控（水平旋轉／垂直捲頁／雙指縮放）、360／390 px、候選頁維持固定相機。
+
 ## D.3-4A 自動化驗收（2026-10-30，獨立 commit「automated acceptance for the world map at phone widths and by keyboard (Phase D.3-4A)」）
 
 狀態：**D.3-4A Automated Acceptance Passed**（限已執行的自動化項目）・**D.3-4B Not Measured**・**iOS Safari／Screen Reader Not Verified**。

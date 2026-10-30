@@ -214,8 +214,8 @@ K 項的 Chromium 結果屬於 A；實體 Safari／Chrome 的人工確認是補�
 
 ## 6. 尚未完成與待決
 
-- **B 真機效能驗收：Not Measured**（三台標準測試機）。本輪沒有實體手機；這台 Mac 也沒有 adb、Xcode 或 iOS 模擬器（WebKit 相容性只有桌機 Safari dry-run，見 `logs/2026-10-30-d3-4-prep.md`）。不阻擋其他開發階段；正式切換 `/islands` 前需取得 B 的結果或另行批准。
+- **B 真機效能驗收：Not Measured**（三台標準測試機）。本輪沒有實體手機；這台 Mac 也沒有 adb、Xcode 或 iOS 模擬器（WebKit 相容性只有桌機 Safari dry-run，見 `logs/2026-10-30-d3-4-prep.md`）。不阻擋其他開發階段；正式切換 `/islands` 前需取得 B 的結果或另行批准。**時機（2026-10-30 決定）**：在 D.3-5／D.3-6 的功能整合進候選頁（D.3-5c／D.3-6c）之後、正式 `/islands` 切換之前執行；`86efe53` 的候選頁保留為比較基準。
 - 已決（2026-10-30）：標準測試機與門檻適用對象（§0.2）；P-04、P-06、P-08 只記錄；T-06 列為使用體驗觀察（§0.3）。
 - 仍待決：Android 的具體型號（實測時記錄）；高更新率 Android（90／120 Hz）上 P-02 比例的判讀方式（目前報告會提示，並要求連同原始 FPS 一起看）。
-- T-06：兩版地圖都設 `touch-action: none`，單指在地圖上滑動時頁面可能不捲動；是否調整屬產品決定，不在 D.3-4 範圍（KNOWN_ISSUES P1-27）。
+- T-06：兩版地圖都設 `touch-action: none`，單指在地圖上滑動時頁面可能不捲動；是否調整屬產品決定，不在 D.3-4 範圍（KNOWN_ISSUES P1-27）。**2026-10-30 決定方案 B**（單指水平旋轉、垂直捲頁）；D.3-5a 只在 37 格實驗室頁實作，Chromium 模擬通過，**iOS Safari 需真機確認**；候選頁與 `/islands` 仍是 `none`，直到 D.3-5c 推進。
 - A 的限制：自動化只在 Chromium（桌機與 iPhone 13 模擬）執行。**iOS Safari／Screen Reader：Not Verified**（VoiceOver／TalkBack 未測）；色彩對比也不在 A 的範圍。

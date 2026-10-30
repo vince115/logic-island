@@ -186,6 +186,17 @@
 .canvasWrap canvas {
   touch-action: none;
 }
+/* D.3-5a free camera (lab): drag to turn. On touch screens one finger turns the map left and right while up and
+   down scrolls the page; HexCamera sets the same on the wrapper camera-controls listens on, which also holds the labels. */
+.canvasWrap[data-camera='free'] {
+  cursor: grab;
+}
+.canvasWrap[data-camera='free']:active {
+  cursor: grabbing;
+}
+.canvasWrap[data-camera='free'] canvas {
+  touch-action: pan-y;
+}
 .canvasFallback {
   position: absolute;
   inset: 0;

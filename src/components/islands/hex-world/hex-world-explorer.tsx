@@ -71,11 +71,16 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
   const [ready,setReady]=useState(false);
   // Setting state on ready also re-renders the scene; the first drei Html label stays empty without it.
   const markReady=useCallback(()=>setReady(true),[]);
+  // D.3-5a free camera (lab): whether the settled view left the default overview, and a counter that sends it back.
+  const [viewChanged,setViewChanged]=useState(false);
+  const [resetKey,setResetKey]=useState(0);
   // No WebGL, a lost context or a scene error: as on /islands, the list takes over and 3D stays off.
-  const unavailable=useCallback(()=>{setAvailable(false);setReady(false);setMode('list');},[]);
+  const unavailable=useCallback(()=>{setAvailable(false);setReady(false);setMode('list');setViewChanged(false);},[]);
   const [infoNode,setInfoNode]=useState<string|null>(null);
   // Changing or leaving the focused island closes any open target info.
   const select=useCallback((id:string|null)=>{setSelectedId(id);setInfoNode(null);},[]);
+  //「返回全景」: leave the focused island, and with the free camera also undo turning and zooming in the overview.
+  const overview=useCallback(()=>{select(null);setResetKey(key=>key+1);},[select]);
   const router=useRouter();
   const navigate=useCallback((href:string)=>router.push(href),[router]);
   const listMode=mode==='list';
@@ -87,7 +92,7 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
       <div className={styles.previewLinks}>{toolbar}
         <div className={styles.modeSwitch} role="group" aria-label="地圖導航模式">
           <button type="button" aria-pressed={!listMode} disabled={!available} onClick={()=>setMode('3d')}><Globe2 size={15}/>3D 群島</button>
-          <button type="button" aria-pressed={listMode} onClick={()=>setMode('list')}><List size={16}/>清單</button>
+          <button type="button" aria-pressed={listMode} onClick={()=>{setMode('list');setViewChanged(false);}}><List size={16}/>清單</button>
         </div>
       </div>
     </div>
@@ -104,10 +109,11 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
           <LoadingCopy.Provider value={text.loading}>
             <HexWorldScene world={world} islands={islands} selectedId={selectedId} onSelect={select} onNavigate={navigate}
               reducedMotion={Boolean(reducedMotion)} onReady={markReady} onUnavailable={unavailable} options={options} label={text.canvas}
-              infoNode={poiPanel?infoNode:undefined} onInfoChange={poiPanel?setInfoNode:undefined}/>
+              infoNode={poiPanel?infoNode:undefined} onInfoChange={poiPanel?setInfoNode:undefined}
+              resetKey={resetKey} onViewChange={setViewChanged}/>
           </LoadingCopy.Provider>
         </SceneBoundary>
-        <div className={styles.stageBottom}><span><i/>{ready?text.hint:'準備 3D 場景中 · 清單導航隨時可用'}</span><button type="button" onClick={()=>select(null)} disabled={!selectedId}><RotateCcw size={14}/>返回全景</button></div>
+        <div className={styles.stageBottom}><span><i/>{ready?text.hint:'準備 3D 場景中 · 清單導航隨時可用'}</span><button type="button" onClick={overview} disabled={!selectedId&&!viewChanged}><RotateCcw size={14}/>返回全景</button></div>
       </div>
       {poiLayout&&selected&&<HexPoiPanel layout={poiLayout} islandName={selected.name} infoNode={infoNode}
         onInfoChange={setInfoNode} onNavigate={navigate}/>}

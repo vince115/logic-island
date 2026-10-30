@@ -19,7 +19,8 @@ const PRESET: Record<ScaleVariant, HexScenePreset> = { '19': SCENE_PRESETS.scale
 export function HexScaleExplorer({islands,variant}:{islands:LearningIsland[];variant:ScaleVariant}) {
   const prototype=scalePrototypes[variant];
   return <HexWorldExplorer islands={islands} world={prototype.world} options={sceneOptions(prototype,PRESET[variant])} poiPanel={REFINED[variant]}
-    copy={{tag:`SCALE PROTOTYPE · ${variant} TILES${REFINED[variant]?' · D.2C-1 NATURAL':' · REFERENCE'}`}}
+    copy={{tag:`SCALE PROTOTYPE · ${variant} TILES${REFINED[variant]?' · D.2C-1 NATURAL':' · REFERENCE'}`,
+      ...REFINED[variant]&&{hint:'拖曳旋轉 · 滾輪或雙指縮放 · 點擊名牌聚焦'}}}
     toolbar={<>{SCALE_VARIANTS.map(v=><Link key={v} className={styles.previewBack} href={`/islands/hex/scale/${v}`}
       aria-current={v===variant?'page':undefined}>{v} 格</Link>)}<PreviewBack/></>}/>;
 }

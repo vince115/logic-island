@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PCFShadowMap, Vector3, type Mesh } from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
@@ -8,7 +8,7 @@ import { hexCorner, hexToWorld } from '@/lib/islands/hex';
 import { tileTop } from '@/lib/islands/hex-terrain';
 import { WATER_LEVEL, settlementFrames, worldCenter, type HexWorld } from '@/lib/islands/hex-world';
 import type { IslandDefinition } from '@/lib/islands/types';
-import { HexCamera, VIEW } from './hex-camera';
+import { HexCamera, VIEW, viewAt, type CameraView } from './hex-camera';
 import { HexTiles, WATER_Y } from './hex-tiles';
 import { HexTerrainMesh, type TerrainStyle } from './hex-terrain-mesh';
 import { HexBridges, HexRoads } from './hex-routes';
@@ -57,20 +57,23 @@ export interface HexSceneOptions {
   treeLod?: number;
   /** D.3-3 preflight: the mouse over something clickable shows the pointer cursor and lights the island's label; nothing is drawn. */
   hover?: boolean;
+  /** D.3-5a: `free` turns (mouse drag; one finger left and right) and zooms (wheel, two fingers) within limits, and
+   * the overview labels hang outward for the current view. `fixed` (default) keeps the D.2 view with two-finger zoom. */
+  camera?: 'fixed' | 'free';
 }
 type CaptionSide='left'|'right'|'above'|'below';
 /**
  * Where a compact caption goes: just off the coast on the side of the settlement facing away from the rest
  * of the world, and which screen side that is, so the caption can hang outward instead of over the island.
  */
-function captionPoint(world:HexWorld,settlement:HexWorld['settlements'][number],reach=1.2):{point:[number,number];side:CaptionSide} {
+function captionPoint(world:HexWorld,settlement:HexWorld['settlements'][number],reach=1.2,view=VIEW):{point:[number,number];side:CaptionSide} {
   const [wx,wz]=worldCenter(world),[sx,sz]=hexToWorld(settlement.center,world.size);
   const length=Math.hypot(sx-wx,sz-wz)||1,out=[(sx-wx)/length,(sz-wz)/length];
   const far=settlement.tiles.reduce((best,t)=>{const [x,z]=hexToWorld(t,world.size),[bx,bz]=hexToWorld(best,world.size);
     return x*out[0]+z*out[1]>bx*out[0]+bz*out[1]?t:best;},settlement.tiles[0]);
   const [fx,fz]=hexToWorld(far,world.size);
-  // Screen right and up for a ground direction, from the fixed hex camera view.
-  const right=new Vector3().crossVectors(new Vector3(0,1,0),VIEW).normalize(),up=new Vector3().crossVectors(VIEW,right);
+  // Screen right and up for a ground direction, from the camera view (the fixed hex view unless the free camera turned).
+  const right=new Vector3().crossVectors(new Vector3(0,1,0),view).normalize(),up=new Vector3().crossVectors(view,right);
   const r=right.x*out[0]+right.z*out[1],u=up.x*out[0]+up.z*out[1];
   const side:CaptionSide=Math.abs(r)>Math.abs(u)?(r>0?'right':'left'):(u>0?'above':'below');
   return {point:[fx+out[0]*world.size*reach,fz+out[1]*world.size*reach],side};
@@ -139,7 +142,7 @@ function Lifecycle({label,onReady,onUnavailable}:{label:string;onReady:()=>void;
   return null;
 }
 
-export default function HexWorldScene({world,islands,selectedId,onSelect,onNavigate,reducedMotion,onReady,onUnavailable,options={},infoNode,onInfoChange,label}:{
+export default function HexWorldScene({world,islands,selectedId,onSelect,onNavigate,reducedMotion,onReady,onUnavailable,options={},infoNode,onInfoChange,label,resetKey,onViewChange}:{
   world:HexWorld;islands:IslandDefinition[];selectedId:string|null;onSelect:(id:string)=>void;
   reducedMotion:boolean;onReady:()=>void;onUnavailable:()=>void;options?:HexSceneOptions;
   /** Controlled info bubble of the focused settlement, shared with the HTML target list. */
@@ -148,6 +151,9 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
   onNavigate:(href:string)=>void;
   /** Accessible name of the canvas: the explorer's wording. */
   label:string;
+  /** D.3-5a free camera: a new value goes back to the default overview (「返回全景」with no island focused), and
+   * whether the settled view differs from that overview. */
+  resetKey?:number;onViewChange?:(changed:boolean)=>void;
 }) {
   const glbLayouts=options.glbLayouts??hexGlbSettlements,continuousOcean=options.ocean==='continuous'||options.ocean==='natural';
   const light=LIGHTING[options.lighting??'preview'];
@@ -171,7 +177,15 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
   const [onTarget,setOnTarget]=useState<string|null>(null);
   const lit=hovered!==selectedId?hovered:null;
   const pointer=options.hover&&(lit||(onTarget!==null&&onTarget===selectedId));
-  return <div className={styles.canvasWrap} style={pointer?{cursor:'pointer'}:undefined}>
+  const free=options.camera==='free';
+  // Free camera: the overview labels hang outward for the settled view, and a label drag turns the map instead of focusing.
+  const [view,setView]=useState(VIEW);
+  const viewChange=useCallback(({azimuth,polar,changed}:CameraView)=>{
+    setView(current=>{const next=azimuth===null||polar===null?VIEW:viewAt(azimuth,polar);return next.distanceTo(current)<1e-3?current:next;});
+    onViewChange?.(changed);
+  },[onViewChange]);
+  const press=useRef<[number,number]|null>(null);
+  return <div className={styles.canvasWrap} style={pointer?{cursor:'pointer'}:undefined} data-camera={free?'free':undefined}>
     <Canvas orthographic frameloop="demand" dpr={[1,1.5]} shadows={options.shadows==='static'?STATIC_SHADOW_MAP:'soft'}
       camera={{position:[20,19,24],zoom:27,near:.1,far:400}}
       gl={{antialias:true,alpha:false,powerPreference:'low-power'}}
@@ -202,7 +216,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
           const layout=glbLayouts.find(l=>l.islandId===settlement.islandId);
           // Compact labels sit off the coast facing away from the other islands, so the overview shows each outline whole.
           const compact=options.labels==='compact';
-          const caption=compact?captionPoint(world,settlement):null;
+          const caption=compact?captionPoint(world,settlement,1.2,view):null;
           const [x,z]=caption?caption.point:hexToWorld(layout?.label?.tile??settlement.center,world.size);
           const placeholders=<HexLandmarks world={world} settlement={settlement}/>;
           const selected=selectedId===settlement.islandId;
@@ -218,14 +232,19 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
                 style={{'--island-accent':island.accent} as React.CSSProperties}
                 aria-pressed={false} aria-label={`聚焦${island.name}`} data-model-source={layout?sources[island.id]??'loading':'geometry'} data-side={caption?.side}
                 data-hovered={lit===island.id?'true':undefined}
-                onClick={event=>{event.stopPropagation();onSelect(island.id);}}>
+                onPointerDown={free?event=>{press.current=[event.clientX,event.clientY];}:undefined}
+                onClick={event=>{event.stopPropagation();
+                  // The same 6 px as a click on the map: further, the pointer turned the map (a keyboard click has detail 0).
+                  if(free&&event.detail>0&&press.current&&Math.hypot(event.clientX-press.current[0],event.clientY-press.current[1])>=6) return;
+                  onSelect(island.id);}}>
                 <span/><strong className={styles.hexLabelText}>{island.name}</strong><small>↗</small>
               </button>
             </Html></group>}
           </group>;
         })}
       </group>
-      <HexCamera frames={frames} selectedId={selectedId} reducedMotion={reducedMotion} fit={fit}/>
+      <HexCamera frames={frames} selectedId={selectedId} reducedMotion={reducedMotion} fit={fit}
+        free={free} resetKey={resetKey} onViewChange={free?viewChange:undefined}/>
     </Canvas>
   </div>;
 }

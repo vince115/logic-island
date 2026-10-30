@@ -21,8 +21,9 @@ const production = {
 
 export const SCENE_PRESETS = {
   production,
-  /** The production look plus the measurement and review probe: the hidden test page /islands/hex/scale/37. */
-  lab: { ...production, perfProbe: true },
+  /** The production look plus the measurement and review probe: the hidden test page /islands/hex/scale/37. D.3-5a
+   * tries the free camera here first; the production preset (and so the candidate page) keeps the fixed one. */
+  lab: { ...production, perfProbe: true, camera: 'free' },
   /** The 19-tile scale reference, as first prototyped. */
   scale19: { ocean: 'continuous', anchorStyle: 'compact', rocks: true, lighting: 'contrast', perfProbe: true },
   /** The A2 preview (/islands/hex): the scene defaults. */
