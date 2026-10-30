@@ -13,7 +13,9 @@ import { delta, flight, flightStats, instrument, round, type Counters, type Entr
  *   the D.3-4 real-device check in perf/device/ shares);
  * - the frame rate while the camera flies to the basics island and back (the side list and「返回全景」, which every
  *   explorer has), as during real use;
- * - time to the first rendered frame and to the GLB being in place.
+ * - time to the first rendered frame and to the GLB being in place;
+ * - D.3-5b: where the explorer offers「自動旋轉」(the lab), the frame rate while it turns for 5 seconds and the frames
+ *   drawn in the 2 seconds after it stops (must be 0).
  * Routes with the lab probe (`canvas.__hexPerf`) also get forced-render timing and main-pass draw calls per island.
  * Rounds and routes alternate inside one run, so machine-load drift hits every route alike.
  *
@@ -124,7 +126,20 @@ async function measure(page: Page, route: string) {
     }
   }
   const overview = await view();
-  return { route, ...info, firstFrameMs: round(info.firstFrameMs, 0), glbReadyMs: round(glbReadyMs, 0), overview, focus, flight: flightStats(flights) };
+  const toggle = page.getByRole('button', { name: '自動旋轉', exact: true });
+  let orbit: (ReturnType<typeof flightStats> & { idle: number }) | undefined;
+  if (await toggle.count()) {
+    const from = (await entries(page)).length;
+    await toggle.click();
+    await page.waitForTimeout(5000);
+    await toggle.click();
+    const to = (await entries(page)).length;
+    await settle(page);
+    const idleFrom = (await entries(page)).length;
+    await page.waitForTimeout(2000);
+    orbit = { ...flightStats([flight(await entries(page), from, to)]), idle: (await entries(page)).length - idleFrom };
+  }
+  return { route, ...info, firstFrameMs: round(info.firstFrameMs, 0), glbReadyMs: round(glbReadyMs, 0), overview, focus, flight: flightStats(flights), ...(orbit ? { orbit } : {}) };
 }
 
 test('world map rendering', async ({ context }, testInfo) => {

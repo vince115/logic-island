@@ -2,9 +2,9 @@
 
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useReducedMotion } from 'motion/react';
-import { Globe2, Hexagon, List, RotateCcw } from 'lucide-react';
+import { Globe2, Hexagon, List, Orbit, RotateCcw } from 'lucide-react';
 import { hexWorld, type HexWorld } from '@/lib/islands/hex-world';
 import type { LearningIsland } from '@/lib/islands/types';
 import { LearningNavigation } from '../learning-navigation';
@@ -74,13 +74,26 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
   // D.3-5a free camera (lab): whether the settled view left the default overview, and a counter that sends it back.
   const [viewChanged,setViewChanged]=useState(false);
   const [resetKey,setResetKey]=useState(0);
+  // D.3-5b Auto Orbit (free camera, overview only): off on every load, also with reduced motion, and only the button
+  // turns it on; everything that stops it leaves it off.
+  const freeCamera=options?.camera==='free';
+  const [orbiting,setOrbiting]=useState(false);
+  const stopOrbit=useCallback(()=>setOrbiting(false),[]);
   // No WebGL, a lost context or a scene error: as on /islands, the list takes over and 3D stays off.
-  const unavailable=useCallback(()=>{setAvailable(false);setReady(false);setMode('list');setViewChanged(false);},[]);
+  const unavailable=useCallback(()=>{setAvailable(false);setReady(false);setMode('list');setViewChanged(false);setOrbiting(false);},[]);
   const [infoNode,setInfoNode]=useState<string|null>(null);
   // Changing or leaving the focused island closes any open target info.
-  const select=useCallback((id:string|null)=>{setSelectedId(id);setInfoNode(null);},[]);
-  //「返回全景」: leave the focused island, and with the free camera also undo turning and zooming in the overview.
-  const overview=useCallback(()=>{select(null);setResetKey(key=>key+1);},[select]);
+  // Focusing an island (3D, label or list) stops Auto Orbit.
+  const select=useCallback((id:string|null)=>{setSelectedId(id);setInfoNode(null);if(id) setOrbiting(false);},[]);
+  //「返回全景」: leave the focused island, and with the free camera also stop Auto Orbit and undo turning and zooming.
+  const overview=useCallback(()=>{select(null);setResetKey(key=>key+1);setOrbiting(false);},[select]);
+  // A hidden page stops it too (it does not come back by itself).
+  useEffect(()=>{
+    if(!orbiting) return;
+    const hidden=()=>{if(document.visibilityState==='hidden') setOrbiting(false);};
+    document.addEventListener('visibilitychange',hidden);
+    return ()=>document.removeEventListener('visibilitychange',hidden);
+  },[orbiting]);
   const router=useRouter();
   const navigate=useCallback((href:string)=>router.push(href),[router]);
   const listMode=mode==='list';
@@ -92,7 +105,7 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
       <div className={styles.previewLinks}>{toolbar}
         <div className={styles.modeSwitch} role="group" aria-label="地圖導航模式">
           <button type="button" aria-pressed={!listMode} disabled={!available} onClick={()=>setMode('3d')}><Globe2 size={15}/>3D 群島</button>
-          <button type="button" aria-pressed={listMode} onClick={()=>{setMode('list');setViewChanged(false);}}><List size={16}/>清單</button>
+          <button type="button" aria-pressed={listMode} onClick={()=>{setMode('list');setViewChanged(false);setOrbiting(false);}}><List size={16}/>清單</button>
         </div>
       </div>
     </div>
@@ -110,10 +123,15 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
             <HexWorldScene world={world} islands={islands} selectedId={selectedId} onSelect={select} onNavigate={navigate}
               reducedMotion={Boolean(reducedMotion)} onReady={markReady} onUnavailable={unavailable} options={options} label={text.canvas}
               infoNode={poiPanel?infoNode:undefined} onInfoChange={poiPanel?setInfoNode:undefined}
-              resetKey={resetKey} onViewChange={setViewChanged}/>
+              resetKey={resetKey} onViewChange={setViewChanged} orbit={orbiting} onOrbitStop={stopOrbit}/>
           </LoadingCopy.Provider>
         </SceneBoundary>
-        <div className={styles.stageBottom}><span><i/>{ready?text.hint:'準備 3D 場景中 · 清單導航隨時可用'}</span><button type="button" onClick={overview} disabled={!selectedId&&!viewChanged}><RotateCcw size={14}/>返回全景</button></div>
+        <div className={styles.stageBottom}><span><i/>{ready?text.hint:'準備 3D 場景中 · 清單導航隨時可用'}</span>{freeCamera
+          ?<div className={styles.stageActions}>
+            {!selectedId&&<button type="button" aria-pressed={orbiting} disabled={!ready} onClick={()=>setOrbiting(on=>!on)}><Orbit size={14}/>自動旋轉</button>}
+            <button type="button" onClick={overview} disabled={!selectedId&&!viewChanged&&!orbiting}><RotateCcw size={14}/>返回全景</button>
+          </div>
+          :<button type="button" onClick={overview} disabled={!selectedId&&!viewChanged}><RotateCcw size={14}/>返回全景</button>}</div>
       </div>
       {poiLayout&&selected&&<HexPoiPanel layout={poiLayout} islandName={selected.name} infoNode={infoNode}
         onInfoChange={setInfoNode} onNavigate={navigate}/>}

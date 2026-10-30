@@ -20,8 +20,9 @@ const DEGREE=Math.PI/180;
 /**
  * D.3-5a free camera limits, in plain numbers (a later world file may carry them): the camera stays 28°–60° above
  * the water; zoom goes from 85% of the overview (at any azimuth) to twice the closest island focus, at most 150.
+ * D.3-5b: Auto Orbit turns the overview at `orbit` degrees a second.
  */
-export const FREE_CAMERA={elevation:[28,60],zoomOut:.85,zoomIn:2,maxZoom:150} as const;
+export const FREE_CAMERA={elevation:[28,60],zoomOut:.85,zoomIn:2,maxZoom:150,orbit:6} as const;
 
 /** What the free camera reports once it settles: its angles in radians (null while it looks along VIEW), and whether
  * the view differs from the default overview, which「返回全景」restores. */
@@ -62,16 +63,20 @@ function frame(points:Vector3[],view:Vector3,width:number,height:number,focused:
  * turns it left and right while up and down still scrolls the page, and two fingers zoom. Focusing an island keeps the
  * azimuth; `resetKey` changing (「返回全景」) goes back to VIEW. The content offset is a focal offset, so the map turns
  * around its own center. Without `free` nothing of this applies and the camera behaves exactly as before.
+ * `orbit` (D.3-5b) turns the overview on its own, keeping tilt and zoom; any drag, pinch or wheel on the map calls
+ * `onOrbitStop`, and the explorer decides everything else (focus, list mode, hidden page,「返回全景」).
  */
-export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetKey=0,onViewChange}:{frames:IslandDefinition[];selectedId:string|null;reducedMotion:boolean;
+export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetKey=0,onViewChange,orbit=false,onOrbitStop}:{frames:IslandDefinition[];selectedId:string|null;reducedMotion:boolean;
   /** Content points (scene space) to frame instead of the bounding boxes: all of them, and per island. */
   fit?:{all:Vector3[];byId:Record<string,Vector3[]>};
   free?:boolean;resetKey?:number;onViewChange?:(view:CameraView)=>void;
+  orbit?:boolean;onOrbitStop?:()=>void;
 }) {
   const controls=useRef<CameraControlsImpl>(null);
   const initialized=useRef(false);
   const {width,height}=useThree(state=>state.size);
   const connected=useThree(state=>state.events.connected) as HTMLElement|undefined;
+  const invalidate=useThree(state=>state.invalidate);
   const selected=frames.find(i=>i.id===selectedId);
   // A box's corners sit far out in empty sea for a diagonal layout, so content points frame much tighter.
   const pointsFor=useCallback((island:IslandDefinition|undefined)=>{
@@ -127,13 +132,16 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
   },[points,width,height,reducedMotion,selected,free,reset]);
   // camera-controls sets `touch-action: none` on the element it listens on (R3F's wrapper, which also holds the
   // labels) when it connects; free touch only turns sideways, so the page keeps its vertical scroll. Touch keeps the tilt.
+  // The wheel zooms without camera-controls' `controlstart`, so it stops Auto Orbit here.
   useEffect(()=>{
     if(!free||!connected) return;
     connected.style.touchAction='pan-y';
     const down=(event:PointerEvent)=>{if(controls.current) controls.current.polarRotateSpeed=event.pointerType==='mouse'?1:0;};
+    const wheel=()=>onOrbitStop?.();
     connected.addEventListener('pointerdown',down,{capture:true});
-    return ()=>connected.removeEventListener('pointerdown',down,{capture:true});
-  },[free,connected]);
+    connected.addEventListener('wheel',wheel,{capture:true,passive:true});
+    return ()=>{connected.removeEventListener('pointerdown',down,{capture:true});connected.removeEventListener('wheel',wheel,{capture:true});};
+  },[free,connected,onOrbitStop]);
   // The bottom edge of the near plane has to stay above the sea, or a low, zoomed-out view shows the background along
   // the bottom of the stage. An orthographic camera draws the same picture from any distance along its view, so such a
   // view moves the camera further back; the default view stays at DISTANCE. Runs before camera-controls updates.
@@ -158,9 +166,31 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
     const zoomed=zoom==null||Math.abs(controller.camera.zoom/zoom-1)>.01;
     onViewChange({azimuth:turned?turn(theta,0):null,polar:turned?phi:null,changed:turned||zoomed});
   },[onViewChange]);
-  const start=useCallback(()=>{holding.current=true;},[]);
+  const start=useCallback(()=>{holding.current=true;onOrbitStop?.();},[onOrbitStop]);
   const end=useCallback(()=>{holding.current=false;report();},[report]);
   const rest=useCallback(()=>{if(!holding.current) report();},[report]);
+  // D.3-5b Auto Orbit: turn the overview around its center. Each turned frame asks for the next one (frameloop
+  // "demand"), so frames are drawn only while it turns. A frame after a pause (hidden tab) moves at most 50 ms worth.
+  // The overview labels follow every 15°, not every frame.
+  const orbiting=free&&orbit&&!selected;
+  const sector=useRef<number|null>(null);
+  const flying=useMemo(()=>({now:new Spherical(),end:new Spherical(),at:new Vector3(),to:new Vector3(),offset:new Vector3(),offsetEnd:new Vector3()}),[]);
+  useEffect(()=>{if(orbiting) invalidate();},[orbiting,invalidate]);
+  useFrame((_,delta)=>{
+    const controller=controls.current;
+    if(!orbiting||!controller) return;
+    // A camera flight still on its way (「返回全景」just before the toggle, a resize) lands first: turning with no
+    // transition would snap its angles to their end values. Keep the frames coming until it is within about 0.1°
+    // (and 0.01 units) of the end, which the first turn then covers unseen.
+    const {now,end,at,to,offset,offsetEnd}=flying;
+    controller.getSpherical(now,false);controller.getSpherical(end,true);
+    if(Math.abs(now.theta-end.theta)>2e-3||Math.abs(now.phi-end.phi)>2e-3
+      ||controller.getTarget(at,false).distanceTo(controller.getTarget(to,true))>1e-2
+      ||controller.getFocalOffset(offset,false).distanceTo(controller.getFocalOffset(offsetEnd,true))>1e-2){invalidate();return;}
+    void controller.rotate(FREE_CAMERA.orbit*DEGREE*Math.min(delta,.05),0,false);
+    const turnedTo=Math.floor(controller.azimuthAngle/(15*DEGREE));
+    if(turnedTo!==sector.current){sector.current=turnedTo;report();}
+  },-3);
   if(!free) return <CameraControls ref={controls} makeDefault smoothTime={.65}
     minZoom={4} maxZoom={150}
     mouseButtons={{left:ACTION.NONE,middle:ACTION.NONE,right:ACTION.NONE,wheel:ACTION.NONE}}

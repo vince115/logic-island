@@ -10,6 +10,23 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## D.3-5b Auto Orbit（2026-10-30，獨立 commit「auto orbit on the lab world map (Phase D.3-5b)」）
+
+狀態：**只在 37 格實驗室頁**；候選頁、`/islands`、`/islands/legacy` 不變（0 像素差、按鈕與連結標記相同、`git diff` 0）。觸控只在 Chromium 模擬驗證；D.3-4B 仍是 Not Measured。
+
+| 檢查 | 結果 |
+|---|---|
+| ESLint／TypeScript | 都是 exit 0 |
+| Vitest | 177 passed／6 skipped |
+| Next Build | 成功；三條 `/islands` 路由仍是靜態頁 |
+| E2E 全套（單次） | 189 passed／22 skipped／3 failed（3 個都是既有 `player.spec.ts`，P1-11） |
+| E2E `hex-camera`＋`hex-scale`＋`islands-candidate`＋`islands-acceptance` 重複 3 次 | 276 passed／60 skipped／0 failed |
+| 突變測試 | 拿掉「飛行途中先等降落」後新測試失敗，還原後通過 |
+| 效能 | 與 `f719f42` 交錯 A/B（E2E 結束後單獨執行，各 6 輪）：draw call、三角形逐項相同；首幀與鏡頭飛行 FPS 在 ±2% 內。環繞 FPS 為同版本鏡頭飛行的 109%（桌機）與 100.6%（手機模擬），每幀 43 個 draw call、陰影 0，停止後重畫 0。見 `logs/2026-10-30-d3-5b-auto-orbit.md` §5 |
+
+- `e2e/hex-camera.spec.ts` 新增 D.3-5b 9 項：預設關閉與 reduced motion、鍵盤、速度與仰角／zoom、每個停止條件、不自動恢復、旋轉中點名牌與島嶼、與鏡頭飛行不互搶、context 遺失、重畫與陰影、版面。
+- `perf/world.perf.ts`：有「自動旋轉」的頁面另外量 5 秒環繞的 FPS 與停止後的重畫。
+
 ## D.3-5a 自由相機（2026-10-30，獨立 commit「free camera on the lab world map (Phase D.3-5a)」）
 
 狀態：**只在 37 格實驗室頁**；候選頁、`/islands`、`/islands/legacy` 不變。觸控只在 Chromium 模擬驗證，**iOS Safari 待真機驗證**；D.3-4B 仍是 Not Measured。

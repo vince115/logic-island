@@ -142,7 +142,7 @@ function Lifecycle({label,onReady,onUnavailable}:{label:string;onReady:()=>void;
   return null;
 }
 
-export default function HexWorldScene({world,islands,selectedId,onSelect,onNavigate,reducedMotion,onReady,onUnavailable,options={},infoNode,onInfoChange,label,resetKey,onViewChange}:{
+export default function HexWorldScene({world,islands,selectedId,onSelect,onNavigate,reducedMotion,onReady,onUnavailable,options={},infoNode,onInfoChange,label,resetKey,onViewChange,orbit,onOrbitStop}:{
   world:HexWorld;islands:IslandDefinition[];selectedId:string|null;onSelect:(id:string)=>void;
   reducedMotion:boolean;onReady:()=>void;onUnavailable:()=>void;options?:HexSceneOptions;
   /** Controlled info bubble of the focused settlement, shared with the HTML target list. */
@@ -154,6 +154,8 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
   /** D.3-5a free camera: a new value goes back to the default overview (「返回全景」with no island focused), and
    * whether the settled view differs from that overview. */
   resetKey?:number;onViewChange?:(changed:boolean)=>void;
+  /** D.3-5b Auto Orbit (free camera, overview only): whether it turns, and the user's drag, pinch or wheel stopping it. */
+  orbit?:boolean;onOrbitStop?:()=>void;
 }) {
   const glbLayouts=options.glbLayouts??hexGlbSettlements,continuousOcean=options.ocean==='continuous'||options.ocean==='natural';
   const light=LIGHTING[options.lighting??'preview'];
@@ -244,7 +246,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
         })}
       </group>
       <HexCamera frames={frames} selectedId={selectedId} reducedMotion={reducedMotion} fit={fit}
-        free={free} resetKey={resetKey} onViewChange={free?viewChange:undefined}/>
+        free={free} resetKey={resetKey} onViewChange={free?viewChange:undefined} orbit={free&&orbit} onOrbitStop={free?onOrbitStop:undefined}/>
     </Canvas>
   </div>;
 }
