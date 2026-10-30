@@ -21,6 +21,7 @@
 | [2026-10-30-d3-1-scene-presets.md](2026-10-30-d3-1-scene-presets.md) | D.3-1 統一場景設定：37 格正式資料與 19 格原型分離、具名 scene preset、量測探針改為延遲載入；畫面逐像素不變 |
 | [2026-10-30-d3-2-shared-explorer.md](2026-10-30-d3-2-shared-explorer.md) | D.3-2 共用 Explorer：場景只負責 3D，Explorer 負責清單模式、Error Boundary、WebGL 失效、地點清單與導航；安全網對照、3D 畫面逐像素不變、D.3-3 切換風險 |
 | [2026-10-30-d3-3-preflight.md](2026-10-30-d3-3-preflight.md) | D.3-3 Preflight：隱藏的候選頁 `/islands/candidate`（正式 preset 與文案、hover、手機單行工具列）與回退頁 `/islands/legacy`；Skip Link 驗證、渲染成本對照、D.3-4 真機驗收規格草案 |
+| [2026-10-30-d3-4-prep.md](2026-10-30-d3-4-prep.md) | D.3-4 真機驗收準備：Mac 上的量測 proxy（自動對照量測、雙指縮放計時、故障注入、人工檢查表、報告）、與桌機 harness 共用的量測定義、驗收表與方法、工具自我檢查與桌機 Safari dry-run；尚未在實體裝置執行 |
 | [2026-10-30-d3-integration-analysis.md](2026-10-30-d3-integration-analysis.md) | D.3 整合方案分析：正式 `/islands` 與 37 格原型的差異、共用與原型專用程式、單一渲染器、契約與 fallback、驗收標準、分階段施工、風險與回退（只分析，未改程式） |
 | [../docs/handoff/SCENE_MODULES.md](../docs/handoff/SCENE_MODULES.md) | 2026-10-29 模組化 3D 場景架構規劃（12 模組、藍圖、驗證、D／E／F 分層；只規劃） |
 

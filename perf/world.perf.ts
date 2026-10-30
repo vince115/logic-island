@@ -2,13 +2,15 @@ import { test, expect, type Page } from '@playwright/test';
 import { hexToWorld } from '@/lib/islands/hex';
 import { scalePrototypes } from '@/lib/islands/hex-scale-prototype';
 import { hexWorld, type HexWorld } from '@/lib/islands/hex-world';
+import { delta, flight, flightStats, instrument, round, type Counters, type Entry, type Flight } from './instrument.mjs';
 
 /**
  * D.3-0 world-map rendering measurements (run with playwright.perf.config.ts; summarize with perf/summarize.mjs).
  *
  * Every route is measured the same way, without app hooks:
  * - WebGL draw calls and triangles per frame, split into the main pass (default framebuffer) and offscreen passes
- *   (the shadow map), counted by wrapping the WebGL2 draw functions before the page loads;
+ *   (the shadow map), counted by wrapping the WebGL2 draw functions before the page loads (perf/instrument.mjs, which
+ *   the D.3-4 real-device check in perf/device/ shares);
  * - the frame rate while the camera flies to the basics island and back (the side list and「返回全景」, which every
  *   explorer has), as during real use;
  * - time to the first rendered frame and to the GLB being in place.
@@ -24,54 +26,10 @@ const CPU = Number(process.env.PERF_CPU ?? 1);
 /** Worlds of the routes with the lab probe, to tell which island a drawn object belongs to. */
 const WORLDS: Record<string, HexWorld> = { '/islands/hex': hexWorld, '/islands/hex/scale/19': scalePrototypes['19'].world, '/islands/hex/scale/37': scalePrototypes['37'].world };
 
-type Counters = { main: number; mainTriangles: number; offscreen: number; offscreenTriangles: number };
-type Entry = Counters & { t: number };
 type DrawnObject = { center: number[]; size: number[]; materials: string[]; instanced: boolean };
 type Probe = HTMLCanvasElement & { __hexPerf: () => unknown; __hexDraws: () => DrawnObject[] };
 
-/** Runs in the page before any script: counts draws per pass and records the running totals once per frame. */
-function instrument() {
-  const total = { main: 0, mainTriangles: 0, offscreen: 0, offscreenTriangles: 0 };
-  const entries: (typeof total & { t: number })[] = [];
-  const proto = WebGL2RenderingContext.prototype;
-  let offscreen = false;
-  const bind = proto.bindFramebuffer;
-  proto.bindFramebuffer = function (this: WebGL2RenderingContext, kind: number, framebuffer: WebGLFramebuffer | null) {
-    if (kind !== this.READ_FRAMEBUFFER) offscreen = framebuffer !== null;
-    return bind.call(this, kind, framebuffer);
-  };
-  const record = (mode: number, count: number, instances: number) => {
-    const triangles = mode === WebGL2RenderingContext.TRIANGLES ? count / 3 * instances : 0;
-    if (offscreen) { total.offscreen++; total.offscreenTriangles += triangles; } else { total.main++; total.mainTriangles += triangles; }
-  };
-  const drawArrays = proto.drawArrays, drawElements = proto.drawElements;
-  const drawArraysInstanced = proto.drawArraysInstanced, drawElementsInstanced = proto.drawElementsInstanced;
-  proto.drawArrays = function (this: WebGL2RenderingContext, mode: number, first: number, count: number) {
-    record(mode, count, 1); return drawArrays.call(this, mode, first, count);
-  };
-  proto.drawElements = function (this: WebGL2RenderingContext, mode: number, count: number, type: number, offset: number) {
-    record(mode, count, 1); return drawElements.call(this, mode, count, type, offset);
-  };
-  proto.drawArraysInstanced = function (this: WebGL2RenderingContext, mode: number, first: number, count: number, instances: number) {
-    record(mode, count, instances); return drawArraysInstanced.call(this, mode, first, count, instances);
-  };
-  proto.drawElementsInstanced = function (this: WebGL2RenderingContext, mode: number, count: number, type: number, offset: number, instances: number) {
-    record(mode, count, instances); return drawElementsInstanced.call(this, mode, count, type, offset, instances);
-  };
-  let last = -1;
-  const tick = (t: number) => {
-    const drawn = total.main + total.offscreen;
-    if (drawn !== last) { entries.push({ t, ...total }); last = drawn; }
-    requestAnimationFrame(tick);
-  };
-  requestAnimationFrame(tick);
-  Object.assign(window, { __perfEntries: entries });
-}
-
 const entries = (page: Page) => page.evaluate(() => (window as unknown as { __perfEntries: Entry[] }).__perfEntries.slice());
-const delta = (a: Entry, b: Entry): Counters => ({ main: b.main - a.main, mainTriangles: b.mainTriangles - a.mainTriangles, offscreen: b.offscreen - a.offscreen, offscreenTriangles: b.offscreenTriangles - a.offscreenTriangles });
-const quantile = (list: number[], p: number) => { const s = [...list].sort((a, b) => a - b); return s.length ? s[Math.min(s.length - 1, Math.floor(s.length * p))] : NaN; };
-const round = (v: number, d = 1) => Math.round(v * 10 ** d) / 10 ** d;
 
 /** Waits until no frame has been drawn for `quiet` ms (the camera has settled). */
 async function settle(page: Page, quiet = 700) {
@@ -87,15 +45,6 @@ async function lastFrame(page: Page): Promise<Counters> {
   const list = await entries(page);
   return delta(list.at(-2)!, list.at(-1)!);
 }
-/** Frames drawn after `from` (an entry count): rate, frame interval and draws per frame. */
-function flight(list: Entry[], from: number) {
-  const frames = list.slice(from - 1);
-  if (frames.length < 3) return { frames: frames.length - 1, ms: 0, intervals: [], main: [], offscreen: [] };
-  const intervals = frames.slice(2).map((e, i) => e.t - frames[i + 1].t);
-  const per = frames.slice(1).map((e, i) => delta(frames[i], e));
-  return { frames: per.length, ms: frames.at(-1)!.t - frames[1].t, intervals, main: per.map(p => p.main), offscreen: per.map(p => p.offscreen) };
-}
-
 /** Main-pass draw calls and materials per island, from what the lab probe says was drawn. */
 function byIsland(world: HexWorld, drawn: DrawnObject[]) {
   const spans = world.settlements.map(s => {
@@ -162,7 +111,7 @@ async function measure(page: Page, route: string) {
   });
   // Fly to the basics island and back three times through the side list, which every explorer has. The views
   // are measured once settled after a flight, not right after loading (which may still redraw the shadow map).
-  const flights: ReturnType<typeof flight>[] = [];
+  const flights: Flight[] = [];
   let focus: Awaited<ReturnType<typeof view>> | undefined;
   for (let i = 0; i < 3; i++) {
     for (const step of ['focus', 'back'] as const) {
@@ -175,14 +124,7 @@ async function measure(page: Page, route: string) {
     }
   }
   const overview = await view();
-  const intervals = flights.flatMap(f => f.intervals);
-  return {
-    route, ...info, firstFrameMs: round(info.firstFrameMs, 0), glbReadyMs: round(glbReadyMs, 0), overview, focus,
-    flight: {
-      fps: round(quantile(flights.map(f => (f.frames - 1) / (f.ms / 1000)), 0.5)), frameMs: round(quantile(intervals, 0.5)), frameP95: round(quantile(intervals, 0.95)),
-      frames: quantile(flights.map(f => f.frames), 0.5), main: quantile(flights.flatMap(f => f.main), 0.5), offscreen: quantile(flights.flatMap(f => f.offscreen), 0.5),
-    },
-  };
+  return { route, ...info, firstFrameMs: round(info.firstFrameMs, 0), glbReadyMs: round(glbReadyMs, 0), overview, focus, flight: flightStats(flights) };
 }
 
 test('world map rendering', async ({ context }, testInfo) => {

@@ -10,6 +10,35 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## D.3-4 真機驗收準備（2026-10-30，獨立 commit「real-device acceptance tool and checklist for the world map (Phase D.3-4 preparation)」）
+
+提交前在新的隔離副本重跑完整工程驗證（含文件修正與量測工具的區網安全修正；`src/` 與 `72e3eb6` 0 行差異）：
+
+| 檢查 | 結果 |
+|---|---|
+| ESLint／TypeScript／checkJs | 都是 exit 0（`perf/device/*.mjs`、`perf/instrument.mjs` 以 `tsc --allowJs --checkJs --strict` 另外檢查） |
+| Vitest | 15 files，177 passed／6 skipped（Java 無 JDK） |
+| Next Build | 成功；`/islands`、`/islands/candidate`、`/islands/legacy` 仍是靜態頁 |
+| E2E 全套（單次） | 149 passed／6 skipped／3 failed；3 個失敗都是既有的 `player.spec.ts`（P1-11），與本輪無關 |
+| E2E `device-tool` 重複 3 次 | 42 passed／6 skipped／0 failed（含新增的區網暴露檢查；skipped：雙指縮放只在手機模擬） |
+| **真機** | **未執行**，D.3-4 未通過、未判定 |
+
+以下為準備階段當時的紀錄。
+
+| 檢查 | 結果 |
+|---|---|
+| ESLint／TypeScript | 都是 exit 0。ESLint 用 repo 的 `eslint.config.mjs`，沒有額外排除：`perf/device/*.mjs`、`perf/instrument.mjs` 等本輪檔案都在檢查範圍（以 `--print-config` 確認）。D.2c-2／D.3-3 所說的「排除 scratch 量測腳本」指當時放在隔離副本、不進 repo 的暫存腳本，與本輪無關。`perf/device/server.mjs`、`probe.mjs` 另以 `tsc --allowJs --checkJs --strict` 檢查，exit 0 |
+| Vitest | 177 passed／6 skipped；新增 `tests/device-report.test.ts` 10 項 |
+| Next Build | 成功；三條路由仍是靜態頁 |
+| E2E `device-tool` | 重複 3 次 36 passed／6 skipped／0 failed（skipped：雙指縮放只在手機模擬） |
+| E2E `islands-candidate`＋`islands`（單次） | 66 passed／4 skipped／0 failed；其餘 spec 本輪未跑（`src/` 無變更） |
+| 桌機 harness | 儀器搬到 `perf/instrument.mjs` 前後交錯各 2 次：每幀 draw call 與三角形逐項相同，FPS、首幀在誤差內 |
+| 桌機 Safari dry-run | 注入程式在 WebKit 正常計數（每幀成本與 Chromium 相同）；6／8 頁後因視窗在背景而取消，工具正確標為不可靠 |
+| **真機** | **未執行**：沒有實體裝置；本機沒有 adb、Xcode／iOS 模擬器。D.3-4 未通過 |
+
+- 真機量測與檢查流程、驗收表、方法：[DEVICE_ACCEPTANCE](DEVICE_ACCEPTANCE.md)。工具是 Mac 上的 proxy（`node perf/device/server.mjs`），不修改應用程式；未開啟量測時頁面逐位元組原樣轉送。
+- `e2e/device-tool.spec.ts` 在一般 E2E 中自行以空閒埠啟動 proxy，檢查工具本身（不是真機結果）。數字對照見 `logs/2026-10-30-d3-4-prep.md` §5。
+
 ## D.3-3 Preflight 候選頁與回退頁（2026-10-30，獨立 commit「candidate and rollback routes for the world map switch (Phase D.3-3 preflight)」）
 
 | 檢查 | 結果 |
