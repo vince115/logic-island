@@ -1,9 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Vector3, type Mesh } from 'three';
-import { Canvas, useThree } from '@react-three/fiber';
+import { PCFShadowMap, Vector3, type Mesh } from 'three';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, type CameraControlsImpl } from '@react-three/drei';
 import { hexCorner, hexToWorld } from '@/lib/islands/hex';
 import { tileTop } from '@/lib/islands/hex-terrain';
@@ -53,6 +53,10 @@ export interface HexSceneOptions {
   labels?: 'default' | 'compact';
   /** `content` (D.2c-1) frames the islands' own outline and buildings instead of their bounding boxes. */
   cameraFit?: 'bounds' | 'content';
+  /** `static` (D.2c-2) draws the shadow map only when the shadow casters change, not on every camera frame. */
+  shadows?: 'dynamic' | 'static';
+  /** D.2c-2: below this many device pixels per world unit the trees draw a low-detail copy (shadows keep the full trees). */
+  treeLod?: number;
 }
 type CaptionSide='left'|'right'|'above'|'below';
 /**
@@ -101,7 +105,8 @@ const LIGHTING = {
 type PerfStats = { calls: number; triangles: number; geometries: number; meshes: number; instanced: number; instances: number; shadowCasters: number };
 
 /**
- * Prototype-only: `canvas.__hexPerf()` renders one frame and returns its draw stats (shadow pass included).
+ * Prototype-only: `canvas.__hexPerf()` renders one frame and returns its draw stats (shadow pass included, unless
+ * the shadow map is static and up to date; `__hexPerf(true)` redraws it).
  * For review screenshots, `__hexProject(x, y, z)` gives the canvas position of a map point and
  * `__hexView(x, y, z, zoom)` looks at a map point at a given zoom (`__hexZoom()` reads the current one).
  */
@@ -122,7 +127,9 @@ function PerfProbe({ox,oz}:{ox:number;oz:number}) {
     Object.assign(gl.domElement,{__hexProject:project,__hexView:view,__hexZoom:()=>camera.zoom});
   },[gl,camera,controls,ox,oz,invalidate]);
   useEffect(()=>{
-    const probe=():PerfStats=>{
+    const probe=(freshShadows=false):PerfStats=>{
+      // `freshShadows` redraws the shadow map in this frame even when it is static (D.2c-2 checks).
+      if(freshShadows) gl.shadowMap.needsUpdate=true;
       gl.render(scene,camera);
       const {calls,triangles}=gl.info.render;
       let meshes=0,instanced=0,instances=0,shadowCasters=0;
@@ -138,6 +145,24 @@ function PerfProbe({ox,oz}:{ox:number;oz:number}) {
   },[gl,scene,camera]);
   return null;
 }
+
+/**
+ * D.2c-2: the sun and every shadow caster stay put while the camera moves, so the shadow map is redrawn only
+ * when the set of visible casters changes (models loading, placeholders on failure) instead of every frame.
+ */
+function StaticShadows() {
+  const casters=useRef<string|null>(null);
+  // Runs before each rendered frame; a new caster's matrix is applied within that same render, before its shadow pass.
+  useFrame(({scene,gl})=>{
+    const list:string[]=[];
+    scene.traverseVisible(o=>{if((o as Mesh).isMesh&&o.castShadow){const m=o.matrixWorld.elements;list.push(`${o.id}:${m[12].toFixed(3)},${m[13].toFixed(3)},${m[14].toFixed(3)}`);}});
+    const key=list.join(';');
+    if(key!==casters.current){casters.current=key;gl.shadowMap.needsUpdate=true;}
+  });
+  return null;
+}
+/** Shadow map settings for `shadows: 'static'`: the type the `soft` preset resolves to in three r186, drawn on demand. */
+const STATIC_SHADOW_MAP={enabled:true,type:PCFShadowMap,autoUpdate:false};
 
 function Lifecycle({onReady,onUnavailable}:{onReady:()=>void;onUnavailable:()=>void}) {
   const {gl,camera}=useThree();
@@ -180,13 +205,14 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,reduced
   const sourceSetters=useMemo(()=>Object.fromEntries(glbLayouts.map(layout=>
     [layout.islandId,(source:ModelSource)=>setSources(current=>({...current,[layout.islandId]:source}))])),[glbLayouts]);
   return <div className={styles.canvasWrap}>
-    <Canvas orthographic frameloop="demand" dpr={[1,1.5]} shadows="soft"
+    <Canvas orthographic frameloop="demand" dpr={[1,1.5]} shadows={options.shadows==='static'?STATIC_SHADOW_MAP:'soft'}
       camera={{position:[20,19,24],zoom:27,near:.1,far:400}}
       gl={{antialias:true,alpha:false,powerPreference:'low-power'}}
       fallback={<p className={styles.canvasFallback}>此裝置無法顯示 3D，請使用清單導航。</p>}>
       <color attach="background" args={[light.background]}/>
       <Lifecycle onReady={onReady} onUnavailable={onUnavailable}/>
       {options.perfProbe&&<PerfProbe ox={ox} oz={oz}/>}
+      {options.shadows==='static'&&<StaticShadows/>}
       <ambientLight intensity={light.ambient}/>
       <hemisphereLight args={['#f3fbff','#b9d7a8',light.hemisphere]}/>
       <directionalLight position={[-12,22,10]} intensity={light.sun} castShadow
@@ -198,7 +224,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,reduced
       </mesh>}
       <group position={[-ox,0,-oz]}>
         {options.ocean==='natural'?<HexNaturalOcean world={world}/>:continuousOcean?<HexOcean world={world}/>:<HexTiles world={world} onSelect={onSelect}/>}
-        {options.forests&&<HexForest world={world} patches={options.forests} trees={options.nature?.trees}/>}
+        {options.forests&&<HexForest world={world} patches={options.forests} trees={options.nature?.trees} lod={options.treeLod}/>}
         {options.rocks&&<HexRocks world={world} rocks={options.nature?.rocks}/>}
         {world.settlements.filter(s=>s.surface==='continuous').map(s=><HexTerrainMesh key={s.islandId} world={world} settlement={s} onSelect={onSelect} style={options.terrain}/>)}
         {options.routes==='merged'?<MergedRoutes world={world} widths={options.nature?.roadWidths}/>:<><HexRoads world={world}/><HexBridges world={world}/></>}

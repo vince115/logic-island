@@ -21,7 +21,7 @@
 | P1-06 | Blender addon 1.8／protocol 14，server 預期 15；MCP status 仍可回應 | Claude 的 MCP 設定／連線不會自動繼承；先 read-only 檢查，不擅自升級或重啟。get_format_items callback 是版本實作，不是穩定跨版 API |
 | P1-07 | Java 無 JDK；Web E2E 未跑；原型沒有 islands 測試；真實手機未測 | 目前單元成功不保證 hydration／WebGL／觸控。build 修復後再實測，工具／安裝需按新授權執行。**2026-10-29（D.1）：Web E2E 已在隔離副本執行，新增 islands E2E；真機與 Java 仍未驗證，見 P1-11** |
 | P1-08 | 既有 R3F 原型是三座 local geometry，正式資產只有基礎島候選 | 原型≠Phase D。換 GLB 必須更新 registry union、尺度 bounds、光照、loading／fallback、node ID map、資源清理，不能直接替換路徑即完成。**2026-10-29（D.1）：基礎程式島已在分支改用 GLB（registry、bounds、fallback、節點名稱對照、clone 不 dispose 共用資源）；光照未調整，屬 D.2** |
-| P1-11 | 既有 `e2e/player.spec.ts` 3 個案例失敗：bfs 教材（desktop）「播放」按鈕不在 viewport；「播放中更換輸入」（desktop／mobile）找不到 `操作` 欄位。D.0 基線同樣失敗，與 D.1 無關 | 這套 E2E 先前從未執行過。需另案判斷是測試過時或播放器問題；不在 Phase D 範圍 |
+| P1-11 | 既有 `e2e/player.spec.ts` 3 個案例失敗：bfs 教材（desktop）「播放」按鈕不在 viewport；「播放中更換輸入」（desktop／mobile）找不到 `操作` 欄位。D.0 基線同樣失敗，與 D.1 無關 | 這套 E2E 先前從未執行過。需另案判斷是測試過時或播放器問題；不在 Phase D 範圍。**2026-10-30：D.2c-1／D.2c-2 不處理，維持獨立追蹤；兩輪全套 E2E 都是同樣 3 項失敗** |
 | P1-12 | D.1 手機視窗（390 px）上「工坊 · 學習路線」與「碼頭」標籤互相靠近，碼頭可點範圍小（大多在 START 標記） | 標籤不攔截點擊，但目標小、易誤觸工坊。屬 D.2 鏡頭拉近／標籤避讓評估 |
 | P1-14 | drei `Html` 在同一個 Canvas 中第一個掛載的標籤，若之後沒有重新 render，內容會一直是空的（D.2a 開發時發現）。`/islands` 因 onReady 會 setState 而沒有遇到 | D.2a 的預覽也改成 onReady 時 setState。根本原因尚未查明；之後新增 Html 標籤時要確認第一個有內容 |
 | P1-15 | camera-controls 3.1.2 的 `fitToBox` 會把鏡頭轉到最近的軸向（`camera-controls.module.js:1627` 附近的 round to closest axis）。`/islands` 共用的 `camera-controller.tsx` 因此實際上接近正側視，不是等距視角 | D.2a 預覽改用獨立的 `hex-camera.tsx`（固定視角方向，用正交 zoom 框選），`/islands` 未修改。是否修正正式鏡頭屬 D.2b 以後 |
@@ -30,8 +30,11 @@
 | P1-18 | 37 格原型中，碼頭在 390 px 手機上太小，E2E 掃描找不到可點範圍（已在 `hex-scale.spec.ts` 標註略過） | 若選 37 格，需要擴大熱區、聚焦時拉近鏡頭，或在 DOM 加地點清單（同時解決 P1-13）。**2026-10-29：37 格原型已加透明碰撞代理（最小 1.6）與 HTML 地點入口，E2E 不再略過；正式 `/islands` 尚未採用** |
 | P1-19 | 全套 E2E 同時執行時，`islands.spec.ts` 手機版「燈塔與碼頭」偶發失敗；單獨重複 5 次為 70/70 | 3D 點擊位置受負載與鏡頭穩定時間影響；需要更穩定的等待條件，或改用 DOM 入口測試互動。2026-10-29 Scale Refinement 的全套執行中未再出現 |
 | P1-20 | headless Chromium 的 requestAnimationFrame 幀率在本機波動很大（同一份未改動的 19 格頁面兩次執行 33 → 12 fps），不能當作效能驗收依據 | 本輪以 draw call 與 GPU 同步的每幀時間作比較；實際幀率要在 D.3 用真機或非 headless 環境量測 |
-| P1-21 | D.2c-1 的 37 格原型在連續渲染時（鏡頭轉場、雙指縮放），幀率約為 D.2b 的 65%（桌機）與 74%（手機尺寸）：headless 實測 32.8 → 21.4、41.9 → 31.0。閒置時兩版都不 render。逐項關閉測試顯示主要成本是樹木數量，其次是較近的取景、岩壁分面與海面，每項約 1～2 fps | 已把樹由 123 棵減為 83 棵、以針葉樹為主，並把海面網格改成貼圖四邊形。若要再降：樹木 LOD 或遠景不投影、減少岩壁分面、合併陰影投射物件；真機數字需在 D.3 量測 |
+| P1-21 | D.2c-1 的 37 格原型在連續渲染時（鏡頭轉場、雙指縮放）幀率約為 D.2b 的 65%（桌機）與 74%（手機尺寸）。**D.2c-2（2026-10-30）已處理**：成本拆解顯示主因是每幀重畫陰影貼圖、83 棵樹的三角形與被海面蓋住的深海平面；改用靜態陰影貼圖、樹木 LOD 與深海外框後，SwiftShader 四個場景的 FPS 為 D.2b 的 105～116%，draw call 81 → 43。Apple M6 GPU 上三版都在 60 FPS 上限 | 仍未在真機量測（D.3，見 P1-25）。桌機鏡頭拉近到全景 1.5 倍以上時仍比 D.2b 慢約 3～5 ms，但桌機沒有滾輪縮放；手機各距離都不比 D.2b 差（×3 例外，約多 4 ms）。見 `logs/2026-10-30-d2c2-performance.md` |
 | P1-22 | 開發模式（`next dev`）下，`/islands/hex/scale/*` 的 console 會出現 3 次 React「Attempted to synchronously unmount a root while React was already rendering」。D.2b 的開發模式同樣出現；production build 不會出現（E2E 的 console 檢查通過） | 來自 drei `Html` 在 StrictMode 重複掛載時的卸載時機，不影響功能；若要處理，需另外調查 drei `Html` 的掛載方式 |
+| P1-23 | 靜態陰影快取（D.2c-2）目前只適用於靜態場景：陰影貼圖只在「可見投影物件的 id 或世界座標」改變時重畫；只改旋轉、縮放、InstancedMesh 個別矩陣或太陽方向時不會更新 | 目前場景沒有會動的投影物件，E2E 檢查快取陰影與即時陰影逐像素相同。未來加入 NPC、動畫或其他移動物件前，需要陰影更新機制（例如物件移動時主動標記重畫，或動態物件改用每幀更新）；在那之前這類場景使用 `shadows: 'dynamic'` |
+| P1-24 | Tree LOD 門檻（裝置像素／世界單位 < 24，D.2c-2 驗收接受）目前寫在 `hex-scale-explorer.tsx` 的 `BUDGET.treeLod`，綁在 Explorer 元件。啟用時（DPR 1 桌機全景、手機全景）樹冠放大 3 倍可看出切面較大，原尺寸幾乎看不出 | 未來應改由場景設定調整（例如世界／場景設定中的渲染預算），不應長期綁在 Explorer 元件 |
+| P1-25 | 實體手機的 GPU、觸控與 FPS 尚未驗收：D.2c-1／D.2c-2 的效能數字來自 headless Chromium（SwiftShader 與 Apple M6 Metal）與 iPhone 13 模擬，不代表真機 GPU | 保留至 D.3：在真機量測全景、聚焦與雙指縮放的 FPS，並驗收觸控操作 |
 | P1-13 | 燈塔／碼頭說明只能透過 3D 點擊觸發，鍵盤與螢幕閱讀器無對應入口 | 教材入口（工坊→`/learn`）在側欄有等價連結；說明內容屬補充資訊。若要完整等價，需在側欄或清單補說明，屬後續決定 |
 | P1-09 | 原型基礎島 catalogEntry=/learn；Blender Workshop metadata route=/learn | 不存在「基礎程式島專屬課程」路由。人工確認 lighthouse／learn／entry 的產品行為，不能自創教材或錯導所有點擊 |
 | P1-10 | .gitignore 不排除 .env*、沒有二進位策略 | 當前無秘密 env 檔，但未來建立 Git 前要審查 ignore／LFS／來源歸屬；不要把1.2G node_modules、298M .next 或整個 Codex folder 放入版控 |

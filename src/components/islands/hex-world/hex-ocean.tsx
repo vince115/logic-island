@@ -29,6 +29,15 @@ function hexSheet(world: HexWorld, hexes: Axial[], y: number) {
 function quads(list: Vec3[][]) {
   return list.flatMap(([a, b, c, d]) => [...a, ...b, ...c, ...a, ...c, ...d]);
 }
+/** A flat, upward-facing rectangle `[x0, z0, x1, z1]` with a rectangular hole, as four strips. */
+function frame([x0, z0, x1, z1]: number[], [hx0, hz0, hx1, hz1]: number[], y: number) {
+  const strip = (a: number, b: number, c: number, d: number) => [a, y, b, a, y, d, c, y, d, a, y, b, c, y, d, c, y, b];
+  const positions = [...strip(x0, z0, hx0, z1), ...strip(hx1, z0, x1, z1), ...strip(hx0, z0, hx1, hz0), ...strip(hx0, hz1, hx1, z1)];
+  const g = new BufferGeometry();
+  g.setAttribute('position', new Float32BufferAttribute(positions, 3));
+  g.setAttribute('normal', new Float32BufferAttribute(positions.map((_, i) => i % 3 === 1 ? 1 : 0), 3));
+  return g;
+}
 function sheet(positions: number[]) {
   const g = new BufferGeometry();
   g.setAttribute('position', new Float32BufferAttribute(positions, 3));
@@ -95,7 +104,11 @@ export function HexNaturalOcean({world}:{world:HexWorld}) {
     sea.setAttribute('uv',new Float32BufferAttribute([0,0,1,0,1,1,0,1],2));
     sea.setAttribute('normal',new Float32BufferAttribute([0,1,0,0,1,0,0,1,0,0,1,0],3));
     sea.setIndex([0,3,1,1,3,2]);
-    return {texture,sea,foam:sheet(quads(naturalTerrains(world).flatMap(t=>t.foam)))};
+    // D.2c-2: the deep plane only shows beyond the sea quad, so it is a frame around it instead of a full plane
+    // under it (every hidden pixel of a full plane was still drawn and then failed the depth test). Its inner edge
+    // reaches one step under the quad, so no crack opens between them.
+    const deep=frame([-200,-200,200,200],[x0+step,z0+step,x1-step,z1-step],WATER_LEVEL-.004);
+    return {texture,sea,deep,foam:sheet(quads(naturalTerrains(world).flatMap(t=>t.foam)))};
   },[world]);
   const materials=useMemo(()=>({
     deep:new MeshStandardMaterial({color:OCEAN.deep,roughness:.55,metalness:0}),
@@ -103,12 +116,10 @@ export function HexNaturalOcean({world}:{world:HexWorld}) {
     // Opaque, so overlapping foam at concave corners does not double up.
     foam:new MeshStandardMaterial({color:OCEAN.foam,roughness:.45,side:DoubleSide}),
   }),[parts]);
-  useLayoutEffect(()=>()=>{parts.sea.dispose();parts.foam.dispose();parts.texture.dispose();Object.values(materials).forEach(m=>m.dispose());},[parts,materials]);
-  // Land first, then the sea, then the plane under it, so hidden water fails the depth test early.
+  useLayoutEffect(()=>()=>{parts.sea.dispose();parts.deep.dispose();parts.foam.dispose();parts.texture.dispose();Object.values(materials).forEach(m=>m.dispose());},[parts,materials]);
+  // Land first, then the sea, then the deep frame, so hidden water fails the depth test early.
   return <group>
-    <mesh rotation-x={-Math.PI/2} position-y={WATER_LEVEL-.004} material={materials.deep} receiveShadow raycast={noRaycast} renderOrder={2}>
-      <planeGeometry args={[400,400]}/>
-    </mesh>
+    <mesh geometry={parts.deep} material={materials.deep} receiveShadow raycast={noRaycast} renderOrder={2}/>
     <mesh geometry={parts.sea} material={materials.sea} receiveShadow raycast={noRaycast} renderOrder={1}/>
     <mesh geometry={parts.foam} material={materials.foam} raycast={noRaycast} renderOrder={1}/>
   </group>;

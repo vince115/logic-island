@@ -10,7 +10,20 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
-## D.2c-1 視覺改善試作實測（37 格，2026-10-29，獨立 commit「natural terrain and settlement composition for the 37-tile prototype (Phase D.2c-1)」）
+## D.2c-2 渲染效能優化實測（37 格，2026-10-30，獨立 commit「static shadow map, tree LOD and deep-sea frame for the 37-tile prototype (Phase D.2c-2)」）
+
+| 檢查 | 結果 |
+|---|---|
+| ESLint／TypeScript | 都是 exit 0（ESLint 排除 scratch 量測腳本） |
+| Vitest | 157 passed／6 skipped；新增 `tests/tree-lod.test.ts` 4 項（只換掉樹冠、樹幹樹枝逐三角形保留、外框與顏色誤差、三角形減半） |
+| Next Build | 成功 |
+| E2E `hex-scale`＋`hex-world`＋`islands` | 重複 3 次 162/162，沒有略過；新增靜態陰影與即時陰影逐像素相同的檢查（全景、聚焦、GLB 載入失敗後的暫代建築） |
+| E2E 全套（單次） | 73 passed／3 failed（既有 player，P1-11） |
+| 不變性 | 37 格所有資料（世界、樹、岩石、廣場、地形、海面、道路、橋、GLB 配置）hash 與 D.2c-1 相同；A2、19 格、37 格 GLB 配置與橋樑 hash 與 `fa3a9a9` 相同；受保護檔案無差異；保全庫 81/81 SHA 相符 |
+| 畫面 | 同鏡頭比對 D.2c-1：桌機與手機聚焦、Retina 桌機全景 0 像素差；DPR 1 桌機全景 1.5%、手機全景 1.3% 像素不同，只在樹冠（LOD） |
+| 效能（production，SwiftShader 5 輪輪流量測中位數） | FPS D.2b／D.2c-1／D.2c-2：桌機全景 19.8／11.2／20.9、桌機聚焦 18.2／10.9／19.1、手機模擬全景 30.5／19.5／35.3、手機模擬聚焦 28.2／19.5／31.2；draw call 81 → 43（聚焦 64 → 26）；三角形 74,042 → 28,569（聚焦 38,339）；Apple M6（Metal）三版都在 60 FPS 上限；閒置 rAF 請求 0。條件與距離掃描見 `logs/2026-10-30-d2c2-performance.md` |
+
+## D.2c-1 視覺改善試作實測（37 格，2026-10-29，`f99f858`）
 
 | 檢查 | 結果 |
 |---|---|

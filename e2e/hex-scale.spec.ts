@@ -147,10 +147,43 @@ test('37 格（D.2c-1）：全景名牌放在島嶼外側，不遮住任何地�
   }
 });
 
+/**
+ * D.2c-2: renders one frame with the cached shadow map and one with a freshly drawn map, and returns how many
+ * pixels differ plus each frame's draw calls. A stale map (say, missing a building that loaded later) differs.
+ */
+async function shadowCacheCheck(page: Page) {
+  // Let the scene draw any frame it has pending (the one that notices new casters) first.
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  return page.evaluate(() => {
+    const canvas = document.querySelector('canvas') as HTMLCanvasElement & { __hexPerf: (fresh?: boolean) => { calls: number } };
+    const gl = canvas.getContext('webgl2')!;
+    const read = () => { const px = new Uint8Array(canvas.width * canvas.height * 4); gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, px); return px; };
+    const cached = canvas.__hexPerf().calls, before = read();
+    const fresh = canvas.__hexPerf(true).calls, after = read();
+    let differing = 0;
+    for (let i = 0; i < before.length; i += 4) if (before[i] !== after[i] || before[i + 1] !== after[i + 1] || before[i + 2] !== after[i + 2]) differing++;
+    return { cached, fresh, differing };
+  });
+}
+
+test('37 格（D.2c-2）：鏡頭移動時不重畫陰影貼圖，畫面與即時陰影相同', async ({ page }) => {
+  await page.goto('/islands/hex/scale/37');
+  await expect(label(page, '基礎程式島')).toHaveAttribute('data-model-source', 'glb', { timeout: 20_000 });
+  for (const step of ['overview', 'focus']) {
+    if (step === 'focus') { await label(page, '基礎程式島').click(); await expect(marker(page, 'Anchor_Workshop')).toBeVisible(); }
+    const result = await shadowCacheCheck(page);
+    // The shadow pass is skipped on ordinary frames, yet the picture matches a frame that redraws it.
+    expect(result.cached, step).toBeLessThan(result.fresh);
+    expect(result.differing, step).toBe(0);
+  }
+});
+
 base('37 格：GLB 載入失敗時回到暫代建築，HTML 地點入口仍可使用', async ({ page }) => {
   await page.route(`**${GLB}`, route => route.fulfill({ status: 404, body: 'missing' }));
   await page.goto('/islands/hex/scale/37');
   await expect(label(page, '基礎程式島')).toHaveAttribute('data-model-source', 'geometry', { timeout: 20_000 });
+  // D.2c-2: the static shadow map follows the switch to placeholder buildings.
+  expect((await shadowCacheCheck(page)).differing).toBe(0);
   await label(page, '基礎程式島').click();
   await expect(marker(page, 'Anchor_Workshop')).toHaveCount(0);
   await poi(page, 'Landmark_Lighthouse').click();

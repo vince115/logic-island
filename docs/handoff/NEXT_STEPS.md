@@ -45,7 +45,7 @@
 
 ## 4. Phase D：只有明確批准後開始
 
-> 2026-10-29 更新：D.0、D.1 已在分支 `phase-d/basics-glb` 完成並被接受。原 D.2 拆成 D.2a／D.2b／D.2c；D.2a（六角聚落預覽 `/islands/hex`）已驗收；D.2b 工程驗收通過（`fa3a9a9`，37 格為技術基準）；D.2c-1 視覺改善試作的視覺方向已接受（2026-10-30），提交為獨立 commit「natural terrain and settlement composition for the 37-tile prototype (Phase D.2c-1)」（`logs/2026-10-29-d2c1-composition.md`）。其他島嶼遷移、D.2c 後續與 D.3（效能、真機、最終驗收）都需另外批准。以下為原始規劃要點。
+> 2026-10-29 更新：D.0、D.1 已在分支 `phase-d/basics-glb` 完成並被接受。原 D.2 拆成 D.2a／D.2b／D.2c；D.2a（六角聚落預覽 `/islands/hex`）已驗收；D.2b 工程驗收通過（`fa3a9a9`，37 格為技術基準）；D.2c-1 視覺改善試作的視覺方向已接受（2026-10-30，`f99f858`，`logs/2026-10-29-d2c1-composition.md`）；D.2c-2 渲染效能優化驗收通過，提交為獨立 commit「static shadow map, tree LOD and deep-sea frame for the 37-tile prototype (Phase D.2c-2)」（`logs/2026-10-30-d2c2-performance.md`）。其他島嶼遷移、D.2c 後續與 D.3（效能、真機、最終驗收）都需另外批准。以下為原始規劃要點。
 
 - 擴充 registry 的來源型別，保留原型或回退；新增GLB載入元件，而非改教材引擎。
 - 依實際選定模型包圍盒與Y up尺度更新bounds／鏡頭，不沿用原型較小的手填box導致裁切。

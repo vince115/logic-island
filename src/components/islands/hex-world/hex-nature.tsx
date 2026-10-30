@@ -2,6 +2,7 @@
 
 import { Component, Suspense, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useGLTF } from '@react-three/drei';
+import { useFrame } from '@react-three/fiber';
 import {
   Color, ConeGeometry, DodecahedronGeometry, InstancedMesh, MeshStandardMaterial, Object3D, type Material, type Mesh,
 } from 'three';
@@ -9,6 +10,7 @@ import { glbAssets } from '@/lib/islands/asset-registry';
 import { TREE_NODES, coastRocks, forestInstances, type ForestPatch, type RockInstance, type TreeInstance } from '@/lib/islands/hex-scale-prototype';
 import { TERRAIN_MATERIAL, TERRAIN_PALETTE } from '@/lib/islands/hex-terrain';
 import type { HexWorld } from '@/lib/islands/hex-world';
+import { simplifyTree } from '@/lib/islands/tree-lod';
 
 const noRaycast = () => undefined;
 
@@ -28,18 +30,46 @@ function fill(mesh: InstancedMesh | null, items: { position: number[]; rotation:
   mesh.computeBoundingSphere();
 }
 
-/** One instanced draw call per GLB tree kind; geometry and material are the GLB's own, shared. */
-function GlbForest({trees}:{trees:TreeInstance[]}) {
+const show=(meshes:(InstancedMesh|null)[],visible:boolean)=>meshes.forEach(mesh=>{if(mesh) mesh.visible=visible;});
+
+/**
+ * One instanced draw call per GLB tree kind; geometry and material are the GLB's own, shared.
+ * D.2c-2 `lod`: below that many device pixels per world unit (orthographic zoom times pixel ratio) the view draws
+ * a low-detail copy of each kind instead. The full trees skip only their main-pass draw (no instances while
+ * rendering the view) and still draw into the shadow map, so shadows, and the static shadow map, never change.
+ */
+function GlbForest({trees,lod}:{trees:TreeInstance[];lod?:number}) {
   const {scene}=useGLTF(glbAssets['basics-island-v2.1'].url,false,false);
   const kinds=useMemo(()=>TREE_NODES.map(name=>{
     const mesh=scene.getObjectByName(name) as Mesh|undefined;
     return mesh?{geometry:mesh.geometry,material:mesh.material as Material}:null;
   }),[scene]);
-  const refs=useRef<(InstancedMesh|null)[]>([]);
+  const far=useMemo(()=>kinds.map(kind=>lod&&kind?simplifyTree(kind.geometry):null),[kinds,lod]);
+  useLayoutEffect(()=>()=>far.forEach(g=>g?.dispose()),[far]);
+  const refs=useRef<(InstancedMesh|null)[]>([]),farRefs=useRef<(InstancedMesh|null)[]>([]);
+  const distant=useRef(false);
   const groups=useMemo(()=>TREE_NODES.map((_,k)=>trees.filter(t=>t.kind===k)),[trees]);
-  useLayoutEffect(()=>{groups.forEach((items,k)=>fill(refs.current[k],items));},[groups,kinds]);
-  return <group>{kinds.map((kind,k)=>kind&&groups[k].length?<instancedMesh key={k} ref={m=>{refs.current[k]=m;}}
-    args={[kind.geometry,kind.material,groups[k].length]} castShadow receiveShadow raycast={noRaycast}/>:null)}</group>;
+  useLayoutEffect(()=>{
+    groups.forEach((items,k)=>{
+      fill(refs.current[k],items);
+      fill(farRefs.current[k],items);
+      const near=refs.current[k];
+      if(!near||!lod) return;
+      near.onBeforeRender=()=>{if(distant.current) near.count=0;};
+      near.onAfterRender=()=>{near.count=items.length;};
+    });
+  },[groups,kinds,far,lod]);
+  useFrame(({camera,gl})=>{
+    if(!lod) return;
+    distant.current=camera.zoom*gl.getPixelRatio()<lod;
+    show(farRefs.current,distant.current);
+  });
+  return <group>
+    {kinds.map((kind,k)=>kind&&groups[k].length?<instancedMesh key={k} ref={m=>{refs.current[k]=m;}}
+      args={[kind.geometry,kind.material,groups[k].length]} castShadow receiveShadow raycast={noRaycast}/>:null)}
+    {kinds.map((kind,k)=>kind&&far[k]&&groups[k].length?<instancedMesh key={`far-${k}`} ref={m=>{farRefs.current[k]=m;}}
+      args={[far[k],kind.material,groups[k].length]} receiveShadow raycast={noRaycast}/>:null)}
+  </group>;
 }
 
 /** Placeholder cones while the GLB loads or if it fails, so forests never disappear. */
@@ -58,12 +88,12 @@ class ForestBoundary extends Component<{fallback:ReactNode;children:ReactNode},{
   render(){return this.state.failed?this.props.fallback:this.props.children;}
 }
 
-/** Trees per forest patch, or (D.2c-1) a precomputed clustered layout passed as `trees`. */
-export function HexForest({world,patches,trees:given}:{world:HexWorld;patches:ForestPatch[];trees?:TreeInstance[]}) {
+/** Trees per forest patch, or (D.2c-1) a precomputed clustered layout passed as `trees`; `lod` as in GlbForest. */
+export function HexForest({world,patches,trees:given,lod}:{world:HexWorld;patches:ForestPatch[];trees?:TreeInstance[];lod?:number}) {
   const trees=useMemo(()=>given??forestInstances(world,patches),[world,patches,given]);
   if(!trees.length) return null;
   const cones=<ConeForest trees={trees}/>;
-  return <ForestBoundary fallback={cones}><Suspense fallback={cones}><GlbForest trees={trees}/></Suspense></ForestBoundary>;
+  return <ForestBoundary fallback={cones}><Suspense fallback={cones}><GlbForest trees={trees} lod={lod}/></Suspense></ForestBoundary>;
 }
 
 /** Low-poly boulders along the coast, one instanced draw call, tinted with the cliff palette; `rocks` overrides the layout. */
