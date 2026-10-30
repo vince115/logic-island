@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { PCFShadowMap, Vector3, type Mesh } from 'three';
+import { Box3, PCFShadowMap, Vector3, type Mesh } from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, type CameraControlsImpl } from '@react-three/drei';
 import { hexCorner, hexToWorld } from '@/lib/islands/hex';
@@ -103,10 +103,11 @@ const LIGHTING = {
   contrast: { background: '#cbe9f4', ambient: .62, hemisphere: .95, sun: 2.9 },
 } as const;
 type PerfStats = { calls: number; triangles: number; geometries: number; meshes: number; instanced: number; instances: number; shadowCasters: number };
+type DrawnObject = { center: number[]; size: number[]; materials: string[]; instanced: boolean };
 
 /**
  * Prototype-only: `canvas.__hexPerf()` renders one frame and returns its draw stats (shadow pass included, unless
- * the shadow map is static and up to date; `__hexPerf(true)` redraws it).
+ * the shadow map is static and up to date; `__hexPerf(true)` redraws it). `__hexDraws()` lists what the main pass drew.
  * For review screenshots, `__hexProject(x, y, z)` gives the canvas position of a map point and
  * `__hexView(x, y, z, zoom)` looks at a map point at a given zoom (`__hexZoom()` reads the current one).
  */
@@ -141,8 +142,27 @@ function PerfProbe({ox,oz}:{ox:number;oz:number}) {
       });
       return {calls,triangles,geometries:gl.info.memory.geometries,meshes,instanced,instances,shadowCasters};
     };
-    Object.assign(gl.domElement,{__hexPerf:probe});
-  },[gl,scene,camera]);
+    // D.3-0: what the main pass draws in one frame, per object, in map coordinates, so draw calls can be split by
+    // island. An object counts once it passes culling and still has instances after its own hook (LOD trees).
+    const draws=():DrawnObject[]=>{
+      const drawn:Mesh[]=[],hooks=new Map<Mesh,Mesh['onBeforeRender']>();
+      scene.traverse(o=>{
+        const mesh=o as Mesh&{isInstancedMesh?:boolean;count?:number};
+        if(!mesh.isMesh) return;
+        const own=mesh.onBeforeRender;
+        hooks.set(mesh,own);
+        mesh.onBeforeRender=(...args)=>{own.apply(mesh,args);if(!mesh.isInstancedMesh||mesh.count!==0) drawn.push(mesh);};
+      });
+      gl.render(scene,camera);
+      hooks.forEach((own,mesh)=>{mesh.onBeforeRender=own;});
+      return [...new Set(drawn)].map(mesh=>{
+        const box=new Box3().setFromObject(mesh),center=box.getCenter(new Vector3()),size=box.getSize(new Vector3());
+        const materials=(Array.isArray(mesh.material)?mesh.material:[mesh.material]).map(m=>m.uuid);
+        return {center:[center.x+ox,center.y,center.z+oz],size:size.toArray(),materials,instanced:(mesh as {isInstancedMesh?:boolean}).isInstancedMesh===true};
+      });
+    };
+    Object.assign(gl.domElement,{__hexPerf:probe,__hexDraws:draws});
+  },[gl,scene,camera,ox,oz]);
   return null;
 }
 

@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { test as base, expect, type Page } from '@playwright/test';
+import { expectLessonsReachable, expectListFallback, loseWebGLContext, modes, withoutWebGL } from './fallbacks';
 
 const GLB = '/models/islands/basics-island.v2.1.glb';
 // Console and uncaught errors fail the scenarios where the GLB is expected to load.
@@ -94,6 +95,43 @@ test('選取基礎程式島後點工坊前往 /learn', async ({ page }) => {
   await openFoundations(page);
   await clickNear(page, 'Anchor_Workshop', 0, -40);
   await expect(page).toHaveURL(/\/learn$/);
+});
+
+// D.3-0: the safety net of this page (e2e/fallbacks.ts). Whatever replaces the renderer here must keep all of it.
+test('清單模式：不用 3D 也能選島與進入教材，切回 3D 後場景重新載入', async ({ page }) => {
+  await page.goto('/islands');
+  await expect(islandLabel(page, '基礎程式島')).toHaveAttribute('data-model-source', 'glb', { timeout: 20_000 });
+  await modes(page).getByRole('button', { name: '清單' }).click();
+  await expect(modes(page).getByRole('button', { name: '清單' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('canvas')).toHaveCount(0);
+  await expectLessonsReachable(page);
+  await modes(page).getByRole('button', { name: '3D 群島' }).click();
+  await expect(islandLabel(page, '基礎程式島')).toHaveAttribute('data-model-source', 'glb', { timeout: 20_000 });
+});
+
+base('WebGL 無法建立時由 Error Boundary 接住，自動改為清單導航', async ({ page }) => {
+  const uncaught: string[] = [];
+  page.on('pageerror', error => uncaught.push(error.message));
+  await withoutWebGL(page);
+  await page.goto('/islands');
+  await expectListFallback(page);
+  expect(uncaught, '錯誤要由 Error Boundary 接住，不能變成未捕捉錯誤').toEqual([]);
+});
+
+base('WebGL context 中途遺失時改為清單導航', async ({ page }) => {
+  await page.goto('/islands');
+  await expect(islandLabel(page, '基礎程式島')).toHaveAttribute('data-model-source', 'glb', { timeout: 20_000 });
+  await loseWebGLContext(page);
+  await expectListFallback(page);
+});
+
+test('BFS 不屬於任何島，仍可從頁面附註進入原教材頁', async ({ page }) => {
+  await page.goto('/islands');
+  await expect(islandLabel(page, '基礎程式島')).toHaveAttribute('data-model-source', 'glb', { timeout: 20_000 });
+  const link = page.getByRole('link', { name: '原有教材頁' });
+  await expect(link).toHaveAttribute('href', '/learn/bfs');
+  await link.click();
+  await expect(page).toHaveURL(/\/learn\/bfs$/);
 });
 
 base('GLB 載入失敗時恢復原本的幾何模型', async ({ page }) => {

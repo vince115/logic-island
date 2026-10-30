@@ -10,6 +10,33 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## D.3-0 正式版安全網與效能基準（2026-10-30，獨立 commit「safety net and rendering baseline for the world map (Phase D.3-0)」）
+
+| 檢查 | 結果 |
+|---|---|
+| ESLint／TypeScript | 都是 exit 0 |
+| Vitest | 160 passed／6 skipped；新增 `tests/world-data.test.ts`（A2、19 格、37 格世界資料指紋） |
+| Next Build | 成功 |
+| E2E `hex-scale`＋`hex-world`＋`islands` | 重複 3 次 186/186；`islands.spec.ts` 新增清單模式、WebGL 無法建立（Error Boundary）、WebGL context 遺失、BFS 入口 4 項 × 2 裝置 |
+| E2E 全套（單次） | 81 passed／3 failed（既有 player，P1-11） |
+| 效能基準 | 見 `logs/2026-10-30-d3-0-baseline.md` §4；建議門檻在 §5，待批准 |
+
+### 效能量測方法（D.3-0 起）
+
+在隔離副本 build 並啟動 production server（不要用 port 3100），再執行：
+
+```bash
+PERF_BASE_URL=http://127.0.0.1:3118 PERF_ROUNDS=5 node node_modules/@playwright/test/cli.js test -c playwright.perf.config.ts --workers 1 --reporter line > perf.log
+```
+
+```bash
+node perf/summarize.mjs perf.log
+```
+
+- `PERF_GPU=metal` 改用 Mac GPU；`PERF_CPU=4` 讓 CPU 降速 4 倍；`PERF_ROUTES` 指定要量的路由（預設 `/islands,/islands/hex/scale/37`）。
+- 量測內容：每幀主畫面與陰影的 draw call 與三角形、鏡頭飛行 FPS 與幀間隔、首幀與 GLB 就緒時間；有實驗室探針的路由另外量強制渲染與依島拆分的 draw call。
+- headless 的單次 rAF 數字不能當依據（P1-20），一律看多輪輪流量測的中位數。
+
 ## D.2c-2 渲染效能優化實測（37 格，2026-10-30，獨立 commit「static shadow map, tree LOD and deep-sea frame for the 37-tile prototype (Phase D.2c-2)」）
 
 | 檢查 | 結果 |

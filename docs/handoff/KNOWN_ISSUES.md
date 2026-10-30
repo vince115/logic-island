@@ -35,6 +35,7 @@
 | P1-23 | 靜態陰影快取（D.2c-2）目前只適用於靜態場景：陰影貼圖只在「可見投影物件的 id 或世界座標」改變時重畫；只改旋轉、縮放、InstancedMesh 個別矩陣或太陽方向時不會更新 | 目前場景沒有會動的投影物件，E2E 檢查快取陰影與即時陰影逐像素相同。未來加入 NPC、動畫或其他移動物件前，需要陰影更新機制（例如物件移動時主動標記重畫，或動態物件改用每幀更新）；在那之前這類場景使用 `shadows: 'dynamic'` |
 | P1-24 | Tree LOD 門檻（裝置像素／世界單位 < 24，D.2c-2 驗收接受）目前寫在 `hex-scale-explorer.tsx` 的 `BUDGET.treeLod`，綁在 Explorer 元件。啟用時（DPR 1 桌機全景、手機全景）樹冠放大 3 倍可看出切面較大，原尺寸幾乎看不出 | 未來應改由場景設定調整（例如世界／場景設定中的渲染預算），不應長期綁在 Explorer 元件 |
 | P1-25 | 實體手機的 GPU、觸控與 FPS 尚未驗收：D.2c-1／D.2c-2 的效能數字來自 headless Chromium（SwiftShader 與 Apple M6 Metal）與 iPhone 13 模擬，不代表真機 GPU | 保留至 D.3：在真機量測全景、聚焦與雙指縮放的 FPS，並驗收觸控操作 |
+| P1-26 | D.3-0 基準：軟體算圖（SwiftShader）下，37 格世界的鏡頭飛行 FPS 低於正式 `/islands`（桌機 38 對 60，手機模擬 57 對 60），首幀晚約 0.6 秒。正式版每幀 258 個 draw call（主畫面＋陰影）但像素便宜，37 格只有 43 個但三角形與填滿像素較多。Apple M6 GPU 上兩者都是 60 FPS | 這是 D.3-3 切換前必須讓產品決定的差距；真機 GPU 上 draw call 成本較重，結果可能不同，需 D.3-4 真機量測（P1-25）。見 `logs/2026-10-30-d3-0-baseline.md` |
 | P1-13 | 燈塔／碼頭說明只能透過 3D 點擊觸發，鍵盤與螢幕閱讀器無對應入口 | 教材入口（工坊→`/learn`）在側欄有等價連結；說明內容屬補充資訊。若要完整等價，需在側欄或清單補說明，屬後續決定 |
 | P1-09 | 原型基礎島 catalogEntry=/learn；Blender Workshop metadata route=/learn | 不存在「基礎程式島專屬課程」路由。人工確認 lighthouse／learn／entry 的產品行為，不能自創教材或錯導所有點擊 |
 | P1-10 | .gitignore 不排除 .env*、沒有二進位策略 | 當前無秘密 env 檔，但未來建立 Git 前要審查 ignore／LFS／來源歸屬；不要把1.2G node_modules、298M .next 或整個 Codex folder 放入版控 |
