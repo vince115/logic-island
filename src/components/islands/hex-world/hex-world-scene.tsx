@@ -1,7 +1,6 @@
 'use client';
 
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { PCFShadowMap, Vector3, type Mesh } from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
@@ -48,8 +47,6 @@ export interface HexSceneOptions {
   /** Invisible hit proxies and focus pads for GLB targets. */
   hitProxies?: boolean;
   targetPads?: boolean;
-  /** Show the HTML list of focused targets (tap and keyboard equivalent of the 3D targets). */
-  poiPanel?: boolean;
   /** `compact` (D.2c-1) puts each overview label off the island's outer coast, hanging outward, so no tile is covered. */
   labels?: 'default' | 'compact';
   /** `content` (D.2c-1) frames the islands' own outline and buildings instead of their bounding boxes. */
@@ -124,27 +121,33 @@ function StaticShadows() {
 /** Shadow map settings for `shadows: 'static'`: the type the `soft` preset resolves to in three r186, drawn on demand. */
 const STATIC_SHADOW_MAP={enabled:true,type:PCFShadowMap,autoUpdate:false};
 
-function Lifecycle({onReady,onUnavailable}:{onReady:()=>void;onUnavailable:()=>void}) {
+const CANVAS_LABEL='Hex World 預覽：三座六角聚落與兩座橋樑，亦可使用場景外的清單導航';
+
+function Lifecycle({label,onReady,onUnavailable}:{label:string;onReady:()=>void;onUnavailable:()=>void}) {
   const {gl,camera}=useThree();
   useEffect(()=>{
     const canvas=gl.domElement;
     const lost=(event:Event)=>{event.preventDefault();onUnavailable();};
     canvas.addEventListener('webglcontextlost',lost);
-    canvas.setAttribute('aria-label','Hex World 預覽：三座六角聚落與兩座橋樑，亦可使用場景外的清單導航');
+    canvas.setAttribute('aria-label',label);
     canvas.setAttribute('role','img');
     onReady();
     return ()=>canvas.removeEventListener('webglcontextlost',lost);
-  },[gl,onReady,onUnavailable]);
+  },[gl,label,onReady,onUnavailable]);
   // Same as /islands: CameraControls starts from this isometric orientation.
   useEffect(()=>{camera.lookAt(new Vector3(0,0,0));},[camera]);
   return null;
 }
 
-export default function HexWorldScene({world,islands,selectedId,onSelect,reducedMotion,onReady,onUnavailable,options={},infoNode,onInfoChange}:{
+export default function HexWorldScene({world,islands,selectedId,onSelect,onNavigate,reducedMotion,onReady,onUnavailable,options={},infoNode,onInfoChange,label=CANVAS_LABEL}:{
   world:HexWorld;islands:IslandDefinition[];selectedId:string|null;onSelect:(id:string)=>void;
   reducedMotion:boolean;onReady:()=>void;onUnavailable:()=>void;options?:HexSceneOptions;
   /** Controlled info bubble of the focused settlement, shared with the HTML target list. */
   infoNode?:string|null;onInfoChange?:(node:string|null)=>void;
+  /** D.3-2: where a GLB route target leads is the explorer's call; the scene only reports the href. */
+  onNavigate:(href:string)=>void;
+  /** Accessible name of the canvas. */
+  label?:string;
 }) {
   const glbLayouts=options.glbLayouts??hexGlbSettlements,continuousOcean=options.ocean==='continuous'||options.ocean==='natural';
   const light=LIGHTING[options.lighting??'preview'];
@@ -158,8 +161,6 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,reduced
   const [ox,oz]=useMemo(()=>worldCenter(world),[world]);
   const fit=useMemo(()=>options.cameraFit==='content'?fitPoints(world,glbLayouts,[ox,oz],options.labels==='compact'):undefined,
     [options.cameraFit,options.labels,world,glbLayouts,ox,oz]);
-  const router=useRouter();
-  const navigate=useCallback((href:string)=>router.push(href),[router]);
   // Which model each settlement shows: GLB buildings, or the placeholders while loading / on failure.
   const [sources,setSources]=useState<Record<string,ModelSource>>({});
   const sourceSetters=useMemo(()=>Object.fromEntries(glbLayouts.map(layout=>
@@ -170,7 +171,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,reduced
       gl={{antialias:true,alpha:false,powerPreference:'low-power'}}
       fallback={<p className={styles.canvasFallback}>此裝置無法顯示 3D，請使用清單導航。</p>}>
       <color attach="background" args={[light.background]}/>
-      <Lifecycle onReady={onReady} onUnavailable={onUnavailable}/>
+      <Lifecycle label={label} onReady={onReady} onUnavailable={onUnavailable}/>
       {options.perfProbe&&<Suspense fallback={null}><PerfProbe ox={ox} oz={oz}/></Suspense>}
       {options.shadows==='static'&&<StaticShadows/>}
       <ambientLight intensity={light.ambient}/>
@@ -202,7 +203,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,reduced
             info:selected&&onInfoChange?{node:infoNode??null,onChange:onInfoChange}:undefined};
           return <group key={settlement.islandId}>
             {layout?<HexGlbBuildings world={world} layout={layout} selected={selected} fallback={placeholders}
-              onSourceChange={sourceSetters[layout.islandId]} onNavigate={navigate} anchorStyle={options.anchorStyle} targets={targets}/>:placeholders}
+              onSourceChange={sourceSetters[layout.islandId]} onNavigate={onNavigate} anchorStyle={options.anchorStyle} targets={targets}/>:placeholders}
             {/* A focused settlement hands its space to the anchor labels; the toolbar still names it. */}
             {island&&!selected&&<group position={[x,0,z]}><Html position={[0,compact?WATER_LEVEL:layout?.label?.height??3.4,0]} center zIndexRange={[15,0]}>
               <button type="button" className={`${styles.islandLabel} ${styles.hexLabel}${compact?` ${styles.hexLabelCompact}`:''}`}

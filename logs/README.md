@@ -19,6 +19,7 @@
 | [2026-10-30-d2c2-performance.md](2026-10-30-d2c2-performance.md) | D.2c-2 渲染效能優化：可重現的四場景基準（SwiftShader／Metal）、成本拆解、靜態陰影貼圖、樹木 LOD、深海外框、前後畫面逐像素比對（2026-10-30 驗收通過） |
 | [2026-10-30-d3-0-baseline.md](2026-10-30-d3-0-baseline.md) | D.3-0 正式版安全網與效能基準：清單模式、Error Boundary、WebGL 失效、BFS 入口的 E2E；世界資料指紋；可重現的效能量測方法、正式版與 37 格的基準、依島拆分的 draw call、建議門檻 |
 | [2026-10-30-d3-1-scene-presets.md](2026-10-30-d3-1-scene-presets.md) | D.3-1 統一場景設定：37 格正式資料與 19 格原型分離、具名 scene preset、量測探針改為延遲載入；畫面逐像素不變 |
+| [2026-10-30-d3-2-shared-explorer.md](2026-10-30-d3-2-shared-explorer.md) | D.3-2 共用 Explorer：場景只負責 3D，Explorer 負責清單模式、Error Boundary、WebGL 失效、地點清單與導航；安全網對照、3D 畫面逐像素不變、D.3-3 切換風險 |
 | [2026-10-30-d3-integration-analysis.md](2026-10-30-d3-integration-analysis.md) | D.3 整合方案分析：正式 `/islands` 與 37 格原型的差異、共用與原型專用程式、單一渲染器、契約與 fallback、驗收標準、分階段施工、風險與回退（只分析，未改程式） |
 | [../docs/handoff/SCENE_MODULES.md](../docs/handoff/SCENE_MODULES.md) | 2026-10-29 模組化 3D 場景架構規劃（12 模組、藍圖、驗證、D／E／F 分層；只規劃） |
 

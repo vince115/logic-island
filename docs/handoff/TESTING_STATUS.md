@@ -10,6 +10,18 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## D.3-2 共用 Explorer（2026-10-30，獨立 commit「shared hex world explorer with the production safety net (Phase D.3-2)」）
+
+| 檢查 | 結果 |
+|---|---|
+| ESLint／TypeScript | 都是 exit 0 |
+| Vitest | 164 passed／6 skipped |
+| Next Build | 成功 |
+| E2E `hex-scale`＋`hex-world`＋`islands` | 重複 3 次 216/216；新增 37 格的清單模式、Error Boundary、context 遺失、聚焦時的島名與返回全景，以及 A2 預覽的清單模式 |
+| E2E 全套（單次） | 91 passed／3 failed（既有 player，P1-11） |
+| 3D 畫面 | 畫布像素（不含 HTML 疊層）與 `42b32bc` 在桌機與手機的全景、聚焦都是 0 像素差 |
+| 效能 | draw call、三角形、依島拆分不變，時間在誤差內，見 `logs/2026-10-30-d3-2-shared-explorer.md` §4 |
+
 ## D.3-1 統一場景設定（2026-10-30，獨立 commit「unify the world map data and scene presets (Phase D.3-1)」）
 
 | 檢查 | 結果 |

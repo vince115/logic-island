@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { test as base, expect, type Page } from '@playwright/test';
+import { expectLessonsReachable, modes } from './fallbacks';
 
 // D.2a preview at /islands/hex; the production /islands map is covered by islands.spec.ts.
 const test = base.extend<{ consoleGuard: void }>({
@@ -74,6 +75,18 @@ test('點擊聚落地塊即可聚焦該島', async ({ page }) => {
   const box = (await label(page, '演算法島').boundingBox())!, canvas = (await page.locator('canvas').boundingBox())!;
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2 + canvas.height * .12);
   await expect(page.getByRole('region', { name: '演算法島教材入口' })).toBeVisible();
+});
+
+test('D.3-2：預覽頁使用共用 Explorer，可切到清單並回到 3D', async ({ page }) => {
+  await page.goto('/islands/hex');
+  await expect(page.getByRole('button', { name: '聚焦基礎程式島', exact: true })).toHaveAttribute('data-model-source', 'glb', { timeout: 20_000 });
+  await modes(page).getByRole('button', { name: '清單' }).click();
+  await expect(page.locator('canvas')).toHaveCount(0);
+  await expectLessonsReachable(page, { bfs: false });
+  await modes(page).getByRole('button', { name: '3D 群島' }).click();
+  // The list left the basics island focused, so its large label is hidden; back to the overview to see it.
+  await page.getByRole('button', { name: '返回全景' }).click();
+  await expect(page.getByRole('button', { name: '聚焦基礎程式島', exact: true })).toHaveAttribute('data-model-source', 'glb', { timeout: 20_000 });
 });
 
 test('預覽頁可回到正式群島地圖', async ({ page }) => {

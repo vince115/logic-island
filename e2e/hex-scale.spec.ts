@@ -3,6 +3,7 @@ import { test as base, expect, type Page } from '@playwright/test';
 import { hexToWorld } from '@/lib/islands/hex';
 import { tileTop } from '@/lib/islands/hex-terrain';
 import { scalePrototypes } from '@/lib/islands/hex-scale-prototype';
+import { expectLessonsReachable, expectListFallback, loseWebGLContext, modes, withoutWebGL } from './fallbacks';
 
 // Island Scale & World Composition Prototype at /islands/hex/scale/{19,37}; preview only.
 // 37 tiles is the refined candidate (hit proxies, HTML targets, merged routes, D.2c-1 natural style); 19 is the reference.
@@ -176,6 +177,51 @@ test('37 格（D.2c-2）：鏡頭移動時不重畫陰影貼圖，畫面與即�
     expect(result.cached, step).toBeLessThan(result.fresh);
     expect(result.differing, step).toBe(0);
   }
+});
+
+// D.3-2: the shared explorer keeps the production safety net (e2e/fallbacks.ts) on the hex world.
+test('37 格（D.3-2）：清單模式可選島與進入教材，切回 3D 後場景重新載入', async ({ page }) => {
+  await page.goto('/islands/hex/scale/37');
+  await expect(label(page, '基礎程式島')).toHaveAttribute('data-model-source', 'glb', { timeout: 20_000 });
+  await modes(page).getByRole('button', { name: '清單' }).click();
+  await expect(page.locator('canvas')).toHaveCount(0);
+  await expectLessonsReachable(page, { bfs: false });
+  await modes(page).getByRole('button', { name: '3D 群島' }).click();
+  // The list left the basics island focused, so its large label is hidden; back to the overview to see it.
+  await page.getByRole('button', { name: '返回全景' }).click();
+  await expect(label(page, '基礎程式島')).toHaveAttribute('data-model-source', 'glb', { timeout: 20_000 });
+});
+
+base('37 格（D.3-2）：WebGL 無法建立時由 Error Boundary 接住，改為清單導航', async ({ page }) => {
+  const uncaught: string[] = [];
+  page.on('pageerror', error => uncaught.push(error.message));
+  await withoutWebGL(page);
+  await page.goto('/islands/hex/scale/37');
+  await expectListFallback(page, { bfs: false });
+  expect(uncaught, '錯誤要由 Error Boundary 接住，不能變成未捕捉錯誤').toEqual([]);
+});
+
+base('37 格（D.3-2）：WebGL context 遺失時改為清單導航', async ({ page }) => {
+  await page.goto('/islands/hex/scale/37');
+  await expect(label(page, '基礎程式島')).toHaveAttribute('data-model-source', 'glb', { timeout: 20_000 });
+  await loseWebGLContext(page);
+  await expectListFallback(page, { bfs: false });
+});
+
+test('37 格（D.3-2）：聚焦後大名牌讓位，但地圖上仍標示目前島嶼，並可返回全景', async ({ page }) => {
+  await focusFoundations(page, '37');
+  await expect(label(page, '基礎程式島')).toHaveCount(0);
+  await page.locator('canvas').scrollIntoViewIfNeeded();
+  // The map's own caption names the island, next to the canvas, so it stays in view on phones too.
+  const stage = page.locator('[data-focused="true"]');
+  await expect(stage.getByText('基礎程式島', { exact: true })).toBeInViewport();
+  await expect(stage.getByText('THE FIRST LIGHT', { exact: true })).toBeVisible();
+  const back = page.getByRole('button', { name: '返回全景' });
+  await expect(back).toBeEnabled();
+  await expect(back).toBeInViewport();
+  await back.click();
+  await expect(label(page, '基礎程式島')).toBeVisible();
+  await expect(page.locator('[data-focused="true"]')).toHaveCount(0);
 });
 
 base('37 格：GLB 載入失敗時回到暫代建築，HTML 地點入口仍可使用', async ({ page }) => {

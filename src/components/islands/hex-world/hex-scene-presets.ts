@@ -5,7 +5,7 @@ import type { HexSceneOptions } from './hex-world-scene';
  * layouts, forests and nature come from the world layout) and from the explorer's UI. One renderer, one preset
  * per use, instead of each explorer combining its own switches.
  */
-export type HexScenePreset = Omit<HexSceneOptions, 'glbLayouts' | 'forests' | 'nature' | 'poiPanel'>;
+export type HexScenePreset = Omit<HexSceneOptions, 'glbLayouts' | 'forests' | 'nature'>;
 
 /**
  * The accepted D.2c look (natural terrain, sea and nature, compact labels, content framing) with the D.2c-2
