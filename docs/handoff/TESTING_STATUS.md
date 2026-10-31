@@ -10,6 +10,22 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## Phase E.3 資料結構島 20／20（2026-10-31，四個本地 commit：batch A `fa6a71b`、B `d09f593`、C `ffcf88b`、D `2f7ee0c`，另有文件 commit）
+
+狀態：完整教材 40／60（F01～F20、D01～D20），演算法島 20 堂規劃中；Phase D 程式未修改（GLB、島嶼、3D 元件、perf、`courses.ts`、`engine.ts`、public 自 `eba24b3` 起 0 行差異）。
+
+| 檢查 | 結果 |
+|---|---|
+| 每批（A／B／C／D） | 內容驗證、三語程式碼（Vitest，JDK 在 PATH）、課綱 Vitest、相關 E2E、ESLint、TypeScript 都通過：A 357、B 420、C 493 項 Vitest（課綱相關檔案）皆 0 skipped；E2E 課綱 51／55／61（C 時尚未有 D 島測試的 6 項另跑） |
+| ESLint／TypeScript | 都是 exit 0 |
+| Vitest（全部，JDK 在 PATH） | **765 passed／0 skipped**（20 個檔案）：課綱規則與驗證器（含資料結構面板的一致性檢查）、`tests/simulate.test.ts` 9 項模擬器不變量、進度，以及 F01～F20、D01～D20 全部範例、練習與起始程式碼在 **C++17、Python 3、Java 17（`javac --release 17`）執行通過** |
+| Next Build | 成功；84 個靜態頁（`/curriculum/[slug]` 60 頁） |
+| E2E `curriculum`（桌機＋手機） | **65 passed／1 skipped**（剪貼簿只在桌機）：E.3 新增 10 項——堆疊（步驟、方向鍵、輸入範圍、underflow）、鏈結串列、動態陣列擴容與上限、資料結構比較、佇列與雙端佇列、雜湊碰撞與重複、樹走訪與 BST、堆積、圖與並查集、D 島進度（不改動 F 島進度）、資料結構島 20／20 完成與目錄 40 堂；40 堂完整教材手機與桌機都沒有水平溢出 |
+| E2E 全套（單次，負載約 3） | **305 passed／38 skipped／3 failed**：3 項皆為既有 P1-11（player）；P1-32 這次通過 |
+
+- E.3 先後修正兩個在驗收中發現的 UI 問題：程式輸出中沒有空白的長行會撐寬手機版面（改為在輸出框內捲動）；步驟說明與比較表的反引號以 inline code 顯示。
+- 見 `logs/2026-10-31-e3-structures.md`。
+
 ## Phase E.2 基礎程式島 20／20（2026-10-31，三個本地 commit：batch A `d71cb6a`、batch B `618ddd9`、batch C「lessons F16-F20 and the foundations island complete (Phase E.2 batch C)」）
 
 狀態：基礎程式島 F01～F20 完整，資料結構島與演算法島 40 堂仍為規劃中；Phase D 程式未修改。完整教材的驗證標準提高（motivation、≥ 3 範例、≥ 4 測驗）。

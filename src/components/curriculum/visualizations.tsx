@@ -460,7 +460,7 @@ function Playground({ config }: { config: PlaygroundConfig }) {
   const id = `pg-${config.structure}`;
   return <section className={styles.playground} aria-labelledby={`${id}-title`}>
     <h4 id={`${id}-title`}>自己試試：{PG[config.structure].title}</h4>
-    <p className={styles.muted}>輸入 {used.has('a') ? `0～${n - 1} 的元素編號` : '0～99 的整數'}，再按操作。最多 {PLAYGROUND_LIMIT} 個元素；每個操作都用和上面相同的規則執行。</p>
+    <p className={styles.muted}>{used.has('a') ? `輸入 0～${n - 1} 的元素編號（共 ${n} 個元素）` : `輸入 0～99 的整數，最多 ${PLAYGROUND_LIMIT} 個元素`}，再按操作；每個操作都用和上面相同的規則執行。</p>
     <div className={styles.branchInput}>
       {(['value', 'index', 'a', 'b'] as Arg[]).filter(a => used.has(a)).map(a => <span key={a} className={styles.pgArg}>
         <label htmlFor={`${id}-${a}`}>{ARG_LABEL[a]}</label>
