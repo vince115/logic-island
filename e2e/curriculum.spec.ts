@@ -252,3 +252,27 @@ test('複合條件（F06）：短路略過的比較以文字標示', async ({ pa
   await expect(viz.locator('[aria-live]')).toContainText('輸出 全票');
 });
 
+
+test('函式呼叫視覺化（F13）：呼叫時堆疊多一層並標示執行中與等待中，return 後消失', async ({ page }) => {
+  await page.goto('/curriculum/functions');
+  const viz = page.locator('#visualization');
+  await expect(viz.getByText('呼叫堆疊（1 層，最上面正在執行）')).toBeVisible();
+  await viz.getByRole('button', { name: '下一步' }).click();
+  await expect(viz.getByText('呼叫堆疊（2 層，最上面正在執行）')).toBeVisible();
+  await expect(viz.getByText('（執行中）')).toHaveCount(1);
+  await expect(viz.getByText('（等待中）')).toHaveCount(1);
+  for (let i = 0; i < 2; i++) await viz.getByRole('button', { name: '下一步' }).click();
+  await expect(viz.getByText(/回傳 9/)).toBeVisible();
+  await viz.getByRole('button', { name: '下一步' }).click();
+  await expect(viz.getByText('呼叫堆疊（1 層，最上面正在執行）')).toBeVisible();
+});
+
+test('二維陣列視覺化（F12）：列與行的索引，以及越界的鄰居以文字說明', async ({ page }) => {
+  await page.goto('/curriculum/two-dimensional-arrays');
+  const viz = page.locator('#visualization');
+  await expect(viz.locator('figcaption')).toHaveText('g：3 列 × 3 行');
+  for (let i = 0; i < 2; i++) await viz.getByRole('button', { name: '下一步' }).click();
+  await expect(viz.getByText(/越界：索引 \[-1\]\[0\]/)).toBeVisible();
+  await viz.getByRole('button', { name: '下一步' }).click();
+  await expect(viz.locator('td[data-mark="read"]')).toContainText('4');
+});

@@ -6,7 +6,7 @@ import { branchTaken, validateCurriculum, type Curriculum, type LessonMeta } fro
 // Phase E.1: the 60-lesson curriculum and the rules every lesson keeps (src/content/curriculum/schema.ts).
 const clone = (): Curriculum => structuredClone(curriculum);
 /** Complete so far: E.1 wrote F01..F05, E.2 the rest of the foundations island. */
-const COMPLETE = Array.from({ length: 10 }, (_, i) => `F${String(i + 1).padStart(2, '0')}`);
+const COMPLETE = Array.from({ length: 15 }, (_, i) => `F${String(i + 1).padStart(2, '0')}`);
 const lesson = (c: Curriculum, id: string) => c.lessons.find(l => l.lessonId === id) as LessonMeta;
 
 describe('curriculum (E.1)', () => {
