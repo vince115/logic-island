@@ -725,6 +725,23 @@
   .stageActions {
     align-self: flex-end;
   }
+  /* D.3-6c: on phones the sunset and dusk caption backing reached over the lighthouse, so there it keeps to the title
+   * alone, tucked into the corner (the eyebrow is a decorative English line; the title still names the map). */
+  .hexStage[data-environment='sunset'] .stageCaption,
+  .hexStage[data-environment='dusk'] .stageCaption {
+    top: 12px;
+    left: 12px;
+    margin: 0;
+    padding: 5px 9px 6px;
+  }
+  .hexStage[data-environment='sunset'] .stageCaption span,
+  .hexStage[data-environment='dusk'] .stageCaption span {
+    display: none;
+  }
+  .hexStage[data-environment='sunset'] .stageCaption strong,
+  .hexStage[data-environment='dusk'] .stageCaption strong {
+    font-size: 14px;
+  }
   .sideNavigation,
   .listNavigation {
     padding: 16px;

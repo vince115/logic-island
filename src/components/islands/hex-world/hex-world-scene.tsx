@@ -184,7 +184,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
       {!continuousOcean&&<mesh rotation-x={-Math.PI/2} position-y={WATER_Y} receiveShadow raycast={()=>undefined}>
         <planeGeometry args={[250,250]}/><meshStandardMaterial color="#3db2e6" roughness={.7}/>
       </mesh>}
-      <GlowProvider value={environment.glow}><group position={[-ox,0,-oz]}>
+      <GlowProvider value={environment}><group position={[-ox,0,-oz]}>
         {options.ocean==='natural'?<HexNaturalOcean world={world} tint={environment.sea.tint}/>:continuousOcean?<HexOcean world={world}/>:<HexTiles world={world} onSelect={onSelect}/>}
         {options.forests&&<HexForest world={world} patches={options.forests} trees={options.nature?.trees} lod={options.treeLod}/>}
         {options.rocks&&<HexRocks world={world} rocks={options.nature?.rocks}/>}

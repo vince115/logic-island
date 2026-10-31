@@ -10,6 +10,22 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## D.3-6c 傍晚暖光與 Lab 收尾（2026-10-31，獨立 commit「dusk lamp glow and phone caption on the lab world map (Phase D.3-6c)」）
+
+狀態：**只在 37 格實驗室頁**；Fast Iteration Mode Level 2。黃昏、傍晚的燈塔燈室／窗戶與路燈燈籠加強暖光（自有材質的強度與顏色倍率），手機黃昏／傍晚標題不再蓋住燈塔。中午、清晨與 `90a0196` 0 像素差；候選頁、`/islands`、`/islands/legacy`、19 格、A2 預覽 0 像素差且按鈕連結相同。真機 D.3-4B 仍 Not Measured；iOS Safari／螢幕閱讀器 Not Verified。
+
+| 檢查 | 結果 |
+|---|---|
+| ESLint／TypeScript | 都是 exit 0 |
+| Vitest | 189 passed／6 skipped |
+| Next Build | 成功；`/islands` 系列靜態頁、`/islands/hex/scale/{19,37}` SSG 不變 |
+| E2E `hex-environment`＋`hex-camera`＋`hex-scale`＋`hex-world`＋`islands-candidate`＋`islands-acceptance`＋`islands`（單次） | 177 passed／21 skipped／0 failed |
+| 視覺 A/B（與 `90a0196`） | 中午、清晨 0；黃昏／傍晚桌機 149～468 像素（燈與窗），手機另含標題改變；其他路由 0 |
+| 材質隔離與反覆切換 | 四情境 × 3 輪：只有兩個發光材質改變、原值 × 倍率、材質數不變、回到中午恢復原值、`linkProgram` 不增加 |
+| 效能 smoke（一輪） | program 17 → 17、每幀 draw 43、切換到第一幀 22～38 ms、環繞 FPS 各情境相同；陰影 pass 與閒置由 E2E 驗證。見 `logs/2026-10-31-d3-6c-dusk-glow.md` §6 |
+
+- `e2e/hex-environment.spec.ts` 新增 2 項（桌機＋手機）：暖光材質隔離與反覆切換、手機 360／390 px 標題不蓋燈塔（同一項在 `90a0196` 會失敗）。
+
 ## D.3-6b 四種時間情境（2026-10-31，獨立 commit「four times of day on the lab world map (Phase D.3-6b)」）
 
 狀態：**只在 37 格實驗室頁**（清晨／中午／黃昏／傍晚與原生選單）；Fast Iteration Mode Level 2，共用的 `HexEnvironment` 另做關鍵路由逐像素 A/B。中午與 `63f972e` 在 6 條路由、桌機＋手機 22 個狀態 0 像素差；候選頁、`/islands`、`/islands/legacy` 的畫面與按鈕、連結相同。真機 D.3-4B 仍 Not Measured；iOS Safari／螢幕閱讀器 Not Verified。

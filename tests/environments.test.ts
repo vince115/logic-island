@@ -18,7 +18,7 @@ describe('world environments (D.3-6a)', () => {
       id: 'noon', background: '#cbe9f4',
       ambient: { color: '#ffffff', intensity: .62 }, hemisphere: { sky: '#f3fbff', ground: '#b9d7a8', intensity: .95 },
       sun: { color: '#ffffff', intensity: 2.9, position: [-12, 22, 10] },
-      shadow: { mapSize: 1024, bias: -.0002, normalBias: .05, fit: 'map', far: 70 }, sea: { tint: '#ffffff' }, fog: null, glow: 1,
+      shadow: { mapSize: 1024, bias: -.0002, normalBias: .05, fit: 'map', far: 70 }, sea: { tint: '#ffffff' }, fog: null, glow: 1, glowTint: '#ffffff',
     });
   });
 
@@ -58,13 +58,25 @@ describe('times of day (D.3-6b)', () => {
     expect(elevation(ENVIRONMENTS.morning)).toBeLessThan(elevation(ENVIRONMENTS.noon));
   });
 
-  it("what stays the same for every time of day: no fog, the lamps' own glow (D.3-6c), the shadow map size", () => {
+  it('what stays the same for every time of day: no fog, the shadow map size', () => {
     for (const environment of Object.values(ENVIRONMENTS)) {
       expect(environment.fog).toBeNull();
-      expect(environment.glow).toBe(1);
       expect(environment.shadow.mapSize).toBe(1024);
     }
     expect(others.map(e => e.shadow.fit)).toEqual(['sun', 'sun', 'sun']);
+  });
+
+  it('D.3-6c lamp glow: morning and noon as modelled, sunset a little warmer and brighter, dusk most', () => {
+    const { morning, noon, sunset, dusk } = ENVIRONMENTS;
+    expect([morning, noon, PREVIEW_NOON].map(e => [e.glow, e.glowTint])).toEqual([[1, '#ffffff'], [1, '#ffffff'], [1, '#ffffff']]);
+    expect(sunset.glow).toBeGreaterThan(1);
+    expect(dusk.glow).toBeGreaterThan(sunset.glow);
+    // Warmer = less blue (and green) in the tint, red kept.
+    const rgb = (hex: string) => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+    const [s, d] = [rgb(sunset.glowTint), rgb(dusk.glowTint)];
+    expect([s[0], d[0]]).toEqual([255, 255]);
+    expect(d[2]).toBeLessThan(s[2]);
+    expect(s[2]).toBeLessThan(255);
   });
 
   it('noon keeps the D.2c shadow box and sun; the A2 preview too', () => {
@@ -119,6 +131,9 @@ describe('GLB glow materials (D.3-6a)', () => {
   it('each mount gets one copy of the warm emission material, as loaded, for both lighthouse glows', () => {
     const { parts, glows } = mount();
     expect(glows.map(g => [g.material.name, g.strength])).toEqual([['LLv2_Warm_Emission', 2]]);
+    // D.3-6c: the colour as loaded is kept apart from the material it will tint (white for this GLB).
+    expect(glows[0].emissive.getHex()).toBe(0xffffff);
+    expect(glows[0].emissive).not.toBe(glows[0].material.emissive);
     const materials = materialsOf(parts.map(p => p.object)), original = materialsOf([cached]);
     for (const name of ['Light_Lantern', 'Lighthouse_WindowGlow']) {
       expect(materials.get(name)).toBe(glows[0].material);

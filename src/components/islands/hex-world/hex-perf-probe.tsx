@@ -23,7 +23,7 @@ type ProbeMaterial = MeshStandardMaterial & { color?: Color };
  * and the touch-action of the element the controls listen on.
  * D.3-6a: `__hexEnvironment()` reads what the scene draws around the map (background, fog, lights, the sun's shadow and
  * shadow map), and which meshes use each material with the glowing ones' emissive intensity. D.3-6b adds the shadow
- * box's near plane (last) and each material's colour (the sea tint).
+ * box's near plane (last) and each material's colour (the sea tint); D.3-6c the glowing ones' emissive colour.
  */
 export default function PerfProbe({ox,oz}:{ox:number;oz:number}) {
   const {gl,scene,camera,invalidate,events}=useThree();
@@ -88,7 +88,7 @@ export default function PerfProbe({ox,oz}:{ox:number;oz:number}) {
   useEffect(()=>{
     const hex=(color:Color)=>`#${color.getHexString()}`;
     const environment=()=>{
-      const lights:Record<string,unknown>[]=[],materials=new Map<string,{name:string;glow:number|null;color:string|null;meshes:string[]}>();
+      const lights:Record<string,unknown>[]=[],materials=new Map<string,{name:string;glow:number|null;emissive:string|null;color:string|null;meshes:string[]}>();
       scene.traverse(o=>{
         if((o as Light).isLight){
           const light=o as Light,sun=o as DirectionalLight,box=sun.shadow?.camera as OrthographicCamera|undefined;
@@ -101,7 +101,8 @@ export default function PerfProbe({ox,oz}:{ox:number;oz:number}) {
         if(!mesh.isMesh) return;
         for(const material of [mesh.material].flat()){
           const standard=material as ProbeMaterial,glowing=standard.isMeshStandardMaterial&&standard.emissiveIntensity>0&&standard.emissive.getHex()!==0;
-          const entry=materials.get(material.uuid)??{name:material.name,glow:glowing?standard.emissiveIntensity:null,color:standard.color?hex(standard.color):null,meshes:[]};
+          const entry=materials.get(material.uuid)??{name:material.name,glow:glowing?standard.emissiveIntensity:null,emissive:glowing?hex(standard.emissive):null,
+            color:standard.color?hex(standard.color):null,meshes:[]};
           entry.meshes.push(mesh.name||((mesh as {isInstancedMesh?:boolean}).isInstancedMesh?'InstancedMesh':mesh.type));
           materials.set(material.uuid,entry);
         }

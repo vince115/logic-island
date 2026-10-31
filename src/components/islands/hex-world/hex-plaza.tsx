@@ -59,7 +59,7 @@ export function HexPlaza({layout,accent}:{layout:PlazaLayout;accent:string}) {
   const lantern=useMemo(()=>({geometry:new BoxGeometry(.11,.11,.11),material:new MeshStandardMaterial({color:'#ffeec8',emissive:'#f3cf86',emissiveIntensity:.35,roughness:.6})}),[]);
   const lanterns=useRef<InstancedMesh>(null);
   // D.3-6a: the lanterns are this plaza's own material, so they follow the environment's glow directly.
-  const glows=useMemo(()=>[{material:lantern.material,strength:lantern.material.emissiveIntensity}],[lantern]);
+  const glows=useMemo(()=>[{material:lantern.material,strength:lantern.material.emissiveIntensity,emissive:lantern.material.emissive.clone()}],[lantern]);
   useGlow(glows);
   useLayoutEffect(()=>{
     const mesh=lanterns.current;

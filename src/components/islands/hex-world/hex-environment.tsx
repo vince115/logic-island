@@ -1,7 +1,7 @@
 'use client';
 
-import { createContext, useContext, useEffect, useMemo, useRef } from 'react';
-import { PCFShadowMap, type DirectionalLight, type Mesh } from 'three';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
+import { Color, PCFShadowMap, type DirectionalLight, type Mesh } from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import { SHADOW_HEIGHTS, shadowBox, type WorldEnvironment } from '@/lib/islands/environments';
 import type { Glow } from '@/lib/islands/glb-parts';
@@ -25,18 +25,25 @@ function StaticShadows() {
   return null;
 }
 
-/** D.3-6a: the current environment's glow, for the models that own glowing materials (noon: 1). */
-const GlowContext=createContext(1);
+/** D.3-6a: the current environment's glow, for the models that own glowing materials (noon: 1, white). */
+const GlowContext=createContext<Pick<WorldEnvironment,'glow'|'glowTint'>>({glow:1,glowTint:'#ffffff'});
 export const GlowProvider=GlowContext.Provider;
 
 /**
- * Keeps each owned glowing material at its own strength times the environment's glow, set before each rendered frame;
- * a new glow asks for one frame, and while they match (noon) nothing changes.
+ * Keeps each owned glowing material at its own strength times the environment's glow and (D.3-6c) its own emissive
+ * colour times the environment's glow tint, always from the values as loaded, so switching back and forth never
+ * drifts. Set before each rendered frame; a change asks for one frame, and while they match (noon) nothing changes.
+ * Both are uniforms: no shader is compiled.
  */
 export function useGlow(glows:readonly Glow[]) {
-  const glow=useContext(GlowContext),invalidate=useThree(state=>state.invalidate);
-  useEffect(()=>{if(glows.some(({material,strength})=>material.emissiveIntensity!==strength*glow)) invalidate();},[glows,glow,invalidate]);
-  useFrame(()=>{for(const {material,strength} of glows) if(material.emissiveIntensity!==strength*glow) material.setValues({emissiveIntensity:strength*glow});});
+  const {glow,glowTint}=useContext(GlowContext),invalidate=useThree(state=>state.invalidate);
+  const targets=useMemo(()=>{const tint=new Color(glowTint);return glows.map(({emissive})=>emissive.clone().multiply(tint));},[glows,glowTint]);
+  const off=useCallback(()=>glows.some(({material,strength},i)=>material.emissiveIntensity!==strength*glow||!material.emissive.equals(targets[i])),[glows,glow,targets]);
+  useEffect(()=>{if(off()) invalidate();},[off,invalidate]);
+  useFrame(()=>{
+    if(!off()) return;
+    glows.forEach(({material,strength},i)=>{material.emissiveIntensity=strength*glow;material.emissive.copy(targets[i]);});
+  });
 }
 
 /**

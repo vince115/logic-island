@@ -1,4 +1,4 @@
-import { Box3, Vector3, type Material, type Mesh, type MeshStandardMaterial, type Object3D } from 'three';
+import { Box3, Vector3, type Color, type Material, type Mesh, type MeshStandardMaterial, type Object3D } from 'three';
 import type { GlbAsset, Vec3 } from './types';
 
 export interface GlbPart {
@@ -38,8 +38,8 @@ export function extractGlbParts(scene: Object3D, asset: GlbAsset, nodes: readonl
   return { parts, missing };
 }
 
-/** A glowing material a mount owns, and its emissive intensity as loaded. */
-export interface Glow { material: MeshStandardMaterial; strength: number }
+/** A glowing material a mount owns, and its emissive intensity and colour as loaded (D.3-6c: the colour too). */
+export interface Glow { material: MeshStandardMaterial; strength: number; emissive: Color }
 
 /**
  * D.3-6a: gives these parts their own copy of each glowing (emissive) material, one copy per original shared by all
@@ -58,5 +58,5 @@ export function ownGlowMaterials(roots: readonly Object3D[]): Glow[] {
     const mesh = object as Mesh;
     if (mesh.isMesh) mesh.material = Array.isArray(mesh.material) ? mesh.material.map(own) : own(mesh.material);
   });
-  return [...copies.values()].map(material => ({ material, strength: material.emissiveIntensity }));
+  return [...copies.values()].map(material => ({ material, strength: material.emissiveIntensity, emissive: material.emissive.clone() }));
 }

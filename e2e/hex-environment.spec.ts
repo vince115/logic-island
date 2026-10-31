@@ -1,5 +1,7 @@
 import { test as base, expect, type Page } from '@playwright/test';
 import { ENVIRONMENTS, SHADOW_HEIGHTS, shadowBox, type EnvironmentId } from '@/lib/islands/environments';
+import { placementPose } from '@/lib/islands/hex-buildings';
+import { scalePrototypes } from '@/lib/islands/hex-scale-prototype';
 import { instrument, type Entry } from '../perf/instrument.mjs';
 
 /*
@@ -19,7 +21,7 @@ const test = base.extend<{ consoleGuard: void }>({
     expect(errors, 'Console 與未捕捉錯誤').toEqual([]);
   }, { auto: true }],
 });
-type Material = { name: string; glow: number | null; color: string | null; meshes: string[] };
+type Material = { name: string; glow: number | null; emissive: string | null; color: string | null; meshes: string[] };
 type Environment = {
   background: string; fog: unknown;
   lights: { type: string; color: string; intensity: number; ground?: string; position?: number[]; castShadow?: boolean;
@@ -229,5 +231,75 @@ test('實驗室頁（D.3-6b）：時間選單可用 Tab 到達，在 360／390 p
     await page.keyboard.press('Shift+Tab');
     await page.keyboard.press('Tab');
     await expect(select(page)).toBeFocused();
+  }
+});
+
+/*
+ * D.3-6c: dusk lamps. The lighthouse lantern and windows (this page's own copy of the GLB warm emission, strength 2)
+ * and the plaza's route lanterns (.35) glow at their strength times the environment's glow; nothing else changes, no
+ * material is added and no shader compiled however often the time changes, and noon restores them exactly.
+ */
+const GLOWING = [['', .35, '#f3cf86'], ['LLv2_Warm_Emission', 2, '#ffffff']] as const;
+/** A colour times a tint as three does it (in linear space), back to `#rrggbb`. */
+const tinted = (color: string, tint: string) => {
+  const linear = (hex: string, i: number) => { const c = parseInt(hex.slice(1 + 2 * i, 3 + 2 * i), 16) / 255; return c < .04045 ? c * .0773993808 : Math.pow(c * .9478672986 + .0521327014, 2.4); };
+  const srgb = (c: number) => Math.max(0, Math.min(255, Math.round((c < .0031308 ? c * 12.92 : 1.055 * Math.pow(c, .41666) - .055) * 255)));
+  return `#${[0, 1, 2].map(i => srgb(linear(color, i) * linear(tint, i)).toString(16).padStart(2, '0')).join('')}`;
+};
+const near = (a: string, b: string) => [0, 1, 2].every(i => Math.abs(parseInt(a.slice(1 + 2 * i, 3 + 2 * i), 16) - parseInt(b.slice(1 + 2 * i, 3 + 2 * i), 16)) <= 1);
+test('實驗室頁（D.3-6c）：只有暖光材質隨情境增強，反覆切換不累積、不新增材質或 shader，切回中午恢復原值', async ({ page }) => {
+  await page.addInitScript(() => {
+    const proto = WebGL2RenderingContext.prototype, link = proto.linkProgram;
+    (window as unknown as { __links: number }).__links = 0;
+    proto.linkProgram = function (program) { (window as unknown as { __links: number }).__links++; return link.call(this, program); };
+  });
+  await open(page);
+  const links = () => page.evaluate(() => (window as unknown as { __links: number }).__links);
+  const glowing = (materials: Material[]) => materials.filter(m => m.glow !== null).map(m => [m.name, m.glow]).sort();
+  const emissive = (materials: Material[]) => materials.filter(m => m.glow !== null).sort((a, b) => a.name.localeCompare(b.name)).map(m => m.emissive!);
+  const others = (materials: Material[]) => materials.filter(m => m.glow === null).map(m => `${m.name}|${m.color}|${m.meshes.length}`).sort();
+  const start = await read(page), programs = await links();
+  for (let round = 0; round < 3; round++) for (const id of [...IDS.filter(i => i !== 'noon'), 'noon' as const]) {
+    const glow = ENVIRONMENTS[id].glow;
+    await select(page).selectOption(id);
+    await expect.poll(async () => glowing((await read(page)).materials), `${round} ${id}`).toEqual(GLOWING.map(([name, strength]) => [name, strength * glow]));
+    const { materials } = await read(page);
+    emissive(materials).forEach((color, i) => expect(near(color, tinted(GLOWING[i][2], ENVIRONMENTS[id].glowTint)), `${round} ${id} ${GLOWING[i][0]} ${color}`).toBe(true));
+    expect(materials.length, `${round} ${id} 材質數`).toBe(start.materials.length);
+    expect(materials.filter(m => m.name === 'LLv2_Warm_Emission'), `${round} ${id}`).toHaveLength(1);
+    expect(materials.filter(m => m.name === 'LLv2_Palette_VertexColor'), `${round} ${id}`).toHaveLength(1);
+    // Every material that does not glow is untouched apart from the sea tint (D.3-6b).
+    if (id === 'noon') expect(others(materials), `${round} 中午`).toEqual(others(start.materials));
+  }
+  expect(glowing((await read(page)).materials)).toEqual(glowing(start.materials));
+  expect(emissive((await read(page)).materials)).toEqual(emissive(start.materials));
+  expect(emissive(start.materials)).toEqual(GLOWING.map(([, , color]) => color));
+  expect(await links(), '切換時編譯的 program').toBe(programs);
+});
+
+test('實驗室頁（D.3-6c）：手機 360／390 px 的黃昏與傍晚，標題底板不蓋住燈塔', async ({ page }) => {
+  test.skip(!phone(), '手機寬度');
+  const lab = scalePrototypes['37'], layout = lab.glb.find(l => l.placements.some(p => p.node === 'Landmark_Lighthouse'))!;
+  const [x, y, z] = placementPose(lab.world, layout.islandId, layout.placements.find(p => p.node === 'Landmark_Lighthouse')!).position;
+  for (const width of [360, 390]) {
+    await page.setViewportSize({ width, height: 780 });
+    await open(page);
+    for (const id of ['sunset', 'dusk'] as const) {
+      await select(page).selectOption(id);
+      const caption = page.locator(`[data-environment="${id}"] > div`).first();
+      await expect.poll(() => caption.evaluate(c => c.getAnimations().length)).toBe(0);
+      const box = (await caption.boundingBox())!;
+      // The lighthouse from its foot to its lantern (about 2.7 above the placement), on screen.
+      const points = await page.evaluate(([x, y, z]) => {
+        const canvas = document.querySelector('canvas') as HTMLCanvasElement & { __hexProject: (x: number, y: number, z: number) => number[] };
+        const frame = canvas.getBoundingClientRect();
+        return [0, .9, 1.8, 2.7].map(h => { const [px, py] = canvas.__hexProject(x, y + h, z); return [px + frame.left, py + frame.top]; });
+      }, [x, y, z]);
+      for (const [px, py] of points) {
+        const inside = px >= box.x && px <= box.x + box.width && py >= box.y && py <= box.y + box.height;
+        expect(inside, `${width} ${id}：燈塔點 (${px.toFixed(0)}, ${py.toFixed(0)}) 在標題 ${JSON.stringify(box)} 內`).toBe(false);
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), `${width} ${id}`).toBeLessThanOrEqual(0);
+    }
   }
 });

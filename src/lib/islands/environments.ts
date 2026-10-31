@@ -32,8 +32,18 @@ export interface WorldEnvironment {
    * every shader, and turning it on or off later recompiles them all, so no time of day has one.
    */
   fog: { color: HexColor; near: number; far: number } | null;
-  /** Multiplies the models' own emissive strength (GLB lamps and windows, plaza lanterns); 1 keeps it. */
+  /**
+   * Multiplies the models' own emissive strength (the lighthouse lantern and windows from the GLB's warm emission
+   * material, the plaza's route lanterns); 1 keeps it. Only those materials glow, from each mount's own copy, so it
+   * lights no other surface (D.3-6c: no lights, no bloom).
+   */
   glow: number;
+  /**
+   * D.3-6c: multiplies those materials' own emissive colour; `#ffffff` keeps it. The GLB's warm emission is white
+   * (emissive factor 1, 1, 1, strength 2) and already clips to white at noon, so a warmer light needs a warmer colour,
+   * not only more strength.
+   */
+  glowTint: HexColor;
 }
 
 /** Noon: the D.2c look as accepted, value for value (the `contrast` lighting it replaces). */
@@ -47,11 +57,12 @@ const noon: WorldEnvironment = {
   sea: { tint: '#ffffff' },
   fog: null,
   glow: 1,
+  glowTint: '#ffffff',
 };
 
 /*
- * D.3-6b. The camera looks from +x +z, so a sun on that side lights the faces it sees. Lamps and windows keep their
- * own glow (glow 1); brighter lamps at dusk are D.3-6c.
+ * D.3-6b. The camera looks from +x +z, so a sun on that side lights the faces it sees. D.3-6c: morning keeps the
+ * lamps' own glow, sunset warms them a little and dusk most.
  */
 /** Morning: a pale warm sun about 35° up in the east, on the faces the camera sees, and a cool clear fill. */
 const morning: WorldEnvironment = {
@@ -64,6 +75,7 @@ const morning: WorldEnvironment = {
   sea: { tint: '#f2f7ff' },
   fog: null,
   glow: 1,
+  glowTint: '#ffffff',
 };
 /**
  * Sunset: an orange sun about 27° up on noon's side, so the shadows lengthen the same way, under a lavender sky
@@ -78,12 +90,13 @@ const sunset: WorldEnvironment = {
   shadow: { mapSize: 1024, bias: -.0004, normalBias: .08, fit: 'sun' },
   sea: { tint: '#f4dce6' },
   fog: null,
-  glow: 1,
+  glow: 1.2,
+  glowTint: '#ffd8a8',
 };
 /**
- * Dusk: soft moonlight about 40° up (as decided 2026-10-30; not a light along the horizon) from the camera's side, under
- * a dim blue-grey fill; the moon and
- * fill stay near neutral and the sea's tint greys it, since blue light on the blue sea turns it a saturated royal blue.
+ * Dusk: soft moonlight about 40° up (as decided 2026-10-30; not a light along the horizon) from the camera's side,
+ * under a dim blue-grey fill; the moon and fill stay near neutral and the sea's tint greys it, since blue light on the
+ * blue sea turns it a saturated royal blue. The lamps glow brightest (D.3-6c).
  */
 const dusk: WorldEnvironment = {
   id: 'dusk',
@@ -94,7 +107,8 @@ const dusk: WorldEnvironment = {
   shadow: { mapSize: 1024, bias: -.0003, normalBias: .05, fit: 'sun' },
   sea: { tint: '#b8b4c4' },
   fog: null,
-  glow: 1,
+  glow: 1.6,
+  glowTint: '#ffb050',
 };
 
 /** In the order the time-of-day select lists them. */
