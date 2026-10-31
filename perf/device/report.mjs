@@ -9,8 +9,13 @@ import { delta, flight, flightStats, quantile, round } from '../instrument.mjs';
 /** @typedef {import('../instrument.mjs').Entry} Entry */
 /**
  * What the page posts (perf/device/probe.mjs `measure`).
- * @typedef {{ error?: string, hidden: number, entries: Entry[], info?: Record<string, unknown> & { ua: string, renderer: string, reducedMotion: boolean },
- *   glbReadyMs?: number, refresh?: number[], idleFrames?: number, flights?: number[][], views?: { focus: number, overview: number } }} Raw
+ * @typedef {{ error?: string, hidden: number, contextLost?: number, entries: Entry[], info?: Record<string, unknown> & { ua: string, renderer: string, reducedMotion: boolean },
+ *   glbReadyMs?: number, refresh?: number[], idleFrames?: number, flights?: number[][], views?: { focus: number, overview: number },
+ *   programs?: number, extras?: Extras | null }} Raw
+ */
+/**
+ * D.3-4B, candidate only: the four time switches and the Auto Orbit window (entry counts).
+ * @typedef {{ switches: { id: string, latencyMs: number | null, frames: number, programs: number }[], orbit: number[], programsAfter: number }} Extras
  */
 /** @typedef {{ route: string, warmup: boolean, raw?: Raw }} Step */
 
@@ -39,10 +44,15 @@ export const FLAGS = {
   unstable: `各輪 FPS 差距超過 ${MAX_SPREAD * 100}%`,
   'few-rounds': `少於 ${MIN_ROUNDS} 輪`,
   missing: '缺少量測',
+  'context-lost': '量測中發生 WebGL context 遺失',
 };
 /** Flags that make a frame rate meaningless; the first frame only depends on the page being shown on a real GPU. */
-const FPS_FLAGS = ['error', 'hidden', 'reduced-motion', 'low-refresh', 'short-flight', 'software', 'not-phone', 'unstable', 'few-rounds', 'missing'];
-const FIRST_FRAME_FLAGS = ['error', 'hidden', 'software', 'not-phone', 'few-rounds', 'missing'];
+export const FPS_FLAGS = ['error', 'hidden', 'reduced-motion', 'low-refresh', 'short-flight', 'software', 'not-phone', 'unstable', 'few-rounds', 'missing', 'context-lost'];
+export const FIRST_FRAME_FLAGS = ['error', 'hidden', 'software', 'not-phone', 'few-rounds', 'missing', 'context-lost'];
+/** Counts (draws, triangles, programs, frames, latency) are exact, but only say something about a phone on a phone. */
+export const COUNT_FLAGS = ['error', 'hidden', 'software', 'not-phone', 'missing', 'context-lost'];
+/** Auto Orbit runs whatever the motion setting, so only these make its frame rate meaningless. */
+export const ORBIT_FLAGS = ['error', 'hidden', 'low-refresh', 'software', 'not-phone', 'few-rounds', 'missing', 'context-lost'];
 
 /** @param {number[]} list */
 const median = list => quantile(list, 0.5);
@@ -67,6 +77,7 @@ export function pageStats(raw) {
   if (raw.info?.reducedMotion) flags.push('reduced-motion');
   if (raw.info && SOFTWARE.test(raw.info.renderer)) flags.push('software');
   if (raw.info && !/Mobile|Android/.test(String(raw.info.ua))) flags.push('not-phone');
+  if (raw.contextLost) flags.push('context-lost');
   const firstFrameMs = round(list.find(e => e.main > 0)?.t ?? NaN, 0);
   if (raw.error || !raw.flights || !raw.views || !raw.refresh) return { error: raw.error ?? 'incomplete', flags: [...flags, 'error'], firstFrameMs };
   const flights = raw.flights.map(([from, to]) => flight(list, from, to));
@@ -80,7 +91,25 @@ export function pageStats(raw) {
   return {
     flags, firstFrameMs, glbReadyMs: round(raw.glbReadyMs ?? NaN, 0), refreshHz, idleFrames: raw.idleFrames,
     flight: { ...stats, long: intervals.filter(ms => ms > LONG_FRAME_MS).length, maxMs: round(Math.max(...intervals)) },
-    overview: frameAt(raw.views.overview), focus: frameAt(raw.views.focus),
+    overview: frameAt(raw.views.overview), focus: frameAt(raw.views.focus), programs: raw.programs ?? NaN, extras: extraStats(raw),
+  };
+}
+
+/**
+ * The candidate's time switches and Auto Orbit (null on the old page): orbit rate as a flight, the median latency to
+ * the first recorded frame, and the most frames and programs any switch took.
+ * @param {Raw} raw
+ */
+function extraStats(raw) {
+  const extras = raw.extras;
+  if (!extras) return null;
+  const orbit = flight(raw.entries, extras.orbit[0], extras.orbit[1]);
+  const latency = extras.switches.map(s => s.latencyMs).filter(/** @returns {v is number} */ v => typeof v === 'number');
+  return {
+    orbitFps: orbit.frames >= 10 ? round((orbit.frames - 1) / (orbit.ms / 1000)) : NaN, orbitFrames: orbit.frames,
+    switchLatencyMs: latency.length === extras.switches.length ? round(median(latency), 0) : NaN,
+    switchFrames: Math.max(...extras.switches.map(s => s.frames)), switchPrograms: extras.switches.reduce((n, s) => n + s.programs, 0),
+    programsAfter: extras.programsAfter,
   };
 }
 
@@ -100,13 +129,19 @@ export function routeStats(steps, route) {
   const fps = ok.map(p => /** @type {{ flight: { fps: number } }} */ (p).flight.fps).filter(Number.isFinite);
   if (fps.length > 1 && (Math.max(...fps) - Math.min(...fps)) / median(fps) > MAX_SPREAD) flags.add('unstable');
   /** @param {(p: any) => number} pick */
-  const mid = pick => ok.length ? round(median(ok.map(pick))) : NaN;
+  const mid = pick => { const values = ok.map(pick).filter(Number.isFinite); return values.length ? round(median(values)) : NaN; };
   const refreshHz = mid(p => p.refreshHz);
   return {
     route, rounds: ok.length, failed: pages.length - ok.length, flags: [...flags], fps, refreshHz, highRefresh: refreshHz > HIGH_REFRESH_HZ,
     firstFrameMs: mid(p => p.firstFrameMs), glbReadyMs: mid(p => p.glbReadyMs), flightFps: mid(p => p.flight.fps), frameMs: mid(p => p.flight.frameMs),
     frameP95: mid(p => p.flight.frameP95), long: ok.reduce((n, p) => n + /** @type {any} */ (p).flight.long, 0), idleFrames: ok.length ? Math.max(...ok.map(p => /** @type {any} */ (p).idleFrames)) : NaN,
     overviewDraws: mid(p => p.overview?.main ?? NaN), focusDraws: mid(p => p.focus?.main ?? NaN), shadowDraws: mid(p => p.overview?.offscreen ?? NaN),
+    // D.3-4B. NaN where a page cannot say (the old page has no time switch or Auto Orbit): shown as Not Available.
+    overviewTriangles: mid(p => p.overview?.mainTriangles ?? NaN), programs: mid(p => p.programs),
+    orbitFps: mid(p => p.extras?.orbitFps ?? NaN), switchLatencyMs: mid(p => p.extras?.switchLatencyMs ?? NaN),
+    switchFrames: ok.some(p => p.extras) ? Math.max(...ok.map(p => /** @type {any} */ (p).extras?.switchFrames ?? 0)) : NaN,
+    switchPrograms: ok.some(p => p.extras) ? Math.max(...ok.map(p => /** @type {any} */ (p).extras?.switchPrograms ?? 0)) : NaN,
+    contextLost: steps.filter(s => s.route === route && s.raw).reduce((n, s) => n + (s.raw?.contextLost ?? 0), 0),
   };
 }
 

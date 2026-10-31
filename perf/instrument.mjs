@@ -44,6 +44,12 @@ export function instrument() {
   proto.drawElementsInstanced = function (mode, count, type, offset, instances) {
     record(mode, count, instances); return drawElementsInstanced.call(this, mode, count, type, offset, instances);
   };
+  // D.3-4B: shader programs linked since load (as the E2E counts them), kept apart from the per-frame entries.
+  const programs = { linked: 0 };
+  const linkProgram = proto.linkProgram;
+  proto.linkProgram = function (program) {
+    programs.linked++; return linkProgram.call(this, program);
+  };
   let last = -1;
   /** @param {number} t */
   const tick = t => {
@@ -52,7 +58,7 @@ export function instrument() {
     requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
-  Object.assign(window, { __perfEntries: entries });
+  Object.assign(window, { __perfEntries: entries, __perfPrograms: programs });
 }
 
 /** @param {Entry} a @param {Entry} b @returns {Counters} */

@@ -13,16 +13,23 @@
 /**
  * The automatic measurement, after `instrument` (perf/instrument.mjs): what perf/world.perf.ts does from Playwright,
  * done by the page itself. Waits for the GLB, settles, reads the display's frame rate and the idle frames, then flies
- * to the basics island and back three times through the side list. It posts the raw frame entries (the server works
- * out the numbers with the harness functions) and goes where the reply says.
+ * to the basics island and back three times through the side list. D.3-4B: on the candidate (the old page has neither
+ * control) it then switches through the four times of day and runs Auto Orbit for a few seconds. It also counts the
+ * shader programs linked and any WebGL context loss. It posts the raw frame entries (the server works out the numbers
+ * with the harness functions) and goes where the reply says.
  * @param {MeasureConfig} config
  */
 export function measure(config) {
   const entries = () => /** @type {Entry[]} */ (/** @type {any} */ (window).__perfEntries);
+  const linked = () => /** @type {{ linked: number }} */ (/** @type {any} */ (window).__perfPrograms).linked;
   /** @param {number} ms */
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-  let hidden = 0;
+  let hidden = 0, contextLost = 0;
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') hidden++; });
+  // The event does not bubble; the capture phase on window still sees it.
+  addEventListener('webglcontextlost', () => { contextLost++; }, true);
+  /** Auto Orbit is measured for this long, after half a second to get going. */
+  const ORBIT_MS = 5000;
   /** @param {() => boolean} ok @param {number} ms @param {string} what */
   const until = async (ok, ms, what) => {
     const start = performance.now();
@@ -62,6 +69,7 @@ export function measure(config) {
     if (!canvas) throw new Error('沒有 canvas');
     canvas.scrollIntoView({ block: 'nearest' });
     await settle();
+    const programs = linked();
     const gl = canvas.getContext('webgl2');
     const ext = gl?.getExtension('WEBGL_debug_renderer_info');
     const nav = /** @type {PerformanceNavigationTiming | undefined} */ (performance.getEntriesByType('navigation')[0]);
@@ -88,13 +96,41 @@ export function measure(config) {
       flights.push([from, entries().length]);
       if (step === 'focus' && i === 0) focus = entries().length;
     }
-    return { info, glbReadyMs, refresh: intervals, idleFrames, flights, views: { focus, overview: entries().length } };
+    const views = { focus, overview: entries().length };
+    return { info, glbReadyMs, refresh: intervals, idleFrames, flights, views, programs, extras: await extras() };
+  };
+  /**
+   * The candidate's own controls, from the settled overview. Each time switch: from the change to the first frame
+   * recorded after it (the instrument records a frame on the next animation frame, so this includes up to one frame),
+   * the frames until it settles and the programs linked meanwhile. Then Auto Orbit, and 返回全景 to stop and reset.
+   */
+  const extras = async () => {
+    const select = /** @type {HTMLSelectElement | null} */ (document.querySelector('select[aria-label="時間情境"]'));
+    const orbit = button('button', '自動旋轉');
+    if (!select || !orbit) return null;
+    const switches = [];
+    for (const id of ['morning', 'sunset', 'dusk', 'noon']) {
+      const from = entries().length, before = linked(), at = performance.now();
+      select.value = id;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      await settle();
+      const first = entries()[from];
+      switches.push({ id, latencyMs: first ? Math.max(0, first.t - at) : null, frames: entries().length - from, programs: linked() - before });
+    }
+    orbit.click();
+    await sleep(500);
+    const from = entries().length;
+    await sleep(ORBIT_MS);
+    const to = entries().length;
+    button('button', '返回全景')?.click();
+    await settle();
+    return { switches, orbit: [from, to], programsAfter: linked() };
   };
   const start = () => run()
     .catch(error => ({ error: String(error?.message ?? error) }))
     .then(result => fetch(config.post, {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ run: config.run, step: config.step, route: location.pathname, hidden, ...result, entries: entries() }),
+      body: JSON.stringify({ run: config.run, step: config.step, route: location.pathname, hidden, contextLost, ...result, entries: entries() }),
     }))
     .then(reply => reply.json())
     .then(reply => location.assign(reply.next));

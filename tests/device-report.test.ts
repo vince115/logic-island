@@ -1,16 +1,19 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Entry } from '../perf/instrument.mjs';
-import { ITEMS } from '../perf/device/checklist.mjs';
+import { ITEMS, OBSERVATIONS } from '../perf/device/checklist.mjs';
+import { SCHEMA, deviceReport, guess, reportText, routeMetrics, type Device } from '../perf/device/export.mjs';
 import { fault, measure, pinch } from '../perf/device/probe.mjs';
 import { ROUTES, compare, pageStats, plan, type Raw, type Step } from '../perf/device/report.mjs';
 
 // D.3-4 preparation: the real-device tool's numbers and verdicts (perf/device/), on made-up frame entries.
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1';
-type Page = { fps?: number; frames?: number; ua?: string; renderer?: string; refreshMs?: number; reducedMotion?: boolean; hidden?: number; firstMs?: number };
+type Page = { fps?: number; frames?: number; ua?: string; renderer?: string; refreshMs?: number; reducedMotion?: boolean; hidden?: number; firstMs?: number;
+  /** D.3-4B candidate extras: Auto Orbit at this rate, and four time switches of one frame each. */
+  orbitFps?: number; contextLost?: number };
 
 /** A measured page as the probe posts it: first frame, a settled view, then six camera flights at `fps`. */
-function page({ fps = 60, frames = 40, ua = IPHONE, renderer = 'Apple GPU', refreshMs = 1000 / 60, reducedMotion = false, hidden = 0, firstMs = 900 }: Page = {}): Raw {
+function page({ fps = 60, frames = 40, ua = IPHONE, renderer = 'Apple GPU', refreshMs = 1000 / 60, reducedMotion = false, hidden = 0, firstMs = 900, orbitFps, contextLost = 0 }: Page = {}): Raw {
   const entries: Entry[] = [];
   let t = firstMs, main = 0;
   const draw = () => { main += 43; entries.push({ t, main, mainTriangles: main * 600, offscreen: 0, offscreenTriangles: 0 }); };
@@ -23,7 +26,16 @@ function page({ fps = 60, frames = 40, ua = IPHONE, renderer = 'Apple GPU', refr
     for (let f = 0; f < frames; f++) { t += 1000 / fps; draw(); }
     flights.push([from, entries.length]);
   }
-  return { hidden, entries, info: { ua, renderer, reducedMotion }, glbReadyMs: firstMs + 500, refresh: Array(60).fill(refreshMs), idleFrames: 0, flights, views: { focus: flights[0][1], overview: entries.length } };
+  const views = { focus: flights[0][1], overview: entries.length };
+  let extras: Raw['extras'] = null;
+  if (orbitFps) {
+    // Each time switch draws one frame 30 ms later; then 5 s of Auto Orbit.
+    const switches = ['morning', 'sunset', 'dusk', 'noon'].map(id => { t += 30; draw(); t += 1000; return { id, latencyMs: 30, frames: 1, programs: 0 }; });
+    const from = entries.length;
+    for (let f = 0; f < orbitFps * 5; f++) { t += 1000 / orbitFps; draw(); }
+    extras = { switches, orbit: [from, entries.length], programsAfter: 17 };
+  }
+  return { hidden, contextLost, entries, info: { ua, renderer, reducedMotion }, glbReadyMs: firstMs + 500, refresh: Array(60).fill(refreshMs), idleFrames: 0, flights, views, programs: 17, extras };
 }
 /** Three rounds of both routes (plus the warm-ups). */
 const run = (candidate: Page, legacy: Page = {}, rounds = 3): Step[] =>
@@ -90,6 +102,65 @@ describe('device check: thresholds (D.3-4)', () => {
     steps[0].raw = page({ firstMs: 9000 });
     expect(compare(steps).candidate.firstFrameMs).toBe(900);
     expect(compare(run({ refreshMs: 1000 / 120, fps: 110 }, { refreshMs: 1000 / 120, fps: 120 })).notes).toHaveLength(1);
+  });
+});
+
+describe('device check: candidate extras and the device report (D.3-4B)', () => {
+  const device: Device = { kind: 'device', id: 'device-1', saved: '2026-11-02T10:00:00.000Z', model: 'iPhone 16', os: 'iOS 18.6', browser: 'Safari 18.6' };
+  const steps = () => run({ orbitFps: 58 });
+
+  it('reads Auto Orbit, time switches, triangles and programs on the candidate only', () => {
+    const { candidate, legacy } = compare(steps());
+    expect(candidate).toMatchObject({ orbitFps: 58, switchLatencyMs: 30, switchFrames: 1, switchPrograms: 0, programs: 17, overviewTriangles: 43 * 600, contextLost: 0 });
+    expect([legacy.orbitFps, legacy.switchLatencyMs, legacy.switchFrames]).toEqual([NaN, NaN, NaN]);
+    const metrics = { candidate: routeMetrics(candidate), legacy: routeMetrics(legacy) };
+    expect(metrics.candidate.orbitFps).toEqual({ value: 58, unit: 'fps', status: 'measured', why: [] });
+    // The old page has neither control: Not Available, never a number.
+    expect(metrics.legacy.orbitFps).toMatchObject({ value: null, status: 'not-available' });
+    expect(metrics.legacy.timeSwitchLatencyMs).toMatchObject({ value: null, status: 'not-available' });
+  });
+
+  it('a context loss or a desktop browser makes every number unreliable, not passed', () => {
+    const lost = run({ orbitFps: 58, contextLost: 1 });
+    expect(compare(lost).candidate.contextLost).toBe(4);
+    expect(routeMetrics(compare(lost).candidate).flightFps.status).toBe('unreliable');
+    expect(verdicts(lost)).toEqual({ fps: 'unreliable', ratio: 'unreliable', firstFrame: 'unreliable' });
+    const desktop = routeMetrics(compare(run({ orbitFps: 58, ua: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari/605.1.15' })).candidate);
+    for (const key of ['orbitFps', 'drawCalls', 'timeSwitchLatencyMs'] as const) expect(desktop[key].status, key).toBe('unreliable');
+  });
+
+  it('starts every check as Not Tested, leaves the decision open, and keeps measured, observed and missing apart', () => {
+    const empty = deviceReport({ device, runs: [], pinches: [], checklists: [], origin: 'http://192.168.1.20:3119', now: new Date('2026-11-02T11:00:00Z') });
+    expect(empty).toMatchObject({ schema: SCHEMA, phase: 'D.3-4B', decision: null, testDate: '2026-11-02', testUrl: 'http://192.168.1.20:3119/islands/candidate',
+      observed: null, blocking: 'undecided', notMeasured: ['自動量測（尚未執行）'] });
+    expect(new Set(empty.checklist.items.map(i => i.result))).toEqual(new Set(['Not Tested']));
+    expect(reportText(empty)).toContain('自動量測：Not Measured');
+    const full = deviceReport({
+      device, origin: 'http://192.168.1.20:3119', pinches: [],
+      runs: [{ id: 'run-1', started: '2026-11-02T10:05:00Z', state: 'done', device: { id: device.id }, steps: steps() }],
+      checklists: [{ kind: 'checklist', saved: '2026-11-02T10:30:00Z', device: device.id,
+        results: { 'C-01': 'pass', 'C-02': 'fail', 'C-02:note': '頁面不捲動', 'C-03': 'maybe', 'obs:shadows': 'ok', blocking: 'yes', issues: '傍晚標題太暗' } }],
+    });
+    const result = Object.fromEntries(full.checklist.items.map(i => [i.id, i.result]));
+    // An answer the form does not offer is not a result.
+    expect(result).toMatchObject({ 'C-01': 'Pass', 'C-02': 'Fail', 'C-03': 'Not Tested', 'E-01': 'Not Tested' });
+    expect(full.observed?.shadows).toMatchObject({ rating: '可接受' });
+    expect(full.observed?.smooth).toMatchObject({ rating: null });
+    expect(Object.keys(full.observed ?? {})).toEqual(OBSERVATIONS.map(o => o.id));
+    expect(full).toMatchObject({ blocking: 'yes', issues: '傍晚標題太暗', decision: null, notMeasured: [] });
+    expect(full.measured.runs[0].candidate.orbitFps.value).toBe(58);
+    const text = reportText(full);
+    expect(text).toContain('自動旋轉 FPS：候選頁 58 fps；舊版 Not Available');
+    expect(text).toContain('C-02 單指在地圖上上下滑動：Fail（頁面不捲動）');
+    expect(text).toContain('是否阻擋上線：是');
+    expect(text).not.toMatch(/Passed|通過驗收/);
+  });
+
+  it('guesses the system and browser from the User-Agent for the tester to confirm', () => {
+    expect(guess(IPHONE)).toEqual({ os: 'iOS 18.6', browser: 'Safari 18.6' });
+    expect(guess('Mozilla/5.0 (Linux; Android 15; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36')).toEqual({ os: 'Android 15', browser: 'Chrome 140' });
+    expect(guess('Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/140.0.7339.122 Mobile/15E148 Safari/604.1')).toEqual({ os: 'iOS 18.6', browser: 'Chrome 140' });
+    expect(guess('curl/8.7.1')).toEqual({ os: '', browser: '' });
   });
 });
 

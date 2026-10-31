@@ -10,6 +10,21 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## D.3-4B 真機驗收準備（2026-10-31，獨立 commit「real-device acceptance kit for the candidate world map (Phase D.3-4B preparation)」）
+
+狀態：**D.3-4B Preparation Complete — Real Device Not Measured**。量測 proxy（`perf/device/`）擴充為候選頁的真機驗收工具；應用程式未修改（`src/` 0 行差異）。以下全是工具與既有功能的自動化預檢，**不是真機結果**；工具在 Chromium 模擬上的數字一律標「不可靠」。操作指南：[DEVICE_ACCEPTANCE](DEVICE_ACCEPTANCE.md)。
+
+| 檢查 | 結果 |
+|---|---|
+| ESLint／TypeScript | 都是 exit 0；量測工具另以 `tsc --checkJs --strict` 檢查 `perf/device/*.mjs`，exit 0 |
+| Vitest | 194 passed／6 skipped（`device-report` 14 項） |
+| Next Build | 成功 |
+| E2E 全套（單次） | 240 passed／37 skipped／3 failed：只有既有 P1-11（`player.spec.ts`）。`device-tool` 全部通過；候選頁、`/islands`、legacy 測試照常 |
+| 工具自測數字（模擬，不可靠） | 候選頁 draw 43／26／0、三角形 28,569、program 17、時間切換每次 1 幀 0 個新 program；舊版 146／82／112、12,086、5，時間切換與自動旋轉 Not Available |
+
+- 真機狀態用語：Preparation Complete（本輪）／Real Device Not Measured（目前）／Real Device Passed、Real Device Failed（只有審核者依真機報告標示）。
+- 執行自己的工具伺服器做測試時用 `--host 127.0.0.1`；預設 `0.0.0.0` 會讓同一區網看得到控制頁（指南 §1.4）。
+
 ## D.3-7a 候選頁手機 UI 修飾（2026-10-31，獨立 commit「mobile button row below the candidate world map (Phase D.3-7a)」）
 
 狀態：Level 2，只在 `/islands/candidate`。手機（≤ 780 px）提示與按鈕移到地圖下方一列（44 px 觸控目標）；「跳至主要內容」出現在地圖上查明為截圖 artifact，產品 CSS 不變。候選頁 3D 與 `250b99f` 0 像素差（桌機 1440／1280、手機 360／390／430；全景、聚焦、傍晚），桌機整個候選頁 0 像素差；實驗室頁、`/islands`、`/islands/legacy`、19 格、A2 預覽 0 像素差且控制相同。真機 D.3-4B 仍 Not Measured；iOS Safari／螢幕閱讀器 Not Verified。

@@ -1,66 +1,53 @@
-# D.3-4 真機驗收：流程、驗收表與量測方法
+# D.3-4B 真機驗收：操作指南、驗收表與量測方法
 
-> 狀態（2026-10-30）：D.3-4 分成兩部分（§0）。
+> **狀態（2026-10-31）：D.3-4B Preparation Complete — Real Device Not Measured**
 >
-> - **D.3-4A：Automated Acceptance Passed**（限已執行的自動化項目，Chromium；§3.4）
-> - **D.3-4B：Not Measured**（iPhone SE 第 3 代、iPhone 16、中階 Android）
-> - **iOS Safari／Screen Reader：Not Verified**
+> | 狀態用語 | 意義 | 誰可以標 |
+> |---|---|---|
+> | Preparation Complete | 工具、驗收表、操作指南與自動化預檢完成（本輪） | 本輪 |
+> | Real Device Not Measured | 還沒有任何一台標準測試機的實測結果（目前） | 本輪 |
+> | Real Device Passed | 標準測試機實測後，審核判定通過 | **只有審核者**，依實測報告 |
+> | Real Device Failed | 標準測試機實測後，審核判定不通過（列出阻擋項目） | **只有審核者**，依實測報告 |
 >
-> B 未完成**不阻擋其他開發階段**，但正式切換 `/islands` 仍需另行批准；**D.3-4 整體未判定**。
+> D.3-4A（自動化，Chromium）：Automated Acceptance Passed（限已執行項目，§3.5）。iOS Safari／Screen Reader：Not Verified。工具只量測與整理資料，**不會**標 Passed；模擬或桌機結果一律標「不可靠」，不能當成真機結果。正式 `/islands` 切換需另行批准。
 >
-> 範圍：比較 `/islands/candidate`（新版）與 `/islands/legacy`（就是現行 `/islands`）。不切換正式路由；不改地形、GLB、材質或場景美術；量測工具不修改應用程式。
+> 範圍：`/islands/candidate`（D.3-5 自由相機、D.3-6 時間情境、D.3-7a 手機 UI 已整合）。效能另與 `/islands/legacy`（就是現行 `/islands`）同機比較。不切換正式路由；不改地形、GLB、教材或資產庫；量測工具不修改應用程式。
+>
+> 本文件前身是 D.3-4 準備（2026-10-30，`logs/2026-10-30-d3-4-prep.md`）的驗收表；D.3-4B 準備（`logs/2026-10-31-d3-4b-device-prep.md`）把人工項目改為候選頁目前的功能（舊的 T-／K- 編號不再使用）。
 
-## 0. 驗收結構、標準測試機與標準（2026-10-30 使用者決定）
+## 0. 驗收結構、標準測試機與標準
 
 ### 0.1 兩部分
 
 | 部分 | 內容 | 證明什麼 | 不能證明什麼 | 狀態 |
 |---|---|---|---|---|
-| **A 自動化驗收** | Playwright：Chromium 桌機（1440 px）與手機 viewport（iPhone 13 模擬、360／390 px）；互動、fallback、鍵盤、無障礙名稱、版面溢出 | 功能、版面、fallback、鍵盤操作在瀏覽器引擎上正確 | 真實 GPU 效能、真實觸控手感、iOS Safari（WebKit）上的行為 | **Automated Acceptance Passed**（限已執行項目，§3.4） |
-| **B 真機效能驗收** | 指定機型以 `perf/device/` 實測（§1、§2） | 標準測試機上的 FPS、首幀、觸控 | — | **Not Measured** |
+| **A 自動化驗收** | Playwright：Chromium 桌機與手機 viewport（iPhone 13 模擬、360／390／430 px）；互動、fallback、鍵盤、無障礙名稱、版面、像素 A/B | 功能、版面、fallback、鍵盤操作在瀏覽器引擎上正確 | 真實 GPU 效能、真實觸控手感、iOS Safari（WebKit）上的行為 | Automated Acceptance Passed（限已執行項目） |
+| **B 真機驗收** | 標準測試機以 `perf/device/` 實測（§1～§3） | 標準測試機上的 FPS、首幀、觸控、陰影與顯示 | — | **Preparation Complete — Real Device Not Measured** |
 
-瀏覽器模擬（手機 viewport、CPU 降速、SwiftShader）**不能**代替真機 GPU 數據；B 未取得前一律標 Not Measured，不以 A 或桌機數字推定。
+瀏覽器模擬（手機 viewport、CPU 降速、SwiftShader）**不能**代替真機 GPU 數據。
 
-### 0.2 標準測試機（不逐款驗收 iPhone）
+### 0.2 標準測試機（2026-10-30 決定）
 
-| 基準 | 代表機型 | 瀏覽器 | 目的 | 門檻適用 |
-|---|---|---|---|---|
-| 最低效能基準 | iPhone SE（第 3 代，2022） | Safari | 小螢幕（375 pt）、較舊硬體、效能壓力 | P-01～P-03 **以此機判定** |
-| 標準效能基準 | iPhone 16 | Safari | 主流使用體驗、畫面品質與流暢度 | P-01～P-03 |
-| Android 相容性 | 中階 Android（具體型號實測時記錄） | Chrome | 不同 GPU、瀏覽器與觸控行為 | P-01～P-03；高更新率螢幕依 §4.2 判讀 |
+| 基準 | 代表機型 | 瀏覽器 | 目的 |
+|---|---|---|---|
+| 最低效能基準 | iPhone SE（第 3 代，2022） | Safari | 小螢幕（375 pt）、較舊硬體；P-01～P-03 **以此機判定** |
+| 標準效能基準 | iPhone 16 | Safari | 主流使用體驗、畫面品質與流暢度 |
+| Android 相容性 | 中階 Android（型號實測時記錄） | Chrome | 不同 GPU、瀏覽器與觸控行為 |
 
-### 0.3 D.3-4 驗收標準
+### 0.3 標準
 
-| 標準 | 對應 | 部分 |
-|---|---|---|
-| 鏡頭飛行 FPS ≥ 45，且達 Legacy 的 90% 以上 | P-01、P-02 | B |
-| 首幀 ≤ 2.5 秒 | P-03 | B |
-| 360 px、390 px 寬度無版面溢出 | `islands-acceptance` 溢出、`islands-candidate` 工具列；T-10 | A（真機 T-10 補看） |
-| 3D 點擊、縮放、清單切換、WebGL fallback 正常 | A：`islands-candidate`、`islands`、`device-tool`；B：T-01～T-05、T-08、F-01～F-03 | A＋B |
-| P-04、P-06、P-08 | 只記錄數值，**不設硬性門檻** | B |
-| T-06 單指滑動 | **使用體驗觀察項目**，不判通過與否 | B |
-
-## 1. 工具：Mac 上的量測 proxy
-
-手機連到 Mac 上的 `perf/device/server.mjs`，它轉送到 production server（`next start`），提供控制頁 `/__probe/`：
-
-| 功能 | 內容 |
+| 標準 | 對應 |
 |---|---|
-| 自動量測 | 手機只需按「開始」：自動輪流載入新版與舊版（各暖身 1 次，再交錯 3 輪），每頁量首幀、GLB 就緒、閒置更新率、閒置重畫、鏡頭飛行 FPS 與幀間隔，結束後顯示報告 |
-| 雙指縮放 FPS | 使用者縮放，工具計時（每次雙指觸控＝一段） |
-| 故障注入 | WebGL 無法建立、GLB 載入失敗、WebGL context 遺失；用來看手機上的 fallback 畫面。與 E2E 的差異見 §4.2 |
-| 人工檢查表 | 手機上逐項填「通過／不通過／不適用」與備註，連同 User-Agent 存檔 |
-| 報告 | `/__probe/report`（HTML）、`/__probe/report.json`；原始資料是 `--out` 目錄下的 JSON |
+| 鏡頭飛行 FPS ≥ 45，且達舊版的 90% 以上（暫定） | P-01、P-02 |
+| 首幀 ≤ 2.5 秒（暫定） | P-03 |
+| 其他效能數字（自動旋轉 FPS、時間切換、draw call、三角形、shader、閒置重畫、context 遺失、雙指縮放） | 只記錄，不設門檻；與 §3.1 的預期值不同時寫入問題 |
+| 人工檢查（§3.2） | 每項 Pass／Fail／Not Tested；Fail 是否阻擋上線由審核決定 |
 
-- **未開啟量測或故障注入時，頁面原樣轉送**（self-test 比對 HTML 逐位元組相同）。開啟時只對兩個頁面的 HTML 在 `<head>` 最前面插入量測程式，並設為不快取。
-- 量測程式與 D.3-0 起的桌機 harness（`perf/world.perf.ts`）共用 `perf/instrument.mjs`：同樣包裝 WebGL2 draw 函式、同樣的飛行與統計函式，所以真機數字與既有基準是同一套定義。
-- 結果由工具計算，**有任何可靠性旗標（§4.3）就標「不可靠，不判定」，不算通過**；工具也不會把桌機或軟體算圖的結果當成手機結果。
+## 1. 連線：Mac 與手機
 
-## 2. 執行步驟
+### 1.1 Mac 啟動（三個終端機）
 
-### 2.1 Mac
-
-建置會寫入 `.next/`；結果預設寫到 `test-results/device/`（已在 `.gitignore`）。不使用 3100 埠。
+手機連到 Mac 上的量測 proxy（`perf/device/server.mjs`），它轉送到 Next.js 的 production server（`next start`）。**不用 `next dev`**：開發模式較慢且有熱更新，效能數字沒有意義。不需要新套件、雲端服務、Tunnel 或 API Key。
 
 ```bash
 node node_modules/next/dist/bin/next build
@@ -74,90 +61,153 @@ node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3118
 node perf/device/server.mjs --upstream http://127.0.0.1:3118 --port 3119
 ```
 
-最後一個指令會印出手機要開的網址（`http://<Mac 的區網 IP>:3119/__probe/`）。macOS 若詢問是否允許 node 接受連入連線，需允許；只在受信任的區網使用。
+- 第一個指令會寫入 `.next/`（建置輸出，已在 `.gitignore`）；程式碼有變動時要重新建置。也可以用 `pnpm build`、`pnpm start --hostname 127.0.0.1 --port 3118`；若 pnpm 嘗試自動安裝依賴，改用上面的 node 指令。
+- `next start` 只聽 `127.0.0.1`，手機連不到它；手機只會連到 proxy（3119）。不要用 3100（其他專案使用）。
+- 第三個指令會印出 `on the phone (same Wi-Fi): http://<Mac 的區網 IP>:3119/__probe/`。結果寫到 `test-results/device/`（已在 `.gitignore`）。
 
-**網路暴露與資料**：proxy 預設聽 `0.0.0.0`（手機要連得到），**沒有登入或權杖**，同一區網的任何裝置都能開控制頁、看報告、送出結果。因此：
+### 1.2 取得 Mac 的區網 IP
 
-- 只在量測期間開啟，量完立即 `Ctrl+C` 關掉；不要在公共或公司訪客 Wi‑Fi 使用。只在本機自測時可加 `--host 127.0.0.1`。
-- 對外只轉送到 `--upstream` 指定的 production server，不能當成任意轉址的 proxy；`/__probe/mode` 只接受本機路徑（`//host`、外部網址一律回控制頁）。
-- 錯誤時只回訊息，堆疊與本機路徑只印在 Mac 的終端機；請求內容超過 16 MB 直接拒絕；格式不對的量測結果（缺 `entries`、`sessions` 或裝置資訊）回 400、不寫入磁碟，避免一筆壞資料讓報告頁無法顯示。
-- 報告（`test-results/device/*.json`）含裝置型號、User-Agent、測試者欄位與備註，屬個人資料；`test-results/` 已在 `.gitignore`，不要另外提交或上傳，驗收後依需要只摘錄數字到本文件。
+proxy 啟動時會印出來。也可以：
 
-### 2.2 手機（每台裝置）
+```bash
+ipconfig getifaddr en0
+```
 
-1. 準備：關閉低耗電／省電模式與「減少動態效果」；自動鎖定設為「永不」；電量 > 50%；關閉其他 App；閒置 2 分鐘降溫；記錄是否接電源、螢幕更新率設定（iPhone ProMotion、Android 90／120 Hz）。
-2. 開控制頁，填裝置型號與系統／瀏覽器版本，按「開始自動量測」，約 3 分鐘內不要觸碰螢幕。結束後自動顯示報告。
-3. 雙指縮放：新版、舊版各開一次，各縮放 3 次以上（每次 1 秒以上），按右下角「送出」。
-4. 故障注入：F-01～F-03 各在新版、舊版開一次，看畫面，結果填入檢查表；做完按「關閉」。
-5. 人工檢查表：用一般頁面（故障注入關閉）逐項操作 T-01～T-12，填檢查表並儲存。
-6. 若報告有「不可靠」：依原因修正環境（例如關低耗電）後重跑該台的自動量測；**不要挑選結果**，所有 run 都保留在報告。
+（Wi-Fi 通常是 `en0`；沒有結果時試 `en1`，或「系統設定 → Wi-Fi → 詳細資訊」看 IP 位址。）
 
-### 2.3 桌機實體瀏覽器（鍵盤 K-01～K-03）
+### 1.3 手機開啟
 
-在 Mac 的 Safari 與 Chrome 開 `http://127.0.0.1:3119/islands/candidate` 與 `/islands/legacy`，填同一份檢查表（裝置型號寫「Mac Safari」等）。Safari 預設 Tab 不會停在按鈕與連結：先到「設定 → 進階」開啟「按下 Tab 鍵以標示網頁上的每個項目」，或改用 Option＋Tab。
+1. 手機與 Mac 連同一個 Wi-Fi（不是訪客網路；手機關閉行動數據優先與 VPN）。
+2. 開控制頁：`http://<Mac IP>:3119/__probe/`（例：`http://192.168.1.20:3119/__probe/`）。網址要以 `http://` 開頭。
+3. 候選頁（一般操作，不量測）：`http://<Mac IP>:3119/islands/candidate`；控制頁的「開啟候選頁」按鈕也會先關掉故障注入再開。
+4. 未開啟量測或故障注入時，proxy 原樣轉送頁面（E2E 比對逐位元組相同），所以手機看到的就是候選頁本身，沒有任何測試控制。
+
+### 1.4 網路暴露與資料
+
+proxy 預設聽 `0.0.0.0`（手機要連得到），**沒有登入或權杖**，同一區網的任何裝置都能開控制頁、看報告、送出結果。因此：
+
+- 只在量測期間開啟，量完立即在終端機按 `Ctrl+C` 關掉 proxy 與 `next start`；不要在公共、公司或訪客 Wi-Fi 使用。只在 Mac 本機自測時加 `--host 127.0.0.1`。
+- 只轉送到 `--upstream`，不能當任意 proxy；`/__probe/mode` 只接受本機路徑；錯誤只回訊息（堆疊只印在 Mac）；請求超過 16 MB 拒絕；格式不對的量測結果回 400、不寫入磁碟。
+- 不把服務暴露到公開網路：不做 port forwarding、不開 Tunnel；路由器若有「把裝置放到 DMZ」之類設定，不要對這台 Mac 開。
+- 報告只收裝置型號、系統與瀏覽器版本、User-Agent、畫面尺寸與 GPU 名稱、檢查結果與備註；**不收姓名**。`test-results/` 不提交、不上傳，驗收後只把數字摘錄到本文件。
+
+### 1.5 連不上時的排查
+
+| 現象 | 檢查 |
+|---|---|
+| 手機一直轉圈或「無法連線到伺服器」 | Mac 上 `curl -I http://<Mac IP>:3119/__probe/` 是否 200；proxy 終端機是否還在跑；IP 是否變了（重新 `ipconfig getifaddr en0`） |
+| Mac 自己可以、手機不行 | macOS 防火牆：「系統設定 → 網路 → 防火牆」，允許 `node` 接受連入連線（第一次啟動時系統會詢問，需按允許）；手機與 Mac 是否同一個網段（訪客網路或「AP／用戶端隔離」會擋住裝置互連）；手機或 Mac 是否開了 VPN |
+| iPhone 上的 Chrome／Edge 打不開，但 Safari 可以 | iOS「設定 → Chrome（或 Edge）→ 區域網路」要開啟 |
+| 瀏覽器自動改成 `https://` 或顯示安全性錯誤 | 本流程只用 `http://`（區網內的 WebGL 不需要 HTTPS）。手動輸入 `http://` 開頭的網址；瀏覽器若開了「僅限 HTTPS」模式（如 Firefox、Edge 的自動 HTTPS），對這個位址暫時關閉。不要為此安裝憑證或改用公開 Tunnel |
+| 頁面打開但顯示「production server unreachable」 | `next start` 沒有在 3118 執行，或 `--upstream` 寫錯 |
+| `EADDRINUSE` | 埠被占用：關掉舊的 proxy／server，或改用其他埠（`--port 3129`，並同步手機網址） |
+| 量測一直沒有結束 | 頁面被切到背景或螢幕鎖定（自動鎖定設為「永不」）；在控制頁按「取消量測」後重跑 |
+
+## 2. 驗收操作順序（每台手機）
+
+| 步驟 | 在哪裡 | 做什麼 | 時間 |
+|---|---|---|---|
+| 0. 準備 | 手機設定 | 關閉低耗電／省電模式與「減少動態效果」；自動鎖定「永不」；電量 > 50%；關閉其他 App；閒置 2 分鐘降溫；記錄是否接電源與螢幕更新率設定（ProMotion、90／120 Hz） | 3 分鐘 |
+| 1. 裝置資訊 | 控制頁 §0 | 填裝置型號；確認依 User-Agent 預填的系統與瀏覽器版本（不對就改）；儲存。之後的結果都歸到這台裝置 | 1 分鐘 |
+| 2. 自動量測 | 控制頁 §1 | 勾選低耗電已關閉，按「開始自動量測」，**不要觸碰螢幕**。頁面自動輪流載入候選頁與舊版（各暖身 1 次，再交錯 3 輪）：首幀、GLB、閒置、鏡頭飛行；候選頁另切換四種時間並自動旋轉 5 秒。結束時顯示報告 | 約 4 分鐘 |
+| 3. 雙指縮放 | 控制頁 §2 | 候選頁、舊版各開一次，在地圖上雙指縮放 3 次以上（每次 1 秒以上），按右下角「送出」 | 2 分鐘 |
+| 4. 人工檢查 | 控制頁 §4 →「開啟候選頁」，另開分頁「填寫檢查表」 | 依 §3.2 順序（相機 → 自動旋轉 → 時間情境 → 版面與互動 → 無障礙 → 故障）逐項操作，填 Pass／Fail，沒做的保持 Not Tested；有問題寫備註 | 15～25 分鐘 |
+| 5. 主觀觀察與問題 | 檢查表下方 | 流暢度、陰影、傍晚暖光、發熱；問題描述；截圖檔名（截圖本身另外傳給審核者）；是否有阻擋上線的問題 | 3 分鐘 |
+| 6. 匯出 | 控制頁 §5 或報告頁 | 「匯出 JSON」或「文字版（可複製）」；或在 Mac 上用下方網址取得 | 1 分鐘 |
+
+- 報告有「不可靠」時：依原因修正環境（例如關低耗電、不要切換 App）後重跑該台的自動量測。**不要挑選結果**：所有 run 都保留在報告與匯出裡。
+- 換下一台手機：在控制頁 §0 重新填裝置資訊（每台手機的瀏覽器各自記住自己的裝置）。
+- 鍵盤與螢幕閱讀器（U-06、U-07）只在有外接鍵盤或可開 VoiceOver／TalkBack 時做；做不到就保持 Not Tested。
 
 ## 3. 驗收表
 
-執行方式：**A** 已自動（E2E，Chromium 桌機與 iPhone 13 模擬，不需真機；不是真機證據）・**D** 真機自動（使用者開網址並按開始，量測不需觸碰）・**S** 真機半自動（使用者做手勢，工具計時）・**M** 真機人工（使用者操作並判斷，填檢查表）・**K** 桌機實體瀏覽器人工。
+方式：**D** 真機自動（按開始，量測不需觸碰）・**S** 真機半自動（使用者做手勢，工具計時）・**M** 真機人工（使用者操作並判斷）・**O** 使用者主觀觀察（不是量測）。
 
-### 3.1 效能（每台手機；新版與舊版同一次 run）
+### 3.1 效能與裝置資訊（每台手機；候選頁與舊版同一次 run）
 
-| ID | 項目 | 方式 | 門檻（暫定） | iPhone Safari | Android Chrome |
-|---|---|---|---|---|---|
-| P-01 | 鏡頭飛行 FPS（新版，中位數） | D | ≥ 45 | Not Measured | Not Measured |
-| P-02 | 新版／舊版 飛行 FPS | D | ≥ 90% | Not Measured | Not Measured |
-| P-03 | 首幀（新版，熱快取中位數） | D | ≤ 2.5 秒 | Not Measured | Not Measured |
-| P-04 | 飛行幀間隔中位數／p95、長幀（> 50 ms）數 | D | 只記錄，不設門檻 | Not Measured | Not Measured |
-| P-05 | GLB 就緒時間 | D | 記錄 | Not Measured | Not Measured |
-| P-06 | 閒置重畫幀（停止 2 秒內） | D | 只記錄，不設門檻 | Not Measured | Not Measured |
-| P-07 | 冷快取首幀（暖身那一次） | D | 記錄 | Not Measured | Not Measured |
-| P-08 | 雙指縮放 FPS（新版與舊版） | S | 只記錄，不設門檻 | Not Measured | Not Measured |
-| P-09 | 每幀 draw call（全景／聚焦／陰影） | D | 應與桌機相同（新版 43／26／0，舊版全景 146、陰影 112），用來確認手機畫的是同一個場景 | 未執行 | 未執行 |
+| ID | 項目 | 方式 | 門檻／預期（桌機 Chromium 自測值） | iPhone SE 3 | iPhone 16 | Android |
+|---|---|---|---|---|---|---|
+| P-01 | 鏡頭飛行 FPS（候選頁，中位數） | D | ≥ 45 | Not Measured | Not Measured | Not Measured |
+| P-02 | 候選頁／舊版 飛行 FPS | D | ≥ 90% | Not Measured | Not Measured | Not Measured |
+| P-03 | 首幀（候選頁，熱快取中位數） | D | ≤ 2.5 秒 | Not Measured | Not Measured | Not Measured |
+| P-04 | 飛行幀間隔中位數／p95、長幀（> 50 ms） | D | 只記錄 | Not Measured | Not Measured | Not Measured |
+| P-05 | GLB 就緒時間；冷快取首幀（暖身那一次） | D | 只記錄 | Not Measured | Not Measured | Not Measured |
+| P-06 | 閒置重畫（停止後 2 秒內） | D | 只記錄；預期 0 | Not Measured | Not Measured | Not Measured |
+| P-07 | 雙指縮放 FPS（候選頁與舊版） | S | 只記錄 | Not Measured | Not Measured | Not Measured |
+| P-08 | 每幀 draw call（全景／聚焦／全景的陰影） | D | 預期與桌機相同：候選頁 43／26／0，舊版 146／82／112 | Not Measured | Not Measured | Not Measured |
+| P-09 | 全景每幀三角形 | D | 預期：候選頁 28,569、舊版 12,086 | Not Measured | Not Measured | Not Measured |
+| P-10 | Shader program（載入後 linkProgram 次數） | D | 預期：候選頁 17、舊版 5 | Not Measured | Not Measured | Not Measured |
+| P-11 | 自動旋轉 FPS（候選頁，5 秒） | D | 只記錄；舊版 Not Available | Not Measured | Not Measured | Not Measured |
+| P-12 | 時間切換：到第一個重畫的時間、重畫幀數、新編譯的 program（候選頁） | D | 只記錄；預期每次 1 幀、0 個新 program；舊版 Not Available | Not Measured | Not Measured | Not Measured |
+| P-13 | WebGL context 遺失（量測期間） | D | 預期 0；發生時該次全部數字標不可靠 | Not Measured | Not Measured | Not Measured |
+| P-14 | 裝置資訊：CSS viewport、DPR、WebGL renderer、User-Agent | D | 記錄；瀏覽器不提供時為 Not Available（例：iOS Safari 只回報「Apple GPU」） | Not Measured | Not Measured | Not Measured |
 
-### 3.2 功能與觸控（每台手機；新版與舊版各一次）
+### 3.2 人工檢查（候選頁；每項 Pass／Fail／Not Tested＋備註）
 
-| ID | 項目 | 方式 | 通過條件 | 已自動（E2E） | 狀態 |
-|---|---|---|---|---|---|
-| T-01 | 點島嶼地形聚焦 | M | 鏡頭飛到該島，工具列與地圖顯示該島 | 無（E2E 用名牌或清單聚焦；新版的 hover 測試只確認地形上是可點擊游標） | 未執行 |
-| T-02 | 點島嶼名牌聚焦 | M | 同 T-01；不需點第二次 | 兩版都有（滑鼠點擊） | 未執行 |
-| T-03 | 聚焦後點 3D 工坊建築 | M | 進入 `/learn` | 兩版都有 | 未執行 |
-| T-04 | HTML 地點入口（地點清單） | M | 燈塔說明可開關；工坊進入 `/learn`。舊版沒有地點清單（不適用） | 新版有 | 未執行 |
-| T-05 | 雙指縮放 | M | 地圖平順縮放，整頁不放大 | 無（只有本工具的模擬觸控） | 未執行 |
-| T-06 | 單指在地圖上滑動（**使用體驗觀察，不判通過**） | M | 記錄現況：兩版地圖都是 `touch-action: none`，預期頁面不捲動；註明是否造成困擾 | 無 | 未執行 |
-| T-07 | 返回全景 | M | 回到全景，三座島名牌都出現 | 兩版都有 | 未執行 |
-| T-08 | 3D／清單切換與清單模式 | M | 不用 3D 也能進入教材；切回後場景重新載入 | 兩版都有 | 未執行 |
-| T-09 | BFS 導航 | M | 進入 `/learn/bfs`；瀏覽器返回後地圖正常 | 兩版都有（不含返回） | 未執行 |
-| T-10 | 工具列版面（直向） | M | 新版一行、不截字、不遮地圖；舊版在 360／390 px 換兩行（記錄） | 新版 360／390 px 有 | 未執行 |
-| T-11 | 轉橫向再轉回 | M | 重新取景，名牌位置正確 | 無 | 未執行 |
-| T-12 | 長按名牌、快速點兩下地圖 | M | 不跳系統選單、不選取文字、不放大頁面 | 無 | 未執行 |
-| F-01 | WebGL 無法建立（工具注入） | M | 顯示「此裝置的 3D 場景無法使用」、自動清單、3D 按鈕停用、教材可進入 | 兩版都有（同一個注入） | 未執行 |
-| F-02 | GLB 載入失敗（工具注入） | M | 基礎程式島改用暫代建築、頁面可操作；新版地點清單仍可進入教材 | 新版有；舊版只有本工具 self-test | 未執行 |
-| F-03 | WebGL context 遺失（工具注入） | M | 改為清單導航並顯示提示，教材可進入 | 兩版都有 | 未執行 |
+相機：
 
-### 3.3 鍵盤（桌機實體瀏覽器；手機不適用）
+| ID | 操作 | 預期 | 已自動（E2E，模擬） |
+|---|---|---|---|
+| C-01 | 單指在地圖上左右拖曳 | 地圖跟著水平旋轉，放開後停住；不會聚焦島嶼 | 有（CDP 觸控） |
+| C-02 | 單指在地圖上上下滑動 | 整頁往上下捲動，地圖不旋轉 | 有 |
+| C-03 | 雙指放大、縮小各數次 | 地圖平順縮放；整頁不跟著放大 | 有（模擬，不證明手感） |
+| C-04 | 全景時點島嶼名牌，再點另一座島的地形 | 鏡頭飛到該島，地圖上方標題顯示該島；名牌不需點第二次 | 名牌有；地形點擊沒有 |
+| C-05 | 聚焦後按「返回全景」 | 回到載入時的全景，三座島名牌都出現 | 有 |
+| C-06 | 旋轉後聚焦，再單指旋轉，最後返回全景 | 聚焦保留旋轉後的方位、聚焦後仍可旋轉；返回全景回到預設方位 | 有 |
 
-| ID | 項目 | 方式 | 通過條件 | 已自動（E2E） | 狀態 |
-|---|---|---|---|---|---|
-| K-01 | Skip Link | K | 第一個 Tab 是「跳至主要內容」，只在聚焦時出現；Enter 跳到主要內容 | 兩版都有（Chromium） | 未執行（Safari、Chrome） |
-| K-02 | 名牌與「返回全景」 | K | Tab 可到、Enter 可用，焦點框清楚 | 兩版都有（Chromium，`islands-acceptance`） | 未執行（Safari、Chrome） |
-| K-03 | 清單模式全鍵盤 | K | 不用滑鼠完成切換、選島、進入教材 | 兩版都有（Chromium，`islands-acceptance`） | 未執行（Safari、Chrome） |
+自動旋轉：
 
-K 項的 Chromium 結果屬於 A；實體 Safari／Chrome 的人工確認是補強（Safari 的 Tab 行為與 Chromium 不同，§2.3），不屬於 B 的效能驗收。
+| ID | 操作 | 預期 | 已自動（E2E，模擬） |
+|---|---|---|---|
+| O-01 | 按「自動旋轉」，再按一次 | 開始緩慢旋轉、按鈕呈按下狀態；再按停止 | 有 |
+| O-02 | 旋轉中分別：單指拖曳、雙指縮放、點名牌 | 每一種都會停止 | 有 |
+| O-03 | 旋轉中切到其他分頁或 App，再回來 | 已停止，不會自行恢復 | 有（模擬 visibilitychange） |
+| O-04 | 系統開「減少動態效果」後重新載入（可測時；測完關閉） | 預設不旋轉、聚焦直接到位；按鈕仍可手動開啟 | 有（Chromium 的 reduced motion） |
 
-### 3.4 A 自動化驗收（Playwright，Chromium 桌機與手機 viewport）
+時間情境：
 
-| 範圍 | spec | 內容 |
-|---|---|---|
-| 版面 360／390 px | `islands-acceptance` | 兩版的全景、聚焦、清單模式（三座島）整頁沒有水平溢出 |
-| 版面 360／390 px | `islands-candidate` | 新版工具列一行、島名不截字、地圖標題不遮名牌 |
-| 鍵盤 | `islands-acceptance`、`islands-candidate` | Skip Link；Tab＋Enter 聚焦名牌與返回全景（焦點框可見）；清單模式全鍵盤進入教材 |
-| 無障礙名稱 | `islands-acceptance` | 3D、聚焦、清單模式下 `main` 內每個按鈕與連結都有可讀名稱；畫布有 `aria-label`。不含色彩對比與螢幕閱讀器實測 |
-| 3D 點擊與聚焦 | `islands-candidate`、`islands` | 名牌聚焦、3D 工坊點擊進入 `/learn`、地點清單、返回全景、hover 游標 |
-| 縮放 | `device-tool` | 手機模擬的雙指觸控會讓場景重畫並被計時；**不證明縮放手感**（T-05 屬 B） |
-| 清單與 BFS | `islands-candidate`、`islands` | 不用 3D 進入全部教材、切回 3D、BFS 入口 |
-| Fallback | `islands-candidate`、`islands`、`device-tool` | WebGL 無法建立、context 遺失、GLB 404（另有 `hex-world` 的 GLB 損毀） |
+| ID | 操作 | 預期 | 已自動（E2E，模擬） |
+|---|---|---|---|
+| E-01 | 選「清晨」 | 低角度暖光；無破圖、閃爍或黑塊 | 畫面不同、不編譯 shader |
+| E-02 | 載入後的預設 | 時間選單是「中午」，畫面與以往相同 | 有（逐像素） |
+| E-03 | 選「黃昏」 | 低角度橘色陽光、長影子；無破圖或閃爍 | 畫面不同 |
+| E-04 | 選「傍晚」 | 月光夜色；地圖上方標題清楚可讀 | 對比 ≥ 4.5:1 |
+| E-05 | 四個情境下放大看陰影（全景與聚焦） | 陰影無明顯鋸齒、斷裂、閃爍或錯位 | 無（只能真機看） |
+| E-06 | 傍晚看燈塔燈室、窗戶與路燈 | 呈暖黃光（只有燈本身亮，不照亮周圍是預期） | 材質數值有；觀感沒有 |
+| E-07 | 從傍晚切回「中午」 | 畫面回到載入時的樣子 | 有（逐像素） |
 
-手機上的外接鍵盤、VoiceOver／TalkBack 不在本輪範圍；若要納入需另訂項目。
+版面、互動與無障礙：
+
+| ID | 操作 | 預期 | 已自動（E2E，模擬） |
+|---|---|---|---|
+| U-01 | 直向看報告上的 CSS 寬度，並左右滑動整頁 | 記錄寬度（約 360／390／430）；整頁沒有水平捲動 | 360／390／430 px 有 |
+| U-02 | 看地圖下方的提示與「時間情境／自動旋轉／返回全景」 | 一列完整可見、不截字、不溢出；按鈕好按、不會誤觸 | 44 px、不截字有 |
+| U-03 | 旋轉、縮放、聚焦後看地圖上方的標題 | 標題在地圖外，不遮住島嶼或名牌 | 有 |
+| U-04 | 點三座島；聚焦基礎程式島後用地點清單開燈塔說明、點工坊 | 都能聚焦；說明可開關；工坊進入 `/learn` | 有 |
+| U-05 | 點「航行指南」三張島嶼卡片；切「清單」進入一份教材再返回；點頁尾「原有教材頁」 | 卡片讓地圖聚焦；清單可進入教材、切回 3D 正常；進入 `/learn/bfs`，返回後地圖正常 | 有（不含瀏覽器返回） |
+| U-06 | 接外接鍵盤後重新載入，按 Tab、Enter（可測時） | 第一個焦點是「跳至主要內容」且清楚可見；Enter 跳到主要內容 | Chromium 有 |
+| U-07 | VoiceOver（iPhone）或 TalkBack（Android）瀏覽地圖區與清單（可測時） | 按鈕與時間選單讀出可辨識的名稱；可用清單選島並進入教材 | 無障礙名稱有；螢幕閱讀器沒有 |
+| U-08 | 轉橫向再轉回；長按名牌；地圖上快速點兩下 | 重新取景、名牌位置正確；不跳系統選單、不選取文字、頁面不放大 | 無 |
+
+故障（工具在頁內注入；與 E2E 的差異見 §4.2）：
+
+| ID | 操作 | 預期 | 已自動（E2E，模擬） |
+|---|---|---|---|
+| F-01 | 用工具的「WebGL 無法建立」開啟頁面 | 顯示「此裝置的 3D 場景無法使用」、自動切到清單、沒有 3D 控制、三座島與教材可進入 | 有 |
+| F-02 | 用工具的「GLB 載入失敗」開啟頁面，聚焦基礎程式島 | 基礎程式島改用暫代建築，頁面可正常操作；地點清單仍可進入教材 | 有 |
+| F-03 | 用工具的「WebGL context 遺失」開啟頁面，等 GLB 載入後約 2 秒 | 改為清單導航並顯示提示，教材可進入 | 有 |
+
+### 3.3 主觀觀察（O；不是量測，與 §3.1 分開記錄）
+
+整體流暢度（鏡頭飛行、旋轉、縮放）、陰影品質、傍晚暖光、發熱或耗電（約 15 分鐘後）。每項選「良好／可接受／不佳」或保持「未觀察」，可加說明。
+
+### 3.4 問題、截圖與上線判斷
+
+檢查表最後有問題描述、截圖檔名（截圖本身另外傳給審核者，工具不收檔案）與「是否有阻擋上線的問題：是／否／未判斷」。這是測試者的意見；最終由審核決定。
+
+### 3.5 A 自動化驗收（Playwright，Chromium；不是真機證據）
+
+候選頁的自由相機、觸控（CDP 模擬）、鏡頭飛行、自動旋轉與停止條件、四種時間情境（像素、shader、draw、陰影 pass、閒置）、對比、手機 360／390／430 px 版面與標題、跳至主要內容、按鈕列（44 px）、WebGL fallback：`e2e/candidate-integration.spec.ts`、`islands-candidate`、`islands-acceptance`、`hex-camera`、`hex-environment`；量測工具本身：`e2e/device-tool.spec.ts`（在模擬上必須把自己的數字標為不可靠）。
 
 ## 4. 量測方法
 
@@ -165,57 +215,66 @@ K 項的 Chromium 結果屬於 A；實體 Safari／Chrome 的人工確認是補�
 
 | 指標 | 定義 | 精度 |
 |---|---|---|
-| 首幀 | 導航開始（`performance.timeOrigin`）到第一個有主畫面 draw call 的 rAF 時間戳 | 約 1 幀（與桌機 harness 相同的定義） |
-| GLB 就緒 | 基礎程式島名牌出現 `data-model-source="glb"` 的時間 | 每 100 ms 檢查一次 |
-| 鏡頭飛行 | 從按下清單的「基礎程式島」或「返回全景」，到 700 ms 沒有新畫面為止的所有畫面；每頁 6 次（聚焦、返回各 3 次） | — |
-| FPS | 每次飛行（畫面數 − 1）÷ 時間，取 6 次的中位數；路由的值是 3 頁的中位數 | — |
-| 幀間隔 | 飛行中相鄰畫面的間隔；中位數、p95、> 50 ms 的次數、最大值 | rAF 時間戳 |
-| 閒置更新率 | 靜止時連續 60 個 rAF 間隔的中位數 | — |
-| 閒置重畫 | 鏡頭停止後 2 秒內畫的畫面數 | — |
-| 每幀成本 | 停止後最後一幀的 draw call 與三角形，分主畫面與離屏（陰影貼圖） | 逐呼叫計數 |
-| 雙指縮放 | 第二根手指放下到最後一根手指離開之間的畫面，算法同飛行；少於 10 幀的一段不計 | — |
+| 首幀 | 導航開始到第一個有主畫面 draw call 的 rAF 時間戳 | 約 1 幀 |
+| GLB 就緒 | 基礎程式島名牌出現 `data-model-source="glb"` 的時間 | 每 100 ms 檢查 |
+| 鏡頭飛行 | 從按下清單的「基礎程式島」或「返回全景」到 700 ms 沒有新畫面為止；每頁 6 次 | — |
+| FPS | 每次飛行（畫面數 − 1）÷ 時間，取中位數；路由的值是各輪的中位數 | — |
+| 幀間隔 | 飛行中相鄰畫面的間隔；中位數、p95、> 50 ms 次數 | rAF 時間戳 |
+| 閒置更新率／閒置重畫 | 靜止時 60 個 rAF 間隔的中位數；停止後 2 秒內畫的畫面數 | — |
+| draw call／三角形 | 停止後最後一幀，主畫面與離屏（陰影貼圖）分開，逐呼叫計數（包裝 WebGL2 draw 函式） | 精確 |
+| Shader program | 載入並靜止後 `linkProgram` 的累計次數（與 E2E 相同的計法） | 精確 |
+| 時間切換 | 選單改變到之後第一個被記錄畫面的時間（記錄在下一個 rAF，所以含最多約 1 幀）、到靜止為止的畫面數、期間新的 `linkProgram` 次數；清晨→黃昏→傍晚→中午，取中位數／最大值 | 約 1 幀 |
+| 自動旋轉 FPS | 按下「自動旋轉」0.5 秒後的 5 秒內，畫面數 − 1 ÷ 時間；之後按「返回全景」 | — |
+| context 遺失 | 量測期間 `webglcontextlost` 事件數（window capture） | 精確 |
+| 雙指縮放 | 第二根手指放下到最後一根手指離開之間的畫面，算法同飛行；少於 10 幀不計 | — |
 
-順序：暖身（冷快取）新版、舊版各 1 次，不列入門檻；之後 3 輪，每輪交替先後（新舊、舊新、新舊），讓升溫與背景負載平均分攤。
+順序：暖身（冷快取）候選頁、舊版各 1 次，不列入門檻；之後 3 輪交替先後。
 
-### 4.2 已知偏差
+### 4.2 已知偏差與限制
 
-- 量測包裝每個 draw call：舊版每幀約 258 次（主畫面 146＋陰影 112）、新版 43 次，所以包裝開銷對舊版略多，會讓 P-02 比例稍微偏向新版。估計在手機上每次呼叫不到 1 µs，每幀合計遠小於 1 ms（16.7 ms 預算的數 %以下）；未實測，判讀接近 90% 的結果時要考慮。
-- rAF 時間戳反映瀏覽器交給頁面的幀，不是螢幕實際呈現的時間；GPU 塞車時 rAF 會跟著變慢，所以仍反映卡頓，但無法看到合成器層的掉幀。
-- iPhone Safari 預設把 rAF 限制在 60 Hz（即使是 ProMotion 螢幕），低耗電模式降到 30 Hz；Android 高更新率螢幕的 rAF 可達 90／120 Hz。高更新率時舊版可能超過 60，比例門檻會受更新率影響（報告會提示）。
-- 自動量測用程式按下清單按鈕觸發飛行（與桌機 harness 相同），不是手指觸控；觸控本身由 T 項人工檢查。
-- 故障注入是在頁面內模擬失效，不是真的沒有 WebGL 的裝置；目的是確認 fallback 畫面在真機上的版面與操作。與 E2E 的對應：
-  - WebGL 無法建立、context 遺失：與 `e2e/fallbacks.ts` 相同的頁內做法（覆寫 `getContext`、`WEBGL_lose_context`）。因為注入程式要能獨立序列化，這段是複製而不是 import，修改其中一邊時要同步另一邊。
-  - GLB 載入失敗：**做法不同**。E2E 用 Playwright `page.route` 在網路層把 GLB 回 404；工具沒有網路層控制，改在頁內覆寫 `window.fetch`，對 `.glb` 回 404。兩者都讓 GLB 載入失敗並回到暫代建築（`e2e/device-tool.spec.ts` 確認），但不經過真的網路請求。
-  - E2E 另有「GLB 下載成功但內容損毀」（`e2e/hex-world.spec.ts`），工具沒有這一項。
+- **FPS 不等於螢幕更新率，也不是完整的 GPU profiling**：它是瀏覽器交給頁面的 rAF 頻率。iPhone Safari 預設把 rAF 限制在 60 Hz（即使是 ProMotion），低耗電模式 30 Hz；Android 高更新率螢幕可達 90／120 Hz（報告會提示，P-02 要連同原始 FPS 判讀）。看不到合成器層的掉幀、GPU 時間或耗電。
+- 量測包裝每個 draw call：舊版每幀呼叫次數多，包裝開銷對舊版略多，P-02 比例會稍微偏向候選頁（估計每幀遠小於 1 ms，未實測）。
+- 自動量測用程式按下按鈕觸發飛行、切換時間與自動旋轉，不是手指觸控；觸控由人工項目檢查。
+- WebGL renderer 字串由瀏覽器決定：iOS Safari 通常只回報「Apple GPU」，有些瀏覽器隱藏；取不到時為 Not Available。`navigator.deviceMemory` 在 `http://` 下不提供。
+- 故障注入是在頁內模擬失效：WebGL 無法建立、context 遺失與 `e2e/fallbacks.ts` 相同做法（複製，不是 import，修改時要同步）；GLB 失敗改用覆寫 `window.fetch` 回 404（E2E 用 `page.route`）。
 
-### 4.3 可靠性旗標（有任一項就不判定）
+### 4.3 可靠性旗標（有任一相關旗標就「不可靠，不判定」）
 
-| 旗標 | 影響 | 原因 |
-|---|---|---|
-| 量測失敗 | 全部 | 逾時或找不到元素 |
-| 頁面被切到背景 | 全部 | 鎖定、切換 App 或分頁時 rAF 停止 |
-| 減少動態效果 | FPS、比例 | 鏡頭直接跳到目標，沒有飛行 |
-| 閒置更新率 < 50 Hz | FPS、比例 | 低耗電模式或系統節流 |
-| 飛行少於 10 幀 | FPS、比例 | 樣本太少 |
-| 軟體算圖 | 全部 | renderer 是 SwiftShader 等，不是實體 GPU |
-| 不是手機瀏覽器 | 全部 | User-Agent 沒有 Mobile／Android（例如桌機 dry-run） |
-| 各輪差距 > 20% | FPS、比例 | 同一路由三輪不一致 |
-| 少於 3 輪 | 全部 | 輪數不足 |
+| 旗標 | 影響 |
+|---|---|
+| 量測失敗（逾時、找不到元素） | 全部 |
+| 頁面被切到背景 | 全部 |
+| 減少動態效果 | 鏡頭飛行 FPS、比例（自動旋轉照常量） |
+| 閒置更新率 < 50 Hz | FPS、比例、自動旋轉 |
+| 飛行少於 10 幀 | 鏡頭飛行 FPS、比例 |
+| 軟體算圖（SwiftShader 等） | 全部 |
+| 不是手機瀏覽器（User-Agent 沒有 Mobile／Android） | 全部 |
+| 各輪差距 > 20% | 鏡頭飛行 FPS、比例 |
+| 少於 3 輪 | FPS、首幀 |
+| WebGL context 遺失 | 全部 |
 
-## 5. 結果紀錄（待真機）
+## 5. 報告與匯出
 
-| 裝置 | 系統／瀏覽器 | DPR／畫布 | 閒置更新率 | 新版 FPS | 舊版 FPS | 比例 | 新版首幀 | 工具判定 | 人工檢查 |
-|---|---|---|---|---|---|---|---|---|---|
-| iPhone SE（第 3 代）— 最低效能基準 | Safari | — | — | Not Measured | Not Measured | — | Not Measured | — | 未執行 |
-| iPhone 16 — 標準效能基準 | Safari | — | — | Not Measured | Not Measured | — | Not Measured | — | 未執行 |
-| 中階 Android（型號待記錄）— 相容性 | Chrome | — | — | Not Measured | Not Measured | — | Not Measured | — | 未執行 |
+| 位置 | 內容 |
+|---|---|
+| `/__probe/report` | 所有裝置，每台：裝置（使用者確認＋偵測）、實際量測（每次 run 全部保留）、雙指縮放、主觀觀察、檢查表（Pass／Fail／Not Tested 計數）、問題與截圖、是否阻擋上線 |
+| `/__probe/export.json?device=<id>` | 一台裝置的報告（schema `logic-island/d3-4b-device-report@1`），可下載或複製 |
+| `/__probe/export.txt?device=<id>` | 同一份報告的純文字版，可直接貼到訊息或 issue |
+| `/__probe/report.json` | 所有原始資料（量測的幀資料、檢查表原始欄位） |
+| Mac 的 `test-results/device/*.json` | 原始檔（`device-*`、`run-*`、`pinch-*`、`checklist-*`） |
 
-工具的判定只是計算；D.3-4 是否通過由審核決定。
+匯出 JSON 的主要欄位：`testDate`、`testUrl`、`device`（型號、系統、瀏覽器，使用者確認）、`detected`（User-Agent、CSS viewport、DPR、WebGL renderer）、`measured`（每次 run 的門檻判定，候選頁與舊版每個數字的 `value`／`unit`／`status: measured | not-available | unreliable`／原因；雙指縮放）、`observed`（主觀觀察）、`checklist`（每項 `Pass`／`Fail`／`Not Tested` 與備註）、`issues`、`screenshots`、`blocking`（`yes`／`no`／`undecided`）、`notMeasured`、`decision: null`（工具不判定）。
 
-## 6. 尚未完成與待決
+## 6. 結果紀錄（待真機）
 
-- **B 真機效能驗收：Not Measured**（三台標準測試機）。本輪沒有實體手機；這台 Mac 也沒有 adb、Xcode 或 iOS 模擬器（WebKit 相容性只有桌機 Safari dry-run，見 `logs/2026-10-30-d3-4-prep.md`）。不阻擋其他開發階段；正式切換 `/islands` 前需取得 B 的結果或另行批准。**時機（2026-10-30 決定）**：在 D.3-5／D.3-6 的功能整合進候選頁（D.3-5c／D.3-6c）之後、正式 `/islands` 切換之前執行；`86efe53` 的候選頁保留為比較基準。
-- 已決（2026-10-30）：標準測試機與門檻適用對象（§0.2）；P-04、P-06、P-08 只記錄；T-06 列為使用體驗觀察（§0.3）。
-- 仍待決：Android 的具體型號（實測時記錄）；高更新率 Android（90／120 Hz）上 P-02 比例的判讀方式（目前報告會提示，並要求連同原始 FPS 一起看）。
-- T-06：兩版地圖都設 `touch-action: none`，單指在地圖上滑動時頁面可能不捲動；是否調整屬產品決定，不在 D.3-4 範圍（KNOWN_ISSUES P1-27）。**2026-10-30 決定方案 B**（單指水平旋轉、垂直捲頁）；D.3-5a 只在 37 格實驗室頁實作，Chromium 模擬通過，**iOS Safari 需真機確認**；候選頁與 `/islands` 仍是 `none`，直到 D.3-5c 推進。
-- A 的限制：自動化只在 Chromium（桌機與 iPhone 13 模擬）執行。**iOS Safari／Screen Reader：Not Verified**（VoiceOver／TalkBack 未測）；色彩對比也不在 A 的範圍。
+| 裝置 | 系統／瀏覽器 | CSS／DPR | 閒置更新率 | 候選頁 FPS | 舊版 FPS | 比例 | 首幀 | 自動旋轉 FPS | 人工檢查 | 審核 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| iPhone SE（第 3 代） | Safari | — | — | Not Measured | Not Measured | — | Not Measured | Not Measured | Not Tested | Real Device Not Measured |
+| iPhone 16 | Safari | — | — | Not Measured | Not Measured | — | Not Measured | Not Measured | Not Tested | Real Device Not Measured |
+| 中階 Android（型號待記錄） | Chrome | — | — | Not Measured | Not Measured | — | Not Measured | Not Measured | Not Tested | Real Device Not Measured |
+
+## 7. 尚未完成與待決
+
+- **真機實測：Not Measured**（三台標準測試機）。這台 Mac 沒有實體手機、adb、Xcode 或 iOS 模擬器；工具只在 Chromium 模擬自測過（`e2e/device-tool.spec.ts`），那些數字一律標不可靠。
+- 仍待決：Android 的具體型號；高更新率 Android 上 P-02 的判讀方式；自動旋轉 FPS、時間切換延遲是否需要門檻（目前只記錄）。
+- 實測後由審核依匯出報告標 Real Device Passed 或 Real Device Failed，再決定是否修正候選頁、是否授權正式 `/islands` 切換。
