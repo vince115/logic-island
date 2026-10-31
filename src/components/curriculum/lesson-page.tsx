@@ -5,7 +5,7 @@ import { getContent, getLessonById, islands, lessons, neighbours, visualizations
 import { APCS_LABELS, DIFFICULTY_LABELS } from '@/content/curriculum/registry';
 import type { Block, CodeExample, Exercise, LessonContent, LessonMeta } from '@/content/curriculum/schema';
 import { CodeTabs } from './code';
-import { LessonCompletion, ProgressBadge } from './progress';
+import { IslandProgress, LessonCompletion, ProgressBadge } from './progress';
 import { Quiz } from './quiz';
 import { Rich } from './rich';
 import { ChallengeStages, Complexity, ConditionalBranch, DsComparison, Trace } from './visualizations';
@@ -51,8 +51,10 @@ export function LessonPage({ lesson }: { lesson: LessonMeta }) {
     {content ? <Complete lesson={lesson} content={content}/> : <PlannedVisualization lesson={lesson}/>}
     <nav className={styles.pager} aria-label="上一堂與下一堂">
       {previous ? <Link href={`/curriculum/${previous.slug}`} rel="prev"><ArrowLeft size={16} aria-hidden/><span><small>上一堂 · {previous.lessonId}</small>{previous.title}</span></Link> : <span/>}
-      {next ? <Link href={`/curriculum/${next.slug}`} rel="next"><span><small>下一堂 · {next.lessonId}{next.lessonStatus === 'planned' ? '（規劃中）' : ''}</small>{next.title}</span><ArrowRight size={16} aria-hidden/></Link> : <span/>}
+      {next ? <Link href={`/curriculum/${next.slug}`} rel="next"><span><small>下一堂 · {next.lessonId}{next.lessonStatus === 'planned' ? '（規劃中）' : ''}</small>{next.title}</span><ArrowRight size={16} aria-hidden/></Link>
+        : <Link href="/curriculum"><span><small>這是最後一堂</small>回到課綱，查看 {lessons.length} 堂的完成狀況</span><ArrowRight size={16} aria-hidden/></Link>}
     </nav>
+    {!next && <IslandProgress name="全部課程" lessonIds={lessons.filter(l => l.lessonStatus === 'complete').map(l => l.lessonId)} completeText={`${lessons.length} 堂課全部完成！`}/>}
   </main>;
 }
 
@@ -136,6 +138,17 @@ function BlockView({ block, examples }: { block: Block; examples: Map<string, Co
   }
 }
 
+/**
+ * A test's text as shown on the page: large generated tests (up to hundreds of kilobytes, used by the automated
+ * three-language check) show their first lines and say how big they are, so the page stays light.
+ */
+function TestText({ text }: { text: string }) {
+  const lines = text.split('\n');
+  if (text.length <= 600 && lines.length <= 20) return <pre>{text}</pre>;
+  const head = lines.slice(0, 8).map(l => l.length > 80 ? `${l.slice(0, 80)}…` : l).join('\n');
+  return <><pre>{head}{'\n'}…</pre><p className={styles.muted}>大型測資：共 {lines.length.toLocaleString('en-US')} 行、{text.length.toLocaleString('en-US')} 個字元，只顯示開頭；完整內容在自動驗證中使用。</p></>;
+}
+
 function ExerciseView({ exercise }: { exercise: Exercise }) {
   const kinds = { normal: '一般', edge: '邊界', error: '錯誤輸入' } as const;
   return <article className={styles.exercise} aria-labelledby={`${exercise.id}-title`}>
@@ -153,7 +166,7 @@ function ExerciseView({ exercise }: { exercise: Exercise }) {
     <details className={styles.details}><summary>測資（{exercise.tests.length} 組：一般、邊界{exercise.tests.some(t => t.kind === 'error') ? '、錯誤輸入' : ''}）</summary>
       <div className={styles.tableWrap}><table className={styles.table}>
         <thead><tr><th scope="col">類型</th><th scope="col">輸入</th><th scope="col">預期輸出</th><th scope="col">說明</th></tr></thead>
-        <tbody>{exercise.tests.map((t, i) => <tr key={i}><td>{kinds[t.kind]}</td><td><pre>{t.input}</pre></td><td><pre>{t.output}</pre></td><td>{t.note}</td></tr>)}</tbody>
+        <tbody>{exercise.tests.map((t, i) => <tr key={i}><td>{kinds[t.kind]}</td><td><TestText text={t.input}/></td><td><TestText text={t.output}/></td><td>{t.note}</td></tr>)}</tbody>
       </table></div>
       {exercise.errorPolicy && <p className={styles.muted}>錯誤輸入：{exercise.errorPolicy}</p>}
     </details>

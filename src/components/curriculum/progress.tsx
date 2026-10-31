@@ -42,13 +42,13 @@ export function LessonCompletion({ lessonId, quizTotal, island }: { lessonId: st
 }
 
 /** How many of an island's complete lessons this learner has completed, and a note once all of them are. */
-export function IslandProgress({ name, lessonIds }: { name: string; lessonIds: string[] }) {
+export function IslandProgress({ name, lessonIds, completeText }: { name: string; lessonIds: string[]; completeText?: string }) {
   const { progress } = useProgress();
   const done = lessonIds.filter(id => statusOf(progress.lessons[id]) === 'completed').length;
   const all = done === lessonIds.length && lessonIds.length > 0;
   return <p className={styles.islandProgress} data-complete={all ? 'true' : undefined}>
     <span>{name}：已完成 {done}／{lessonIds.length} 堂</span>
     <span className={styles.islandBar} aria-hidden><span style={{ width: `${lessonIds.length ? done / lessonIds.length * 100 : 0}%` }}/></span>
-    {all && <strong>{name}全部完成！</strong>}
+    {all && <strong>{completeText ?? `${name}全部完成！`}</strong>}
   </p>;
 }

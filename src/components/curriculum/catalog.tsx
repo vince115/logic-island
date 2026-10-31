@@ -18,6 +18,7 @@ export function CurriculumCatalog() {
       <div><dt>規劃中（大綱）</dt><dd>{lessons.length - complete} 堂</dd></div>
       {DIFFICULTIES.map(d => <div key={d}><dt>{DIFFICULTY_LABELS[d]}</dt><dd>{lessons.filter(l => l.difficulty === d).length} 堂</dd></div>)}
     </dl>
+    <IslandProgress name="全部課程" lessonIds={lessons.filter(l => l.lessonStatus === 'complete').map(l => l.lessonId)} completeText={`${lessons.length} 堂課全部完成！`}/>
     {islands.map(island => <section key={island.id} className={styles.island} aria-labelledby={`island-${island.id}`}>
       <h2 id={`island-${island.id}`}>{island.name}<span>{island.englishName}</span></h2>
       <p className={styles.muted}>{island.summary}</p>

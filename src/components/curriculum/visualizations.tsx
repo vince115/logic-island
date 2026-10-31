@@ -2,13 +2,14 @@
 
 import { useState, type KeyboardEvent, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
-import { compare, PLAYGROUND_LIMIT, type Comparison, type Mark, type Playground as PlaygroundConfig, type TraceKind, type TraceStep, type TreeNode, type VisualizationConfig } from '@/content/curriculum/schema';
+import { compare, PLAYGROUND_LIMIT, TRY_IT_LIMIT, type Comparison, type Mark, type Playground as PlaygroundConfig, type TraceKind, type TraceStep, type TreeNode, type TryIt as TryItConfig, type VisualizationConfig } from '@/content/curriculum/schema';
+import { bfsSteps, binarySearchSteps, bubbleSortSteps, dfsSteps, dijkstraSteps, insertionSortSteps, knapsackSteps, linearSearchSteps, lowerBoundSteps, mergeSortSteps, minWindowSteps, prefixSumSteps, quickSortSteps, selectionSortSteps, twoSumSteps } from '@/content/curriculum/simulate-algorithms';
 import { bstSteps, containerSteps, dsuForest, dsuSteps, dynamicArraySteps, hashSteps, heapSteps, linkedListSteps } from '@/content/curriculum/simulate';
 import { Rich } from './rich';
 import styles from './curriculum.module.css';
 
 type Of<K> = Extract<VisualizationConfig, { kind: K }>;
-const MARKS: Record<Mark, string> = { read: '讀取', write: '寫入', bad: '越界', removed: '已移除', visited: '已拜訪', found: '找到', current: '目前' };
+const MARKS: Record<Mark, string> = { read: '讀取', write: '寫入', bad: '越界', removed: '已移除', visited: '已拜訪', found: '找到', current: '目前', pending: '待處理' };
 
 /** Step buttons shared by the step-through visualizations; every button says what it does. */
 function Stepper({ at, count, set, unit = '步驟' }: { at: number; count: number; set: (n: number) => void; unit?: string }) {
@@ -31,23 +32,34 @@ function Cells({ array }: { array: NonNullable<TraceStep['arrays']>[number] }) {
   const grid = Array.isArray(array.cells[0]);
   const rows = (grid ? array.cells : [array.cells]) as string[][];
   const mark = (r: number, c: number) => array.marks?.find(m => typeof m.at === 'number' ? !grid && m.at === c : m.at[0] === r && m.at[1] === c)?.kind;
-  const bad = array.marks?.filter(m => m.kind === 'bad') ?? [];
+  // A bad mark outside the array is an out-of-bounds access (explained below it); inside it is a refused move or value.
+  const outsideCell = (at: number | [number, number]) => typeof at === 'number' ? at < 0 || at >= (rows[0]?.length ?? 0)
+    : at[0] < 0 || at[0] >= rows.length || at[1] < 0 || at[1] >= (rows[at[0]]?.length ?? 0);
+  const bad = array.marks?.filter(m => m.kind === 'bad' && outsideCell(m.at)) ?? [];
   const unused = !grid && array.capacity !== undefined ? Math.max(0, array.capacity - rows[0].length) : 0;
+  const n = rows[0]?.length ?? 0;
+  // Named indices under their cells; −1 and n (just outside the array) are listed after it.
+  const named = (c: number) => Object.entries(array.pointers ?? {}).filter(([, p]) => p === c).map(([k]) => k);
+  const outside = Object.entries(array.pointers ?? {}).filter(([, p]) => p !== null && (p < 0 || p >= n));
+  const inRange = (c: number) => !!array.range && c >= array.range.from && c <= array.range.to;
   return <figure className={styles.cells} aria-label={`${array.name}${grid ? '（二維）' : ''}`}>
-    <figcaption><code>{array.name}</code>{grid ? `：${rows.length} 列 × ${rows[0]?.length ?? 0} 行` : `：長度 ${rows[0].length}`}{array.capacity !== undefined ? `、容量 ${array.capacity}` : ''}</figcaption>
+    <figcaption><code>{array.name}</code>{grid ? `：${rows.length} 列 × ${rows[0]?.length ?? 0} 行` : `：長度 ${n}`}{array.capacity !== undefined ? `、容量 ${array.capacity}` : ''}
+      {array.range ? `；${array.range.label}：${array.range.from > array.range.to ? '空的' : `索引 ${array.range.from}～${array.range.to}`}` : ''}</figcaption>
     <table>
-      {grid && <thead><tr><th scope="col"><span className={styles.srOnly}>列＼行</span></th>{rows[0]?.map((_, c) => <th key={c} scope="col">{c}</th>)}</tr></thead>}
+      {grid && <thead><tr><th scope="col"><span className={styles.srOnly}>列＼行</span></th>{rows[0]?.map((_, c) => <th key={c} scope="col">{array.colLabels?.[c] ?? c}</th>)}</tr></thead>}
       <tbody>{rows.map((row, r) => <tr key={r}>
-        {grid && <th scope="row">{r}</th>}
-        {row.map((cell, c) => { const m = mark(r, c); return <td key={c} data-mark={m}>
+        {grid && <th scope="row">{array.rowLabels?.[r] ?? r}</th>}
+        {row.map((cell, c) => { const m = mark(r, c), names = grid ? [] : named(c); return <td key={c} data-mark={m} data-range={!grid && inRange(c) ? 'true' : undefined}>
           <span className={styles.cellValue}>{cell === '' ? ' ' : cell}</span>
-          {!grid && <span className={styles.cellIndex}>{c}</span>}
-          {m && <span className={styles.cellMark}>{MARKS[m]}</span>}
+          {!grid && <span className={styles.cellIndex}>{array.colLabels?.[c] ?? c}</span>}
+          {m && <span className={styles.cellMark}>{m === 'bad' ? '不可行' : MARKS[m]}</span>}
+          {names.length ? <span className={styles.cellPointer}>↑{names.join('、')}</span> : null}
         </td>; })}
         {Array.from({ length: unused }, (_, k) => <td key={`u${k}`} data-unused="true"><span className={styles.cellValue}> </span>
           <span className={styles.cellIndex}>{rows[0].length + k}</span><span className={styles.cellMark}>未使用</span></td>)}
       </tr>)}</tbody>
     </table>
+    {outside.length ? <p className={styles.dsSets}>{outside.map(([k, p]) => `${k} = ${p}（${p! < 0 ? '在陣列左邊之外' : '在陣列尾端之後'}）`).join('；')}</p> : null}
     {bad.map((m, i) => <p key={i} className={styles.badIndex}>越界：索引 {Array.isArray(m.at) ? `[${m.at.join('][')}]` : m.at} 不在 {grid ? `0～${rows.length - 1} 列、0～${(rows[0]?.length ?? 1) - 1} 行` : rows[0].length ? `0～${rows[0].length - 1}` : '（陣列是空的）'} 之內</p>)}
   </figure>;
 }
@@ -63,7 +75,7 @@ export function Trace({ config }: { config: Extract<VisualizationConfig, { kind:
   const lines = config.code.split('\n');
   const frames = step.frames ?? [];
   // Trees, graphs and hash tables need the full width: the code then goes above the state instead of beside it.
-  const stacked = config.steps.some(s => s.tree || s.graph || s.dsu || s.buckets);
+  const stacked = config.steps.some(s => s.tree || s.graph || s.dsu || s.buckets || s.table || (s.arrays?.length ?? 0) > 1 || s.arrays?.some(a => Array.isArray(a.cells[0])));
   return <div className={styles.viz}>
     <div className={styles.vizGrid} data-stacked={stacked ? 'true' : undefined}>
       <pre className={styles.vizCode} aria-label={`${config.language} 程式`}><code>{lines.map((line, i) =>
@@ -103,6 +115,7 @@ export function Trace({ config }: { config: Extract<VisualizationConfig, { kind:
     <p className={styles.vizNote} aria-live="polite">第 {step.line} 行：<Rich text={step.note}/></p>
     <Stepper at={at} count={config.steps.length} set={setAt}/>
     {config.playground && <Playground config={config.playground}/>}
+    {config.tryIt && <TryIt config={config.tryIt}/>}
   </div>;
 }
 
@@ -212,7 +225,21 @@ function DsPanels({ step }: { step: TraceStep }) {
     {step.tree && <TreeView tree={step.tree}/>}
     {step.graph && <GraphView graph={step.graph}/>}
     {step.dsu && <Dsu dsu={step.dsu}/>}
+    {step.table && <StepTable table={step.table}/>}
   </>;
+}
+
+/** A labelled table; a marked row or cell also says its mark in words. */
+function StepTable({ table }: { table: NonNullable<TraceStep['table']> }) {
+  const mark = (r: number, c?: number) => table.marks?.find(m => m.row === r && (m.col === undefined || m.col === c))?.kind;
+  return <div className={styles.dsScroll}><table className={`${styles.vars} ${styles.stepTable}`}>
+    <caption>{table.name}</caption>
+    <thead><tr>{table.head.map(h => <th key={h} scope="col">{h}</th>)}</tr></thead>
+    <tbody>{table.rows.map((row, r) => { const rowMark = table.marks?.find(m => m.row === r && m.col === undefined)?.kind;
+      return <tr key={r} data-mark={rowMark}>{row.map((cell, c) => { const m = mark(r, c);
+        return c === 0 ? <th key={c} scope="row">{cell}{rowMark ? <span className={styles.cellMark}>{MARKS[rowMark]}</span> : null}</th>
+          : <td key={c} data-mark={m !== rowMark ? m : undefined}>{cell}{m && m !== rowMark ? `（${MARKS[m]}）` : ''}</td>; })}</tr>; })}</tbody>
+  </table></div>;
 }
 
 function Container({ c }: { c: NonNullable<TraceStep['containers']>[number] }) {
@@ -483,6 +510,83 @@ function Playground({ config }: { config: PlaygroundConfig }) {
       <DsPanels step={state}/>
       {state.vars && <table className={styles.vars}><caption>結果</caption><tbody>{Object.entries(state.vars).map(([k, v]) => <tr key={k}><th scope="row"><code>{k}</code></th><td><code>{v}</code></td></tr>)}</tbody></table>}
     </div>
+  </section>;
+}
+
+// ---- try it: an algorithm on the learner's own input -----------------------------------------------------------------
+const ALGO_NAMES: Record<TryItConfig['algorithm'], string> = {
+  'linear-search': '線性搜尋', 'binary-search': '二分搜尋', 'lower-bound': 'lower bound', 'bubble-sort': '氣泡排序', 'selection-sort': '選擇排序',
+  'insertion-sort': '插入排序', 'merge-sort': '合併排序', 'quick-sort': '快速排序', 'two-sum': '雙指標配對', 'min-window': '最短視窗', 'prefix-sum': '前綴和',
+  bfs: 'BFS', dfs: 'DFS', dijkstra: 'Dijkstra', knapsack: '0/1 背包',
+};
+type ArrayTry = Extract<TryItConfig, { initial: number[] }>;
+/** Parses and checks the learner's numbers; returns the steps, or the reason the input is rejected. */
+function runArray(config: ArrayTry, text: string, target: number): TraceStep[] | string {
+  const tokens = text.trim().split(/[\s,，]+/).filter(Boolean);
+  if (!tokens.length || tokens.length > TRY_IT_LIMIT) return `請輸入 1～${TRY_IT_LIMIT} 個整數，以逗號或空白分隔。`;
+  if (tokens.some(t => !/^-?\d{1,2}$/.test(t))) return '每個數都必須是 −99 到 99 的整數。';
+  const a = tokens.map(Number);
+  const sorted = a.every((v, i) => !i || a[i - 1] <= v);
+  switch (config.algorithm) {
+    case 'linear-search': return linearSearchSteps(a, target);
+    case 'binary-search': return sorted ? binarySearchSteps(a, target) : '二分搜尋需要由小到大排好的資料。';
+    case 'lower-bound': return sorted ? lowerBoundSteps(a, target) : 'lower bound 需要由小到大排好的資料。';
+    case 'bubble-sort': return bubbleSortSteps(a);
+    case 'selection-sort': return selectionSortSteps(a);
+    case 'insertion-sort': return insertionSortSteps(a);
+    case 'merge-sort': return mergeSortSteps(a);
+    case 'quick-sort': return quickSortSteps(a);
+    case 'two-sum': return sorted ? twoSumSteps(a, target) : '雙指標配對需要由小到大排好的資料。';
+    case 'min-window': return a.some(v => v < 0) ? '這個滑動視窗只適用於非負整數：有負數時，擴大視窗不一定讓和變大。' : target < 1 ? '目標和必須是正整數。' : minWindowSteps(a, target);
+    case 'prefix-sum': return prefixSumSteps(a, [[0, a.length - 1]]);
+  }
+}
+const needsTarget = (a: TryItConfig['algorithm']) => ['linear-search', 'binary-search', 'lower-bound', 'two-sum', 'min-window'].includes(a);
+
+/** One step of an algorithm, without code: the panels, the explanation and the stepper. */
+function StepView({ steps, label }: { steps: TraceStep[]; label: string }) {
+  const [at, setAt] = useState(0);
+  const step = steps[Math.min(at, steps.length - 1)];
+  return <div aria-label={label} role="group">
+    <div className={styles.vizState}>
+      {step.vars && <table className={styles.vars}><caption>變數</caption><tbody>{Object.entries(step.vars).map(([k, v]) => <tr key={k}><th scope="row"><code>{k}</code></th><td><code>{v}</code></td></tr>)}</tbody></table>}
+      {step.arrays?.map(a => <Cells key={a.name} array={a}/>)}
+      <DsPanels step={step}/>
+      {step.output !== undefined && <div className={styles.vizOutput}><span>輸出</span><pre>{step.output}</pre></div>}
+    </div>
+    <p className={styles.vizNote} aria-live="polite"><Rich text={step.note}/></p>
+    <Stepper at={Math.min(at, steps.length - 1)} count={steps.length} set={setAt}/>
+  </div>;
+}
+
+/** Try it: the lesson's algorithm on the learner's own (validated, range-limited) input. */
+function TryIt({ config }: { config: TryItConfig }) {
+  const id = `try-${config.algorithm}`;
+  const [text, setText] = useState('initial' in config ? config.initial.join(', ') : '');
+  const [target, setTarget] = useState('initial' in config ? config.target ?? 0 : 0);
+  const [start, setStart] = useState('nodes' in config ? config.start : '');
+  const [capacity, setCapacity] = useState('items' in config ? config.capacity : 0);
+  const [run, setRun] = useState(0);
+  let steps: TraceStep[] | string;
+  if ('initial' in config) steps = runArray(config, text, target);
+  else if ('nodes' in config) steps = config.algorithm === 'bfs' ? bfsSteps(config.nodes, config.edges, config.directed, start)
+    : config.algorithm === 'dfs' ? dfsSteps(config.nodes, config.edges, config.directed, start) : dijkstraSteps(config.nodes, config.edges, config.directed, start);
+  else steps = knapsackSteps(config.items, capacity);
+  const changed = () => setRun(r => r + 1);
+  return <section className={styles.playground} aria-labelledby={`${id}-title`}>
+    <h4 id={`${id}-title`}>自己試試：{ALGO_NAMES[config.algorithm]}</h4>
+    <div className={styles.branchInput}>
+      {'initial' in config && <span className={styles.pgArg}><label htmlFor={`${id}-data`}>資料</label>
+        <input id={`${id}-data`} className={styles.tryData} value={text} maxLength={60} onChange={e => { setText(e.target.value); changed(); }}/></span>}
+      {'initial' in config && needsTarget(config.algorithm) && <span className={styles.pgArg}><label htmlFor={`${id}-target`}>{config.algorithm === 'min-window' ? '目標和' : '目標'}</label>
+        <input id={`${id}-target`} type="number" min={-999} max={999} value={target} onChange={e => { if (e.target.value !== '') { setTarget(clamp(Number(e.target.value), -999, 999)); changed(); } }}/></span>}
+      {'nodes' in config && <span className={styles.pgArg}><label htmlFor={`${id}-start`}>起點</label>
+        <select id={`${id}-start`} value={start} onChange={e => { setStart(e.target.value); changed(); }}>{config.nodes.map(n => <option key={n} value={n}>{n}</option>)}</select></span>}
+      {'items' in config && <span className={styles.pgArg}><label htmlFor={`${id}-cap`}>背包容量（0～12）</label>
+        <input id={`${id}-cap`} type="number" min={0} max={12} value={capacity} onChange={e => { if (e.target.value !== '') { setCapacity(clamp(Number(e.target.value), 0, 12)); changed(); } }}/></span>}
+    </div>
+    {'initial' in config && <p className={styles.muted}>最多 {TRY_IT_LIMIT} 個 −99～99 的整數{['binary-search', 'lower-bound', 'two-sum'].includes(config.algorithm) ? '，必須由小到大排好' : ''}{config.algorithm === 'min-window' ? '，必須是非負整數' : ''}。修改後從第一步重新開始。</p>}
+    {typeof steps === 'string' ? <p className={styles.badIndex} role="alert">{steps}</p> : <StepView key={run} steps={steps} label={`${ALGO_NAMES[config.algorithm]}的步驟`}/>}
   </section>;
 }
 

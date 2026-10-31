@@ -135,19 +135,28 @@ test('條件分支視覺化：邊界值走進正確的分支', async ({ page }) 
   await expect(viz.locator('li[data-state="skipped"]')).toHaveCount(0);
 });
 
-test('規劃中課程：只有大綱與明確標示，沒有測驗、練習或假的互動', async ({ page }) => {
-  await page.goto('/curriculum/basic-sorting');
-  await expect(page.getByRole('note').filter({ hasText: '這一課還在規劃中' })).toBeVisible();
-  await expect(page.getByText('規劃中 v0.1.0')).toBeVisible();
-  for (const id of ['#quiz', '#exercises', '#visualization']) await expect(page.locator(id)).toHaveCount(0);
-  await expect(page.getByRole('radio')).toHaveCount(0);
-  await expect(page.getByRole('region', { name: '學習進度' })).toHaveCount(0);
-  await expect(page.getByText(/排序步驟.*Planned/).first()).toBeVisible();
-  expect(await page.locator('main .objectives li').count()).toBeGreaterThanOrEqual(3);
-  // A lesson with an existing lab links to it.
-  await page.goto('/curriculum/stacks');
-  await page.getByRole('link', { name: /Stack · 堆疊/ }).click();
-  await expect(page).toHaveURL(/\/learn\/stack$/);
+test('規劃中課程只有大綱（全部完成後目錄不再有規劃中）；有互動實驗的課程連到實驗', async ({ page }) => {
+  // Data-driven: while some lesson is still planned, its page shows the outline only; once all 60 are complete, none is.
+  const planned = lessons.find(l => l.lessonStatus === 'planned');
+  if (planned) {
+    await page.goto(`/curriculum/${planned.slug}`);
+    await expect(page.getByRole('note').filter({ hasText: '這一課還在規劃中' })).toBeVisible();
+    await expect(page.getByText(`規劃中 v${planned.version}`)).toBeVisible();
+    for (const id of ['#quiz', '#exercises', '#visualization']) await expect(page.locator(id)).toHaveCount(0);
+    await expect(page.getByRole('radio')).toHaveCount(0);
+    await expect(page.getByRole('region', { name: '學習進度' })).toHaveCount(0);
+    expect(await page.locator('main .objectives li').count()).toBeGreaterThanOrEqual(3);
+  } else {
+    await page.goto('/curriculum');
+    await expect(page.getByText('規劃中', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('完整教材', { exact: true })).toHaveCount(lessons.length);
+  }
+  // Lessons with an existing lab link to it (the six labs are not rebuilt).
+  for (const [slug, name, lab] of [['stacks', /Stack · 堆疊/, 'stack'], ['binary-search', /Binary Search · 二分搜尋/, 'binary-search'], ['breadth-first-search', /BFS · 廣度優先搜尋/, 'bfs']] as const) {
+    await page.goto(`/curriculum/${slug}`);
+    await page.getByRole('link', { name }).click();
+    await expect(page).toHaveURL(new RegExp(`/learn/${lab}$`));
+  }
 });
 
 test('上一堂／下一堂依建議順序，跨島相接；先修只提示不封鎖', async ({ page }) => {
@@ -348,7 +357,7 @@ test('基礎程式島整體完成：20 堂都完成後，目錄與 F20 都顯示
 });
 
 
-test('完整教材（基礎程式島與資料結構島）：每頁都沒有水平溢出，長程式碼、樹與圖只在自己的區塊內捲動', async ({ page }) => {
+test('所有完整教材：每頁都沒有水平溢出，長程式碼、樹與圖只在自己的區塊內捲動', async ({ page }) => {
   test.setTimeout(180_000);
   for (const lesson of lessons.filter(l => l.lessonStatus === 'complete')) {
     await page.goto(`/curriculum/${lesson.slug}`);
@@ -362,7 +371,7 @@ test('完整教材（基礎程式島與資料結構島）：每頁都沒有水�
 
 // ---- E.3 data-structure visualizations ---------------------------------------------------------------------------
 const viz = (page: Page) => page.locator('#visualization');
-const stepper = (page: Page) => viz(page).getByRole('group', { name: /步驟控制/ });
+const stepper = (page: Page) => viz(page).getByRole('group', { name: /步驟控制/ }).first();
 
 test('堆疊視覺化（D05）：逐步 push／pop，頂端以文字標示；方向鍵可切換步驟；自己試試會限制輸入範圍並說明 underflow', async ({ page }) => {
   await page.goto('/curriculum/stacks');
@@ -560,7 +569,7 @@ test('資料結構島的進度（D05）：全對＋讀完才完成，重新整�
   await expect(page.locator('a[rel="next"]')).toHaveAttribute('href', '/curriculum/queues');
 });
 
-test('資料結構島整體完成：20 堂都完成後，目錄與 D20 都顯示全部完成；目錄共 40 堂完整教材', async ({ page }) => {
+test('資料結構島整體完成：20 堂都完成後，目錄與 D20 都顯示全部完成；目錄的完整教材數與資料一致', async ({ page }) => {
   await page.goto('/curriculum');
   await page.evaluate(() => {
     const at = '2026-11-01T10:00:00.000Z', lessons: Record<string, unknown> = {};
@@ -568,7 +577,7 @@ test('資料結構島整體完成：20 堂都完成後，目錄與 D20 都顯示
     localStorage.setItem('logic-island.progress', JSON.stringify({ version: 1, lessons }));
   });
   await page.reload();
-  await expect(page.getByText('完整教材', { exact: true })).toHaveCount(40);
+  await expect(page.getByText('完整教材', { exact: true })).toHaveCount(lessons.filter(l => l.lessonStatus === 'complete').length);
   const island = page.getByRole('region', { name: /資料結構島/ });
   await expect(island).toContainText('資料結構島：已完成 20／20 堂');
   await expect(island.getByText('資料結構島全部完成！')).toBeVisible();
@@ -578,4 +587,50 @@ test('資料結構島整體完成：20 堂都完成後，目錄與 D20 都顯示
   await expect(page.locator('a[rel="next"]')).toHaveAttribute('href', '/curriculum/algorithm-analysis');
   const stored = JSON.parse((await page.evaluate(() => localStorage.getItem('logic-island.progress')))!);
   expect(Object.keys(stored.lessons)).toHaveLength(20);
+});
+
+// ---- E.4 algorithm visualizations ---------------------------------------------------------------------------------
+const tryIt = (page: Page) => viz(page).getByRole('region', { name: /自己試試/ });
+const toEnd = async (scope: ReturnType<Page['locator']>) => { await scope.getByRole('button', { name: '下一步' }).first().focus(); await scope.page().keyboard.press('End'); };
+
+test('搜尋（A03、A04）：範圍、指標與迴圈不變量；自己試試檢查輸入並要求排序', async ({ page }) => {
+  await page.goto('/curriculum/binary-search');
+  const v = viz(page);
+  await expect(v.getByText('陣列與字串（Implemented）')).toBeVisible();
+  await expect(v.getByText(/迴圈不變量/).first()).toBeVisible();
+  await stepper(page).getByRole('button', { name: '下一步' }).click();
+  await expect(v.getByRole('figure').first()).toContainText(/↑.*mid/);
+  const t = tryIt(page);
+  await t.getByLabel('資料').fill('5, 1, 3');
+  await expect(t.getByRole('alert')).toHaveText('二分搜尋需要由小到大排好的資料。');
+  await t.getByLabel('資料').fill('1, 3, 5, 7, 9');
+  await t.getByLabel('目標', { exact: true }).fill('7');
+  await toEnd(t);
+  await expect(t.getByText('找到目標 7，索引是 3。')).toBeVisible();
+  await t.getByLabel('資料').fill('1, 3, 500');
+  await expect(t.getByRole('alert')).toHaveText('每個數都必須是 −99 到 99 的整數。');
+  await page.goto('/curriculum/linear-search');
+  const l = tryIt(page);
+  await l.getByLabel('資料').fill('4 8 4');
+  await l.getByLabel('目標', { exact: true }).fill('6');
+  await toEnd(l);
+  await expect(l.getByText(/走完整個陣列都沒有 6，回傳 −1/)).toBeVisible();
+});
+
+test('排序（A05）：逐步比較與交換、最後輸出排好的陣列；自己試試使用 Bubble Sort 實驗的引擎', async ({ page }) => {
+  await page.goto('/curriculum/basic-sorting');
+  const v = viz(page);
+  await expect(v.getByText('排序步驟（Implemented）')).toBeVisible();
+  await stepper(page).getByRole('button', { name: '下一步' }).focus();
+  await page.keyboard.press('End');
+  const out = v.locator('[class*="vizOutput"] pre').first();
+  const numbers = (await out.textContent())!.trim().split(/\s+/).map(Number);
+  expect(numbers).toEqual([...numbers].sort((a, b) => a - b));
+  const t = tryIt(page);
+  await t.getByLabel('資料').fill('3, -2, 3, 1');
+  await t.getByRole('button', { name: '下一步' }).click();
+  await expect(t.getByText('比較相鄰元素 3 與 -2。')).toBeVisible();
+  await toEnd(t);
+  await expect(t.locator('[class*="vizOutput"] pre')).toHaveText('-2 1 3 3');
+  expect(await noOverflow(page)).toBeLessThanOrEqual(0);
 });

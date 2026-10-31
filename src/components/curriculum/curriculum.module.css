@@ -1313,6 +1313,53 @@
   box-shadow: inset 3px 0 var(--cur-ok);
 }
 
+/* E.4 algorithm panels: pointers and ranges on cells, step tables, try-it input */
+.cellPointer {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.cells td[data-range='true'] {
+  box-shadow: inset 0 -4px var(--accent);
+}
+.cells td[data-mark='pending'],
+.dsRow li[data-mark='pending'] {
+  outline: 2px dashed var(--accent);
+}
+.dsSvg g[data-mark='pending'] circle {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 3 3;
+}
+.stepTable tr[data-mark] th {
+  box-shadow: inset 3px 0 var(--accent);
+}
+.stepTable tr[data-mark='found'] th,
+.stepTable tr[data-mark='write'] th {
+  box-shadow: inset 3px 0 var(--cur-ok);
+}
+.stepTable tr[data-mark='removed'] th {
+  box-shadow: inset 3px 0 var(--cur-bad);
+}
+.stepTable .cellMark {
+  display: block;
+}
+.branchInput input.tryData {
+  width: min(320px, 100%);
+  height: 44px;
+  font-size: 16px;
+}
+.branchInput select {
+  height: 44px;
+  font-size: 16px;
+}
+
+/* Inline code in prose (long API chains) may break anywhere instead of widening the page on phones. */
+.lesson :not(pre) > code {
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 720px) {
   .catalog,
   .lesson {

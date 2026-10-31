@@ -35,12 +35,13 @@ export type LessonStatus = typeof LESSON_STATUSES[number];
 export const VISUALIZATION_TYPES = [
   'variable-state', 'conditional-branch', 'loop-execution', 'array-index', 'stack-queue', 'tree-traversal', 'sorting-steps',
   'graph-traversal', 'linked-list', 'hash-table', 'heap', 'disjoint-set', 'recursion-tree', 'dp-table',
-  'function-call', 'recursion-trace', 'complexity', 'challenge-stages', 'ds-comparison', 'none',
+  'function-call', 'recursion-trace', 'complexity', 'challenge-stages', 'ds-comparison', 'greedy-choice', 'none',
 ] as const;
 /** The visualization kinds drawn by the shared step-by-step trace (code, variables, loops, arrays, call stack). */
 export const TRACE_KINDS = [
   'variable-state', 'loop-execution', 'array-index', 'function-call', 'recursion-trace',
   'stack-queue', 'linked-list', 'hash-table', 'tree-traversal', 'heap', 'graph-traversal', 'disjoint-set',
+  'sorting-steps', 'recursion-tree', 'dp-table', 'greedy-choice',
 ] as const;
 export type TraceKind = typeof TRACE_KINDS[number];
 export type VisualizationType = typeof VISUALIZATION_TYPES[number];
@@ -140,7 +141,13 @@ export interface TraceStep {
   /** Arrays or strings as cells (2D as rows), with the cells this step reads, writes or tries out of bounds. */
   arrays?: { name: string; cells: string[] | string[][]; marks?: { at: number | [number, number]; kind: Mark }[];
     /** A dynamic array's capacity: cells from cells.length up to it are allocated but unused. */
-    capacity?: number }[];
+    capacity?: number;
+    /** E.4: named indices (lo, mid, hi, i, j, left, right…); −1 and cells.length mean just outside the array. */
+    pointers?: Record<string, number | null>;
+    /** E.4: the cells still in play (a search range, a window, a partition), from..to inclusive; to = from − 1 is empty. */
+    range?: { from: number; to: number; label: string };
+    /** E.4: headers for a 2D table (a DP table's states), instead of the bare indices. */
+    rowLabels?: string[]; colLabels?: string[] }[];
   /** The call stack, oldest first; the last frame is running. */
   frames?: { name: string; vars: Record<string, string>; returns?: string }[];
   /** E.3: stacks, queues and deques, items from bottom/front to top/back. */
@@ -153,11 +160,13 @@ export interface TraceStep {
   tree?: { name: string; nodes: TreeNode[]; roots: string[]; marks?: { id: string; kind: Mark }[] };
   graph?: { name: string; nodes: string[]; edges: { from: string; to: string; weight?: number }[]; directed: boolean;
     marks?: { node?: string; edge?: number; kind: Mark }[]; show: ('list' | 'matrix')[] };
+  /** E.4: a labelled table (distances and parents, greedy candidates, queries), with marked rows or cells. */
+  table?: { name: string; head: string[]; rows: string[][]; marks?: { row: number; col?: number; kind: Mark }[] };
   /** Union-find: parent and size per element (the forest is drawn from parent). */
   dsu?: { parent: number[]; size: number[]; marks?: { at: number; kind: Mark }[] };
 }
 /** How a step marks a cell, node or edge; every mark is also written out in words. */
-export type Mark = 'read' | 'write' | 'bad' | 'removed' | 'visited' | 'found' | 'current';
+export type Mark = 'read' | 'write' | 'bad' | 'removed' | 'visited' | 'found' | 'current' | 'pending';
 export interface TreeNode { id: string; label: string; left?: string | null; right?: string | null; children?: string[] }
 /** Compares the value, or the value modulo `mod` (no eval). */
 export type Comparison = { op: '<' | '<=' | '>' | '>=' | '==' | '!='; value: number; mod?: number };
@@ -167,7 +176,7 @@ export type ComplexityModel = '1' | 'log n' | 'n' | 'n log n' | 'n^2';
 export interface ChallengeStage { title: string; concepts: LessonId[]; goal: string; detail: string }
 
 export type VisualizationConfig =
-  | { kind: TraceKind; title: string; language: Language; code: string; steps: TraceStep[]; playground?: Playground }
+  | { kind: TraceKind; title: string; language: Language; code: string; steps: TraceStep[]; playground?: Playground; tryIt?: TryIt }
   | { kind: 'conditional-branch'; title: string; variable: string; min: number; max: number; initial: number; branches: Branch[]; otherwise: string }
   /** Counted operations of model programs for an input size (an illustrative model, not measured time). */
   | { kind: 'complexity'; title: string; min: number; max: number; initial: number; models: { model: ComplexityModel; example: string }[] }
@@ -181,6 +190,17 @@ export type VisualizationConfig =
  */
 export type Playground = { structure: 'stack' | 'queue' | 'deque' | 'dynamic-array' | 'list' | 'hash-set' | 'bst' | 'heap' | 'dsu'; buckets?: number; size?: number };
 export const PLAYGROUND_LIMIT = 10;
+/**
+ * E.4: run the lesson's algorithm on the learner's own input (validated: at most TRY_IT_LIMIT integers in −99..99,
+ * sorted where the algorithm requires it, non-negative for windows), stepping through the real steps of
+ * src/content/curriculum/simulate-algorithms.ts.
+ */
+export type TryIt =
+  | { algorithm: 'linear-search' | 'binary-search' | 'lower-bound' | 'bubble-sort' | 'selection-sort' | 'insertion-sort' | 'merge-sort' | 'quick-sort' | 'two-sum' | 'min-window' | 'prefix-sum';
+      initial: number[]; target?: number }
+  | { algorithm: 'bfs' | 'dfs' | 'dijkstra'; nodes: string[]; edges: { from: string; to: string; weight?: number }[]; directed: boolean; start: string }
+  | { algorithm: 'knapsack'; items: { name: string; weight: number; value: number }[]; capacity: number };
+export const TRY_IT_LIMIT = 10;
 /** One structure's cost per operation (Big-O text) and whether it is a good fit for it. */
 export interface DsProfile { name: string; note: string; costs: Record<string, { cost: string; good: boolean }> }
 
@@ -330,6 +350,13 @@ export function validateContent(lesson: LessonMeta, content: LessonContent, visu
     if (structure === 'hash-set' && !(buckets && buckets >= 2 && buckets <= 13)) fail('a hash-set playground needs 2–13 buckets');
     if (structure === 'dsu' && !(size && size >= 2 && size <= PLAYGROUND_LIMIT)) fail(`a union-find playground needs 2–${PLAYGROUND_LIMIT} elements`);
   }
+  if (viz && 'tryIt' in viz && viz.tryIt) {
+    const t = viz.tryIt;
+    if ('initial' in t && (!t.initial.length || t.initial.length > TRY_IT_LIMIT || t.initial.some(v => !Number.isInteger(v) || v < -99 || v > 99))) fail(`try-it input needs 1–${TRY_IT_LIMIT} integers in −99..99`);
+    if ('initial' in t && ['binary-search', 'lower-bound', 'two-sum'].includes(t.algorithm) && t.initial.some((v, i) => i > 0 && v < t.initial[i - 1])) fail(`try-it ${t.algorithm} needs sorted input`);
+    if ('nodes' in t && (!t.nodes.includes(t.start) || t.edges.some(e => !t.nodes.includes(e.from) || !t.nodes.includes(e.to) || (t.algorithm === 'dijkstra' && !(e.weight! >= 0))))) fail('try-it graph needs a start node, known edge ends and (Dijkstra) non-negative weights');
+    if ('items' in t && (!t.items.length || t.capacity < 0 || t.items.some(i => i.weight < 1 || i.value < 0))) fail('try-it knapsack needs items with positive weights');
+  }
   if (viz?.kind === 'conditional-branch' && (!viz.branches.length || viz.initial < viz.min || viz.initial > viz.max)) fail('conditional-branch needs branches and an initial value in range');
   if (viz?.kind === 'complexity' && (viz.models.length < 2 || viz.min < 1 || viz.initial < viz.min || viz.initial > viz.max)) fail('complexity needs two models and an input size in range');
   if (viz?.kind === 'ds-comparison') {
@@ -369,7 +396,8 @@ export function validateTrace(at: string, kind: TraceKind, code: string, steps: 
     'function-call': (s: TraceStep) => !!s.frames?.length, 'recursion-trace': (s: TraceStep) => (s.frames?.length ?? 0) > 1,
     'stack-queue': (s: TraceStep) => !!s.containers?.length, 'linked-list': (s: TraceStep) => !!s.list, 'hash-table': (s: TraceStep) => !!s.buckets,
     'tree-traversal': (s: TraceStep) => !!s.tree, heap: (s: TraceStep) => !!s.tree && !!s.arrays?.length, 'graph-traversal': (s: TraceStep) => !!s.graph,
-    'disjoint-set': (s: TraceStep) => !!s.dsu }[kind];
+    'disjoint-set': (s: TraceStep) => !!s.dsu, 'sorting-steps': (s: TraceStep) => !!s.arrays?.length, 'recursion-tree': (s: TraceStep) => !!s.tree,
+    'dp-table': (s: TraceStep) => !!s.arrays?.length, 'greedy-choice': (s: TraceStep) => !!s.table }[kind];
   if (!steps.some(needs)) problems.push(`${at}: ${kind} trace never shows its panel`);
   for (const [i, step] of steps.entries()) {
     const at_ = `${at}: step ${i + 1}`;
@@ -394,6 +422,20 @@ export function validateTrace(at: string, kind: TraceKind, code: string, steps: 
       const ids = new Set(step.graph.nodes);
       for (const e of step.graph.edges) if (!ids.has(e.from) || !ids.has(e.to)) problems.push(`${at_} graph edge ${e.from}-${e.to} uses a missing node`);
       for (const m of step.graph.marks ?? []) if ((m.node && !ids.has(m.node)) || (m.edge !== undefined && !step.graph.edges[m.edge])) problems.push(`${at_} marks a missing graph node or edge`);
+    }
+    if (step.table) {
+      const { head, rows, marks } = step.table;
+      if (rows.some(r => r.length !== head.length)) problems.push(`${at_} table ${step.table.name} has rows that do not match its header`);
+      for (const m of marks ?? []) if (m.row < 0 || m.row >= rows.length || (m.col !== undefined && (m.col < 0 || m.col >= head.length))) problems.push(`${at_} marks outside table ${step.table.name}`);
+    }
+    for (const array of step.arrays ?? []) {
+      const grid = Array.isArray(array.cells[0]), n = array.cells.length;
+      if (!grid) {
+        for (const [name, p] of Object.entries(array.pointers ?? {})) if (p !== null && (p < -1 || p > n)) problems.push(`${at_} pointer ${name} is outside ${array.name}`);
+        if (array.range && (array.range.from < 0 || array.range.to >= n || array.range.from > array.range.to + 1)) problems.push(`${at_} range of ${array.name} is outside it`);
+      }
+      if (array.rowLabels && array.rowLabels.length !== (grid ? n : 1)) problems.push(`${at_} ${array.name} needs one row label per row`);
+      if (array.colLabels && array.colLabels.length !== (grid ? (array.cells[0] as string[]).length : n)) problems.push(`${at_} ${array.name} needs one column label per column`);
     }
     if (step.dsu) {
       const n = step.dsu.parent.length;

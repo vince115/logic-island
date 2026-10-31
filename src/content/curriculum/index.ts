@@ -39,6 +39,11 @@ import { D17 } from './content/D17';
 import { D18 } from './content/D18';
 import { D19 } from './content/D19';
 import { D20 } from './content/D20';
+import { A01 } from './content/A01';
+import { A02 } from './content/A02';
+import { A03 } from './content/A03';
+import { A04 } from './content/A04';
+import { A05 } from './content/A05';
 import { lessons } from './lessons';
 import { islands, visualizations } from './registry';
 import type { Curriculum, LessonContent, LessonId, LessonMeta } from './schema';
@@ -49,7 +54,8 @@ export const curriculum: Curriculum = {
   contents: { F01, F02, F03, F04, F05, F06, F07, F08, F09, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20,
     D01, D02, D03, D04, D05, D06, D07, D08, D09, D10,
     D11, D12, D13, D14, D15,
-    D16, D17, D18, D19, D20 },
+    D16, D17, D18, D19, D20,
+    A01, A02, A03, A04, A05 },
 };
 
 export const getLessonBySlug = (slug: string) => lessons.find(l => l.slug === slug);

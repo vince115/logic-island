@@ -5,10 +5,10 @@ import { branchTaken, validateCurriculum, type Curriculum, type LessonMeta, type
 
 // Phase E.1: the 60-lesson curriculum and the rules every lesson keeps (src/content/curriculum/schema.ts).
 const clone = (): Curriculum => structuredClone(curriculum);
-/** Complete so far: E.1 wrote F01..F05, E.2 the rest of the foundations island, E.3 the structures island. */
+/** Complete so far: E.1 wrote F01..F05, E.2 the rest of the foundations island, E.3 the structures island, E.4 the algorithms island. */
 const ids = (prefix: string, n: number) => Array.from({ length: n }, (_, i) => `${prefix}${String(i + 1).padStart(2, '0')}`);
-const STRUCTURES_DONE = 20;
-const COMPLETE = [...ids('F', 20), ...ids('D', STRUCTURES_DONE)];
+const ALGORITHMS_DONE = 5;
+const COMPLETE = [...ids('F', 20), ...ids('D', 20), ...ids('A', ALGORITHMS_DONE)];
 type TraceConfig = Extract<VisualizationConfig, { steps: unknown }>;
 const lesson = (c: Curriculum, id: string) => c.lessons.find(l => l.lessonId === id) as LessonMeta;
 
@@ -75,7 +75,12 @@ describe('curriculum validator (E.1)', () => {
 
   it('catches a lesson that claims to be complete without content, and planned lessons with content', () => {
     const c = clone();
+    // Every lesson is complete since E.4: take one's content away and mark another planned while it keeps its content.
     lesson(c, 'A01').lessonStatus = 'complete';
+    lesson(c, 'A01').version = '1.0.0';
+    delete c.contents.A01;
+    lesson(c, 'A02').lessonStatus = 'planned';
+    lesson(c, 'A02').version = '0.1.0';
     c.contents.A02 = c.contents.F01;
     const problems = validateCurriculum(c);
     expect(problems).toEqual(expect.arrayContaining(['A01: complete lesson has no content', 'A02: planned lesson has content (mark it complete or remove it)']));
@@ -122,6 +127,8 @@ describe('curriculum validator (E.1)', () => {
 
   it('a complete lesson cannot use a planned visualization', () => {
     const c = clone();
+    // Every type is implemented since E.4, so mark one planned in the copy.
+    c.visualizations['sorting-steps'] = { ...c.visualizations['sorting-steps'], status: 'planned' };
     lesson(c, 'F05').visualizationType = 'sorting-steps';
     expect(validateCurriculum(c)).toContain('F05: complete lesson uses visualization sorting-steps, which is not implemented');
   });
