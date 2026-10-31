@@ -634,3 +634,135 @@ test('排序（A05）：逐步比較與交換、最後輸出排好的陣列；�
   await expect(t.locator('[class*="vizOutput"] pre')).toHaveText('-2 1 3 3');
   expect(await noOverflow(page)).toBeLessThanOrEqual(0);
 });
+
+test('進階排序（A06、A07）：逐步執行到最後陣列已排好；自己試試排出正確結果（含重複與負數）', async ({ page }) => {
+  for (const slug of ['merge-sort', 'quick-sort']) {
+    await page.goto(`/curriculum/${slug}`);
+    const v = viz(page);
+    await expect(v.getByText('排序步驟（Implemented）')).toBeVisible();
+    await stepper(page).getByRole('button', { name: '下一步' }).focus();
+    await page.keyboard.press('End');
+    const numbers = (await v.locator('[class*="vizOutput"] pre').first().textContent())!.trim().split(/\s+/).map(Number);
+    expect(numbers, slug).toEqual([...numbers].sort((a, b) => a - b));
+    const t = tryIt(page);
+    await t.getByLabel('資料').fill('9, -4, 0, 9, 3, -4');
+    await toEnd(t);
+    await expect(t.locator('[class*="vizOutput"] pre')).toHaveText('-4 -4 0 3 9 9');
+  }
+});
+
+test('雙指標、滑動視窗、前綴和（A08～A10）：指標與範圍以文字標示；視窗拒絕負數', async ({ page }) => {
+  await page.goto('/curriculum/two-pointers');
+  let t = tryIt(page);
+  await t.getByLabel('資料').fill('1, 2, 4, 7, 11');
+  await t.getByLabel('目標', { exact: true }).fill('11');
+  await expect(t.getByRole('figure').first()).toContainText(/↑left/);
+  await toEnd(t);
+  await expect(t.locator('[class*="vizOutput"] pre')).toHaveText('2 3');
+  await page.goto('/curriculum/sliding-window');
+  t = tryIt(page);
+  await t.getByLabel('資料').fill('2, -1, 3');
+  await expect(t.getByRole('alert')).toContainText('只適用於非負整數');
+  await t.getByLabel('資料').fill('2, 3, 1, 2, 4, 3');
+  await t.getByLabel('目標和').fill('7');
+  await toEnd(t);
+  await expect(t.locator('[class*="vizOutput"] pre')).toHaveText('2');
+  await page.goto('/curriculum/prefix-sums');
+  const v = viz(page);
+  await stepper(page).getByRole('button', { name: '下一步' }).click();
+  await expect(v.getByRole('figure', { name: 'P' }).first()).toBeVisible();
+});
+
+test('遞迴樹與回溯（A11、A12）：呼叫樹有文字大綱，呼叫堆疊同步顯示', async ({ page }) => {
+  for (const slug of ['recursion-and-divide-and-conquer', 'backtracking']) {
+    await page.goto(`/curriculum/${slug}`);
+    const v = viz(page);
+    await expect(v.getByText('遞迴樹（Implemented）')).toBeVisible();
+    for (let i = 0; i < 4; i++) await stepper(page).getByRole('button', { name: '下一步' }).click();
+    await expect(v.getByRole('list', { name: /的結構/ }).first()).toContainText('根：');
+    await expect(v.getByText(/呼叫堆疊（\d+ 層/)).toBeVisible();
+    await page.keyboard.press('End');
+    await expect(v.locator('[class*="vizOutput"] pre')).not.toBeEmpty();
+  }
+});
+
+test('貪心（A13）：候選逐一標示選取或捨棄與原因', async ({ page }) => {
+  await page.goto('/curriculum/greedy');
+  const v = viz(page);
+  await expect(v.getByText('貪心選擇（Implemented）')).toBeVisible();
+  await stepper(page).getByRole('button', { name: '下一步' }).focus();
+  await page.keyboard.press('End');
+  const table = v.getByRole('table').filter({ has: page.locator('caption') }).last();
+  await expect(table).toContainText('選取');
+  await expect(table).toContainText(/捨棄/);
+});
+
+test('BFS 與 DFS（A14、A15）：佇列／堆疊、距離與父節點表；自己試試選起點，到不了的節點以文字說明', async ({ page }) => {
+  await page.goto('/curriculum/breadth-first-search');
+  let t = tryIt(page);
+  await expect(t.getByRole('table', { name: '距離與父節點' })).toBeVisible();
+  await expect(t.getByRole('figure').filter({ hasText: '佇列（frontier）' })).toBeVisible();
+  await toEnd(t);
+  await expect(t.getByText(/佇列空了，走訪順序/)).toBeVisible();
+  const options = await t.getByLabel('起點').locator('option').allTextContents();
+  await t.getByLabel('起點').selectOption(options.at(-1)!);
+  await toEnd(t);
+  await expect(t.getByText(new RegExp(`佇列空了，走訪順序 ${options.at(-1)}`))).toBeVisible();
+  await page.goto('/curriculum/depth-first-search');
+  t = tryIt(page);
+  await expect(t.getByRole('figure').filter({ hasText: '堆疊' })).toBeVisible();
+  await toEnd(t);
+  await expect(t.getByText(/堆疊空了，拜訪順序/)).toBeVisible();
+});
+
+test('最短路徑（A16）：距離表、鬆弛與路徑還原；Dijkstra 要求非負權重', async ({ page }) => {
+  await page.goto('/curriculum/shortest-paths');
+  const v = viz(page);
+  await expect(v.getByText(/非負/).first()).toBeVisible();
+  await stepper(page).getByRole('button', { name: '下一步' }).focus();
+  await page.keyboard.press('End');
+  await expect(v.getByRole('table', { name: '距離表' })).toBeVisible();
+  await expect(v.getByText(/沿著 parent 從 .+ 倒推回/)).toBeVisible();
+  const t = tryIt(page);
+  await toEnd(t);
+  await expect(t.getByRole('table', { name: '距離表' })).toContainText('是');
+});
+
+test('動態規劃與背包（A17、A18）：表格的列與行有標籤，讀取與寫入的格子以文字標示；容量輸入受限', async ({ page }) => {
+  await page.goto('/curriculum/dynamic-programming-intro');
+  let v = viz(page);
+  await expect(v.getByText('動態規劃表（Implemented）')).toBeVisible();
+  for (let i = 0; i < 3; i++) await stepper(page).getByRole('button', { name: '下一步' }).click();
+  await expect(v.getByRole('figure').first()).toContainText('寫入');
+  await page.goto('/curriculum/knapsack');
+  v = viz(page);
+  const t = tryIt(page);
+  await t.getByLabel(/背包容量/).fill('99');
+  await expect(t.getByLabel(/背包容量/)).toHaveValue('12');
+  await toEnd(t);
+  await expect(t.getByText(/最佳價值 dp\[\d+\]\[12\]/)).toBeVisible();
+  await expect(t.getByRole('figure').first()).toContainText('w=12');
+  expect(await noOverflow(page)).toBeLessThanOrEqual(0);
+});
+
+test('課綱全部完成：A20 沒有不存在的下一堂，改為回到課綱；60 堂都完成時顯示全部完成', async ({ page }) => {
+  await page.goto('/curriculum/algorithms-challenge');
+  await expect(page.locator('a[rel="next"]')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /回到課綱/ })).toHaveAttribute('href', '/curriculum');
+  await expect(page.locator('a[rel="prev"]')).toHaveAttribute('href', '/curriculum/apcs-strategies');
+  await page.goto('/curriculum/structures-challenge');
+  await expect(page.locator('a[rel="next"]')).toHaveAttribute('href', '/curriculum/algorithm-analysis');
+  await page.evaluate(() => {
+    const at = '2026-11-01T10:00:00.000Z', lessons: Record<string, unknown> = {};
+    for (const p of ['F', 'D', 'A']) for (let i = 1; i <= 20; i++) lessons[`${p}${String(i).padStart(2, '0')}`] = { startedAt: at, readAt: at, quiz: { correct: 5, total: 5, at }, completedAt: at };
+    localStorage.setItem('logic-island.progress', JSON.stringify({ version: 1, lessons }));
+  });
+  await page.goto('/curriculum');
+  await expect(page.getByText('完整教材', { exact: true })).toHaveCount(60);
+  await expect(page.getByText('全部課程：已完成 60／60 堂')).toBeVisible();
+  await expect(page.getByText('60 堂課全部完成！').first()).toBeVisible();
+  await expect(page.getByRole('region', { name: /演算法島/ })).toContainText('演算法島全部完成！');
+  await page.goto('/curriculum/algorithms-challenge');
+  await expect(page.getByRole('region', { name: '學習進度' }).getByText('演算法島全部完成！')).toBeVisible();
+  await expect(page.getByText('60 堂課全部完成！')).toBeVisible();
+});

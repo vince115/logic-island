@@ -279,9 +279,12 @@ export class CallTracer {
   private status = new Map<string, Mark>();
   private stack: { id: string; name: string; vars: Record<string, string> }[] = [];
   private labels = new Map<string, string>();
+  /** Everything printed so far stays on screen in later steps. */
+  private printed?: string;
   constructor(private name: string, private lines?: Lines) {}
   private snap(key: string, note: string, extra: Partial<TraceStep> = {}) {
-    this.steps.push({ line: at(this.lines, key), note, ...extra,
+    if (extra.output !== undefined) this.printed = extra.output;
+    this.steps.push({ line: at(this.lines, key), note, ...(this.printed !== undefined ? { output: this.printed } : {}), ...extra,
       tree: { name: this.name, nodes: this.nodes.map(n => ({ ...n, label: this.labels.get(n.id)!, children: [...n.children!] })), roots: this.nodes.length ? [this.nodes[0].id] : [],
         marks: [...this.status].map(([id, kind]) => ({ id, kind })) },
       frames: this.stack.map(f => ({ name: f.name, vars: { ...f.vars } })) });
@@ -369,10 +372,11 @@ export function activitySelectionSteps(acts: { name: string; start: number; end:
   let last = -Infinity;
   const chosen: string[] = [];
   sorted.forEach((a, i) => {
-    const ok = a.start >= last;
+    const ok = a.start >= last, before = last;
     status[i] = ok ? '選取' : `捨棄：開始 ${a.start} < 上一個結束 ${last}`;
     if (ok) { chosen.push(a.name); last = a.end; }
-    steps.push({ line: at(lines, 'choose'), note: ok ? `${a.name} 開始於 ${a.start} ≥ ${last === a.end ? '上一個結束時間' : last}，不衝突：選取，最後結束時間變成 ${a.end}。` : `${a.name} 與已選的活動重疊：捨棄。`, table: table(i, ok ? 'found' : 'removed'), vars: { 已選: chosen.join(' '), 最後結束: String(last) } });
+    const prev = before === -Infinity ? '（還沒有選任何活動）' : `上一個選取的結束時間 ${before}`;
+    steps.push({ line: at(lines, 'choose'), note: ok ? `${a.name} 開始於 ${a.start}，${before === -Infinity ? '是第一個候選' : `≥ ${prev}`}，不衝突：選取，最後結束時間變成 ${a.end}。` : `${a.name} 開始於 ${a.start} < ${prev}，與已選的活動重疊：捨棄。`, table: table(i, ok ? 'found' : 'removed'), vars: { 已選: chosen.join(' '), 最後結束: String(last) } });
   });
   steps.push({ line: at(lines, 'result'), note: `選了 ${chosen.length} 個活動：${chosen.join('、')}。交換論證：任何最佳解的第一個活動都能換成「最早結束的」而不變差，所以這個選法正確。`, table: table(), output: String(chosen.length) });
   return steps;
