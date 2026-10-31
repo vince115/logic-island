@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { curriculum, lessons } from '../src/content/curriculum';
-import { branchTaken, validateCurriculum, type Curriculum, type LessonMeta } from '../src/content/curriculum/schema';
+import { branchTaken, validateCurriculum, type Curriculum, type LessonMeta, type VisualizationConfig } from '../src/content/curriculum/schema';
 
 // Phase E.1: the 60-lesson curriculum and the rules every lesson keeps (src/content/curriculum/schema.ts).
 const clone = (): Curriculum => structuredClone(curriculum);
 /** Complete so far: E.1 wrote F01..F05, E.2 the rest of the foundations island, E.3 the structures island. */
 const ids = (prefix: string, n: number) => Array.from({ length: n }, (_, i) => `${prefix}${String(i + 1).padStart(2, '0')}`);
-const STRUCTURES_DONE = 10;
+const STRUCTURES_DONE = 15;
 const COMPLETE = [...ids('F', 20), ...ids('D', STRUCTURES_DONE)];
+type TraceConfig = Extract<VisualizationConfig, { steps: unknown }>;
 const lesson = (c: Curriculum, id: string) => c.lessons.find(l => l.lessonId === id) as LessonMeta;
 
 describe('curriculum (E.1)', () => {
@@ -99,6 +100,24 @@ describe('curriculum validator (E.1)', () => {
     lesson(c, 'A01').supportedLanguages = ['C++', 'Python'];
     lesson(c, 'A02').apcsRelevance = ['none', 'concept'];
     expect(validateCurriculum(c)).toEqual(expect.arrayContaining(['A01: supportedLanguages must be C++, Python, Java', "A02: apcsRelevance 'none' must stand alone"]));
+  });
+
+  it('catches inconsistent data-structure visualizations (E.3)', () => {
+    const c = clone();
+    const cmp = c.contents.D01!.visualization as Extract<VisualizationConfig, { kind: 'ds-comparison' }>;
+    delete cmp.structures[0].costs[cmp.operations[0].id];
+    const list = c.contents.D04!.visualization as TraceConfig;
+    const step = list.steps.find(s => s.list?.nodes.length)!;
+    step.list!.pointers = { cur: step.list!.nodes.length };
+    const hash = c.contents.D10!.visualization as TraceConfig;
+    hash.playground = { structure: 'hash-set', buckets: 40 };
+    hash.steps = hash.steps.map(s => ({ ...s, buckets: undefined }));
+    const problems = validateCurriculum(c);
+    expect(problems).toEqual(expect.arrayContaining([
+      `D01: ds-comparison: ${cmp.structures[0].name} has no cost for ${cmp.operations[0].id}`,
+      `D04: step ${list.steps.indexOf(step) + 1} pointer cur is outside the list`,
+      'D10: a hash-set playground needs 2–13 buckets', 'D10: hash-table trace never shows its panel',
+    ]));
   });
 
   it('a complete lesson cannot use a planned visualization', () => {

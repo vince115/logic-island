@@ -468,3 +468,114 @@ test('雜湊視覺化（D08、D10）：鍵依 hash mod m 放進桶，碰撞與�
   await set.getByRole('button', { name: 'add(4)' }).click();
   await expect(set.getByText(/4 已在集合中：集合不存重複元素/)).toBeVisible();
 });
+
+test('樹與 BST 視覺化（D13、D14）：走訪到最後輸出完整順序；BST 的插入、搜尋與刪除有文字版結構', async ({ page }) => {
+  await page.goto('/curriculum/tree-traversal');
+  let v = viz(page);
+  await expect(v.getByText('樹的走訪（Implemented）')).toBeVisible();
+  await stepper(page).getByRole('button', { name: '下一步' }).focus();
+  await page.keyboard.press('End');
+  // At the last step the whole visiting order has been printed.
+  await expect(v.locator('[class*="vizOutput"] pre')).toHaveText(/\S+( \S+){3,}/);
+  await expect(v.getByRole('list', { name: /的結構/ }).first()).toContainText('根：');
+  await page.goto('/curriculum/binary-search-trees');
+  v = viz(page);
+  const pg = v.getByRole('region', { name: /自己試試/ });
+  for (const value of ['50', '30', '70', '60']) { await pg.getByLabel('值').fill(value); await pg.getByRole('button', { name: `insert(${value})` }).click(); }
+  const outline = pg.getByRole('list', { name: 'BST的結構' });
+  await expect(outline).toContainText('根：50');
+  await expect(outline).toContainText('左：30');
+  await pg.getByLabel('值').fill('60');
+  await pg.getByRole('button', { name: 'search(60)' }).click();
+  await expect(pg.getByText('60 > 50：往右子樹。')).toBeVisible();
+  await expect(pg.getByText('找到 60。比較次數等於所在深度 + 1。')).toBeVisible();
+  await pg.getByLabel('值').fill('50');
+  await pg.getByRole('button', { name: 'remove(50)' }).click();
+  await expect(pg.getByText('50 有兩個孩子：找右子樹中最小的節點（後繼）來取代它。')).toBeVisible();
+  await expect(outline).toContainText('根：60');
+  expect(await noOverflow(page)).toBeLessThanOrEqual(0);
+});
+
+test('堆積視覺化（D15）：push 逐步上浮、pop 逐步下沉，陣列與樹同時顯示', async ({ page }) => {
+  await page.goto('/curriculum/heaps-and-priority-queues');
+  const pg = viz(page).getByRole('region', { name: /自己試試/ });
+  for (const value of ['5', '3', '8', '1']) { await pg.getByLabel('值').fill(value); await pg.getByRole('button', { name: `push(${value})` }).click(); }
+  await expect(pg.getByText(/往上浮一層/).first()).toBeVisible();
+  await pg.getByRole('button', { name: 'top', exact: true }).click();
+  await expect(pg.getByText('top：最小值永遠在根（索引 0）：1。O(1)。')).toBeVisible();
+  await pg.getByRole('button', { name: 'pop', exact: true }).click();
+  await expect(pg.getByText('pop：取出根的 1，把最後一個元素 5 搬到根。')).toBeVisible();
+  await expect(pg.getByRole('figure').first()).toContainText('heap：長度 3');
+  await expect(pg.getByRole('list', { name: /heap（以樹呈現）的結構/ })).toContainText('根：3');
+});
+
+test('圖與並查集視覺化（D17、D18）：鄰接串列與矩陣是圖的文字版；並查集合併、路徑壓縮與集合清單', async ({ page }) => {
+  await page.goto('/curriculum/graph-representations');
+  const v = viz(page);
+  await expect(v.getByText('圖的走訪（Implemented）')).toBeVisible();
+  await stepper(page).getByRole('button', { name: '下一步' }).focus();
+  await page.keyboard.press('End');
+  await expect(v.getByText('鄰接串列（adjacency list）')).toBeVisible();
+  await expect(v.getByText(/鄰接矩陣（adjacency matrix）/)).toBeVisible();
+  await expect(v.getByRole('figure').first()).toContainText(/有向.*圖，\d+ 個頂點、\d+ 條邊/);
+  await page.goto('/curriculum/disjoint-set-union');
+  const pg = viz(page).getByRole('region', { name: /自己試試/ });
+  const pair = async (a: string, b: string, op: string) => { await pg.getByLabel('a', { exact: true }).fill(a); await pg.getByLabel('b', { exact: true }).fill(b); await pg.getByRole('button', { name: `${op}(${a}, ${b})` }).click(); };
+  await pair('0', '1', 'union');
+  await pair('2', '3', 'union');
+  await pair('1', '3', 'union');
+  await expect(pg.getByText(/集合：\{0, 1, 2, 3\}/)).toBeVisible();
+  await pg.getByLabel('a', { exact: true }).fill('99');
+  await expect(pg.getByLabel('a', { exact: true })).toHaveValue('7');
+  await pair('0', '5', 'connected');
+  await expect(pg.getByText(/0 與 5 的根分別是 0 與 5：不同集合/)).toBeVisible();
+});
+
+test('資料結構島的進度（D05）：全對＋讀完才完成，重新整理後保留，不改動基礎程式島的進度', async ({ page }) => {
+  await page.goto('/curriculum');
+  await page.evaluate(() => {
+    const at = '2026-11-01T10:00:00.000Z';
+    localStorage.setItem('logic-island.progress', JSON.stringify({ version: 1, lessons: { F01: { startedAt: at, readAt: at, quiz: { correct: 4, total: 4, at }, completedAt: at } } }));
+  });
+  await page.goto('/curriculum/stacks');
+  const progress = page.getByRole('region', { name: '學習進度' });
+  await expect(progress.getByText('進行中', { exact: true })).toBeVisible();
+  const questions = quiz(page).locator('fieldset');
+  const count = await questions.count();
+  for (let i = 0; i < count; i++) await questions.nth(i).getByRole('radio').first().check();
+  await quiz(page).getByRole('button', { name: '提交答案' }).click();
+  const right = await questions.evaluateAll(sets => sets.map(set => [...set.querySelectorAll('label')].findIndex(l => l.getAttribute('data-correct') === 'true')));
+  await quiz(page).getByRole('button', { name: '重新作答' }).click();
+  for (let i = 0; i < count; i++) await questions.nth(i).getByRole('radio').nth(right[i]).check();
+  await quiz(page).getByRole('button', { name: '提交答案' }).click();
+  await progress.getByRole('button', { name: '我已讀完本課內容' }).click();
+  await expect(progress.getByText('已完成', { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('region', { name: '學習進度' })).toContainText(`資料結構島：已完成 1／${STRUCTURE_PAGES.length} 堂`);
+  const stored = JSON.parse((await page.evaluate(() => localStorage.getItem('logic-island.progress')))!);
+  expect(stored.lessons.F01).toEqual({ startedAt: '2026-11-01T10:00:00.000Z', readAt: '2026-11-01T10:00:00.000Z', quiz: { correct: 4, total: 4, at: '2026-11-01T10:00:00.000Z' }, completedAt: '2026-11-01T10:00:00.000Z' });
+  expect(stored.lessons.D05.quiz).toMatchObject({ correct: count, total: count });
+  // Previous / next follow the recommended order within the island.
+  await expect(page.locator('a[rel="prev"]')).toHaveAttribute('href', '/curriculum/linked-lists');
+  await expect(page.locator('a[rel="next"]')).toHaveAttribute('href', '/curriculum/queues');
+});
+
+test('資料結構島整體完成：20 堂都完成後，目錄與 D20 都顯示全部完成；目錄共 40 堂完整教材', async ({ page }) => {
+  await page.goto('/curriculum');
+  await page.evaluate(() => {
+    const at = '2026-11-01T10:00:00.000Z', lessons: Record<string, unknown> = {};
+    for (let i = 1; i <= 20; i++) lessons[`D${String(i).padStart(2, '0')}`] = { startedAt: at, readAt: at, quiz: { correct: 4, total: 4, at }, completedAt: at };
+    localStorage.setItem('logic-island.progress', JSON.stringify({ version: 1, lessons }));
+  });
+  await page.reload();
+  await expect(page.getByText('完整教材', { exact: true })).toHaveCount(40);
+  const island = page.getByRole('region', { name: /資料結構島/ });
+  await expect(island).toContainText('資料結構島：已完成 20／20 堂');
+  await expect(island.getByText('資料結構島全部完成！')).toBeVisible();
+  await expect(page.getByRole('region', { name: /基礎程式島/ })).toContainText('基礎程式島：已完成 0／20 堂');
+  await page.goto('/curriculum/structures-challenge');
+  await expect(page.getByRole('region', { name: '學習進度' }).getByText('資料結構島全部完成！')).toBeVisible();
+  await expect(page.locator('a[rel="next"]')).toHaveAttribute('href', '/curriculum/algorithm-analysis');
+  const stored = JSON.parse((await page.evaluate(() => localStorage.getItem('logic-island.progress')))!);
+  expect(Object.keys(stored.lessons)).toHaveLength(20);
+});
