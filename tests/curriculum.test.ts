@@ -7,7 +7,7 @@ import { branchTaken, validateCurriculum, type Curriculum, type LessonMeta, type
 const clone = (): Curriculum => structuredClone(curriculum);
 /** Complete so far: E.1 wrote F01..F05, E.2 the rest of the foundations island, E.3 the structures island, E.4 the algorithms island. */
 const ids = (prefix: string, n: number) => Array.from({ length: n }, (_, i) => `${prefix}${String(i + 1).padStart(2, '0')}`);
-const ALGORITHMS_DONE = 15;
+const ALGORITHMS_DONE = 20;
 const COMPLETE = [...ids('F', 20), ...ids('D', 20), ...ids('A', ALGORITHMS_DONE)];
 type TraceConfig = Extract<VisualizationConfig, { steps: unknown }>;
 const lesson = (c: Curriculum, id: string) => c.lessons.find(l => l.lessonId === id) as LessonMeta;

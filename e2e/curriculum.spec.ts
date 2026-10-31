@@ -718,11 +718,11 @@ test('BFS 與 DFS（A14、A15）：佇列／堆疊、距離與父節點表；自
 test('最短路徑（A16）：距離表、鬆弛與路徑還原；Dijkstra 要求非負權重', async ({ page }) => {
   await page.goto('/curriculum/shortest-paths');
   const v = viz(page);
-  await expect(v.getByText(/非負/).first()).toBeVisible();
+  await expect(page.locator('main').getByText(/非負/).first()).toBeVisible();
   await stepper(page).getByRole('button', { name: '下一步' }).focus();
   await page.keyboard.press('End');
-  await expect(v.getByRole('table', { name: '距離表' })).toBeVisible();
-  await expect(v.getByText(/沿著 parent 從 .+ 倒推回/)).toBeVisible();
+  await expect(v.getByRole('table', { name: '距離表' }).first()).toBeVisible();
+  await expect(v.getByText(/沿著 parent 從 .+ 倒推回/).first()).toBeVisible();
   const t = tryIt(page);
   await toEnd(t);
   await expect(t.getByRole('table', { name: '距離表' })).toContainText('是');
@@ -733,7 +733,7 @@ test('動態規劃與背包（A17、A18）：表格的列與行有標籤，讀�
   let v = viz(page);
   await expect(v.getByText('動態規劃表（Implemented）')).toBeVisible();
   for (let i = 0; i < 3; i++) await stepper(page).getByRole('button', { name: '下一步' }).click();
-  await expect(v.getByRole('figure').first()).toContainText('寫入');
+  await expect(v.getByRole('figure').filter({ hasText: '寫入' }).first()).toBeVisible();
   await page.goto('/curriculum/knapsack');
   v = viz(page);
   const t = tryIt(page);
