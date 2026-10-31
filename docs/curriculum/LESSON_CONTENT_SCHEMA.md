@@ -1,6 +1,6 @@
 # 課程資料結構（Lesson Content Schema）
 
-> Phase E.1。型別與驗證都在 `src/content/curriculum/schema.ts`；`validateCurriculum()` 是唯一的規則來源，`tests/curriculum.test.ts` 要求它對實際資料回傳空陣列。本文件說明欄位與規則，與程式不一致時以程式為準並更新本文件。
+> Phase E.1，E.2 擴充（2026-10-31：motivation、範例與測驗下限、共用 trace 與兩種新視覺化）。型別與驗證都在 `src/content/curriculum/schema.ts`；`validateCurriculum()` 是唯一的規則來源，`tests/curriculum.test.ts` 要求它對實際資料回傳空陣列。本文件說明欄位與規則，與程式不一致時以程式為準並更新本文件。
 
 ## 1. 檔案
 
@@ -45,23 +45,43 @@ UI（`src/components/curriculum/`）只讀這些資料；60 堂教材不寫在�
 
 | 欄位 | 規則 |
 |---|---|
+| `motivation` | 必填：為什麼要學這個主題、學會之後能做什麼（E.2 起） |
 | `sections` | 至少 3 段；每段 `id`、`title`、`blocks`（不可空） |
 | `blocks` | `p`（段落）、`list`（可 `ordered`）、`callout`（`tip`／`warning`／`note`）、`table`（每列欄數與表頭相同）、`example`（引用範例 id，必須存在）。文字中以反引號標示行內程式碼 |
-| `examples` | 至少 1 個；每個都有三語 `code`、預期 `output`（`stdin` 選填）；語言之間輸出不同時用 `outputByLanguage`；每個範例都要在某一段中被引用 |
-| `quiz` | 至少 3 題；選項互不相同、至少 2 個；`answer` 是選項索引；`explanation` 不可空；`code` 片段選填（單一語言） |
+| `examples` | 至少 3 個（E.2 起；E.1 為 1 個）；每個都有三語 `code`、預期 `output`（`stdin` 選填）；語言之間輸出不同時用 `outputByLanguage`；每個範例都要在某一段中被引用 |
+| `quiz` | 至少 4 題（E.2 起；E.1 為 3 題）；選項互不相同、至少 2 個；`answer` 是選項索引；`explanation` 不可空；`code` 片段選填（單一語言） |
 | `exercises` | 至少 1 題；三語 `solution`；`samples` 至少 1 組；`tests` 至少各有 1 組 `normal` 與 `edge`；有 `error` 測資，或寫 `errorPolicy` 說明為何不需要；`starter`（選填）也要三語；`judge` 必須是 `'none'`（E.1 沒有線上評測） |
 | `visualization` | 課程的 `visualizationType` 不是 `none` 時必須有、`kind` 必須相同，且該類型必須是 implemented；`none` 時不可有 |
 
-所有 section、example、quiz、exercise 的 id 在同一堂課內不可重複（section id 也是頁面錨點）。
+所有 section、example、quiz、exercise 的 id 在同一堂課內不可重複（section id 也是頁面錨點；section 與 example 不要取同一個名字）。跨課程時以 `lessonId` 加上 id 識別，所以不同課程可以都有 `q1`、`e1`。
 
 ## 5. 視覺化設定
 
+### 5.1 共用 trace（`variable-state`、`loop-execution`、`array-index`、`function-call`、`recursion-trace`）
+
+五種類型共用同一個設定與同一個元件（`Trace`）：`{ kind, title, language, code, steps[] }`。每一步 `TraceStep` 描述「執行完 `line` 這一行之後」的狀態，各面板都是選填：
+
+| 欄位 | 內容 |
+|---|---|
+| `line`、`note` | 剛執行的行號（必須在 `code` 範圍內）與文字說明 |
+| `vars` | 變數名稱 → 值（字串值加引號） |
+| `expected` | 變數的預期值；與實際不同時以文字標出「應為 …」（除錯用，F17） |
+| `output` | 到目前為止的全部輸出 |
+| `loops` | 正在執行的迴圈，由外到內：`label`、第幾輪 `iteration`、剛檢查的 `condition`、`holds`（true／false／null 未檢查） |
+| `arrays` | 陣列或字串：`name`、`cells`（一維字串陣列，或二維「列的陣列」）、`marks`（`at` 為索引或 `[列, 行]`，`kind` 為 read／write／bad）。read／write 的位置必須在範圍內；越界一律標 bad，頁面會寫出合法範圍 |
+| `frames` | 呼叫堆疊，由舊到新（最後一個正在執行）：`name`、`vars`、`returns`（回傳值） |
+
+驗證：每種類型至少有一步顯示它的面板（variable-state 有 `vars`、loop-execution 有 `loops`、array-index 有 `arrays`、function-call 有 `frames`、recursion-trace 至少一步有兩層以上的 `frames`）。
+
+### 5.2 其他類型
+
 | kind | 欄位 | 規則 |
 |---|---|---|
-| `variable-state` | `title`、`language`、`code`、`steps[]`（`line`、`note`、`vars`、`output` 選填） | 每一步的 `line` 必須指向 `code` 的某一行；`vars` 是「執行完這一行後」的變數 |
-| `conditional-branch` | `title`、`variable`、`min`、`max`、`initial`、`branches[]`（`label`、`when: { any?, all? }`、`result`）、`otherwise` | 至少一個分支；`initial` 在範圍內；條件以 `{ op, value }` 比較，不使用 `eval` |
+| `conditional-branch` | `title`、`variable`、`min`、`max`、`initial`、`branches[]`（`label`、`when: { any?, all? }`、`result`）、`otherwise` | 至少一個分支；`initial` 在範圍內；比較 `{ op, value, mod? }`（`mod` 表示先取餘數，採數學上的非負餘數），不使用 `eval`。頁面會逐一列出複合條件中每個比較的 true／false，以及被短路略過的部分 |
+| `complexity` | `title`、`min`、`max`、`initial`、`models[]`（`model` 為 `1`／`log n`／`n`／`n log n`／`n^2`，`example` 說明） | 至少兩個模型；`min ≥ 1`；頁面標示為「公式計算的操作次數（示意模型），不是實測時間」 |
+| `challenge-stages` | `title`、`stages[]`（`title`、`concepts`（lessonId）、`goal`、`detail`） | 至少兩個階段；`concepts` 必須是課程 ID |
 
-視覺化類型的狀態在 `registry.ts`：E.1 實作 `variable-state`、`conditional-branch`；其餘為 planned（`loop-execution`、`array-index`、`stack-queue`、`tree-traversal`、`sorting-steps`、`graph-traversal`、`linked-list`、`hash-table`、`heap`、`disjoint-set`、`recursion-tree`、`dp-table`）；`none` 為 not-available。
+視覺化類型的狀態在 `registry.ts`。Implemented：`variable-state`、`conditional-branch`、`loop-execution`、`array-index`、`function-call`、`recursion-trace`、`complexity`、`challenge-stages`。Planned：`stack-queue`、`tree-traversal`、`sorting-steps`、`graph-traversal`、`linked-list`、`hash-table`、`heap`、`disjoint-set`、`recursion-tree`、`dp-table`。Not Available：`none`。所有狀態都以文字呈現，不只靠顏色。
 
 ## 6. 學習進度（`src/lib/progress.ts`）
 

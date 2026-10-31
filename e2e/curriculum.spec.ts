@@ -180,7 +180,7 @@ test('進度資料：無法讀取的舊資料先備份；較新版本的資料�
 });
 
 test('無障礙：每個按鈕、連結與輸入都有名稱；標題只有一個 h1；練習標明沒有線上評測', async ({ page }) => {
-  for (const slug of [COMPLETE[0], COMPLETE[4], 'for-loops', 'linked-lists']) {
+  for (const slug of [COMPLETE[0], COMPLETE[4], 'for-loops', 'recursion-basics', 'complexity-basics', 'foundations-challenge', 'linked-lists']) {
     await page.goto(`/curriculum/${slug}`);
     await expect(page.locator('h1')).toHaveCount(1);
     const unnamed = await page.locator('main').evaluate(main => [...main.querySelectorAll('button, a[href], input, select, [role="tab"]')]
@@ -275,4 +275,84 @@ test('二維陣列視覺化（F12）：列與行的索引，以及越界的鄰�
   await expect(viz.getByText(/越界：索引 \[-1\]\[0\]/)).toBeVisible();
   await viz.getByRole('button', { name: '下一步' }).click();
   await expect(viz.locator('td[data-mark="read"]')).toContainText('4');
+});
+
+test('遞迴視覺化（F18）：堆疊長到終止條件，再一層層回傳', async ({ page }) => {
+  await page.goto('/curriculum/recursion-basics');
+  const viz = page.locator('#visualization');
+  for (let i = 0; i < 3; i++) await viz.getByRole('button', { name: '下一步' }).click();
+  await expect(viz.getByText('呼叫堆疊（4 層，最上面正在執行）')).toBeVisible();
+  await expect(viz.locator('[class*="frameName"]').filter({ hasText: '回傳 1' })).toBeVisible();
+  for (let i = 0; i < 3; i++) await viz.getByRole('button', { name: '下一步' }).click();
+  await expect(viz.getByText('呼叫堆疊（1 層，最上面正在執行）')).toBeVisible();
+  await expect(viz.locator('pre').last()).toHaveText('6');
+});
+
+test('複雜度示意模型（F19）：標明是公式計算的次數，不是實測時間', async ({ page }) => {
+  await page.goto('/curriculum/complexity-basics');
+  const viz = page.locator('#visualization');
+  await expect(viz.getByRole('note')).toContainText('不是實際執行時間的量測');
+  await viz.getByRole('spinbutton').fill('10');
+  const quadratic = viz.getByRole('listitem').filter({ hasText: 'O(n²)' });
+  await expect(quadratic).toContainText('100 次');
+  await expect(viz.locator('[aria-live]')).toContainText('n = 10 時，最多的是 O(n²)：100 次');
+});
+
+test('綜合挑戰（F20）：逐階段前進，每階段列出用到的課程', async ({ page }) => {
+  await page.goto('/curriculum/foundations-challenge');
+  const viz = page.locator('#visualization');
+  await expect(viz.getByRole('heading', { name: '階段 1：讀入與驗證' })).toBeVisible();
+  await expect(viz.getByText('F05 條件判斷')).toBeVisible();
+  await viz.getByRole('button', { name: '下一步' }).click();
+  await expect(viz.getByRole('heading', { name: '階段 2：計算總分與各科最高' })).toBeVisible();
+  await expect(viz.getByText('✓ 完成')).toHaveCount(1);
+});
+
+test('新教材的進度（F13）：全對＋讀完才完成，重新整理後保留', async ({ page }) => {
+  await page.goto('/curriculum/functions');
+  const questions = quiz(page).locator('fieldset');
+  const count = await questions.count();
+  for (let i = 0; i < count; i++) await questions.nth(i).getByRole('radio').first().check();
+  await quiz(page).getByRole('button', { name: '提交答案' }).click();
+  const right = await questions.evaluateAll(sets => sets.map(set => [...set.querySelectorAll('label')].findIndex(l => l.getAttribute('data-correct') === 'true')));
+  await quiz(page).getByRole('button', { name: '重新作答' }).click();
+  for (let i = 0; i < count; i++) await questions.nth(i).getByRole('radio').nth(right[i]).check();
+  await quiz(page).getByRole('button', { name: '提交答案' }).click();
+  const progress = page.getByRole('region', { name: '學習進度' });
+  await progress.getByRole('button', { name: '我已讀完本課內容' }).click();
+  await expect(progress.getByText('已完成', { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('region', { name: '學習進度' }).getByText('已完成', { exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: '學習進度' })).toContainText('基礎程式島：已完成 1／20 堂');
+});
+
+test('基礎程式島整體完成：20 堂都完成後，目錄與 F20 都顯示全部完成；既有進度不被覆寫', async ({ page }) => {
+  await page.goto('/curriculum');
+  await page.evaluate(() => {
+    const at = '2026-11-01T10:00:00.000Z', lessons: Record<string, unknown> = {};
+    for (let i = 1; i <= 20; i++) lessons[`F${String(i).padStart(2, '0')}`] = { startedAt: at, readAt: at, quiz: { correct: 4, total: 4, at }, completedAt: at };
+    localStorage.setItem('logic-island.progress', JSON.stringify({ version: 1, lessons }));
+  });
+  await page.reload();
+  const island = page.getByRole('region', { name: /基礎程式島/ });
+  await expect(island).toContainText('基礎程式島：已完成 20／20 堂');
+  await expect(island.getByText('基礎程式島全部完成！')).toBeVisible();
+  await page.goto('/curriculum/foundations-challenge');
+  await expect(page.getByRole('region', { name: '學習進度' }).getByText('基礎程式島全部完成！')).toBeVisible();
+  // Opening the lesson again keeps the stored progress as it was.
+  const stored = JSON.parse((await page.evaluate(() => localStorage.getItem('logic-island.progress')))!);
+  expect(stored.lessons.F20).toMatchObject({ completedAt: '2026-11-01T10:00:00.000Z', quiz: { correct: 4, total: 4 } });
+  expect(Object.keys(stored.lessons)).toHaveLength(20);
+});
+
+
+test('基礎程式島 20 堂：每頁都沒有水平溢出，長程式碼只在程式區塊內捲動', async ({ page }) => {
+  for (const lesson of lessons.filter(l => l.islandId === 'foundations')) {
+    await page.goto(`/curriculum/${lesson.slug}`);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(lesson.title);
+    expect(await noOverflow(page), lesson.lessonId).toBeLessThanOrEqual(0);
+    // Code blocks that are wider than the screen scroll inside themselves.
+    const wide = await page.locator('pre').evaluateAll(pres => pres.filter(p => p.scrollWidth > p.clientWidth + 1).map(p => getComputedStyle(p).overflowX));
+    for (const overflow of wide) expect(['auto', 'scroll'], lesson.lessonId).toContain(overflow);
+  }
 });

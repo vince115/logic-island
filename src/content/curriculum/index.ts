@@ -14,6 +14,11 @@ import { F12 } from './content/F12';
 import { F13 } from './content/F13';
 import { F14 } from './content/F14';
 import { F15 } from './content/F15';
+import { F16 } from './content/F16';
+import { F17 } from './content/F17';
+import { F18 } from './content/F18';
+import { F19 } from './content/F19';
+import { F20 } from './content/F20';
 import { lessons } from './lessons';
 import { islands, visualizations } from './registry';
 import type { Curriculum, LessonContent, LessonId, LessonMeta } from './schema';
@@ -21,7 +26,7 @@ import type { Curriculum, LessonContent, LessonId, LessonMeta } from './schema';
 /** The Phase E curriculum, as one value the validator and the pages both read. */
 export const curriculum: Curriculum = {
   islands, lessons, visualizations, labs: algorithmIds,
-  contents: { F01, F02, F03, F04, F05, F06, F07, F08, F09, F10, F11, F12, F13, F14, F15 },
+  contents: { F01, F02, F03, F04, F05, F06, F07, F08, F09, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20 },
 };
 
 export const getLessonBySlug = (slug: string) => lessons.find(l => l.slug === slug);

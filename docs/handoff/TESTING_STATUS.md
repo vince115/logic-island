@@ -10,6 +10,21 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## Phase E.2 基礎程式島 20／20（2026-10-31，三個本地 commit：batch A `d71cb6a`、batch B `618ddd9`、batch C「lessons F16-F20 and the foundations island complete (Phase E.2 batch C)」）
+
+狀態：基礎程式島 F01～F20 完整，資料結構島與演算法島 40 堂仍為規劃中；Phase D 程式未修改。完整教材的驗證標準提高（motivation、≥ 3 範例、≥ 4 測驗）。
+
+| 檢查 | 結果 |
+|---|---|
+| ESLint／TypeScript | 都是 exit 0 |
+| Vitest（JDK 在 PATH） | **479 passed／0 skipped**：課綱規則、驗證器、進度，以及 F01～F20 共 63 個範例、20 題練習（140 組測資＋範例）、3 份起始程式碼在 **C++17、Python 3、Java 17 全部執行通過** |
+| Next Build | 成功 |
+| E2E `curriculum` | 43 passed／1 skipped／0 failed：各視覺化（迴圈、陣列、二維、函式呼叫、遞迴、複雜度、挑戰分段、短路）、F13 進度、島嶼 20／20 完成、20 堂手機不溢出 |
+| E2E 全套（單次） | 282 passed／38 skipped／4 failed：3 項 P1-11；1 項候選頁 Auto Orbit 測試 30 秒逾時——同一測試在 E.2 之前的 `5c43f98` 建置、相同負載下也 6／6 失敗，E.2 未修改任何 3D 或候選頁程式，屬負載相依的既有問題 |
+
+- Java 執行方式：`PATH="/Applications/IntelliJ IDEA.app/Contents/jbr/Contents/Home/bin:$PATH"`（本機既有的 IntelliJ IDEA 附帶 OpenJDK 25），`javac --release 17`。沒有 JDK 的環境 Java 測試會略過，不得視為通過。
+- 見 `logs/2026-10-31-e2-foundations.md`。
+
 ## dusk-contrast E2E flake 修正（2026-10-31，獨立 commit「wait for every caption transition in the dusk contrast test (E2E fix)」）
 
 只修改 `e2e/hex-environment.spec.ts` 的等待條件；產品程式、顏色、相機、GLB、光照、renderer 與教材都未修改。
