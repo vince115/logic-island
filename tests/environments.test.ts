@@ -2,7 +2,8 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { Material, Mesh, MeshStandardMaterial, Object3D } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { ENVIRONMENTS, PREVIEW_NOON, type WorldEnvironment } from '@/lib/islands/environments';
+import { ENVIRONMENTS, PREVIEW_NOON, shadowBox, type WorldEnvironment } from '@/lib/islands/environments';
+import type { Vec3 } from '@/lib/islands/types';
 import { glbAssets } from '@/lib/islands/asset-registry';
 import { extractGlbParts, ownGlowMaterials } from '@/lib/islands/glb-parts';
 import { hexGlbSettlements } from '@/lib/islands/hex-buildings';
@@ -12,13 +13,12 @@ const dir = 'src/components/islands/hex-world';
 const sources = readdirSync(dir).map(name => ({ name, text: readFileSync(`${dir}/${name}`, 'utf8') }));
 
 describe('world environments (D.3-6a)', () => {
-  it('noon is the accepted D.2c lighting value for value, and the only time of day', () => {
-    expect(Object.keys(ENVIRONMENTS)).toEqual(['noon']);
+  it('noon is the accepted D.2c lighting value for value (D.3-6b: with its D.2c shadow box and an untinted sea)', () => {
     expect(ENVIRONMENTS.noon).toEqual({
       id: 'noon', background: '#cbe9f4',
       ambient: { color: '#ffffff', intensity: .62 }, hemisphere: { sky: '#f3fbff', ground: '#b9d7a8', intensity: .95 },
       sun: { color: '#ffffff', intensity: 2.9, position: [-12, 22, 10] },
-      shadow: { mapSize: 1024, bias: -.0002, normalBias: .05, far: 70 }, fog: null, glow: 1,
+      shadow: { mapSize: 1024, bias: -.0002, normalBias: .05, fit: 'map', far: 70 }, sea: { tint: '#ffffff' }, fog: null, glow: 1,
     });
   });
 
@@ -38,6 +38,61 @@ describe('world environments (D.3-6a)', () => {
   it('only hex-environment.tsx draws the background, fog and lights of the hex world', () => {
     const drawing = sources.filter(s => /<(ambientLight|hemisphereLight|directionalLight|pointLight|spotLight|fog)\b|attach="(background|fog)"/.test(s.text));
     expect(drawing.map(s => s.name)).toEqual(['hex-environment.tsx']);
+  });
+});
+
+describe('times of day (D.3-6b)', () => {
+  const elevation = ({ sun: { position: [x, y, z] } }: WorldEnvironment) => Math.atan2(y, Math.hypot(x, z)) * 180 / Math.PI;
+  const others = (['morning', 'sunset', 'dusk'] as const).map(id => ENVIRONMENTS[id]);
+
+  it('four times of day in select order, each under its own id', () => {
+    expect(Object.keys(ENVIRONMENTS)).toEqual(['morning', 'noon', 'sunset', 'dusk']);
+    for (const [id, environment] of Object.entries(ENVIRONMENTS)) expect(environment.id).toBe(id);
+  });
+
+  it('a sunset sun 25–30° up, a dusk moon about 40° up (decided 2026-10-30), a morning sun between sunset and noon', () => {
+    expect(elevation(ENVIRONMENTS.sunset)).toBeGreaterThanOrEqual(25);
+    expect(elevation(ENVIRONMENTS.sunset)).toBeLessThanOrEqual(30);
+    expect(elevation(ENVIRONMENTS.dusk)).toBeCloseTo(40, 0);
+    expect(elevation(ENVIRONMENTS.morning)).toBeGreaterThan(30);
+    expect(elevation(ENVIRONMENTS.morning)).toBeLessThan(elevation(ENVIRONMENTS.noon));
+  });
+
+  it("what stays the same for every time of day: no fog, the lamps' own glow (D.3-6c), the shadow map size", () => {
+    for (const environment of Object.values(ENVIRONMENTS)) {
+      expect(environment.fog).toBeNull();
+      expect(environment.glow).toBe(1);
+      expect(environment.shadow.mapSize).toBe(1024);
+    }
+    expect(others.map(e => e.shadow.fit)).toEqual(['sun', 'sun', 'sun']);
+  });
+
+  it('noon keeps the D.2c shadow box and sun; the A2 preview too', () => {
+    for (const environment of [ENVIRONMENTS.noon, PREVIEW_NOON]) {
+      expect(shadowBox(environment, 22, [-1, 8])).toEqual({ position: [-12, 22, 10], left: -22, right: 22, top: 20, bottom: -20, near: .5, far: 70 });
+    }
+  });
+
+  it('a fitted shadow box holds every corner of the map, seen from the sun, between its near and far planes', () => {
+    for (const environment of others) for (const extent of [16, 22, 30]) {
+      const box = shadowBox(environment, extent, [-1, 8]);
+      const length = Math.hypot(...box.position), z = box.position.map(v => v / length) as Vec3;
+      // The sun keeps the data's direction; only its distance is fitted.
+      const given = environment.sun.position, given1 = Math.hypot(...given);
+      z.forEach((v, i) => expect(v).toBeCloseTo(given[i] / given1, 4));
+      const flat = Math.hypot(z[0], z[2]), x: Vec3 = [z[2] / flat, 0, -z[0] / flat];
+      const y: Vec3 = [z[1] * x[2] - z[2] * x[1], z[2] * x[0] - z[0] * x[2], z[0] * x[1] - z[1] * x[0]];
+      const dot = (a: Vec3, b: Vec3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+      for (const cx of [-extent, extent]) for (const cy of [-1, 8]) for (const cz of [-extent, extent]) {
+        const corner: Vec3 = [cx, cy, cz], depth = length - dot(corner, z);
+        expect(dot(corner, x)).toBeGreaterThan(box.left);
+        expect(dot(corner, x)).toBeLessThan(box.right);
+        expect(dot(corner, y)).toBeGreaterThan(box.bottom);
+        expect(dot(corner, y)).toBeLessThan(box.top);
+        expect(depth).toBeGreaterThan(box.near);
+        expect(depth).toBeLessThan(box.far);
+      }
+    }
   });
 });
 

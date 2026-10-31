@@ -14,12 +14,14 @@ describe('scene presets (D.3-1)', () => {
     expect('perfProbe' in SCENE_PRESETS.production).toBe(false);
   });
 
-  it('the lab preset is production plus the probe and (D.3-5a) the free camera, nothing else', () => {
-    const { perfProbe, camera, ...rest } = SCENE_PRESETS.lab;
+  it('the lab preset is production plus the probe, (D.3-5a) the free camera and (D.3-6b) the times of day, nothing else', () => {
+    const { perfProbe, camera, timeOfDay, ...rest } = SCENE_PRESETS.lab;
     expect(perfProbe).toBe(true);
     expect(camera).toBe('free');
+    expect(timeOfDay).toBe(true);
     expect(rest).toEqual(SCENE_PRESETS.production);
     expect('camera' in SCENE_PRESETS.production).toBe(false);
+    expect(Object.entries(SCENE_PRESETS).filter(([, preset]) => 'timeOfDay' in preset).map(([name]) => name)).toEqual(['lab']);
   });
 
   it('only the scale prototype pages import the prototype module', () => {

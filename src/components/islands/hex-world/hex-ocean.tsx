@@ -1,6 +1,7 @@
 'use client';
 
 import { useLayoutEffect, useMemo } from 'react';
+import { useThree } from '@react-three/fiber';
 import {
   BufferGeometry, Color, DataTexture, DoubleSide, Float32BufferAttribute, LinearFilter, MeshStandardMaterial, SRGBColorSpace,
 } from 'three';
@@ -8,6 +9,7 @@ import { hexCorner, hexToWorld, type Axial } from '@/lib/islands/hex';
 import { coastFoam, shallowHexes } from '@/lib/islands/hex-nature-data';
 import { naturalTerrains, seaGrid } from '@/lib/islands/hex-natural-scene';
 import { WATER_LEVEL, type HexWorld } from '@/lib/islands/hex-world';
+import type { HexColor } from '@/lib/islands/environments';
 import type { Vec3 } from '@/lib/islands/types';
 
 const noRaycast = () => undefined;
@@ -81,8 +83,9 @@ export function HexOcean({world}:{world:HexWorld}) {
  * Natural sea (D.2c-1): the color fades smoothly from shallow to deep with the distance to land, so no hex
  * outline shows in the water, plus foam along every cliff foot and beach waterline. The shade grid is baked
  * into a small texture on one quad: a screen-filling mesh of many triangles cost about half the frame rate.
+ * D.3-6b: `tint` (the environment's sea tint) multiplies the deep and shaded water; foam keeps its own colour.
  */
-export function HexNaturalOcean({world}:{world:HexWorld}) {
+export function HexNaturalOcean({world,tint='#ffffff'}:{world:HexWorld;tint?:HexColor}) {
   const parts=useMemo(()=>{
     const {nx,nz,points,shade}=seaGrid(world),step=points[1][0]-points[0][0];
     const stops=[OCEAN.shallow,OCEAN.mid,OCEAN.deep].map(c=>new Color(c)),srgb={r:0,g:0,b:0};
@@ -117,6 +120,15 @@ export function HexNaturalOcean({world}:{world:HexWorld}) {
     foam:new MeshStandardMaterial({color:OCEAN.foam,roughness:.45,side:DoubleSide}),
   }),[parts]);
   useLayoutEffect(()=>()=>{parts.sea.dispose();parts.deep.dispose();parts.foam.dispose();parts.texture.dispose();Object.values(materials).forEach(m=>m.dispose());},[parts,materials]);
+  // A colour is a uniform, so a new tint redraws one frame and compiles nothing; white (noon) leaves them as made.
+  const invalidate=useThree(state=>state.invalidate);
+  useLayoutEffect(()=>{
+    const by=new Color(tint),deep=new Color(OCEAN.deep).multiply(by);
+    if(materials.deep.color.equals(deep)&&materials.sea.color.equals(by)) return;
+    materials.deep.color.copy(deep);
+    materials.sea.color.copy(by);
+    invalidate();
+  },[materials,tint,invalidate]);
   // Land first, then the sea, then the deep frame, so hidden water fails the depth test early.
   return <group>
     <mesh geometry={parts.deep} material={materials.deep} receiveShadow raycast={noRaycast} renderOrder={2}/>

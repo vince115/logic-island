@@ -10,6 +10,24 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## D.3-6b 四種時間情境（2026-10-31，獨立 commit「four times of day on the lab world map (Phase D.3-6b)」）
+
+狀態：**只在 37 格實驗室頁**（清晨／中午／黃昏／傍晚與原生選單）；Fast Iteration Mode Level 2，共用的 `HexEnvironment` 另做關鍵路由逐像素 A/B。中午與 `63f972e` 在 6 條路由、桌機＋手機 22 個狀態 0 像素差；候選頁、`/islands`、`/islands/legacy` 的畫面與按鈕、連結相同。真機 D.3-4B 仍 Not Measured；iOS Safari／螢幕閱讀器 Not Verified。
+
+| 檢查 | 結果 |
+|---|---|
+| ESLint／TypeScript | 都是 exit 0 |
+| Vitest | 188 passed／6 skipped（`tests/environments.test.ts` 新增 5 項） |
+| Next Build | 成功；`/islands` 系列靜態頁、`/islands/hex/scale/{19,37}` SSG 不變 |
+| E2E `hex-environment`＋`hex-camera`＋`hex-scale`＋`hex-world`＋`islands-candidate`＋`islands-acceptance`＋`islands`（單次） | 174 passed／20 skipped／0 failed；傍晚月光改為 40° 後重跑 `hex-environment` 18 passed |
+| 視覺 A/B（中午） | 22 個狀態 0 像素差；實驗室頁只多了時間選單 |
+| draw call／三角形 | 四情境主畫面相同（每幀 43），含陰影 pass 不多於中午 |
+| 陰影與閒置 | 每次切換 1 次陰影 pass，之後閒置 0 |
+| 效能 smoke（一輪） | 切換不編譯 shader（program 17 → 17）；切換到第一幀 21～44 ms；環繞 FPS 四情境相同（桌機約 38、手機約 40）。載入後第一次環繞的雙峰雜訊兩版都有，無回歸證據。見 `logs/2026-10-31-d3-6b-time-of-day.md` §7 |
+
+- `e2e/hex-environment.spec.ts`（新增 7 項 × 桌機／手機）：選單預設中午與順序、候選頁沒有；每情境的燈光、陰影盒、海面色調、無霧；draw call／三角形；切換只重畫一次陰影且閒置 0；不影響自動旋轉、聚焦、返回全景與清單往返；黃昏與傍晚標題對比 ≥ 4.5:1；Tab 可達、360／390 px 不溢出。
+- scratch（不進 repo）：四情境截圖、中午 A/B、效能 smoke、第一次環繞的配對檢查。
+
 ## D.3-6a 環境架構重構（2026-10-31，獨立 commit「environment data and HexEnvironment for the world map (Phase D.3-6a)」）
 
 狀態：純重構，只有中午環境。六條 `/islands` 路由（實驗室頁、候選頁、19 格、A2 預覽、`/islands`、`/islands/legacy`）與 `57364a2` 0 像素差、按鈕與連結相同、編譯的 WebGL program／shader 數量相同。候選頁沒有啟用自由相機或 Auto Orbit。全部是 Chromium 模擬；D.3-4B 仍是 Not Measured。

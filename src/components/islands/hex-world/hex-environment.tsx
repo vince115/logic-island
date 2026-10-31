@@ -1,9 +1,9 @@
 'use client';
 
-import { createContext, useContext, useEffect, useRef } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef } from 'react';
 import { PCFShadowMap, type DirectionalLight, type Mesh } from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
-import type { WorldEnvironment } from '@/lib/islands/environments';
+import { SHADOW_HEIGHTS, shadowBox, type WorldEnvironment } from '@/lib/islands/environments';
 import type { Glow } from '@/lib/islands/glb-parts';
 
 /** Shadow map settings for `shadows: 'static'`: the type the `soft` preset resolves to in three r186, drawn on demand. */
@@ -41,19 +41,21 @@ export function useGlow(glows:readonly Glow[]) {
 
 /**
  * D.3-6a: what the scene draws around the map, from one environment's data: the background, an optional fog, the
- * fill lights and the shadow-casting sun, whose shadow box covers ±`shadowExtent` around the map centre.
+ * fill lights and the shadow-casting sun, whose shadow box covers ±`shadowExtent` around the map centre (noon), or is
+ * fitted to the map from the sun's direction (D.3-6b, the other times of day).
  */
 export function HexEnvironment({environment,shadowExtent,staticShadows}:{environment:WorldEnvironment;shadowExtent:number;staticShadows:boolean}) {
   const {background,fog,ambient,hemisphere,sun,shadow}=environment;
+  const box=useMemo(()=>shadowBox(environment,shadowExtent,SHADOW_HEIGHTS),[environment,shadowExtent]);
   const light=useRef<DirectionalLight>(null);
   // three computes the shadow box's projection only when it first makes the map, and a static map is redrawn only
-  // when its casters change, so a sun or box that changes afterwards (D.3-6b; noon never does) does both here, in the
-  // frame its new light props ask for, before that frame's shadow pass.
-  const box=`${sun.position.join(',')}|${shadowExtent}|${shadow.far}`;
-  const drawn=useRef(box);
+  // when its casters change, so a sun or box that changes afterwards (another time of day; noon never does) does both
+  // here, in the frame its new light props ask for, before that frame's shadow pass.
+  const key=JSON.stringify(box);
+  const drawn=useRef(key);
   useFrame(({gl})=>{
-    if(drawn.current===box||!light.current) return;
-    drawn.current=box;
+    if(drawn.current===key||!light.current) return;
+    drawn.current=key;
     light.current.shadow.camera.updateProjectionMatrix();
     gl.shadowMap.needsUpdate=true;
   });
@@ -63,9 +65,9 @@ export function HexEnvironment({environment,shadowExtent,staticShadows}:{environ
     {staticShadows&&<StaticShadows/>}
     <ambientLight color={ambient.color} intensity={ambient.intensity}/>
     <hemisphereLight args={[hemisphere.sky,hemisphere.ground,hemisphere.intensity]}/>
-    <directionalLight ref={light} position={sun.position} color={sun.color} intensity={sun.intensity} castShadow
-      shadow-mapSize={[shadow.mapSize,shadow.mapSize]} shadow-camera-left={-shadowExtent} shadow-camera-right={shadowExtent}
-      shadow-camera-top={shadowExtent-2} shadow-camera-bottom={-shadowExtent+2} shadow-camera-far={shadow.far}
+    <directionalLight ref={light} position={box.position} color={sun.color} intensity={sun.intensity} castShadow
+      shadow-mapSize={[shadow.mapSize,shadow.mapSize]} shadow-camera-left={box.left} shadow-camera-right={box.right}
+      shadow-camera-top={box.top} shadow-camera-bottom={box.bottom} shadow-camera-near={box.near} shadow-camera-far={box.far}
       shadow-normalBias={shadow.normalBias} shadow-bias={shadow.bias}/>
   </>;
 }

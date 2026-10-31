@@ -7,7 +7,7 @@ import { Html } from '@react-three/drei';
 import { hexCorner, hexToWorld } from '@/lib/islands/hex';
 import { tileTop } from '@/lib/islands/hex-terrain';
 import { WATER_LEVEL, settlementFrames, worldCenter, type HexWorld } from '@/lib/islands/hex-world';
-import { ENVIRONMENTS, PREVIEW_NOON } from '@/lib/islands/environments';
+import { ENVIRONMENTS, PREVIEW_NOON, type EnvironmentId } from '@/lib/islands/environments';
 import type { IslandDefinition } from '@/lib/islands/types';
 import { HexCamera, VIEW, viewAt, type CameraView } from './hex-camera';
 import { HexTiles, WATER_Y } from './hex-tiles';
@@ -63,6 +63,9 @@ export interface HexSceneOptions {
   /** D.3-5a: `free` turns (mouse drag; one finger left and right) and zooms (wheel, two fingers) within limits, and
    * the overview labels hang outward for the current view. `fixed` (default) keeps the D.2 view with two-finger zoom. */
   camera?: 'fixed' | 'free';
+  /** D.3-6b: the explorer offers a time-of-day select (lab only), and the scene draws the chosen environment in place
+   * of noon. Only with `lighting: 'contrast'`, the look the times of day vary. */
+  timeOfDay?: boolean;
 }
 type CaptionSide='left'|'right'|'above'|'below';
 /**
@@ -123,7 +126,7 @@ function Lifecycle({label,onReady,onUnavailable}:{label:string;onReady:()=>void;
   return null;
 }
 
-export default function HexWorldScene({world,islands,selectedId,onSelect,onNavigate,reducedMotion,onReady,onUnavailable,options={},infoNode,onInfoChange,label,resetKey,onViewChange,orbit,onOrbitStop}:{
+export default function HexWorldScene({world,islands,selectedId,onSelect,onNavigate,reducedMotion,onReady,onUnavailable,options={},infoNode,onInfoChange,label,resetKey,onViewChange,orbit,onOrbitStop,environmentId='noon'}:{
   world:HexWorld;islands:IslandDefinition[];selectedId:string|null;onSelect:(id:string)=>void;
   reducedMotion:boolean;onReady:()=>void;onUnavailable:()=>void;options?:HexSceneOptions;
   /** Controlled info bubble of the focused settlement, shared with the HTML target list. */
@@ -137,9 +140,11 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
   resetKey?:number;onViewChange?:(changed:boolean)=>void;
   /** D.3-5b Auto Orbit (free camera, overview only): whether it turns, and the user's drag, pinch or wheel stopping it. */
   orbit?:boolean;onOrbitStop?:()=>void;
+  /** D.3-6b (`timeOfDay`): the time of day the explorer chose. */
+  environmentId?:EnvironmentId;
 }) {
   const glbLayouts=options.glbLayouts??hexGlbSettlements,continuousOcean=options.ocean==='continuous'||options.ocean==='natural';
-  const environment=options.lighting==='contrast'?ENVIRONMENTS.noon:PREVIEW_NOON;
+  const environment=options.lighting!=='contrast'?PREVIEW_NOON:ENVIRONMENTS[options.timeOfDay?environmentId:'noon'];
   // Shadows must cover the whole map; the D.2a/D.2b world fits the original ±16 box.
   const shadowExtent=useMemo(()=>{
     const all=world.settlements.flatMap(s=>s.tiles.map(t=>hexToWorld(t,world.size)));
@@ -180,7 +185,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
         <planeGeometry args={[250,250]}/><meshStandardMaterial color="#3db2e6" roughness={.7}/>
       </mesh>}
       <GlowProvider value={environment.glow}><group position={[-ox,0,-oz]}>
-        {options.ocean==='natural'?<HexNaturalOcean world={world}/>:continuousOcean?<HexOcean world={world}/>:<HexTiles world={world} onSelect={onSelect}/>}
+        {options.ocean==='natural'?<HexNaturalOcean world={world} tint={environment.sea.tint}/>:continuousOcean?<HexOcean world={world}/>:<HexTiles world={world} onSelect={onSelect}/>}
         {options.forests&&<HexForest world={world} patches={options.forests} trees={options.nature?.trees} lod={options.treeLod}/>}
         {options.rocks&&<HexRocks world={world} rocks={options.nature?.rocks}/>}
         {world.settlements.filter(s=>s.surface==='continuous').map(s=><HexTerrainMesh key={s.islandId} world={world} settlement={s} onSelect={onSelect} style={options.terrain}

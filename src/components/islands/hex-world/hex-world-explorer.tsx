@@ -6,6 +6,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { useReducedMotion } from 'motion/react';
 import { Globe2, Hexagon, List, Orbit, RotateCcw } from 'lucide-react';
 import { hexWorld, type HexWorld } from '@/lib/islands/hex-world';
+import { ENVIRONMENTS, type EnvironmentId } from '@/lib/islands/environments';
 import type { LearningIsland } from '@/lib/islands/types';
 import { LearningNavigation } from '../learning-navigation';
 import type { HexSceneOptions } from './hex-world-scene';
@@ -47,6 +48,9 @@ function SceneLoading() {
 }
 const HexWorldScene=dynamic(()=>import('./hex-world-scene'),{ssr:false,loading:()=> <SceneLoading/>});
 
+/** D.3-6b: the time-of-day select's wording, in ENVIRONMENTS order. */
+const TIME_OF_DAY:Record<EnvironmentId,string>={morning:'清晨',noon:'中午',sunset:'黃昏',dusk:'傍晚'};
+
 function StageColumn({wrap,children}:{wrap:boolean;children:ReactNode}) {
   return wrap?<div className={styles.hexStageColumn}>{children}</div>:<>{children}</>;
 }
@@ -79,6 +83,9 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
   const freeCamera=options?.camera==='free';
   const [orbiting,setOrbiting]=useState(false);
   const stopOrbit=useCallback(()=>setOrbiting(false),[]);
+  // D.3-6b times of day (lab): noon on every load, kept only in this state (no storage); it changes nothing else.
+  const timeOfDay=options?.timeOfDay===true;
+  const [environmentId,setEnvironmentId]=useState<EnvironmentId>('noon');
   // No WebGL, a lost context or a scene error: as on /islands, the list takes over and 3D stays off.
   const unavailable=useCallback(()=>{setAvailable(false);setReady(false);setMode('list');setViewChanged(false);setOrbiting(false);},[]);
   const [infoNode,setInfoNode]=useState<string|null>(null);
@@ -113,7 +120,7 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
     <div className={`${styles.explorerBody} ${listMode?styles.listBody:''}`}>
       {/* With the target panel, stage and panel share the first grid column. */}
       {!listMode&&<StageColumn wrap={poiPanel}>
-      <div className={`${styles.stage} ${styles.hexStage}`} data-focused={selectedId?'true':undefined}>
+      <div className={`${styles.stage} ${styles.hexStage}`} data-focused={selectedId?'true':undefined} data-environment={timeOfDay?environmentId:undefined}>
         {/* The map names the focused island itself: its large label gives way to the anchors once focused. */}
         <div className={styles.stageCaption}>{selected
           ?<><span>{selected.englishName}</span><strong>{selected.name}</strong></>
@@ -123,11 +130,14 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
             <HexWorldScene world={world} islands={islands} selectedId={selectedId} onSelect={select} onNavigate={navigate}
               reducedMotion={Boolean(reducedMotion)} onReady={markReady} onUnavailable={unavailable} options={options} label={text.canvas}
               infoNode={poiPanel?infoNode:undefined} onInfoChange={poiPanel?setInfoNode:undefined}
-              resetKey={resetKey} onViewChange={setViewChanged} orbit={orbiting} onOrbitStop={stopOrbit}/>
+              resetKey={resetKey} onViewChange={setViewChanged} orbit={orbiting} onOrbitStop={stopOrbit} environmentId={environmentId}/>
           </LoadingCopy.Provider>
         </SceneBoundary>
         <div className={styles.stageBottom}><span><i/>{ready?text.hint:'準備 3D 場景中 · 清單導航隨時可用'}</span>{freeCamera
           ?<div className={styles.stageActions}>
+            {timeOfDay&&<select aria-label="時間情境" value={environmentId} onChange={event=>setEnvironmentId(event.target.value as EnvironmentId)}>
+              {(Object.keys(ENVIRONMENTS) as EnvironmentId[]).map(id=><option key={id} value={id}>{TIME_OF_DAY[id]}</option>)}
+            </select>}
             {!selectedId&&<button type="button" aria-pressed={orbiting} disabled={!ready} onClick={()=>setOrbiting(on=>!on)}><Orbit size={14}/>自動旋轉</button>}
             <button type="button" onClick={overview} disabled={!selectedId&&!viewChanged&&!orbiting}><RotateCcw size={14}/>返回全景</button>
           </div>
