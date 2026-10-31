@@ -22,9 +22,10 @@ const OPTIONS = sceneOptions(islandsWorld, SCENE_PRESETS.production);
  * The world map as /islands will show it (D.3-3 preflight: only at the hidden /islands/candidate until the switch):
  * the production world and preset, the place list, no test controls, and the island and lesson counts below. D.3-6d:
  * on single-column screens the map caption sits above the map, so turning or zooming never brings an island under it.
+ * D.3-7a: there the hint and the map buttons also leave the map, for a row below it.
  */
 export function IslandsWorldExplorer({islands}:{islands:LearningIsland[]}) {
   const lessons=islands.reduce((sum,island)=>sum+island.lessons.length,0);
-  return <HexWorldExplorer islands={islands} world={islandsWorld.world} options={OPTIONS} poiPanel captionAbove copy={ISLANDS_COPY}
+  return <HexWorldExplorer islands={islands} world={islandsWorld.world} options={OPTIONS} poiPanel captionAbove controlsBelow copy={ISLANDS_COPY}
     footer={<span>{islands.length} 座主題島嶼 <b>/</b> {lessons} 份教材入口 <b>/</b> 一步步建立理解</span>}/>;
 }

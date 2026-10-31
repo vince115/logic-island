@@ -90,7 +90,12 @@ const press = async (page: Page, target: ReturnType<typeof orbit>) => { if (phon
  */
 async function mapShot(page: Page) {
   const style = await page.addStyleTag({ content: '[data-environment] *{visibility:hidden!important}[data-environment] canvas{visibility:visible!important}' });
-  const shot = await page.locator('canvas').screenshot();
+  // Only the canvas's own whole pixels: it sits at a fractional y, and an element shot also takes in one row of whatever
+  // lies below it (the page background or, since D.3-7a, the button row's border on phones, depending on the scroll).
+  const canvas = page.locator('canvas');
+  await canvas.scrollIntoViewIfNeeded();
+  const b = (await canvas.boundingBox())!, x = Math.ceil(b.x), y = Math.ceil(b.y);
+  const shot = await page.screenshot({ clip: { x, y, width: Math.floor(b.x + b.width) - x, height: Math.floor(b.y + b.height) - y } });
   await style.evaluate(node => (node as Element).remove());
   // Under reduced motion the site gives every change a 0.01 ms transition, so the canvas is shown again a frame later;
   // until then a touch on the map would land on its wrapper instead.
@@ -352,7 +357,7 @@ for (const width of [360, 390, 430]) {
     const map = (await page.locator('canvas').boundingBox())!;
     const controls = await Promise.all([select(page), orbit(page), back(page)].map(async c => (await c.boundingBox())!));
     for (const [i, c] of controls.entries()) {
-      expect(c.x, `控制 ${i} 在地圖內`).toBeGreaterThanOrEqual(map.x);
+      expect(c.x, `控制 ${i} 不超出地圖寬度`).toBeGreaterThanOrEqual(map.x);
       expect(c.x + c.width).toBeLessThanOrEqual(map.x + map.width);
       for (const d of controls.slice(i + 1)) expect(c.x + c.width <= d.x || d.x + d.width <= c.x || c.y + c.height <= d.y || d.y + d.height <= c.y, '控制互不重疊').toBe(true);
     }
@@ -431,4 +436,125 @@ base('候選頁（D.3-6d）：WebGL 不可用或中途遺失時改為清單，�
   await loseWebGLContext(lost);
   await expectListFallback(lost);
   for (const control of [select(lost), orbit(lost), back(lost)]) await expect(control).toHaveCount(0);
+});
+
+/*
+ * D.3-7a candidate mobile UI. The skip link: phone screenshots showed it over the map, but that came from Playwright's
+ * full-page capture of a scrolled page (it lays the off-screen fixed link out at the capture's scroll offset); on screen
+ * it stays hidden until focused. These check what a visitor sees, in the viewport.
+ */
+const skipLink = (page: Page) => page.getByRole('link', { name: '跳至主要內容' });
+/** 'full' inside the viewport, 'out' entirely outside it, 'partial' otherwise. */
+const skipShown = (page: Page) => skipLink(page).evaluate(a => {
+  const r = a.getBoundingClientRect();
+  if (r.bottom <= 0 || r.top >= innerHeight || r.right <= 0 || r.left >= innerWidth) return 'out';
+  return r.top >= 0 && r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight ? 'full' : 'partial';
+});
+for (const width of [360, 390, 430, 1280]) {
+  test(`候選頁（D.3-7a）：${width}px 跳至主要內容平時不顯示、不擋地圖；Tab 聚焦時完整可見，Enter 跳到主要內容`, async ({ page }) => {
+    test.skip(phone() !== (width < 780), width < 780 ? '手機寬度' : '桌機寬度');
+    await page.setViewportSize({ width, height: width < 780 ? 800 : 900 });
+    await page.goto(CANDIDATE);
+    await expect(label(page, '基礎程式島')).toHaveAttribute('data-model-source', 'glb', { timeout: 30_000 });
+    await expect.poll(() => skipShown(page), { message: '載入後', timeout: 2_000 }).toBe('out');
+    // Keyboard: the first Tab shows it whole with a focus ring; Enter goes to the main content and the link leaves.
+    await page.keyboard.press('Tab');
+    await expect(skipLink(page)).toBeFocused();
+    await expect.poll(() => skipShown(page), { message: 'Tab 聚焦', timeout: 2_000 }).toBe('full');
+    expect(await skipLink(page).evaluate(a => getComputedStyle(a).outlineStyle), '焦點外框').not.toBe('none');
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/#main$/);
+    await expect(skipLink(page)).not.toBeFocused();
+    await expect.poll(() => skipShown(page), { message: 'Enter 之後', timeout: 2_000 }).toBe('out');
+    await page.keyboard.press('Tab');
+    expect(await page.evaluate(() => document.querySelector('main')!.contains(document.activeElement)), '下一個 Tab 在主要內容裡').toBe(true);
+    // Scrolling and clicking the map (open sea, so no flight) never bring it back.
+    await page.locator('canvas').scrollIntoViewIfNeeded();
+    await expect.poll(() => skipShown(page), { message: '捲動後', timeout: 2_000 }).toBe('out');
+    const map = (await page.locator('canvas').boundingBox())!;
+    await page.mouse.click(map.x + 8, map.y + map.height - 8);
+    await expect.poll(() => skipShown(page), { message: '點地圖後', timeout: 2_000 }).toBe('out');
+    await page.evaluate(() => scrollBy(0, 300));
+    await expect.poll(() => skipShown(page), { message: '再捲動後', timeout: 2_000 }).toBe('out');
+  });
+}
+
+/** The hint and button row (over the map on wide screens, below it on phones). */
+const dock = (page: Page) => page.locator('[class*="stageDock"]');
+/** WCAG contrast of an element's text against the dock row's background. */
+const dockContrast = (page: Page) => dock(page).evaluate(row => {
+  const rgb = (c: string) => c.match(/[\d.]+/g)!.slice(0, 3).map(Number);
+  const lum = (c: number[]) => { const [r, g, b] = c.map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }); return .2126 * r + .7152 * g + .0722 * b; };
+  const bg = lum(rgb(getComputedStyle(row).backgroundColor)), text = lum(rgb(getComputedStyle(row.querySelector('span')!).color));
+  return (Math.max(bg, text) + .05) / (Math.min(bg, text) + .05);
+});
+for (const width of [360, 390, 430]) {
+  test(`候選頁（D.3-7a）：手機 ${width}px 提示與按鈕在地圖下方一列，不蓋地圖；觸控目標 44px、高度與圓角一致、不截字；聚焦後與深色模式`, async ({ page }) => {
+    test.skip(!phone(), '手機寬度');
+    await page.setViewportSize({ width, height: 800 });
+    await open(page);
+    const check = async (when: string, controls: ReturnType<typeof select>[]) => {
+      await dock(page).scrollIntoViewIfNeeded();
+      const map = (await page.locator('canvas').boundingBox())!, stage = (await page.locator('[data-environment]').boundingBox())!;
+      const row = (await dock(page).boundingBox())!;
+      // The map keeps the whole stage (nothing inside it takes space) and the row starts where the map ends.
+      expect(map.height, `${when}：地圖高度`).toBeCloseTo(stage.height, 0);
+      expect(row.y, `${when}：按鈕列在地圖下方`).toBeGreaterThanOrEqual(map.y + map.height - .5);
+      expect(row.x).toBeGreaterThanOrEqual(map.x - .5);
+      expect(row.x + row.width).toBeLessThanOrEqual(map.x + map.width + .5);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), `${when}：水平溢出`).toBeLessThanOrEqual(0);
+      const boxes = await Promise.all(controls.map(async c => (await c.boundingBox())!));
+      const looks = await Promise.all(controls.map(c => c.evaluate(e => ({ radius: getComputedStyle(e).borderRadius, cut: e.scrollWidth > e.clientWidth }))));
+      for (const [i, b] of boxes.entries()) {
+        expect(b.height, `${when}：控制 ${i} 高度`).toBeGreaterThanOrEqual(44);
+        expect(b.width, `${when}：控制 ${i} 寬度`).toBeGreaterThanOrEqual(44);
+        expect(b.height, `${when}：高度一致`).toBeCloseTo(boxes[0].height, 0);
+        expect(looks[i].radius, `${when}：圓角一致`).toBe(looks[0].radius);
+        expect(looks[i].cut, `${when}：控制 ${i} 文字未截斷`).toBe(false);
+        expect(b.y, `${when}：控制 ${i} 在按鈕列內`).toBeGreaterThanOrEqual(row.y);
+        expect(b.y + b.height).toBeLessThanOrEqual(row.y + row.height + .5);
+        // Nothing covers it: its own centre hits it.
+        expect(await controls[i].evaluate(e => { const r = e.getBoundingClientRect(); return e.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)); }), `${when}：控制 ${i} 沒被遮住`).toBe(true);
+      }
+      const hint = dock(page).locator('span').first();
+      expect(await hint.evaluate(e => e.scrollWidth <= e.clientWidth), `${when}：提示未截斷`).toBe(true);
+      expect(await dockContrast(page), `${when}：提示對比`).toBeGreaterThanOrEqual(4.5);
+    };
+    await check('全景', [select(page), orbit(page), back(page)]);
+    // Keyboard reaches the row in order, with a visible focus ring.
+    await select(page).focus();
+    await page.keyboard.press('Tab');
+    await expect(orbit(page)).toBeFocused();
+    expect(await orbit(page).evaluate(e => getComputedStyle(e).outlineStyle)).not.toBe('none');
+    await page.keyboard.press('Space');
+    await expect(orbit(page)).toHaveAttribute('aria-pressed', 'true');
+    await page.keyboard.press('Tab');
+    await expect(back(page)).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(orbit(page)).toHaveAttribute('aria-pressed', 'false');
+    for (const id of ['sunset', 'dusk'] as const) { await select(page).selectOption(id); await check(id, [select(page), orbit(page), back(page)]); }
+    await select(page).selectOption('noon');
+    // Focused (Auto Orbit leaves the row): the row stays below the map, the place panel below the row.
+    await chooseIsland(page, '基礎程式島').tap();
+    await expect.poll(() => toolbarName(page)).toBe('基礎程式島');
+    await page.locator('canvas').scrollIntoViewIfNeeded();
+    await check('聚焦', [select(page), back(page)]);
+    const panel = page.locator('[class*="hexPoiPanel"]');
+    if (await panel.count()) expect((await panel.boundingBox())!.y).toBeGreaterThanOrEqual((await dock(page).boundingBox())!.y + (await dock(page).boundingBox())!.height - .5);
+    await back(page).click();
+    await still(page);
+    // Dark theme: the row follows the page colours.
+    await page.getByRole('button', { name: '切換深色模式' }).click();
+    await check('深色', [select(page), orbit(page), back(page)]);
+  });
+}
+
+test('候選頁（D.3-7a）：桌機 1280px 提示與按鈕仍在地圖下緣上方（不變）', async ({ page }) => {
+  test.skip(phone(), '桌機');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await open(page);
+  const map = (await page.locator('canvas').boundingBox())!, row = (await dock(page).boundingBox())!;
+  expect(row.y).toBeGreaterThan(map.y);
+  expect(row.y + row.height).toBeLessThanOrEqual(map.y + map.height);
+  expect(map.height).toBeGreaterThanOrEqual(600);
 });

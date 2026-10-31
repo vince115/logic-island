@@ -54,6 +54,10 @@ const TIME_OF_DAY:Record<EnvironmentId,string>={morning:'清晨',noon:'中午',s
 function StageColumn({wrap,children}:{wrap:boolean;children:ReactNode}) {
   return wrap?<div className={styles.hexStageColumn}>{children}</div>:<>{children}</>;
 }
+/** D.3-7a: holds the map and its button row together, so on wide screens the row still sits over the map. */
+function StageFrame({wrap,children}:{wrap:boolean;children:ReactNode}) {
+  return wrap?<div className={styles.stageFrame}>{children}</div>:<>{children}</>;
+}
 
 /**
  * The hex world explorer, shared by every hex world page (D.3-2). It owns the product side: which island is
@@ -62,13 +66,16 @@ function StageColumn({wrap,children}:{wrap:boolean;children:ReactNode}) {
  * `toolbar` carries page-specific links (previews link back to /islands; the scale prototype links its variants);
  * without it the toolbar keeps to one row on phones. `footer` sits below the map and the list, in both modes.
  */
-export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,captionAbove=false,copy,toolbar,footer}:{
+export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,captionAbove=false,controlsBelow=false,copy,toolbar,footer}:{
   islands:LearningIsland[];world?:HexWorld;options?:HexSceneOptions;
   /** Show the HTML list of the focused island's places (touch and keyboard equivalent of the 3D targets). */
   poiPanel?:boolean;
   /** D.3-6d: on single-column screens (≤ 780 px) the map caption sits above the map instead of over it. With the free
    * camera a caption over a phone-sized map always ends up over some island once the map is turned or zoomed. */
   captionAbove?:boolean;
+  /** D.3-7a: on single-column screens the hint and the map buttons sit in a row below the map instead of over its lower
+   * part; wider screens keep them over the map. */
+  controlsBelow?:boolean;
   copy?:Partial<ExplorerCopy>;toolbar?:ReactNode;footer?:ReactNode;
 }) {
   const text={...PREVIEW_COPY,...copy};
@@ -113,6 +120,16 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
   const caption=selected
     ?<><span>{selected.englishName}</span><strong>{selected.name}</strong></>
     :<><span>{text.eyebrow}</span><strong>{text.title}</strong></>;
+  // The hint and the map buttons: over the map, or with `controlsBelow` in a row of their own on narrow screens.
+  const bottom=<div className={`${styles.stageBottom}${controlsBelow?` ${styles.stageDock}`:''}`}><span><i/>{ready?text.hint:'準備 3D 場景中 · 清單導航隨時可用'}</span>{freeCamera
+    ?<div className={styles.stageActions}>
+      {timeOfDay&&<select aria-label="時間情境" value={environmentId} onChange={event=>setEnvironmentId(event.target.value as EnvironmentId)}>
+        {(Object.keys(ENVIRONMENTS) as EnvironmentId[]).map(id=><option key={id} value={id}>{TIME_OF_DAY[id]}</option>)}
+      </select>}
+      {!selectedId&&<button type="button" aria-pressed={orbiting} disabled={!ready} onClick={()=>setOrbiting(on=>!on)}><Orbit size={14}/>自動旋轉</button>}
+      <button type="button" onClick={overview} disabled={!selectedId&&!viewChanged&&!orbiting}><RotateCcw size={14}/>返回全景</button>
+    </div>
+    :<button type="button" onClick={overview} disabled={!selectedId&&!viewChanged}><RotateCcw size={14}/>返回全景</button>}</div>;
   return <section className={styles.explorer} aria-label={text.section}>
     <div className={`${styles.toolbar}${toolbar?'':` ${styles.singleRowToolbar}`}`}>
       <div className={styles.viewCaption}><Hexagon size={15}/><span>{selected?selected.name:text.overview}</span><small>{listMode?'LEARNING INDEX':text.tag}</small></div>
@@ -129,6 +146,7 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
       {!listMode&&<StageColumn wrap={poiPanel}>
       {/* Only one of the two captions shows at a time (CSS), so screen readers meet one. */}
       {captionAbove&&<div className={styles.stageCaptionAbove}>{caption}</div>}
+      <StageFrame wrap={controlsBelow}>
       <div className={`${styles.stage} ${styles.hexStage}`} data-focused={selectedId?'true':undefined} data-environment={timeOfDay?environmentId:undefined}>
         {/* The map names the focused island itself: its large label gives way to the anchors once focused. */}
         <div className={`${styles.stageCaption}${captionAbove?` ${styles.stageCaptionWide}`:''}`}>{caption}</div>
@@ -140,16 +158,10 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
               resetKey={resetKey} onViewChange={setViewChanged} orbit={orbiting} onOrbitStop={stopOrbit} environmentId={environmentId}/>
           </LoadingCopy.Provider>
         </SceneBoundary>
-        <div className={styles.stageBottom}><span><i/>{ready?text.hint:'準備 3D 場景中 · 清單導航隨時可用'}</span>{freeCamera
-          ?<div className={styles.stageActions}>
-            {timeOfDay&&<select aria-label="時間情境" value={environmentId} onChange={event=>setEnvironmentId(event.target.value as EnvironmentId)}>
-              {(Object.keys(ENVIRONMENTS) as EnvironmentId[]).map(id=><option key={id} value={id}>{TIME_OF_DAY[id]}</option>)}
-            </select>}
-            {!selectedId&&<button type="button" aria-pressed={orbiting} disabled={!ready} onClick={()=>setOrbiting(on=>!on)}><Orbit size={14}/>自動旋轉</button>}
-            <button type="button" onClick={overview} disabled={!selectedId&&!viewChanged&&!orbiting}><RotateCcw size={14}/>返回全景</button>
-          </div>
-          :<button type="button" onClick={overview} disabled={!selectedId&&!viewChanged}><RotateCcw size={14}/>返回全景</button>}</div>
+        {!controlsBelow&&bottom}
       </div>
+      {controlsBelow&&bottom}
+      </StageFrame>
       {poiLayout&&selected&&<HexPoiPanel layout={poiLayout} islandName={selected.name} infoNode={infoNode}
         onInfoChange={setInfoNode} onNavigate={navigate}/>}
       </StageColumn>}

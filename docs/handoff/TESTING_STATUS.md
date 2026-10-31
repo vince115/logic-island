@@ -10,6 +10,22 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## D.3-7a 候選頁手機 UI 修飾（2026-10-31，獨立 commit「mobile button row below the candidate world map (Phase D.3-7a)」）
+
+狀態：Level 2，只在 `/islands/candidate`。手機（≤ 780 px）提示與按鈕移到地圖下方一列（44 px 觸控目標）；「跳至主要內容」出現在地圖上查明為截圖 artifact，產品 CSS 不變。候選頁 3D 與 `250b99f` 0 像素差（桌機 1440／1280、手機 360／390／430；全景、聚焦、傍晚），桌機整個候選頁 0 像素差；實驗室頁、`/islands`、`/islands/legacy`、19 格、A2 預覽 0 像素差且控制相同。真機 D.3-4B 仍 Not Measured；iOS Safari／螢幕閱讀器 Not Verified。
+
+| 檢查 | 結果 |
+|---|---|
+| ESLint／TypeScript | 都是 exit 0 |
+| Vitest | 190 passed／6 skipped |
+| Next Build | 成功 |
+| E2E 全套（單次） | 239 passed／37 skipped／4 failed：3 項既有 P1-11（`player.spec.ts`）；1 項手機像素比對因新按鈕列在 canvas 下方而受截圖邊緣影響，修正 `mapShot`（只擷取 canvas 自己的整數像素）後整個 `candidate-integration` 30 passed／0 failed，重複 3 次 12/12。`hex-camera` 28 passed（實驗室頁觸控測試的等待修正仍有效） |
+| 候選頁 UI 差異 | 手機：提示改為地圖下方一行、三個控制平分一列 44 px、地圖下方多一條分隔線，頁高 +93 px；桌機無差異；沒有新增或移除控制 |
+| 效能 | 不改 3D 渲染，canvas 尺寸不變；draw、陰影 pass、閒置由 D.3-6d 的 E2E 確認不變 |
+
+- `e2e/candidate-integration.spec.ts` 新增 D.3-7a 測試：跳至主要內容（360／390／430／1280：平時在畫面外、Tab 完整可見有外框、Enter 到 `#main` 後離開、捲動與點地圖後仍在畫面外）；手機按鈕列（在地圖下方、44 px、高度與圓角一致、不截字、不被遮住、提示對比 ≥ 4.5:1，全景／黃昏／傍晚／聚焦／深色模式，鍵盤順序）；桌機按鈕仍在地圖上。
+- **截圖規則**：比 viewport 高的截圖（`fullPage`，或比 viewport 高的元素）在頁面已捲動時，會把畫面外的 fixed「跳至主要內容」畫在約 scrollY − 80 的位置（Chromium 擷取方式造成，實際畫面不會出現）。這類截圖用 `screenshot({ style: '.skip-link{visibility:hidden!important}' })` 或先捲回頂端；不要為此改全站 CSS。canvas 的元素截圖會多帶下方一列，3D 像素比對只比 canvas 自己的整數像素。見 `logs/2026-10-31-d3-7a-candidate-mobile-ui.md`。
+
 ## D.3-5c／D.3-6d 候選頁整合（2026-10-31，獨立 commit「free camera, auto orbit and times of day on the candidate world map (Phase D.3-5c/D.3-6d)」）
 
 狀態：Level 3。`/islands/candidate` 取用實驗室頁的自由相機、Auto Orbit 與四種時間情境（production preset 加兩個旗標，同一套元件）；單欄版面地圖標題移到地圖上方。候選頁中午 3D 畫面與 `0cfb146` 0 像素差（桌機、手機，全景、聚焦）；實驗室頁中午／清晨、`/islands`、`/islands/legacy`、19 格、A2 預覽 0 像素差且按鈕連結相同。真機 D.3-4B 仍 Not Measured；iOS Safari／螢幕閱讀器 Not Verified。

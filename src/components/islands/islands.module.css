@@ -369,6 +369,12 @@
 .stageCaptionAbove {
   display: none;
 }
+/* D.3-7a (candidate): the map and its button row. On wide screens the row sits over the map as before; on single-column
+ * screens it becomes a row of its own below the map (see the D.3-7a rule at the end). */
+.stageFrame {
+  position: relative;
+  min-width: 0;
+}
 
 /* Html label rendered by drei inside the canvas overlay. */
 .islandLabel {
@@ -1004,5 +1010,49 @@
   }
   .singleRowToolbar .modeSwitch {
     flex: none;
+  }
+}
+/* D.3-7a (candidate): on single-column screens the hint and the buttons leave the map for a row below it, so nothing
+ * covers the lower part of the map. Theme colours (the row is on the panel, not the map); touch-sized buttons of equal
+ * height that share the row and wrap rather than shrink. The map itself keeps its size. */
+@media (max-width: 780px) {
+  .stageBottom.stageDock {
+    position: static;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px 12px 12px;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+  }
+  .stageBottom.stageDock > span {
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .stageBottom.stageDock > span i {
+    flex: none;
+  }
+  .stageDock .stageActions {
+    align-self: stretch;
+    flex-wrap: wrap;
+  }
+  .stageDock .stageActions > * {
+    flex: 1 1 0;
+    justify-content: center;
+    min-width: max-content;
+    min-height: 44px;
+    border-color: var(--border-strong);
+    border-radius: 8px;
+    background: var(--panel);
+    color: var(--text);
+    font-size: 13px;
+  }
+  .stageDock .stageActions select {
+    padding: 0 10px;
+    text-align-last: center;
   }
 }
