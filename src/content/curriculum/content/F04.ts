@@ -5,6 +5,7 @@ const code = String.raw;
 /** F04 運算子與運算順序. Every example and the reference solutions run in tests/curriculum-code.test.ts. */
 export const F04: LessonContent = {
   lessonId: 'F04',
+  motivation: '每一個計算、換算與判斷都由運算子組成。搞懂優先順序與整數除法，才能預測程式「真正」算出什麼，而不是你以為它算出什麼。',
   sections: [
     {
       id: 'arithmetic', title: '算術運算子與整數除法',

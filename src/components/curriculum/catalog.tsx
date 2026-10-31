@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { islands, lessons } from '@/content/curriculum';
 import { APCS_LABELS, DIFFICULTY_LABELS } from '@/content/curriculum/registry';
 import { DIFFICULTIES } from '@/content/curriculum/schema';
-import { ProgressBadge } from './progress';
+import { IslandProgress, ProgressBadge } from './progress';
 import styles from './curriculum.module.css';
 
 /** /curriculum: the 60 lessons of the three islands in recommended order, with status and this learner's progress. */
@@ -21,6 +21,8 @@ export function CurriculumCatalog() {
     {islands.map(island => <section key={island.id} className={styles.island} aria-labelledby={`island-${island.id}`}>
       <h2 id={`island-${island.id}`}>{island.name}<span>{island.englishName}</span></h2>
       <p className={styles.muted}>{island.summary}</p>
+      {lessons.some(l => l.islandId === island.id && l.lessonStatus === 'complete') &&
+        <IslandProgress name={island.name} lessonIds={lessons.filter(l => l.islandId === island.id && l.lessonStatus === 'complete').map(l => l.lessonId)}/>}
       <ol className={styles.lessonList}>
         {lessons.filter(l => l.islandId === island.id).map(l => <li key={l.lessonId} data-status={l.lessonStatus}>
           <span className={styles.lessonId}>{l.lessonId}</span>

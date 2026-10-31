@@ -5,6 +5,8 @@ import { branchTaken, validateCurriculum, type Curriculum, type LessonMeta } fro
 
 // Phase E.1: the 60-lesson curriculum and the rules every lesson keeps (src/content/curriculum/schema.ts).
 const clone = (): Curriculum => structuredClone(curriculum);
+/** Complete so far: E.1 wrote F01..F05, E.2 the rest of the foundations island. */
+const COMPLETE = Array.from({ length: 10 }, (_, i) => `F${String(i + 1).padStart(2, '0')}`);
 const lesson = (c: Curriculum, id: string) => c.lessons.find(l => l.lessonId === id) as LessonMeta;
 
 describe('curriculum (E.1)', () => {
@@ -19,8 +21,8 @@ describe('curriculum (E.1)', () => {
     expect(new Set(lessons.map(l => l.slug)).size).toBe(60);
   });
 
-  it('marks exactly F01..F05 complete, the rest planned outlines with real objectives', () => {
-    expect(lessons.filter(l => l.lessonStatus === 'complete').map(l => l.lessonId)).toEqual(['F01', 'F02', 'F03', 'F04', 'F05']);
+  it('marks exactly the written lessons complete, the rest planned outlines with real objectives', () => {
+    expect(lessons.filter(l => l.lessonStatus === 'complete').map(l => l.lessonId)).toEqual(COMPLETE);
     for (const l of lessons.filter(l => l.lessonStatus === 'planned')) {
       expect(l.version, l.lessonId).toBe('0.1.0');
       expect(l.learningObjectives.length, l.lessonId).toBeGreaterThanOrEqual(3);
@@ -70,10 +72,10 @@ describe('curriculum validator (E.1)', () => {
 
   it('catches a lesson that claims to be complete without content, and planned lessons with content', () => {
     const c = clone();
-    lesson(c, 'F06').lessonStatus = 'complete';
-    c.contents.F07 = c.contents.F01;
+    lesson(c, 'D01').lessonStatus = 'complete';
+    c.contents.D02 = c.contents.F01;
     const problems = validateCurriculum(c);
-    expect(problems).toEqual(expect.arrayContaining(['F06: complete lesson has no content', 'F07: planned lesson has content (mark it complete or remove it)']));
+    expect(problems).toEqual(expect.arrayContaining(['D01: complete lesson has no content', 'D02: planned lesson has content (mark it complete or remove it)']));
   });
 
   it('catches missing languages, a thin quiz, an unknown example and an exercise without tests', () => {
@@ -85,7 +87,7 @@ describe('curriculum validator (E.1)', () => {
     content.exercises[0].tests = content.exercises[0].tests.filter(t => t.kind !== 'edge');
     content.exercises[0].errorPolicy = undefined;
     expect(validateCurriculum(c)).toEqual(expect.arrayContaining([
-      'F02: example declare is missing a language', 'F02: needs at least 3 quiz questions', 'F02: section variables shows unknown example nope',
+      'F02: example declare is missing a language', 'F02: needs at least 4 quiz questions', 'F02: section variables shows unknown example nope',
       'F02: exercise e1 has no edge test', 'F02: exercise e1 needs an error test or an errorPolicy',
     ]));
   });
@@ -99,8 +101,8 @@ describe('curriculum validator (E.1)', () => {
 
   it('a complete lesson cannot use a planned visualization', () => {
     const c = clone();
-    lesson(c, 'F05').visualizationType = 'loop-execution';
-    expect(validateCurriculum(c)).toContain('F05: complete lesson uses visualization loop-execution, which is not implemented');
+    lesson(c, 'F05').visualizationType = 'sorting-steps';
+    expect(validateCurriculum(c)).toContain('F05: complete lesson uses visualization sorting-steps, which is not implemented');
   });
 });
 

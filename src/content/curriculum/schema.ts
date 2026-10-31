@@ -34,8 +34,12 @@ export type LessonStatus = typeof LESSON_STATUSES[number];
 
 export const VISUALIZATION_TYPES = [
   'variable-state', 'conditional-branch', 'loop-execution', 'array-index', 'stack-queue', 'tree-traversal', 'sorting-steps',
-  'graph-traversal', 'linked-list', 'hash-table', 'heap', 'disjoint-set', 'recursion-tree', 'dp-table', 'none',
+  'graph-traversal', 'linked-list', 'hash-table', 'heap', 'disjoint-set', 'recursion-tree', 'dp-table',
+  'function-call', 'recursion-trace', 'complexity', 'challenge-stages', 'none',
 ] as const;
+/** The visualization kinds drawn by the shared step-by-step trace (code, variables, loops, arrays, call stack). */
+export const TRACE_KINDS = ['variable-state', 'loop-execution', 'array-index', 'function-call', 'recursion-trace'] as const;
+export type TraceKind = typeof TRACE_KINDS[number];
 export type VisualizationType = typeof VISUALIZATION_TYPES[number];
 
 export interface LessonMeta {
@@ -116,16 +120,44 @@ export interface Exercise {
 }
 
 /** One step of a variable-state trace: the line just run, the variables after it and anything printed so far. */
-export interface TraceStep { line: number; note: string; vars: Record<string, string>; output?: string }
-export type Comparison = { op: '<' | '<=' | '>' | '>=' | '==' | '!='; value: number };
+/**
+ * One step of a trace: the line just run and the state after it. Every panel is optional, so one shape serves the
+ * variable, loop, array, function-call and recursion visualizations (E.2).
+ */
+export interface TraceStep {
+  line: number;
+  note: string;
+  vars?: Record<string, string>;
+  /** Everything printed so far. */
+  output?: string;
+  /** What the variables should hold here (debugging: a mismatch is shown in words). */
+  expected?: Record<string, string>;
+  /** Loops that are running, outermost first: which round, and the condition just checked. */
+  loops?: { label: string; iteration: number; condition: string; holds: boolean | null }[];
+  /** Arrays or strings as cells (2D as rows), with the cells this step reads, writes or tries out of bounds. */
+  arrays?: { name: string; cells: string[] | string[][]; marks?: { at: number | [number, number]; kind: 'read' | 'write' | 'bad' }[] }[];
+  /** The call stack, oldest first; the last frame is running. */
+  frames?: { name: string; vars: Record<string, string>; returns?: string }[];
+}
+/** Compares the value, or the value modulo `mod` (no eval). */
+export type Comparison = { op: '<' | '<=' | '>' | '>=' | '==' | '!='; value: number; mod?: number };
 export interface Branch { label: string; when: { any?: Comparison[]; all?: Comparison[] }; result: string }
 
+export type ComplexityModel = '1' | 'log n' | 'n' | 'n log n' | 'n^2';
+export interface ChallengeStage { title: string; concepts: LessonId[]; goal: string; detail: string }
+
 export type VisualizationConfig =
-  | { kind: 'variable-state'; title: string; language: Language; code: string; steps: TraceStep[] }
-  | { kind: 'conditional-branch'; title: string; variable: string; min: number; max: number; initial: number; branches: Branch[]; otherwise: string };
+  | { kind: TraceKind; title: string; language: Language; code: string; steps: TraceStep[] }
+  | { kind: 'conditional-branch'; title: string; variable: string; min: number; max: number; initial: number; branches: Branch[]; otherwise: string }
+  /** Counted operations of model programs for an input size (an illustrative model, not measured time). */
+  | { kind: 'complexity'; title: string; min: number; max: number; initial: number; models: { model: ComplexityModel; example: string }[] }
+  /** A multi-part problem walked through stage by stage, each naming the lessons it uses. */
+  | { kind: 'challenge-stages'; title: string; stages: ChallengeStage[] };
 
 export interface LessonContent {
   lessonId: LessonId;
+  /** Why the topic is worth learning: what it lets the learner do. */
+  motivation: string;
   sections: Section[];
   examples: CodeExample[];
   quiz: QuizQuestion[];
@@ -146,7 +178,8 @@ export interface Curriculum {
 
 export const LESSONS_PER_ISLAND = 20;
 export const MIN_OBJECTIVES = 3;
-export const MIN_QUIZ = 3;
+export const MIN_QUIZ = 4;
+export const MIN_EXAMPLES = 3;
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const SEMVER = /^\d+\.\d+\.\d+$/;
 
@@ -230,7 +263,8 @@ export function validateContent(lesson: LessonMeta, content: LessonContent, visu
       if (block.type === 'table' && block.rows.some(row => row.length !== block.head.length)) fail(`section ${section.id} has a ragged table`);
     }
   }
-  if (!content.examples.length) fail('needs code examples');
+  if (!content.motivation?.trim()) fail('needs a motivation');
+  if (content.examples.length < MIN_EXAMPLES) fail(`needs at least ${MIN_EXAMPLES} code examples`);
   for (const example of content.examples) {
     unique(example.id);
     if (!full(example.code)) fail(`example ${example.id} is missing a language`);
@@ -260,16 +294,20 @@ export function validateContent(lesson: LessonMeta, content: LessonContent, visu
     if (content.visualization?.kind !== type) fail(`visualization config must be ${type}`);
   } else if (content.visualization) fail('visualization config without a visualization type');
   const viz = content.visualization;
-  if (viz?.kind === 'variable-state') {
-    const lines = viz.code.split('\n').length;
-    if (!viz.steps.length || viz.steps.some(s => s.line < 1 || s.line > lines)) fail('variable-state steps must point at lines of its code');
-  }
+  if (viz && (TRACE_KINDS as readonly string[]).includes(viz.kind) && 'steps' in viz) problems.push(...validateTrace(at, viz.kind as TraceKind, viz.code, viz.steps));
   if (viz?.kind === 'conditional-branch' && (!viz.branches.length || viz.initial < viz.min || viz.initial > viz.max)) fail('conditional-branch needs branches and an initial value in range');
+  if (viz?.kind === 'complexity' && (viz.models.length < 2 || viz.min < 1 || viz.initial < viz.min || viz.initial > viz.max)) fail('complexity needs two models and an input size in range');
+  if (viz?.kind === 'challenge-stages') {
+    if (viz.stages.length < 2) fail('challenge-stages needs at least two stages');
+    for (const stage of viz.stages) for (const id of stage.concepts) if (!/^[FDA]\d{2}$/.test(id)) fail(`challenge stage ${stage.title} names unknown lesson ${id}`);
+  }
   return problems;
 }
 
 /** Whether a comparison holds (the conditional-branch visualization, no eval). */
-export function compare(value: number, { op, value: other }: Comparison): boolean {
+export function compare(raw: number, { op, value: other, mod }: Comparison): boolean {
+  // Mathematical modulo, so a negative value behaves like Python's % (the lessons say which language they mean).
+  const value = mod ? ((raw % mod) + mod) % mod : raw;
   switch (op) {
     case '<': return value < other;
     case '<=': return value <= other;
@@ -282,3 +320,23 @@ export function compare(value: number, { op, value: other }: Comparison): boolea
 /** Whether a branch is taken: any of `any` and all of `all` (an empty side does not block). */
 export const branchTaken = (value: number, { when }: Branch) =>
   (!when.any?.length || when.any.some(c => compare(value, c))) && (!when.all?.length || when.all.every(c => compare(value, c)));
+
+/** A trace's steps point at its code, and each kind carries the panel it is about. */
+function validateTrace(at: string, kind: TraceKind, code: string, steps: TraceStep[]): string[] {
+  const problems: string[] = [];
+  const lines = code.split('\n').length;
+  if (!steps.length || steps.some(s => s.line < 1 || s.line > lines)) problems.push(`${at}: ${kind} steps must point at lines of its code`);
+  const needs = { 'variable-state': (s: TraceStep) => !!s.vars, 'loop-execution': (s: TraceStep) => !!s.loops?.length, 'array-index': (s: TraceStep) => !!s.arrays?.length,
+    'function-call': (s: TraceStep) => !!s.frames?.length, 'recursion-trace': (s: TraceStep) => (s.frames?.length ?? 0) > 1 }[kind];
+  if (!steps.some(needs)) problems.push(`${at}: ${kind} trace never shows its panel`);
+  for (const [i, step] of steps.entries()) for (const array of step.arrays ?? []) {
+    const rows = array.cells.length, grid = Array.isArray(array.cells[0]);
+    for (const mark of array.marks ?? []) {
+      if (mark.kind === 'bad') continue;
+      const inside = typeof mark.at === 'number' ? !grid && mark.at >= 0 && mark.at < rows
+        : grid && mark.at[0] >= 0 && mark.at[0] < rows && mark.at[1] >= 0 && mark.at[1] < (array.cells[mark.at[0]] as string[]).length;
+      if (!inside) problems.push(`${at}: step ${i + 1} marks a cell outside ${array.name} without calling it out of bounds`);
+    }
+  }
+  return problems;
+}

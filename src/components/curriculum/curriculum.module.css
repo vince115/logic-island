@@ -603,6 +603,221 @@
   border-style: dashed;
 }
 
+/* E.2 trace panels: loops, call stack, arrays; complexity; challenge stages */
+.panel h4,
+.cells figcaption {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--cur-muted);
+  margin: 0 0 4px;
+}
+.loops,
+.frames {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+.loops li {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+}
+.loops strong {
+  margin-left: 6px;
+}
+.loops strong[data-holds='false'] {
+  color: var(--cur-bad);
+}
+.loops strong[data-holds='true'] {
+  color: var(--cur-ok);
+}
+.frames li {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.frames li[data-active='true'] {
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 var(--accent);
+}
+.frameName {
+  font-weight: 650;
+}
+.frameVars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  color: var(--cur-muted);
+}
+.vars tr[data-mismatch='true'] td {
+  background: color-mix(in srgb, var(--cur-bad) 12%, transparent);
+}
+.cells {
+  margin: 0;
+  overflow-x: auto;
+}
+.cells table {
+  border-collapse: collapse;
+  font: 13px ui-monospace, monospace;
+}
+.cells th {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--cur-muted);
+  padding: 2px 6px;
+}
+.cells td {
+  border: 1px solid var(--border-strong);
+  min-width: 42px;
+  height: 40px;
+  padding: 2px 4px;
+  text-align: center;
+  vertical-align: middle;
+  position: relative;
+}
+.cells td[data-mark='read'] {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  outline: 2px solid var(--accent);
+}
+.cells td[data-mark='write'] {
+  background: color-mix(in srgb, var(--cur-ok) 18%, transparent);
+  outline: 2px solid var(--cur-ok);
+}
+.cellValue {
+  display: block;
+  font-weight: 650;
+}
+.cellIndex,
+.cellMark {
+  display: block;
+  font-size: 10px;
+  color: var(--cur-muted);
+}
+.cellMark {
+  font-weight: 700;
+  color: var(--text);
+}
+.badIndex {
+  margin: 4px 0 0 !important;
+  font-size: 13px !important;
+  color: var(--cur-bad);
+  font-weight: 650;
+}
+.parts {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--cur-muted);
+}
+.modelNote {
+  font-size: 13px !important;
+  margin: 0 0 10px !important;
+  color: var(--cur-muted);
+}
+.models {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: grid;
+  gap: 8px;
+}
+.models li {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) 128px;
+  align-items: center;
+  gap: 4px 10px;
+  font-size: 13px;
+}
+.modelName {
+  font: 650 13px ui-monospace, monospace;
+}
+.modelBar {
+  height: 12px;
+  border-radius: 6px;
+  background: var(--soft);
+  overflow: hidden;
+}
+.modelBar span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+.modelCount {
+  text-align: right;
+  font: 13px ui-monospace, monospace;
+}
+.modelExample {
+  grid-column: 2 / -1;
+  font-size: 12px;
+  color: var(--cur-muted);
+}
+.stageList {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 13px;
+}
+.stageList li {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+.stageList li span {
+  font-size: 11px;
+  margin-right: 6px;
+  color: var(--cur-muted);
+}
+.stageList li[data-state='current'] {
+  border-color: var(--accent);
+  font-weight: 650;
+}
+.stageBody h4 {
+  font-size: 15px;
+  margin: 0 0 6px;
+}
+.motivation {
+  border-left: 3px solid var(--accent);
+  padding-left: 12px;
+}
+.islandProgress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 10px 0 !important;
+}
+.islandBar {
+  flex: 1 1 140px;
+  max-width: 260px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--soft);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.islandBar span {
+  display: block;
+  height: 100%;
+  background: var(--cur-ok);
+}
+.islandProgress strong {
+  color: var(--cur-ok);
+}
+
 /* quiz */
 .quiz {
   display: grid;
@@ -840,6 +1055,13 @@
   }
   .vizGrid {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .models li {
+    grid-template-columns: 80px minmax(0, 1fr);
+  }
+  .modelCount {
+    grid-column: 2;
+    text-align: left;
   }
   .pager {
     grid-template-columns: minmax(0, 1fr);

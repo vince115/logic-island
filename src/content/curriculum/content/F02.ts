@@ -5,6 +5,7 @@ const code = String.raw;
 /** F02 變數與資料型別. Every example and the reference solutions run in tests/curriculum-code.test.ts. */
 export const F02: LessonContent = {
   lessonId: 'F02',
+  motivation: '所有程式都在記住並改變資料。選對型別，能避開整數溢位與浮點誤差這兩種最常見、又最難從輸出察覺的錯誤。',
   sections: [
     {
       id: 'variables', title: '變數：有名字的儲存位置',

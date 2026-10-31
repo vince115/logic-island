@@ -1,4 +1,5 @@
 import { test as base, expect, type Page } from '@playwright/test';
+import { lessons } from '@/content/curriculum';
 
 /*
  * Phase E.1 curriculum: the /curriculum directory, the five complete lessons (F01..F05) and the planned outlines, on
@@ -25,8 +26,9 @@ test('課綱目錄：60 堂課、三島各 20 堂，五堂完整教材，其餘�
     const list = page.getByRole('region', { name: new RegExp(island) }).getByRole('listitem');
     await expect(list, island).toHaveCount(20);
   }
-  await expect(page.getByText('完整教材', { exact: true })).toHaveCount(5);
-  await expect(page.getByText('規劃中', { exact: true })).toHaveCount(55);
+  const complete = lessons.filter(l => l.lessonStatus === 'complete').length;
+  await expect(page.getByText('完整教材', { exact: true })).toHaveCount(complete);
+  await expect(page.getByText('規劃中', { exact: true })).toHaveCount(60 - complete);
   for (const slug of COMPLETE) await expect(page.locator(`a[href="/curriculum/${slug}"]`)).toHaveCount(1);
   // Every lesson page exists, planned ones included.
   const hrefs = await page.locator('main ol a').evaluateAll(links => links.map(a => a.getAttribute('href')));
@@ -95,7 +97,7 @@ test('觀念測驗與進度：未答完不送出；答錯顯示解析與差幾�
   await expect(status).toContainText('答對');
   const feedback = quiz(page).locator('[data-result]').filter({ has: page.locator('p') });
   await expect(feedback.first()).toBeVisible();
-  for (let i = 0; i < count; i++) await expect(questions.nth(i).getByText(/答對了|答錯了，正確答案是/)).toBeVisible();
+  for (let i = 0; i < count; i++) await expect(questions.nth(i).getByText(/答對了|答錯了，正確答案是/).first()).toBeVisible();
   const correctIndex = await questions.evaluateAll(sets => sets.map(set => [...set.querySelectorAll('label')].findIndex(l => l.getAttribute('data-correct') === 'true')));
   expect(correctIndex.every(i => i >= 0)).toBe(true);
   await expect(page.getByRole('region', { name: '學習進度' }).getByText('進行中')).toBeVisible();
@@ -107,15 +109,15 @@ test('觀念測驗與進度：未答完不送出；答錯顯示解析與差幾�
   const progress = page.getByRole('region', { name: '學習進度' });
   await expect(progress.getByText('進行中')).toBeVisible();  // the reading is not confirmed yet
   await progress.getByRole('button', { name: '我已讀完本課內容' }).click();
-  await expect(progress.getByText('已完成')).toBeVisible();
+  await expect(progress.getByText('已完成', { exact: true })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('region', { name: '學習進度' }).getByText('已完成')).toBeVisible();
+  await expect(page.getByRole('region', { name: '學習進度' }).getByText('已完成', { exact: true })).toBeVisible();
   await page.goto('/curriculum');
   const row = page.getByRole('listitem').filter({ hasText: '條件判斷' }).first();
-  await expect(row.getByText('已完成')).toBeVisible();
+  await expect(row.getByText('已完成', { exact: true })).toBeVisible();
   // The next lesson (planned) still shows the completed prerequisite.
   await page.goto('/curriculum/logical-operators');
-  await expect(page.getByRole('complementary', { name: '建議先完成' }).getByText('已完成')).toBeVisible();
+  await expect(page.getByRole('complementary', { name: '建議先完成' }).getByText('已完成', { exact: true })).toBeVisible();
 });
 
 test('條件分支視覺化：邊界值走進正確的分支', async ({ page }) => {
@@ -132,13 +134,13 @@ test('條件分支視覺化：邊界值走進正確的分支', async ({ page }) 
 });
 
 test('規劃中課程：只有大綱與明確標示，沒有測驗、練習或假的互動', async ({ page }) => {
-  await page.goto('/curriculum/for-loops');
+  await page.goto('/curriculum/linked-lists');
   await expect(page.getByRole('note').filter({ hasText: '這一課還在規劃中' })).toBeVisible();
   await expect(page.getByText('規劃中 v0.1.0')).toBeVisible();
   for (const id of ['#quiz', '#exercises', '#visualization']) await expect(page.locator(id)).toHaveCount(0);
   await expect(page.getByRole('radio')).toHaveCount(0);
   await expect(page.getByRole('region', { name: '學習進度' })).toHaveCount(0);
-  await expect(page.getByText(/迴圈執行.*Planned/)).toBeVisible();
+  await expect(page.getByText(/鏈結串列.*Planned/).first()).toBeVisible();
   expect(await page.locator('main .objectives li').count()).toBeGreaterThanOrEqual(3);
   // A lesson with an existing lab links to it.
   await page.goto('/curriculum/stacks');
@@ -178,7 +180,7 @@ test('進度資料：無法讀取的舊資料先備份；較新版本的資料�
 });
 
 test('無障礙：每個按鈕、連結與輸入都有名稱；標題只有一個 h1；練習標明沒有線上評測', async ({ page }) => {
-  for (const slug of [COMPLETE[0], COMPLETE[4], 'for-loops']) {
+  for (const slug of [COMPLETE[0], COMPLETE[4], 'for-loops', 'linked-lists']) {
     await page.goto(`/curriculum/${slug}`);
     await expect(page.locator('h1')).toHaveCount(1);
     const unnamed = await page.locator('main').evaluate(main => [...main.querySelectorAll('button, a[href], input, select, [role="tab"]')]
@@ -201,3 +203,52 @@ test('既有教材不變：/learn 仍是六份互動教材，並連到課綱', a
   await page.goto('/visualize');
   await expect(page.getByRole('link', { name: /查看 60 堂完整課綱/ })).toHaveCount(0);
 });
+
+/*
+ * Phase E.2: the shared trace (loops, arrays, call stack), the compound-condition view, complexity and challenge
+ * stages. Every state is also written out in words, not only shown by colour.
+ */
+test('迴圈視覺化（F07）：每一輪的條件與次數，條件不成立時說明迴圈結束', async ({ page }) => {
+  await page.goto('/curriculum/for-loops');
+  const viz = page.locator('#visualization');
+  await expect(viz.getByText('步驟 1／9')).toBeVisible();
+  await viz.getByRole('button', { name: '下一步' }).click();
+  await expect(viz.getByText(/for i 第 1 輪/).first()).toBeVisible();
+  await expect(viz.getByText('成立，繼續')).toBeVisible();
+  for (let i = 0; i < 6; i++) await viz.getByRole('button', { name: '下一步' }).click();
+  await expect(viz.getByText(/第 4 輪/).first()).toBeVisible();
+  await expect(viz.getByText('不成立，結束迴圈')).toBeVisible();
+  await viz.getByRole('button', { name: '下一步' }).click();
+  await expect(viz.locator('pre').last()).toHaveText('6');
+});
+
+test('巢狀迴圈視覺化（F09）：同時顯示外層與內層的輪次', async ({ page }) => {
+  await page.goto('/curriculum/nested-loops');
+  const viz = page.locator('#visualization');
+  await viz.getByRole('button', { name: '下一步' }).click();
+  await expect(viz.getByText(/外層 i 第 1 輪/).first()).toBeVisible();
+  await expect(viz.getByText(/內層 j 第 1 輪/).first()).toBeVisible();
+});
+
+test('陣列與字串視覺化（F10）：讀取的格子以文字標示，越界時說明範圍', async ({ page }) => {
+  await page.goto('/curriculum/string-basics');
+  const viz = page.locator('#visualization');
+  for (let i = 0; i < 2; i++) await viz.getByRole('button', { name: '下一步' }).click();
+  await expect(viz.locator('td[data-mark="read"]')).toHaveCount(2);
+  await expect(viz.getByText('讀取', { exact: true }).first()).toBeVisible();
+  for (let i = 0; i < 2; i++) await viz.getByRole('button', { name: '下一步' }).click();
+  await expect(viz.getByText('越界：索引 5 不在 0～4 之內')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+});
+
+test('複合條件（F06）：短路略過的比較以文字標示', async ({ page }) => {
+  await page.goto('/curriculum/logical-operators');
+  const viz = page.locator('#visualization');
+  await viz.getByRole('spinbutton').fill('8');
+  await expect(viz.locator('[aria-live]')).toContainText('輸出 半票');
+  // age = 8: in "age < 12 || age >= 65" the right side is never computed.
+  await expect(viz.getByText('短路，未計算')).toBeVisible();
+  await viz.getByRole('spinbutton').fill('30');
+  await expect(viz.locator('[aria-live]')).toContainText('輸出 全票');
+});
+

@@ -5,6 +5,7 @@ const code = String.raw;
 /** F03 輸入與輸出. Every example and the reference solutions run in tests/curriculum-code.test.ts. */
 export const F03: LessonContent = {
   lessonId: 'F03',
+  motivation: '線上評測與 APCS 實作題都靠標準輸入輸出交換資料：讀錯格式、多印一個字，答案算得再對也會被判錯。',
   sections: [
     {
       id: 'stdin-stdout', title: '標準輸入與標準輸出',

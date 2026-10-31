@@ -8,14 +8,14 @@ export const islands: IslandMeta[] = [
 ];
 
 /**
- * What each visualization type is in E.1. implemented: a lesson can show it interactively. planned: will come with
+ * What each visualization type is (E.1, extended in E.2). implemented: a lesson can show it interactively. planned: will come with
  * the lessons that need it (the lesson page says so, and shows no stand-in). not-available: the lesson has none.
  */
 export const visualizations: Record<VisualizationType, { label: string; status: 'implemented' | 'planned' | 'not-available' }> = {
   'variable-state': { label: '變數狀態追蹤', status: 'implemented' },
   'conditional-branch': { label: '條件分支', status: 'implemented' },
-  'loop-execution': { label: '迴圈執行', status: 'planned' },
-  'array-index': { label: '陣列索引', status: 'planned' },
+  'loop-execution': { label: '迴圈執行', status: 'implemented' },
+  'array-index': { label: '陣列與字串', status: 'implemented' },
   'stack-queue': { label: '堆疊與佇列', status: 'planned' },
   'tree-traversal': { label: '樹的走訪', status: 'planned' },
   'sorting-steps': { label: '排序步驟', status: 'planned' },
@@ -26,6 +26,10 @@ export const visualizations: Record<VisualizationType, { label: string; status: 
   'disjoint-set': { label: '並查集', status: 'planned' },
   'recursion-tree': { label: '遞迴樹', status: 'planned' },
   'dp-table': { label: '動態規劃表', status: 'planned' },
+  'function-call': { label: '函式呼叫追蹤', status: 'implemented' },
+  'recursion-trace': { label: '遞迴呼叫堆疊', status: 'implemented' },
+  complexity: { label: '複雜度比較（示意模型）', status: 'implemented' },
+  'challenge-stages': { label: '綜合挑戰分段', status: 'implemented' },
   none: { label: '不使用互動視覺化', status: 'not-available' },
 };
 

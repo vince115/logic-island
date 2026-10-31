@@ -5,6 +5,7 @@ const code = String.raw;
 /** F05 條件判斷. Every example and the reference solutions run in tests/curriculum-code.test.ts. */
 export const F05: LessonContent = {
   lessonId: 'F05',
+  motivation: '讓程式依情況做不同的事，是從「計算機」變成「程式」的第一步。條件寫錯幾乎都發生在邊界，這一課教你怎麼設計與測試它們。',
   sections: [
     {
       id: 'if-else', title: 'if 與 else：依條件選擇路徑',

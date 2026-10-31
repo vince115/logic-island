@@ -5,6 +5,7 @@ const code = String.raw;
 /** F01 程式與演算法入門. Every example and the reference solutions run in tests/curriculum-code.test.ts. */
 export const F01: LessonContent = {
   lessonId: 'F01',
+  motivation: '先把解法想成明確的步驟，才寫得出正確的程式。能把問題拆成「輸入、處理、輸出」並讀懂程式的執行順序，是之後每一堂課、也是 APCS 觀念題追蹤程式的起點。',
   sections: [
     {
       id: 'what-is-algorithm', title: '演算法：把解法寫成明確的步驟',
@@ -54,6 +55,8 @@ export const F01: LessonContent = {
           ['執行期錯誤', '程式執行到一半中止', '除以零、陣列索引超出範圍'],
           ['邏輯錯誤', '程式正常結束，但答案不對', '計算平均時忘了除以 3'],
         ] },
+        { type: 'p', text: '下面的程式可以編譯、可以執行，卻算錯了：`a + b + c / 3` 會先算 `c / 3`，而不是先把三科加起來（為什麼會這樣，「運算子與運算順序」一課會詳細說明）。只看「有沒有錯誤訊息」是抓不到它的。' },
+        { type: 'example', id: 'logic-error' },
         { type: 'callout', tone: 'warning', title: '最難發現的是邏輯錯誤', text: '語法錯誤和執行期錯誤會有訊息提醒你；邏輯錯誤不會。唯一的辦法是先自己算出幾組答案，再和程式的輸出比對——這就是測試。' },
       ],
     },
@@ -112,6 +115,36 @@ print("average =", average)`,
         int average = total / 3;
         System.out.println("total = " + total);
         System.out.println("average = " + average);
+    }
+}`,
+      },
+    },
+    {
+      id: 'logic-error', title: '可以執行，卻算錯：邏輯錯誤', description: '同樣三科分數，少了括號的寫法輸出 197，加上括號才是正確的平均 83。',
+      output: 'wrong = 197\nright = 83',
+      code: {
+        'C++': code`#include <iostream>
+
+int main() {
+    int a = 80, b = 92, c = 77;
+    int wrong = a + b + c / 3;    // 先算 c / 3
+    int right = (a + b + c) / 3;  // 先加總再平均
+    std::cout << "wrong = " << wrong << "\n";
+    std::cout << "right = " << right << "\n";
+    return 0;
+}`,
+        Python: code`a, b, c = 80, 92, 77
+wrong = a + b + c // 3    # 先算 c // 3
+right = (a + b + c) // 3  # 先加總再平均
+print("wrong =", wrong)
+print("right =", right)`,
+        Java: code`public class Main {
+    public static void main(String[] args) {
+        int a = 80, b = 92, c = 77;
+        int wrong = a + b + c / 3;    // 先算 c / 3
+        int right = (a + b + c) / 3;  // 先加總再平均
+        System.out.println("wrong = " + wrong);
+        System.out.println("right = " + right);
     }
 }`,
       },

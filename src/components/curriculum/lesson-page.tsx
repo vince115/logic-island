@@ -1,14 +1,14 @@
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, Check, ChevronRight, FlaskConical } from 'lucide-react';
 import { getCourse } from '@/content/courses';
-import { getContent, getLessonById, islands, neighbours, visualizations } from '@/content/curriculum';
+import { getContent, getLessonById, islands, lessons, neighbours, visualizations } from '@/content/curriculum';
 import { APCS_LABELS, DIFFICULTY_LABELS } from '@/content/curriculum/registry';
 import type { Block, CodeExample, Exercise, LessonContent, LessonMeta } from '@/content/curriculum/schema';
 import { CodeTabs } from './code';
 import { LessonCompletion, ProgressBadge } from './progress';
 import { Quiz } from './quiz';
 import { Rich } from './rich';
-import { ConditionalBranch, VariableState } from './visualizations';
+import { ChallengeStages, Complexity, ConditionalBranch, Trace } from './visualizations';
 import styles from './curriculum.module.css';
 
 /** /curriculum/[slug]: a complete lesson in full, or a planned lesson's outline, never one made to look like the other. */
@@ -39,6 +39,7 @@ export function LessonPage({ lesson }: { lesson: LessonMeta }) {
     <Prerequisites lesson={lesson}/>
     <section className={styles.block} aria-labelledby="objectives-heading">
       <h2 id="objectives-heading">學習目標</h2>
+      {content && <p className={styles.motivation}><strong>為什麼要學：</strong><Rich text={content.motivation}/></p>}
       <ul className="objectives">{lesson.learningObjectives.map(o => <li key={o}><Check size={16} aria-hidden/>{o}</li>)}</ul>
       <p className={styles.concepts}><span>核心概念</span>{lesson.concepts.map(c => <span key={c} className={styles.chip}>{c}</span>)}</p>
     </section>
@@ -91,7 +92,10 @@ function Complete({ lesson, content }: { lesson: LessonMeta; content: LessonCont
     {viz && <section id="visualization" className={styles.block} aria-labelledby="visualization-heading">
       <h2 id="visualization-heading">互動視覺化：{viz.title}</h2>
       <p className={styles.muted}>{visualizations[lesson.visualizationType].label}（Implemented）</p>
-      {viz.kind === 'variable-state' ? <VariableState config={viz}/> : <ConditionalBranch config={viz}/>}
+      {viz.kind === 'conditional-branch' ? <ConditionalBranch config={viz}/>
+        : viz.kind === 'complexity' ? <Complexity config={viz}/>
+        : viz.kind === 'challenge-stages' ? <ChallengeStages config={viz} titles={Object.fromEntries(lessons.map(l => [l.lessonId, l.title]))}/>
+        : <Trace config={viz}/>}
     </section>}
     <section id="quiz" className={styles.block} aria-labelledby="quiz-heading">
       <h2 id="quiz-heading">觀念測驗</h2>
@@ -102,7 +106,8 @@ function Complete({ lesson, content }: { lesson: LessonMeta; content: LessonCont
       <p className={styles.judgeNotice} role="note">目前沒有線上評測：請在自己的電腦上執行程式，用下面的測資逐一比對輸出。網站不會執行或批改你的程式碼。</p>
       {content.exercises.map(e => <ExerciseView key={e.id} exercise={e}/>)}
     </section>
-    <LessonCompletion lessonId={lesson.lessonId} quizTotal={content.quiz.length}/>
+    <LessonCompletion lessonId={lesson.lessonId} quizTotal={content.quiz.length}
+      island={{ name: islands.find(i => i.id === lesson.islandId)!.name, lessonIds: lessons.filter(l => l.islandId === lesson.islandId && l.lessonStatus === 'complete').map(l => l.lessonId) }}/>
   </>;
 }
 
