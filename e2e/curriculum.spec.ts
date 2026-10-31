@@ -431,3 +431,40 @@ test('資料結構比較（D01）：勾選需要的操作，表格以文字標�
   await expect(v.getByRole('table')).toContainText(/適合|較慢/);
   await expect(v.getByText(/這些操作都適合的結構|沒有一種結構/)).toBeVisible();
 });
+
+test('佇列與雙端佇列（D06、D07）：先進先出，兩端都能操作，空的時候以文字說明', async ({ page }) => {
+  await page.goto('/curriculum/queues');
+  let pg = viz(page).getByRole('region', { name: /自己試試/ });
+  for (const value of ['1', '2']) { await pg.getByLabel('值').fill(value); await pg.getByRole('button', { name: `push(${value})` }).click(); }
+  await pg.getByRole('button', { name: 'pop', exact: true }).click();
+  await expect(pg.getByText('pop：從前端移除最早進入的 1（先進先出）。')).toBeVisible();
+  await expect(pg.getByRole('figure')).toContainText('前端／尾端');
+  await page.goto('/curriculum/deques');
+  pg = viz(page).getByRole('region', { name: /自己試試/ });
+  await pg.getByLabel('值').fill('4');
+  await pg.getByRole('button', { name: 'push_back(4)' }).click();
+  await pg.getByLabel('值').fill('3');
+  await pg.getByRole('button', { name: 'push_front(3)' }).click();
+  await expect(pg.getByRole('figure').getByRole('listitem')).toHaveText([/^3/, /^4/]);
+  for (let i = 0; i < 3; i++) await pg.getByRole('button', { name: 'pop_back' }).click();
+  await expect(pg.getByText(/Underflow/).first()).toBeVisible();
+});
+
+test('雜湊視覺化（D08、D10）：鍵依 hash mod m 放進桶，碰撞與重複以文字說明，只比對同一個桶', async ({ page }) => {
+  await page.goto('/curriculum/hash-tables');
+  const v = viz(page);
+  await expect(v.getByText('雜湊表（Implemented）')).toBeVisible();
+  const pg = v.getByRole('region', { name: /自己試試/ });
+  for (const value of ['3', '8']) { await pg.getByLabel('值').fill(value); await pg.getByRole('button', { name: `add(${value})` }).click(); }
+  await expect(pg.getByText(/hash\(8\)：8 mod 5 = 3 → 桶 3。桶 3 已經有元素（碰撞）/)).toBeVisible();
+  await expect(pg.getByRole('row', { name: /桶 3/ })).toContainText('3');
+  await pg.getByLabel('值').fill('13');
+  await pg.getByRole('button', { name: 'contains(13)' }).click();
+  await expect(pg.getByText(/只在桶 3 的串列中比對（2 個元素）：沒有 13/)).toBeVisible();
+  await page.goto('/curriculum/sets');
+  const set = viz(page).getByRole('region', { name: /自己試試/ });
+  await set.getByLabel('值').fill('4');
+  await set.getByRole('button', { name: 'add(4)' }).click();
+  await set.getByRole('button', { name: 'add(4)' }).click();
+  await expect(set.getByText(/4 已在集合中：集合不存重複元素/)).toBeVisible();
+});
