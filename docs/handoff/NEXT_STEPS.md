@@ -66,6 +66,8 @@
 
 ## 6. Phase E：Data-Driven Islands（Planned，D 驗收後）
 
+> 2026-10-31：**E.1（60 堂課綱架構與學習引擎）已完成**，完整教材 F01～F05、其餘 55 堂為規劃中大綱（`logs/2026-10-31-e1-curriculum.md`）。下一步候選（需另行批准）：E.2 依 `docs/curriculum/PHASE_E_CURRICULUM.md` §6 製作 F06～F12 並實作迴圈與陣列視覺化；在有 JDK 的環境補驗 Java；決定課綱入口（網站選單、島嶼名牌連到課程）。D.3-4B 真機驗收與正式 `/islands` 切換仍獨立待決。
+
 以型別化 schema 定義每座島（island_id、名稱／描述／主題、GLB 資產引用、課程對應、互動節點與入口、解鎖條件、島嶼關聯），讓未來八座島共用同一套渲染與互動架構。必須相容既有 GLB `interaction_id`、Anchor 與 Node Contract；解鎖條件只宣告、不判定。詳見 [ROADMAP](ROADMAP.md)。
 
 ## 7. Phase F：RPG Learning System（Planned，依賴 E）

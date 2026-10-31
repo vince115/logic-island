@@ -10,6 +10,22 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## Phase E.1 課綱架構與學習引擎（2026-10-31，獨立 commit「60-lesson curriculum, lesson pages and progress (Phase E.1)」）
+
+狀態：60 堂課綱（三島各 20）與驗證、`/curriculum` 目錄與 60 個課程頁、F01～F05 完整教材、視覺化 registry、localStorage 進度。Phase D 程式（`src/lib/islands`、`src/components/islands`、`perf/`）、`src/content/courses.ts` 與引擎未修改。
+
+| 檢查 | 結果 |
+|---|---|
+| ESLint／TypeScript | 都是 exit 0 |
+| Vitest | 263 passed／30 skipped。`curriculum`：60 堂、三島各 20、ID／slug 唯一、先修在前（無循環）、三語一致、狀態與內容一致、驗證器能抓出各類錯誤；`progress`：狀態、完成條件、遷移與不覆寫 |
+| 三語程式碼（`curriculum-code`） | 17 個範例、5 題練習（40 組測資＋範例）、2 份起始程式碼：**C++17、Python 3 全部執行通過；Java Not Executed**（本機沒有 JDK，24 項略過） |
+| Next Build | 成功；`/curriculum/[slug]` 60 頁 SSG |
+| E2E `curriculum` | 19 passed／1 skipped（剪貼簿只在桌機）：目錄、三語切換與複製、變數追蹤、條件分支、測驗與解析、進度保存與遷移、規劃中課程、上一堂／下一堂、無障礙名稱、手機不溢出、`/learn` 不變 |
+| E2E 全套（單次，高負載） | 255 passed／38 skipped／7 failed：3 項 P1-11；3 項候選頁逾時（重跑通過）；1 項 `hex-environment` 對比測試間歇失敗（E.1 與 `250b99f` 各重複 5 次都失敗 1 次，既有時序問題） |
+
+- 手機與桌機的版面另以截圖檢查（scratch）：測驗選項原本被全站 `input` 樣式撐滿整列，已在課程樣式中修正。
+- 見 `logs/2026-10-31-e1-curriculum.md`、`docs/curriculum/`。
+
 ## D.3-4B 真機驗收準備（2026-10-31，獨立 commit「real-device acceptance kit for the candidate world map (Phase D.3-4B preparation)」）
 
 狀態：**D.3-4B Preparation Complete — Real Device Not Measured**。量測 proxy（`perf/device/`）擴充為候選頁的真機驗收工具；應用程式未修改（`src/` 0 行差異）。以下全是工具與既有功能的自動化預檢，**不是真機結果**；工具在 Chromium 模擬上的數字一律標「不可靠」。操作指南：[DEVICE_ACCEPTANCE](DEVICE_ACCEPTANCE.md)。

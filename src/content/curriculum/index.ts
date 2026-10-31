@@ -1,0 +1,25 @@
+import { algorithmIds } from '@/lib/engine';
+import { F01 } from './content/F01';
+import { F02 } from './content/F02';
+import { F03 } from './content/F03';
+import { F04 } from './content/F04';
+import { F05 } from './content/F05';
+import { lessons } from './lessons';
+import { islands, visualizations } from './registry';
+import type { Curriculum, LessonContent, LessonId, LessonMeta } from './schema';
+
+/** The Phase E curriculum, as one value the validator and the pages both read. */
+export const curriculum: Curriculum = {
+  islands, lessons, visualizations, labs: algorithmIds,
+  contents: { F01, F02, F03, F04, F05 },
+};
+
+export const getLessonBySlug = (slug: string) => lessons.find(l => l.slug === slug);
+export const getLessonById = (id: string) => lessons.find(l => l.lessonId === id);
+export const getContent = (id: LessonId): LessonContent | undefined => curriculum.contents[id];
+/** The lessons before and after in the recommended order (across islands). */
+export function neighbours(lesson: LessonMeta) {
+  const index = lessons.indexOf(lesson);
+  return { previous: lessons[index - 1], next: lessons[index + 1] };
+}
+export { islands, lessons, visualizations };

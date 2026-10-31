@@ -94,6 +94,8 @@ C.1 → D → E → F → G          （Coding Archipelago）
 
 ## Phase E — Data-Driven Islands（Planned）
 
+> **E.1 已完成（2026-10-31）：60 堂課綱架構與學習引擎**。依使用者的 E.1 指示，Phase E 先從「課程」開始：`src/content/curriculum/`（課綱 schema 與驗證、三島各 20 堂大綱、F01～F05 完整教材）、`/curriculum` 目錄與課程頁、視覺化 registry（變數狀態、條件分支已實作，其餘 Planned）、localStorage 學習進度。課程的島嶼 ID 沿用下表的 `island_id`；既有六份互動教材以 `labs` 連結到對應課程。下表中島嶼本身的 schema（GLB 引用、互動節點、解鎖條件、島嶼關聯、所屬群島）**尚未實作**，`src/lib/islands/data.ts` 與 3D 頁面未改。規格見 `docs/curriculum/PHASE_E_CURRICULUM.md`，紀錄見 `logs/2026-10-31-e1-curriculum.md`。後續批次（E.2～E.7，每批約 10 堂並實作所需視覺化）需另行批准；EXP、NPC、徽章與中央島 APCS 試煉仍屬 F／G。
+
 目標：每座島以同一份型別化 schema 定義，Coding 與 AI 兩個群島的所有島嶼共用同一套渲染與互動架構，新增島嶼不需改 R3F 元件。
 
 ### Schema 內容
