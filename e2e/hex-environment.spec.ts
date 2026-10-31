@@ -81,7 +81,8 @@ test('實驗室頁（D.3-6a）：燈塔兩處發光共用本頁自己的一份�
 /*
  * D.3-6b: the lab page's time-of-day select. Each time of day draws what its data says (the sun's shadow box fitted
  * to the map from its direction, and the sea tint), costs no draw call or triangle more than noon, redraws the shadow
- * once per change and then nothing; it leaves Auto Orbit, focus and「返回全景」alone. The candidate page has none.
+ * once per change and then nothing; it leaves Auto Orbit, focus and「返回全景」alone. D.3-6d: the candidate page has the
+ * same select (e2e/candidate-integration.spec.ts checks it there without the probe).
  */
 const IDS = Object.keys(ENVIRONMENTS) as EnvironmentId[];
 const select = (page: Page) => page.getByRole('combobox', { name: '時間情境' });
@@ -96,14 +97,14 @@ async function quiet(page: Page) {
 type Perf = { calls: number; triangles: number };
 const perf = (page: Page, shadows: boolean) => page.evaluate(fresh => (document.querySelector('canvas') as unknown as { __hexPerf: (fresh: boolean) => Perf }).__hexPerf(fresh), shadows);
 
-test('實驗室頁（D.3-6b）：原生選單「時間情境」預設中午，依序列出清晨、中午、黃昏、傍晚；候選頁沒有', async ({ page }) => {
-  await open(page);
-  await expect(select(page)).toHaveValue('noon');
-  await expect(select(page).locator('option')).toHaveText(['清晨', '中午', '黃昏', '傍晚']);
-  expect(await select(page).locator('option').evaluateAll(options => options.map(o => (o as HTMLOptionElement).value))).toEqual(IDS);
-  await open(page, '/islands/candidate');
-  await expect(page.locator('select')).toHaveCount(0);
-  await expect(page.locator('[data-environment]')).toHaveCount(0);
+test('實驗室頁（D.3-6b）：原生選單「時間情境」預設中午，依序列出清晨、中午、黃昏、傍晚；候選頁（D.3-6d 起）相同', async ({ page }) => {
+  for (const route of [LAB, '/islands/candidate']) {
+    await open(page, route);
+    await expect(select(page), route).toHaveValue('noon');
+    await expect(select(page).locator('option'), route).toHaveText(['清晨', '中午', '黃昏', '傍晚']);
+    expect(await select(page).locator('option').evaluateAll(options => options.map(o => (o as HTMLOptionElement).value)), route).toEqual(IDS);
+    await expect(page.locator('[data-environment="noon"]'), route).toHaveCount(1);
+  }
 });
 
 test('實驗室頁（D.3-6b）：每個時間情境畫出自己的資料，陰影範圍依太陽方向取，海面依色調，沒有霧', async ({ page }) => {

@@ -14,14 +14,19 @@ describe('scene presets (D.3-1)', () => {
     expect('perfProbe' in SCENE_PRESETS.production).toBe(false);
   });
 
-  it('the lab preset is production plus the probe, (D.3-5a) the free camera and (D.3-6b) the times of day, nothing else', () => {
-    const { perfProbe, camera, timeOfDay, ...rest } = SCENE_PRESETS.lab;
+  it('D.3-5c/D.3-6d: production carries the free camera (with Auto Orbit) and the times of day from the lab', () => {
+    expect(SCENE_PRESETS.production).toMatchObject({ camera: 'free', timeOfDay: true, lighting: 'contrast' });
+  });
+
+  it('the lab preset is production plus the probe, nothing else (D.3-5c/D.3-6d: the candidate took its camera and times of day)', () => {
+    const { perfProbe, ...rest } = SCENE_PRESETS.lab;
     expect(perfProbe).toBe(true);
-    expect(camera).toBe('free');
-    expect(timeOfDay).toBe(true);
     expect(rest).toEqual(SCENE_PRESETS.production);
-    expect('camera' in SCENE_PRESETS.production).toBe(false);
-    expect(Object.entries(SCENE_PRESETS).filter(([, preset]) => 'timeOfDay' in preset).map(([name]) => name)).toEqual(['lab']);
+    // The 19-tile reference and the A2 preview stay as they were: fixed camera, noon.
+    for (const name of ['scale19', 'a2Preview'] as const) {
+      expect('camera' in SCENE_PRESETS[name], name).toBe(false);
+      expect('timeOfDay' in SCENE_PRESETS[name], name).toBe(false);
+    }
   });
 
   it('only the scale prototype pages import the prototype module', () => {

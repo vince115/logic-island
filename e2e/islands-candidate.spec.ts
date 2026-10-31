@@ -40,9 +40,12 @@ async function settled(page: Page, node: string) {
   }, { intervals: [100] }).toBe(true);
   return { x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 };
 }
-/** The overview map caption (top left of the stage) covers no island label. */
+/**
+ * The overview map caption covers no island label: over the map on wide screens (top left of the stage), above it on
+ * single-column screens (D.3-6d; the hidden twin is skipped).
+ */
 async function expectCaptionClear(page: Page) {
-  const caption = (await page.getByText('LOGIC ISLANDS ARCHIPELAGO').locator('..').boundingBox())!;
+  const caption = (await page.getByText('LOGIC ISLANDS ARCHIPELAGO').filter({ visible: true }).locator('..').boundingBox())!;
   for (const name of ['基礎程式島', '資料結構島', '演算法島']) {
     const pin = (await label(page, name).boundingBox())!;
     const overlap = pin.x < caption.x + caption.width && caption.x < pin.x + pin.width && pin.y < caption.y + caption.height && caption.y < pin.y + pin.height;
@@ -127,10 +130,11 @@ test('聚焦：地圖與工具列標示目前島嶼，地點清單與 3D 點擊�
   await load(page);
   await label(page, '基礎程式島').click();
   await expect(label(page, '基礎程式島')).toHaveCount(0);
-  const stage = page.locator('[data-focused="true"]');
+  // The map caption names the island: over the map on wide screens, just above it on phones (D.3-6d).
   await page.locator('canvas').scrollIntoViewIfNeeded();
-  await expect(stage.getByText('基礎程式島', { exact: true })).toBeInViewport();
-  await expect(stage.getByText('THE FIRST LIGHT', { exact: true })).toBeVisible();
+  const caption = phone() ? explorer(page).locator('[class*="stageCaptionAbove"]') : page.locator('[data-focused="true"] > [class*="stageCaption"]');
+  await expect(caption.getByText('基礎程式島', { exact: true })).toBeInViewport();
+  await expect(caption.getByText('THE FIRST LIGHT', { exact: true })).toBeVisible();
   await expect(explorer(page).getByText('基礎程式島', { exact: true }).first()).toBeVisible();
   await poi(page, 'Landmark_Lighthouse').click();
   await expect(info(page, '基礎程式島的地標')).toBeVisible();

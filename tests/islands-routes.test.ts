@@ -9,16 +9,13 @@ const read = (path: string) => readFileSync(path, 'utf8');
 const imports = (path: string) => [...read(path).matchAll(/from '([^']+)'/g)].map(match => match[1]);
 
 describe('/islands routes (D.3-3 preflight)', () => {
-  it('the candidate draws the production world with the production preset: the lab exactly, minus the probe, the free camera and the times of day', () => {
+  it('the candidate draws the production world with the production preset: the lab exactly, minus the probe', () => {
     const candidate = sceneOptions(islandsWorld, SCENE_PRESETS.production);
-    // D.3-5a/D.3-6b: the free camera and the times of day are tried in the lab only; the candidate keeps the fixed
-    // camera and noon until they are approved.
-    const { perfProbe, camera, timeOfDay, ...lab } = sceneOptions(scalePrototypes['37'], SCENE_PRESETS.lab);
+    // D.3-5c/D.3-6d: the free camera, Auto Orbit and the times of day, tried in the lab first, are the candidate's too.
+    const { perfProbe, ...lab } = sceneOptions(scalePrototypes['37'], SCENE_PRESETS.lab);
     expect(perfProbe).toBe(true);
-    expect(camera).toBe('free');
-    expect(timeOfDay).toBe(true);
-    expect(candidate.camera).toBeUndefined();
-    expect(candidate.timeOfDay).toBeUndefined();
+    expect(candidate).toMatchObject({ camera: 'free', timeOfDay: true });
+    expect('perfProbe' in candidate).toBe(false);
     expect(lab).toEqual(candidate);
     expect(candidate).toMatchObject({ glbLayouts: islandsWorld.glb, forests: islandsWorld.forests, nature: islandsWorld.natural, hover: true });
   });

@@ -62,10 +62,14 @@ function StageColumn({wrap,children}:{wrap:boolean;children:ReactNode}) {
  * `toolbar` carries page-specific links (previews link back to /islands; the scale prototype links its variants);
  * without it the toolbar keeps to one row on phones. `footer` sits below the map and the list, in both modes.
  */
-export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,copy,toolbar,footer}:{
+export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,captionAbove=false,copy,toolbar,footer}:{
   islands:LearningIsland[];world?:HexWorld;options?:HexSceneOptions;
   /** Show the HTML list of the focused island's places (touch and keyboard equivalent of the 3D targets). */
-  poiPanel?:boolean;copy?:Partial<ExplorerCopy>;toolbar?:ReactNode;footer?:ReactNode;
+  poiPanel?:boolean;
+  /** D.3-6d: on single-column screens (≤ 780 px) the map caption sits above the map instead of over it. With the free
+   * camera a caption over a phone-sized map always ends up over some island once the map is turned or zoomed. */
+  captionAbove?:boolean;
+  copy?:Partial<ExplorerCopy>;toolbar?:ReactNode;footer?:ReactNode;
 }) {
   const text={...PREVIEW_COPY,...copy};
   const [mode,setMode]=useState<'3d'|'list'>('3d');
@@ -106,6 +110,9 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
   const listMode=mode==='list';
   const selected=islands.find(i=>i.id===selectedId);
   const poiLayout=poiPanel&&selected?options?.glbLayouts?.find(l=>l.islandId===selected.id):undefined;
+  const caption=selected
+    ?<><span>{selected.englishName}</span><strong>{selected.name}</strong></>
+    :<><span>{text.eyebrow}</span><strong>{text.title}</strong></>;
   return <section className={styles.explorer} aria-label={text.section}>
     <div className={`${styles.toolbar}${toolbar?'':` ${styles.singleRowToolbar}`}`}>
       <div className={styles.viewCaption}><Hexagon size={15}/><span>{selected?selected.name:text.overview}</span><small>{listMode?'LEARNING INDEX':text.tag}</small></div>
@@ -120,11 +127,11 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
     <div className={`${styles.explorerBody} ${listMode?styles.listBody:''}`}>
       {/* With the target panel, stage and panel share the first grid column. */}
       {!listMode&&<StageColumn wrap={poiPanel}>
+      {/* Only one of the two captions shows at a time (CSS), so screen readers meet one. */}
+      {captionAbove&&<div className={styles.stageCaptionAbove}>{caption}</div>}
       <div className={`${styles.stage} ${styles.hexStage}`} data-focused={selectedId?'true':undefined} data-environment={timeOfDay?environmentId:undefined}>
         {/* The map names the focused island itself: its large label gives way to the anchors once focused. */}
-        <div className={styles.stageCaption}>{selected
-          ?<><span>{selected.englishName}</span><strong>{selected.name}</strong></>
-          :<><span>{text.eyebrow}</span><strong>{text.title}</strong></>}</div>
+        <div className={`${styles.stageCaption}${captionAbove?` ${styles.stageCaptionWide}`:''}`}>{caption}</div>
         <SceneBoundary onUnavailable={unavailable}>
           <LoadingCopy.Provider value={text.loading}>
             <HexWorldScene world={world} islands={islands} selectedId={selectedId} onSelect={select} onNavigate={navigate}

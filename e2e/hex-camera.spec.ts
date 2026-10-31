@@ -8,8 +8,9 @@ import { expectListFallback, loseWebGLContext, modes } from './fallbacks';
 /*
  * D.3-5a free camera, on the lab page only (/islands/hex/scale/37): mouse drag turns and the wheel zooms; on touch
  * screens one finger turns left and right while up and down scrolls the page, and two fingers zoom; tilt and zoom
- * stay within limits; focusing keeps the azimuth and「返回全景」restores the default view. /islands/candidate keeps
- * the fixed camera. Touch is Chromium's emulation through CDP: it says nothing about iOS Safari (real device).
+ * stay within limits; focusing keeps the azimuth and「返回全景」restores the default view. D.3-5c: /islands/candidate
+ * now has the same free camera and Auto Orbit (e2e/candidate-integration.spec.ts). Touch is Chromium's emulation
+ * through CDP: it says nothing about iOS Safari (real device).
  * D.3-5b adds Auto Orbit (「自動旋轉」, overview only) and every way it stops, at the end of this file.
  */
 const LAB = '/islands/hex/scale/37';
@@ -240,8 +241,11 @@ test('D.3-5a：觸控（Chromium 模擬）水平滑動旋轉、垂直滑動捲�
   const after = await settled(page);
   expect(after.azimuth).toBeCloseTo(slanted.azimuth, 3);
   expect(after.elevation).toBeCloseTo(start.elevation, 3);
-  // Two fingers spreading apart zoom in, without scrolling.
+  // Two fingers spreading apart zoom in, without scrolling. The vertical swipe's scroll momentum is let run out first
+  // (it moved the page by a pixel or two after the pinch began in about half the runs, at 0cfb146 too).
   await page.locator('canvas').scrollIntoViewIfNeeded();
+  let last = -1;
+  await expect.poll(async () => { const now = await page.evaluate(() => scrollY), same = now === last; last = now; return same; }, { intervals: [300] }).toBe(true);
   const pinchFrom = await middle(page), held = await page.evaluate(() => scrollY);
   await touch(cdp, pinchFrom, 0, 0, 80);
   const zoomed = await settled(page);
@@ -261,7 +265,7 @@ test('D.3-5a：實驗室頁在 360／390 px 沒有水平溢出', async ({ page }
   }
 });
 
-test('D.3-5a：候選頁維持固定相機（拖曳不改畫面、滾輪照常捲頁、地圖區不允許觸控捲頁）', async ({ page }) => {
+test('D.3-5c：候選頁改用同一套自由相機（拖曳旋轉、滾輪縮放不捲頁、地圖區保留垂直捲頁、提供自動旋轉）', async ({ page }) => {
   test.skip(phone(), '滑鼠與滾輪');
   await page.goto('/islands/candidate');
   await expect(label(page, '基礎程式島')).toHaveAttribute('data-model-source', 'glb', { timeout: 20_000 });
@@ -269,18 +273,19 @@ test('D.3-5a：候選頁維持固定相機（拖曳不改畫面、滾輪照常�
   await page.waitForTimeout(1500);
   const canvas = page.locator('canvas');
   expect(await canvas.evaluate(c => [getComputedStyle(c).touchAction, (c.parentElement!.parentElement as HTMLElement).style.touchAction]))
-    .toEqual(['none', 'none']);
-  await expect(page.locator('[data-camera]')).toHaveCount(0);
+    .toEqual(['pan-y', 'pan-y']);
+  await expect(page.locator('[data-camera="free"]')).toHaveCount(1);
   const shot = await canvas.screenshot();
-  await mouseDrag(page, await middle(page), 200, 60);
-  await page.waitForTimeout(1000);
-  expect((await canvas.screenshot()).equals(shot)).toBe(true);
-  await expect(back(page)).toBeDisabled();
-  // D.3-5b: no Auto Orbit either.
-  await expect(page.getByRole('button', { name: '自動旋轉' })).toHaveCount(0);
+  await mouseDrag(page, await middle(page), 200, 0);
+  await page.waitForTimeout(1500);
+  expect((await canvas.screenshot()).equals(shot)).toBe(false);
+  await expect(back(page)).toBeEnabled();
+  await expect(page.getByRole('button', { name: '自動旋轉' })).toHaveAttribute('aria-pressed', 'false');
   const scrolled = await page.evaluate(() => scrollY);
-  await page.mouse.wheel(0, 200);
-  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(scrolled);
+  await page.mouse.move((await middle(page)).x, (await middle(page)).y);
+  await page.mouse.wheel(0, -200);
+  await page.waitForTimeout(500);
+  expect(await page.evaluate(() => scrollY)).toBe(scrolled);
 });
 
 // D.3-5b Auto Orbit.

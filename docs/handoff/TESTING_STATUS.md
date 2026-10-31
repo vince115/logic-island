@@ -10,6 +10,22 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## D.3-5c／D.3-6d 候選頁整合（2026-10-31，獨立 commit「free camera, auto orbit and times of day on the candidate world map (Phase D.3-5c/D.3-6d)」）
+
+狀態：Level 3。`/islands/candidate` 取用實驗室頁的自由相機、Auto Orbit 與四種時間情境（production preset 加兩個旗標，同一套元件）；單欄版面地圖標題移到地圖上方。候選頁中午 3D 畫面與 `0cfb146` 0 像素差（桌機、手機，全景、聚焦）；實驗室頁中午／清晨、`/islands`、`/islands/legacy`、19 格、A2 預覽 0 像素差且按鈕連結相同。真機 D.3-4B 仍 Not Measured；iOS Safari／螢幕閱讀器 Not Verified。
+
+| 檢查 | 結果 |
+|---|---|
+| ESLint／TypeScript | 都是 exit 0 |
+| Vitest | 190 passed／6 skipped |
+| Next Build | 成功；`/islands` 系列靜態頁、`/islands/hex/scale/{19,37}` SSG |
+| E2E 全套（最終一次） | 231 passed／29 skipped／4 failed：3 項既有 P1-11（`player.spec.ts`）；1 項 `hex-camera` 觸控測試為既有不穩定（`0cfb146` 6 次失敗 3 次，捲動慣性），已改為先等捲動停止後連續 8 次通過、整個 `hex-camera` 28 passed。見 `logs/2026-10-31-d3-5c-d3-6d-candidate.md` §4.3 |
+| 候選頁 UI 差異 | 新增時間選單與自動旋轉、提示文字、單欄時標題在地圖上方；沒有移除控制 |
+| 效能（有界） | draw 43／三角形 28,569／陰影 draw 38／program 17 與基準相同；閒置 0；時間切換 1 幀 1 次陰影 pass、20～36 ms；鏡頭飛行 FPS 三對平均 43.7 對 43.5（雜訊）；Auto Orbit 42.6（桌機）／56.5（手機） |
+
+- `e2e/candidate-integration.spec.ts`（新增，桌機＋手機）：自由相機、觸控、鏡頭飛行與返回全景、Auto Orbit 停止條件、Reduced Motion、時間切換（相機不動、中午逐像素恢復、不編譯 shader、draw 與陰影 pass、閒置 0）、對比、手機 360／390／430 px 版面與旋轉縮放聚焦後的標題、桌機名牌疊在標題上、WebGL fallback 不留 3D 控制。
+- 既有測試只更新期待值（候選頁從固定相機／無時間選單改為與實驗室頁相同；標題定位改為可見的那一份），沒有刪除或 skip。
+
 ## D.3-6c 傍晚暖光與 Lab 收尾（2026-10-31，獨立 commit「dusk lamp glow and phone caption on the lab world map (Phase D.3-6c)」）
 
 狀態：**只在 37 格實驗室頁**；Fast Iteration Mode Level 2。黃昏、傍晚的燈塔燈室／窗戶與路燈燈籠加強暖光（自有材質的強度與顏色倍率），手機黃昏／傍晚標題不再蓋住燈塔。中午、清晨與 `90a0196` 0 像素差；候選頁、`/islands`、`/islands/legacy`、19 格、A2 預覽 0 像素差且按鈕連結相同。真機 D.3-4B 仍 Not Measured；iOS Safari／螢幕閱讀器 Not Verified。
