@@ -1,6 +1,6 @@
 # 教材撰寫指南（Content Authoring Guide）
 
-> Phase E.1，E.2 更新（2026-10-31）。把一堂「規劃中」的課完成為「完整教材」的步驟與標準。欄位規則見 [LESSON_CONTENT_SCHEMA](LESSON_CONTENT_SCHEMA.md)，課程順序見 [PHASE_E_CURRICULUM](PHASE_E_CURRICULUM.md)。範例：`src/content/curriculum/content/F01.ts`～`F05.ts`。
+> Phase E.1，E.2、E.3 更新（2026-10-31）。把一堂「規劃中」的課完成為「完整教材」的步驟與標準。欄位規則見 [LESSON_CONTENT_SCHEMA](LESSON_CONTENT_SCHEMA.md)，課程順序見 [PHASE_E_CURRICULUM](PHASE_E_CURRICULUM.md)。範例：`src/content/curriculum/content/F01.ts`～`F05.ts`。
 
 ## 1. 流程
 
@@ -53,6 +53,11 @@
 - 每一步的 `note` 要說明「這一行做了什麼、為什麼」，而不是重複程式碼；狀態以文字呈現（成立／不成立、讀取／寫入／越界、執行中／等待中）。
 - 複雜度只能呈現為「公式計算的操作次數」的示意模型，不得呈現為實測時間。
 - 某堂課不適合互動視覺化時，類型設為 `none` 並在正文用表格、圖示或逐步說明代替，不放假的互動元件。
+- **資料結構（E.3）**：不要手寫結構的每一步，改用 `src/content/curriculum/simulate.ts` 的模擬器：在內容檔列出操作（每個操作附上它在 trace 程式中的行號），模擬器實際執行並產生步驟，例如 `steps: containerSteps('stack', 'stack', [{ line: 4, op: 'push', value: '(' }, …])`。模擬器的說明文字（擴容、碰撞、上浮下沉、路徑壓縮）已寫好；需要額外的 `vars` 或 `output` 時，對回傳的步驟做 `map`。結構與模擬器不符時（例如一般樹、完全二元樹的陣列表示）才手寫步驟，並保持面板資料一致（驗證器會檢查）。
+- **自己試試**：堆疊、佇列、雙端佇列、動態陣列、鏈結串列、雜湊集合、BST、堆積、並查集可以加上 `playground`，讓學習者用自己的值操作；輸入範圍與元素上限由元件固定，教材不需要另外寫限制。
+- **雜湊的示意函數**：視覺化用「整數 mod m」或「字元碼總和 mod m」說明桶的位置，正文要說明這是教學用的示意，實際語言的雜湊函數不同，而且 `unordered_map`／`HashMap`／`set` 的走訪順序不可依賴（範例輸出前先排序）。
+- **容量成長**：動態陣列的視覺化採「容量加倍」模型；實際成長比例依實作而不同（libstdc++ 約 2 倍、Java `ArrayList` 約 1.5 倍、CPython 約 1.125 倍），範例不得輸出 `capacity()`。
+- `ds-comparison`：每個操作寫成本（Big-O 文字，攤銷或平均要寫明）與是否適合；結論只能來自這些資料，不寫成「實測比較」。
 - `variable-state`：程式選本課的核心片段（可與範例不同語言），每一步寫「這一行做了什麼」，`vars` 是執行完這一行之後的值，字串值加引號。
 - `conditional-branch`：分支依程式中的順序排列，`result` 要和參考解答的輸出一致（`tests/curriculum.test.ts` 會比對 F05 的邊界值）。
 
@@ -65,5 +70,6 @@
 - [ ] 至少 4 題測驗（含程式閱讀與錯誤辨識），每題有解析，答案已再次核對
 - [ ] 至少 1 題練習，含一般、邊界與錯誤（或 `errorPolicy`）測資，三語參考解答通過
 - [ ] 視覺化已實作且設定正確（或課程不使用視覺化）
+- [ ] 資料結構的步驟由模擬器產生（或手寫時面板資料一致）；範例不輸出雜湊容器的走訪順序或容量
 - [ ] `lessons.ts` 狀態為 complete、版本 1.0.0；課綱規格已更新
 - [ ] 桌機與手機（360／390 px）沒有水平溢出、按鈕有名稱

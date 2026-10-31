@@ -35,10 +35,13 @@ export type LessonStatus = typeof LESSON_STATUSES[number];
 export const VISUALIZATION_TYPES = [
   'variable-state', 'conditional-branch', 'loop-execution', 'array-index', 'stack-queue', 'tree-traversal', 'sorting-steps',
   'graph-traversal', 'linked-list', 'hash-table', 'heap', 'disjoint-set', 'recursion-tree', 'dp-table',
-  'function-call', 'recursion-trace', 'complexity', 'challenge-stages', 'none',
+  'function-call', 'recursion-trace', 'complexity', 'challenge-stages', 'ds-comparison', 'none',
 ] as const;
 /** The visualization kinds drawn by the shared step-by-step trace (code, variables, loops, arrays, call stack). */
-export const TRACE_KINDS = ['variable-state', 'loop-execution', 'array-index', 'function-call', 'recursion-trace'] as const;
+export const TRACE_KINDS = [
+  'variable-state', 'loop-execution', 'array-index', 'function-call', 'recursion-trace',
+  'stack-queue', 'linked-list', 'hash-table', 'tree-traversal', 'heap', 'graph-traversal', 'disjoint-set',
+] as const;
 export type TraceKind = typeof TRACE_KINDS[number];
 export type VisualizationType = typeof VISUALIZATION_TYPES[number];
 
@@ -135,10 +138,27 @@ export interface TraceStep {
   /** Loops that are running, outermost first: which round, and the condition just checked. */
   loops?: { label: string; iteration: number; condition: string; holds: boolean | null }[];
   /** Arrays or strings as cells (2D as rows), with the cells this step reads, writes or tries out of bounds. */
-  arrays?: { name: string; cells: string[] | string[][]; marks?: { at: number | [number, number]; kind: 'read' | 'write' | 'bad' }[] }[];
+  arrays?: { name: string; cells: string[] | string[][]; marks?: { at: number | [number, number]; kind: Mark }[];
+    /** A dynamic array's capacity: cells from cells.length up to it are allocated but unused. */
+    capacity?: number }[];
   /** The call stack, oldest first; the last frame is running. */
   frames?: { name: string; vars: Record<string, string>; returns?: string }[];
+  /** E.3: stacks, queues and deques, items from bottom/front to top/back. */
+  containers?: { name: string; kind: 'stack' | 'queue' | 'deque'; items: string[]; marks?: { at: number; kind: Mark }[]; underflow?: boolean }[];
+  /** A singly linked list from head; named pointers point at a node position, or null. */
+  list?: { name: string; nodes: string[]; marks?: { at: number; kind: Mark }[]; pointers?: Record<string, number | null> };
+  /** A hash table with separate chaining: one chain per bucket. */
+  buckets?: { name: string; buckets: string[][]; marks?: { bucket: number; index?: number; kind: Mark }[] };
+  /** A tree or forest: binary nodes use left/right, general nodes use children. */
+  tree?: { name: string; nodes: TreeNode[]; roots: string[]; marks?: { id: string; kind: Mark }[] };
+  graph?: { name: string; nodes: string[]; edges: { from: string; to: string; weight?: number }[]; directed: boolean;
+    marks?: { node?: string; edge?: number; kind: Mark }[]; show: ('list' | 'matrix')[] };
+  /** Union-find: parent and size per element (the forest is drawn from parent). */
+  dsu?: { parent: number[]; size: number[]; marks?: { at: number; kind: Mark }[] };
 }
+/** How a step marks a cell, node or edge; every mark is also written out in words. */
+export type Mark = 'read' | 'write' | 'bad' | 'removed' | 'visited' | 'found' | 'current';
+export interface TreeNode { id: string; label: string; left?: string | null; right?: string | null; children?: string[] }
 /** Compares the value, or the value modulo `mod` (no eval). */
 export type Comparison = { op: '<' | '<=' | '>' | '>=' | '==' | '!='; value: number; mod?: number };
 export interface Branch { label: string; when: { any?: Comparison[]; all?: Comparison[] }; result: string }
@@ -147,12 +167,22 @@ export type ComplexityModel = '1' | 'log n' | 'n' | 'n log n' | 'n^2';
 export interface ChallengeStage { title: string; concepts: LessonId[]; goal: string; detail: string }
 
 export type VisualizationConfig =
-  | { kind: TraceKind; title: string; language: Language; code: string; steps: TraceStep[] }
+  | { kind: TraceKind; title: string; language: Language; code: string; steps: TraceStep[]; playground?: Playground }
   | { kind: 'conditional-branch'; title: string; variable: string; min: number; max: number; initial: number; branches: Branch[]; otherwise: string }
   /** Counted operations of model programs for an input size (an illustrative model, not measured time). */
   | { kind: 'complexity'; title: string; min: number; max: number; initial: number; models: { model: ComplexityModel; example: string }[] }
   /** A multi-part problem walked through stage by stage, each naming the lessons it uses. */
-  | { kind: 'challenge-stages'; title: string; stages: ChallengeStage[] };
+  | { kind: 'challenge-stages'; title: string; stages: ChallengeStage[] }
+  /** Structures against operations: the learner picks the operations a problem needs and sees which structures fit. */
+  | { kind: 'ds-comparison'; title: string; operations: { id: string; label: string }[]; structures: DsProfile[] };
+/**
+ * E.3: a structure the learner can operate on with their own values (integers 0–99, at most PLAYGROUND_LIMIT
+ * elements), run by the same simulators as the lesson's steps (src/content/curriculum/simulate.ts).
+ */
+export type Playground = { structure: 'stack' | 'queue' | 'deque' | 'dynamic-array' | 'list' | 'hash-set' | 'bst' | 'heap' | 'dsu'; buckets?: number; size?: number };
+export const PLAYGROUND_LIMIT = 10;
+/** One structure's cost per operation (Big-O text) and whether it is a good fit for it. */
+export interface DsProfile { name: string; note: string; costs: Record<string, { cost: string; good: boolean }> }
 
 export interface LessonContent {
   lessonId: LessonId;
@@ -295,8 +325,17 @@ export function validateContent(lesson: LessonMeta, content: LessonContent, visu
   } else if (content.visualization) fail('visualization config without a visualization type');
   const viz = content.visualization;
   if (viz && (TRACE_KINDS as readonly string[]).includes(viz.kind) && 'steps' in viz) problems.push(...validateTrace(at, viz.kind as TraceKind, viz.code, viz.steps));
+  if (viz && 'playground' in viz && viz.playground) {
+    const { structure, buckets, size } = viz.playground;
+    if (structure === 'hash-set' && !(buckets && buckets >= 2 && buckets <= 13)) fail('a hash-set playground needs 2–13 buckets');
+    if (structure === 'dsu' && !(size && size >= 2 && size <= PLAYGROUND_LIMIT)) fail(`a union-find playground needs 2–${PLAYGROUND_LIMIT} elements`);
+  }
   if (viz?.kind === 'conditional-branch' && (!viz.branches.length || viz.initial < viz.min || viz.initial > viz.max)) fail('conditional-branch needs branches and an initial value in range');
   if (viz?.kind === 'complexity' && (viz.models.length < 2 || viz.min < 1 || viz.initial < viz.min || viz.initial > viz.max)) fail('complexity needs two models and an input size in range');
+  if (viz?.kind === 'ds-comparison') {
+    if (viz.operations.length < 2 || viz.structures.length < 2) fail('ds-comparison needs at least two operations and two structures');
+    for (const st of viz.structures) for (const op of viz.operations) if (!st.costs[op.id]) fail(`ds-comparison: ${st.name} has no cost for ${op.id}`);
+  }
   if (viz?.kind === 'challenge-stages') {
     if (viz.stages.length < 2) fail('challenge-stages needs at least two stages');
     for (const stage of viz.stages) for (const id of stage.concepts) if (!/^[FDA]\d{2}$/.test(id)) fail(`challenge stage ${stage.title} names unknown lesson ${id}`);
@@ -322,13 +361,46 @@ export const branchTaken = (value: number, { when }: Branch) =>
   (!when.any?.length || when.any.some(c => compare(value, c))) && (!when.all?.length || when.all.every(c => compare(value, c)));
 
 /** A trace's steps point at its code, and each kind carries the panel it is about. */
-function validateTrace(at: string, kind: TraceKind, code: string, steps: TraceStep[]): string[] {
+export function validateTrace(at: string, kind: TraceKind, code: string, steps: TraceStep[]): string[] {
   const problems: string[] = [];
   const lines = code.split('\n').length;
   if (!steps.length || steps.some(s => s.line < 1 || s.line > lines)) problems.push(`${at}: ${kind} steps must point at lines of its code`);
   const needs = { 'variable-state': (s: TraceStep) => !!s.vars, 'loop-execution': (s: TraceStep) => !!s.loops?.length, 'array-index': (s: TraceStep) => !!s.arrays?.length,
-    'function-call': (s: TraceStep) => !!s.frames?.length, 'recursion-trace': (s: TraceStep) => (s.frames?.length ?? 0) > 1 }[kind];
+    'function-call': (s: TraceStep) => !!s.frames?.length, 'recursion-trace': (s: TraceStep) => (s.frames?.length ?? 0) > 1,
+    'stack-queue': (s: TraceStep) => !!s.containers?.length, 'linked-list': (s: TraceStep) => !!s.list, 'hash-table': (s: TraceStep) => !!s.buckets,
+    'tree-traversal': (s: TraceStep) => !!s.tree, heap: (s: TraceStep) => !!s.tree && !!s.arrays?.length, 'graph-traversal': (s: TraceStep) => !!s.graph,
+    'disjoint-set': (s: TraceStep) => !!s.dsu }[kind];
   if (!steps.some(needs)) problems.push(`${at}: ${kind} trace never shows its panel`);
+  for (const [i, step] of steps.entries()) {
+    const at_ = `${at}: step ${i + 1}`;
+    for (const c of step.containers ?? []) for (const m of c.marks ?? []) if (m.kind !== 'bad' && m.kind !== 'removed' && (m.at < 0 || m.at >= c.items.length)) problems.push(`${at_} marks outside ${c.name}`);
+    if (step.list) {
+      const n = step.list.nodes.length;
+      for (const m of step.list.marks ?? []) if (m.kind !== 'removed' && (m.at < 0 || m.at >= n)) problems.push(`${at_} marks outside list ${step.list.name}`);
+      for (const [name, p] of Object.entries(step.list.pointers ?? {})) if (p !== null && (p < 0 || p >= n)) problems.push(`${at_} pointer ${name} is outside the list`);
+    }
+    if (step.buckets) for (const m of step.buckets.marks ?? []) {
+      const chain = step.buckets.buckets[m.bucket];
+      if (!chain || (m.index !== undefined && m.kind !== 'removed' && (m.index < 0 || m.index >= chain.length))) problems.push(`${at_} marks outside the buckets`);
+    }
+    if (step.tree) {
+      const ids = new Set(step.tree.nodes.map(n => n.id));
+      if (ids.size !== step.tree.nodes.length) problems.push(`${at_} repeats a tree node id`);
+      for (const n of step.tree.nodes) for (const child of [n.left, n.right, ...(n.children ?? [])]) if (child && !ids.has(child)) problems.push(`${at_} tree node ${n.id} points at missing ${child}`);
+      for (const r of step.tree.roots) if (!ids.has(r)) problems.push(`${at_} tree root ${r} is missing`);
+      for (const m of step.tree.marks ?? []) if (m.kind !== 'removed' && !ids.has(m.id)) problems.push(`${at_} marks missing tree node ${m.id}`);
+    }
+    if (step.graph) {
+      const ids = new Set(step.graph.nodes);
+      for (const e of step.graph.edges) if (!ids.has(e.from) || !ids.has(e.to)) problems.push(`${at_} graph edge ${e.from}-${e.to} uses a missing node`);
+      for (const m of step.graph.marks ?? []) if ((m.node && !ids.has(m.node)) || (m.edge !== undefined && !step.graph.edges[m.edge])) problems.push(`${at_} marks a missing graph node or edge`);
+    }
+    if (step.dsu) {
+      const n = step.dsu.parent.length;
+      if (step.dsu.size.length !== n || step.dsu.parent.some(p => p < 0 || p >= n)) problems.push(`${at_} has an invalid union-find parent array`);
+      for (const m of step.dsu.marks ?? []) if (m.at < 0 || m.at >= n) problems.push(`${at_} marks outside the union-find`);
+    }
+  }
   for (const [i, step] of steps.entries()) for (const array of step.arrays ?? []) {
     const rows = array.cells.length, grid = Array.isArray(array.cells[0]);
     for (const mark of array.marks ?? []) {

@@ -432,6 +432,16 @@
   font-size: 11px;
   color: #a9bad2;
 }
+.io div,
+.sample > div {
+  min-width: 0;
+}
+/* Program output keeps its lines: a long line without spaces scrolls inside its box instead of widening the page. */
+.io pre,
+.sample pre,
+.vizOutput pre {
+  overflow-x: auto;
+}
 .io pre {
   margin: 2px 0 0;
   font: 13px/1.6 ui-monospace, monospace;
@@ -1027,6 +1037,280 @@
   font-size: 11px;
   font-weight: 500;
   color: var(--cur-muted);
+}
+
+/* E.3 data-structure panels: containers, linked list, buckets, tree and graph SVG, union-find, playground, comparison */
+.vizGrid[data-stacked='true'] {
+  grid-template-columns: minmax(0, 1fr);
+}
+.cells td[data-unused='true'] {
+  border-style: dashed;
+  color: var(--cur-muted);
+}
+.cells td[data-mark='found'],
+.cells td[data-mark='visited'],
+.cells td[data-mark='current'] {
+  background: color-mix(in srgb, var(--cur-ok) 18%, transparent);
+  outline: 2px dashed var(--cur-ok);
+}
+.dsRow {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0;
+  margin: 0;
+  font: 13px ui-monospace, monospace;
+}
+.dsRow li {
+  min-width: 46px;
+  padding: 4px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  text-align: center;
+}
+.dsRow[data-linked='true'] li {
+  position: relative;
+  margin-right: 16px;
+}
+.dsRow[data-linked='true'] li:not([data-null])::after {
+  content: '→';
+  position: absolute;
+  right: -17px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--cur-muted);
+}
+.dsRow li[data-null] {
+  border-style: dashed;
+  color: var(--cur-muted);
+}
+.dsRow li[data-mark='read'],
+.bucketTable tr[data-mark='read'] th,
+.chain li[data-mark='read'],
+.adjList li[data-mark='read'],
+.matrix td[data-mark='read'] {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  outline: 2px solid var(--accent);
+}
+.dsRow li[data-mark='write'],
+.chain li[data-mark='write'],
+.adjList li[data-mark='write'],
+.matrix td[data-mark='write'] {
+  background: color-mix(in srgb, var(--cur-ok) 18%, transparent);
+  outline: 2px solid var(--cur-ok);
+}
+.dsRow li[data-mark='found'],
+.chain li[data-mark='found'],
+.adjList li[data-mark='found'],
+.matrix td[data-mark='found'] {
+  background: color-mix(in srgb, var(--cur-ok) 18%, transparent);
+  outline: 2px dashed var(--cur-ok);
+}
+.bucketTable tr[data-mark='removed'] th {
+  outline: 2px dashed var(--cur-bad);
+}
+.dsEmpty {
+  margin: 0 !important;
+  font-size: 13px !important;
+  color: var(--cur-muted);
+}
+.bucketTable {
+  border-collapse: collapse;
+  font: 13px ui-monospace, monospace;
+}
+.bucketTable th,
+.bucketTable td {
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+.bucketTable th {
+  white-space: nowrap;
+}
+.chain {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  padding: 0;
+  margin: 0;
+}
+.chain li {
+  position: relative;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.chain li + li::before {
+  content: '→';
+  position: absolute;
+  left: -15px;
+  color: var(--cur-muted);
+}
+.chain .cellMark {
+  display: inline;
+  margin-left: 4px;
+}
+.dsScroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.dsSvg {
+  display: block;
+  font: 600 13px ui-monospace, monospace;
+}
+.dsSvg line {
+  stroke: var(--border-strong);
+  stroke-width: 2;
+}
+.dsSvg marker path {
+  fill: var(--cur-muted);
+}
+.dsSvg circle {
+  fill: var(--panel);
+  stroke: var(--border-strong);
+  stroke-width: 2;
+}
+.dsSvg text {
+  fill: var(--text);
+}
+.dsSvg g[data-mark='read'] circle,
+.dsSvg g[data-mark='current'] circle {
+  stroke: var(--accent);
+  stroke-width: 4;
+}
+.dsSvg g[data-mark='write'] circle,
+.dsSvg g[data-mark='found'] circle,
+.dsSvg g[data-mark='visited'] circle {
+  stroke: var(--cur-ok);
+  stroke-width: 3;
+  stroke-dasharray: 4 2;
+}
+.dsSvg g[data-mark] line {
+  stroke: var(--accent);
+  stroke-width: 4;
+}
+.svgMark {
+  font-size: 10px;
+  font-weight: 700;
+}
+.svgWeight {
+  font-size: 12px;
+  paint-order: stroke;
+  stroke: var(--panel);
+  stroke-width: 4px;
+}
+.graphGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.graphText {
+  flex: 1 1 220px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.graphText h5 {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: var(--cur-muted);
+}
+.adjList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 3px;
+  font-size: 13px;
+}
+.adjList li {
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.matrix {
+  border-collapse: collapse;
+  font: 13px ui-monospace, monospace;
+}
+.matrix th,
+.matrix td {
+  border: 1px solid var(--border);
+  min-width: 30px;
+  padding: 3px 6px;
+  text-align: center;
+}
+.dsSets {
+  margin: 4px 0 0 !important;
+  font-size: 13px !important;
+}
+.playground {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.playground h4 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+.pgArg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.pgLog {
+  margin: 10px 0;
+  padding-left: 20px;
+  font-size: 14px;
+  display: grid;
+  gap: 2px;
+}
+.opPicker {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 0 0 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+.opPicker legend {
+  font-size: 13px;
+  font-weight: 650;
+  padding: 0 4px;
+}
+.opPicker label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  font-size: 14px;
+}
+.opPicker input {
+  width: 18px;
+  height: 18px;
+}
+.dsNote {
+  display: block;
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--cur-muted);
+}
+.dsTable {
+  min-width: 560px;
+}
+.dsTable td:last-child {
+  min-width: 7em;
+}
+.vars td[data-good='true'] {
+  background: color-mix(in srgb, var(--cur-ok) 12%, transparent);
+}
+.vars td[data-good='false'] {
+  color: var(--cur-bad);
+}
+.vars tr[data-fit='true'] th {
+  box-shadow: inset 3px 0 var(--cur-ok);
 }
 
 @media (max-width: 720px) {

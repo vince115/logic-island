@@ -5,8 +5,10 @@ import { branchTaken, validateCurriculum, type Curriculum, type LessonMeta } fro
 
 // Phase E.1: the 60-lesson curriculum and the rules every lesson keeps (src/content/curriculum/schema.ts).
 const clone = (): Curriculum => structuredClone(curriculum);
-/** Complete so far: E.1 wrote F01..F05, E.2 the rest of the foundations island. */
-const COMPLETE = Array.from({ length: 20 }, (_, i) => `F${String(i + 1).padStart(2, '0')}`);
+/** Complete so far: E.1 wrote F01..F05, E.2 the rest of the foundations island, E.3 the structures island. */
+const ids = (prefix: string, n: number) => Array.from({ length: n }, (_, i) => `${prefix}${String(i + 1).padStart(2, '0')}`);
+const STRUCTURES_DONE = 5;
+const COMPLETE = [...ids('F', 20), ...ids('D', STRUCTURES_DONE)];
 const lesson = (c: Curriculum, id: string) => c.lessons.find(l => l.lessonId === id) as LessonMeta;
 
 describe('curriculum (E.1)', () => {
@@ -72,10 +74,10 @@ describe('curriculum validator (E.1)', () => {
 
   it('catches a lesson that claims to be complete without content, and planned lessons with content', () => {
     const c = clone();
-    lesson(c, 'D01').lessonStatus = 'complete';
-    c.contents.D02 = c.contents.F01;
+    lesson(c, 'A01').lessonStatus = 'complete';
+    c.contents.A02 = c.contents.F01;
     const problems = validateCurriculum(c);
-    expect(problems).toEqual(expect.arrayContaining(['D01: complete lesson has no content', 'D02: planned lesson has content (mark it complete or remove it)']));
+    expect(problems).toEqual(expect.arrayContaining(['A01: complete lesson has no content', 'A02: planned lesson has content (mark it complete or remove it)']));
   });
 
   it('catches missing languages, a thin quiz, an unknown example and an exercise without tests', () => {

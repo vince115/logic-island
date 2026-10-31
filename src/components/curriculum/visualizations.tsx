@@ -1,16 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type KeyboardEvent, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
-import { compare, type Comparison, type TraceKind, type TraceStep, type VisualizationConfig } from '@/content/curriculum/schema';
+import { compare, PLAYGROUND_LIMIT, type Comparison, type Mark, type Playground as PlaygroundConfig, type TraceKind, type TraceStep, type TreeNode, type VisualizationConfig } from '@/content/curriculum/schema';
+import { bstSteps, containerSteps, dsuForest, dsuSteps, dynamicArraySteps, hashSteps, heapSteps, linkedListSteps } from '@/content/curriculum/simulate';
+import { Rich } from './rich';
 import styles from './curriculum.module.css';
 
 type Of<K> = Extract<VisualizationConfig, { kind: K }>;
-const MARKS = { read: '讀取', write: '寫入', bad: '越界' } as const;
+const MARKS: Record<Mark, string> = { read: '讀取', write: '寫入', bad: '越界', removed: '已移除', visited: '已拜訪', found: '找到', current: '目前' };
 
 /** Step buttons shared by the step-through visualizations; every button says what it does. */
 function Stepper({ at, count, set, unit = '步驟' }: { at: number; count: number; set: (n: number) => void; unit?: string }) {
-  return <div className={styles.vizControls}>
+  // With focus on any of the buttons, the arrow keys step too (Home / End jump to the first / last step).
+  const key = (e: KeyboardEvent) => {
+    const to = { ArrowLeft: at - 1, ArrowRight: at + 1, Home: 0, End: count - 1 }[e.key];
+    if (to === undefined) return;
+    e.preventDefault();
+    set(Math.min(count - 1, Math.max(0, to)));
+  };
+  return <div className={styles.vizControls} role="group" aria-label={`${unit}控制（方向鍵也可以切換）`} onKeyDown={key}>
     <button type="button" onClick={() => set(0)} disabled={at === 0}><RotateCcw size={14} aria-hidden/>重來</button>
     <button type="button" onClick={() => set(at - 1)} disabled={at === 0}><ChevronLeft size={14} aria-hidden/>上一步</button>
     <span className={styles.stepCount}>{unit} {at + 1}／{count}</span>
@@ -23,8 +32,9 @@ function Cells({ array }: { array: NonNullable<TraceStep['arrays']>[number] }) {
   const rows = (grid ? array.cells : [array.cells]) as string[][];
   const mark = (r: number, c: number) => array.marks?.find(m => typeof m.at === 'number' ? !grid && m.at === c : m.at[0] === r && m.at[1] === c)?.kind;
   const bad = array.marks?.filter(m => m.kind === 'bad') ?? [];
+  const unused = !grid && array.capacity !== undefined ? Math.max(0, array.capacity - rows[0].length) : 0;
   return <figure className={styles.cells} aria-label={`${array.name}${grid ? '（二維）' : ''}`}>
-    <figcaption><code>{array.name}</code>{grid ? `：${rows.length} 列 × ${rows[0]?.length ?? 0} 行` : `：長度 ${rows[0].length}`}</figcaption>
+    <figcaption><code>{array.name}</code>{grid ? `：${rows.length} 列 × ${rows[0]?.length ?? 0} 行` : `：長度 ${rows[0].length}`}{array.capacity !== undefined ? `、容量 ${array.capacity}` : ''}</figcaption>
     <table>
       {grid && <thead><tr><th scope="col"><span className={styles.srOnly}>列＼行</span></th>{rows[0]?.map((_, c) => <th key={c} scope="col">{c}</th>)}</tr></thead>}
       <tbody>{rows.map((row, r) => <tr key={r}>
@@ -34,9 +44,11 @@ function Cells({ array }: { array: NonNullable<TraceStep['arrays']>[number] }) {
           {!grid && <span className={styles.cellIndex}>{c}</span>}
           {m && <span className={styles.cellMark}>{MARKS[m]}</span>}
         </td>; })}
+        {Array.from({ length: unused }, (_, k) => <td key={`u${k}`} data-unused="true"><span className={styles.cellValue}> </span>
+          <span className={styles.cellIndex}>{rows[0].length + k}</span><span className={styles.cellMark}>未使用</span></td>)}
       </tr>)}</tbody>
     </table>
-    {bad.map((m, i) => <p key={i} className={styles.badIndex}>越界：索引 {Array.isArray(m.at) ? `[${m.at.join('][')}]` : m.at} 不在 {grid ? `0～${rows.length - 1} 列、0～${(rows[0]?.length ?? 1) - 1} 行` : `0～${rows[0].length - 1}`} 之內</p>)}
+    {bad.map((m, i) => <p key={i} className={styles.badIndex}>越界：索引 {Array.isArray(m.at) ? `[${m.at.join('][')}]` : m.at} 不在 {grid ? `0～${rows.length - 1} 列、0～${(rows[0]?.length ?? 1) - 1} 行` : rows[0].length ? `0～${rows[0].length - 1}` : '（陣列是空的）'} 之內</p>)}
   </figure>;
 }
 
@@ -50,8 +62,10 @@ export function Trace({ config }: { config: Extract<VisualizationConfig, { kind:
   const step = config.steps[at];
   const lines = config.code.split('\n');
   const frames = step.frames ?? [];
+  // Trees, graphs and hash tables need the full width: the code then goes above the state instead of beside it.
+  const stacked = config.steps.some(s => s.tree || s.graph || s.dsu || s.buckets);
   return <div className={styles.viz}>
-    <div className={styles.vizGrid}>
+    <div className={styles.vizGrid} data-stacked={stacked ? 'true' : undefined}>
       <pre className={styles.vizCode} aria-label={`${config.language} 程式`}><code>{lines.map((line, i) =>
         <span key={i} className={styles.vizLine} data-current={i + 1 === step.line ? 'true' : undefined} aria-current={i + 1 === step.line ? 'step' : undefined}>
           <span className={styles.lineNo} aria-hidden>{i + 1}</span>{line || ' '}{'\n'}</span>)}</code></pre>
@@ -82,11 +96,13 @@ export function Trace({ config }: { config: Extract<VisualizationConfig, { kind:
           })}</tbody>
         </table>}
         {step.arrays?.map(array => <Cells key={array.name} array={array}/>)}
+        <DsPanels step={step}/>
         {step.output !== undefined || config.steps.some(s => s.output !== undefined) ? <div className={styles.vizOutput}><span>輸出</span><pre>{step.output ?? ''}</pre></div> : null}
       </div>
     </div>
-    <p className={styles.vizNote} aria-live="polite">第 {step.line} 行：{step.note}</p>
+    <p className={styles.vizNote} aria-live="polite">第 {step.line} 行：<Rich text={step.note}/></p>
     <Stepper at={at} count={config.steps.length} set={setAt}/>
+    {config.playground && <Playground config={config.playground}/>}
   </div>;
 }
 
@@ -180,5 +196,322 @@ export function ChallengeStages({ config, titles }: { config: Of<'challenge-stag
       <p className={styles.concepts}><span>用到的課程</span>{stage.concepts.map(id => <span key={id} className={styles.chip}>{id} {titles[id]}</span>)}</p>
     </div>
     <Stepper at={at} count={config.stages.length} set={setAt} unit="階段"/>
+  </div>;
+}
+
+// ---- E.3 data-structure panels -------------------------------------------------------------------------------------
+const ENDS = { stack: ['底部', '頂端'], queue: ['前端', '尾端'], deque: ['前端', '尾端'] } as const;
+const KINDS = { stack: '堆疊', queue: '佇列', deque: '雙端佇列' } as const;
+
+/** Every data-structure panel a step carries: containers, linked list, hash buckets, tree, graph, union-find. */
+function DsPanels({ step }: { step: TraceStep }) {
+  return <>
+    {step.containers?.map(c => <Container key={c.name} c={c}/>)}
+    {step.list && <List list={step.list}/>}
+    {step.buckets && <Buckets b={step.buckets}/>}
+    {step.tree && <TreeView tree={step.tree}/>}
+    {step.graph && <GraphView graph={step.graph}/>}
+    {step.dsu && <Dsu dsu={step.dsu}/>}
+  </>;
+}
+
+function Container({ c }: { c: NonNullable<TraceStep['containers']>[number] }) {
+  const [first, last] = ENDS[c.kind];
+  return <figure className={styles.cells}>
+    <figcaption><code>{c.name}</code>：{KINDS[c.kind]}，{c.items.length} 個元素（由{first}到{last}）</figcaption>
+    {c.items.length ? <ol className={styles.dsRow}>{c.items.map((item, i) => {
+      const m = c.marks?.find(x => x.at === i)?.kind;
+      return <li key={i} data-mark={m}>
+        <span className={styles.cellValue}>{item}</span>
+        <span className={styles.cellIndex}>{[i === 0 ? first : '', i === c.items.length - 1 ? last : ''].filter(Boolean).join('／') || ' '}</span>
+        {m && <span className={styles.cellMark}>{MARKS[m]}</span>}
+      </li>;
+    })}</ol> : <p className={styles.dsEmpty}>（空的）</p>}
+    {c.underflow && <p className={styles.badIndex}>Underflow：{KINDS[c.kind]}是空的，這個操作沒有元素可用。</p>}
+  </figure>;
+}
+
+function List({ list }: { list: NonNullable<TraceStep['list']> }) {
+  const at = (i: number | null) => Object.entries(list.pointers ?? {}).filter(([, p]) => p === i).map(([name]) => name);
+  const nulls = at(null);
+  return <figure className={styles.cells}>
+    <figcaption><code>{list.name}</code>：單向鏈結串列，{list.nodes.length} 個節點（從 head 沿 next 走）</figcaption>
+    <ol className={styles.dsRow} data-linked="true">
+      {list.nodes.map((node, i) => {
+        const m = list.marks?.find(x => x.at === i)?.kind, names = at(i);
+        return <li key={i} data-mark={m}>
+          <span className={styles.cellValue}>{node}</span>
+          <span className={styles.cellIndex}>{names.length ? names.join('、') : ' '}</span>
+          {m && <span className={styles.cellMark}>{MARKS[m]}</span>}
+          <span className={styles.srOnly}>，next 指向{i + 1 < list.nodes.length ? ` ${list.nodes[i + 1]}` : ' null'}</span>
+        </li>;
+      })}
+      <li data-null="true"><span className={styles.cellValue}>null</span><span className={styles.cellIndex}>{nulls.length ? `${nulls.join('、')} = null` : '結尾'}</span></li>
+    </ol>
+  </figure>;
+}
+
+function Buckets({ b }: { b: NonNullable<TraceStep['buckets']> }) {
+  return <figure className={styles.cells}>
+    <figcaption><code>{b.name}</code>：{b.buckets.length} 個桶（每個桶是一條串列）</figcaption>
+    <table className={styles.bucketTable}><tbody>{b.buckets.map((chain, i) => {
+      const row = b.marks?.filter(m => m.bucket === i) ?? [];
+      const rowMark = row.find(m => m.index === undefined)?.kind;
+      return <tr key={i} data-mark={row.length ? rowMark ?? 'read' : undefined}>
+        <th scope="row">桶 {i}{rowMark && <span className={styles.cellMark}>{MARKS[rowMark]}</span>}</th>
+        <td>{chain.length ? <ol className={styles.chain}>{chain.map((item, j) => {
+          const m = row.find(x => x.index === j)?.kind;
+          return <li key={j} data-mark={m}><code>{item}</code>{m && <span className={styles.cellMark}>{MARKS[m]}</span>}</li>;
+        })}</ol> : <span className={styles.dsEmpty}>（空）</span>}</td>
+      </tr>;
+    })}</tbody></table>
+  </figure>;
+}
+
+const SLOT = 46, LEVEL = 58, R = 17;
+/** Positions for a tree or forest: binary trees by inorder rank, general trees with parents centred over children. */
+function layout(nodes: TreeNode[], roots: string[]) {
+  const byId = new Map(nodes.map(n => [n.id, n]));
+  const pos = new Map<string, { x: number; y: number }>();
+  let slot = 0, depth = 0;
+  const place = (id: string, d: number): number => {
+    const n = byId.get(id)!;
+    depth = Math.max(depth, d);
+    let x: number;
+    if (n.children) {
+      const xs = n.children.map(c => place(c, d + 1));
+      x = xs.length ? (xs[0] + xs[xs.length - 1]) / 2 : slot++;
+    } else {
+      if (n.left) place(n.left, d + 1);
+      x = slot++;
+      if (n.right) place(n.right, d + 1);
+    }
+    pos.set(id, { x, y: d });
+    return x;
+  };
+  for (const r of roots) place(r, 0);
+  return { pos, width: Math.max(1, slot) * SLOT + 8, height: (depth + 1) * LEVEL + 10 };
+}
+const at = (p: { x: number; y: number }) => ({ cx: p.x * SLOT + SLOT / 2 + 4, cy: p.y * LEVEL + R + 6 });
+
+/** A tree or forest drawn in SVG (inside its own scrolling box), with the same structure as a text outline. */
+function TreeView({ tree }: { tree: NonNullable<TraceStep['tree']> }) {
+  const byId = new Map(tree.nodes.map(n => [n.id, n]));
+  const mark = (id: string) => tree.marks?.find(m => m.id === id)?.kind;
+  const { pos, width, height } = layout(tree.nodes, tree.roots);
+  const kids = (n: TreeNode) => n.children ?? [n.left, n.right].filter((c): c is string => !!c);
+  const outline = (id: string, role = ''): ReactNode => {
+    const n = byId.get(id)!, m = mark(id);
+    const sub: [string, string][] = n.children ? n.children.map(c => [c, '']) : ([[n.left, '左'], [n.right, '右']] as const).flatMap(([c, side]) => c ? [[c, side] as [string, string]] : []);
+    return <li key={id}>{role && `${role}：`}{n.label}{m ? `（${MARKS[m]}）` : ''}{!kids(n).length ? '，葉子' : ''}
+      {sub.length ? <ul>{sub.map(([c, side]) => outline(c, side))}</ul> : null}</li>;
+  };
+  return <figure className={styles.cells}>
+    <figcaption><code>{tree.name}</code>：{tree.nodes.length ? `${tree.nodes.length} 個節點${tree.roots.length > 1 ? `，${tree.roots.length} 棵樹` : ''}` : '空的'}</figcaption>
+    {tree.nodes.length ? <div className={styles.dsScroll}>
+      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden className={styles.dsSvg}>
+        {tree.nodes.flatMap(n => kids(n).map(c => { const a = at(pos.get(n.id)!), b = at(pos.get(c)!); return <line key={`${n.id}-${c}`} x1={a.cx} y1={a.cy} x2={b.cx} y2={b.cy}/>; }))}
+        {tree.nodes.map(n => { const p = at(pos.get(n.id)!), m = mark(n.id); return <g key={n.id} data-mark={m}>
+          <circle cx={p.cx} cy={p.cy} r={R}/>
+          <text x={p.cx} y={p.cy + 4} textAnchor="middle">{n.label}</text>
+          {m && <text x={p.cx} y={p.cy + R + 11} textAnchor="middle" className={styles.svgMark}>{MARKS[m]}</text>}
+        </g>; })}
+      </svg>
+    </div> : null}
+    <ul className={styles.srOnly} aria-label={`${tree.name}的結構`}>{tree.roots.map(r => outline(r, '根'))}</ul>
+  </figure>;
+}
+
+/** A graph drawn on a circle, plus its adjacency list and matrix as text (which is also its text alternative). */
+function GraphView({ graph }: { graph: NonNullable<TraceStep['graph']> }) {
+  const n = graph.nodes.length, size = 240, c = size / 2, r = n > 1 ? 88 : 0;
+  const p = new Map(graph.nodes.map((v, i) => [v, { x: c + r * Math.cos(-Math.PI / 2 + 2 * Math.PI * i / n), y: c + r * Math.sin(-Math.PI / 2 + 2 * Math.PI * i / n) }]));
+  const nodeMark = (v: string) => graph.marks?.find(m => m.node === v)?.kind;
+  const edgeMark = (i: number) => graph.marks?.find(m => m.edge === i)?.kind;
+  const weighted = graph.edges.some(e => e.weight !== undefined);
+  const adj = (v: string) => graph.edges.flatMap((e, i) => e.from === v ? [{ to: e.to, e, i }] : !graph.directed && e.to === v ? [{ to: e.from, e, i }] : []);
+  const cell = (a: string, b: string) => {
+    const i = graph.edges.findIndex(e => (e.from === a && e.to === b) || (!graph.directed && e.from === b && e.to === a));
+    return { i, text: i < 0 ? (weighted ? '—' : '0') : String(graph.edges[i].weight ?? 1) };
+  };
+  return <figure className={styles.cells}>
+    <figcaption><code>{graph.name}</code>：{graph.directed ? '有向' : '無向'}{weighted ? '加權' : ''}圖，{n} 個頂點、{graph.edges.length} 條邊</figcaption>
+    <div className={styles.graphGrid}>
+      <div className={styles.dsScroll}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden className={styles.dsSvg}>
+          <defs><marker id="ds-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z"/></marker></defs>
+          {graph.edges.map((e, i) => {
+            const a = p.get(e.from)!, b = p.get(e.to)!, len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+            const ux = (b.x - a.x) / len, uy = (b.y - a.y) / len, m = edgeMark(i);
+            return <g key={i} data-mark={m}>
+              <line x1={a.x + ux * R} y1={a.y + uy * R} x2={b.x - ux * (R + 2)} y2={b.y - uy * (R + 2)} markerEnd={graph.directed ? 'url(#ds-arrow)' : undefined}/>
+              {e.weight !== undefined && <text x={(a.x + b.x) / 2 - uy * 10} y={(a.y + b.y) / 2 + ux * 10 + 4} textAnchor="middle" className={styles.svgWeight}>{e.weight}</text>}
+            </g>;
+          })}
+          {graph.nodes.map(v => { const q = p.get(v)!, m = nodeMark(v); return <g key={v} data-mark={m}>
+            <circle cx={q.x} cy={q.y} r={R}/>
+            <text x={q.x} y={q.y + 4} textAnchor="middle">{v}</text>
+            {m && <text x={q.x} y={q.y + R + 11} textAnchor="middle" className={styles.svgMark}>{MARKS[m]}</text>}
+          </g>; })}
+        </svg>
+      </div>
+      <div className={styles.graphText}>
+        {graph.show.includes('list') && <div>
+          <h5>鄰接串列（adjacency list）</h5>
+          <ul className={styles.adjList}>{graph.nodes.map(v => { const m = nodeMark(v); return <li key={v} data-mark={m}>
+            <code>{v}</code>{m ? `（${MARKS[m]}）` : ''} → {adj(v).length ? adj(v).map(({ to, e, i }, k) => <span key={k} data-mark={edgeMark(i)}>{k > 0 && '、'}<code>{to}{e.weight !== undefined ? `(${e.weight})` : ''}</code></span>) : '（沒有鄰居）'}
+          </li>; })}</ul>
+        </div>}
+        {graph.show.includes('matrix') && <div className={styles.dsScroll}>
+          <h5>鄰接矩陣（adjacency matrix）{weighted ? '：數字是權重，— 表示沒有邊' : '：1 表示有邊'}</h5>
+          <table className={styles.matrix}>
+            <thead><tr><th scope="col"><span className={styles.srOnly}>從＼到</span></th>{graph.nodes.map(v => <th key={v} scope="col">{v}</th>)}</tr></thead>
+            <tbody>{graph.nodes.map(a => <tr key={a}><th scope="row">{a}</th>{graph.nodes.map(b => { const x = cell(a, b), m = x.i >= 0 ? edgeMark(x.i) : undefined; return <td key={b} data-mark={m}>{x.text}{m && <span className={styles.srOnly}>（{MARKS[m]}）</span>}</td>; })}</tr>)}</tbody>
+          </table>
+        </div>}
+      </div>
+    </div>
+  </figure>;
+}
+
+function Dsu({ dsu }: { dsu: NonNullable<TraceStep['dsu']> }) {
+  const forest = dsuForest(dsu.parent);
+  const root = (i: number) => { while (dsu.parent[i] !== i) i = dsu.parent[i]; return i; };
+  const sets = new Map<number, number[]>();
+  dsu.parent.forEach((_, i) => sets.set(root(i), [...(sets.get(root(i)) ?? []), i]));
+  const mark = (i: number) => dsu.marks?.find(m => m.at === i)?.kind;
+  return <>
+    <figure className={styles.cells}>
+      <figcaption>並查集：{dsu.parent.length} 個元素，{sets.size} 個集合</figcaption>
+      <table>
+        <thead><tr><th scope="row">元素</th>{dsu.parent.map((_, i) => <th key={i} scope="col">{i}</th>)}</tr></thead>
+        <tbody>
+          <tr><th scope="row">parent</th>{dsu.parent.map((p, i) => { const m = mark(i); return <td key={i} data-mark={m}><span className={styles.cellValue}>{p}</span>{p === i && <span className={styles.cellIndex}>根</span>}{m && <span className={styles.cellMark}>{MARKS[m]}</span>}</td>; })}</tr>
+          <tr><th scope="row">size</th>{dsu.size.map((z, i) => <td key={i}>{dsu.parent[i] === i ? z : '—'}</td>)}</tr>
+        </tbody>
+      </table>
+      <p className={styles.dsSets}>集合：{[...sets.values()].map(s => `{${s.join(', ')}}`).join('、')}（size 只對根有意義）</p>
+    </figure>
+    <TreeView tree={{ name: '並查集的森林（每個元素畫在它的 parent 下面）', nodes: forest.nodes, roots: forest.roots, marks: (dsu.marks ?? []).map(m => ({ id: `d${m.at}`, kind: m.kind })) }}/>
+  </>;
+}
+
+// ---- playground ----------------------------------------------------------------------------------------------------
+type Arg = 'value' | 'index' | 'a' | 'b';
+type PgOp = { op: string; value: number; index: number; a: number; b: number };
+const PG: Record<PlaygroundConfig['structure'], { title: string; ops: { op: string; args: Arg[]; grows?: boolean }[] }> = {
+  stack: { title: '堆疊', ops: [{ op: 'push', args: ['value'], grows: true }, { op: 'pop', args: [] }, { op: 'top', args: [] }] },
+  queue: { title: '佇列', ops: [{ op: 'push', args: ['value'], grows: true }, { op: 'pop', args: [] }, { op: 'front', args: [] }] },
+  deque: { title: '雙端佇列', ops: [{ op: 'push_front', args: ['value'], grows: true }, { op: 'push_back', args: ['value'], grows: true }, { op: 'pop_front', args: [] }, { op: 'pop_back', args: [] }] },
+  'dynamic-array': { title: '動態陣列', ops: [{ op: 'push_back', args: ['value'], grows: true }, { op: 'insert', args: ['index', 'value'], grows: true }, { op: 'erase', args: ['index'] }, { op: 'get', args: ['index'] }] },
+  list: { title: '單向鏈結串列', ops: [{ op: 'push_front', args: ['value'], grows: true }, { op: 'push_back', args: ['value'], grows: true }, { op: 'find', args: ['value'] }, { op: 'remove', args: ['value'] }] },
+  'hash-set': { title: '雜湊集合', ops: [{ op: 'add', args: ['value'], grows: true }, { op: 'contains', args: ['value'] }, { op: 'remove', args: ['value'] }] },
+  bst: { title: '二元搜尋樹', ops: [{ op: 'insert', args: ['value'], grows: true }, { op: 'search', args: ['value'] }, { op: 'remove', args: ['value'] }] },
+  heap: { title: '最小堆積', ops: [{ op: 'push', args: ['value'], grows: true }, { op: 'pop', args: [] }, { op: 'top', args: [] }] },
+  dsu: { title: '並查集', ops: [{ op: 'union', args: ['a', 'b'] }, { op: 'find', args: ['a'] }, { op: 'connected', args: ['a', 'b'] }] },
+};
+const ARG_LABEL: Record<Arg, string> = { value: '值', index: '索引', a: 'a', b: 'b' };
+
+/** Runs the structure's simulator over the learner's operations (line numbers do not apply here). */
+function simulate(config: PlaygroundConfig, ops: PgOp[]): TraceStep[] {
+  const line = 1;
+  switch (config.structure) {
+    case 'stack': case 'queue': case 'deque':
+      return containerSteps(PG[config.structure].title, config.structure, ops.map(o => ({ line, op: o.op, value: String(o.value) }) as Parameters<typeof containerSteps>[2][number]));
+    case 'dynamic-array': return dynamicArraySteps('a', ops.map(o => ({ line, op: o.op, index: o.index, value: String(o.value) }) as Parameters<typeof dynamicArraySteps>[1][number]));
+    case 'list': return linkedListSteps('list', ops.map(o => ({ line, op: o.op, value: String(o.value) }) as Parameters<typeof linkedListSteps>[1][number]));
+    case 'hash-set': return hashSteps('集合', config.buckets ?? 7, 'set', ops.map(o => ({ line, op: o.op, key: o.value }) as Parameters<typeof hashSteps>[3][number]));
+    case 'bst': return bstSteps('BST', ops.map(o => ({ line, op: o.op, value: o.value }) as Parameters<typeof bstSteps>[1][number]));
+    case 'heap': return heapSteps('heap', ops.map(o => ({ line, op: o.op, value: o.value }) as Parameters<typeof heapSteps>[1][number]));
+    case 'dsu': return dsuSteps(config.size ?? 6, ops.map(o => ({ line, op: o.op, a: o.a, b: o.b }) as Parameters<typeof dsuSteps>[1][number]));
+  }
+}
+/** The empty structure, before any operation. */
+function emptyStep(config: PlaygroundConfig): TraceStep {
+  const base = { line: 1, note: '還沒有任何操作。' };
+  switch (config.structure) {
+    case 'stack': case 'queue': case 'deque': return { ...base, containers: [{ name: PG[config.structure].title, kind: config.structure, items: [] }] };
+    case 'dynamic-array': return { ...base, arrays: [{ name: 'a', cells: [], capacity: 1 }], vars: { size: '0', capacity: '1' } };
+    case 'list': return { ...base, list: { name: 'list', nodes: [], pointers: { head: null } } };
+    case 'hash-set': return { ...base, buckets: { name: '集合', buckets: Array.from({ length: config.buckets ?? 7 }, () => []) } };
+    case 'bst': return { ...base, tree: { name: 'BST', nodes: [], roots: [] } };
+    case 'heap': return { ...base, arrays: [{ name: 'heap', cells: [] }], tree: { name: 'heap（以樹呈現）', nodes: [], roots: [] } };
+    case 'dsu': { const n = config.size ?? 6; return { ...base, dsu: { parent: Array.from({ length: n }, (_, i) => i), size: Array(n).fill(1) } }; }
+  }
+}
+const sizeOf = (s: TraceStep) => s.containers?.[0]?.items.length ?? s.list?.nodes.length ?? s.buckets?.buckets.flat().length ?? s.arrays?.[0]?.cells.length ?? s.tree?.nodes.length ?? 0;
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Number.isFinite(v) ? Math.round(v) : lo));
+
+/**
+ * Try it yourself: the learner runs operations with their own values on the lesson's structure. Values are integers
+ * 0–99, there are at most PLAYGROUND_LIMIT elements, and every operation shows the steps it took.
+ */
+function Playground({ config }: { config: PlaygroundConfig }) {
+  const [ops, setOps] = useState<PgOp[]>([]);
+  const [args, setArgs] = useState({ value: 5, index: 0, a: 0, b: 1 });
+  const all = ops.length ? simulate(config, ops) : [];
+  const before = ops.length > 1 ? simulate(config, ops.slice(0, -1)).length : 0;
+  const latest = all.slice(before);
+  const state = all.at(-1) ?? emptyStep(config);
+  const full = sizeOf(state) >= PLAYGROUND_LIMIT;
+  const n = config.size ?? 6;
+  const range: Record<Arg, [number, number]> = { value: [0, 99], index: [0, PLAYGROUND_LIMIT], a: [0, n - 1], b: [0, n - 1] };
+  const used = new Set(PG[config.structure].ops.flatMap(o => o.args));
+  const id = `pg-${config.structure}`;
+  return <section className={styles.playground} aria-labelledby={`${id}-title`}>
+    <h4 id={`${id}-title`}>自己試試：{PG[config.structure].title}</h4>
+    <p className={styles.muted}>輸入 {used.has('a') ? `0～${n - 1} 的元素編號` : '0～99 的整數'}，再按操作。最多 {PLAYGROUND_LIMIT} 個元素；每個操作都用和上面相同的規則執行。</p>
+    <div className={styles.branchInput}>
+      {(['value', 'index', 'a', 'b'] as Arg[]).filter(a => used.has(a)).map(a => <span key={a} className={styles.pgArg}>
+        <label htmlFor={`${id}-${a}`}>{ARG_LABEL[a]}</label>
+        <input id={`${id}-${a}`} type="number" min={range[a][0]} max={range[a][1]} step={1} value={args[a]}
+          onChange={e => { if (e.target.value !== '') setArgs({ ...args, [a]: clamp(Number(e.target.value), ...range[a]) }); }}/>
+      </span>)}
+    </div>
+    <div className={styles.vizControls}>
+      {PG[config.structure].ops.map(o => <button key={o.op} type="button" disabled={(o.grows && full) || ops.length >= 40}
+        onClick={() => setOps([...ops, { op: o.op, ...args }])}>{o.op}{o.args.length ? `(${o.args.map(a => args[a]).join(', ')})` : ''}</button>)}
+      <button type="button" onClick={() => setOps(ops.slice(0, -1))} disabled={!ops.length}><ChevronLeft size={14} aria-hidden/>復原上一個操作</button>
+      <button type="button" onClick={() => setOps([])} disabled={!ops.length}><RotateCcw size={14} aria-hidden/>清空</button>
+    </div>
+    {full && <p className={styles.muted}>已達 {PLAYGROUND_LIMIT} 個元素的上限，請先移除元素。</p>}
+    <div aria-live="polite">
+      {latest.length ? <ol className={styles.pgLog} aria-label="這個操作的過程">{latest.map((s, i) => <li key={i}><Rich text={s.note}/></li>)}</ol> : <p className={styles.vizNote}>{state.note}</p>}
+    </div>
+    <div className={styles.vizState}>
+      {state.arrays?.map(a => <Cells key={a.name} array={a}/>)}
+      <DsPanels step={state}/>
+      {state.vars && <table className={styles.vars}><caption>結果</caption><tbody>{Object.entries(state.vars).map(([k, v]) => <tr key={k}><th scope="row"><code>{k}</code></th><td><code>{v}</code></td></tr>)}</tbody></table>}
+    </div>
+  </section>;
+}
+
+// ---- structure comparison ------------------------------------------------------------------------------------------
+/** Pick the operations a problem needs and see each structure's cost for them, and which structures fit them all. */
+export function DsComparison({ config }: { config: Of<'ds-comparison'> }) {
+  const [picked, setPicked] = useState<string[]>(config.operations.slice(0, 2).map(o => o.id));
+  const ops = config.operations.filter(o => picked.includes(o.id));
+  const fit = config.structures.filter(s => ops.every(o => s.costs[o.id].good));
+  const toggle = (id: string) => setPicked(picked.includes(id) ? picked.filter(p => p !== id) : [...picked, id]);
+  return <div className={styles.viz}>
+    <fieldset className={styles.opPicker}>
+      <legend>這個問題需要哪些操作？（可複選）</legend>
+      {config.operations.map(o => <label key={o.id}><input type="checkbox" checked={picked.includes(o.id)} onChange={() => toggle(o.id)}/>{o.label}</label>)}
+    </fieldset>
+    {ops.length ? <div className={styles.dsScroll}><table className={`${styles.vars} ${styles.dsTable}`}>
+      <caption>每種結構做這些操作的時間複雜度（一般情況）</caption>
+      <thead><tr><th scope="col">結構</th>{ops.map(o => <th key={o.id} scope="col">{o.label}</th>)}<th scope="col">結論</th></tr></thead>
+      <tbody>{config.structures.map(s => {
+        const slow = ops.filter(o => !s.costs[o.id].good);
+        return <tr key={s.name} data-fit={slow.length ? undefined : 'true'}>
+          <th scope="row">{s.name}<small className={styles.dsNote}><Rich text={s.note}/></small></th>
+          {ops.map(o => <td key={o.id} data-good={String(s.costs[o.id].good)}><code>{s.costs[o.id].cost}</code> {s.costs[o.id].good ? '適合' : '較慢'}</td>)}
+          <td>{slow.length ? `較慢：${slow.map(o => o.label).join('、')}` : '全部適合'}</td>
+        </tr>;
+      })}</tbody>
+    </table></div> : null}
+    <p className={styles.vizNote} aria-live="polite">{!ops.length ? '請至少選一項操作。'
+      : fit.length ? `這些操作都適合的結構：${fit.map(s => s.name).join('、')}。`
+      : '沒有一種結構在所有選取的操作上都適合：要依哪個操作最頻繁來取捨，或組合兩種結構。'}</p>
   </div>;
 }

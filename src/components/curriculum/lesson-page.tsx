@@ -8,7 +8,7 @@ import { CodeTabs } from './code';
 import { LessonCompletion, ProgressBadge } from './progress';
 import { Quiz } from './quiz';
 import { Rich } from './rich';
-import { ChallengeStages, Complexity, ConditionalBranch, Trace } from './visualizations';
+import { ChallengeStages, Complexity, ConditionalBranch, DsComparison, Trace } from './visualizations';
 import styles from './curriculum.module.css';
 
 /** /curriculum/[slug]: a complete lesson in full, or a planned lesson's outline, never one made to look like the other. */
@@ -94,6 +94,7 @@ function Complete({ lesson, content }: { lesson: LessonMeta; content: LessonCont
       <p className={styles.muted}>{visualizations[lesson.visualizationType].label}（Implemented）</p>
       {viz.kind === 'conditional-branch' ? <ConditionalBranch config={viz}/>
         : viz.kind === 'complexity' ? <Complexity config={viz}/>
+        : viz.kind === 'ds-comparison' ? <DsComparison config={viz}/>
         : viz.kind === 'challenge-stages' ? <ChallengeStages config={viz} titles={Object.fromEntries(lessons.map(l => [l.lessonId, l.title]))}/>
         : <Trace config={viz}/>}
     </section>}

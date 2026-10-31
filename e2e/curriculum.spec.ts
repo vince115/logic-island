@@ -18,6 +18,8 @@ const phone = () => test.info().project.name.startsWith('mobile');
 const COMPLETE = ['programs-and-algorithms', 'variables-and-types', 'input-and-output', 'operators-and-precedence', 'conditionals'];
 const noOverflow = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 const quiz = (page: Page) => page.locator('#quiz');
+/** E.3: the structures-island lessons written so far, and the visualization tests' pages. */
+const STRUCTURE_PAGES = lessons.filter(l => l.islandId === 'structures' && l.lessonStatus === 'complete').map(l => l.slug);
 
 test('課綱目錄：60 堂課、三島各 20 堂，五堂完整教材，其餘標示規劃中', async ({ page }) => {
   await page.goto('/curriculum');
@@ -134,13 +136,13 @@ test('條件分支視覺化：邊界值走進正確的分支', async ({ page }) 
 });
 
 test('規劃中課程：只有大綱與明確標示，沒有測驗、練習或假的互動', async ({ page }) => {
-  await page.goto('/curriculum/linked-lists');
+  await page.goto('/curriculum/basic-sorting');
   await expect(page.getByRole('note').filter({ hasText: '這一課還在規劃中' })).toBeVisible();
   await expect(page.getByText('規劃中 v0.1.0')).toBeVisible();
   for (const id of ['#quiz', '#exercises', '#visualization']) await expect(page.locator(id)).toHaveCount(0);
   await expect(page.getByRole('radio')).toHaveCount(0);
   await expect(page.getByRole('region', { name: '學習進度' })).toHaveCount(0);
-  await expect(page.getByText(/鏈結串列.*Planned/).first()).toBeVisible();
+  await expect(page.getByText(/排序步驟.*Planned/).first()).toBeVisible();
   expect(await page.locator('main .objectives li').count()).toBeGreaterThanOrEqual(3);
   // A lesson with an existing lab links to it.
   await page.goto('/curriculum/stacks');
@@ -180,7 +182,7 @@ test('進度資料：無法讀取的舊資料先備份；較新版本的資料�
 });
 
 test('無障礙：每個按鈕、連結與輸入都有名稱；標題只有一個 h1；練習標明沒有線上評測', async ({ page }) => {
-  for (const slug of [COMPLETE[0], COMPLETE[4], 'for-loops', 'recursion-basics', 'complexity-basics', 'foundations-challenge', 'linked-lists']) {
+  for (const slug of [COMPLETE[0], COMPLETE[4], 'for-loops', 'recursion-basics', 'complexity-basics', 'foundations-challenge', 'basic-sorting', ...STRUCTURE_PAGES]) {
     await page.goto(`/curriculum/${slug}`);
     await expect(page.locator('h1')).toHaveCount(1);
     const unnamed = await page.locator('main').evaluate(main => [...main.querySelectorAll('button, a[href], input, select, [role="tab"]')]
@@ -346,13 +348,86 @@ test('基礎程式島整體完成：20 堂都完成後，目錄與 F20 都顯示
 });
 
 
-test('基礎程式島 20 堂：每頁都沒有水平溢出，長程式碼只在程式區塊內捲動', async ({ page }) => {
-  for (const lesson of lessons.filter(l => l.islandId === 'foundations')) {
+test('完整教材（基礎程式島與資料結構島）：每頁都沒有水平溢出，長程式碼、樹與圖只在自己的區塊內捲動', async ({ page }) => {
+  test.setTimeout(180_000);
+  for (const lesson of lessons.filter(l => l.lessonStatus === 'complete')) {
     await page.goto(`/curriculum/${lesson.slug}`);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(lesson.title);
     expect(await noOverflow(page), lesson.lessonId).toBeLessThanOrEqual(0);
     // Code blocks that are wider than the screen scroll inside themselves.
-    const wide = await page.locator('pre').evaluateAll(pres => pres.filter(p => p.scrollWidth > p.clientWidth + 1).map(p => getComputedStyle(p).overflowX));
+    const wide = await page.locator('pre, [class*="dsScroll"], figure[class*="cells"]').evaluateAll(els => els.filter(p => p.scrollWidth > p.clientWidth + 1).map(p => getComputedStyle(p).overflowX));
     for (const overflow of wide) expect(['auto', 'scroll'], lesson.lessonId).toContain(overflow);
   }
+});
+
+// ---- E.3 data-structure visualizations ---------------------------------------------------------------------------
+const viz = (page: Page) => page.locator('#visualization');
+const stepper = (page: Page) => viz(page).getByRole('group', { name: /步驟控制/ });
+
+test('堆疊視覺化（D05）：逐步 push／pop，頂端以文字標示；方向鍵可切換步驟；自己試試會限制輸入範圍並說明 underflow', async ({ page }) => {
+  await page.goto('/curriculum/stacks');
+  const v = viz(page);
+  await expect(v.getByText('堆疊與佇列（Implemented）')).toBeVisible();
+  await expect(v.getByText(/步驟 1／\d+/)).toBeVisible();
+  await stepper(page).getByRole('button', { name: '下一步' }).click();
+  await expect(v.getByText(/步驟 2／\d+/)).toBeVisible();
+  await page.keyboard.press('ArrowRight');
+  await expect(v.getByText(/步驟 3／\d+/)).toBeVisible();
+  await page.keyboard.press('Home');
+  await expect(v.getByText(/步驟 1／\d+/)).toBeVisible();
+  await expect(v.getByRole('figure').first()).toContainText(/頂端|空的/);
+  // Try it yourself: values are clamped to 0..99; popping an empty stack is an underflow that changes nothing.
+  const pg = v.getByRole('region', { name: /自己試試/ });
+  await pg.getByLabel('值').fill('150');
+  await expect(pg.getByLabel('值')).toHaveValue('99');
+  await pg.getByRole('button', { name: 'push(99)' }).click();
+  await expect(pg.getByText('push 99：放到頂端，大小變成 1。')).toBeVisible();
+  await pg.getByRole('button', { name: 'pop', exact: true }).click();
+  await pg.getByRole('button', { name: 'pop', exact: true }).click();
+  await expect(pg.getByText(/Underflow/).first()).toBeVisible();
+  await pg.getByRole('button', { name: '清空' }).click();
+  await expect(pg.getByText('還沒有任何操作。')).toBeVisible();
+  expect(await noOverflow(page)).toBeLessThanOrEqual(0);
+});
+
+test('鏈結串列視覺化（D04）：節點、next 與 null 結尾以文字呈現；搜尋沿著節點逐一前進', async ({ page }) => {
+  await page.goto('/curriculum/linked-lists');
+  const v = viz(page);
+  await expect(v.getByText('鏈結串列（Implemented）')).toBeVisible();
+  await expect(v.getByRole('figure').first()).toContainText('null');
+  await expect(v.getByRole('figure').first()).toContainText('head');
+  const pg = v.getByRole('region', { name: /自己試試/ });
+  for (const value of ['3', '7']) { await pg.getByLabel('值').fill(value); await pg.getByRole('button', { name: `push_back(${value})` }).click(); }
+  await pg.getByLabel('值').fill('8');
+  await pg.getByRole('button', { name: 'find(8)' }).click();
+  await expect(pg.getByText('cur 走到 null（串列的結尾）：找不到 8。')).toBeVisible();
+  await expect(pg.getByRole('figure')).toContainText('cur = null');
+});
+
+test('動態陣列視覺化（D02）：容量已滿時擴容並說明複製成本；自己試試最多 10 個元素', async ({ page }) => {
+  await page.goto('/curriculum/arrays-and-dynamic-arrays');
+  const v = viz(page);
+  const next = stepper(page).getByRole('button', { name: '下一步' });
+  while (!(await v.getByText(/容量已滿/).count()) && await next.isEnabled()) await next.click();
+  await expect(v.getByText(/容量已滿.*配置容量 \d+ 的新空間/)).toBeVisible();
+  await expect(v.getByRole('figure').first()).toContainText(/容量 \d+/);
+  const pg = v.getByRole('region', { name: /自己試試/ });
+  for (let i = 0; i < 10; i++) await pg.getByRole('button', { name: /^push_back/ }).click();
+  await expect(pg.getByRole('button', { name: /^push_back/ })).toBeDisabled();
+  await expect(pg.getByText('已達 10 個元素的上限，請先移除元素。')).toBeVisible();
+  await expect(pg.getByRole('figure')).toContainText('長度 10、容量 16');
+});
+
+test('資料結構比較（D01）：勾選需要的操作，表格以文字標示適合／較慢並列出都適合的結構', async ({ page }) => {
+  await page.goto('/curriculum/data-structures-overview');
+  const v = viz(page);
+  await expect(v.getByText('資料結構比較（Implemented）')).toBeVisible();
+  const boxes = v.getByRole('checkbox');
+  expect(await boxes.count()).toBeGreaterThanOrEqual(2);
+  for (const box of await boxes.all()) if (await box.isChecked()) await box.uncheck();
+  await expect(v.getByText('請至少選一項操作。')).toBeVisible();
+  await expect(v.getByRole('table')).toHaveCount(0);
+  await boxes.first().check();
+  await expect(v.getByRole('table')).toContainText(/適合|較慢/);
+  await expect(v.getByText(/這些操作都適合的結構|沒有一種結構/)).toBeVisible();
 });
