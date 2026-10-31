@@ -10,6 +10,20 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## dusk-contrast E2E flake 修正（2026-10-31，獨立 commit「wait for every caption transition in the dusk contrast test (E2E fix)」）
+
+只修改 `e2e/hex-environment.spec.ts` 的等待條件；產品程式、顏色、相機、GLB、光照、renderer 與教材都未修改。
+
+- **根因（有證據）**：以檢測版測試（只在隔離副本）重複 30 次、記錄讀取當下的狀態，60 次讀取中 1 次讀到舊顏色：`data-environment` 已是 dusk、標題底板與 `span` 已是傍晚顏色，但 `strong` 仍是 `rgb(29, 43, 66)`（前一個情境的深色文字），標題本身 `getAnimations()` 為空、子樹 `getAnimations({ subtree: true })` 仍有一個 `color` 轉場（currentTime 0）；300 ms 後 `strong` 變為 `rgb(242, 245, 255)`。用舊文字色算出的對比正好是 1.33:1，與失敗值相同。轉場來自 reduced motion 下 `globals.css` 對所有元素的 `transition-duration: .01ms`（`transition-property` 預設 all），`strong` 繼承顏色並各自轉場。
+- **修正**：等待 `caption.getAnimations({ subtree: true }).length === 0`（標題與其中所有文字的轉場都結束）再讀顏色。`getAnimations` 會先套用待處理的樣式變更，所以不會在轉場建立前就判定完成。沒有固定等待，對比門檻 4.5:1 與每個斷言不變。
+
+| 檢查 | 修正前 | 修正後 |
+|---|---|---|
+| 該測試，桌機連續 20 次（負載約 5～7） | 17 passed／**3 failed**（皆 1.33:1） | **20／20 passed** |
+| 該測試，桌機＋手機各 20 次 | — | **40／40 passed** |
+| `hex-environment`＋`hex-camera`＋`hex-scale` 全部 | — | 79 passed／9 skipped／0 failed |
+| ESLint／TypeScript | — | 都是 exit 0 |
+
 ## Phase E.1 課綱架構與學習引擎（2026-10-31，獨立 commit「60-lesson curriculum, lesson pages and progress (Phase E.1)」）
 
 狀態：60 堂課綱（三島各 20）與驗證、`/curriculum` 目錄與 60 個課程頁、F01～F05 完整教材、視覺化 registry、localStorage 進度。Phase D 程式（`src/lib/islands`、`src/components/islands`、`perf/`）、`src/content/courses.ts` 與引擎未修改。

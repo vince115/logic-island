@@ -194,8 +194,10 @@ test('實驗室頁（D.3-6b）：黃昏與傍晚時地圖標題的文字對比�
   for (const id of ['sunset', 'dusk'] as const) {
     await select(page).selectOption(id);
     const caption = page.locator(`[data-environment="${id}"] > div`).first();
-    // The caption's colours ease in briefly; read them once they have settled.
-    await expect.poll(() => caption.evaluate(c => c.getAnimations().length)).toBe(0);
+    // Under reduced motion the site gives every change a 0.01 ms transition (globals.css), on the caption and on each
+    // text inside it (the title inherits its colour and transitions on its own). Read once none of them is running:
+    // the caption's own animations alone can be done while the title still shows the previous colour.
+    await expect.poll(() => caption.evaluate(c => c.getAnimations({ subtree: true }).length)).toBe(0);
     const ratios = await caption.evaluate(caption => {
       const rgba = (value: string) => (value.match(/[\d.]+/g) ?? []).map(Number);
       const luminance = ([r, g, b]: number[]) => [r, g, b].map(v => { v /= 255; return v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; })
