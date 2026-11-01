@@ -1,6 +1,6 @@
 # 課程資料結構（Lesson Content Schema）
 
-> Phase E.1，E.2 擴充（2026-10-31：motivation、範例與測驗下限、共用 trace 與兩種新視覺化），E.3 擴充（2026-10-31：資料結構面板、模擬器、自己試試、結構比較）。型別與驗證都在 `src/content/curriculum/schema.ts`；`validateCurriculum()` 是唯一的規則來源，`tests/curriculum.test.ts` 要求它對實際資料回傳空陣列。本文件說明欄位與規則，與程式不一致時以程式為準並更新本文件。
+> Phase E.1，E.2 擴充（2026-10-31：motivation、範例與測驗下限、共用 trace 與兩種新視覺化），E.3 擴充（2026-10-31：資料結構面板、模擬器、自己試試、結構比較），E.4 擴充（2026-10-31：演算法模擬器、指標與範圍、表格面板、用自己的輸入執行演算法、貪心選擇）。型別與驗證都在 `src/content/curriculum/schema.ts`；`validateCurriculum()` 是唯一的規則來源，`tests/curriculum.test.ts` 要求它對實際資料回傳空陣列。本文件說明欄位與規則，與程式不一致時以程式為準並更新本文件。
 
 ## 1. 檔案
 
@@ -10,6 +10,7 @@
 | `src/content/curriculum/lessons.ts` | 60 堂課的大綱（`LessonMeta`），依建議順序；lessonId 由島嶼與位置產生 |
 | `src/content/curriculum/content/F01.ts` … | 完整課程的內容（`LessonContent`），一堂一檔 |
 | `src/content/curriculum/simulate.ts` | E.3：資料結構的模擬器。教材列出操作，模擬器實際執行並產生 `TraceStep[]`（堆疊／佇列／雙端佇列、動態陣列、單向鏈結串列、鏈結法雜湊、二元樹走訪、BST、最小堆積、圖、並查集），步驟因此不會與結構的行為不一致；`tests/simulate.test.ts` 檢查每一種 |
+| `src/content/curriculum/simulate-algorithms.ts` | E.4：演算法的模擬器（線性搜尋、二分搜尋與氣泡排序沿用 `src/lib/engine.ts` 的互動實驗引擎、lower bound、選擇／插入／合併／快速排序、雙指標、固定與可變視窗、前綴和、`CallTracer` 遞迴樹與回溯、活動選擇與貪心找零、BFS、DFS、Dijkstra、DP 表格、0/1 背包）；`tests/simulate-algorithms.test.ts` 以參考實作、小輸入窮舉與固定種子的亂數輸入檢查每一個 |
 | `src/content/curriculum/registry.ts` | 三座島的資料、視覺化類型的狀態（implemented／planned／not-available）、難度與 APCS 的中文標籤 |
 | `src/content/curriculum/index.ts` | 組合成 `curriculum`，提供 `getLessonBySlug`、`getContent`、`neighbours` |
 | `src/lib/progress.ts` | 學習進度的資料格式與規則（與教材分開） |
@@ -60,7 +61,7 @@ UI（`src/components/curriculum/`）只讀這些資料；60 堂教材不寫在�
 
 ### 5.1 共用 trace（`variable-state`、`loop-execution`、`array-index`、`function-call`、`recursion-trace`，E.3 起加上 `stack-queue`、`linked-list`、`hash-table`、`tree-traversal`、`heap`、`graph-traversal`、`disjoint-set`）
 
-十二種類型共用同一個設定與同一個元件（`Trace`）：`{ kind, title, language, code, steps[], playground? }`。每一步 `TraceStep` 描述「執行完 `line` 這一行之後」的狀態，各面板都是選填：
+十六種類型共用同一個設定與同一個元件（`Trace`）：`{ kind, title, language, code, steps[], playground?, tryIt? }`（E.4 加上 `sorting-steps`、`recursion-tree`、`dp-table`、`greedy-choice`）。每一步 `TraceStep` 描述「執行完 `line` 這一行之後」的狀態，各面板都是選填：
 
 | 欄位 | 內容 |
 |---|---|
@@ -78,10 +79,16 @@ UI（`src/components/curriculum/`）只讀這些資料；60 堂教材不寫在�
 | `tree` | E.3：樹或森林：`nodes`（`id`、`label`，二元樹用 `left`／`right`，一般樹用 `children`）、`roots`、`marks`。頁面以 SVG 畫在可捲動的區塊內，另有給螢幕閱讀器的文字大綱 |
 | `graph` | E.3：圖：`nodes`、`edges`（`from`、`to`、選填 `weight`）、`directed`、`marks`（節點或邊的索引）、`show`（`list`／`matrix`）。頁面同時列出鄰接串列與鄰接矩陣的文字，作為圖形的文字替代 |
 | `dsu` | E.3：並查集的 `parent` 與 `size`；頁面顯示表格、集合清單與 parent 森林 |
+| `arrays[].pointers` | E.4：命名的索引（lo、mid、hi、i、j、left、right…），標在格子下方；−1 與長度（剛好在陣列外）以文字列在陣列後 |
+| `arrays[].range` | E.4：仍在考慮的範圍（搜尋範圍、視窗、分割中的區段），`from..to` 含兩端，`to = from − 1` 表示空的；格子下方有底線，標題寫出範圍 |
+| `arrays[].rowLabels`／`colLabels` | E.4：二維表格（DP 表）的列與行標籤，取代單純的索引 |
+| `table` | E.4：有表頭的表格（距離與父節點、貪心的候選、查詢），`marks` 標示整列或單一格，並以文字寫出 |
 
-標記 `marks[].kind`：`read`（讀取）、`write`（寫入）、`bad`（越界）、`removed`（已移除）、`visited`（已拜訪）、`found`（找到）、`current`（目前）。每個標記都以文字顯示，不只靠顏色。
+標記 `marks[].kind`：`read`（讀取）、`write`（寫入）、`bad`（越界；在陣列內的格子顯示為「不可行」，例如撞牆）、`removed`（已移除）、`visited`（已拜訪）、`found`（找到）、`current`（目前）、`pending`（待處理，E.4：已發現但還在佇列中、等待中的遞迴呼叫）。每個標記都以文字顯示，不只靠顏色。
 
 驗證：每種類型至少有一步顯示它的面板（variable-state 有 `vars`、loop-execution 有 `loops`、array-index 有 `arrays`、function-call 有 `frames`、recursion-trace 至少一步有兩層以上的 `frames`；E.3：stack-queue 有 `containers`、linked-list 有 `list`、hash-table 有 `buckets`、tree-traversal 有 `tree`、heap 同時有 `tree` 與 `arrays`、graph-traversal 有 `graph`、disjoint-set 有 `dsu`）。另外檢查每一步的內部一致性：標記與指標在範圍內、樹的子節點與根存在且 id 不重複、圖的邊與標記指向存在的節點、並查集的 parent 合法。
+
+`tryIt`（E.4，選填）：用學習者自己的輸入執行這一課的演算法，並逐步顯示（重來／上一步／下一步、方向鍵）。三種形式：陣列演算法 `{ algorithm, initial, target? }`（輸入最多 `TRY_IT_LIMIT` = 10 個 −99～99 的整數；二分搜尋、lower bound、雙指標要求已排序，最短視窗要求非負，否則以文字說明原因而不執行）；圖 `{ algorithm: 'bfs' | 'dfs' | 'dijkstra', nodes, edges, directed, start }`（學習者從選單選起點；Dijkstra 的權重必須非負）；背包 `{ algorithm: 'knapsack', items, capacity }`（容量 0～12）。驗證器檢查初始值、排序與權重。
 
 `playground`（E.3，選填）：`{ structure, buckets?, size? }`，structure 為 stack／queue／deque／dynamic-array／list／hash-set／bst／heap／dsu。頁面在逐步追蹤下方提供「自己試試」：學習者輸入 0～99 的整數（並查集為 0～size−1 的編號）並執行操作，最多 `PLAYGROUND_LIMIT`（10）個元素、40 個操作；每個操作用與教材步驟相同的模擬器執行並列出過程。hash-set 需要 2～13 個桶，dsu 需要 2～10 個元素。
 
@@ -92,9 +99,10 @@ UI（`src/components/curriculum/`）只讀這些資料；60 堂教材不寫在�
 | `conditional-branch` | `title`、`variable`、`min`、`max`、`initial`、`branches[]`（`label`、`when: { any?, all? }`、`result`）、`otherwise` | 至少一個分支；`initial` 在範圍內；比較 `{ op, value, mod? }`（`mod` 表示先取餘數，採數學上的非負餘數），不使用 `eval`。頁面會逐一列出複合條件中每個比較的 true／false，以及被短路略過的部分 |
 | `complexity` | `title`、`min`、`max`、`initial`、`models[]`（`model` 為 `1`／`log n`／`n`／`n log n`／`n^2`，`example` 說明） | 至少兩個模型；`min ≥ 1`；頁面標示為「公式計算的操作次數（示意模型），不是實測時間」 |
 | `challenge-stages` | `title`、`stages[]`（`title`、`concepts`（lessonId）、`goal`、`detail`） | 至少兩個階段；`concepts` 必須是課程 ID |
+| `greedy-choice` | E.4：共用 trace，步驟帶 `table`（候選、狀態與原因） | 至少一步有 `table` |
 | `ds-comparison` | `title`、`operations[]`（`id`、`label`）、`structures[]`（`name`、`note`、`costs`：每個操作的 `{ cost, good }`） | E.3；至少兩個操作與兩種結構，每種結構都要有每個操作的成本。學習者勾選問題需要的操作，表格以文字標示「適合／較慢」，並列出所有操作都適合的結構 |
 
-視覺化類型的狀態在 `registry.ts`。Implemented：`variable-state`、`conditional-branch`、`loop-execution`、`array-index`、`function-call`、`recursion-trace`、`complexity`、`challenge-stages`，E.3 加上 `stack-queue`、`linked-list`、`hash-table`、`tree-traversal`、`heap`、`graph-traversal`、`disjoint-set`、`ds-comparison`。Planned：`sorting-steps`、`recursion-tree`、`dp-table`。Not Available：`none`。所有狀態都以文字呈現，不只靠顏色。
+視覺化類型的狀態在 `registry.ts`。Implemented：`variable-state`、`conditional-branch`、`loop-execution`、`array-index`、`function-call`、`recursion-trace`、`complexity`、`challenge-stages`，E.3 加上 `stack-queue`、`linked-list`、`hash-table`、`tree-traversal`、`heap`、`graph-traversal`、`disjoint-set`、`ds-comparison`，E.4 加上 `sorting-steps`、`recursion-tree`、`dp-table`、`greedy-choice`。目前沒有 Planned 的類型；`planned` 狀態仍保留給之後新增的類型。Not Available：`none`。所有狀態都以文字呈現，不只靠顏色。
 
 ## 6. 學習進度（`src/lib/progress.ts`）
 

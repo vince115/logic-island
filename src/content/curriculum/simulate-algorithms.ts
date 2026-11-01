@@ -470,7 +470,8 @@ export function dijkstraSteps(nodes: string[], edges: Edge[], directed: boolean,
     rows: nodes.map(n => [n, dist.has(n) ? String(dist.get(n)) : '∞', parent.get(n) ?? (n === start ? '起點' : '—'), settled.has(n) ? '是' : '否']), marks: row ? [{ row: nodes.indexOf(row), kind: kind! }] : [] });
   const snap = (key: string, note: string, m: { node?: string; edge?: number; kind: Mark }[], row?: string, kind?: Mark) => steps.push({ line: at(lines, key), note,
     graph: graphPanel('加權圖', nodes, edges, directed, [...[...settled].filter(n => !m.some(x => x.node === n)).map(n => ({ node: n, kind: 'visited' as Mark })), ...m]),
-    containers: [{ name: '優先佇列（dist, 節點）', kind: 'queue', items: pq.map(([d, n]) => `${d}:${n}`) }], table: table(row, kind) });
+    // Shown in the order it will be served (smallest dist first), whatever the heap's internal array looks like.
+    containers: [{ name: '優先佇列（依 dist 由小到大，最前面先取出）', kind: 'queue', items: [...pq].sort((x, y) => x[0] - y[0] || x[1].localeCompare(y[1])).map(([d, n]) => `${d}:${n}`) }], table: table(row, kind) });
   snap('init', `dist[${start}] = 0，其他都是 ∞；(0, ${start}) 放進優先佇列。`, [{ node: start, kind: 'current' }], start, 'write');
   while (pq.length) {
     pq.sort((x, y) => x[0] - y[0] || x[1].localeCompare(y[1]));

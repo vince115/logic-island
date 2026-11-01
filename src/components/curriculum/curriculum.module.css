@@ -1258,6 +1258,11 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+}
+.pgArg label {
+  white-space: nowrap;
 }
 .pgLog {
   margin: 10px 0;

@@ -10,6 +10,17 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## Phase E.4 演算法島 20／20、課綱 60／60（2026-10-31～11-01；batch A `2ad9116`、B `4a7ca2d`、C `1bf8abe`、D `f2cf961`，另有收尾 commit）
+
+| 檢查 | 結果 |
+|---|---|
+| 每批 | 內容驗證、三語程式碼、演算法正確性（`tests/simulate-algorithms.test.ts`：參考實作、小輸入窮舉、固定種子亂數）、課綱 Vitest、相關 E2E、ESLint、tsc 都通過，並逐題人工核對測驗答案（135 題） |
+| Vitest（全部，JDK 在 PATH） | `f2cf961` 與收尾後都是 1054 passed／0 skipped |
+| E2E 全套（`f2cf961`，單次，負載約 4～7） | **325 passed／38 skipped／3 failed**：3 項皆為既有 P1-11；P1-32 通過；沒有新的失敗 |
+| 受保護路徑 | GLB、島嶼、3D 元件、互動實驗引擎、`courses.ts`、perf、public 自 `a082e58` 起 0 行差異 |
+
+收尾驗證（優先佇列依 dist 顯示、手機標籤換行、A15／A16 說明修正後）：Vitest（全部，JDK 在 PATH）**1054 passed／0 skipped**（21 個檔案）；TypeScript、ESLint exit 0；Build 成功（84 個靜態頁）；E2E `curriculum` **85 passed／1 skipped**（剪貼簿只在桌機）／0 failed。未重跑 E2E 全套（`f2cf961` 已完成，收尾只改視覺化顯示與文字）
+
 ## Phase E.3 資料結構島 20／20（2026-10-31，四個本地 commit：batch A `fa6a71b`、B `d09f593`、C `ffcf88b`、D `2f7ee0c`，另有文件 commit）
 
 狀態：完整教材 40／60（F01～F20、D01～D20），演算法島 20 堂規劃中；Phase D 程式未修改（GLB、島嶼、3D 元件、perf、`courses.ts`、`engine.ts`、public 自 `eba24b3` 起 0 行差異）。
