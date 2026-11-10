@@ -59,3 +59,42 @@ git clone https://github.com/vince115/logic-island-question-bank.git private/que
 3. **Fixture E2E**：`e2e/fixtures/*` 會把審核中的題目改為已發布再建置，所以需要私人題庫。在隔離副本中要另外複製 `private/question-bank`，或設定 `LOGIC_ISLAND_PRIVATE_BANK`。
 4. **Theme Session**：Theme 的變更要另外 cherry-pick 到公開分支。它的 commit 不能直接從本機 `trials/mvp` 推送；pre-push hook 會拒絕。
 5. 被搬走的 docs 13–18、21、26–29 仍出現在公開文件與佇列的連結中。這些連結在公開端會失效，內容要到私人題庫的 `docs/` 查看。
+
+## 7. 驗收結果（2026-11-10）
+
+### GitHub Actions（`trials/mvp`）
+
+| Run | Commit | 模式 | 結果 |
+|---|---|---|---|
+| [42827457057](https://github.com/vince115/logic-island/actions/runs/42827457057) | `45d2642` | bootstrap（第一次推送，base `f45c867`） | `trials:ci-bootstrap` 通過；Full Vitest 有 2 個 3D 世界 fingerprint 失敗 |
+| [42829136596](https://github.com/vince115/logic-island/actions/runs/42829136596) | `cb5ac56` | compare（base `45d2642`） | base 解析正確；nature fingerprint 仍不同 |
+| [42830615679](https://github.com/vince115/logic-island/actions/runs/42830615679) | `8fde53c` | compare（base `cb5ac56`） | **全部通過**：明列 trials 測試 157 通過、8 skip；`tests/trials` 256 通過、9 skip；Full Vitest 1841 通過、9 skip（66 檔）；integrity 保留 base manifest 的 57 筆；ledger、preflight、build、probe 都通過 |
+
+skip 的都是以未發布題目為對象的測試（§3）。兩個品質關卡回報「not run」（`passed: null`），不算通過。
+
+### 3D 世界 fingerprint（不是題庫問題）
+
+這是第一次在 Linux 上執行 `tests/world-data.test.ts`，發現 fingerprint 會因平台而不同：
+
+- 一般數值在 macOS arm64 與 Linux x64 之間只差最後一位。現在先四捨五入到 1e-6 再算雜湊；新增的測試確認，任一數值改動 1e-5 時 fingerprint 仍會改變，而最後一位的差異不會。
+- 自然物件的位置用 `fract(sin(·) × 43758.5453)` 雜湊，會把 `sin` 最後一位的差異放大成不同的位置，所以 Linux 上的樹木配置確實不同。測試改為每個平台各記一個精確值（darwin-arm64、linux-x64）。修改雜湊函式會改變 3D 世界，需要另外授權，本階段沒有修改。
+
+### 私人題庫不外洩
+
+| 範圍 | 結果 |
+|---|---|
+| 公開分支的可達歷史（`origin/main..trials/mvp`，每個 blob 與每則 commit 訊息） | `trials:leak-scan --history`：乾淨 |
+| 追蹤中的檔案 | 乾淨；剩下的私人題目 ID 只是 ID，沒有內容或答案 |
+| CI artifacts（bootstrap run 的 2 個檔案、compare run 的 10 個檔案） | `trials:leak-scan --dir`：乾淨 |
+| 沒有私人題庫的 production build（2198 個檔案，含 173 個 source map） | 乾淨；build、probe preflight 全部通過 |
+| 有私人題庫的 production build（2126 個檔案，含 173 個 source map） | 乾淨；沒有任何 `.nft.json` 提到 `private/` |
+
+### 私人題庫完整性（從 GitHub 重新 clone 檢查）
+
+- 350 題（CCAR-F 150、iPAS 200），ID 不重複，全部是 `in-review`，每題目前版本都有答案與解析。
+- manifest 372 筆，與全部版本一一對應；與公開的 57 筆合起來，等於 `0b01365` 原本的 429 筆。
+- 30 個 generated／batch 檔案與 `0b01365` 逐位元組相同。
+
+### 未變更
+
+Theme Session 工作目錄：HEAD `0b01365`，五個 Theme 檔案的 checksum 仍是 `f612b09…`。`logic-island-m3-ring`：`47dc2c1`，沒有修改。
