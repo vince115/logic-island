@@ -8,12 +8,15 @@ import type { GeneratedBatch } from './schema';
  * entries, its batch files) live in a private repository, checked out at private/question-bank (git-ignored) or at
  * LOGIC_ISLAND_PRIVATE_BANK. Without it the bank holds the published questions only, which is how the public
  * repository, its CI and a deployment from it see the bank. Server and Node only: the files are read, never bundled.
+ *
+ * The paths carry turbopackIgnore: traced, a path built from process.cwd() pulls the whole project (private/ included)
+ * into the build's file lists (next.config.ts also excludes private/ from them).
  */
-export const PRIVATE_BANK_DIR = path.resolve(process.env.LOGIC_ISLAND_PRIVATE_BANK || path.join(process.cwd(), 'private/question-bank'));
+export const PRIVATE_BANK_DIR = path.resolve(/*turbopackIgnore: true*/ process.env.LOGIC_ISLAND_PRIVATE_BANK || path.join(/*turbopackIgnore: true*/ process.cwd(), 'private/question-bank'));
 /** Whether the private bank is checked out (its generated questions are there). */
-export const hasPrivateBank = existsSync(path.join(PRIVATE_BANK_DIR, 'generated'));
+export const hasPrivateBank = existsSync(path.join(/*turbopackIgnore: true*/ PRIVATE_BANK_DIR, 'generated'));
 /** A file of the private bank, by its path inside it (e.g. data/ccarf-review-queue.json). */
-export const privateFile = (rel: string) => path.join(PRIVATE_BANK_DIR, rel);
+export const privateFile = (rel: string) => path.join(/*turbopackIgnore: true*/ PRIVATE_BANK_DIR, rel);
 
 if (!hasPrivateBank && process.env.LOGIC_ISLAND_REQUIRE_PRIVATE_BANK === '1')
   throw new Error(`LOGIC_ISLAND_REQUIRE_PRIVATE_BANK=1 but there is no private bank at ${PRIVATE_BANK_DIR}`);
