@@ -14,7 +14,10 @@ import { hexWorld, type HexWorld } from '@/lib/islands/hex-world';
  * modules; none of these may change unless the world itself is meant to change, in which case the commit
  * updates the fingerprint and says why.
  */
-const fingerprint = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0, 16);
+// T.3J: numbers are rounded to 1e-6 first. The first GitHub CI run (Linux x64) computed some trigonometry one unit in
+// the last place apart from macOS arm64, where the fingerprints were taken; a world change is far larger than 1e-6.
+const stable = (_key: string, v: unknown) => typeof v === 'number' && !Number.isInteger(v) ? Math.round(v * 1e6) / 1e6 : v;
+const fingerprint = (value: unknown) => createHash('sha256').update(JSON.stringify(value, stable)).digest('hex').slice(0, 16);
 /** World, roads, A2 terrain and route parts, in the key order the D.2b/D.2c checks used (the order changes the hash). */
 const full = (world: HexWorld) => ({
   world, roads: roadProfiles(world), terrain: world.settlements.map(s => buildSettlementTerrain(world, s)),
@@ -23,7 +26,7 @@ const full = (world: HexWorld) => ({
 
 describe('world data fingerprints (D.3-0)', () => {
   it('A2 preview world (/islands/hex)', () => {
-    expect(fingerprint(full(hexWorld))).toBe('ea7a097403a952fb');
+    expect(fingerprint(full(hexWorld))).toBe('80953dfc6e6476ce');
     expect(fingerprint(hexGlbSettlements)).toBe('03b72b60ef89015e');
   });
 
@@ -34,20 +37,20 @@ describe('world data fingerprints (D.3-0)', () => {
       shallow: [shallowHexes(p.world, 1), shallowHexes(p.world, 2)],
     // 2026-11-01: the structures–algorithms stone bridge slopes between its ports (0.55 and 1.25) instead of lying level
     // at their average; only that bridge's parts changed (was 890e0a90cd62a87f).
-    })).toBe('5fff2cef93bd0d44');
+    })).toBe('6b13f8589b12a458');
   });
 
   it('37-tile world (D.2c-1 layout and nature, the D.3 production candidate)', () => {
     const p = islandsWorld;
     // D.3-1: the scale prototype's 37-tile variant is the production world itself.
     expect(fingerprint({ ...scalePrototypes['37'], variant: undefined })).toBe(fingerprint(p));
-    expect(fingerprint(p.world)).toBe('3742df3b903b4a77');
+    expect(fingerprint(p.world)).toBe('20a880c9e412947e');
     expect(fingerprint(p.glb)).toBe('f34b217050267a21');
-    expect(fingerprint(p.natural)).toBe('0c22934387995a06');
-    expect(fingerprint(naturalTerrains(p.world))).toBe('af6be255bfe52e9e');
-    expect(fingerprint(seaGrid(p.world))).toBe('d513a7eaa86651a2');
-    expect(fingerprint(roadProfiles(p.world))).toBe('be16037eafd9c04a');
-    expect(fingerprint(roadParts(p.world, p.natural?.roadWidths))).toBe('4f289253822f9a56');
-    expect(fingerprint({ forests: p.forests, zones: p.zones, bridgeParts: bridgeParts(p.world) })).toBe('f15d2e7e22a9c924'); // 2026-11-01 sloped bridge (was 0756fecc03c63294)
+    expect(fingerprint(p.natural)).toBe('63188173624e0fcd');
+    expect(fingerprint(naturalTerrains(p.world))).toBe('0142d9efea22ef4f');
+    expect(fingerprint(seaGrid(p.world))).toBe('8d7d1c7994621db9');
+    expect(fingerprint(roadProfiles(p.world))).toBe('0209a3f6b59f88ea');
+    expect(fingerprint(roadParts(p.world, p.natural?.roadWidths))).toBe('a96bb5411f3efaab');
+    expect(fingerprint({ forests: p.forests, zones: p.zones, bridgeParts: bridgeParts(p.world) })).toBe('438b3860e71ef3da'); // 2026-11-01 sloped bridge (was 0756fecc03c63294)
   });
 });
