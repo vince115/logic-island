@@ -1,0 +1,862 @@
+{
+  "format": "logic-island.trials-import/1",
+  "batch": {
+    "id": "2026-11-03-moex-114-pukao-computer",
+    "title": "考選部 114 年普通考試 資訊處理《計算機概要》測驗題 40 題",
+    "preparedBy": {
+      "kind": "ai",
+      "name": "claude-opus-5-5"
+    },
+    "preparedAt": "2026-11-03",
+    "note": "題文由考選部 PDF 的文字層擷取後，逐頁對照原卷渲染圖校正；解析為 Logic Island 撰寫。"
+  },
+  "origin": "official-original",
+  "source": "moex-114-pukao-3448",
+  "answerKey": {
+    "sourceId": "moex-114-pukao-3448-key",
+    "answers": {
+      "1": "A",
+      "2": "D",
+      "3": "D",
+      "4": "A",
+      "5": "B",
+      "6": "A",
+      "7": "C",
+      "8": "A",
+      "9": "A",
+      "10": "C",
+      "11": "B",
+      "12": "D",
+      "13": "D",
+      "14": "A",
+      "15": "D",
+      "16": "C",
+      "17": "B",
+      "18": "B",
+      "19": "A",
+      "20": "C",
+      "21": "C",
+      "22": "D",
+      "23": "C",
+      "24": "A",
+      "25": "B",
+      "26": "C",
+      "27": "A",
+      "28": "D",
+      "29": "C",
+      "30": "A",
+      "31": "A",
+      "32": "B",
+      "33": "A",
+      "34": "C",
+      "35": "A",
+      "36": "A",
+      "37": "B",
+      "38": "B",
+      "39": "C",
+      "40": "A"
+    }
+  },
+  "paper": {
+    "subjectId": "moex-info-processing-114.pukao-computer",
+    "paperId": "moex-114-pukao-3448"
+  },
+  "skipped": [],
+  "fidelity": "題文與選項依原卷；選項標記（Ⓐ～Ⓓ）改為選項順序，跨行文字合併，程式縮排依原卷版面以空白重建。",
+  "revisionNote": "收錄考選部 114 年普考《計算機概要》原題",
+  "reviews": [
+    {
+      "by": "claude-code",
+      "reviewer": "ai",
+      "at": "2026-11-03",
+      "verdict": "approve",
+      "checks": [
+        "source-checked",
+        "answer-verified",
+        "license-checked"
+      ],
+      "note": "題文逐頁對照原卷渲染圖（選項分隔、斷行、空白與縮排）；答案逐題取自考選部測驗式試題標準答案（備註欄無更正）；依著作權法第 9 條第 1 項第 5 款可自由利用，標示出處"
+    },
+    {
+      "by": "owner",
+      "reviewer": "human",
+      "at": "2026-11-03",
+      "verdict": "approve",
+      "checks": [],
+      "note": "使用者指示匯入第一批（MVP 原創題與 114 年普考《計算機概要》選擇題）；逐題校對與解析審稿在驗收時進行"
+    }
+  ],
+  "questions": [
+    {
+      "id": "moex-114-pukao-3448-q01",
+      "type": "single-choice",
+      "number": "1",
+      "stem": "有關電腦各類連接埠的敘述，下列何者正確？",
+      "options": [
+        "HDMI 介面可同時傳送未經壓縮的視訊及音訊",
+        "D-Sub 和 DVI 均屬於視訊介面，D-Sub 傳送數位信號，DVI 則傳送類比信號",
+        "通用序列匯流排（USB）雖支援熱插拔可即插即用，但最多只能同時插接 4 支隨身碟",
+        "USB 提供高速的雙向並列傳輸，可用於連接鍵盤、滑鼠、印表機等設備"
+      ],
+      "answer": "A",
+      "explanation": "HDMI 以數位方式同時傳送未壓縮的視訊與音訊。D-Sub（VGA）傳類比訊號；DVI 以數位訊號為主（DVI-D 只有數位，DVI-I、DVI-A 也帶類比訊號），所以 (B) 說「D-Sub 傳數位、DVI 傳類比」是顛倒的。USB 的一個主控器最多可接 127 個裝置；USB 是序列傳輸，不是並列。",
+      "tags": [
+        "hw.components"
+      ],
+      "change": {
+        "kind": "editorial",
+        "note": "解析修正：DVI 不只傳數位訊號（DVI-I、DVI-A 也帶類比），改正原解析的過度簡化",
+        "at": "2026-11-03"
+      }
+    },
+    {
+      "id": "moex-114-pukao-3448-q02",
+      "type": "single-choice",
+      "number": "2",
+      "stem": "有關電腦升級之敘述，下列何者錯誤？",
+      "options": [
+        "將機械式硬碟更換成固態硬碟來提升效能是常見的方式之一",
+        "若要將 CPU 升級，大部分會同時升級主機板，其原因之一是 CPU 插槽型式會不同",
+        "主機板上的 BIOS 會因升級而嚴重毀損，雖硬碟中的作業系統安好，仍可能會無法正常開機",
+        "DDR4 和 DDR5 引腳數均為 288 pins，所以 DDR4 的記憶體可以安裝於 DDR5 的主機板插槽上，可減少升級費用"
+      ],
+      "answer": "D",
+      "explanation": "DDR4 與 DDR5 雖然都是 288 pins，但防呆缺口的位置、工作電壓與訊號規格都不同，不能互換插槽。",
+      "tags": [
+        "hw.components"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q03",
+      "type": "single-choice",
+      "number": "3",
+      "stem": "下列何者不是使用單一指令流多資料流（single instruction stream multiple data stream，SIMD）所具有的優勢？",
+      "options": [
+        "由多個執行單元來分擔控制單元的成本",
+        "減少程式記憶體指令（memory instruction）的用量",
+        "平行處理多筆資料以加速數值運算",
+        "增加分支預測（branch prediction）之正確率"
+      ],
+      "answer": "D",
+      "explanation": "SIMD 用一道指令同時處理多筆資料：多個執行單元共用一個控制單元、需要的指令變少、數值運算變快。分支預測是 CPU 管線處理條件跳躍的技術，與 SIMD 無關。",
+      "tags": [
+        "hw.parallelism"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q04",
+      "type": "single-choice",
+      "number": "4",
+      "stem": "關於 CPU 的指令執行，下列敘述何者錯誤？",
+      "options": [
+        "CPU 從程式指標暫存器（Program Counter）取得指令所需資料所在的位址",
+        "控制單元從記憶體子系統擷取即將要執行的指令，放在指令暫存器（Instruction Register）",
+        "控制單元將放在指令暫存器（Instruction Register）中的指令解碼後，執行指令的操作",
+        "使用生產線技術（Pipelining），可以提升 CPU 的執行效率"
+      ],
+      "answer": "A",
+      "explanation": "程式計數器（PC）存放的是下一道要執行的「指令」的位址，不是指令所需資料的位址。",
+      "tags": [
+        "hw.cpu"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q05",
+      "type": "single-choice",
+      "number": "5",
+      "stem": "下列那一種程式指令或結構，最可能破壞程式設計的模組化？",
+      "options": [
+        "recursive functions",
+        "go-to statements",
+        "for loop",
+        "class"
+      ],
+      "answer": "B",
+      "explanation": "go-to 可以任意跳到程式的其他位置，破壞「單一入口、單一出口」的結構，使程式難以分成獨立的模組；遞迴、迴圈與類別都是結構化或模組化的工具。",
+      "tags": [
+        "prog.modularity"
+      ],
+      "lessons": [
+        "F13"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q06",
+      "type": "single-choice",
+      "number": "6",
+      "stem": "下列何種原因，使得 DRAM 被用於大容量儲存裝置（mass storage device）？",
+      "options": [
+        "程式可以透過在 DRAM 裝置中寫入和讀取檔案輕鬆共享資料",
+        "DRAM 單價比 SSD 高",
+        "DRAM 存取速度比 SSD 慢",
+        "DRAM 為非揮發性的裝置"
+      ],
+      "answer": "A",
+      "explanation": "依官方答案為 (A)。(B) 的敘述本身屬實（DRAM 每單位容量的價格高於 SSD），但價格較高不是採用它的理由；(C) 錯，DRAM 的存取速度比 SSD 快；(D) 錯，DRAM 是揮發性記憶體，斷電後資料就消失。考選部沒有公布解析，本站不推測 (A) 的出題依據；DRAM 一般作為主記憶體，題目把它稱為大容量儲存裝置的前提並不常見。",
+      "tags": [
+        "hw.memory"
+      ],
+      "change": {
+        "kind": "editorial",
+        "note": "解析修正：移除對 (A) 出題依據的推測，改為只說明可驗證的選項，並註明題目前提並不常見",
+        "at": "2026-11-03"
+      }
+    },
+    {
+      "id": "moex-114-pukao-3448-q07",
+      "type": "single-choice",
+      "number": "7",
+      "stem": "一台可執行本地 AI 模型的個人電腦安裝 64 GB（gigabytes）的主記憶體。若一個字（word）是 8 個位元組（bytes），則此主記憶體需要多少條位址線來定址一個字？",
+      "options": [
+        "30",
+        "32",
+        "33",
+        "36"
+      ],
+      "answer": "C",
+      "explanation": "以 1 GB = 2³⁰ 位元組計，64 GB = 2⁶ × 2³⁰ = 2³⁶ 位元組；一個字 8 = 2³ 位元組，共 2³⁶ ÷ 2³ = 2³³ 個字，需要 33 條位址線。若以 1 GB = 10⁹ 位元組計，共 8 × 10⁹ 個字，因為 2³² < 8 × 10⁹ ≤ 2³³，同樣需要 33 條位址線。",
+      "tags": [
+        "hw.memory"
+      ],
+      "change": {
+        "kind": "editorial",
+        "note": "解析修正：寫明 1 GB 的定義，並說明兩種定義下答案相同",
+        "at": "2026-11-03"
+      }
+    },
+    {
+      "id": "moex-114-pukao-3448-q08",
+      "type": "single-choice",
+      "number": "8",
+      "stem": "下列那一個定律的大意是說：每隔大約兩年，數位處理器的效能就會倍增，但價格維持不變？",
+      "options": [
+        "摩爾定律（Moore’s Law）",
+        "莫非定律（Murphy’s Law）",
+        "維爾特定律（Wirth’s Law）",
+        "庫梅定律（Koomey’s Law）"
+      ],
+      "answer": "A",
+      "explanation": "摩爾定律原指晶片上的電晶體數量約每兩年倍增，常被引申為處理器效能倍增而價格不變。莫非定律說會出錯的事終究會出錯；維爾特定律說軟體變慢的速度比硬體變快還快；庫梅定律談的是每單位能量能完成的運算量。",
+      "tags": [
+        "cs.general"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q09",
+      "type": "single-choice",
+      "number": "9",
+      "stem": "若某一 1 分鐘的聲音訊號，其取樣頻率為 44.1 kHz，每個樣本以 16 位元紀錄，在沒有進行壓縮或特殊處理的情況下，此聲音訊號大小約為：",
+      "options": [
+        "5.05 MB",
+        "42.34 MB",
+        "88.21 KB",
+        "531 KB"
+      ],
+      "answer": "A",
+      "explanation": "60 秒 × 44,100 個樣本 × 16 位元 ÷ 8 = 5,292,000 位元組；以 1 MB = 2²⁰ 位元組計，約 5.05 MB。",
+      "tags": [
+        "mm.bitrate"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q10",
+      "type": "single-choice",
+      "number": "10",
+      "stem": "有一電腦主機搭載 5.0 GHz 的 2 核心 CPU，執行速度為 500 MIPS，與 1 支 0.5 TB 的 SSD 硬碟，有關這台電腦，下列敘述何者正確？",
+      "options": [
+        "此 CPU 的時脈週期時間為 0.05 秒",
+        "此 CPU 執行一個指令需要 1 ms 的時間",
+        "此 CPU 執行一個指令需要 10 個時脈週期",
+        "為配合 CPU 的速度，此支 0.5 TB 的 SSD 硬碟轉速要採用 10,000 RPM 以上"
+      ],
+      "answer": "C",
+      "explanation": "每秒 5×10⁹ 個時脈、每秒執行 5×10⁸ 個指令，平均每個指令 10 個時脈週期。時脈週期是 0.2 ns，一個指令約 2 ns；SSD 沒有轉動的碟片，談不上轉速。",
+      "tags": [
+        "hw.cpu"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q11",
+      "type": "single-choice",
+      "number": "11",
+      "stem": "在流程圖（Flowchart）中，下列圖形符號何者常用來表示程式流程中的決策（Decision）？",
+      "options": [
+        "圓形（Circle）",
+        "菱形（Diamond）",
+        "矩形（Rectangle）",
+        "三角形（Triangle）"
+      ],
+      "answer": "B",
+      "explanation": "流程圖以菱形表示判斷（決策），矩形表示處理步驟，圓角矩形或橢圓常表示開始與結束。",
+      "tags": [
+        "prog.flowchart"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q12",
+      "type": "single-choice",
+      "number": "12",
+      "stem": "下列何種記憶體，對 CPU 來說存取速度最快？",
+      "options": [
+        "磁碟快取",
+        "RAM",
+        "硬碟",
+        "暫存器"
+      ],
+      "answer": "D",
+      "explanation": "暫存器就在 CPU 內部，存取最快；接著是快取記憶體、主記憶體（RAM），硬碟最慢。",
+      "tags": [
+        "hw.memory"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q13",
+      "type": "single-choice",
+      "number": "13",
+      "stem": "系統原本將依序執行三個工作 P1、P2、P3，這三個工作所需的執行時間為 30 ms、9 ms、3 ms，現在為提升系統效能，改用最短工作優先（shortest-job-first）的方式來排程這三個工作，如與原本的執行順序比較，這三個工作的平均等待時間（average waiting time）可以減少多少？",
+      "options": [
+        "3",
+        "6",
+        "9",
+        "18"
+      ],
+      "answer": "D",
+      "explanation": "原本的順序 P1、P2、P3：等待 0、30、39 ms，平均 23 ms。最短工作優先的順序 P3、P2、P1：等待 0、3、12 ms，平均 5 ms。減少 18 ms。",
+      "tags": [
+        "os.scheduling"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q14",
+      "type": "single-choice",
+      "number": "14",
+      "stem": "假設 X=0，Y=1，Z=0，下列布林代數邏輯運算結果為 0？",
+      "options": [
+        "X AND Y",
+        "Y XOR Z",
+        "NOT X",
+        "(NOT X) OR (Y AND Z)"
+      ],
+      "answer": "A",
+      "explanation": "X AND Y = 0 AND 1 = 0。其餘：Y XOR Z = 1；NOT X = 1；(NOT X) OR (Y AND Z) = 1 OR 0 = 1。",
+      "tags": [
+        "prog.operators.logical"
+      ],
+      "lessons": [
+        "F06"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q15",
+      "type": "single-choice",
+      "number": "15",
+      "stem": "透過人眼感知周遭環境時，有關虹膜的功能，下列何者正確？",
+      "options": [
+        "成像平面聚焦",
+        "偵測物體顏色",
+        "改變對焦焦距",
+        "控制入射光量"
+      ],
+      "answer": "D",
+      "explanation": "虹膜調整瞳孔大小，控制進入眼睛的光量。對焦靠水晶體改變焦距，影像成在視網膜上，顏色由視網膜上的視錐細胞感知。",
+      "tags": [
+        "mm.perception"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q16",
+      "type": "single-choice",
+      "number": "16",
+      "stem": "有關 ASCII 編碼，下列敘述何者正確？",
+      "options": [
+        "全名為 American System Code for Information Interchange",
+        "編號 0 至編號 31 為控制碼，其餘為可顯示之字元",
+        "原始標準 ASCII 使用 7 位元表示一個字符",
+        "字符 A 的 ASCII 編碼為 42h"
+      ],
+      "answer": "C",
+      "explanation": "標準 ASCII 用 7 位元，共 128 個字元。全名是 American Standard Code for Information Interchange；控制碼是 0～31 與 127（DEL）；A 是 41h（十進位 65）。",
+      "tags": [
+        "data.encoding"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q17",
+      "type": "code-reading",
+      "number": "17",
+      "stem": "若執行以下的 Java 程式碼，則螢幕上的輸出為下列何者？",
+      "code": {
+        "language": "Java",
+        "text": "public class Operator{\n    public static void main(String[] args){\n        int a = 6;\n        System.out.println(6^2);\n    }\n}"
+      },
+      "options": [
+        "1",
+        "4",
+        "6",
+        "36"
+      ],
+      "answer": "B",
+      "explanation": "Java 的 `^` 是位元互斥或（XOR），不是次方：6 = 110₂、2 = 010₂，XOR 得 100₂ = 4。變數 `a` 沒有被用到。",
+      "tags": [
+        "prog.operators.bitwise"
+      ],
+      "lessons": [
+        "F04"
+      ],
+      "reviews": [
+        {
+          "by": "claude-code",
+          "reviewer": "ai",
+          "at": "2026-11-03",
+          "verdict": "approve",
+          "checks": [
+            "code-executed"
+          ],
+          "note": "以 IntelliJ 內建的 JDK 執行，輸出 4"
+        }
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q18",
+      "type": "code-reading",
+      "number": "18",
+      "stem": "若執行以下的 Python 程式碼，則螢幕上的輸出為下列何者？",
+      "code": {
+        "language": "Python",
+        "text": "data = [x*y for x in range(4) for y in range(3) if x>y and y%2==0]\nprint(data)"
+      },
+      "options": [
+        "[6, 8]",
+        "[0, 0, 0, 6]",
+        "[0, 0, 2, 0, 3, 6]",
+        "[2, 3, 6, 4, 8, 12]"
+      ],
+      "answer": "B",
+      "explanation": "外層 `x` 為 0～3、內層 `y` 為 0～2，只保留 `x > y` 且 `y` 為偶數的組合：(1,0)、(2,0)、(3,0)、(3,2)，乘積依序是 0、0、0、6。",
+      "tags": [
+        "prog.python.comprehension"
+      ],
+      "lessons": [
+        "F09"
+      ],
+      "reviews": [
+        {
+          "by": "claude-code",
+          "reviewer": "ai",
+          "at": "2026-11-03",
+          "verdict": "approve",
+          "checks": [
+            "code-executed"
+          ],
+          "note": "以 python3 執行，輸出 [0, 0, 0, 6]"
+        }
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q19",
+      "type": "single-choice",
+      "number": "19",
+      "stem": "在 Python 程式中，下列變數名稱何者違反命名規則？",
+      "options": [
+        "3var",
+        "_var",
+        "var",
+        "var_a"
+      ],
+      "answer": "A",
+      "explanation": "Python 的識別字不能以數字開頭；以底線開頭或中間含底線都合法。",
+      "tags": [
+        "prog.identifiers"
+      ],
+      "lessons": [
+        "F02"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q20",
+      "type": "single-choice",
+      "number": "20",
+      "stem": "有關 BIOS 的功能，下列何者錯誤？",
+      "options": [
+        "協助啟動作業系統",
+        "執行開機時的硬體檢測",
+        "控制應用程式的執行流程",
+        "提供與硬體互動的基本輸出入服務"
+      ],
+      "answer": "C",
+      "explanation": "BIOS 負責開機自我測試、載入作業系統，並提供基本的輸入輸出服務；應用程式的執行流程由作業系統與程式本身控制。",
+      "tags": [
+        "hw.components"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q21",
+      "type": "single-choice",
+      "number": "21",
+      "stem": "有關分時系統（time sharing system）的運作方式，下列敘述何者正確？",
+      "options": [
+        "根據事件觸發來分配 CPU 資源",
+        "為了單一使用者最佳化而設計的系統",
+        "使用時間觸發的方式",
+        "只在背景執行批次作業，不支援互動作業的系統"
+      ],
+      "answer": "C",
+      "explanation": "分時系統把 CPU 時間切成時間片段，由計時器中斷輪流分給各個行程，讓多位使用者能同時互動，所以是時間觸發。",
+      "tags": [
+        "os.concepts"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q22",
+      "type": "single-choice",
+      "number": "22",
+      "stem": "在阻隔（blocking）系統呼叫中，下列敘述何者正確？",
+      "options": [
+        "正在執行中的行程會被暫停直到該行程被其他行程喚醒",
+        "正在執行中的行程會被暫停直到經過一段固定的時間",
+        "正在執行中的行程不會被暫停",
+        "正在執行中的行程會被暫停直到 I/O 已完成"
+      ],
+      "answer": "D",
+      "explanation": "阻隔式的 I/O 系統呼叫讓行程進入等待狀態，直到 I/O 完成才回到就緒佇列；不阻隔的呼叫才會立即返回。",
+      "tags": [
+        "os.system-calls"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q23",
+      "type": "single-choice",
+      "number": "23",
+      "stem": "每當行程需要對硬碟輸入或輸出資料時，它都會向作業系統發出系統呼叫，這項系統呼叫不包括下列那一個資訊？",
+      "options": [
+        "資料傳輸的記憶體位址",
+        "傳輸的資料量",
+        "硬碟的存取速度",
+        "此操作是輸入還是輸出"
+      ],
+      "answer": "C",
+      "explanation": "系統呼叫要告訴作業系統：是輸入還是輸出、資料在記憶體中的位址、要傳輸多少資料。硬碟的存取速度是硬體本身的特性，不需要由行程提供。",
+      "tags": [
+        "os.system-calls"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q24",
+      "type": "single-choice",
+      "number": "24",
+      "stem": "呼叫函式（function）並傳遞參數時，若不希望被呼叫函式使用額外變數空間，並且被呼叫函式對參數值所做任何改動，都希望直接反應到外部（呼叫方）環境，此時應選擇下列何種參數傳遞機制？",
+      "options": [
+        "call by reference",
+        "call by induction",
+        "call by library",
+        "call by value"
+      ],
+      "answer": "A",
+      "explanation": "call by reference 傳的是變數的參考（位址），不必複製一份，函式內的修改會直接反映到呼叫方；call by value 傳的是複本，修改不影響外部。(B)、(C) 不是參數傳遞機制。",
+      "tags": [
+        "prog.parameter-passing"
+      ],
+      "lessons": [
+        "F14"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q25",
+      "type": "single-choice",
+      "number": "25",
+      "stem": "在作業系統中，有關系統呼叫的敘述，下列何者正確？",
+      "options": [
+        "程式開機時呼叫作業系統的命令",
+        "應用程式對作業系統功能的請求",
+        "BIOS 控制訊號",
+        "檔案系統中的查詢功能"
+      ],
+      "answer": "B",
+      "explanation": "系統呼叫是應用程式向作業系統核心請求服務（檔案、行程、記憶體、I/O 等）的介面。",
+      "tags": [
+        "os.system-calls"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q26",
+      "type": "single-choice",
+      "number": "26",
+      "stem": "關於儲存區域網路（storage area network, SAN）的敘述，下列何者錯誤？",
+      "options": [
+        "SAN 使伺服器叢集可以共用相同的儲存裝置",
+        "SAN 使用儲存協定而非網路協定",
+        "SAN 使儲存裝置無法動態地分配給主機",
+        "多個主機與多個儲存陣列可以連接到同一個 SAN"
+      ],
+      "answer": "C",
+      "explanation": "SAN 的好處之一，正是儲存空間可以依需要動態分配給不同的主機。",
+      "tags": [
+        "network.storage"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q27",
+      "type": "code-reading",
+      "number": "27",
+      "stem": "下列 Pseudo code:",
+      "code": {
+        "language": "pseudocode",
+        "text": "a=1; b=1; c=0;\nf(a,b,i) { if(i==0) return (a);\n           else { c=a+b; i=i-1;\n                  f(c,a,i);\n                }\n         }"
+      },
+      "stemAfter": "如果參數 i 的值一開始為 5，執行後 function f()結果為何？",
+      "options": [
+        "13",
+        "32",
+        "8",
+        "16"
+      ],
+      "answer": "A",
+      "explanation": "f(1,1,5) → f(2,1,4) → f(3,2,3) → f(5,3,2) → f(8,5,1) → f(13,8,0)，`i` 為 0 時回傳 `a`，也就是 13。原卷的 else 分支沒有寫 return；依官方答案，題意是取最深一層回傳的值（寫成 `return f(c,a,i)` 也得到 13）。",
+      "tags": [
+        "prog.recursion"
+      ],
+      "lessons": [
+        "F18"
+      ],
+      "interpretationNote": "原卷 else 分支沒有 return；依官方答案，取遞迴最深一層回傳的值。",
+      "reviews": [
+        {
+          "by": "claude-code",
+          "reviewer": "ai",
+          "at": "2026-11-03",
+          "verdict": "approve",
+          "checks": [
+            "code-executed"
+          ],
+          "note": "改寫為 Python（遞迴呼叫加上 return）執行，結果 13"
+        }
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q28",
+      "type": "single-choice",
+      "number": "28",
+      "stem": "有關 UNIX 系統的敘述，下列何者錯誤？",
+      "options": [
+        "root 是 UNIX 系統中的一種用於進行系統管理的特殊使用者",
+        "who 指令是用來查詢目前有那些人在線上",
+        "Unix shell 是 UNIX 作業系統下使用者和計算機的互動介面",
+        "telnet 是一種能讓遠端使用者進入 UNIX 主機的加密連線"
+      ],
+      "answer": "D",
+      "explanation": "telnet 以明文傳送所有資料（包括密碼），沒有加密；需要加密的遠端登入要用 SSH。",
+      "tags": [
+        "os.unix"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q29",
+      "type": "single-choice",
+      "number": "29",
+      "stem": "文字、音訊、影像及視頻的組合，構成多媒體資料，下列敘述何者正確？",
+      "options": [
+        "文字的個數通常較影像的張數多出許多，所以文字所占的資料量也比影像所占的資料量多出許多",
+        "影像為時間域及空間域構成的二維信號，視頻則為色彩空間、時間域及空間域構成的三維信號",
+        "音訊為隨著時間變動振幅的一維信號，影像則為空間域中的二維信號",
+        "音訊為振幅域及時間域構成的二維信號，影像則為靜態色彩空間的一維信號"
+      ],
+      "answer": "C",
+      "explanation": "音訊是振幅隨時間變化的一維信號；影像是平面上兩個空間座標的二維信號，視訊再加上時間軸。文字的資料量通常遠小於影像。",
+      "tags": [
+        "mm.signals"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q30",
+      "type": "single-choice",
+      "number": "30",
+      "stem": "假設一個視頻會議的視頻流 bit rate 為 3 Mbps，音頻流 bit rate 為 128 kbps，且同時進行音視頻流傳輸。所需的最小帶寬是多少（以 Mbps 為單位）？",
+      "options": [
+        "3.128 Mbps",
+        "3.256 Mbps",
+        "3.128 Gbps",
+        "3.256 Gbps"
+      ],
+      "answer": "A",
+      "explanation": "兩路同時傳送，頻寬相加：3 Mbps + 128 kbps = 3 + 0.128 = 3.128 Mbps。",
+      "tags": [
+        "mm.bitrate"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q31",
+      "type": "single-choice",
+      "number": "31",
+      "stem": "影像的邊緣和其他灰階突發變化，與下列何者有關？",
+      "options": [
+        "邊緣和其他灰階突發變化均為高頻成分",
+        "邊緣和其他灰階突發變化均為低頻成分",
+        "邊緣為具有高頻率成分，其他灰階突發變化則為低頻成分",
+        "邊緣為具有低頻率成分，其他灰階突發變化則為高頻成分"
+      ],
+      "answer": "A",
+      "explanation": "頻率代表灰階變化的快慢：邊緣、雜訊等突然的變化都是高頻成分，平滑的區域是低頻成分。所以低通濾波會使邊緣模糊，高通濾波能凸顯邊緣。",
+      "tags": [
+        "mm.image-processing"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q32",
+      "type": "single-choice",
+      "number": "32",
+      "stem": "一個影像變換 s = T(r)將輸入影像的像素值 r，0≤r≤255，經過變換 T 的處理，產生輸出影像的像素值 s，0≤s≤255，如果變換 T(r)在 0≤r≤255 的區間內單調遞增（monotonically increasing），下列敘述何者正確？",
+      "options": [
+        "區間內單調遞增的性質保證逆變換的存在",
+        "需要區間內單調遞增的性質以限制在輸出影像中不會產生像素值大小反轉",
+        "區間內單調遞增的性質保證輸出像素值和輸入像素值在同一範圍內，以維持影像品質",
+        "區間內單調遞增的性質保證輸出像素值和輸入像素值不在同一範圍內，以提高影像品質"
+      ],
+      "answer": "B",
+      "explanation": "單調遞增保證原本較暗的像素輸出後不會比較亮的像素更亮，也就是明暗順序不會反轉。只有「嚴格」單調遞增才保證有逆變換；輸出落在 0～255 是題目另外規定的條件，不是單調遞增帶來的。",
+      "tags": [
+        "mm.image-processing"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q33",
+      "type": "single-choice",
+      "number": "33",
+      "stem": "關於數位浮水印（Digital Watermarking）的敘述，下列何者錯誤？",
+      "options": [
+        "僅能嵌入音訊或靜態圖片，影片資料量太大，無法嵌入數位訊號中",
+        "目的在保護電子文件或圖片的著作權",
+        "拷貝具有數位浮水印訊號，所嵌入資訊也會一併被拷貝",
+        "有隱性與顯性浮水印之別"
+      ],
+      "answer": "A",
+      "explanation": "數位浮水印也能嵌入影片，例如逐格或在壓縮域嵌入；它的目的是保護著作權，會隨內容一起被複製，並有可見與不可見兩類。",
+      "tags": [
+        "security.watermarking"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q34",
+      "type": "single-choice",
+      "number": "34",
+      "stem": "有關視訊媒體標準的敘述，下列何者正確？",
+      "options": [
+        "NTSC（National Television Standards Committee）為臺灣所採用的視訊標準，採用了漸進式掃描（Progressive scan）來掃描影像",
+        "PAL（Phase Alternate Line）視訊標準每秒顯示 25 個影格，故其掃描線以 1/25 秒來描繪",
+        "HDTV（High Definition Television）視訊標準解析度可高達 1920×1080，其寬高比為 16:9",
+        "SECAM（Sequential Color and Memory）擁有 525 條掃描線，每秒顯示 30 個影格"
+      ],
+      "answer": "C",
+      "explanation": "HDTV 最高 1920×1080、寬高比 16:9。NTSC 是臺灣過去採用的類比標準，但使用交錯式掃描；PAL 每秒 25 個影格，以交錯掃描每 1/50 秒畫一個圖場；SECAM 是 625 條掃描線、每秒 25 個影格。",
+      "tags": [
+        "mm.formats"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q35",
+      "type": "single-choice",
+      "number": "35",
+      "stem": "在視頻渲染中，顯示卡的核心部件是 GPU（圖形處理單元）。下列何者最準確地敘述 GPU 的作用？",
+      "options": [
+        "處理圖形和視頻渲染，將其顯示在屏幕上",
+        "儲存視頻數據，便於快速回放",
+        "用來將圖像儲存為影像檔案",
+        "管理數位音訊的輸出"
+      ],
+      "answer": "A",
+      "explanation": "GPU 負責圖形與視訊的運算和渲染，把結果輸出到螢幕；儲存資料、存成影像檔或處理音訊都不是它的主要工作。",
+      "tags": [
+        "mm.graphics"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q36",
+      "type": "single-choice",
+      "number": "36",
+      "stem": "假設你有一個 1920×1080 分辨率的 30 fps 視頻，並且使用 H.264 編碼，碼率設置為 2 Mbps。這個視頻每秒鐘的數據量是多少？",
+      "options": [
+        "244 KB",
+        "250 KB",
+        "275 KB",
+        "500 KB"
+      ],
+      "answer": "A",
+      "explanation": "碼率已經決定每秒的資料量，解析度與影格率不必再算：2 Mbps = 2,000,000 位元／秒，除以 8 得 250,000 位元組。KB 有兩種定義：以 1 KB = 1,000 位元組（SI 十進位）計是 250 KB，即 (B)；以 1 KB = 1,024 位元組（二進位，嚴格寫法是 KiB）計約 244 KB，即 (A)。官方答案為 (A)，本站依官方答案評分；但在十進位定義下 (B) 也說得通，這一題有單位上的歧義。注意 Mbps 本身是十進位（1 Mbps = 1,000,000 位元／秒），同卷第 30 題的 kbps 也是。",
+      "tags": [
+        "mm.bitrate"
+      ],
+      "change": {
+        "kind": "editorial",
+        "note": "解析修正：說明 KB 的十進位與二進位定義、(B) 在十進位定義下也說得通，以及本站依官方答案評分",
+        "at": "2026-11-03"
+      }
+    },
+    {
+      "id": "moex-114-pukao-3448-q37",
+      "type": "single-choice",
+      "number": "37",
+      "stem": "有關數位影像（digital image）類型與影像檔案格式（file format）的敘述，下列何者錯誤？",
+      "options": [
+        "數位影像主要分成兩大類：點陣式（bitmap graphics）與向量式（vector graphics）",
+        ".JPG（Joint Photographic Experts Group）檔案是一種向量式影像",
+        ".PNG（Portable Network Graphic）是一種點陣式檔案格式",
+        ".EPS（Encapsulated PostScript）檔案可包含文字、向量圖形和點陣圖"
+      ],
+      "answer": "B",
+      "explanation": "JPG 是以像素記錄的點陣式影像格式，不是向量式。",
+      "tags": [
+        "mm.formats"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q38",
+      "type": "single-choice",
+      "number": "38",
+      "stem": "粒子系統（particle system）通常用於實現高度真實感之遊戲圖形，藉由控制發射器射出之粒子數量、大小與發射速度等參數，模擬某些特定現象，如雪、霧等，下列何者屬於粒子特效之範疇？",
+      "options": [
+        "玻璃杯反射光",
+        "燃燒之火焰",
+        "樹皮紋理",
+        "陽光照射之樹葉"
+      ],
+      "answer": "B",
+      "explanation": "粒子系統以大量小粒子模擬沒有固定形狀的現象，例如火焰、煙、雪與霧。反射光與光照屬於光照模型，樹皮紋理屬於紋理貼圖。",
+      "tags": [
+        "mm.graphics"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q39",
+      "type": "single-choice",
+      "number": "39",
+      "stem": "關於多媒體壓縮的敘述，下列何者正確？",
+      "options": [
+        "在不影響多媒體品質的情況下，最大化檔案大小",
+        "保持檔案大小不變的情況下，不影響多媒體品質",
+        "在不大幅降低多媒體品質的情況下，盡量減少檔案大小",
+        "在提高多媒體品質的情況下，可以增加檔案大小"
+      ],
+      "answer": "C",
+      "explanation": "壓縮的目的，是在不明顯降低品質的前提下，盡量減少檔案大小。",
+      "tags": [
+        "mm.compression"
+      ]
+    },
+    {
+      "id": "moex-114-pukao-3448-q40",
+      "type": "single-choice",
+      "number": "40",
+      "stem": "多媒體資料壓縮方法中，可使用可變長度編碼法（variable length encoding），例如霍夫曼編碼法（Huffmann coding），以降低下列何種類型的冗餘（redundancy）？",
+      "options": [
+        "編碼冗餘（coding redundancy）",
+        "像素間冗餘（interpixel redundancy）",
+        "視覺心理冗餘（psychovisual redundancy）",
+        "顯示冗餘（display redundancy）"
+      ],
+      "answer": "A",
+      "explanation": "可變長度編碼讓出現次數多的符號用較短的碼，降低的是編碼冗餘。像素間冗餘靠預測或轉換來降低，視覺心理冗餘靠量化（失真壓縮）。",
+      "tags": [
+        "mm.compression"
+      ]
+    }
+  ]
+}

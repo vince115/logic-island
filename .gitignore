@@ -35,3 +35,6 @@ pnpm-debug.log*
 *.blend
 *.blend1
 *.blend@
+
+# T.3J: the private question bank (a separate private repository; docs/exam-system/34)
+/private/

@@ -1,0 +1,16 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`CS region keeps the home page islands (M3.1) > trees and rocks of the four islands: what the new roads change 1`] = `
+{
+  "rocks": [
+    78,
+    78,
+    78,
+  ],
+  "trees": [
+    89,
+    89,
+    89,
+  ],
+}
+`;

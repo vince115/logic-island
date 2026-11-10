@@ -1,0 +1,23 @@
+# Logic Island — T.3H 建議的 CODEOWNERS（docs/exam-system/governance/BRANCH_PROTECTION_PROPOSAL.md）
+#
+# 這是提案，不是生效中的設定：GitHub 只讀 .github/CODEOWNERS、CODEOWNERS 或 docs/CODEOWNERS。
+# 人工確認後才把它複製到 .github/CODEOWNERS，並在分支保護規則勾選「Require review from Code Owners」。
+# 擁有者目前只有一位（儲存庫擁有者）；之後有第二位審核人時再加入，避免作者自己審自己。
+
+# 發布真實來源：帳本、已發布 Hash、評量清單、固定卷版本、固定卷定義
+/src/content/trials/ledger.json                 @vince115
+/src/content/trials/published-hashes.json       @vince115
+/src/content/trials/assessment-manifest.json    @vince115
+/src/content/trials/paper-versions.json         @vince115
+/src/content/trials/papers.ts                   @vince115
+/src/content/trials/generated/                  @vince115
+/src/content/trials/batches/                    @vince115
+
+# 決定能否發布、作答紀錄如何保存的程式
+/src/lib/trials/                                @vince115
+/src/content/trials/schema.ts                   @vince115
+/scripts/trials/                                @vince115
+
+# CI 與審核設定本身
+/.github/                                       @vince115
+/docs/exam-system/governance/                   @vince115

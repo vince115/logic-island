@@ -1,6 +1,31 @@
-import Link from 'next/link';
-import { ArrowRight, Play, Braces, Eye, Code2, MousePointer2, Route, ArrowUpRight } from 'lucide-react';
-import { courses } from '@/content/courses';
-import { CourseCard } from '@/components/course-card';
-import { Button } from '@/components/ui/button';
-export default function Home(){return <main id="main"><section className="hero container"><div className="hero-copy"><span className="release"><span/> 程式邏輯島 <span className="release-version">PHASE 01</span></span><h1>讓程式邏輯，<br/>在眼前<span className="accent">清楚起來。</span></h1><p className="hero-slogan">Think <span>·</span> Visualize <span>·</span> Code</p><p className="hero-description">不只記住程式碼，更要看懂它如何運作。<br/>透過一步一步的互動實驗，掌握資料結構與演算法。</p><div className="hero-actions"><Button asChild><Link href="/learn/array">開始學習 <ArrowRight size={16}/></Link></Button><Button asChild variant="outline"><Link href="/visualize/bubble-sort"><Play size={15}/> 體驗視覺化</Link></Button></div><div className="hero-languages"><span>用你熟悉的語言學習</span><code>C++</code><code>Python</code><code>Java</code></div></div><div className="hero-demo"><div className="demo-toolbar"><div className="window-dots"><i/><i/><i/></div><span>bubble-sort.visualize</span><span className="demo-status">互動預覽</span></div><div className="demo-body"><div className="demo-title"><span className="eyebrow">BUBBLE SORT</span><span>比較 → 交換 → 理解</span></div><div className="hero-bars">{[3,6,2,8,7,4].map((v,i)=><div key={i}><span style={{height:40+v*15,background:i===1||i===2?'var(--accent)':'var(--demo-bar)'}}>{v}</span><small>{i}</small></div>)}</div><div className="demo-explanation"><span>01</span><p>比較相鄰元素 <strong>6</strong> 與 <strong>2</strong><br/><small>左側較大，下一步交換兩個元素。</small></p></div><Link href="/visualize/bubble-sort" className="demo-play"><span><Play size={14} fill="currentColor"/> 開啟互動實驗</span><ArrowUpRight size={16}/></Link></div><div className="demo-code"><span>if</span> a[j] &gt; a[j + 1]:<br/>&nbsp;&nbsp;&nbsp; a[j], a[j + 1] = a[j + 1], a[j]</div></div></section><section className="feature-strip"><div className="container feature-grid">{[[Eye,'看見每一步','將抽象操作轉化成直覺圖解'],[MousePointer2,'親手做實驗','自由輸入、調速與逐步回放'],[Code2,'連結到程式碼','三種語言，對照同一個概念']].map(([Icon,title,desc])=>{const I=Icon as typeof Eye;return <div key={String(title)}><I size={22}/><section><h3>{String(title)}</h3><p>{String(desc)}</p></section></div>;})}</div></section><section className="container courses-section"><div className="section-heading"><div><span className="eyebrow">YOUR LEARNING PATH</span><h2>從第一個索引，到整張圖的探索。</h2><p>循序漸進的 6 個核心教材，每一個概念都有自己的實驗室。</p></div><Link className="text-link" href="/learn">完整學習路線 <ArrowRight size={16}/></Link></div><div className="course-grid">{courses.map((course,i)=><CourseCard key={course.slug} course={course} index={i}/>)}</div></section><section className="container approach"><div><span className="eyebrow">LEARN BY UNDERSTANDING</span><h2>先想清楚，再寫出來。</h2><p>準備 APCS、修習大學 DSA，或重新打穩工程基礎，<br/>都從理解資料如何移動開始。</p></div><div className="approach-steps"><div><Route/><span><strong>01 · Think</strong>讀懂概念與使用情境</span></div><div><Eye/><span><strong>02 · Visualize</strong>修改輸入，觀察每一步</span></div><div><Braces/><span><strong>03 · Code</strong>對照程式，建立自己的理解</span></div></div></section></main>;}
+import { courses, getCourse } from '@/content/courses';
+import { getLessonById } from '@/content/curriculum';
+import type { IslandId } from '@/content/curriculum/schema';
+import { UNITS } from '@/content/curriculum/units';
+import { databaseIsland, islands, labIsland } from '@/lib/islands/data';
+import { getIsland } from '@/content/world';
+import { lessonsOfIsland } from '@/content/world/catalog';
+import { IslandsWorldExplorer } from '@/components/islands/hex-world/islands-world-explorer';
+// The home page opens on the 3D archipelago (the explorer of /islands/candidate); only navigation metadata crosses the client boundary.
+// Phase F.2: 資料庫應用島 joins the map after 互動實驗島, so the four islands keep their numbers in the list. An island of
+// the Phase F plan opens lesson by lesson: the world registry says how many are written and where its syllabus is.
+const fromPlan=(id:string)=>{
+  const record=getIsland(id),anchor=record?.entryPoints.find(e=>e.target.startsWith('/curriculum#'))?.target;
+  return record&&anchor?{published:{open:lessonsOfIsland(id).filter(l=>l.lessonStatus==='complete').length,total:record.lessonCount},
+    curriculumHref:anchor as `/curriculum#${string}`}:{};
+};
+const learningIslands=[...islands,labIsland,databaseIsland].map(island=>({...island,...(island.id===databaseIsland.id?fromPlan(island.id):{}),lessons:island.courseSlugs.map(slug=>{
+  const course=getCourse(slug);
+  if(!course) throw new Error(`Unknown island course: ${slug}`);
+  return {slug:course.slug,title:course.title,subtitle:course.subtitle};
+}),
+// Each island is a subject area: its curriculum lessons by unit, shown when the island is chosen.
+units:UNITS[island.id as IslandId]?.map(unit=>({title:unit.title,summary:unit.summary,lessons:unit.lessonIds.map(id=>{
+  const lesson=getLessonById(id);
+  if(!lesson) throw new Error(`Unknown curriculum lesson: ${id}`);
+  return {id,slug:lesson.slug,title:lesson.title};
+})})),
+// 互動實驗島: the labs of /learn, grouped by course category in course order.
+labGroups:island.id===labIsland.id?[...new Set(courses.map(c=>c.category))].map(title=>({title,
+  labs:courses.filter(c=>c.category===title).map(c=>({slug:c.slug,title:c.title,subtitle:c.subtitle}))})):undefined}));
+export default function Home(){return <main id="main"><h1 className="visually-hidden">Logic Island 程式邏輯島</h1><div className="home-world"><IslandsWorldExplorer islands={learningIslands} layout="fullscreen"/></div></main>;}

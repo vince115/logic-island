@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Canvas, useThree } from '@react-three/fiber';
 import { Vector3 } from 'three';
 import type { IslandDefinition } from '@/lib/islands/types';
@@ -56,6 +57,7 @@ export default function IslandScene({islands,selectedId,onSelect,reducedMotion,o
   reducedMotion:boolean;onReady:()=>void;onUnavailable:()=>void;
 }) {
   const hovered=useRef<string|null>(null);
+  const router=useRouter();
   // Hover state is local to the canvas and does not affect course navigation.
   return <div className={styles.canvasWrap}>
     <Canvas orthographic frameloop="demand" dpr={[1,1.5]} shadows="soft"
@@ -72,15 +74,15 @@ export default function IslandScene({islands,selectedId,onSelect,reducedMotion,o
         shadow-camera-top={18} shadow-camera-bottom={-18} shadow-camera-far={65}
         shadow-normalBias={.07} shadow-bias={-.0002}/>
       <Sea/>
-      <IslandCollection islands={islands} selectedId={selectedId} onSelect={onSelect} onHover={id=>{hovered.current=id;}}/>
+      <IslandCollection islands={islands} selectedId={selectedId} onSelect={onSelect} onHover={id=>{hovered.current=id;}} onNavigate={href=>router.push(href)}/>
       <CameraController islands={islands} selectedId={selectedId} reducedMotion={reducedMotion}/>
     </Canvas>
   </div>;
 }
 
 import { useState } from 'react';
-function IslandCollection({islands,selectedId,onSelect,onHover}:{islands:IslandDefinition[];selectedId:string|null;onSelect:(id:string)=>void;onHover:(id:string|null)=>void}) {
+function IslandCollection({islands,selectedId,onSelect,onHover,onNavigate}:{islands:IslandDefinition[];selectedId:string|null;onSelect:(id:string)=>void;onHover:(id:string|null)=>void;onNavigate:(href:string)=>void}) {
   const [hovered,setHovered]=useState<string|null>(null);
   return <group>{islands.map(island=><Island key={island.id} island={island} selected={selectedId===island.id} hovered={hovered===island.id}
-    onSelect={onSelect} onHover={id=>{setHovered(id);onHover(id);}}/>)}</group>;
+    onSelect={onSelect} onHover={id=>{setHovered(id);onHover(id);}} onNavigate={onNavigate}/>)}</group>;
 }

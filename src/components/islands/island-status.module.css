@@ -1,0 +1,82 @@
+/* Phase F.2: an island's content status in its subjects panel (how many lessons are written), kept apart from the
+   learner's own progress line under it. Its own module so it does not touch islands.module.css. */
+.published {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* M3.1 (regional world prototype): an island of the plan with no written lesson says so in words, on its map label, in
+   the list and in its panel. Neutral, not the island accent, so it never reads as an open island. */
+.plannedTag {
+  display: inline-block;
+  margin-inline-end: .35em;
+  padding: .05em .45em;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-style: normal;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--muted);
+  background: var(--panel);
+  white-space: nowrap;
+}
+.plannedNote {
+  margin: .5rem 0 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* M3.1 map labels of planned islands: the name with its tag underneath (narrower than side by side), and on phones,
+   where labels are colored pins, a hollow pin instead of a filled one. */
+/* The map label is always white (islands.module.css styles each of its direct spans as the colored pin), so the stack
+   undoes the pin and the tag keeps fixed light colors in both themes. */
+.plannedLabel.plannedLabel > .plannedName {
+  display: grid;
+  justify-items: start;
+  gap: 1px;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: none;
+}
+.plannedName .plannedMapTag {
+  margin: 0;
+  padding: 0 .4em;
+  border-color: #d5dce6;
+  background: #eef1f5;
+  color: #5c6b83;
+  font-size: 11px;
+  line-height: 1.4;
+}
+@media (max-width: 700px) {
+  .plannedMapTag {
+    display: none;
+  }
+  .plannedLabel.plannedLabel > .plannedName {
+    width: 1px;
+    height: 1px;
+  }
+  .plannedLabel.plannedLabel > span:first-child {
+    background: var(--panel);
+    box-shadow: inset 0 0 0 3px var(--island-accent);
+  }
+}
+
+/* M3.1 regional world: a region map's pins are small on phones (the map is framed at about half the home map's zoom),
+   so each takes an invisible 44 × 44 px touch area centered on it; what it looks like does not change. */
+@media (max-width: 700px) {
+  .largeTarget {
+    position: relative;
+  }
+  .largeTarget::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}

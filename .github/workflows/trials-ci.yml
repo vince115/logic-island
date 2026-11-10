@@ -1,0 +1,168 @@
+# Shared Trial System T.2F: CI safety gates (docs/exam-system/22 §3).
+# Reads only: no step approves, publishes, deploys or pushes. Every gate that fails exits non-zero and fails the job.
+# T.3H (docs/exam-system/32 §8): the base commit is resolved first and fails closed; the base-comparing gates read the
+# copies it writes. pull_request_target is never used: no check here runs with secrets or write access.
+# T.3I (docs/exam-system/33): every action is pinned to a full commit SHA (the tag it was is in the comment; sources in
+# docs/exam-system/governance/ACTION_PINS.md). A base without the release files fails, except the one run
+# docs/exam-system/governance/ci-bootstrap.json declares, which runs trials:ci-bootstrap instead of the base comparison.
+# T.3J (docs/exam-system/34): the repository is public and holds published questions only. The unpublished ones are in
+# a private repository this workflow never checks out (no secret, no token): every gate here runs on the public bank.
+name: trials-ci
+
+on:
+  pull_request:
+  push:
+    branches: [main, 'trials/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trials-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: '1'
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      # Only the build and the server read these: the trial pages and the regional world exist only with them on, and
+      # the build and probe gates must check those pages. The tests set the flags themselves where they need them.
+      FLAGS: LOGIC_ISLAND_TRIALS=1 LOGIC_ISLAND_REGIONAL_WORLD=1
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # T.3F: the base commit's assessment manifest is read to prove the manifest only grew. T.3H: full history, or
+          # the base cannot be trusted (a shallow clone fails the base step).
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0; pnpm version from package.json "packageManager"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+          cache: pnpm
+      # The curriculum tests compile and run the Java, C++ and Python examples (g++ and python3 come with the runner).
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
+        with:
+          distribution: temurin
+          java-version: '25'
+      - run: pnpm install --frozen-lockfile
+      # T.3J: this job never has the private bank; if a checkout ever held one, its gates would not be the public ones.
+      - name: No private bank in this checkout
+        run: test ! -e private && test -z "${LOGIC_ISLAND_PRIVATE_BANK:-}"
+
+      # T.3H: a force-pushed branch's previous tip is not on any branch any more; fetch it by SHA so the base step can
+      # compare with it. If it cannot be fetched the base step fails: a rewritten history is never checked without it.
+      - name: Fetch the previous tip of a force-push
+        if: github.event_name == 'push' && github.event.forced
+        env:
+          BEFORE: ${{ github.event.before }}
+          REPO: ${{ github.server_url }}/${{ github.repository }}
+        run: git fetch --no-tags "$REPO" "$BEFORE" || echo "the previous tip $BEFORE could not be fetched"
+      - name: Resolve the base commit (fails closed)
+        id: base
+        run: pnpm -s trials:ci-base --json trials-ci-base.json --out-dir .trials-base --github-output "$GITHUB_OUTPUT"
+      # T.3I: only on the declared first run (mode=bootstrap). It checks the eligibility again itself and refuses
+      # anything else, so it is never a way around a base: ci-base has already failed the job when there is none.
+      - name: CI bootstrap (declared first run only)
+        if: steps.base.outputs.mode == 'bootstrap'
+        run: pnpm -s trials:ci-bootstrap --json trials-ci-bootstrap.json
+
+      - name: TypeScript
+        run: pnpm exec tsc --noEmit
+      - name: ESLint
+        run: pnpm lint
+
+      - name: Ledger integrity, published hash regression and unpublished exposure (tests)
+        # T.3J: the tests whose subjects are unpublished questions (lifecycle, ledger order, release gate and preflight
+        # drills, integrity guard, volatility) run with the private bank, in its own checkout; see docs/exam-system/34.
+        run: pnpm exec vitest run tests/trials-public-bank.test.ts tests/trials-exposure.test.ts tests/trials-fixed-papers.test.ts tests/trials-session-retention.test.ts tests/trials-attempt-history.test.ts tests/trials-quarantine.test.tsx tests/trials-paper-policy.test.ts tests/trials-ci-base.test.ts tests/trials-ci-bootstrap.test.ts tests/trials-ci-event-matrix.test.ts tests/trials-ci-workflow.test.ts tests/trials-ci-artifacts.test.ts tests/trials-cross-certification.test.ts tests/trials-historical-regression.test.ts
+      - name: Trials tests
+        run: pnpm exec vitest run tests/trials
+      - name: Full Vitest
+        # Two workers on the 4-core runner: the CPU-bound files (highlight, curriculum) must not starve each other.
+        run: pnpm exec vitest run --maxWorkers=2
+
+      # T.3F (docs/exam-system/30 §9): every revision against its recorded fingerprint (explanations included, legacy hash
+      # or not), and — when the base commit has a manifest — no recorded entry rewritten or dropped. Never repairs.
+      # T.3G: every fixed paper against its registered version (docs/exam-system/31 §6).
+      # T.3H: the copies come from the resolved base. T.3I: they must exist (mode=compare); only the declared bootstrap
+      # runs without them, after trials:ci-bootstrap has passed.
+      - name: Assessment integrity guard
+        env:
+          MODE: ${{ steps.base.outputs.mode }}
+          BASE_MANIFEST: ${{ steps.base.outputs.manifest }}
+          BASE_PAPERS: ${{ steps.base.outputs.paper-versions }}
+        run: |
+          if [ "$MODE" = bootstrap ]; then
+            pnpm trials:integrity --json trials-integrity.json
+          else
+            if [ "$MODE" != compare ] || [ -z "$BASE_MANIFEST" ] || [ -z "$BASE_PAPERS" ]; then echo "no base copies (mode $MODE)"; exit 1; fi
+            # T.3G: and no registered fixed paper version rewritten or dropped.
+            pnpm trials:integrity --json trials-integrity.json --base "$BASE_MANIFEST" --base-papers "$BASE_PAPERS"
+          fi
+      # T.3G (docs/exam-system/31 §9, §12): the ledger replayed event by event, its sequence and references, and — when the
+      # base commit has a ledger — every earlier record kept as it was, every new one sequenced after them. Never repairs.
+      - name: Ledger order and replay
+        env:
+          MODE: ${{ steps.base.outputs.mode }}
+          BASE_LEDGER: ${{ steps.base.outputs.ledger }}
+        run: |
+          if [ "$MODE" = bootstrap ]; then
+            pnpm trials:ledger --json trials-ledger.json
+          else
+            if [ "$MODE" != compare ] || [ -z "$BASE_LEDGER" ]; then echo "no base ledger (mode $MODE)"; exit 1; fi
+            pnpm trials:ledger --json trials-ledger.json --base "$BASE_LEDGER"
+          fi
+      # Offline: the register against the bank (no network; source availability is checked by hand with --check-sources).
+      - name: Version-sensitive questions (CCAR-F)
+        run: pnpm trials:volatility --exam ccarf --json trials-volatility-ccarf.json
+      - name: Release preflight (data)
+        run: pnpm -s trials:preflight --json > trials-preflight-data.json || { cat trials-preflight-data.json; exit 1; }
+      # T.3J: both banks are unpublished, so without the private bank these report "not run" (passed: null) and exit 0;
+      # the gate itself runs with the private bank.
+      # T.3E (docs/exam-system/29 §10): seeded, read-only draws over each bank as if published (in memory). CCAR-F must
+      # keep every hard rule, reach every question and put none on every paper; iPAS keeps its hard rules. The p99
+      # bound is loose on purpose (shared runners vary); the JSON reports are kept as artifacts.
+      - name: Quality gate (CCAR-F, 10,000 seeds)
+        run: pnpm trials:quality --exam ccarf --seeds 10000 --strict-utilization --max-p99-ms 50 --json quality-ccarf.json > /dev/null
+      - name: Quality gate (iPAS, 1,000 seeds)
+        run: pnpm trials:quality --exam ipas-aiap-basic --seeds 1000 --max-p99-ms 50 --json quality-ipas.json > /dev/null
+      - name: Keep the quality and integrity reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: trials-quality
+          # Ids, hashes, counts and dates only: no report holds question text, answers or explanations.
+          path: |
+            quality-*.json
+            trials-ci-base.json
+            trials-ci-bootstrap.json
+            trials-integrity.json
+            trials-ledger.json
+            trials-volatility-*.json
+            trials-preflight-*.json
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Production build (flags on)
+        run: env $FLAGS pnpm build
+      - name: Release preflight (client bundle and prerendered routes)
+        run: pnpm -s trials:preflight --build .next --json > trials-preflight-build.json || { cat trials-preflight-build.json; exit 1; }
+      - name: Release preflight (runtime route probe)
+        run: |
+          env $FLAGS pnpm start --hostname 127.0.0.1 --port 3119 > start.log 2>&1 &
+          trap 'kill %1 2>/dev/null || true' EXIT
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://127.0.0.1:3119/trials && break; sleep 1; done
+          pnpm -s trials:preflight --build .next --probe http://127.0.0.1:3119 --json > trials-preflight-probe.json || { cat trials-preflight-probe.json; exit 1; }
+      - name: Keep the preflight reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: trials-preflight
+          path: trials-preflight-*.json
+          if-no-files-found: ignore
+          retention-days: 14

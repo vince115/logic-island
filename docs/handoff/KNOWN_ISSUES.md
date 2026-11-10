@@ -6,7 +6,7 @@
 
 | ID | 問題／實際證據 | 影響 | 建議（本輪不修） |
 |---|---|---|---|
-| P0-01 | `src/components/islands/islands.module.css` 不存在，5 個引用；`evidence/actual-build.log` | 最新全站 production build 失敗；舊 .next 可誤導 | 取得下一個功能修復授權後，先確認缺失檔是否有外部副本，再修復原型樣式；不要臨時空白 CSS 當驗收成功 |
+| P0-01 | `src/components/islands/islands.module.css` 不存在，5 個引用；`evidence/actual-build.log` | 最新全站 production build 失敗；舊 .next 可誤導 | 取得下一個功能修復授權後，先確認缺失檔是否有外部副本，再修復原型樣式；不要臨時空白 CSS 當驗收成功。**2026-10-29：已解除，CSS 存在且 build 通過** |
 | P0-02 | 本次說 C.1 尚未批准，但 `basics-v2.1/` 與 MCP 開啟檔都證明已製作；Phase D 仍未批准 | Claude 可能重做／覆蓋模型，或誤把資產候選當整合授權 | 保留 v2 與 v2.1，請人工確認目前採用候選與 C.1 決策，D 保持凍結；見 IMPLEMENTATION_STATUS。**2026-10-29：C.1 已決議，v2.1 有條件批准為 D 候選；D 仍待批准開始，見 ROADMAP** |
 
 ## P1：接下來應優先處理
@@ -19,13 +19,50 @@
 | P1-04 | 81 個外部資產檔僅在 Codex 私有絕對路徑，模型／viewer 未在專案 public | 換機／換 agent 可能讀不到；先核對 inventory hashes，經批准複製候選及規格，再設 GLB 與源模型分流管理；本輪不搬 |
 | P1-05 | 原始嚴格共面檢查為 false，v2.1 仍有 113 組配對例外 | Validator 不測 Z-fighting；兩視角樣本不保證所有角度。依 Coplanar_Exceptions...逐區核對，不一律刪除合理端蓋 |
 | P1-06 | Blender addon 1.8／protocol 14，server 預期 15；MCP status 仍可回應 | Claude 的 MCP 設定／連線不會自動繼承；先 read-only 檢查，不擅自升級或重啟。get_format_items callback 是版本實作，不是穩定跨版 API |
-| P1-07 | Java 無 JDK；Web E2E 未跑；原型沒有 islands 測試；真實手機未測 | 目前單元成功不保證 hydration／WebGL／觸控。build 修復後再實測，工具／安裝需按新授權執行 |
-| P1-08 | 既有 R3F 原型是三座 local geometry，正式資產只有基礎島候選 | 原型≠Phase D。換 GLB 必須更新 registry union、尺度 bounds、光照、loading／fallback、node ID map、資源清理，不能直接替換路徑即完成 |
+| P1-07 | Java 無 JDK；Web E2E 未跑；原型沒有 islands 測試；真實手機未測 | 目前單元成功不保證 hydration／WebGL／觸控。build 修復後再實測，工具／安裝需按新授權執行。**2026-10-29（D.1）：Web E2E 已在隔離副本執行，新增 islands E2E；真機與 Java 仍未驗證，見 P1-11** |
+| P1-08 | 既有 R3F 原型是三座 local geometry，正式資產只有基礎島候選 | 原型≠Phase D。換 GLB 必須更新 registry union、尺度 bounds、光照、loading／fallback、node ID map、資源清理，不能直接替換路徑即完成。**2026-10-29（D.1）：基礎程式島已在分支改用 GLB（registry、bounds、fallback、節點名稱對照、clone 不 dispose 共用資源）；光照未調整，屬 D.2** |
+| P1-11 | 既有 `e2e/player.spec.ts` 3 個案例失敗：bfs 教材（desktop）「播放」按鈕不在 viewport；「播放中更換輸入」（desktop／mobile）找不到 `操作` 欄位。D.0 基線同樣失敗，與 D.1 無關 | 這套 E2E 先前從未執行過。需另案判斷是測試過時或播放器問題；不在 Phase D 範圍。**2026-10-30：D.2c-1／D.2c-2 不處理，維持獨立追蹤；兩輪全套 E2E 都是同樣 3 項失敗**；2026-11-02 E.5 整併後（`b52b8e9`）全套 E2E 仍是同樣 3 項，未處理 |
+| P1-12 | D.1 手機視窗（390 px）上「工坊 · 學習路線」與「碼頭」標籤互相靠近，碼頭可點範圍小（大多在 START 標記） | 標籤不攔截點擊，但目標小、易誤觸工坊。屬 D.2 鏡頭拉近／標籤避讓評估 |
+| P1-14 | drei `Html` 在同一個 Canvas 中第一個掛載的標籤，若之後沒有重新 render，內容會一直是空的（D.2a 開發時發現）。`/islands` 因 onReady 會 setState 而沒有遇到 | D.2a 的預覽也改成 onReady 時 setState。根本原因尚未查明；之後新增 Html 標籤時要確認第一個有內容 |
+| P1-15 | camera-controls 3.1.2 的 `fitToBox` 會把鏡頭轉到最近的軸向（`camera-controls.module.js:1627` 附近的 round to closest axis）。`/islands` 共用的 `camera-controller.tsx` 因此實際上接近正側視，不是等距視角 | D.2a 預覽改用獨立的 `hex-camera.tsx`（固定視角方向，用正交 zoom 框選），`/islands` 未修改。是否修正正式鏡頭屬 D.2b 以後 |
+| P1-16 | D.2b 試作：0.6 倍的 GLB 工坊（約 1.8×1.9）比一格六角地塊的有效面積大，只好把 pivot 往廣場方向推；GLB 建築細節多、用頂點色調色盤，另外兩島的暫代幾何與程式生成地塊較簡單、較鮮綠，風格不一致；碼頭甲板與地塊頂面同高，離水面約 0.85 | 屬視覺驗收與 D.2b 後續；可考慮六角專用縮放、地塊配色對齊 GLB 調色盤，或改用 Blender 六角組件（方案 B）。**2026-10-29（D.2b 第二階段）：工坊改跨兩格、碼頭改低岸（甲板高出水面約 0.32）、基礎程式島改用 GLB 粉彩配色；但另外兩島仍是鮮綠的六角柱，與基礎程式島風格不一致，粉彩草地在目前光照下偏灰** |
+| P1-17 | 尺度原型的 draw call 偏高（19 格 207、37 格 241，含陰影 pass），主要來自逐段道路與逐塊橋樑的獨立 mesh | 合併道路與橋樑為每座島一個 geometry，預估可減少約 100 個；屬尺度定案後的效能工作。**2026-10-29：37 格已改為道路合併 mesh 與 instanced 橋樑零件，241 → 80；19 格參考版與 A2 維持原樣** |
+| P1-18 | 37 格原型中，碼頭在 390 px 手機上太小，E2E 掃描找不到可點範圍（已在 `hex-scale.spec.ts` 標註略過） | 若選 37 格，需要擴大熱區、聚焦時拉近鏡頭，或在 DOM 加地點清單（同時解決 P1-13）。**2026-10-29：37 格原型已加透明碰撞代理（最小 1.6）與 HTML 地點入口，E2E 不再略過；正式 `/islands` 尚未採用** |
+| P1-19 | 全套 E2E 同時執行時，`islands.spec.ts` 手機版「燈塔與碼頭」偶發失敗；單獨重複 5 次為 70/70 | 3D 點擊位置受負載與鏡頭穩定時間影響；需要更穩定的等待條件，或改用 DOM 入口測試互動。2026-10-29 Scale Refinement 的全套執行中未再出現 |
+| P1-20 | headless Chromium 的 requestAnimationFrame 幀率在本機波動很大（同一份未改動的 19 格頁面兩次執行 33 → 12 fps），不能當作效能驗收依據 | 本輪以 draw call 與 GPU 同步的每幀時間作比較；實際幀率要在 D.3 用真機或非 headless 環境量測 |
+| P1-21 | D.2c-1 的 37 格原型在連續渲染時（鏡頭轉場、雙指縮放）幀率約為 D.2b 的 65%（桌機）與 74%（手機尺寸）。**D.2c-2（2026-10-30）已處理**：成本拆解顯示主因是每幀重畫陰影貼圖、83 棵樹的三角形與被海面蓋住的深海平面；改用靜態陰影貼圖、樹木 LOD 與深海外框後，SwiftShader 四個場景的 FPS 為 D.2b 的 105～116%，draw call 81 → 43。Apple M6 GPU 上三版都在 60 FPS 上限 | 仍未在真機量測（D.3，見 P1-25）。桌機鏡頭拉近到全景 1.5 倍以上時仍比 D.2b 慢約 3～5 ms，但桌機沒有滾輪縮放；手機各距離都不比 D.2b 差（×3 例外，約多 4 ms）。見 `logs/2026-10-30-d2c2-performance.md`。**D.3-5a（2026-10-30）起 37 格實驗室頁桌機可用滾輪縮放**（最近到最近聚焦 zoom 的 2 倍），上述拉近時的差距在實驗室頁可被觸及；候選頁與 `/islands` 仍沒有滾輪縮放 |
+| P1-22 | 開發模式（`next dev`）下，`/islands/hex/scale/*` 的 console 會出現 3 次 React「Attempted to synchronously unmount a root while React was already rendering」。D.2b 的開發模式同樣出現；production build 不會出現（E2E 的 console 檢查通過） | 來自 drei `Html` 在 StrictMode 重複掛載時的卸載時機，不影響功能；若要處理，需另外調查 drei `Html` 的掛載方式 |
+| P1-23 | 靜態陰影快取（D.2c-2）目前只適用於靜態場景：陰影貼圖只在「可見投影物件的 id 或世界座標」改變時重畫；只改旋轉、縮放、InstancedMesh 個別矩陣或太陽方向時不會更新 | 目前場景沒有會動的投影物件，E2E 檢查快取陰影與即時陰影逐像素相同。未來加入 NPC、動畫或其他移動物件前，需要陰影更新機制（例如物件移動時主動標記重畫，或動態物件改用每幀更新）；在那之前這類場景使用 `shadows: 'dynamic'` |
+| P1-24 | Tree LOD 門檻（裝置像素／世界單位 < 24，D.2c-2 驗收接受）D.3-1 起移到 `hex-scene-presets.ts` 的 `production` preset，已不綁 Explorer。啟用時（DPR 1 桌機全景、手機全景）樹冠放大 3 倍可看出切面較大，原尺寸幾乎看不出 | 下一步是隨 Phase E 移進島嶼 schema 的 `scene` 區塊（渲染預算），讓不同世界可各自設定 |
+| P1-25 | 實體手機的 GPU、觸控與 FPS 尚未驗收：D.2c-1／D.2c-2 的效能數字來自 headless Chromium（SwiftShader 與 Apple M6 Metal）與 iPhone 13 模擬，不代表真機 GPU | 保留至 D.3-4（需另行批准）：在真機量測全景、聚焦與雙指縮放的 FPS，並驗收觸控操作。量測規格與門檻草案（待驗收，未通過）見 `logs/2026-10-30-d3-3-preflight.md` §6。**2026-10-30 D.3-4 準備完成**：真機量測工具 `perf/device/`（Mac 上的 proxy，不改應用程式）與驗收表 [DEVICE_ACCEPTANCE](DEVICE_ACCEPTANCE.md)；尚未在任何實體裝置執行，**未通過**。**2026-10-30 決定**：D.3-4 分為 D.3-4A 自動化驗收（Automated Acceptance Passed，限已執行項目）與 D.3-4B 真機效能驗收；iOS Safari／Screen Reader Not Verified；標準測試機為 iPhone SE（第 3 代，最低效能基準）、iPhone 16、中階 Android（Chrome）；B 目前 **Not Measured**，不阻擋其他階段，正式切換仍需另行批准 |
+| P1-26 | D.3-0 基準：軟體算圖（SwiftShader）下，37 格世界的鏡頭飛行 FPS 低於正式 `/islands`（桌機 38 對 60，手機模擬 57 對 60），首幀晚約 0.6 秒。正式版每幀 258 個 draw call（主畫面＋陰影）但像素便宜，37 格只有 43 個但三角形與填滿像素較多。Apple M6 GPU 上兩者都是 60 FPS | 這是 D.3-3 切換前必須讓產品決定的差距；真機 GPU 上 draw call 成本較重，結果可能不同，需 D.3-4 真機量測（P1-25）。見 `logs/2026-10-30-d3-0-baseline.md` |
+| P1-27 | 兩版地圖的 canvas 都設 `touch-action: none`（`islands.module.css` `.canvasWrap canvas`），手機上單指在地圖上滑動可能不會捲動頁面；地圖在手機上佔大半個畫面。另外 camera-controls 連接時也會把 R3F 外層 div（名牌也在裡面）設成 `none`，只改 CSS 無效 | 現況記錄，未在真機確認：D.3-4 驗收表 T-06 記錄實際行為與是否造成困擾。**2026-10-30 決定方案 B**：單指水平旋轉、垂直捲動頁面、雙指縮放、觸控時仰角固定。**D.3-5a 已在 37 格實驗室頁實作**（外層 div 與 canvas 改 `pan-y`，在控制器連接後寫回）：Chromium iPhone 13 模擬中垂直滑動會捲頁、水平滑動只旋轉；**iOS Safari 未驗證，需真機確認**。候選頁與 `/islands` 不變（仍是 `none`），推進候選頁屬 D.3-5c，需另行批准 |
+| P1-28 | 鏡頭飛行的第一幀會跳一大段（2026-10-30 D.3-5b 驗證時發現，**既有行為**）：`frameloop="demand"` 下 R3F 的 `delta` 是距離上一個「有畫的」幀的時間，閒置後第一幀的 `delta` 很大，camera-controls 的平滑一次走掉大半。實驗室頁從轉開約 90° 的全景按「返回全景」，第一幀方位就從 −56.3° 跳到 −14.9°；加不加自動旋轉都一樣。候選頁與 `/islands` 的飛行同樣經過 drei `CameraControls`，第一幀也會大步（距離與 zoom 同理） | 與 D.3-5b 無關，本輪不改（會改變候選頁與正式頁的飛行）。可能做法：飛行開始時讓第一幀的時間差以一幀計（例如自行呼叫 `controls.update` 並限制 delta），需另行批准並以飛行 FPS 與畫面比對驗收。證據：`logs/2026-10-30-d3-5b-auto-orbit.md` §3 |
+| P1-29 | 靜態陰影在載入後的第一個互動幀常會多重畫一次（2026-10-31 D.3-6a 驗證時發現，**既有行為**）：`StaticShadows` 在 `useFrame` 裡、也就是 `gl.render` 更新世界矩陣之前，記下可見投影物件的 id 與位置；GLB 部件掛載的那一幀記下的是尚未更新的矩陣，下一個真正畫出的幀看到正確位置，判斷為「投影物件改變」而再畫一次陰影。37 格實驗室頁在 `57364a2` 與 D.3-6a 都一樣：載入穩定後第一次互動多 1 次陰影 pass，之後 0；是否發生取決於掛載後是否已有其他幀。陰影結果正確，只是多畫一次 | D.3-6a 原樣搬移 `StaticShadows`，本輪不改（純重構不改變陰影 pass 次數）。影響 D.3-6b 的驗收方式：量「切換情境只重畫一次陰影」前要先讓頁面畫過一幀。可能做法：判斷鍵改用本地變換或在 render 之後記錄，需另行批准。證據：`logs/2026-10-31-d3-6a-environment.md` §3.5 |
+| P1-30 | D.3-6a 效能判定 **Inconclusive（輕微）**（2026-10-31）：與 `57364a2` 比較，draw call、三角形、陰影 pass、shader 數量與畫面都相同，鏡頭飛行與環繞 FPS 未觀察到可穩定重現的下降；但在緊密配對測試中，**桌機 A2 預覽（`/islands/hex`）的首幀**仍有 +108 ms（+9.2%、8 對中 6 對較慢）的未確認訊號，手機與 19 格沒有。chunk 數量與大小不變（16 個、+0.1%），新程式每幀 ≤ 0.006 ms，找不到對應的程式路徑；量測期間另有其他工作階段的 GPU 基準測試佔用 CPU。全部是 SwiftShader 模擬 | 不阻擋 D.3-6b。後續：候選頁整合的 Level 3 驗收時在較安靜的機器上以配對方式重量首幀（A2 預覽與候選頁各 ≥ 12 對）；D.3-4B 真機一併記錄首幀，若同方向再做定向 profiling。證據：`logs/2026-10-31-d3-6a-environment.md` §6 |
+| P1-31 | **已修正（2026-10-31）**：`hex-environment` 的「黃昏與傍晚時地圖標題的文字對比至少 4.5:1」E2E 間歇失敗（修正前桌機 20 次失敗 3 次，每次都是 1.33:1）。原因是**測試的等待條件不完整**：E2E 一律以 reduced motion 執行，`globals.css` 此時對所有元素設定 `transition-duration: .01ms`（`transition-property` 預設為 all），所以切換情境時標題本身與其中的 `span`、`strong` 各自有一個顏色轉場；測試只等待標題本身的 `getAnimations()` 結束，標題內 `strong`（繼承顏色）的轉場尚未開始時就讀取，讀到前一個情境的深色文字。產品沒有缺陷：穩定後的顏色符合 4.5:1，轉場只在 reduced motion 下存在且只有一幀 | 改為等待 `getAnimations({ subtree: true })` 為 0（標題與其內所有文字的轉場都結束），門檻與判斷不變。修正後同一測試桌機 20／20、再加桌機＋手機 40／40 通過；完整實驗室頁 E2E 79 passed。證據：TESTING_STATUS「dusk-contrast E2E flake 修正」 |
+| P1-32 | 候選頁「自動旋轉預設關閉…分頁隱藏都會停止」E2E 在機器高負載時 30 秒逾時（2026-10-31 E.2 驗收時，負載約 9～30）。同一測試在 E.2 之前的 `5c43f98` 建置上、同樣狀態下也是 6／6 失敗，較安靜時（D.3-7a、E.1 重跑）通過；E.2 未修改 3D 或候選頁程式 | 負載相依的既有問題，不影響產品。可能做法：檢查這項測試的步驟是否可以拆短，或為它設定較長的 timeout（如同一檔案中的拖曳測試）；屬 Phase D 測試，需另行處理。證據：`logs/2026-10-31-e2-foundations.md` §6。2026-10-31 E.3 全套 E2E（負載約 3）中通過 |
+| P1-33 | E.3 資料結構視覺化的已知限制（2026-10-31）：圖以圓形排列節點，教材中的圖 ≤ 8 個頂點；更大的圖（演算法島）邊會交錯，需要另一種排版。「自己試試」涵蓋 9 種結構（沒有圖與 map）。雜湊視覺化使用教學用的示意雜湊（整數 mod m、字元碼總和 mod m），與各語言實際的雜湊函數與表大小不同（正文已說明）。堆積的 pop 呈現教科書的下沉，Python `heapq` 內部做法不同（相同元素的排列可能不同，正文已說明） | 不影響 E.3 驗收。E.4／E.5 若使用較大的圖，先為 `GraphView` 加入分層或力導向排版；新增結構的「自己試試」時沿用 `simulate.ts` 並補 `tests/simulate.test.ts`。**2026-11-01 E.4 補充**：演算法島的圖（6～8 個節點，例如 A16 的 Dijkstra）在圓形排列下也可能有邊線交錯、權重標籤靠近其他邊；鄰接串列與距離表的文字仍完整正確。「用自己的輸入執行」的圖演算法只能換起點，不能改圖 |
+| P1-34 | Phase E.5（2026-11-02）後的語意落差：`/learn` 改為「互動實驗島」（六個 Lab；2026-11-02 定名，原稱互動實驗室），但基礎程式島的 GLB Workshop 點擊目標（`asset-registry.ts` 的 `Building_Workshop` route）與正式 `/islands` 清單的 `catalogEntry`（「瀏覽學習路線」）仍指向 `/learn`，文字寫「學習路線」卻開啟實驗室。首頁不受影響（基礎程式島在首頁顯示科目面板） | 依 E.5 授權範圍未修改 GLB 契約與正式 `/islands`。後續需決定：Workshop 改指向 `/curriculum`（需更新 `GlbTargetAction` 型別、node contract 文件與 `islands`／`islands-candidate`／`hex-world`／`hex-scale` 的 E2E 期望），或保留 `/learn` 並把標籤改成「互動實驗島」。相關：P1-09 |
+| P1-13 | 燈塔／碼頭說明只能透過 3D 點擊觸發，鍵盤與螢幕閱讀器無對應入口 | 教材入口（工坊→`/learn`）在側欄有等價連結；說明內容屬補充資訊。若要完整等價，需在側欄或清單補說明，屬後續決定 |
 | P1-09 | 原型基礎島 catalogEntry=/learn；Blender Workshop metadata route=/learn | 不存在「基礎程式島專屬課程」路由。人工確認 lighthouse／learn／entry 的產品行為，不能自創教材或錯導所有點擊 |
 | P1-10 | .gitignore 不排除 .env*、沒有二進位策略 | 當前無秘密 env 檔，但未來建立 Git 前要審查 ignore／LFS／來源歸屬；不要把1.2G node_modules、298M .next 或整個 Codex folder 放入版控 |
 
 ## P2：可延後但需有記錄
 
+- （2026-11-03，M3.1 Regional World prototype，**正式上線前必須解決**）手機區域總覽的最小島寬：CS 73 px、AI 85 px，目標 88 px（iPhone 13 的地圖舞台只有 390×434）。
+  - 使用者暫時接受 44 px 觸控區、清單導覽與島嶼聚焦作為 prototype 的替代方案，**不算通過**。
+  - 沒有為了達標而壓縮島距或破壞橋。
+  - 其他已知觀察：
+    - 桌機 CS 與手機都用了非預設的方位角，聚焦時鄰島可能出現在前景；
+    - 手機聚焦時，科目面板約佔一半畫面。
+  - 見 `logs/2026-11-03-m3-1-regional-world-prototype.md`。
+
+- （2026-11-02，資料庫應用島 3D 整合）首頁的資料庫應用島使用程式產生的過渡地標（Transitional Art），不是 Blender 管線的正式美術，也沒有 GLB 的地點互動；正式 GLB 需另行授權（節點名稱已預留於 `src/lib/islands/database-island.ts`）。聚焦任何島時，左側科目面板會蓋到島的西側（既有取景，鏡頭只扣除右側清單的寬度）。
+- （2026-11-02，Phase F.1d）資料庫應用島的已知限制：驅動程式範例的 Java 只編譯不執行（沒有 SQLite JDBC 驅動程式，頁面註明）；ORM、連線池、遷移工具與 PostgreSQL／MySQL 的權限、分割語法只以標明的文字呈現；`architecture-diagram` 是固定架構圖加確定性教學模擬，不是自由繪圖；DB18 以 SQLite 的 JSON 與遞迴 CTE 模擬各種資料模型。F.1c 記錄的「DB14 SQL 轉帳練習分不出有沒有交易邊界」**已於 F.1d 解決**（當機一致性檢查，`cef3604`）。
+- （2026-11-02，Phase F.1d）SQL 課程頁帶著全部資料集的定義（用來顯示資料表結構），F.1d 加入 `auth`、`documents` 後 SQL 課程 +3.2 KB（gzip）；程式課程不受影響（E2E 檢查）。資料集再增加時，可改為依課程的資料集分開載入。
+- ~~（2026-11-02，Phase F.1b 發現）程式碼測試偶爾卡住~~ **已於 Phase F.1c 修正（`tests/support/run-program.ts`）。** F.1b 記錄的原因「沒有測資的範例繼承 Vitest 的標準輸入」是錯的：原本的執行器一律以 `input` 傳入測資（沒有測資時是空字串），子行程拿到的是自己的管線，實測立即收到 EOF。真正的原因（F.1c 重現）：測資經由管線寫給子行程，多個測試並行時，讀取全部標準輸入的程式（`readFileSync(0)`）偶爾等不到輸入結束；A08 的 400 KB 測資在 8 個並行 worker、4,000 次執行中卡住 6 次。執行又是同步呼叫、沒有逾時，Vitest 自己的測試逾時無法中斷它，所以整個測試一直等待。修正：測資改寫入暫存檔、以檔案作為子行程的標準輸入（沒有測資時是 `/dev/null`），每次執行有逾時（20 秒，編譯 90 秒），逾時以 SIGKILL 結束子行程，stderr 改為擷取。修正後同樣的壓力測試 4,000 次 0 次卡住；完整 Vitest 不再需要 `< /dev/null`。
+- （2026-11-02，Phase F.1b）`sql.js` 執行 `ALTER TABLE … ADD COLUMN` 帶 `CHECK`（或空表上不帶預設值的 `NOT NULL`）時，會多回傳一個空的結果表（欄名是 SQLite 內部的檢查運算式）；練習場會顯示這個表。DB07 的範例避開了這種寫法；如要處理，可在 `runSql` 過濾欄名以 `CASE WHEN quick_check` 開頭的結果。
 - `src/lib/engine.ts` 的共用 Input、slug 分支、Step codeKey 與 `courses.ts` marker 關聯偏鬆；新增教材需同步變更多處。引擎結果測試不等於 code highlight 正確性測試。
 - Source TSX 多數壓成極長行，增加跨 AI 修改衝突；格式整理應另案，不能與教材／3D 整合混成無法審查的大變更。
 - README 的最後 Phase 2 建議落後目前檔案；本輪保留原文、交接文件註明時效，日後經授權再同步。
@@ -33,6 +70,10 @@
 - 正式模型根節點契約有意義，但輔助 Terrain.001／Vegetation.001 等因來源場景保留帶 suffix；程式以 role／interaction_id 與穩定主節點操作，不依賴自動 suffix。
 - 草地／岩層／屋頂仍有人工美術例外，未做 LOD1／LOD2、AO atlas、鏡頭遠近全角度驗收。不要在人工已接受風格後無限精修。
 - 手機全島縮圖不能逐字讀 START 或 </>；應由未來可存取 UI／縮放補足。圖片不是已完成教材 UI 的證明。
+- D.3-6b（2026-10-31，實驗室頁）：黃昏與傍晚為了對比給地圖標題加了底板；手機全景下底板曾蓋住基礎程式島燈塔一帶，**D.3-6c 已修正**（手機黃昏／傍晚只留中文標題、貼左上角；只保證預設全景，旋轉或縮放後仍可能與地圖內容重疊）。低太陽陰影的 bias 與解析度只在 SwiftShader 截圖檢查過，真機待 D.3-4B。
+- D.3-7a（2026-10-31，候選頁）：手機的提示與按鈕改在地圖下方一列（不再蓋住地圖下緣），頁面因此高 93 px；地圖上下仍各有約 100 px 海面，是相機對 380 px 高地圖的取景，未改（改高度或取景需另行授權並重做 3D A/B）。手機或拼接截圖中「跳至主要內容」出現在地圖上是截圖 artifact（Chromium 擷取比 viewport 高的畫面時，把畫面外的 fixed 連結排在 scrollY − 80），實際畫面不會出現；截圖時以 `style` 選項隱藏或先捲回頂端。
+- D.3-5c／D.3-6d（2026-10-31，候選頁）：單欄版面（≤ 780 px）地圖標題移到地圖上方，旋轉、縮放、飛行後都不會蓋到島嶼；桌機（> 780 px）標題仍在地圖上，名牌永遠在它之上、它也不擋點擊，但放大或旋轉後可能在視覺上蓋住部分地形。候選頁的滑鼠滾輪在地圖上縮放而不捲頁（D.3-5 的決定）。觸控只有 Chromium 模擬，iOS Safari 待 D.3-4B。
+- D.3-6c（2026-10-31，實驗室頁）：傍晚暖光只讓燈與窗本身變亮，不照亮周圍（不加光源與 Bloom 的取捨）。GLB 的 `LLv2_Warm_Emission` 實為白色發光，暖色來自場景端的顏色倍率；工坊窗戶與 GLB 的 `Route_LampGlow` 不發光或未放入六角世界，要改需動 GLB 或場景配置。
 - 單島 21／24 主 pass draw calls 不含正式多島、陰影與後處理成本；不能直接乘島數宣稱可跑。原型自身也沒有 profile 數據。
 
 ## 跨 Agent 交接控制

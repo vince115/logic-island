@@ -1,0 +1,444 @@
+/* Phase F.1b: ER diagrams and the ER builder (er-diagram.tsx, er-builder.tsx), normalization steps and workbench (normalization*.tsx). */
+.erFigure {
+  margin: 12px 0 0;
+  min-width: 0;
+}
+.erScroll {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+}
+.erSvg {
+  display: block;
+  max-width: none;
+  font-size: 13px;
+}
+.erEntity rect {
+  fill: var(--soft);
+  stroke: var(--text);
+  stroke-width: 1.4;
+}
+.erEntity .erInner {
+  fill: none;
+}
+.erEntity path {
+  stroke: var(--border-strong);
+}
+.erName {
+  fill: var(--text);
+  font-weight: 700;
+}
+.erAttr,
+.erKey,
+.erPartialKey {
+  fill: var(--text);
+}
+.erKey {
+  font-weight: 700;
+  text-decoration: underline;
+}
+.erPartialKey {
+  font-weight: 700;
+  text-decoration: underline dashed;
+}
+.erLine,
+.erIdentifying {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 1.4;
+}
+.erIdentifying {
+  stroke-width: 3;
+}
+.erEnd path {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 1.4;
+}
+.erHollow {
+  fill: var(--panel);
+  stroke: var(--text);
+  stroke-width: 1.4;
+}
+.erLabel {
+  fill: var(--accent-ink);
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: var(--panel);
+  stroke-width: 5px;
+  stroke-linejoin: round;
+}
+.erText {
+  margin-top: 8px;
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  color: var(--muted);
+}
+.erText ul {
+  margin: 4px 0 0;
+  padding-left: 20px;
+}
+.erEmpty {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.erLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+.erLegend span {
+  display: inline-block;
+  min-width: 1.6em;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* The builder and the normalization workbench: one card per term or part. */
+.builder {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  padding: 14px;
+  min-width: 0;
+}
+.terms {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 10px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.term {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--soft);
+  min-width: 0;
+}
+.term[data-ok='true'] {
+  border-color: var(--cur-ok);
+}
+.term[data-ok='false'] {
+  border-color: var(--cur-bad);
+}
+.term legend,
+.termName {
+  padding: 0 4px;
+  font-weight: 700;
+}
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  font-size: var(--text-sm);
+}
+.row select {
+  max-width: 100%;
+  padding: 4px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+}
+.row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.feedback {
+  margin: 0;
+  color: var(--cur-bad);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+.results {
+  margin: 10px 0 0;
+  padding-left: 20px;
+  font-size: var(--text-sm);
+  line-height: 1.7;
+}
+.verdict {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 0;
+  font-weight: 700;
+}
+.verdict[data-ok='true'] {
+  color: var(--cur-ok);
+}
+.verdict[data-ok='false'] {
+  color: var(--cur-bad);
+}
+
+/* Normalization: dependencies, attribute pickers and per-part analysis. */
+.fds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.fds li {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--soft);
+  font: var(--text-sm)/1.6 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 6px 0 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.picker legend {
+  padding: 0;
+  margin-bottom: 4px;
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+.picker label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: var(--text-sm)/1.6 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.analysis {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  line-height: 1.7;
+}
+.analysis code {
+  white-space: normal;
+}
+.badge {
+  display: inline-block;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: var(--text-xs);
+  background: var(--soft);
+  border: 1px solid var(--border-strong);
+}
+.badge[data-ok='true'] {
+  border-color: var(--cur-ok);
+  color: var(--cur-ok);
+}
+.badge[data-ok='false'] {
+  border-color: var(--cur-bad);
+  color: var(--cur-bad);
+}
+.steps {
+  display: grid;
+  gap: 12px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.step {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  min-width: 0;
+}
+.step h4 {
+  margin: 0;
+  font-size: var(--text-base);
+}
+.parts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.part {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--soft);
+  min-width: 0;
+}
+.part strong {
+  font: var(--text-sm)/1.6 ui-monospace, SFMono-Regular, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
+/* Phase F.1c: inputs, the B+ tree explorer (bplus-explorer.tsx) and the transaction timelines (txn-explorer.tsx). */
+.wideInput,
+.numInput {
+  padding: 4px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font: var(--text-sm)/1.6 ui-monospace, SFMono-Regular, Consolas, monospace;
+  min-width: 0;
+}
+.wideInput {
+  flex: 1 1 220px;
+}
+.numInput {
+  width: 6em;
+}
+.treeScroll {
+  overflow-x: auto;
+  margin-top: 10px;
+}
+.tree,
+.treeRow {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tree > li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+.treeLevel {
+  flex: 0 0 4.5em;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+.treeRow {
+  display: flex;
+  gap: 10px;
+}
+.treeNode {
+  display: flex;
+  align-items: center;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--soft);
+  font: var(--text-sm)/1.6 ui-monospace, SFMono-Regular, Consolas, monospace;
+  white-space: nowrap;
+}
+.treeNode > span {
+  padding: 2px 8px;
+}
+.treeNode > span + span:not(.treeNext) {
+  border-left: 1px solid var(--border);
+}
+.treeNode[data-leaf='true'] {
+  border-style: dashed;
+}
+.treeNode[data-visited='true'] {
+  border-color: var(--accent);
+  border-style: solid;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.treeNode span[data-hit='true'] {
+  background: color-mix(in srgb, var(--cur-ok) 22%, transparent);
+  font-weight: 700;
+}
+.treeNext {
+  color: var(--muted);
+}
+.tableScroll {
+  overflow-x: auto;
+  margin-top: 8px;
+}
+.timeline {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.timeline th,
+.timeline td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+.timeline tr[data-current='true'] {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.timeline tr[data-future='true'] {
+  opacity: 0.45;
+}
+.timeline td[data-result='wait'],
+.timeline td[data-result='aborted'],
+.timeline td[data-result='rejected'],
+.timeline td[data-result='error'] {
+  color: var(--cur-bad);
+}
+.stateGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.stateGrid > div {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--soft);
+  font-size: var(--text-sm);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Phase F.1d: round-trip sequences (sequence-explorer.tsx) and the system topology (ops-explorer.tsx). */
+.sequence {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding-left: 1.6em;
+  font-size: var(--text-sm);
+}
+.sequence li {
+  display: grid;
+  grid-template-columns: minmax(0, 9em) minmax(0, 1fr);
+  gap: 2px 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--soft);
+  overflow-wrap: anywhere;
+}
+.sequence li > .help {
+  grid-column: 2;
+}
+.seqArrow {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+.topoBox {
+  fill: var(--soft);
+  stroke: var(--text);
+  stroke-width: 1.4;
+}
+.topoDashed {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 1.4;
+  stroke-dasharray: 6 4;
+}
+.topoHead {
+  fill: var(--text);
+}

@@ -1,0 +1,16 @@
+{
+ "format": "logic-island.trials-ci-bootstrap-declaration/1",
+ "repository": "vince115/logic-island",
+ "branch": "trials/mvp",
+ "defaultBranch": "main",
+ "base": "f45c8670eff6a42ca678d738d3637609b90e992c",
+ "anchor": "1c0f7e1ae1d1f6d2d4aa63ef5e778ebad4fe06ff",
+ "files": {
+  "manifest": "3c7231b52adba54e84a48b360e8b6e51fa5f7bd37825ca9e26d3159980b0657a",
+  "paper-versions": "3a780596db35506c20ea4039ec2fb63269d978fa8a7b199f6d7fd40aa40f85f2",
+  "ledger": "ddb90189c9f95d7056f01155fa73b712ed22d84bc34f60e5d9b616d479ae037a",
+  "published-hashes": "55fe3cc5cf8f2ee0aae0c8334950f0639ffd152379ff3cbaac0a2be060ee7320"
+ },
+ "declaredAt": "2026-11-10",
+ "note": "T.3I (docs/exam-system/33 §3): the one CI run allowed to start without a base holding the release files — the first push of trials/mvp, or a pull request from it into main — and the release files it must hold, byte for byte. Prepared by engineering; the repository owner reviews this file before the first push. It is not a human approval of any question."
+}

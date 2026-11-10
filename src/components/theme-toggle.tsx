@@ -1,6 +1,15 @@
 'use client';
-import { Moon, Sun } from 'lucide-react';
-import { useSyncExternalStore } from 'react';
+import { Moon, Sun, Sunrise, Sunset } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-const subscribe=(callback:()=>void)=>{window.addEventListener('theme-change',callback);return()=>window.removeEventListener('theme-change',callback);};
-export function ThemeToggle(){const dark=useSyncExternalStore(subscribe,()=>document.documentElement.dataset.theme==='dark',()=>false);return <Button size="icon" variant="ghost" aria-label={dark?'切換淺色模式':'切換深色模式'} onClick={()=>{const theme=dark?'light':'dark';document.documentElement.dataset.theme=theme;try{localStorage.setItem('logiclab-theme',theme);}catch{}window.dispatchEvent(new Event('theme-change'));}}>{dark?<Sun size={19}/>:<Moon size={19}/>}</Button>;}
+import { SITE_TIMES, SITE_TIME_LABELS, setSiteTime, useSiteTime, type SiteTime } from '@/lib/site-time';
+
+const ICONS: Record<SiteTime, typeof Sun> = { morning: Sunrise, noon: Sun, sunset: Sunset, dusk: Moon };
+
+/** The light / dark switch, now four times of day: 清晨、中午、黃昏 are light, 傍晚 is dark (src/lib/site-time.ts). */
+export function ThemeToggle(){
+  const time=useSiteTime();
+  const next=SITE_TIMES[(SITE_TIMES.indexOf(time)+1)%SITE_TIMES.length];
+  const Icon=ICONS[time];
+  return <Button size="icon" variant="ghost" aria-label={`時間：${SITE_TIME_LABELS[time]}（按一下切換到${SITE_TIME_LABELS[next]}）`} title={`${SITE_TIME_LABELS[time]} → ${SITE_TIME_LABELS[next]}`}
+    onClick={()=>setSiteTime(next)}><Icon size={19}/></Button>;
+}
