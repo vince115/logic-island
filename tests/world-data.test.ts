@@ -25,6 +25,19 @@ const full = (world: HexWorld) => ({
 });
 
 describe('world data fingerprints (D.3-0)', () => {
+  it('T.3J: the rounding hides last-bit noise only; moving any one number by 1e-5 changes the fingerprint', () => {
+    const data = JSON.parse(JSON.stringify(islandsWorld.natural)) as unknown;
+    const floats: number[] = [];
+    JSON.stringify(data, (_k, v) => { if (typeof v === 'number' && !Number.isInteger(v)) floats.push(v); return v; });
+    expect(floats.length).toBeGreaterThan(100);
+    const nudge = (at: number, by: number) => { let i = 0; return JSON.parse(JSON.stringify(data), (_k, v) => typeof v === 'number' && !Number.isInteger(v) && i++ === at ? v + by : v); };
+    const base = fingerprint(data);
+    for (const at of [0, Math.floor(floats.length / 2), floats.length - 1]) {
+      expect(fingerprint(nudge(at, 1e-5)), `number ${at}`).not.toBe(base);
+      expect(fingerprint(nudge(at, Math.abs(floats[at]) * 2 ** -52)), `number ${at}`).toBe(base);
+    }
+  });
+
   it('A2 preview world (/islands/hex)', () => {
     expect(fingerprint(full(hexWorld))).toBe('80953dfc6e6476ce');
     expect(fingerprint(hexGlbSettlements)).toBe('03b72b60ef89015e');
@@ -46,7 +59,12 @@ describe('world data fingerprints (D.3-0)', () => {
     expect(fingerprint({ ...scalePrototypes['37'], variant: undefined })).toBe(fingerprint(p));
     expect(fingerprint(p.world)).toBe('20a880c9e412947e');
     expect(fingerprint(p.glb)).toBe('f34b217050267a21');
-    expect(fingerprint(p.natural)).toBe('63188173624e0fcd');
+    // T.3J: the nature placement hashes with fract(sin(·) × 43758.5453), which turns a last-bit difference of sin
+    // between platforms into a different placement, so each platform keeps its own exact value (taken at cb5ac56; the
+    // linux-x64 one from GitHub Actions run 42829136596). A world change changes both; a new platform must add its own.
+    const NATURAL: Record<string, string> = { 'darwin-arm64': '63188173624e0fcd', 'linux-x64': '6c5895f2b08d3974' };
+    expect(NATURAL[`${process.platform}-${process.arch}`], `no natural fingerprint for ${process.platform}-${process.arch}`).toBeDefined();
+    expect(fingerprint(p.natural)).toBe(NATURAL[`${process.platform}-${process.arch}`]);
     expect(fingerprint(naturalTerrains(p.world))).toBe('0142d9efea22ef4f');
     expect(fingerprint(seaGrid(p.world))).toBe('8d7d1c7994621db9');
     expect(fingerprint(roadProfiles(p.world))).toBe('0209a3f6b59f88ea');

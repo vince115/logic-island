@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { publicBatches } from '@/content/trials/generated';
 import { hasPrivateBank, privateBatches } from '@/content/trials/private-bank';
@@ -12,6 +12,7 @@ import { ROOT } from './ledger-io';
  *
  *   leak-scan.ts                         every file git tracks in this checkout (as it is on disk)
  *   leak-scan.ts --history <range>       every blob and commit message reachable in a git range (e.g. origin/main..HEAD)
+ *   leak-scan.ts --dir <path>            every file under a folder (a build's .next, downloaded CI artifacts)
  *   leak-scan.ts ... --json report.json
  *
  * A hit is a run of at least K characters (whitespace and case ignored) of a private question's stem, options,
@@ -49,8 +50,17 @@ const binary = (b: Buffer) => b.subarray(0, 8000).includes(0);
 
 const hits: Hit[] = [];
 let scanned = 0;
-const range = opt('--history');
-if (range) {
+const range = opt('--history'), dir = opt('--dir');
+if (dir) {
+  for (const rel of readdirSync(dir, { recursive: true, encoding: 'utf8' })) {
+    let body: Buffer;
+    try { body = readFileSync(path.join(dir, rel)); } catch { continue; } // a folder
+    if (binary(body)) continue;
+    scanned++;
+    const h = scan(rel, body.toString('utf8'));
+    if (h) hits.push(h);
+  }
+} else if (range) {
   // Every blob reachable in the range (each path it was seen at), and every commit message.
   const objects = execFileSync('git', ['rev-list', '--objects', range], { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 30 }).trim().split('\n').filter(Boolean);
   const commits = execFileSync('git', ['rev-list', range], { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 30 }).trim().split('\n').filter(Boolean);
@@ -77,8 +87,8 @@ if (range) {
 }
 
 const json = opt('--json');
-if (json) writeFileSync(json, `${JSON.stringify({ format: 'logic-island.trials-leak-scan/1', range: range ?? 'working tree', needles: needles.size, privateQuestions: ids.length, scanned, ok: !hits.length, hits }, null, 1)}\n`);
-console.log(`leak scan (${range ?? 'tracked files'}): ${scanned} texts against ${needles.size} fragments of ${ids.length} private questions`);
+if (json) writeFileSync(json, `${JSON.stringify({ format: 'logic-island.trials-leak-scan/1', range: dir ?? range ?? 'working tree', needles: needles.size, privateQuestions: ids.length, scanned, ok: !hits.length, hits }, null, 1)}\n`);
+console.log(`leak scan (${dir ?? range ?? 'tracked files'}): ${scanned} texts against ${needles.size} fragments of ${ids.length} private questions`);
 for (const h of hits) console.log(`- ${h.path}: ${h.text} text fragment(s), ${h.answerLines} answer line(s); ${h.questions.join(', ')}`);
 console.log(hits.length ? `LEAK: ${hits.length} file(s) hold private question content` : 'clean: no private question content found');
 process.exit(hits.length ? 1 : 0);
