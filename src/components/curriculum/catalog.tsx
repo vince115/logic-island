@@ -57,6 +57,7 @@ export function CurriculumCatalog() {
     </dl>
     <IslandProgress name="全部課程" lessonIds={lessons.filter(l => l.lessonStatus === 'complete').map(l => l.lessonId)} completeText={`${lessons.length} 堂課全部完成！`}/>
     <h2 id="region-cs" className={`${overview.heading} ${overview.regionHeading}`}>{cs.name}<span>{cs.nameEn} · 已開放的主題島</span></h2>
+    <Link href="/regions/cs" className={overview.regionLink}>{cs.name}總覽<ArrowRight size={13} aria-hidden/></Link>
     <RegionExams region="cs"/>
     <div className={overview.grid}>{islands.map(island => {
       const own = lessons.filter(l => l.islandId === island.id), card = previews[island.id];

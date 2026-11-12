@@ -111,7 +111,9 @@ export function courseTree(): NavGroup[] {
         children: g.islandIds.map(id => islandNode(list.find(i => i.id === id)!)) })),
       ...list.filter(i => !grouped.has(i.id)).map(islandNode),
     ];
-    return { id: `c:r:${region.id}`, kind: 'region' as const, label: region.name, hint: regionHint(region.id), children };
+    // R6: the region's overview comes first, so /regions/<id> opens and highlights its own region.
+    const overview: NavLeaf = { id: `c:r:${region.id}:overview`, label: '群島總覽', href: `/regions/${region.id}` };
+    return { id: `c:r:${region.id}`, kind: 'region' as const, label: region.name, hint: regionHint(region.id), children: [overview, ...children] };
   });
 }
 
@@ -133,6 +135,6 @@ export function lessonPlace(lessonId: string) {
   if (!lesson) return undefined;
   const island = curriculumIslands.find(i => i.id === lesson.islandId)!;
   const region = orderedRegions.find(r => r.id === getIsland(island.id)?.regionId)!;
-  return { region: { id: region.id, name: region.name }, regionHref: `/curriculum#region-${region.id}`, island,
+  return { region: { id: region.id, name: region.name }, regionHref: `/regions/${region.id}`, island,
     level: DIFFICULTY_LABELS[lesson.difficulty as Difficulty], islandHref: `/curriculum#island-${island.id}` };
 }

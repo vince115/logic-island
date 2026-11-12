@@ -15,8 +15,12 @@ import { paperVersionsAppendOnly, type PaperVersions } from './paper-versions';
  * A bootstrap is allowed only when every one of these holds (bootstrapEligibility):
  *   - the base was resolved and trusted (resolveBase): a missing, shallow or unrelated base never becomes a bootstrap;
  *   - the declaration (BOOTSTRAP_DECLARATION, in the pushed commit) is well formed;
- *   - the event is the declared one: the first push of the declared branch in the declared repository, or a pull
- *     request from that branch into the default branch;
+ *   - the event is the declared one: the first push of the declared branch in the declared repository, a pull
+ *     request from that branch into the default branch, or (R5, 2026-11-12) the push that lands it on the default
+ *     branch — not forced, its previous tip exactly the declared base. Merging the declared pull request sends that push,
+ *     and its previous tip is the base with no release file; without this case the default branch's first run after the
+ *     merge failed closed. It can match once: afterwards the default branch holds the release files, every later push
+ *     has a trusted base and is compared with it, and the files must still be the declared ones byte for byte;
  *   - the resolved base is exactly the declared base, and holds none of the release files (a base that holds any of
  *     them is a trusted base and is compared with; one that holds some of them is never a bootstrap);
  *   - the declared anchor is in the history of the head, and holds the release files byte for byte as declared;
@@ -90,9 +94,13 @@ export function bootstrapEligibility(event: CiEvent, resolution: BaseResolution,
   // event `repository` is the base repository, so only head.repo says where the head comes from.
   const pullRequest = event.name === 'pull_request' && p.pull_request?.head?.ref === d.branch && p.pull_request?.head?.repo?.full_name === d.repository
     && p.pull_request?.base?.ref === d.defaultBranch && (resolution.strategy === 'pull-request-base' || resolution.strategy === 'pull-request-merge-base');
-  check('event', repo === d.repository && p.repository?.default_branch === d.defaultBranch && (firstPush || pullRequest),
+  // R5: the merge (or fast-forward) of the declared branch onto the default branch. A force-push resolves to
+  // 'force-push-before' and is never this; a push whose previous tip is anything but the declared base is never this.
+  const landing = event.name === 'push' && p.ref === `refs/heads/${d.defaultBranch}` && !p.forced && p.before === d.base && resolution.strategy === 'push-before';
+  check('event', repo === d.repository && p.repository?.default_branch === d.defaultBranch && (firstPush || pullRequest || landing),
     `${event.name} in ${repo ?? '(no repository)'}${event.name === 'push' ? ` to ${p.ref ?? '(no ref)'}, before ${p.before ?? '(none)'}` : ''}: `
-    + (firstPush || pullRequest ? 'the declared first run' : `only the first push of ${d.branch} or a pull request from it (in ${d.repository}, not a fork) into ${d.defaultBranch}, in ${d.repository}`));
+    + (firstPush || pullRequest ? 'the declared first run' : landing ? `the push that lands ${d.branch} on ${d.defaultBranch}, from the declared base`
+      : `only the first push of ${d.branch}, a pull request from it (in ${d.repository}, not a fork) into ${d.defaultBranch}, or the push that lands it on ${d.defaultBranch} from the declared base, in ${d.repository}`));
   check('base', base === d.base, base === d.base ? `the resolved base is the declared base ${d.base}` : `the resolved base ${base} is not the declared base ${d.base}`);
   const holds = baseHolds(git, base);
   check('base-without-release-files', holds.state === 'none', holds.state === 'none' ? 'the base holds no release file: nothing to compare with'

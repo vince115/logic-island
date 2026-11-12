@@ -51,7 +51,7 @@ export function WorldOverview({ regions, unmapped = [], hub, trials }: { regions
           <span><small>{r.nameEn}</small><strong>{r.name}</strong><em>{regionDetail(r)}</em></span><ArrowRight size={16}/>
         </Link>{trials && <RegionTrials regionId={r.id} regionName={r.name} entries={trials[r.id]}/>}</li>)}
         {unmapped.map(r => <li key={r.id} className={styles.guideRegion}>
-          <Link href={`/curriculum#region-${r.id}`} className={styles.guideEntry} style={{ '--region-accent': 'var(--muted)' } as React.CSSProperties}>
+          <Link href={`/regions/${r.id}`} className={styles.guideEntry} style={{ '--region-accent': 'var(--muted)' } as React.CSSProperties}>
             <span><small>{r.nameEn}</small><strong>{r.name}</strong><em><span className={status.plannedTag}>規劃中</span> {r.islands} 座主題島 · {r.lessons} 堂大綱 · 尚無 3D 地圖</em></span><ArrowRight size={16}/>
           </Link>
         </li>)}

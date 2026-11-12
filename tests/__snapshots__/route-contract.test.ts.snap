@@ -98,6 +98,13 @@ exports[`route contract (multi-archipelago v2) > generates the same pages in the
     "queue",
     "stack",
   ],
+  "regions/[region]": [
+    "ai",
+    "cs",
+    "design",
+    "sys",
+    "web",
+  ],
   "trials/[exam]": [],
   "trials/[exam]/[paper]": [],
   "trials/[exam]/[paper]/result": [],
@@ -202,6 +209,13 @@ exports[`route contract (multi-archipelago v2) > generates the same pages with b
     "linux-terminal",
     "queue",
     "stack",
+  ],
+  "regions/[region]": [
+    "ai",
+    "cs",
+    "design",
+    "sys",
+    "web",
   ],
   "trials/[exam]": [
     "apcs",

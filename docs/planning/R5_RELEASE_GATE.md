@@ -24,7 +24,17 @@ main f45c867 ─(6)→ trials/mvp 4cbe587 ─(11)→ archipelago/v2 034e9c6
 | GitHub Actions | `trials-ci` 只讀（`permissions: contents: read`），不部署 | `.github/workflows/trials-ci.yml` |
 | Vercel 帳號 | CLI 登入的 scope（另一個帳號）沒有 logic-island 專案；`vince115s-projects` scope 未授權讀取，**尚未確認** | `vercel project list`；MCP 403 |
 
+**補充證據（2026-11-12 R5 後段）**：每個 commit（含 `main` 的 `f45c867`、`trials/mvp`、PR #1）都有 `vercel`、`travis-ci`、`claude` 三個 GitHub App 的 check suite，代表 **Vercel GitHub App 已安裝且有權存取本 repository**；但 `vercel` suite 一律 `queued`、0 個 check run，repository 從未有 deployment 或 commit status（Travis 沒有 `.travis.yml`）。這與「App 已安裝、但沒有 Vercel 專案連到本 repo」一致，**也與**「有專案連結但關閉 Git 部署或以 Ignored Build Step 略過」一致，所以仍不足以排除正式部署。缺少的唯一證據：`vince115s-projects` 中是否有專案的 Git repository 是 `vince115/logic-island`，以及其 Production Branch 與 Git 部署設定。
+
 **結論**：沒有任何證據顯示這個 repository 接了 Git 自動部署（Vercel 的 Git 整合會在每次 push 產生 GitHub deployment 與 status，這裡一次都沒有）。但 `vince115s-projects` 的 Vercel 設定**尚未確認**，因此不能斷言合併 `main` 不會更新正式網站。合併前請確認該 scope 沒有連到 `vince115/logic-island` 的專案（或其 Production Branch 不是 `main`）。
+
+## 2a. 部署確認（使用者建立 Vercel 專案後）
+
+- Vercel 專案 `vince115s-projects/logic-island` 以 Git 連到 `vince115/logic-island`：`main` 的 `f45c867` 有 Vercel commit status `success`，正式網址 https://logic-island-psi.vercel.app 顯示的是 `f45c867` 的舊首頁（學習路線、演算法視覺化）。
+- PR #2（`trials/mvp` → `main`）觸發 Vercel **Preview**：`c721e52` 建置成功；preview 網址受 Vercel Authentication 保護（302 到 SSO），無法匿名 smoke。
+- 因此合併到 `main` **會**觸發 Production Deployment；使用者已明確授權將通過 Release Gate 的新版部署到正式站。
+- 3D 首頁、GLB（`public/models/islands/basics-island.v2.1.glb`）與 80 堂課只在 `trials/mvp` 與 `archipelago/v2`，不在 `main`：正式站顯示舊版是因為 `main` 還停在 Phase C.1，不是 Three.js／GLB 錯誤。
+- 正式建置沒有設 `LOGIC_ISLAND_TRIALS`／`LOGIC_ISLAND_REGIONAL_WORLD`：`/trials`、`/world` 為 404；Vercel 建置環境沒有 `private/`。
 
 ## 3. 兩段 diff 的內容與風險（R5c）
 
@@ -61,20 +71,24 @@ main f45c867 ─(6)→ trials/mvp 4cbe587 ─(11)→ archipelago/v2 034e9c6
 - T.3J `leak-scan --history origin/main..origin/archipelago/v2`（在含私人題庫的 `logic-island-t3j` 唯讀執行；350 題、18,220 片段；含 commit 訊息）：**乾淨**。旗標建置的 `.next`：**乾淨**。
 - 附帶發現：遠端舊分支 `phase-d/basics-glb`（`c316fe0`，2026-11-01）有 41 個 commit 在 private-history 清單上——清單收的是整條原始歷史，這段早於考試系統，tree 中沒有任何 trials 路徑，leak-scan 乾淨。不是外洩；它不在合併路徑上。
 
-## 5. CI 的已知限制（需決定，未修改）
+## 5. CI：合併到 main 的那一次 push（已修正）
 
-依 `src/lib/trials/ci-bootstrap.ts`：沒有發布檔案的 base 只在「`trials/mvp` 第一次 push」或「從 `trials/mvp` 到 `main` 的 PR」可走 bootstrap。
+依原本的 `src/lib/trials/ci-bootstrap.ts`，沒有發布檔案的 base 只在「`trials/mvp` 第一次 push」或「從 `trials/mvp` 到 `main` 的 PR」可走 bootstrap；PR 合併後 `main` 的 push（前一個 tip 是 `f45c867`）不在其中，會 fail closed。
 
-- PR `trials/mvp` → `main`：bootstrap，可以通過。
-- **合併後 `main` 的 push 事件**：前一個 tip 是 `f45c867`（沒有發布檔案），又不是宣告的事件 → `ci-base` **fail closed，這一次 `main` 的 CI 會是紅的**。之後的 push 就有發布檔案，恢復 compare。
-- 處理方式（擇一，需使用者決定，屬 CI 治理變更）：(a) 接受這一次紅燈並在 handoff 記錄；(b) 在合併前更新 `ci-bootstrap.json`／`ci-bootstrap.ts`，把「含 anchor 的第一次 `main` push」列入宣告事件（要經 T.3I 的審查）。
+使用者選擇修正宣告規則（不接受一次紅燈）。`trials/mvp` 的 `c721e52`：
+
+- 事件新增 landing：push 到 `refs/heads/main`、非 force、`before` 正好是宣告的 base、策略 `push-before`。其餘條件（base 為宣告值且沒有發布檔案、anchor 在歷史中、anchor 與 head 的發布檔案與宣告逐位元組相同）不變，bootstrap 檢查與之後所有 gate 照跑。
+- 只能命中一次：之後 `main` 有發布檔案，每次 push 都是 compare。
+- 回歸測試：event matrix 新增 8 列；拿掉修正時兩列 landing 失敗。含私人題庫的完整 Vitest 87 檔 2150 通過。
+- 端到端預演（暫存 clone，本機把 `trials/mvp` merge commit 到 `main`）：`ci-base` 得到 `push-before`／base `f45c867`／bootstrap；`ci-bootstrap` 11 項全部 PASS；同一個 push 標成 forced 時被拒絕。說明見 `docs/exam-system/33` 末節。
+- `archipelago/v2` 以 merge commit 併入（`b7e3127`），未 rebase。
 
 ## 6. 兩階段合併計畫（R5d）
 
 前置：PR #1 CI 全綠（不把 pending／skipped 當通過）；§2 的 Vercel scope 確認。
 
 1. **階段一**：開 PR `trials/mvp` → `main`（CI 為宣告的 bootstrap）。用 **Create a merge commit**（或本機 `git merge --ff-only` 後一般 push）。**不要 squash、不要 rebase**：兩者都會產生新 SHA，`archipelago/v2` 就不再是 `main` 的後代，PR #1 會出現重複變更，T.3J 的 anchor 驗證與 leak-scan 範圍也要重做。
-2. 合併後 `main` 的 push CI 依 §5 處理。
+2. 合併後 `main` 的 push CI 走 §5 的 landing bootstrap，必須全綠。
 3. **階段二**：把 PR #1 的 base 從 `trials/mvp` 改成 `main`（`gh pr edit 1 --base main`）。因為 `trials/mvp` 已在 `main` 裡，PR 只剩 11 個 commit，不需要 rebase 或 force push；CI 以 `main` 為 base（有發布檔案）走 compare。轉為 ready、CI 綠燈後同樣用 merge commit 合併。
 4. 兩個階段都不需要 force push；`archipelago/v2`、`trials/mvp` 合併後保留（repository 未開啟自動刪分支）。
 
@@ -95,3 +109,13 @@ main f45c867 ─(6)→ trials/mvp 4cbe587 ─(11)→ archipelago/v2 034e9c6
 - **使用者資料**：反轉不會刪除瀏覽器裡的 `logic-island.*` key；`main` 原本只讀 `logiclab-theme`，舊程式忽略新 key，不會出錯。
 - **部署**（若 §2 確認有）：用平台的 rollback／promote 回前一個 production deployment，比重新建置快；之後再提交 revert。
 - **題庫**：兩段都沒有改發布帳本與 manifest，rollback 不涉及題目撤回。
+
+## 9. 閘門狀態（2026-11-12 08:00 UTC）
+
+| 條件 | 狀態 |
+|---|---|
+| CI：`trials/mvp` `c721e52`、PR #1 `1df9d30` | 執行中（`034e9c6`、`ea2e28f` 的 PR CI 全綠） |
+| 洩漏掃描 `origin/main..origin/archipelago/v2`（673 段文字＋commit 訊息） | 乾淨；私人歷史 commit 0 |
+| PR #1 差異 | 14 個 commit＝原 11 個＋R5 的 2 個文件與 1 個 `trials/mvp` merge commit |
+| 本機 smoke（`1df9d30` 預設建置，即兩次合併後 `main` 的樹） | build 通過；`/`、`/curriculum`、`/learn`、7 個實驗、`/islands`、課程頁 200；`/trials`、`/world`、規劃中實驗 404；`/visualize*` 308；navigation＋player E2E 38 通過 |
+| 部署影響 | **已確認**（§2a）：使用者已授權正式部署 |

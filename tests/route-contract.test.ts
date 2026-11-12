@@ -1,3 +1,5 @@
+import { readdirSync } from 'node:fs';
+import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 /*
@@ -11,6 +13,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const PAGES = {
   'curriculum/[slug]': () => import('../src/app/curriculum/[slug]/page'),
   'learn/[slug]': () => import('../src/app/learn/[slug]/page'),
+  // R6: the four region overviews.
+  'regions/[region]': () => import('../src/app/regions/[region]/page'),
   'world/[region]': () => import('../src/app/world/[region]/page'),
   'trials/[exam]': () => import('../src/app/trials/[exam]/page'),
   'trials/[exam]/[paper]': () => import('../src/app/trials/[exam]/[paper]/page'),
@@ -40,5 +44,18 @@ describe('route contract (multi-archipelago v2)', () => {
     vi.stubEnv('LOGIC_ISLAND_TRIALS', '1');
     vi.stubEnv('LOGIC_ISLAND_REGIONAL_WORLD', '1');
     expect(await routes()).toMatchSnapshot();
+  });
+});
+
+// R6: a dynamic route left out of PAGES escapes the contract (it happened once: /regions/[region] first passed unseen).
+describe('route contract coverage', () => {
+  it('lists every dynamic page of src/app', () => {
+    const app = path.join(__dirname, '../src/app'), found: string[] = [];
+    const walk = (dir: string) => { for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) walk(p); else if (e.name === 'page.tsx' && /\[/.test(path.relative(app, dir))) found.push(path.relative(app, dir).split(path.sep).join('/'));
+    } };
+    walk(app);
+    expect(found.sort()).toEqual(Object.keys(PAGES).sort());
   });
 });
