@@ -50,7 +50,7 @@
 
 ## P2：可延後但需有記錄
 
-- （2026-11-12，多群島 v2 P4 量測）全站 `--muted` 文字色在淺色主題的白色面板上對比只有 **4.19：1**（`#6d7d94` on `#ffffff`），一般文字未達 WCAG AA 4.5；深色主題 `#9aaec9` on `#172131` 為 7.14。以 `src/lib/contrast.ts` 計算。未修改（屬全站樣式，需另案）；色彩與無障礙實驗室自己的通過／未通過色已另設並通過 AA。
+- （2026-11-12，多群島 v2 P4 量測）全站 `--muted` 文字色在淺色主題的白色面板上對比只有 **4.19：1**（`#6d7d94` on `#ffffff`），一般文字未達 WCAG AA 4.5；深色主題 `#9aaec9` on `#172131` 為 7.14。以 `src/lib/contrast.ts` 計算。色彩與無障礙實驗室自己的通過／未通過色已另設並通過 AA。**2026-11-12（R2b）已修正**：淺色 `--muted` 改為 `#5b6b82`（白 5.43、`--bg` 5.20、`--soft` 4.86、`--cell` 4.60、hover 底 4.70，與 `--text` 仍有 2.62 倍層次差）；深色不變（5.33～7.94）；程式碼行號 `#7389a7`→`#7d91ae`（4.44→4.95／深色 5.63）；側欄規劃中課程與 `/learn` 規劃中卡片原本用 `opacity` 變淡（實際約 2.9：1），改為虛線標記、文字保持 AA；工具實驗卡右上的狀態字（NEW／規劃中）原本沿用 `.course-number` 的 `--border-strong`（約 1.8：1），改用 `--muted`。停用按鈕的 `opacity`（WCAG 1.4.3 對停用元件豁免）與 `.course-number`（裝飾性編號，`--border-strong`）未改。
 - （2026-11-12，多群島 v2）`archipelago/v2` 以公開線 `origin/trials/mvp` 為基底，cherry-pick 本機側欄 commit；本機 `trials/mvp` 上的 `f241639`（350 題以結構檢查發布、自由練習卷）**不在**此分支，公開題庫的 iPAS／CCAR-F 仍無試卷。是否與如何公開這些題目屬發布政策決定，見 `docs/planning/P5_EXAM_ENGINE_INTEGRATION.md` §4。
 
 - （2026-11-03，M3.1 Regional World prototype，**正式上線前必須解決**）手機區域總覽的最小島寬：CS 73 px、AI 85 px，目標 88 px（iPhone 13 的地圖舞台只有 390×434）。

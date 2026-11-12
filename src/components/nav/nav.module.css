@@ -113,7 +113,7 @@ a.leaf:hover { background: var(--soft); color: var(--text); }
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   box-shadow: inset 3px 0 var(--accent-ink, var(--accent));
 }
-.leaf[data-disabled] { cursor: default; opacity: .7; }
+.leaf[data-disabled] { cursor: default; border-left: 2px dashed var(--border-strong); padding-left: 6px; border-radius: 0 7px 7px 0; }
 .leafLabel { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .leafNote { font-size: var(--text-xs); white-space: nowrap; }
 .code { flex: none; font: var(--text-xs) ui-monospace, monospace; color: var(--muted); min-width: 30px; }
