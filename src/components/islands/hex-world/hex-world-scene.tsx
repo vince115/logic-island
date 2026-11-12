@@ -9,7 +9,7 @@ import { tileTop } from '@/lib/islands/hex-terrain';
 import { WATER_LEVEL, settlementFrames, worldCenter, type HexWorld } from '@/lib/islands/hex-world';
 import { ENVIRONMENTS, PREVIEW_NOON, type EnvironmentId } from '@/lib/islands/environments';
 import type { IslandDefinition } from '@/lib/islands/types';
-import { HexCamera, VIEW, viewAt, type CameraView } from './hex-camera';
+import { HexCamera, VIEW, viewAt, type CameraView, type StageRoom } from './hex-camera';
 import { HexTiles, WATER_Y } from './hex-tiles';
 import { HexTerrainMesh, type TerrainStyle } from './hex-terrain-mesh';
 import { HexBridges, HexRoads } from './hex-routes';
@@ -76,6 +76,13 @@ export interface HexSceneOptions {
   mapControls?: boolean;
   /** P8.2 (D4, proposal for the lattice region maps): each planned island's survey marker carries a pennant in the island's accent. */
   plannedMarkers?: boolean;
+  /**
+   * P8.3 (regional world, phones): the room (px) the map needs at its top and bottom on a single-column screen, where
+   * the caption sits above the map and the controls below it, so nothing but the pins needs room. The explorer adds
+   * the height of a sheet over the map's lower part, so a focused island is framed above it. Wide screens and every
+   * explorer that does not set this keep the camera's own allowances.
+   */
+  phoneRoom?: { top: number; bottom: number };
 }
 type CaptionSide='left'|'right'|'above'|'below';
 /**
@@ -140,7 +147,7 @@ function Lifecycle({label,onReady,onUnavailable}:{label:string;onReady:()=>void;
   return null;
 }
 
-export default function HexWorldScene({world,islands,selectedId,onSelect,onNavigate,reducedMotion,onReady,onUnavailable,options={},infoNode,onInfoChange,label,resetKey,onViewChange,orbit,onOrbitStop,environmentId='noon',insetRight=0,baseAzimuth=0,onResetRequest}:{
+export default function HexWorldScene({world,islands,selectedId,onSelect,onNavigate,reducedMotion,onReady,onUnavailable,options={},infoNode,onInfoChange,label,resetKey,onViewChange,orbit,onOrbitStop,environmentId='noon',insetRight=0,baseAzimuth=0,onResetRequest,room}:{
   world:HexWorld;islands:IslandDefinition[];selectedId:string|null;onSelect:(id:string)=>void;
   reducedMotion:boolean;onReady:()=>void;onUnavailable:()=>void;options?:HexSceneOptions;
   /** Controlled info bubble of the focused settlement, shared with the HTML target list. */
@@ -162,6 +169,8 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
   baseAzimuth?:number;
   /** P8.2 (`mapControls`): the keyboard asked for the overview (0 or Home). */
   onResetRequest?:()=>void;
+  /** P8.3 (`phoneRoom`): the room the camera keeps at the stage's top and bottom right now. */
+  room?:StageRoom;
 }) {
   const glbLayouts=options.glbLayouts??hexGlbSettlements,continuousOcean=options.ocean==='continuous'||options.ocean==='natural';
   const environment=options.lighting!=='contrast'?PREVIEW_NOON:ENVIRONMENTS[options.timeOfDay?environmentId:'noon'];
@@ -250,7 +259,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
       </group></GlowProvider>
       <HexCamera frames={frames} selectedId={selectedId} reducedMotion={reducedMotion} fit={fit}
         free={free} resetKey={resetKey} onViewChange={free?viewChange:undefined} orbit={free&&orbit} onOrbitStop={free?onOrbitStop:undefined} insetRight={insetRight} view={base}
-        pan={free&&options.mapControls} onResetRequest={onResetRequest}/>
+        pan={free&&options.mapControls} onResetRequest={onResetRequest} room={room}/>
     </Canvas>
   </div>;
 }

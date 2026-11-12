@@ -108,12 +108,57 @@
   color: var(--muted);
 }
 
-/* The overview's labels: a large, easy target hanging off its outline on the side the world map names (data-side).
-   The scene gives each one the point it hangs from; the transform puts the label on the far side of that point. */
+/* P8.3: what the map draws between the outlines, in words, with a swatch of each kind of link. */
+.guideLinks {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  font-size: var(--text-xs);
+}
+.guideLinks strong { font-size: var(--text-sm); }
+.guideLinks ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.guideLinks li {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 8px;
+  align-items: start;
+  color: var(--muted);
+}
+.guideLinks b {
+  margin-right: 6px;
+  color: var(--text);
+  font-weight: 650;
+}
+/* The swatch repeats the map's own cue: an unbroken deck for the hub's link, planks for a relation bridge. On the sea's
+   color, so the pale deck shows in the light and the dark theme alike. */
+.guideLinks i {
+  height: 12px;
+  margin-top: 3px;
+  border-radius: 3px;
+  background: linear-gradient(var(--link-hub), var(--link-hub)) center / 22px 4px no-repeat, #7cc3e0;
+}
+.guideLinks li[data-link='relation'] i {
+  background: repeating-linear-gradient(90deg, var(--link-relation) 0 5px, transparent 5px 7px) center / 22px 4px no-repeat, #7cc3e0;
+}
+.guideLinks p {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* The overview's labels: a large, easy target beside its outline. The scene measures each one and gives it its place
+   (its top-left corner), clear of the other labels, the islands and the links; data-side says which side it took. */
 .overviewLabel {
   position: absolute;
   z-index: 2;
-  transform: translate(-50%, 0);
   display: grid;
   gap: 2px;
   min-width: 44px;
@@ -128,38 +173,39 @@
   white-space: nowrap;
   box-shadow: 0 6px 18px #13233d24;
 }
-.overviewLabel[data-side='above'] { transform: translate(-50%, -100%); }
-.overviewLabel[data-side='left'] { transform: translate(-100%, -50%); }
-.overviewLabel[data-side='right'] { transform: translate(0, -50%); }
 .overviewLabel strong { font-size: var(--text-md); }
 .overviewLabel small { font-size: var(--text-xs); color: var(--muted); }
-.overviewBrief { display: none; }
 .overviewLabel[data-hovered='true'],
 .overviewLabel:hover,
 .overviewLabel:focus-visible { border-color: var(--region-accent); }
 .overviewLabel:focus-visible { outline: 3px solid var(--region-accent); outline-offset: 2px; }
-/* Phones: one short line (the name and how many islands); the full counts are in the guide below the map. The label
-   stays a 44 px touch target: its box is shorter, and the area around it (::before) makes up the rest. */
-@media (max-width: 780px) {
-  .overviewLabel {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    min-height: 28px;
-    padding: 3px 8px;
-    border-radius: 8px;
-  }
-  .overviewLabel::before {
-    content: '';
-    position: absolute;
-    inset: 50% 0 auto;
-    height: 44px;
-    transform: translateY(-50%);
-  }
-  .overviewLabel strong { font-size: var(--text-xs); }
-  .overviewDetail { display: none; }
-  .overviewBrief { display: inline; font-size: 11px; }
+/* Short labels, when the free part of the stage is narrow (phones, and a tablet with the guide beside the map; the
+   scene sets data-compact): the name alone (the counts are in the guide), narrow enough to stand in the sea between
+   the links; a long name takes two lines, broken only after its 與. The label stays a 44 px touch target: its box is
+   shorter, and the area around it (::before) makes up the rest. */
+.canvasWrap[data-compact='true'] .overviewLabel {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 3px 8px;
+  border-radius: 8px;
 }
+.canvasWrap[data-compact='true'] .overviewLabel::before {
+  content: '';
+  position: absolute;
+  inset: 50% 0 auto;
+  height: 44px;
+  transform: translateY(-50%);
+}
+/* As wide as its longest line: the name breaks only where the scene allows it (after 與 in a long name). */
+.canvasWrap[data-compact='true'] .overviewLabel strong {
+  width: min-content;
+  font-size: var(--text-xs);
+  line-height: 1.3;
+  white-space: normal;
+  word-break: keep-all;
+}
+.canvasWrap[data-compact='true'] .overviewDetail { display: none; }
 /* The guide's second way into a region: its 2D overview, which needs no WebGL. */
 .guideAlt {
   display: inline-flex;
@@ -200,9 +246,23 @@
   white-space: nowrap;
 }
 .backToWorld:hover { border-color: var(--accent); }
-/* Phones: the header row is short, so the link is an arrow; its name stays for screen readers (aria-label). */
+/* Phones: the header row is short, so the link is an arrow; its name stays for screen readers (aria-label).
+   P8.3: both tools of a region map's header row (this link and the explorer's 清單 button) are 44 px touch targets
+   through an invisible area around them, as the map's pins are; what they look like and the header's height stay. */
 @media (max-width: 780px) {
   .backToWorld { padding: 0 9px; }
+  .backToWorld,
+  :global(.header-tools):has(.backToWorld) button { position: relative; }
+  .backToWorld::before,
+  :global(.header-tools):has(.backToWorld) button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 44px);
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
   .backToWorld span {
     position: absolute;
     width: 1px;

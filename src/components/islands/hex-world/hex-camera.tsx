@@ -6,10 +6,11 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { Box3, Spherical, Vector3 } from 'three';
 import { getFocusBounds, getWorldBounds } from '@/lib/islands/data';
 import { WATER_LEVEL } from '@/lib/islands/hex-world';
+import { MAP_VIEW } from '@/lib/islands/map-view';
 import type { IslandDefinition } from '@/lib/islands/types';
 
-// About 40° above the water, looking from the south-east like a board on a table.
-export const VIEW = new Vector3(16, 21, 24).normalize();
+// About 40° above the water, looking from the south-east like a board on a table (the numbers: lib/islands/map-view.ts).
+export const VIEW = new Vector3(...MAP_VIEW).normalize();
 const UP = new Vector3(0, 1, 0);
 const {ACTION}=CameraControlsImpl;
 // VIEW as camera-controls angles: azimuth around the vertical axis from +z, polar angle down from straight up.
@@ -25,9 +26,9 @@ const DEGREE=Math.PI/180;
 export const FREE_CAMERA={elevation:[28,60],zoomOut:.85,zoomIn:2,maxZoom:150,orbit:6} as const;
 /**
  * P8.2 map controls (region maps only, `pan`): how far an arrow key moves the map (px), how much + and − zoom, how far
- * [ and ] turn it (degrees), and how far beyond the islands the view's center may travel (map units).
+ * [ and ] turn it (degrees), and how far beyond the islands' middles the view's center may travel (map units).
  */
-export const MAP_CONTROLS={step:72,zoom:1.25,turn:15,margin:3} as const;
+export const MAP_CONTROLS={step:72,zoom:1.25,turn:15,margin:1} as const;
 
 /** What the free camera reports once it settles: its angles in radians (null while it looks along VIEW), and whether
  * the view differs from the default overview, which「返回全景」restores. */
@@ -46,8 +47,11 @@ const turn=(a:number,b:number)=>Math.atan2(Math.sin(a-b),Math.cos(a-b));
  * far the view moves along the screen's up so the content sits between them. 2026-11-02: `insetRight` pixels on the
  * right are covered by a panel (the home page's island list); the content fits left of it and `side` moves the view
  * along the screen's right by half that width. 0 (the default) frames exactly as before.
+ * P8.3: `room` replaces the top and bottom allowances (px) for a stage whose caption and controls are not over the
+ * map (a region map on a phone), plus whatever does cover its lower part (a sheet). Without it, exactly as before.
  */
-function frame(points:Vector3[],view:Vector3,width:number,height:number,focused:boolean,insetRight=0) {
+export type StageRoom={top:number;bottom:number};
+function frame(points:Vector3[],view:Vector3,width:number,height:number,focused:boolean,insetRight=0,room?:StageRoom) {
   const right=new Vector3().crossVectors(UP,view).normalize(),up=new Vector3().crossVectors(view,right);
   // Extents on screen axes; the center is the middle of those extents (for a box, the box center).
   const rs=points.map(p=>p.dot(right)),us=points.map(p=>p.dot(up)),depth=points.reduce((sum,p)=>sum+p.dot(view),0)/points.length;
@@ -55,7 +59,7 @@ function frame(points:Vector3[],view:Vector3,width:number,height:number,focused:
   const center=right.clone().multiplyScalar((r0+r1)/2).addScaledVector(up,(u0+u1)/2).addScaledVector(view,depth);
   const halfWidth=(r1-r0)/2,halfHeight=(u1-u0)/2;
   const phone=width<700;
-  const top=phone?72:40,bottom=phone?(focused?64:96):56;
+  const top=room?.top??(phone?72:40),bottom=room?.bottom??(phone?(focused?64:96):56);
   // An orthographic camera shows width/zoom world units across, so zoom = pixels / units.
   const pad=phone?1.1:1.12;
   const zoom=Math.min((width-insetRight)/(2*halfWidth*pad),(height-top-bottom)/(2*halfHeight*pad));
@@ -73,7 +77,7 @@ function frame(points:Vector3[],view:Vector3,width:number,height:number,focused:
  * `orbit` (D.3-5b) turns the overview on its own, keeping tilt and zoom; any drag, pinch or wheel on the map calls
  * `onOrbitStop`, and the explorer decides everything else (focus, list mode, hidden page,「返回全景」).
  */
-export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetKey=0,onViewChange,orbit=false,onOrbitStop,insetRight=0,view:base=VIEW,pan=false,onResetRequest}:{frames:IslandDefinition[];selectedId:string|null;reducedMotion:boolean;
+export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetKey=0,onViewChange,orbit=false,onOrbitStop,insetRight=0,view:base=VIEW,pan=false,onResetRequest,room}:{frames:IslandDefinition[];selectedId:string|null;reducedMotion:boolean;
   /** Content points (scene space) to frame instead of the bounding boxes: all of them, and per island. */
   fit?:{all:Vector3[];byId:Record<string,Vector3[]>};
   free?:boolean;resetKey?:number;onViewChange?:(view:CameraView)=>void;
@@ -88,6 +92,8 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
    * The view's center stays within the islands' bounds. Off (the default), nothing here applies.
    */
   pan?:boolean;onResetRequest?:()=>void;
+  /** P8.3: the room the stage needs at its top and bottom (see `frame`), in place of the built-in allowances. */
+  room?:StageRoom;
 }) {
   const baseAzimuth=Math.atan2(base.x,base.z),basePolar=Math.acos(base.y);
   const controls=useRef<CameraControlsImpl>(null);
@@ -108,26 +114,28 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
   const zoomRange=useMemo(()=>{
     if(!free||!width||!height) return {min:4,max:150};
     const all=pointsFor(undefined);
-    const out=Math.min(...Array.from({length:12},(_,i)=>frame(all,viewAt(AZIMUTH+i*Math.PI/6,POLAR),width,height,false,insetRight).zoom));
-    const closest=Math.max(...frames.map(island=>frame(pointsFor(island),base,width,height,true,insetRight).zoom));
+    const out=Math.min(...Array.from({length:12},(_,i)=>frame(all,viewAt(AZIMUTH+i*Math.PI/6,POLAR),width,height,false,insetRight,room).zoom));
+    const closest=Math.max(...frames.map(island=>frame(pointsFor(island),base,width,height,true,insetRight,room).zoom));
     return {min:out*FREE_CAMERA.zoomOut,max:Math.min(FREE_CAMERA.maxZoom,closest*FREE_CAMERA.zoomIn)};
-  },[free,width,height,pointsFor,frames,insetRight,base]);
+  },[free,width,height,pointsFor,frames,insetRight,base,room]);
   const framed=useRef<{points:Vector3[];reset:number;base:Vector3;zoom:number|null;target:Vector3}|null>(null);
   const mapControls=free&&pan;
-  // Camera bounds: the view's center never leaves the box around all the islands (plus a margin), at any height.
+  // Camera bounds: the view's center never leaves the box around the islands' own middles (plus a margin), at any
+  // height. P8.3: the middles, not every shore and caption point: on a narrow stage the wider box let a turned,
+  // diagonal region be panned until only the tips of its islands were left in view.
   const boundary=useMemo(()=>{
     if(!mapControls) return null;
-    const box=new Box3().setFromPoints(pointsFor(undefined));
+    const box=new Box3().setFromPoints(frames.map(island=>{const points=pointsFor(island);return points.reduce((sum,p)=>sum.add(p),new Vector3()).divideScalar(points.length);}));
     box.min.set(box.min.x-MAP_CONTROLS.margin,-200,box.min.z-MAP_CONTROLS.margin);box.max.set(box.max.x+MAP_CONTROLS.margin,200,box.max.z+MAP_CONTROLS.margin);
     return box;
-  },[mapControls,pointsFor]);
+  },[mapControls,pointsFor,frames]);
   // Only the free camera listens to「返回全景」in the overview; the fixed one reframes on selection alone, as before.
   const reset=free?resetKey:0;
   useEffect(()=>{
     const controller=controls.current;
     if(!controller||!width||!height) return;
     if(!free){
-      const {center,zoom,up,right,shift,side}=frame(points,base,width,height,Boolean(selected),insetRight);
+      const {center,zoom,up,right,shift,side}=frame(points,base,width,height,Boolean(selected),insetRight,room);
       center.addScaledVector(up,shift).addScaledVector(right,side);
       const eye=center.clone().addScaledVector(base,DISTANCE);
       const animate=initialized.current&&!reducedMotion;
@@ -135,6 +143,7 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
       void controller.setLookAt(eye.x,eye.y,eye.z,center.x,center.y,center.z,animate);
       void controller.zoomTo(zoom,animate);
       initialized.current=true;
+      invalidate();
       return;
     }
     // Free: the first framing and「返回全景」look along VIEW. Otherwise the azimuth stays; a new focus goes back to the
@@ -145,7 +154,7 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
     const polar=last?.points===points?current.phi:basePolar;
     const turned=Math.abs(turn(current.theta,baseAzimuth))>1e-4||Math.abs(polar-basePolar)>1e-4;
     const view=home||!turned?base:viewAt(current.theta,polar);
-    const {center,zoom,shift,side}=frame(points,view,width,height,Boolean(selected),insetRight);
+    const {center,zoom,shift,side}=frame(points,view,width,height,Boolean(selected),insetRight,room);
     const eye=center.clone().addScaledVector(view,DISTANCE);
     const animate=initialized.current&&!reducedMotion;
     if(boundary){controller.verticalDragToForward=true;controller.setBoundary(boundary.clone().expandByPoint(center));}
@@ -156,7 +165,10 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
     void controller.zoomTo(zoom,animate);
     framed.current={points,reset,base,zoom:!selected&&view===base?zoom:null,target:center};
     initialized.current=true;
-  },[points,width,height,reducedMotion,selected,free,reset,insetRight,base,baseAzimuth,basePolar,boundary]);
+    // P8.3: the move takes effect in the next frame, and with `frameloop="demand"` nothing else may ask for one (a new
+    // focus usually redraws the scene, but that frame can come before this effect; a changed `room` redraws nothing).
+    invalidate();
+  },[points,width,height,reducedMotion,selected,free,reset,insetRight,base,baseAzimuth,basePolar,boundary,room,invalidate]);
   // camera-controls sets `touch-action: none` on the element it listens on (R3F's wrapper, which also holds the
   // labels) when it connects; free touch only turns sideways, so the page keeps its vertical scroll. Touch keeps the tilt.
   // The wheel zooms without camera-controls' `controlstart`, so it stops Auto Orbit here.
@@ -179,9 +191,12 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
       const controller=controls.current;
       if(!controller||event.defaultPrevented||event.ctrlKey||event.metaKey||event.altKey) return;
       const smooth=!reducedMotion,unit=MAP_CONTROLS.step/controller.camera.zoom;
+      // P8.3: up and down move along the ground like a drag does (not up the camera's own axis, which lifts the
+      // view's center off the map and out of its bounds); a step on the ground looks shorter by the view's tilt.
+      const ahead=unit/Math.max(.2,Math.cos(controller.polarAngle));
       const moves:Record<string,()=>void>={
         ArrowLeft:()=>void controller.truck(-unit,0,smooth),ArrowRight:()=>void controller.truck(unit,0,smooth),
-        ArrowUp:()=>void controller.truck(0,-unit,smooth),ArrowDown:()=>void controller.truck(0,unit,smooth),
+        ArrowUp:()=>void controller.forward(ahead,smooth),ArrowDown:()=>void controller.forward(-ahead,smooth),
         '+':()=>void controller.zoomTo(Math.min(controller.maxZoom,controller.camera.zoom*MAP_CONTROLS.zoom),smooth),
         '=':()=>void controller.zoomTo(Math.min(controller.maxZoom,controller.camera.zoom*MAP_CONTROLS.zoom),smooth),
         '-':()=>void controller.zoomTo(Math.max(controller.minZoom,controller.camera.zoom/MAP_CONTROLS.zoom),smooth),

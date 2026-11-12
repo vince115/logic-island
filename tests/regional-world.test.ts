@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { hexKey, type Axial } from '@/lib/islands/hex';
 import { settlementRoads, type HexWorld } from '@/lib/islands/hex-world';
@@ -7,7 +8,10 @@ import { DATABASE_LANDMARKS } from '@/lib/islands/database-island';
 import { AI_BASELINE_LAYOUT, MAPPED_REGION_IDS, REGION_LAYOUTS, isMappedRegion, regionLayout } from '@/lib/islands/regions/region-layouts';
 import { LATTICE_SPACING, latticeLayout } from '@/lib/islands/regions/lattice-layout';
 import { REGION_THEMES } from '@/lib/islands/regions/region-themes';
-import { WORLD_MAP, validateWorldMap, worldMapRegionIds } from '@/lib/islands/regions/world-map';
+import { WORLD_MAP, bridgedRegions, ringNeighbours, validateWorldMap, worldLinks, worldMapRegionIds } from '@/lib/islands/regions/world-map';
+import { OVERVIEW_HEIGHT, frameOverview, overviewLinks, overviewOutlines, stageLands, stageLines, validateOverviewLinks, type OverviewLink } from '@/lib/islands/regions/world-overview-geometry';
+import { boxCoversLand, boxesOverlap, lineHitsBox, placeLabels, type Box, type StageLine } from '@/lib/islands/regions/overview-labels';
+import type { WorldMapSpec } from '@/lib/islands/regions/schema';
 import { REGION_ACCENT } from '@/lib/world/region-accents';
 import { validateRegion } from '@/lib/islands/regions/validate-region';
 import { placeholderLandmarkTiles } from '@/components/islands/hex-world/hex-landmarks';
@@ -210,40 +214,267 @@ describe('multi-region world data model (P8.2)', async () => {
 
 const hexDistanceTo = (a: Axial, b: Axial) => (Math.abs(a.q - b.q) + Math.abs(a.r - b.r) + Math.abs(a.q + a.r - b.q - b.r)) / 2;
 
-// Region maps follow the curriculum's relations: related islands are bridged, and no bridge joins unrelated islands.
-describe('region maps and island relations (P8.2)', async () => {
-  const { relationsInRegion, regionRelations } = await import('@/lib/world/island-relations');
-  const key = (a: string, b: string) => [a, b].sort().join(' — ');
-  const unbridged = (region: RegionId) => {
-    const bridges = new Set(regionLayout(region).layout.world.bridges.map(b => key(b.from.islandId, b.to.islandId)));
-    return relationsInRegion(region).map(r => key(r.a, r.b)).filter(k => !bridges.has(k));
-  };
-  it('relations come from lesson prerequisites and recommendations, inside a region and between regions', () => {
-    expect(relationsInRegion('ai')).toHaveLength(15);
-    expect(relationsInRegion('ai')[0]).toEqual({ a: 'ai-agents', b: 'large-language-models', required: 6, recommended: 8 });
-    expect([relationsInRegion('design').length, relationsInRegion('web').length, relationsInRegion('sys').length]).toEqual([5, 5, 10]);
-    expect(regionRelations().slice(0, 3).map(r => `${r.a}-${r.b}`)).toEqual(['ai-cs', 'cs-sys', 'design-web']);
+// P8.3: layouts are stored and reviewed. The curriculum's relations were the reason for them and are only reported
+// against them; no test here fails because a lesson or a prerequisite was added.
+describe('island relations are a report, not a rule (P8.2, P8.3)', async () => {
+  const { islandRelations, relationsInRegion, regionRelations, bridgeCoverage } = await import('@/lib/world/island-relations');
+  it('relations come from lesson prerequisites and recommendations, each pair once, inside a region and between regions', () => {
+    const all = islandRelations();
+    expect(new Set(all.map(r => `${r.a} ${r.b}`)).size).toBe(all.length);
+    for (const r of all) { expect(r.a < r.b, `${r.a} ${r.b}`).toBe(true); expect(r.required + r.recommended).toBeGreaterThan(0); }
+    for (const region of MAPPED_REGION_IDS) for (const r of relationsInRegion(region)) expect([getIsland(r.a)!.regionId, getIsland(r.b)!.regionId]).toEqual([region, region]);
+    const between = regionRelations();
+    expect(between.every((r, i) => i === 0 || between[i - 1].links >= r.links)).toBe(true);
+    for (const r of between) expect(r.a).not.toBe(r.b);
   });
-  for (const region of MAPPED_REGION_IDS.filter(id => regionLayout(id).source === 'lattice')) {
-    it(`${region}: every bridge joins two related islands`, () => {
-      const related = new Set(relationsInRegion(region).map(r => key(r.a, r.b)));
-      for (const bridge of regionLayout(region).layout.world.bridges) expect(related.has(key(bridge.from.islandId, bridge.to.islandId)), bridge.id).toBe(true);
+  it('bridgeCoverage reports bridged, unbridged and unrelated pairs', () => {
+    const relations = [{ a: 'a', b: 'b' }, { a: 'b', b: 'c' }];
+    expect(bridgeCoverage(relations, [['b', 'a'], ['c', 'd']])).toEqual({ bridged: ['a — b'], unbridged: ['b — c'], unrelated: ['c — d'] });
+    // On today's curriculum it runs for every region and for the world; what it says is recorded in the P8.3 doc, not pinned here.
+    for (const region of MAPPED_REGION_IDS) {
+      const report = bridgeCoverage(relationsInRegion(region), regionLayout(region).layout.world.bridges.map(b => [b.from.islandId, b.to.islandId] as const));
+      expect(report.bridged.length + report.unrelated.length, region).toBe(regionLayout(region).layout.world.bridges.length);
+    }
+    expect(bridgeCoverage(regionRelations(), WORLD_MAP.bridges.map(b => b.between)).bridged.length).toBeLessThanOrEqual(WORLD_MAP.bridges.length);
+  });
+});
+
+describe('region layouts are stored, not derived (P8.3)', () => {
+  const lattice = MAPPED_REGION_IDS.filter(id => regionLayout(id).source === 'lattice');
+  it('the layout layer reads no curriculum data: no lesson, catalog, course or relation import', () => {
+    for (const file of ['region-layouts.ts', 'lattice-layout.ts', 'world-map.ts', 'world-overview-geometry.ts', 'overview-labels.ts', 'region-themes.ts', 'schema.ts']) {
+      const source = readFileSync(`src/lib/islands/regions/${file}`, 'utf8');
+      expect(source, file).not.toMatch(/from '@\/(content\/(curriculum|courses|trials|world\/catalog|world')|lib\/world\/(island-relations|learning-islands|region-overview))/);
+    }
+  });
+  it('the lattice maps as reviewed: every island\'s cell and every bridge, pinned so a change is a deliberate one', () => {
+    const pinned = Object.fromEntries(lattice.map(id => {
+      const { world } = regionLayout(id).layout;
+      return [id, { cells: world.settlements.map(s => `${s.islandId} ${s.center.q / LATTICE_SPACING},${s.center.r / LATTICE_SPACING}`), bridges: world.bridges.map(b => b.id) }];
+    }));
+    expect(pinned).toMatchInlineSnapshot(`
+      {
+        "ai": {
+          "bridges": [
+            "deep-learning-machine-learning",
+            "machine-learning-ai-engineering",
+            "ai-engineering-ai-agents",
+            "ai-agents-ai-foundations",
+            "ai-foundations-generative-ai",
+            "generative-ai-deep-learning",
+            "large-language-models-ai-agents",
+          ],
+          "cells": [
+            "large-language-models 0,0",
+            "deep-learning 1,0",
+            "machine-learning 1,-1",
+            "ai-engineering 0,-1",
+            "ai-agents -1,0",
+            "ai-foundations -1,1",
+            "generative-ai 0,1",
+          ],
+        },
+        "design": {
+          "bridges": [
+            "ux-research-ui-design",
+            "ux-research-interaction-design",
+            "ui-design-interaction-design",
+            "ui-design-design-systems",
+            "interaction-design-design-systems",
+          ],
+          "cells": [
+            "ux-research 0,0",
+            "ui-design 1,0",
+            "interaction-design 0,1",
+            "design-systems 1,1",
+          ],
+        },
+        "sys": {
+          "bridges": [
+            "linux-systems-network-servers",
+            "linux-systems-devops-cicd",
+            "linux-systems-docker-containers",
+            "linux-systems-cloud-infrastructure",
+            "devops-cicd-docker-containers",
+            "network-servers-cloud-infrastructure",
+            "network-servers-kubernetes-reliability",
+            "devops-cicd-kubernetes-reliability",
+          ],
+          "cells": [
+            "linux-systems 0,0",
+            "network-servers 1,0",
+            "devops-cicd 1,-1",
+            "docker-containers 0,-1",
+            "cloud-infrastructure 0,1",
+            "kubernetes-reliability 2,-1",
+          ],
+        },
+        "web": {
+          "bridges": [
+            "frontend-web-foundations",
+            "frontend-mobile-apps",
+            "web-foundations-mobile-apps",
+            "web-foundations-responsive-design",
+            "mobile-apps-responsive-design",
+          ],
+          "cells": [
+            "frontend 0,0",
+            "web-foundations 1,0",
+            "mobile-apps 1,-1",
+            "responsive-design 2,-1",
+          ],
+        },
+      }
+    `);
+  });
+  it('every bridge of every region lands on a tile of the island it names, and names two different islands of the region', () => {
+    for (const region of MAPPED_REGION_IDS) {
+      const { world } = regionLayout(region).layout;
+      for (const bridge of world.bridges) {
+        expect(bridge.from.islandId, bridge.id).not.toBe(bridge.to.islandId);
+        for (const port of [bridge.from, bridge.to]) {
+          const island = world.settlements.find(s => s.islandId === port.islandId);
+          expect(island, `${bridge.id}: ${port.islandId}`).toBeDefined();
+          expect(island!.tiles.some(t => t.q === port.tile.q && t.r === port.tile.r), `${bridge.id}: ${port.islandId} ${hexKey(port.tile)}`).toBe(true);
+        }
+      }
+    }
+  });
+  it('adding an island to a lattice map leaves every island and bridge that was there as it was', () => {
+    const before = { bridge: 'wood' as const, placements: [{ islandId: 'a', cell: [0, 0] as const, dock: 4 as const }, { islandId: 'b', cell: [1, 0] as const, trim: [0 as const] }], links: [['a', 'b'] as const] };
+    const after = { ...before, placements: [...before.placements, { islandId: 'c', cell: [0, -1] as const }], links: [...before.links, ['a', 'c'] as const] };
+    const one = latticeLayout(before).layout.world, two = latticeLayout(after).layout.world;
+    expect(two.settlements.slice(0, 2)).toEqual(one.settlements);
+    expect(two.bridges.slice(0, 1)).toEqual(one.bridges);
+    expect(two.settlements.map(s => s.islandId)).toEqual(['a', 'b', 'c']);
+  });
+});
+
+// P8.3 (D7): the hub joined to every region, relation bridges between neighbours on the ring, nothing over an island.
+describe('world topology (P8.3, D7)', () => {
+  const shapes = ['wide', 'tall'] as const;
+  const drawn = (map: WorldMapSpec, shape: 'wide' | 'tall') => { const outlines = overviewOutlines(map, REGION_LAYOUTS, shape); return { outlines, links: overviewLinks(map, outlines) }; };
+
+  it('rule 1: the hub is joined to every region, once each; the ring is the registry\'s regions', () => {
+    expect([...WORLD_MAP.ring].sort()).toEqual(orderedRegions.map(r => r.id).sort());
+    expect(worldLinks(WORLD_MAP).filter(l => l.kind === 'hub').map(l => [l.from, l.to])).toEqual(WORLD_MAP.ring.map(id => ['hub', id]));
+    // A region added to the ring gets its hub link with no other edit.
+    const more = { ...WORLD_MAP, ring: [...WORLD_MAP.ring, 'xx' as RegionId] };
+    expect(worldLinks(more).filter(l => l.kind === 'hub')).toHaveLength(WORLD_MAP.ring.length + 1);
+  });
+  it('rules 2 to 4: relation bridges join neighbours on the ring only, not every neighbouring pair has one, and the rest go through the hub', () => {
+    expect(WORLD_MAP.bridges.map(b => b.id)).toEqual(['cs-ai', 'design-web', 'web-sys', 'sys-cs']);
+    for (const bridge of WORLD_MAP.bridges) expect(ringNeighbours(WORLD_MAP, ...bridge.between), bridge.id).toBe(true);
+    // AI and design are neighbours without a bridge.
+    expect(ringNeighbours(WORLD_MAP, 'ai', 'design')).toBe(true);
+    expect(bridgedRegions(WORLD_MAP, 'ai')).toEqual(['cs']);
+    expect(bridgedRegions(WORLD_MAP, 'cs')).toEqual(['ai', 'sys']);
+    expect(bridgedRegions(WORLD_MAP, 'design')).toEqual(['web']);
+    expect(bridgedRegions(WORLD_MAP, 'web')).toEqual(['design', 'sys']);
+    expect(bridgedRegions(WORLD_MAP, 'sys')).toEqual(['cs', 'web']);
+    // Every region is one hub link away from the hub, so any two are two links apart at most.
+    for (const id of WORLD_MAP.ring) expect(worldLinks(WORLD_MAP).some(l => l.kind === 'hub' && l.to === id), id).toBe(true);
+    expect(ringNeighbours(WORLD_MAP, 'cs', 'design')).toBe(false);
+    expect(ringNeighbours(WORLD_MAP, 'cs', 'cs')).toBe(false);
+  });
+  it('the ring is clockwise on screen in both compositions; the validator catches a ring out of order, a bridge between regions that are not neighbours, a doubled bridge, an unplaced region and a link through another outline', () => {
+    for (const shape of shapes) expect(validateWorldMap(WORLD_MAP, shape), shape).toEqual([]);
+    const swapped = { ...WORLD_MAP, ring: ['cs', 'design', 'ai', 'web', 'sys'] as RegionId[], bridges: [] };
+    expect(validateWorldMap(swapped, 'wide')).toContain('ring cs, design, ai, web, sys is not clockwise around the hub on the wide overview');
+    expect(validateWorldMap({ ...WORLD_MAP, ring: ['cs', 'ai', 'design', 'web'] }, 'wide').some(p => p.startsWith('ring cs, ai, design, web is not the placed regions'))).toBe(true);
+    const across = { ...WORLD_MAP, bridges: [...WORLD_MAP.bridges, { id: 'cs-web', between: ['cs', 'web'] as const }] };
+    expect(validateWorldMap(across, 'wide')).toContain('bridge cs-web: cs and web are not neighbours on the ring');
+    const twice = { ...WORLD_MAP, bridges: [...WORLD_MAP.bridges, { id: 'ai-cs', between: ['ai', 'cs'] as const }] };
+    expect(validateWorldMap(twice, 'tall')).toContain('bridge ai-cs: ai and cs are joined twice');
+    expect(validateWorldMap({ ...WORLD_MAP, bridges: [{ id: 'cs-xx', between: ['cs', 'xx' as RegionId] as const }] }, 'wide')).toContain('bridge cs-xx: xx is not placed');
+    // The AI region moved to the far side of the hub from the design region: their neighbours' links now pass through the hub.
+    const through: WorldMapSpec = { ...WORLD_MAP, bridges: [{ id: 'cs-ai', between: ['cs', 'ai'] }], regions: { ...WORLD_MAP.regions, ai: { ...WORLD_MAP.regions.ai!, wide: { ...WORLD_MAP.regions.ai!.wide, at: [4, -34] } } } };
+    expect(validateWorldMap(through, 'wide')).toContain('cs-ai passes through hub on the wide overview');
+  });
+  it('rule 5: the world map holds positions and pairs only; nothing in it comes from the curriculum', () => {
+    expect(JSON.stringify(WORLD_MAP)).not.toMatch(/lesson|prerequisite|堂|島/);
+    expect(Object.keys(WORLD_MAP).sort()).toEqual(['bridges', 'hub', 'regions', 'ring']);
+  });
+  it('every link lands on a tile of each outline it joins and is the shortest crossing between them', () => {
+    for (const shape of shapes) {
+      const { outlines, links } = drawn(WORLD_MAP, shape);
+      expect(links.map(l => l.id)).toEqual(worldLinks(WORLD_MAP).map(l => l.id));
+      const gap = (a: number[], b: number[]) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+      for (const link of links) {
+        const from = outlines.find(o => o.id === link.from)!, to = outlines.find(o => o.id === link.to)!;
+        expect(from.tiles).toContainEqual(link.ends[0]);
+        expect(to.tiles).toContainEqual(link.ends[1]);
+        const shortest = Math.min(...from.tiles.flatMap(a => to.tiles.map(b => gap(a, b))));
+        expect(gap(...link.ends), `${shape} ${link.id}`).toBeCloseTo(shortest, 9);
+        // The deck starts and ends inside the two tiles it lands on.
+        expect(gap(link.a, link.ends[0])).toBeLessThan(from.radius);
+        expect(gap(link.b, link.ends[1])).toBeLessThan(to.radius);
+      }
+    }
+  });
+  it('rule 6: no link runs over an island or crosses another link, in both compositions; decks lie lower than any land', () => {
+    for (const shape of shapes) { const { outlines, links } = drawn(WORLD_MAP, shape); expect(validateOverviewLinks(outlines, links, shape), shape).toEqual([]); }
+    expect(OVERVIEW_HEIGHT.link).toBeLessThan(OVERVIEW_HEIGHT.planned);
+    expect(OVERVIEW_HEIGHT.planned).toBeLessThan(OVERVIEW_HEIGHT.land);
+    // The check itself: a deck laid from the CS region straight through the hub, and two decks that cross.
+    const { outlines } = drawn(WORLD_MAP, 'wide');
+    const cs = outlines.find(o => o.id === 'cs')!, hub = outlines.find(o => o.id === 'hub')!, web = outlines.find(o => o.id === 'web')!;
+    const middle = hub.tiles[0], far: [number, number] = [2 * middle[0] - cs.tiles[0][0], 2 * middle[1] - cs.tiles[0][1]];
+    const bad: OverviewLink = { id: 'bad', kind: 'relation', from: 'cs', to: 'web', a: cs.tiles[0], b: far, ends: [cs.tiles[0], web.tiles[0]] };
+    expect(validateOverviewLinks(outlines, [bad], 'wide')).toContain('bad runs over hub');
+    const crossing = drawn({ ...WORLD_MAP, bridges: [{ id: 'ai-sys', between: ['ai', 'sys'] }] }, 'wide');
+    expect(validateOverviewLinks(crossing.outlines, crossing.links, 'wide').some(p => p.includes('crosses ai-sys'))).toBe(true);
+  });
+});
+
+// P8.3: label placement on the overview, as the scene runs it, for the stage sizes under review. Label sizes are the
+// ones the browser measures (the E2E run checks the real ones); what matters here is that a spot exists for each.
+describe('world overview labels (P8.3)', () => {
+  const FULL: [number, number][] = [[228, 68], [161, 68], [161, 68], [161, 68], [161, 68], [95, 68]], SHORT: [number, number][] = [[79, 28], [82, 28], [67, 28], [67, 41], [67, 41], [67, 28]];
+  const stages = [
+    { name: '1440×1000', shape: 'wide' as const, size: { width: 1440, height: 1000 }, inset: 360, sizes: FULL },
+    { name: '1280×800', shape: 'wide' as const, size: { width: 1280, height: 800 }, inset: 360, sizes: FULL },
+    { name: '1024×768', shape: 'wide' as const, size: { width: 1024, height: 768 }, inset: 360, sizes: SHORT },
+    { name: '390 phone', shape: 'tall' as const, size: { width: 390, height: 557 }, inset: 0, sizes: SHORT },
+    { name: '375 phone', shape: 'tall' as const, size: { width: 375, height: 536 }, inset: 0, sizes: SHORT },
+    { name: '320 phone', shape: 'tall' as const, size: { width: 320, height: 430 }, inset: 0, sizes: SHORT },
+  ];
+  for (const stage of stages) {
+    it(`${stage.name}: every label inside the stage, apart from the others, off every island and off every link`, () => {
+      const outlines = overviewOutlines(WORLD_MAP, REGION_LAYOUTS, stage.shape), links = overviewLinks(WORLD_MAP, outlines), frame = frameOverview(outlines, stage.shape, stage.size, stage.inset);
+      const sides = outlines.map(o => o.id === 'hub' ? WORLD_MAP.hub[stage.shape].label : WORLD_MAP.regions[o.id]![stage.shape].label);
+      const lines = stageLines(frame, links, stage.shape), lands = stageLands(frame, outlines), room = { left: 4, right: stage.size.width - stage.inset - 4, top: 4, bottom: stage.size.height - 4 };
+      // The whole world is on the stage, left of the guide.
+      for (const box of frame.boxes) expect(box.x0 >= 0 && box.x1 <= stage.size.width - stage.inset && box.y0 >= 0 && box.y1 <= stage.size.height).toBe(true);
+      const boxes: Box[] = placeLabels(frame.boxes, sides, stage.sizes, room, { lines, lands }).map((spot, i) => ({ x: spot.x, y: spot.y, width: stage.sizes[i][0], height: stage.sizes[i][1] }));
+      for (const [i, box] of boxes.entries()) {
+        const id = outlines[i].id;
+        expect(box.x >= room.left && box.x + box.width <= room.right && box.y >= room.top && box.y + box.height <= room.bottom, `${id} inside`).toBe(true);
+        expect(boxes.filter((other, j) => j !== i && boxesOverlap(box, other)).length, `${id} apart`).toBe(0);
+        expect(lands.map((land, j) => boxCoversLand(box, land) ? outlines[j].id : '').filter(Boolean), `${id} off the islands`).toEqual([]);
+        expect(lines.filter(line => lineHitsBox(line, box, 1)).map(l => l.id), `${id} off the links`).toEqual([]);
+      }
     });
   }
-  it('related islands are bridged; the relations a flat map cannot bridge are pinned', () => {
-    expect(unbridged('design')).toEqual([]);
-    expect(unbridged('web')).toEqual([]);
-    // AI is a turning ring by request, not a hub: its seven bridges all join related islands (the test above), and the
-    // other eight relations, most of them with the island in the lagoon, have no bridge.
-    expect(unbridged('ai')).toHaveLength(8);
-    expect(unbridged('ai').filter(k => k.includes('large-language-models'))).toHaveLength(5);
-    // Systems: 8 of 10.
-    expect(unbridged('sys')).toEqual(['docker-containers — kubernetes-reliability', 'cloud-infrastructure — devops-cicd']);
-  });
-  it('the island in the middle of the AI rosette is the one related to every other AI island', () => {
-    const count = (id: string) => relationsInRegion('ai').filter(r => r.a === id || r.b === id).length;
-    expect(count('large-language-models')).toBe(6);
-    expect(islandsInRegion('ai').filter(i => count(i.id) === 6).map(i => i.id)).toEqual(['large-language-models']);
+  it('a label slides off a link, takes another side when its own is blocked, and stays between the stage\'s sides when nothing is free', () => {
+    const extent = { x0: 100, y0: 100, x1: 160, y1: 140 }, room = { left: 0, right: 400, top: 0, bottom: 400 };
+    const line = (x0: number, y0: number, x1: number, y1: number): StageLine => ({ id: 'l', kind: 'hub', x0, y0, x1, y1, width: 4 });
+    // Free: straight below its outline, centered.
+    expect(placeLabels([extent], ['below'], [[60, 20]], room)).toEqual([{ x: 100, y: 148, side: 'below' }]);
+    // A link running down from the outline's middle: the label slides to one side of it and stays below.
+    const [slid] = placeLabels([extent], ['below'], [[60, 20]], room, { lines: [line(130, 140, 130, 260)] });
+    expect(slid.side).toBe('below');
+    expect(lineHitsBox(line(130, 140, 130, 260), { x: slid.x, y: slid.y, width: 60, height: 20 }, 1)).toBe(false);
+    // The whole side below is land: the label goes to another side.
+    const land = { points: Array.from({ length: 12 }, (_, row) => Array.from({ length: 40 }, (_, i) => [i * 10, 150 + row * 10] as [number, number])).flat(), radius: 12 };
+    expect(placeLabels([extent], ['below'], [[60, 20]], room, { lands: [land] })[0].side).not.toBe('below');
+    // Two labels wanting the same spot do not share it.
+    const two = placeLabels([extent, extent], ['below', 'below'], [[60, 20], [60, 20]], room);
+    expect(boxesOverlap({ x: two[0].x, y: two[0].y, width: 60, height: 20 }, { x: two[1].x, y: two[1].y, width: 60, height: 20 })).toBe(false);
+    // No room at all: still a defined spot, between the stage's sides.
+    const [stuck] = placeLabels([{ x0: 0, y0: 0, x1: 20, y1: 20 }], ['left'], [[60, 20]], { left: 0, right: 64, top: 0, bottom: 30 });
+    expect(stuck.x).toBeGreaterThanOrEqual(0);
+    expect(stuck.x + 60).toBeLessThanOrEqual(64);
   });
 });
 

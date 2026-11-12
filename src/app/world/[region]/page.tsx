@@ -6,6 +6,7 @@ import { RegionalWorldExplorer } from '@/components/world/regional-world-explore
 import { regionalWorldEnabled } from '@/lib/world/flag';
 import { hubSummary, regionIslands } from '@/lib/world/learning-islands';
 import { MAPPED_REGION_IDS, isMappedRegion } from '@/lib/islands/regions/region-layouts';
+import { WORLD_MAP, bridgedRegions } from '@/lib/islands/regions/world-map';
 import { regionTrialEntries } from '@/content/trials';
 import { RegionTrials } from '@/components/trials/region-trials';
 import { trialsEnabled } from '@/lib/trials/flag';
@@ -36,6 +37,8 @@ export default async function RegionPage({ params }: { params: Promise<{ region:
     {/* T.1: the archipelago's trial entries go below the map, only in a build that also has LOGIC_ISLAND_TRIALS=1. */}
     <div className="home-world"><Suspense><RegionalWorldExplorer regionId={record.id} regionName={record.name} regionNameEn={record.nameEn} islands={regionIslands(record.id)}
       hub={hubSummary().lab}
+      // P8.3 (D7): the regions a relation bridge joins to this one; the rest are reached through the world overview.
+      neighbours={bridgedRegions(WORLD_MAP, record.id).filter(isMappedRegion).map(id => ({ id, name: getRegion(id)!.name }))}
       footer={trialsEnabled() ? <RegionTrials regionId={record.id as TrialRegion} regionName={record.name} entries={regionTrialEntries(record.id as TrialRegion)}/> : undefined}/></Suspense></div>
   </main>;
 }

@@ -77,11 +77,15 @@ export const AI_BASELINE_LAYOUT: RegionLayout = { regionId: 'ai', layout: aiBase
   docks: [{ islandId: 'ai-foundations', spurId: 'ai-foundations-dock' }, { islandId: 'ai-engineering', spurId: 'ai-engineering-dock' }], source: 'authored' };
 
 /*
- * P8.2 (2026-11-12): the four lattice maps are laid out by how their islands are related (a lesson of one island names
- * a lesson of the other as a prerequisite or as recommended; src/lib/world/island-relations.ts). The island with the
- * most relations stands in the middle, the islands related to it around it, and every bridge joins a related pair;
- * unit tests check each bridge against the curriculum and pin the few relations a flat map cannot bridge. The AI map
- * is the exception by request: a turning ring of six, not a hub with spokes; its bridges still join related pairs only.
+ * P8.2 (2026-11-12): the four lattice maps were first drawn from how their islands are related (a lesson of one island
+ * names a lesson of the other as a prerequisite or as recommended; src/lib/world/island-relations.ts): the island with
+ * the most relations in the middle, the islands related to it around it, a bridge between related pairs. The AI map
+ * is the exception by request: a turning ring of six, not a hub with spokes.
+ *
+ * P8.3: these are stored layouts now. Each island's cell and each bridge is written out below and pinned in a unit
+ * test; nothing here reads the curriculum, so a new lesson or prerequisite moves no island and no bridge. A new island
+ * is one more placement (and its links) beside the ones that are there, which stay where they are; whether a layout
+ * still matches the curriculum's relations is a report for its next review (`bridgeCoverage`), not a rule.
  */
 
 /*

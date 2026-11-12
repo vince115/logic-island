@@ -7,7 +7,8 @@ import type { WorldLayout } from '../hex-layout';
  * Space and look only. Which regions and islands exist, their names, lesson counts and status all stay in the world
  * registry (src/content/world); nothing here repeats them, and tests compare every id used here with the registry.
  *
- *   World Layout Registry   world-map.ts       where the hub and each region sit on the world overview
+ *   World Layout Registry   world-map.ts       where the hub and each region sit on the world overview, and the
+ *                                              world's topology (P8.3): the ring of regions and the relation bridges
  *   Region Layout Registry  region-layouts.ts  each region's own map: islands, bridges, docks, camera preset
  *   Island Placement        IslandPlacement    an island of a lattice map (a region with no authored terrain yet)
  *   Region Theme            region-themes.ts   a region's colors on the overview and its accent
@@ -65,12 +66,29 @@ export type LabelSide = 'above' | 'below' | 'left' | 'right';
  */
 export interface OverviewPlacement { at: readonly [number, number]; width: number; label: LabelSide }
 
+/**
+ * P8.3 (D7): a learning-relation bridge of the world overview, between two regions that are neighbours on the ring.
+ * Reviewed and stored: the curriculum's relations were the reason to draw it, and are not read to keep it.
+ */
+export interface WorldBridge { id: string; between: readonly [RegionId, RegionId] }
+
 export interface WorldMapSpec {
   /** The shared island at the center (the Interactive Lab Island): an island id of the registry with `kind: 'tool'`. */
   hub: { islandId: string } & Record<OverviewShape, OverviewPlacement>;
   /** A region without an entry has no place on the overview and is listed in the guide only. */
   regions: Partial<Record<RegionId, Record<OverviewShape, OverviewPlacement>>>;
+  /**
+   * P8.3 (D7) world topology. `ring`: the placed regions clockwise around the hub as seen on screen; two regions are
+   * neighbours when they follow each other in it (the last and the first too). The hub is joined to every region of
+   * the ring (never listed: one hub link per region, so a new region gets its own). `bridges`: the relation bridges,
+   * between neighbours only; regions that are not neighbours are reached through the hub.
+   */
+  ring: readonly RegionId[];
+  bridges: readonly WorldBridge[];
 }
+
+/** A connection drawn on the world overview: the hub's link to a region, or a relation bridge between two regions. */
+export interface WorldLink { id: string; kind: 'hub' | 'relation'; from: RegionId | 'hub'; to: RegionId }
 
 /**
  * How an island is drawn, never stored: `state` follows the registry (planned islands are pale, in mist, and open no

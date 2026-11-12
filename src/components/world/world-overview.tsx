@@ -7,7 +7,8 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 import { ArrowRight, Compass } from 'lucide-react';
 import type { RegionTrialEntry } from '@/content/trials';
 import type { RegionId } from '@/content/world/types';
-import { HUB_THEME, REGION_THEMES } from '@/lib/islands/regions/region-themes';
+import { HUB_THEME, LINK_THEME, REGION_THEMES } from '@/lib/islands/regions/region-themes';
+import { WORLD_MAP } from '@/lib/islands/regions/world-map';
 import type { HubSummary, RegionSummary, UnmappedRegionSummary } from '@/lib/world/learning-islands';
 import { RegionTrials } from '../trials/region-trials';
 import { SceneBoundary } from '../islands/hex-world/scene-boundary';
@@ -32,6 +33,8 @@ const shortName = (name: string) => name.replace(/群島$/, '');
  * P8.2: the regions, their order and their counts come from the world registry through `regions`; this component and
  * its scene name no region. A region without a 3D layout (`unmapped`) is listed in the guide only, marked 規劃中, and
  * leads to its 2D overview. Each mapped region's guide entry also offers that 2D overview, the way in without WebGL.
+ * P8.3 (D7): the guide also says in words what the map draws between the outlines: the hub's link to every region and
+ * the relation bridges between neighbouring regions (WORLD_MAP), so the topology does not depend on seeing the 3D map.
  */
 export function WorldOverview({ regions, unmapped = [], hub, trials }: { regions: RegionSummary[]; unmapped?: UnmappedRegionSummary[]; hub: HubSummary; trials?: Partial<Record<RegionId, RegionTrialEntry[]>> }) {
   const router = useRouter();
@@ -41,11 +44,14 @@ export function WorldOverview({ regions, unmapped = [], hub, trials }: { regions
   const wide = useSyncExternalStore(subscribe, () => matchMedia(WIDE).matches, () => false);
   // Stable, so the scene places its labels once per framing.
   const targets: OverviewTarget[] = useMemo(() => [
-    ...regions.map(r => ({ id: r.id, name: shortName(r.name), label: `進入${r.name}`, detail: regionDetail(r), brief: `${r.islands} 島`, accent: REGION_THEMES[r.id].accent, onOpen: () => router.push(r.href) })),
-    // Phones: the island's own name is enough beside「共用」; the guide below the map says it is the hub.
-    { id: 'hub' as const, name: wide ? `中央樞紐 · ${hub.lab.name}` : hub.lab.name, label: `前往中央樞紐：${hub.lab.name}`, detail: '跨群島共用的工具島', brief: '共用', accent: HUB_THEME.accent, onOpen: () => router.push(hub.lab.href) },
-  ], [regions, hub.lab.href, hub.lab.name, router, wide]);
+    ...regions.map(r => ({ id: r.id, name: shortName(r.name), label: `進入${r.name}`, detail: regionDetail(r), accent: REGION_THEMES[r.id].accent, onOpen: () => router.push(r.href) })),
+    // Five causeways meet at the hub, so its label is short enough to stand between them: what it is and which island
+    // (phones: the name alone). The guide says the rest: a tool island every region shares.
+    { id: 'hub' as const, name: '中央樞紐', label: `前往中央樞紐：${hub.lab.name}`, detail: hub.lab.name, accent: HUB_THEME.accent, onOpen: () => router.push(hub.lab.href) },
+  ], [regions, hub.lab.href, hub.lab.name, router]);
   const names = regions.map(r => r.name).join('、');
+  // The relation bridges between regions that are on the map, by name.
+  const bridges = WORLD_MAP.bridges.flatMap(b => { const [a, z] = b.between.map(id => regions.find(r => r.id === id)); return a && z ? [{ id: b.id, a, z }] : []; });
   // P8.2 focus management: reached from a region (Escape or its 世界總覽 link), the keyboard focus goes to that region's
   // entry in the guide, so the three levels can be walked up and down without losing the place.
   useEffect(() => {
@@ -56,7 +62,7 @@ export function WorldOverview({ regions, unmapped = [], hub, trials }: { regions
   return <section className={styles.overview} aria-label="世界總覽">
     <div className={styles.stage}>
       {available ? <SceneBoundary onUnavailable={unavailable}>
-        <Scene targets={targets} insetRight={wide ? 360 : 0} shape={wide ? 'wide' : 'tall'} label={`Logic Island 世界總覽：中央樞紐與 ${regions.length} 個群島（${names}），亦可使用清單導航`} onReady={ready} onUnavailable={unavailable}/>
+        <Scene targets={targets} insetRight={wide ? 360 : 0} shape={wide ? 'wide' : 'tall'} label={`Logic Island 世界總覽：中央樞紐以樞紐橋連接 ${regions.length} 個群島（${names}），相鄰群島之間有 ${bridges.length} 座關聯橋，亦可使用清單導航`} onReady={ready} onUnavailable={unavailable}/>
       </SceneBoundary> : <p className={styles.fallbackNotice} role="status">此裝置的 3D 場景無法使用，已切換至清單導航。所有區域與教材仍可開啟。</p>}
     </div>
     <nav className={styles.guide} aria-label="世界導覽">
@@ -80,6 +86,14 @@ export function WorldOverview({ regions, unmapped = [], hub, trials }: { regions
           <p className={styles.guidePlanned}><em className={status.plannedTag}>規劃中</em>中央挑戰島（APCS Trial、AI Capstone）尚未開放</p>
         </li>
       </ol>
+      <section className={styles.guideLinks} aria-label="世界橋樑" style={{ '--link-hub': LINK_THEME.hub, '--link-relation': LINK_THEME.relation } as React.CSSProperties}>
+        <strong>世界橋樑</strong>
+        <ul>
+          <li data-link="hub"><i aria-hidden="true"/><span><b>樞紐橋</b>中央樞紐通往全部 {regions.length} 個群島</span></li>
+          <li data-link="relation"><i aria-hidden="true"/><span><b>關聯橋</b>相鄰且課程相關的群島：{bridges.map(b => `${shortName(b.a.name)} ↔ ${shortName(b.z.name)}`).join('、')}</span></li>
+        </ul>
+        <p>沒有關聯橋相連的群島，經中央樞紐前往。</p>
+      </section>
       <p className={styles.guideNote}>選一個群島進入區域地圖；每座島的教材狀態以課綱為準，「規劃中」的島還沒有可開啟的課程。互動實驗島是各群島共用的工具島，不屬於任何一個群島。</p>
     </nav>
   </section>;

@@ -18,3 +18,8 @@ const fills: Record<RegionId, Omit<RegionTheme, 'accent'>> = {
 export const REGION_THEMES = Object.fromEntries((Object.keys(fills) as RegionId[]).map(id => [id, { accent: REGION_ACCENT[id], ...fills[id] }])) as Record<RegionId, RegionTheme>;
 /** The hub (the shared Interactive Lab Island) on the overview. */
 export const HUB_THEME = { accent: '#8a4fd1', land: '#c8b6e8' } as const;
+/**
+ * P8.3 the world's links on the overview: the hub's causeways in pale stone, the relation bridges in warm wood. Told
+ * apart by more than color: a causeway is one unbroken deck, a relation bridge is planks.
+ */
+export const LINK_THEME = { hub: '#f1f4f7', relation: '#c98f52' } as const;

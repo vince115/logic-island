@@ -4,9 +4,13 @@ import type { RegionId } from '@/content/world/types';
 
 /*
  * P8.2: which islands are related, derived from the curriculum and never declared for the map. Two islands are related
- * when a lesson of one names a lesson of the other as a prerequisite (required) or as recommended reading. Region maps
- * are laid out around these relations: related islands stand next to each other and a bridge joins them, and a bridge
- * never joins two islands that are not related (tests/regional-world.test.ts). Server-side: it reads the whole catalog.
+ * when a lesson of one names a lesson of the other as a prerequisite (required) or as recommended reading.
+ *
+ * P8.3: a tool for drawing and reviewing a layout, not an input to one. The relations were the reason for where the
+ * islands of the design, web and sys maps stand and for which regions the world's bridges join; those layouts are now
+ * stored data (regions/region-layouts.ts, regions/world-map.ts), which import nothing from here. Adding a lesson or a
+ * prerequisite changes what this module reports and moves no island and no bridge; `bridgeCoverage` says how a stored
+ * layout compares with today's relations, for whoever reviews it next. Server-side: it reads the whole catalog.
  */
 export interface IslandRelation { a: string; b: string; required: number; recommended: number }
 
@@ -38,4 +42,15 @@ export function regionRelations(): { a: RegionId; b: RegionId; links: number }[]
     pairs.set(`${a} ${b}`, pair);
   }
   return [...pairs.values()].sort((x, y) => y.links - x.links);
+}
+
+/**
+ * P8.3: how a layout's bridges compare with a set of relations, as a report and never as a rule: the related pairs
+ * that have a bridge, those that have none, and the bridges that join a pair that is not related. Pairs are `a — b`
+ * with a < b.
+ */
+export function bridgeCoverage(relations: readonly Pick<IslandRelation, 'a' | 'b'>[], bridges: readonly (readonly [string, string])[]) {
+  const key = (a: string, b: string) => [a, b].sort().join(' — ');
+  const related = new Set(relations.map(r => key(r.a, r.b))), built = new Set(bridges.map(([a, b]) => key(a, b)));
+  return { bridged: [...related].filter(k => built.has(k)), unbridged: [...related].filter(k => !built.has(k)), unrelated: [...built].filter(k => !related.has(k)) };
 }

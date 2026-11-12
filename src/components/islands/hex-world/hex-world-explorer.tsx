@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
-import { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useReducedMotion } from 'motion/react';
 import { Globe2, Hexagon, List, Orbit, RotateCcw, X } from 'lucide-react';
 import { hexWorld, type HexWorld } from '@/lib/islands/hex-world';
@@ -50,6 +50,8 @@ function SceneLoading() {
 }
 const HexWorldScene=dynamic(()=>import('./hex-world-scene'),{ssr:false,loading:()=> <SceneLoading/>});
 
+/** P8.3: the sheet's offset from the stage's bottom edge plus the clear sea kept between it and the framed island (px). */
+const SHEET_GAP=20;
 /** D.3-6b: the time-of-day select's wording, in ENVIRONMENTS order. */
 const TIME_OF_DAY:Record<EnvironmentId,string>={morning:'清晨',noon:'中午',sunset:'黃昏',dusk:'傍晚'};
 
@@ -161,6 +163,21 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
   // On phones the island list sits below the map, so choosing there brings the map, with its subjects panel, into view.
   useEffect(()=>{subjectsRef.current?.parentElement?.scrollIntoView({block:'nearest',behavior:reducedMotion?'auto':'smooth'});},[selectedId,reducedMotion]);
   const poiLayout=poiPanel&&selected?options?.glbLayouts?.find(l=>l.islandId===selected.id):undefined;
+  // The focused island's subjects over the map (the home map and the region maps).
+  const subjectsOpen=Boolean(modeSwitchTarget&&selected&&(selected.units||selected.labGroups)&&subjectsClosedFor!==selected.id);
+  // P8.3 (`phoneRoom`, region maps): on single-column screens the camera frames within this room, and a subjects sheet
+  // over the map's lower part adds its height, so the focused island stays in view above it. Unset, nothing changes.
+  const phoneRoom=options?.phoneRoom,singleColumn=useMediaQuery('(max-width: 780px)');
+  const [sheet,setSheet]=useState(0);
+  useEffect(()=>{
+    const element=subjectsRef.current;
+    if(!phoneRoom||!singleColumn||!subjectsOpen||!element) return;
+    // The sheet stays mounted from one focused island to the next, so one observer follows it until it closes.
+    const observer=new ResizeObserver(()=>setSheet(element.offsetHeight));
+    observer.observe(element);
+    return ()=>{observer.disconnect();setSheet(0);};
+  },[phoneRoom,singleColumn,subjectsOpen]);
+  const room=useMemo(()=>phoneRoom&&singleColumn?{top:phoneRoom.top,bottom:sheet?sheet+SHEET_GAP:phoneRoom.bottom}:undefined,[phoneRoom,singleColumn,sheet]);
   const caption=selected
     ?<><span>{selected.englishName}</span><strong>{selected.name}</strong></>
     :<><span>{text.eyebrow}</span><strong>{text.title}</strong></>;
@@ -209,11 +226,11 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
               reducedMotion={Boolean(reducedMotion)} onReady={markReady} onUnavailable={unavailable} options={options} label={text.canvas}
               infoNode={poiPanel?infoNode:undefined} onInfoChange={poiPanel?setInfoNode:undefined}
               resetKey={resetKey} onViewChange={setViewChanged} orbit={orbiting} onOrbitStop={stopOrbit} environmentId={environmentId} insetRight={insetRight} baseAzimuth={baseAzimuth}
-              onResetRequest={options?.mapControls?overview:undefined}/>
+              onResetRequest={options?.mapControls?overview:undefined} room={room}/>
           </LoadingCopy.Provider>
         </SceneBoundary>
         {!controlsBelow&&bottom}
-        {modeSwitchTarget&&(selected?.units||selected?.labGroups)&&subjectsClosedFor!==selected.id&&<aside ref={subjectsRef} className={styles.subjectsFloating} aria-label={`${selected.name}${selected.units?'科目':'實驗'}清單`}>
+        {subjectsOpen&&selected&&<aside ref={subjectsRef} className={styles.subjectsFloating} aria-label={`${selected.name}${selected.units?'科目':'實驗'}清單`}>
           <div className={styles.subjectsHead}><span><small>{selected.englishName}</small><strong>{selected.name}</strong></span>
             <button type="button" aria-label={`關閉${selected.units?'科目':'實驗'}清單`} onClick={()=>setSubjectsClosedFor(selected.id)}><X size={16}/></button></div>
           <div className={styles.subjectsBody}>{selected.units?<IslandSubjects island={selected} units={selected.units}/>:<IslandLabs island={selected} groups={selected.labGroups!}/>}</div>
