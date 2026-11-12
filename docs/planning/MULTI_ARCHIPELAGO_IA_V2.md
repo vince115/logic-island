@@ -584,7 +584,8 @@ P2-A（§3.2，AI 可見性）可以在 P1 之前或之後獨立做；P2（側�
 |---|---|---|
 | 基線 | worktree `logic-island-archipelago`、分支 `archipelago/v2`，從公開線 `origin/trials/mvp`（`4cbe587`）開始；cherry-pick 本機側欄 commit `0849c3f`（公開題庫沒有自由練習卷，移除 `paper.free` 兩處）。原本機分支含私人題庫歷史，pre-push hook 會拒絕，故不以它為基底 | tsc、ESLint、Vitest（公開模式 67 檔 1848 通過、9 skip）、build（100 個預先產生路由） |
 | P1a | 驗證改為結構規則；`Region.order`、`Region.groups`、`regionStatus`、`taxonomy()`；`REGION_LAYOUTS` 只含有 3D 地圖的區域；路由契約快照 | 同上；路由集合與基線相同 |
-| P1b | 4 區域、23 島、431 堂（80 complete、351 planned）；AI 三組；路線 J；10 個新活動 | 見 commit 說明 |
+| P1b | 4 區域、23 島、431 堂（80 complete、351 planned）；AI 三組；路線 J；10 個新活動 | tsc、ESLint、Vitest 68 檔 1856 通過、build；路由集合不變 |
+| P2 | 側欄：區域 → （AI 分組）→ 島 → 難度 → 課；規劃中的課為停用列（不可聚焦、無連結）；上段為世界地圖／學習群島／學習工具；預覽卡標示層級（世界、島嶼、共用工具）；麵包屑加區域；`/curriculum` 加四大群島與各區規劃中的島（大綱預設收合、無連結），AI 群島最小曝光（§3.2）一併完成；內容狀態 `ContentStatus`（已開放／製作中／規劃中）與個人進度分開 | tsc、ESLint、Vitest 1859 通過；瀏覽器實測（1280 桌機、375 手機）：只展開目前區域與島、`aria-current`、抽屜 dialog／Esc／焦點返回、無水平捲動、無 console 錯誤；`e2e/navigation.spec.ts` 14 通過（含所有開放頁面的站內連結檢查）；路由契約不變 |
 
 ## 11. 本文件的驗證方式
 

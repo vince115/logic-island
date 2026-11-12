@@ -68,6 +68,15 @@ const bySlug = new Map(catalogLessons.map(l => [l.slug, l]));
 export const getCatalogLesson = (id: string) => byId.get(id);
 export const getCatalogLessonBySlug = (slug: string) => bySlug.get(slug);
 export const lessonsOfIsland = (islandId: string) => catalogLessons.filter(l => l.islandId === islandId);
+/**
+ * Multi-archipelago v2: the content status a learner sees, never their progress (that is src/lib/progress.ts:
+ * not started, in progress, completed). published: the lesson's page exists. in-development: the curriculum holds the
+ * lesson but it is not complete, so it has no page yet. planned: an outline in the blueprint only.
+ */
+export type ContentStatus = 'planned' | 'in-development' | 'published';
+export const CONTENT_STATUS_LABELS: Record<ContentStatus, string> = { planned: '規劃中', 'in-development': '製作中', published: '已開放' };
+export const contentStatusOf = (lesson: Pick<CatalogLesson, 'lessonId' | 'lessonStatus'>): ContentStatus =>
+  lesson.lessonStatus === 'complete' ? 'published' : inCurriculum.has(lesson.lessonId) ? 'in-development' : 'planned';
 /** Whether a lesson can be opened and learned: only lessons whose content is complete. */
 export const isLearnable = (id: string) => byId.get(id)?.lessonStatus === 'complete';
 export const lessonHref = (id: string) => byId.get(id)?.href;

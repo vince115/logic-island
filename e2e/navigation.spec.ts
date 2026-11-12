@@ -103,14 +103,19 @@ test('側欄：目前課程所在的島與難度自動展開並標示，島嶼�
     await expect(sidebar).toBeVisible();
     await expect(page.getByRole('button', { name: '關閉導覽選單' })).toBeFocused();
   }
-  const tree = sidebar.getByRole('navigation', { name: '課程學習目錄' });
+  const tree = sidebar.getByRole('navigation', { name: '學習群島目錄' });
   await expect(tree.getByRole('button', { name: /資料結構島/ })).toHaveAttribute('aria-expanded', 'true');
   await expect(tree.getByRole('button', { name: /基礎程式島/ })).toHaveAttribute('aria-expanded', 'false');
+  // Multi-archipelago v2: the lesson's region opens with it; the other three regions stay closed.
+  await expect(tree.getByRole('button', { name: /^程式與資訊群島/ })).toHaveAttribute('aria-expanded', 'true');
+  for (const region of ['AI 人工智慧群島', '數位設計群島', '網頁與應用開發群島'])
+    await expect(tree.getByRole('button', { name: new RegExp(`^${region}`) })).toHaveAttribute('aria-expanded', 'false');
   await expect(tree.locator('a[aria-current="page"]')).toHaveAttribute('href', `/curriculum/${D10.slug}`);
   // Never all 80 at once: only the open level's lessons are listed.
   expect(await tree.locator('a[href^="/curriculum/"]').count()).toBeLessThan(20);
-  await expect(sidebar.getByRole('link', { name: '返回 3D 島嶼' })).toHaveAttribute('href', '/?island=structures');
-  await expect(page.getByRole('navigation', { name: '麵包屑' })).toHaveText(/探索群島.*資料結構島.*D10/);
+  await expect(sidebar.getByRole('link', { name: '在 3D 世界中查看' })).toHaveAttribute('href', '/?island=structures');
+  await expect(sidebar.getByText('島嶼 · 程式與資訊群島')).toBeVisible();
+  await expect(page.getByRole('navigation', { name: '麵包屑' })).toHaveText(/探索群島.*程式與資訊群島.*資料結構島.*D10/);
   if (info.project.name.startsWith('mobile')) {
     await page.keyboard.press('Escape');
     await expect(sidebar).toBeHidden();
@@ -119,4 +124,23 @@ test('側欄：目前課程所在的島與難度自動展開並標示，島嶼�
   await page.goto('/?island=structures');
   await expect(page.getByRole('navigation', { name: '主選單' })).toBeVisible();
   expect(new URL(page.url()).searchParams.get('island')).toBe('structures');
+});
+
+// Multi-archipelago v2 (P2): every planned lesson is shown as 規劃中 and never linked, in the sidebar and on /curriculum.
+test('規劃中的群島與課程看得到但不能點：側欄停用列與完整課綱的大綱都沒有連結', async ({ page }, info) => {
+  test.skip(!info.project.name.startsWith('desktop'), 'Same data on both projects.');
+  await page.goto('/curriculum');
+  await expect(page.getByRole('navigation', { name: '四大群島' }).getByRole('link')).toHaveCount(4);
+  const ai = page.locator('#region-ai');
+  await expect(ai.getByRole('heading', { level: 2 })).toContainText('AI 人工智慧群島');
+  await expect(ai.locator('article')).toHaveCount(7);
+  await expect(ai.locator('details a')).toHaveCount(0);
+  const tree = page.locator('#site-sidebar').getByRole('navigation', { name: '學習群島目錄' });
+  await tree.getByRole('button', { name: /^AI 人工智慧群島/ }).click();
+  await tree.getByRole('button', { name: /^生成式 AI 與大型語言模型/ }).click();
+  await tree.getByRole('button', { name: /^大型語言模型島/ }).click();
+  const rows = tree.locator('[aria-disabled="true"]');
+  await expect(rows).toHaveCount(25);
+  await expect(tree.locator('a[href*="prompt-engineering"]')).toHaveCount(0);
+  expect((await page.request.get('/curriculum/prompt-engineering')).status()).toBe(404);
 });

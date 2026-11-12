@@ -7,6 +7,7 @@ import { APCS_LABELS, DIFFICULTY_LABELS } from '@/content/curriculum/registry';
 import { hasCapability, type Block, type CodeExample, type Exercise, type LessonContent, type LessonMeta } from '@/content/curriculum/schema';
 import { getCatalogLesson } from '@/content/world/catalog';
 import { lessonNavigation, type LessonNavigation } from '@/content/world/navigation';
+import { lessonPlace } from '@/lib/nav/site-nav';
 import { CodeTabs, LessonLanguages } from './code';
 import { highlight, highlightAll } from '@/lib/highlight/server';
 import { IslandProgress, LessonCompletion, ProgressBadge } from './progress';
@@ -18,7 +19,7 @@ import styles from './curriculum.module.css';
 
 /** /curriculum/[slug]: a complete lesson in full, or a planned lesson's outline, never one made to look like the other. */
 export function LessonPage({ lesson }: { lesson: LessonMeta }) {
-  const island = islands.find(i => i.id === lesson.islandId)!;
+  const island = islands.find(i => i.id === lesson.islandId)!, place = lessonPlace(lesson.lessonId);
   const content = getContent(lesson.lessonId);
   // Phase F.1b: the declared capabilities pick the body: program code, or the database activities (SQL, ER, normalization).
   const programCode = hasCapability(lesson, 'program-code');
@@ -27,7 +28,8 @@ export function LessonPage({ lesson }: { lesson: LessonMeta }) {
   const nav = lessonNavigation(lesson.lessonId), { previous, next, plannedNext } = nav;
   return <main id="main" className={`container ${styles.lesson}`}>
     {/* 2026-11-12: 探索群島 / island (its part of the curriculum) / level / this lesson. */}
-    <Breadcrumbs items={[{ label: '探索群島', href: '/' }, { label: island.name, href: `/curriculum#island-${island.id}` }, { label: DIFFICULTY_LABELS[lesson.difficulty] }, { label: `${lesson.lessonId} ${lesson.title}` }]}/>
+    {/* Multi-archipelago v2: World / Region / Island / Level / Lesson. */}
+    <Breadcrumbs items={[{ label: '探索群島', href: '/' }, ...place ? [{ label: place.region.name, href: place.regionHref }] : [], { label: island.name, href: `/curriculum#island-${island.id}` }, { label: DIFFICULTY_LABELS[lesson.difficulty] }, { label: `${lesson.lessonId} ${lesson.title}` }]}/>
     <header className={styles.lessonHeader}>
       <span className="eyebrow">{island.name} · {lesson.lessonId}</span>
       <h1>{lesson.title}</h1>

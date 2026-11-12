@@ -7,8 +7,9 @@ import { islandPreviews } from '@/lib/nav/site-nav';
 import { islands, lessons } from '@/content/curriculum';
 import { APCS_LABELS, DIFFICULTY_LABELS } from '@/content/curriculum/registry';
 import { DIFFICULTIES } from '@/content/curriculum/schema';
-import { lessonsOfIsland } from '@/content/world/catalog';
-import { getIsland } from '@/content/world';
+import { catalogCounts, lessonsOfIsland } from '@/content/world/catalog';
+import { getIsland, getRegion, orderedRegions } from '@/content/world';
+import { PlannedIslandsOf, PlannedRegion, RegionExams, RegionStrip } from './region-overview';
 import { IslandProgress, ProgressBadge } from './progress';
 import styles from './curriculum.module.css';
 import overview from './catalog-overview.module.css';
@@ -21,12 +22,13 @@ const NUMERALS = ['零', '一', '二', '三', '四', '五', '六', '七', '八',
  * linked, since they have no page yet.
  * 2026-11-12: the sidebar carries the tree (island → level → lesson); this page opens with one card per island (its
  * map screenshot, levels and progress) and lists each island's lessons by level, so no island is a single long list.
+ * Multi-archipelago v2 (P2): the four regions open the page; the islands with written lessons (程式與資訊群島) follow
+ * as before, then every planned island, region by region, as outlines marked 規劃中 and never linked.
  */
 export function CurriculumCatalog() {
   const complete = lessons.filter(l => l.lessonStatus === 'complete').length, first = lessons.find(l => l.lessonId === 'F01');
-  const listed = islands.flatMap(i => lessonsOfIsland(i.id)), planned = listed.length - complete;
   const db = islands.find(i => i.id === 'databases'), dbOpen = lessons.filter(l => l.islandId === 'databases').length;
-  const previews = islandPreviews();
+  const previews = islandPreviews(), counts = catalogCounts(), cs = getRegion('cs')!;
   return <main id="main" className={`container ${styles.catalog}`}>
     <Breadcrumbs items={[{ label: '探索群島', href: '/' }, { label: '完整課綱' }]}/>
     <span className="eyebrow">THE CURRICULUM · PHASE E</span>
@@ -45,14 +47,17 @@ export function CurriculumCatalog() {
         <Link href="/learn">先到互動實驗島試試<ArrowRight size={15} aria-hidden/></Link>
       </div>
     </section>
+    <h2 className={overview.heading}>四大學習群島</h2>
+    <RegionStrip/>
     <dl className={styles.summary}>
-      <div><dt>課程</dt><dd>{listed.length} 堂</dd></div>
-      <div><dt>已完成教材</dt><dd>{complete} 堂</dd></div>
-      <div><dt>規劃中（大綱）</dt><dd>{planned} 堂</dd></div>
+      <div><dt>規劃課程</dt><dd>{counts.total} 堂</dd></div>
+      <div><dt>已開放教材</dt><dd>{counts.complete} 堂</dd></div>
+      <div><dt>規劃中（大綱）</dt><dd>{counts.planned} 堂</dd></div>
       {DIFFICULTIES.map(d => <div key={d}><dt>{DIFFICULTY_LABELS[d]}</dt><dd>{lessons.filter(l => l.difficulty === d).length} 堂</dd></div>)}
     </dl>
     <IslandProgress name="全部課程" lessonIds={lessons.filter(l => l.lessonStatus === 'complete').map(l => l.lessonId)} completeText={`${lessons.length} 堂課全部完成！`}/>
-    <h2 className={overview.heading}>島嶼總覽</h2>
+    <h2 id="region-cs" className={`${overview.heading} ${overview.regionHeading}`}>{cs.name}<span>{cs.nameEn} · 已開放的主題島</span></h2>
+    <RegionExams region="cs"/>
     <div className={overview.grid}>{islands.map(island => {
       const own = lessons.filter(l => l.islandId === island.id), card = previews[island.id];
       return <article key={island.id} className={overview.card} style={{ '--island-accent': card.accent } as CSSProperties} aria-labelledby={`card-${island.id}`}>
@@ -102,5 +107,7 @@ export function CurriculumCatalog() {
         </li>)}
       </ol>}
     </section>)}
+    <PlannedIslandsOf region="cs"/>
+    {orderedRegions.filter(r => r.id !== 'cs').map(r => <PlannedRegion key={r.id} region={r}/>)}
   </main>;
 }

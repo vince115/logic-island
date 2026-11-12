@@ -4,9 +4,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type Ref } from 'react';
-import { BookOpen, CheckCircle2, ChevronRight, Circle, CircleDot, ClipboardCheck, FlaskConical, Map as MapIcon, Menu, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
+import { BookOpen, CheckCircle2, ChevronRight, Circle, CircleDot, ClipboardCheck, FlaskConical, Globe2, Map as MapIcon, Menu, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
 import { statusOf } from '@/lib/progress';
-import { isDisabled, isGroup, type IslandPreview, type NavArea, type NavGroup, type NavNode } from '@/lib/nav/site-nav';
+import { isDisabled, isGroup, PREVIEW_LEVEL_LABELS, type IslandPreview, type NavArea, type NavGroup, type NavNode } from '@/lib/nav/site-nav';
 import { useProgress } from '@/components/curriculum/use-progress';
 import { isOpen, reopenPath, setCollapsed, toggleGroup, useNavState } from './nav-store';
 import styles from './nav.module.css';
@@ -15,6 +15,8 @@ import styles from './nav.module.css';
  * 2026-11-12 unified sidebar: the island the page belongs to (its screenshot from the 3D map, progress, the way back to
  * it), the three 2D areas, and the current area's tree. Desktop: beside the page, collapsible to a rail of icons.
  * Below 1024px: a drawer from the 選單 button. Hidden while a timed mock exam is in progress (focus mode, html[data-focus]).
+ * Multi-archipelago v2 (P2): the top reads 世界地圖, then 學習群島 (the curriculum of the four regions) and 學習工具
+ * (互動實驗島, 模擬考試); the card says which level its picture stands for (世界, 島嶼, 共用工具).
  */
 export interface SidebarProps {
   area: NavArea;
@@ -26,9 +28,9 @@ export interface SidebarProps {
 }
 
 const AREAS = [
-  { id: 'curriculum', label: '課程學習', href: '/curriculum', Icon: BookOpen },
-  { id: 'labs', label: '互動實驗', href: '/learn', Icon: FlaskConical },
-  { id: 'trials', label: '模擬考試', href: '/trials', Icon: ClipboardCheck },
+  { id: 'curriculum', label: '學習群島', href: '/curriculum', Icon: BookOpen, section: 'learn' },
+  { id: 'labs', label: '互動實驗島', href: '/learn', Icon: FlaskConical, section: 'tools' },
+  { id: 'trials', label: '模擬考試', href: '/trials', Icon: ClipboardCheck, section: 'tools' },
 ] as const;
 
 type Found = { leaf?: NavNode & { href: string }; path: NavGroup[] };
@@ -89,10 +91,11 @@ export function SiteSidebar({ area, tree, previews, overview, trials, children }
     return () => { cancelAnimationFrame(frame); document.removeEventListener('keydown', key); document.body.style.overflow = overflow; menu?.focus({ preventScroll: true }); };
   }, [drawer]);
 
-  // The island this page belongs to: a lesson's island, the lab island, or the whole archipelago.
-  const islandId = area === 'labs' ? 'labs' : area === 'curriculum' ? found.path[0]?.id.slice(2) : undefined;
+  // The island this page belongs to: a lesson's island, the lab island, or the whole world.
+  const islandGroup = found.path.find(g => g.kind === 'island') ?? (area === 'curriculum' ? undefined : found.path[0]);
+  const islandId = area === 'labs' ? 'labs' : area === 'curriculum' ? islandGroup?.id.slice(2) : undefined;
   const island = (islandId && previews[islandId]) || overview;
-  const here = found.leaf ? [found.path[0]?.label, 'code' in found.leaf && found.leaf.code ? found.leaf.code : found.leaf.label].filter(Boolean).join(' · ') : AREAS.find(a => a.id === area)!.label;
+  const here = found.leaf ? [islandGroup?.label, 'code' in found.leaf && found.leaf.code ? found.leaf.code : found.leaf.label].filter(Boolean).join(' · ') : AREAS.find(a => a.id === area)!.label;
   const collapsed = nav.collapsed === undefined ? 'auto' : String(nav.collapsed);
   const areas = AREAS.filter(a => a.id !== 'trials' || trials);
 
@@ -104,7 +107,8 @@ export function SiteSidebar({ area, tree, previews, overview, trials, children }
       {/* Desktop rail (collapsed): the island and the three areas as icons. */}
       <div className={styles.rail}>
         <button type="button" className={styles.railButton} onClick={() => setCollapsed(false)} aria-label="展開側欄" title="展開側欄"><PanelLeftOpen size={18}/></button>
-        <Link className={styles.railButton} href={island.mapHref} aria-label={`返回 3D 島嶼：${island.name}`} title={`返回 3D：${island.name}`}><MapIcon size={18}/></Link>
+        <Link className={styles.railButton} href="/" aria-label="Logic Island 世界地圖" title="世界地圖"><Globe2 size={18}/></Link>
+        <Link className={styles.railButton} href={island.mapHref} aria-label={`返回 3D：${island.name}`} title={`返回 3D：${island.name}`}><MapIcon size={18}/></Link>
         {areas.map(({ id, label, href, Icon }) => <Link key={id} className={styles.railButton} href={href} aria-label={label} title={label} aria-current={id === area ? 'true' : undefined}><Icon size={18}/></Link>)}
       </div>
       <div className={styles.panel}>
@@ -116,7 +120,12 @@ export function SiteSidebar({ area, tree, previews, overview, trials, children }
         <div className={styles.scroll} data-scroll>
           <IslandCard island={island}/>
           <nav aria-label="學習區域" className={styles.areas}>
-            {areas.map(({ id, label, href, Icon }) => <Link key={id} href={href} className={styles.area} aria-current={id === area ? 'true' : undefined}><Icon size={16} aria-hidden/>{label}</Link>)}
+            <Link href="/" className={styles.area}><Globe2 size={16} aria-hidden/>Logic Island 世界地圖</Link>
+            {(['learn', 'tools'] as const).map(section => <div key={section} role="group" aria-labelledby={`areas-${section}`} className={styles.areaGroup}>
+              <span id={`areas-${section}`} className={styles.areaHeading}>{section === 'learn' ? '學習群島' : '學習工具'}</span>
+              {areas.filter(a => a.section === section).map(({ id, label, href, Icon }) => <Link key={id} href={href} className={styles.area} aria-current={id === area ? 'true' : undefined}>
+                <Icon size={16} aria-hidden/>{id === 'curriculum' ? '四大群島 · 完整課綱' : label}</Link>)}
+            </div>)}
           </nav>
           <nav aria-label={`${AREAS.find(a => a.id === area)!.label}目錄`} className={styles.tree}>
             <Tree nodes={tree} depth={0} onPath={new Set(pathIds)} current={found.leaf?.id} currentRef={currentRef}/>
@@ -145,13 +154,14 @@ function IslandCard({ island }: { island: IslandPreview }) {
       <Image src={island.image} alt="" width={480} height={270} sizes="240px" loading="lazy" unoptimized/>
     </Link>
     <div className={styles.cardBody}>
+      <span className={styles.cardLevel} data-level={island.level}>{PREVIEW_LEVEL_LABELS[island.level]}{island.region ? ` · ${island.region}` : island.level === 'tool' ? ' · 跨群島' : ''}</span>
       <small>{island.nameEn}</small>
       <strong>{island.name}</strong>
       {ids.length > 0 && <span className={styles.cardProgress}>
         <span>已完成 {done}／{ids.length} 堂</span>
         <span className={styles.bar} aria-hidden><span style={{ width: `${done / ids.length * 100}%` }}/></span>
       </span>}
-      <Link href={island.mapHref} className={styles.cardLink}><MapIcon size={14} aria-hidden/>{island.id === 'overview' ? '返回 3D 群島' : '返回 3D 島嶼'}</Link>
+      <Link href={island.mapHref} className={styles.cardLink}><MapIcon size={14} aria-hidden/>{island.level === 'world' ? '返回 3D 世界' : '在 3D 世界中查看'}</Link>
     </div>
   </div>;
 }
@@ -161,11 +171,11 @@ function Tree({ nodes, depth, onPath, current, currentRef }: { nodes: NavNode[];
   const { progress } = useProgress();
   return <ul className={styles.list} data-depth={depth}>
     {nodes.map(node => {
-      if (isDisabled(node)) return <li key={node.id}><span className={styles.leaf} aria-disabled="true" data-disabled><span className={styles.leafLabel}>{node.label}</span><small className={styles.leafNote}>{node.disabled}</small></span></li>;
+      if (isDisabled(node)) return <li key={node.id}><span className={styles.leaf} aria-disabled="true" data-disabled>{node.code && <span className={styles.code}>{node.code}</span>}<span className={styles.leafLabel}>{node.label}</span><small className={styles.leafNote}>{node.disabled}</small></span></li>;
       if (isGroup(node)) {
         const path = onPath.has(node.id), open = isOpen(nav, node.id, path), panel = `tree-${node.id.replace(/[^\w-]/g, '-')}`;
         return <li key={node.id}>
-          <button type="button" className={styles.group} aria-expanded={open} aria-controls={panel} data-onpath={path ? 'true' : undefined} onClick={() => toggleGroup(node.id, path)}>
+          <button type="button" className={styles.group} data-kind={node.kind} aria-expanded={open} aria-controls={panel} data-onpath={path ? 'true' : undefined} onClick={() => toggleGroup(node.id, path)}>
             <ChevronRight size={15} className={styles.chevron} aria-hidden/><span className={styles.groupLabel}>{node.label}</span>{node.hint && <small className={styles.hint}>{node.hint}</small>}
           </button>
           {open && <div id={panel}><Tree nodes={node.children} depth={depth + 1} onPath={onPath} current={current} currentRef={currentRef}/></div>}
