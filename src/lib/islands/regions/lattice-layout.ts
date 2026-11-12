@@ -15,6 +15,8 @@ export const LATTICE_SPACING = 7, LATTICE_RADIUS = 2;
 const next = (k: HexEdge) => ((k + 1) % 6) as HexEdge;
 /** The rim tile between directions k and k+1, relative to the island's center. */
 const rimTile = (k: HexEdge): Axial => addAxial(hexDirection(k), hexDirection(next(k)));
+/** The headland beyond rim tile k: the two tiles of the next ring that touch it, and the tip beyond them. */
+const headland = (k: HexEdge): Axial[] => [addAxial(rimTile(k), hexDirection(k)), addAxial(rimTile(k), hexDirection(next(k))), addAxial(rimTile(k), rimTile(k))];
 export const latticeCenter = ([a, b]: readonly [number, number]): Axial => ({ q: a * LATTICE_SPACING, r: b * LATTICE_SPACING });
 
 export function latticeLayout({ placements, links, bridge }: LatticeMapSpec): { layout: WorldLayout; docks: RegionDock[] } {
@@ -45,18 +47,24 @@ export function latticeLayout({ placements, links, bridge }: LatticeMapSpec): { 
 
   const docks: RegionDock[] = [];
   const settlements = placements.map(p => {
-    const center = latticeCenter(p.cell), trim = p.trim ?? [];
+    const center = latticeCenter(p.cell), trim = p.trim ?? [], extend = p.extend ?? [];
+    for (const k of extend) {
+      // A headland reaches one tile further out, so it needs open sea on both sides it leans toward, and its rim tile.
+      if (trim.includes(k)) throw new Error(`lattice map: ${p.islandId} headland ${k} stands on a trimmed tile`);
+      for (const e of [k, next(k)]) { const n = hexNeighbor({ q: p.cell[0], r: p.cell[1] }, e); if (cells.has(`${n.q},${n.r}`)) throw new Error(`lattice map: ${p.islandId} headland ${k} leaves less than two water hexes to a neighbour`); }
+    }
     let spurs: HexSpur[] | undefined;
     if (p.dock !== undefined) {
       const k = p.dock, tile = addAxial(center, rimTile(k));
       // A dock is more than one tile from every bridge port of its island, on a rim tile that was not trimmed, and the
       // hex it faces is open sea (no other island's cell is that close on the lattice).
       if (trim.includes(k)) throw new Error(`lattice map: ${p.islandId} dock is on a trimmed tile`);
+      if (extend.includes(k)) throw new Error(`lattice map: ${p.islandId} dock faces its own headland`);
       if (ports.get(p.islandId)!.some(e => hexDistance(addAxial(center, hexDirection(e), LATTICE_RADIUS), tile) <= 1)) throw new Error(`lattice map: ${p.islandId} dock is next to a bridge port`);
       spurs = [{ id: `${p.islandId}-dock`, tile, edge: k }];
       docks.push({ islandId: p.islandId, spurId: `${p.islandId}-dock` });
     }
-    return plannedSettlement({ islandId: p.islandId, center, shape: shape(LATTICE_RADIUS, trim.map(rimTile), []), ...(spurs ? { spurs } : {}) });
+    return plannedSettlement({ islandId: p.islandId, center, shape: shape(LATTICE_RADIUS, trim.map(rimTile), extend.flatMap(headland)), ...(spurs ? { spurs } : {}) });
   });
   if (!docks.length) throw new Error('lattice map: no dock for the ferry routes');
   return { layout: { world: { size: 1.25, settlements, bridges }, glb: [], forests: [], zones: { plaza: 0, buildings: 0, forest: 0, hills: 0, shore: 0, open: 0 } }, docks };

@@ -4,7 +4,7 @@ import { settlementRoads, type HexWorld } from '@/lib/islands/hex-world';
 import { islandsHomeWorld } from '@/lib/islands/islands-world';
 import { DATABASES_SPEC } from '@/lib/islands/islands-world';
 import { DATABASE_LANDMARKS } from '@/lib/islands/database-island';
-import { MAPPED_REGION_IDS, REGION_LAYOUTS, isMappedRegion, regionLayout } from '@/lib/islands/regions/region-layouts';
+import { AI_BASELINE_LAYOUT, MAPPED_REGION_IDS, REGION_LAYOUTS, isMappedRegion, regionLayout } from '@/lib/islands/regions/region-layouts';
 import { LATTICE_SPACING, latticeLayout } from '@/lib/islands/regions/lattice-layout';
 import { REGION_THEMES } from '@/lib/islands/regions/region-themes';
 import { WORLD_MAP, validateWorldMap, worldMapRegionIds } from '@/lib/islands/regions/world-map';
@@ -170,7 +170,7 @@ describe('multi-region world data model (P8.2)', async () => {
   });
 
   it('the layout layer holds no curriculum data: a region layout is its id, hex world, camera, docks and source', () => {
-    for (const id of MAPPED_REGION_IDS) expect(Object.keys(REGION_LAYOUTS[id]!).sort(), id).toEqual(['camera', 'docks', 'layout', 'regionId', 'source']);
+    for (const id of MAPPED_REGION_IDS) expect(Object.keys(REGION_LAYOUTS[id]!).filter(k => k !== 'plannedMarkers').sort(), id).toEqual(['camera', 'docks', 'layout', 'regionId', 'source']);
     expect(JSON.stringify(WORLD_MAP)).not.toMatch(/lesson|堂|島/);
   });
 
@@ -208,13 +208,82 @@ describe('multi-region world data model (P8.2)', async () => {
   });
 });
 
+const hexDistanceTo = (a: Axial, b: Axial) => (Math.abs(a.q - b.q) + Math.abs(a.r - b.r) + Math.abs(a.q + a.r - b.q - b.r)) / 2;
+
+// Region maps follow the curriculum's relations: related islands are bridged, and no bridge joins unrelated islands.
+describe('region maps and island relations (P8.2)', async () => {
+  const { relationsInRegion, regionRelations } = await import('@/lib/world/island-relations');
+  const key = (a: string, b: string) => [a, b].sort().join(' — ');
+  const unbridged = (region: RegionId) => {
+    const bridges = new Set(regionLayout(region).layout.world.bridges.map(b => key(b.from.islandId, b.to.islandId)));
+    return relationsInRegion(region).map(r => key(r.a, r.b)).filter(k => !bridges.has(k));
+  };
+  it('relations come from lesson prerequisites and recommendations, inside a region and between regions', () => {
+    expect(relationsInRegion('ai')).toHaveLength(15);
+    expect(relationsInRegion('ai')[0]).toEqual({ a: 'ai-agents', b: 'large-language-models', required: 6, recommended: 8 });
+    expect([relationsInRegion('design').length, relationsInRegion('web').length, relationsInRegion('sys').length]).toEqual([5, 5, 10]);
+    expect(regionRelations().slice(0, 3).map(r => `${r.a}-${r.b}`)).toEqual(['ai-cs', 'cs-sys', 'design-web']);
+  });
+  for (const region of MAPPED_REGION_IDS.filter(id => regionLayout(id).source === 'lattice')) {
+    it(`${region}: every bridge joins two related islands`, () => {
+      const related = new Set(relationsInRegion(region).map(r => key(r.a, r.b)));
+      for (const bridge of regionLayout(region).layout.world.bridges) expect(related.has(key(bridge.from.islandId, bridge.to.islandId)), bridge.id).toBe(true);
+    });
+  }
+  it('related islands are bridged; the relations a flat map cannot bridge are pinned', () => {
+    expect(unbridged('design')).toEqual([]);
+    expect(unbridged('web')).toEqual([]);
+    // AI is a turning ring by request, not a hub: its seven bridges all join related islands (the test above), and the
+    // other eight relations, most of them with the island in the lagoon, have no bridge.
+    expect(unbridged('ai')).toHaveLength(8);
+    expect(unbridged('ai').filter(k => k.includes('large-language-models'))).toHaveLength(5);
+    // Systems: 8 of 10.
+    expect(unbridged('sys')).toEqual(['docker-containers — kubernetes-reliability', 'cloud-infrastructure — devops-cicd']);
+  });
+  it('the island in the middle of the AI rosette is the one related to every other AI island', () => {
+    const count = (id: string) => relationsInRegion('ai').filter(r => r.a === id || r.b === id).length;
+    expect(count('large-language-models')).toBe(6);
+    expect(islandsInRegion('ai').filter(i => count(i.id) === 6).map(i => i.id)).toEqual(['large-language-models']);
+  });
+});
+
 describe('lattice region maps (P8.2)', () => {
   const zones = { plaza: 0, buildings: 0, forest: 0, hills: 0, shore: 0, open: 0 };
-  it('design, web and sys are lattice maps with different outlines; cs and ai stay authored', () => {
-    expect(MAPPED_REGION_IDS.map(id => [id, regionLayout(id).source])).toEqual([['cs', 'authored'], ['ai', 'authored'], ['design', 'lattice'], ['web', 'lattice'], ['sys', 'lattice']]);
+  it('ai, design, web and sys are lattice maps with different outlines; cs stays authored', () => {
+    expect(MAPPED_REGION_IDS.map(id => [id, regionLayout(id).source])).toEqual([['cs', 'authored'], ['ai', 'lattice'], ['design', 'lattice'], ['web', 'lattice'], ['sys', 'lattice']]);
     // The outline of a lattice map is its cells: no two regions share one (as a set of cell offsets from the first cell).
-    const outline = (id: 'design' | 'web' | 'sys') => { const c = regionLayout(id).layout.world.settlements.map(s => s.center); return c.map(x => `${(x.q - c[0].q) / LATTICE_SPACING},${(x.r - c[0].r) / LATTICE_SPACING}`).sort().join(' '); };
-    expect(new Set([outline('design'), outline('web'), outline('sys')]).size).toBe(3);
+    const outline = (id: 'ai' | 'design' | 'web' | 'sys') => { const c = regionLayout(id).layout.world.settlements.map(s => s.center); return c.map(x => `${(x.q - c[0].q) / LATTICE_SPACING},${(x.r - c[0].r) / LATTICE_SPACING}`).sort().join(' '); };
+    expect(new Set([outline('ai'), outline('design'), outline('web'), outline('sys')]).size).toBe(4);
+    // Only the three new regions mark their planned islands with a pennant; AI keeps the M3.1 planned-island look.
+    expect(MAPPED_REGION_IDS.filter(id => regionLayout(id).plannedMarkers)).toEqual(['design', 'web', 'sys']);
+  });
+  it('the AI region is a six-petal pinwheel: six petals turned the same way around a lagoon, bridged in a ring, not spokes from a hub', () => {
+    const { world } = regionLayout('ai').layout, middle = world.settlements[0], ring = world.settlements.slice(1);
+    expect(middle.islandId).toBe('large-language-models');
+    expect(ring).toHaveLength(6);
+    // Six-fold turning: petal j is petal 0 turned j times by 60 degrees about the middle (the dock petal keeps one rim tile for its dock).
+    const turned = ({ q, r }: Axial, times: number) => { let p = { q, r }; for (let i = 0; i < times; i++) p = { q: p.q + p.r, r: -p.q }; return p; };
+    const shape = (s: typeof ring[number]) => s.tiles.map(t => hexKey({ q: t.q - middle.center.q, r: t.r - middle.center.r })).sort();
+    const first = ring[0].tiles.map(t => ({ q: t.q - middle.center.q, r: t.r - middle.center.r }));
+    for (const [j, petal] of ring.entries()) {
+      const expected = first.map(t => hexKey(turned(t, j))).sort();
+      if (petal.spurs) expect(shape(petal).filter(k => !expected.includes(k)), petal.islandId).toHaveLength(1);
+      else expect(shape(petal), petal.islandId).toEqual(expected);
+      expect(hexDistanceTo(petal.center, middle.center), petal.islandId).toBe(LATTICE_SPACING);
+    }
+    // A leaning petal is not symmetric: its mirror image is a different shape.
+    expect(first.map(t => hexKey({ q: t.q + t.r, r: -t.r })).sort()).not.toEqual(first.map(hexKey).sort());
+    const between = (a: string, b: string) => world.bridges.some(x => [x.from.islandId, x.to.islandId].sort().join() === [a, b].sort().join());
+    for (const [j, petal] of ring.entries()) expect(between(petal.islandId, ring[(j + 1) % 6].islandId), petal.islandId).toBe(true);
+    // One bridge to the island in the lagoon, not six spokes.
+    expect(world.bridges.filter(x => x.from.islandId === middle.islandId || x.to.islandId === middle.islandId).map(x => x.id)).toEqual(['large-language-models-ai-agents']);
+    expect(world.bridges).toHaveLength(7);
+  });
+  it('the M3.1 AI loop is kept whole and still valid, one line away', () => {
+    const ids = islandsInRegion('ai').map(i => i.id);
+    expect(validateRegion(AI_BASELINE_LAYOUT, ids, reserved(AI_BASELINE_LAYOUT.layout.world))).toEqual([]);
+    expect(AI_BASELINE_LAYOUT.source).toBe('authored');
+    expect(AI_BASELINE_LAYOUT.layout.world.settlements.find(s => s.islandId === 'ai-foundations')!.center).toEqual({ q: 0, r: 0 });
   });
   it('builds a valid region from placements alone, at any size', () => {
     for (const n of [1, 4, 12, 30]) {
@@ -233,5 +302,9 @@ describe('lattice region maps (P8.2)', () => {
     expect(() => latticeLayout({ bridge: 'wood', placements: [{ ...one, trim: [4] }], links: [] })).toThrow('trimmed tile');
     expect(() => latticeLayout({ bridge: 'wood', placements: [{ islandId: 'a', cell: [0, 0] }], links: [] })).toThrow('no dock');
     expect(() => latticeLayout({ bridge: 'wood', placements: [one, { islandId: 'b', cell: [0, 0] }], links: [] })).toThrow('share a cell');
+    // A headland needs open sea: not toward a neighbouring island, not on a trimmed tile, not where the dock faces.
+    expect(() => latticeLayout({ bridge: 'wood', placements: [{ ...one, extend: [0] }, { islandId: 'b', cell: [1, 0] }], links: [['a', 'b']] })).toThrow('less than two water hexes');
+    expect(() => latticeLayout({ bridge: 'wood', placements: [{ ...one, extend: [2], trim: [2] }], links: [] })).toThrow('stands on a trimmed tile');
+    expect(() => latticeLayout({ bridge: 'wood', placements: [{ ...one, extend: [4] }], links: [] })).toThrow('faces its own headland');
   });
 });

@@ -101,7 +101,9 @@ test.describe('regional world: flag on', () => {
     const names = ['AI 基礎島', '機器學習島', '深度學習島', '大型語言模型島', '生成式 AI 島', 'AI 代理島', 'AI 工程與 MLOps 島'];
     for (const name of names) await expect(page.getByRole('button', { name: `聚焦${name}（規劃中）`, exact: true })).toBeVisible();
     await expectLabelsClear(page);
-    for (const [id, w] of Object.entries(await islandWidths(page, 'ai'))) expect(w, id).toBeGreaterThanOrEqual(phone() ? 80 : 180);
+    // P8.2: the six-petal pinwheel is wider than the M3.1 loop, so on phones the island in the lagoon is 74 px in the
+    // overview (the loop reached 85); pinned at the same floor as the CS map. The phone target is the focused island (D5, below).
+    for (const [id, w] of Object.entries(await islandWidths(page, 'ai'))) expect(w, id).toBeGreaterThanOrEqual(phone() ? 70 : 180);
   });
 
   test('focus follows the address: choose, back, forward, deep link, unknown id, Escape up two levels', async ({ page }) => {

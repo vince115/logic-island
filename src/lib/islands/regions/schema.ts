@@ -36,14 +36,17 @@ export interface RegionLayout {
    * its art is reviewed, drawn with the shared planned-island terrain and a procedural marker per island.
    */
   source: 'authored' | 'lattice';
+  /** Each planned island's survey marker carries a pennant in the island's accent (a proposal; see P8.2 §8 R3). */
+  plannedMarkers?: true;
 }
 
 /**
  * One island of a lattice map. `cell` is its place on a coarse hex lattice (lattice-layout.ts: neighbouring cells are
  * seven tiles apart, so two water hexes separate them). `trim` drops rim tiles for an uneven coast: index k is the rim
- * tile between hex directions k and k+1. `dock` puts the region's ferry dock on rim tile k, facing the sea along k.
+ * tile between hex directions k and k+1. `extend` adds a headland of three tiles beyond rim tile k, only on a side with
+ * no neighbouring island. `dock` puts the region's ferry dock on rim tile k, facing the sea along k.
  */
-export interface IslandPlacement { islandId: string; cell: readonly [number, number]; trim?: readonly HexEdge[]; dock?: HexEdge }
+export interface IslandPlacement { islandId: string; cell: readonly [number, number]; trim?: readonly HexEdge[]; extend?: readonly HexEdge[]; dock?: HexEdge }
 
 /** A lattice map: the islands' cells and which neighbouring pairs a bridge joins. */
 export interface LatticeMapSpec {

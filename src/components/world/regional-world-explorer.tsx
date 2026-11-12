@@ -23,11 +23,11 @@ export const WORLD_RETURN_KEY = 'logic-island:world-return';
  * home map, which is framed at about twice the zoom: desktop names hang sideways about 150 px (the region's camera
  * preset); phone labels are pins, which the home map's room already fits.
  * P8.2: built from the region's layout and camera preset (REGION_LAYOUTS), for any region; region maps can be panned
- * and driven from the keyboard (`mapControls`), and a lattice map marks each planned island with its accent.
+ * and driven from the keyboard (`mapControls`), and a region may mark each planned island with its accent.
  */
 function regionSceneOptions(region: RegionId, phone: boolean) {
-  const { layout, camera, source } = regionLayout(region);
-  return { ...sceneOptions(layout, SCENE_PRESETS.lab), labelReach: phone ? undefined : camera.labelReach, largeTargets: true, mapControls: true, plannedMarkers: source === 'lattice' };
+  const { layout, camera, plannedMarkers } = regionLayout(region);
+  return { ...sceneOptions(layout, SCENE_PRESETS.lab), labelReach: phone ? undefined : camera.labelReach, largeTargets: true, mapControls: true, plannedMarkers };
 }
 
 /*
