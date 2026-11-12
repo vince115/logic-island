@@ -4,6 +4,7 @@
 > 上層文件：[P8.1 架構設計](P8_MULTI_REGION_3D_WORLD_ARCHITECTURE.md)（決策 D1–D6 的來源）、[M3.1 Regional World](M3_1_REGIONAL_WORLD_ARCHITECTURE.md)、[P6 Systems & Cloud Region](P6_SYSTEMS_CLOUD_REGION.md)。
 > **範圍**：全部在 `LOGIC_ISLAND_REGIONAL_WORLD=1` 的 build 之後；預設 build（正式站）的路由、首頁 `/` 與其 3D 場景沒有改動。沒有 merge `main`、沒有 force push、沒有部署。
 > 沒有新增或修改任何 GLB／BLEND；CS 已批准的 M3.1 座標一格未動。AI、DESIGN、WEB、SYS 的區域地圖與五區總覽構圖是**待截圖審核的提案**。
+> **後續**：§11.4 的方案 (a) 已於 2026-11-12 批准為 D7，實作、手機驗收方式的修正與量測見 [P8_3_WORLD_TOPOLOGY_AND_NAVIGATION](P8_3_WORLD_TOPOLOGY_AND_NAVIGATION.md)。該階段也移除了本文件 §11.2 所述「橋必須連接有關聯的島」的測試（Layout 改為穩定資料，關聯只作為報告）。
 > **同日補充（§11）**：依你的回饋，AI 群島改為**六瓣旋轉狀**（不是放射狀；原 M3.1 配置完整保留、一行可切回）；DESIGN／WEB／SYS 的島改成依課程關聯排列、有關聯的島用橋連接。「群島與群島之間」的放射狀拓樸尚未實作，見 §11.4。本文件 §2.3、§5、§6 的表格已更新為補充後的狀態。
 
 ## 0. 結論
