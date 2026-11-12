@@ -110,7 +110,9 @@ test('播放中更換輸入後重建步驟與更新值', async ({ page }) => {
   await control(page, '播放').click();
   await page.clock.runFor(850);
   await page.getByLabel('輸入資料').fill('10, 20, 30');
-  await page.getByLabel('操作', { exact: true }).selectOption('update');
+  // The label wraps the select, so its text content also holds the option texts (操作存取更新) and getByLabel(exact)
+  // never matches; the select's accessible name is exactly 操作.
+  await page.getByRole('combobox', { name: '操作', exact: true }).selectOption('update');
   await page.getByLabel('新值', { exact: true }).fill('99');
   await control(page, '套用輸入').click();
   await expect(progress(page)).toHaveValue('0');
