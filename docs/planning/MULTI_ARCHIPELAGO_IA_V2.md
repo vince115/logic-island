@@ -586,6 +586,7 @@ P2-A（§3.2，AI 可見性）可以在 P1 之前或之後獨立做；P2（側�
 | P1a | 驗證改為結構規則；`Region.order`、`Region.groups`、`regionStatus`、`taxonomy()`；`REGION_LAYOUTS` 只含有 3D 地圖的區域；路由契約快照 | 同上；路由集合與基線相同 |
 | P1b | 4 區域、23 島、431 堂（80 complete、351 planned）；AI 三組；路線 J；10 個新活動 | tsc、ESLint、Vitest 68 檔 1856 通過、build；路由集合不變 |
 | P2 | 側欄：區域 → （AI 分組）→ 島 → 難度 → 課；規劃中的課為停用列（不可聚焦、無連結）；上段為世界地圖／學習群島／學習工具；預覽卡標示層級（世界、島嶼、共用工具）；麵包屑加區域；`/curriculum` 加四大群島與各區規劃中的島（大綱預設收合、無連結），AI 群島最小曝光（§3.2）一併完成；內容狀態 `ContentStatus`（已開放／製作中／規劃中）與個人進度分開 | tsc、ESLint、Vitest 1859 通過；瀏覽器實測（1280 桌機、375 手機）：只展開目前區域與島、`aria-current`、抽屜 dialog／Esc／焦點返回、無水平捲動、無 console 錯誤；`e2e/navigation.spec.ts` 14 通過（含所有開放頁面的站內連結檢查）；路由契約不變 |
+| P3 | 盤點與可行性：[P3_FOUR_REGION_WORLD_FEASIBILITY](P3_FOUR_REGION_WORLD_FEASIBILITY.md)；`/world` 導覽清單加入 design、web（規劃中、尚無 3D 地圖、連到課綱大綱）；3D 場景、GLB、座標與旗標都不變；建議維持方案 A，方案 B（程式生成的規劃中區域）需重新批准總覽構圖 | 旗標建置（兩旗標）瀏覽器確認：清單 4 區、`/world/design` 404、iPAS／CCAR-F 在公開題庫無試卷時不連結；`regional-world.test.ts` 13 通過 |
 
 ## 11. 本文件的驗證方式
 
