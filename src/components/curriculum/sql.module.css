@@ -1,0 +1,226 @@
+/* Phase F.1a: SQL examples, playground and exercise checker (see sql-playground.tsx). Uses the type scale tokens only. */
+.playground,
+.checker {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  padding: 14px;
+  min-width: 0;
+}
+.editor {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+.editor label {
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+.editor textarea {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--code);
+  color: var(--code-text);
+  font: var(--text-sm)/1.7 ui-monospace, SFMono-Regular, Consolas, monospace;
+  tab-size: 2;
+}
+.editor textarea:focus-visible {
+  outline: 2px solid #8cb5f7;
+  outline-offset: 2px;
+}
+.help {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.7;
+}
+.status {
+  min-height: 1.6em;
+  margin: 8px 0 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.presets button {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  background: var(--soft);
+  color: var(--text);
+  font-size: var(--text-sm);
+}
+.schema {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--soft);
+  padding: 8px 12px;
+}
+.schema summary {
+  cursor: pointer;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+.schemaTables {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+  font-size: var(--text-sm);
+}
+.schemaTables ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  line-height: 1.7;
+}
+.schemaTables span {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+.resultWrap {
+  overflow-x: auto;
+  margin: 12px 0 0;
+  max-width: 100%;
+}
+.result {
+  border-collapse: collapse;
+  min-width: 100%;
+  font-size: var(--text-sm);
+  background: var(--panel);
+}
+.result caption {
+  text-align: left;
+  padding-bottom: 6px;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.result th,
+.result td {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  text-align: left;
+  /* Keep a value's own line breaks (e.g. CREATE TABLE text); long values scroll with the table. */
+  white-space: pre;
+  vertical-align: top;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.result thead th {
+  background: var(--soft);
+}
+.result td[data-type='number'] {
+  text-align: right;
+}
+.null {
+  color: var(--muted);
+  font-style: italic;
+}
+.empty {
+  color: var(--muted);
+  text-align: center !important;
+}
+.error {
+  margin: 12px 0 0;
+  padding: 10px 14px;
+  border: 1px solid #d93025;
+  border-radius: 8px;
+  background: color-mix(in srgb, #d93025 8%, var(--panel));
+  font-size: var(--text-sm);
+  line-height: 1.7;
+}
+.error strong {
+  display: block;
+}
+.error code {
+  display: block;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.error p {
+  margin: 4px 0 0;
+}
+.verdict {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 0;
+  font-weight: 700;
+  font-size: var(--text-base);
+  color: #c5221f;
+}
+.verdict[data-ok='true'] {
+  color: var(--green);
+}
+.checks {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  font-size: var(--text-sm);
+  line-height: 1.7;
+}
+.checks li[data-ok='true'] strong {
+  color: var(--green);
+}
+.checks p {
+  margin: 2px 0 0;
+}
+.compare {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0 14px;
+  min-width: 0;
+}
+.example {
+  margin: 22px 0;
+  min-width: 0;
+}
+.code {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  overflow-x: auto;
+  background: var(--code);
+  color: var(--code-text);
+  font: var(--text-sm)/1.75 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+/* Phase F.1c: a query plan shown as named steps. */
+.plan ol {
+  margin: 6px 0 8px;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+.plan li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  padding: 2px 0;
+}
+.planKind {
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: var(--text-xs);
+}
+.plan li[data-kind='scan'] .planKind,
+.plan li[data-kind='temp-btree'] .planKind {
+  border-color: var(--cur-bad);
+  color: var(--cur-bad);
+}
+.plan li[data-kind='search'] .planKind {
+  border-color: var(--cur-ok);
+  color: var(--cur-ok);
+}

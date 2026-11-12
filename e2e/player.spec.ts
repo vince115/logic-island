@@ -13,7 +13,7 @@ const test = base.extend<{ consoleGuard: void }>({
 const control = (page: Page, name: string) => page.getByRole('button', { name, exact: true });
 const progress = (page: Page) => page.getByRole('slider', { name: '播放進度' });
 const sceneValues = (page: Page) => page.locator('.cell').allTextContents();
-async function ready(page: Page, path = '/visualize/array') {
+async function ready(page: Page, path = '/learn/array') {
   await page.goto(path);
   // Prove hydration before advancing the browser clock.
   await control(page, '下一步').click();
@@ -22,17 +22,20 @@ async function ready(page: Page, path = '/visualize/array') {
   await expect(progress(page)).toHaveValue('0');
 }
 
-test('首頁與兩個列表導航', async ({ page }) => {
+// Phase E.5: 探索群島／完整課綱／互動實驗島; the six labs are listed once, at /learn.
+test('首頁與主選單導航', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('程式邏輯');
-  await page.getByRole('navigation').getByRole('link', { name: '學習路線' }).click();
+  const menu = page.getByRole('navigation', { name: '主選單' });
+  await menu.getByRole('link', { name: '完整課綱' }).click();
+  await expect(page).toHaveURL('/curriculum');
+  await menu.getByRole('link', { name: '互動實驗島' }).click();
   await expect(page).toHaveURL('/learn');
   await expect(page.locator('.course-card')).toHaveCount(6);
-  await page.getByRole('navigation').getByRole('link', { name: '演算法視覺化' }).click();
-  await expect(page).toHaveURL('/visualize');
-  await expect(page.locator('.course-card')).toHaveCount(6);
   await page.locator('.course-card').first().click();
-  await expect(page).toHaveURL('/visualize/array');
+  await expect(page).toHaveURL('/learn/array');
+  await menu.getByRole('link', { name: '探索群島' }).click();
+  await expect(page).toHaveURL('/');
 });
 
 for (const slug of ['array', 'stack', 'queue', 'binary-search', 'bubble-sort', 'bfs']) {
@@ -53,11 +56,13 @@ for (const slug of ['array', 'stack', 'queue', 'binary-search', 'bubble-sort', '
       values: await sceneValues(page),
       graph: await page.locator('.graph-scene').count() ? await page.locator('.graph-scene').textContent() : null,
     }).toEqual(before);
-    for (const language of ['C++', 'Java', 'Python']) {
+    for (const language of ['C++', 'Java', 'Python', 'JavaScript']) {
       await control(page, language).click();
       await expect(control(page, language)).toHaveAttribute('aria-pressed', 'true');
-      await expect(page.locator('.code-panel pre')).toContainText(language === 'C++' ? '#include' : language === 'Java' ? 'public class Main' : slug === 'bfs' || slug === 'queue' ? 'from collections import deque' : 'print');
+      await expect(page.locator('.code-panel pre')).toContainText(language === 'C++' ? '#include' : language === 'Java' ? 'public class Main' : language === 'JavaScript' ? 'console.log' : slug === 'bfs' || slug === 'queue' ? 'from collections import deque' : 'print');
       await expect(progress(page)).toHaveValue('1');
+      // 2026-11-02 syntax colours: the line of the current step keeps its highlight and is coloured inside it.
+      await expect(page.locator('.code-line.highlighted').first().locator('[class^="tk-"]').first()).toBeVisible();
     }
     await expect(page.locator('.lab-panel')).toBeInViewport();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -124,14 +129,21 @@ test('深淺色切換、保存與頁面溢出檢查', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('logiclab-theme', 'light'));
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  await control(page, '切換深色模式').click();
+  // One header button cycles the time of day; only 傍晚 is dark (中午 → 黃昏 → 傍晚).
+  const time = page.getByRole('button', { name: /^時間：/ });
+  await expect(time).toHaveAccessibleName('時間：中午（按一下切換到黃昏）');
+  await time.click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await time.click();
+  await expect(time).toHaveAccessibleName('時間：傍晚（按一下切換到清晨）');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   // Clear the initialization script by using a separate page in the same context.
   const second = await page.context().newPage();
   await second.goto('/learn/array');
   await expect(second.locator('html')).toHaveAttribute('data-theme', 'dark');
   await second.close();
-  await control(page, '切換淺色模式').click();
+  await time.click();
+  await expect(time).toHaveAccessibleName('時間：清晨（按一下切換到中午）');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

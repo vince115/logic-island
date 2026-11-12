@@ -1,0 +1,20 @@
+{
+  "asset": "basics-island",
+  "version": "2.1",
+  "note": "Root extras asset_id is still \"logiclab-basics-island-v2\" in the source; track the version here, not by asset_id.",
+  "source": {
+    "vault_relative_path": "codex-visualizations-20261028-01a181a6/basics-v2.1/logiclab-basics-island-v2.1.glb",
+    "sha256": "7cb4272734b5d1c7bcd68d2ba340206fdef55623bf0f011f6152a1b7bd468957",
+    "bytes": 879748
+  },
+  "output": {
+    "path": "public/models/islands/basics-island.v2.1.glb",
+    "sha256": "37226e9ba7dfa7c6b839e352da8214788010b5dc148acc6f7c1416bb2ac3fb55",
+    "bytes": 879708
+  },
+  "bin_chunk_sha256": "31d389c25d8afe5778f23e1945e23f6006386aaf211884951bf567ebc0dcc385",
+  "removed_json_pointers": [
+    "/scenes/0/extras/blendermcp_server_running"
+  ],
+  "method": "scripts/assets/derive-runtime-glb.mjs: strip extras keys prefixed \"blendermcp\", re-serialize JSON chunk, copy BIN chunk unchanged"
+}

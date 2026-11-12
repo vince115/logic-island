@@ -34,17 +34,17 @@ Logic Island（程式邏輯島，原名 LogicLab）是繁體中文的程式邏�
 
 | 路由 | 原始碼 | 當前內容／狀態 |
 |---|---|---|
-| `/` | `src/app/page.tsx` | 首頁、六課程入口、靜態氣泡排序宣傳圖；Implemented |
-| `/learn` | `src/app/learn/page.tsx` | Catalog 教材分類清單；Implemented |
+| `/` | `src/app/page.tsx` | 全畫面 3D 群島（探索群島）；2026-11-01 起 |
+| `/curriculum`、`/curriculum/[slug]` | `src/app/curriculum/` | 完整課綱：60 堂正式教材（三座島），開頭有簡短的學習方式說明；Phase E |
+| `/learn` | `src/app/learn/page.tsx` | 互動實驗島（Interactive Lab Island）：六個 Lab 的分類清單（Phase E.5 起） |
 | `/learn/[slug]` | `src/app/learn/[slug]/page.tsx` | 六份 Lesson＋Lab；靜態 params，未知 slug notFound |
-| `/visualize` | `src/app/visualize/page.tsx` | 同教材清單、不同入口文案 |
-| `/visualize/[slug]` | `src/app/visualize/[slug]/page.tsx` | 共用 Lesson／Lab，以實驗為主 |
+| `/visualize`、`/visualize/[slug]` | `next.config.ts` | Phase E.5（2026-11-02）起永久轉址（308）到 `/learn`、`/learn/[slug]`，保留 slug 與查詢參數；原頁面已移除（內容與 `/learn` 相同） |
 | `/islands` | `src/app/islands/page.tsx` | Phase 2A 三島原創幾何 R3F 原型；Partial／Blocked 建置 |
 | 404 | `src/app/not-found.tsx` | 未知路徑與教材 slug |
 
 六個 slug：`array`、`stack`、`queue`、`binary-search`、`bubble-sort`、`bfs`。預期功能路由共 16 個（含六 learn 與六 visualize），不含內建錯誤頁；本輪 build 失敗，不能稱已成功產生全部路由。原 `.next` 沒有 `/islands`，屬舊輸出，不應拿來驗收目前程式。
 
-主 Header 目前只有 `/learn`、`/visualize`，未找到 `/islands` 導覽連結（`src/components/header.tsx`）。不存在教材資料庫或 CMS，課程全部由 `src/content/courses.ts` 管理；島嶼由 `src/lib/islands/data.ts` 管理。
+主 Header（Phase E.5 起）：探索群島（`/`）、完整課綱（`/curriculum`）、互動實驗島（`/learn`，Interactive Lab Island）；「開始學習」開啟 F01 的課綱頁（slug 由 `lessons.ts` 取得）。沒有 `/islands` 導覽連結（`src/components/header.tsx`）。不存在教材資料庫或 CMS，課程全部由 `src/content/courses.ts` 管理；島嶼由 `src/lib/islands/data.ts` 管理。
 
 ## 環境變數與啟動
 

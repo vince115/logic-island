@@ -21,6 +21,7 @@
 7. [BLENDER_ASSET_INVENTORY](BLENDER_ASSET_INVENTORY.md)：完整資產路徑／bytes／用途／例外。
 8. [NEXT_STEPS](NEXT_STEPS.md)：批准關卡與最小修復順序。
 9. [ROADMAP](ROADMAP.md)：產品方向、雙群島架構、階段編號、C.1決議、Phase D–J規劃與依賴。
+10. [SCENE_MODULES](SCENE_MODULES.md)：模組化 3D 場景架構規劃（未批准），說明藍圖、驗證與 D／E／F 分層。
 
 ## 核心檔案地圖
 

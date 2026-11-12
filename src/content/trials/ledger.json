@@ -1,0 +1,15 @@
+{
+ "format": "logic-island.trials-ledger/1",
+ "reviewers": [
+  {
+   "id": "owner",
+   "name": "專案負責人",
+   "roles": [
+    "review",
+    "publish"
+   ]
+  }
+ ],
+ "reviews": [],
+ "publications": []
+}

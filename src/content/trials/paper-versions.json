@@ -1,0 +1,353 @@
+{
+ "format": "logic-island.trials-paper-versions/1",
+ "note": "Every version of every fixed paper, each item pinned to its revision and content hash. Append-only: a change to a fixed paper is a new version (docs/exam-system/31 §6). Registered at T.3G (2026-11-09) from the papers as they stood; earlier changes are in git history.",
+ "versions": [
+  {
+   "paperId": "apcs-reading-mock-a",
+   "version": "1.0.0",
+   "exam": "apcs",
+   "subjectId": "apcs-current.reading",
+   "durationMinutes": 21,
+   "passPoints": 42,
+   "items": [
+    {
+     "questionId": "orig-apcs-read-01",
+     "revision": 1,
+     "hash": "28dda20a",
+     "points": 10
+    },
+    {
+     "questionId": "orig-apcs-read-02",
+     "revision": 1,
+     "hash": "d5a7e142",
+     "points": 10
+    },
+    {
+     "questionId": "orig-apcs-read-03",
+     "revision": 1,
+     "hash": "6e1cd90e",
+     "points": 10
+    },
+    {
+     "questionId": "orig-apcs-read-04",
+     "revision": 1,
+     "hash": "f1ec129b",
+     "points": 10
+    },
+    {
+     "questionId": "orig-apcs-read-05",
+     "revision": 1,
+     "hash": "cdf560d6",
+     "points": 10
+    },
+    {
+     "questionId": "orig-apcs-read-06",
+     "revision": 1,
+     "hash": "ffff9a5f",
+     "points": 10
+    },
+    {
+     "questionId": "orig-apcs-read-07",
+     "revision": 1,
+     "hash": "61bff231",
+     "points": 10
+    }
+   ]
+  },
+  {
+   "paperId": "bank-it-mock-a",
+   "version": "1.0.0",
+   "exam": "bank-it",
+   "subjectId": "bank-it-general.it",
+   "durationMinutes": 12,
+   "passPoints": 36,
+   "items": [
+    {
+     "questionId": "orig-bank-01",
+     "revision": 1,
+     "hash": "a28b091b",
+     "points": 10
+    },
+    {
+     "questionId": "orig-bank-02",
+     "revision": 1,
+     "hash": "6c299c71",
+     "points": 10
+    },
+    {
+     "questionId": "orig-bank-04",
+     "revision": 1,
+     "hash": "a1393fec",
+     "points": 10
+    },
+    {
+     "questionId": "orig-bank-05",
+     "revision": 1,
+     "hash": "02ae774e",
+     "points": 10
+    },
+    {
+     "questionId": "orig-bank-06",
+     "revision": 1,
+     "hash": "cb03c0a1",
+     "points": 10
+    },
+    {
+     "questionId": "orig-bank-09",
+     "revision": 1,
+     "hash": "653c3477",
+     "points": 10
+    }
+   ]
+  },
+  {
+   "paperId": "moex-114-pukao-3448",
+   "version": "1.0.0",
+   "exam": "moex-info-processing",
+   "subjectId": "moex-info-processing-114.pukao-computer",
+   "durationMinutes": 60,
+   "items": [
+    {
+     "questionId": "moex-114-pukao-3448-q01",
+     "revision": 2,
+     "hash": "f55bd0cf",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q02",
+     "revision": 1,
+     "hash": "22797038",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q03",
+     "revision": 1,
+     "hash": "fee58262",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q04",
+     "revision": 1,
+     "hash": "e0d6ecc0",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q05",
+     "revision": 1,
+     "hash": "c5938081",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q06",
+     "revision": 2,
+     "hash": "aa5c22b6",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q07",
+     "revision": 2,
+     "hash": "cc4466ce",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q08",
+     "revision": 1,
+     "hash": "64dfbe1d",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q09",
+     "revision": 1,
+     "hash": "14e9275a",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q10",
+     "revision": 1,
+     "hash": "825d921b",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q11",
+     "revision": 1,
+     "hash": "62271918",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q12",
+     "revision": 1,
+     "hash": "623aa1bf",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q13",
+     "revision": 1,
+     "hash": "bfdfad3b",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q14",
+     "revision": 1,
+     "hash": "869c9436",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q15",
+     "revision": 1,
+     "hash": "6c2a16aa",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q16",
+     "revision": 1,
+     "hash": "f97daebc",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q17",
+     "revision": 1,
+     "hash": "d7955e87",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q18",
+     "revision": 1,
+     "hash": "1fa735e1",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q19",
+     "revision": 1,
+     "hash": "a86c3dba",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q20",
+     "revision": 1,
+     "hash": "c8cda6ac",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q21",
+     "revision": 1,
+     "hash": "863aac4a",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q22",
+     "revision": 1,
+     "hash": "3e7d810c",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q23",
+     "revision": 1,
+     "hash": "f96ffcf7",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q24",
+     "revision": 1,
+     "hash": "69d51590",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q25",
+     "revision": 1,
+     "hash": "0f9e44db",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q26",
+     "revision": 1,
+     "hash": "654a2076",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q27",
+     "revision": 1,
+     "hash": "832d912d",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q28",
+     "revision": 1,
+     "hash": "c4e1db76",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q29",
+     "revision": 1,
+     "hash": "d49b5c9d",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q30",
+     "revision": 1,
+     "hash": "854a2be3",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q31",
+     "revision": 1,
+     "hash": "a1aa63b7",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q32",
+     "revision": 1,
+     "hash": "5ee91058",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q33",
+     "revision": 1,
+     "hash": "0559d7fe",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q34",
+     "revision": 1,
+     "hash": "0d730b9a",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q35",
+     "revision": 1,
+     "hash": "417e690b",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q36",
+     "revision": 2,
+     "hash": "02e9e8fd",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q37",
+     "revision": 1,
+     "hash": "21909172",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q38",
+     "revision": 1,
+     "hash": "7fa5f79d",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q39",
+     "revision": 1,
+     "hash": "5dab44e1",
+     "points": 2.5
+    },
+    {
+     "questionId": "moex-114-pukao-3448-q40",
+     "revision": 1,
+     "hash": "3f0e8c0d",
+     "points": 2.5
+    }
+   ]
+  }
+ ]
+}

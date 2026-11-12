@@ -1,0 +1,176 @@
+/* M3.1 regional world prototype: the world overview (/world) and the breadcrumb of the region maps. Its own module, so
+   nothing here touches islands.module.css or globals.css. */
+
+.overview {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  min-height: 100svh;
+  background: #8fcbe4;
+}
+/* The site header floats over the map on wide screens (as on the home page); on phones it stays above it. */
+.stage {
+  position: relative;
+  min-height: 100svh;
+}
+.canvasWrap {
+  position: absolute;
+  inset: 0;
+}
+.loading,
+.fallbackNotice {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 24px;
+  color: var(--text);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+.fallbackNotice {
+  position: static;
+  min-height: 160px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+/* The guide floats over the right of the stage on wide screens (like the home map's list) and sits below it on phones. */
+.guide {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  border-top: 1px solid var(--border);
+}
+@media (min-width: 781px) {
+  .guide {
+    position: absolute;
+    top: calc(var(--header-h) + 16px);
+    right: 16px;
+    width: 340px;
+    max-height: calc(100% - var(--header-h) - 32px);
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 12px 34px #13233d1f;
+  }
+}
+@media (max-width: 780px) {
+  .stage { min-height: 56dvh; }
+  .overview { min-height: 0; }
+}
+.guideHeading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+  font-weight: 650;
+}
+.guideHeading small {
+  margin-left: auto;
+  font: var(--text-xs) ui-monospace, monospace;
+  color: var(--muted);
+}
+.guideList {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.guideEntry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--region-accent);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.guideEntry:hover { border-color: var(--region-accent); }
+.guideEntry > span { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.guideEntry small { font: var(--text-xs) ui-monospace, monospace; color: var(--muted); }
+.guideEntry strong { font-size: var(--text-md); }
+.guideEntry em { font-style: normal; font-size: var(--text-xs); color: var(--muted); }
+.guideHub { display: grid; gap: 6px; }
+/* T.1: a region entry with its trial links below it (built with LOGIC_ISLAND_TRIALS=1 only). */
+.guideRegion { display: grid; gap: 6px; }
+.guidePlanned,
+.guideNote {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* The overview's region labels: a large, easy target under each outline. */
+.overviewLabel {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  display: grid;
+  gap: 2px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--region-accent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  color: var(--text);
+  text-align: center;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px #13233d24;
+}
+.overviewLabel strong { font-size: var(--text-md); }
+.overviewLabel small { font-size: var(--text-xs); color: var(--muted); }
+.overviewLabel[data-hovered='true'],
+.overviewLabel:hover { border-color: var(--region-accent); }
+@media (max-width: 780px) {
+  .overviewLabel { padding: 6px 10px; }
+  .overviewLabel strong { font-size: var(--text-sm); }
+}
+
+/* Region maps: back to the overview, in the site header's tool slot, in one row with the explorer's 清單 button. The
+   slot is the site header's (globals.css); only pages that put this link in it get the row. */
+:global(.header-tools):has(.backToWorld) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.captionStats {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--muted);
+}
+.backToWorld {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.backToWorld:hover { border-color: var(--accent); }
+/* Phones: the header row is short, so the link is an arrow; its name stays for screen readers (aria-label). */
+@media (max-width: 780px) {
+  .backToWorld { padding: 0 9px; }
+  .backToWorld span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}

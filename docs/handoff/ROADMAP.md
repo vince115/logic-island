@@ -2,6 +2,8 @@
 
 > 更新日期：2026-10-29，Asia/Taipei。本文件只記錄規劃；**Proposed／Planned 不等於已批准實作**，每個 Phase 開始前都需要當次明確授權。
 
+> **2026-11-02 更新：Phase F 多群島擴充規劃**見 [`docs/planning/`](../planning/MULTI_ARCHIPELAGO_MASTER_PLAN.md)（15 座學科島＋1 座互動實驗島、320 堂課，其中 60 堂已完成）。該規劃以 **E.5、F.0–F.6** 重新分期，**取代本文件的 F（RPG）、G（APCS 挑戰）、H（AI 群島六島草案）、I、J**，對應表見 [PHASE_F_ROADMAP §0](../planning/PHASE_F_ROADMAP.md#0-與舊編號的關係)。本文件以下內容保留為 2026-10-29 的歷史規劃。
+
 ## 產品方向
 
 2026-10-29 調整為「**程式設計、資料結構、演算法與人工智慧的互動式學習世界**」。現有產品仍只實作程式與演算法教材；AI 部分為 Phase H–J 規劃。
@@ -34,7 +36,7 @@ Logic Islands（邏輯群島）是整個 3D 世界，規劃分成兩個群島，
 | 2A | 三島 R3F 原創幾何原型（`/islands`） | Implemented；lint／TS／build 已通過，尚無 islands E2E | Phase 1 |
 | A–C | Blender 資產管線、Style Guide、基礎島 v2 | 完成；v2 人工有條件通過 | — |
 | C.1 | 基礎島 v2.1 最終微調 | **2026-10-29 人工批准為 Phase D 候選資產**：技術驗收通過，視覺有條件接受 | Phase C |
-| D | 正式 GLB 整合（僅基礎程式島） | **Planned**：實作計畫已提出，待批准 | C.1 |
+| D | 正式 GLB 整合（僅基礎程式島）＋六角聚落視覺重設計 | **進行中**：D.0 已驗收；D.1 工程整合已接受；D.2a 工程驗收通過；D.2b 第一階段（只有基礎程式島）試作完成待驗收；D.2b 後續、D.2c、D.3 未批准（分支 `phase-d/basics-glb`） | C.1 |
 | E | Data-Driven Islands | **Planned** | D 完成驗收 |
 | F | RPG Learning System | **Planned** | E |
 | G | APCS Challenges | **Planned** | F |
@@ -65,7 +67,23 @@ C.1 → D → E → F → G          （Coding Archipelago）
 6. 保持既有 interaction_id、Anchor、Node Contract 相容。
 7. 以獨立資產版本資訊追蹤 v2.1，不依賴舊 `asset_id`（仍為 `logiclab-basics-island-v2`）判斷版本。
 
-## Phase D — 正式 3D 資產整合（Planned，待批准）
+## Phase D — 正式 3D 資產整合（分階段批准）
+
+> 2026-10-29 視覺方向調整：D.1 工程整合被接受，但三座分離浮島不符產品構想。目標改為六角地塊組成、以橋樑與道路相連的聚落世界，採方案 A＋（程式生成六角地塊，重用 GLB 建築，日後可換成 Blender 六角組件）。原 D.2 拆成三段，各自批准：
+>
+> - **D.2a（已完成，待確認視覺方向）**：獨立的六角聚落預覽 `/islands/hex`。axial (q, r)、flat-top，三座 7 格聚落、兩座橋與道路、等距鏡頭；不拆 GLB 建築，也不動 `/islands`。
+> - **D.2b 第一階段（有條件批准，試作完成待驗收）**：只在 `/islands/hex` 的基礎程式島，把 GLB 的工坊、燈塔、碼頭與樹木以各自的局部座標放上指定地塊，Anchor 改成相對建築 pivot，互動與 fallback 沿用 D.1。資料結構島、演算法島尚未遷移。
+> - **D.2b 第二階段（方案 A2，完成待確認視覺）**：基礎程式島改為 8 格連續地形，地形由純函式產生，包含海岸崖、高低差崖壁、道路坡道；配色採 GLB 粉彩；工坊跨兩格；碼頭改為低岸；手機全景改用圓點名牌。
+> - **島嶼尺度與世界構圖原型（2026-10-29，等待選定）**：使用者審查後判定 A2 視覺方向未通過，原因是島太小、缺乏自然環境、海洋像地板、標籤遮擋。已在 `/islands/hex/scale/19` 與 `/37` 比較兩種尺度：森林與岩石、連續水面、精簡標記、三角形世界構圖。見 `logs/2026-10-29-island-scale-prototype.md`。使用者選定 **37 格為優先設計基準**，19 格保留為參考；接著完成 Scale Refinement（手機碼頭可點、HTML 地點入口、道路與橋樑合併後 draw call 241 → 80），等待正式定案，見 `logs/2026-10-29-d2b-scale-refinement.md`。D.2b 最後一項修正「工坊入口道路」已完成：工坊移到 (1, 0)＋(2, 0)，道路由廣場經草地筆直進入門前兩根門廊柱之間，見 `logs/2026-10-29-d2b-workshop-road.md`；等待確認整體視覺方向。
+> - **D.2b 工程驗收通過（2026-10-29，`fa3a9a9`）**：37 格作為後續開發的技術基準，視覺美術尚未定案。
+> - **D.2c-1 基礎程式島視覺改善試作（2026-10-29 試作；2026-10-30 視覺方向接受，`f99f858`）**：依使用者調整的優先順序，先處理世界構圖與視覺層級：同高地表連續、圓形中央廣場與導覽柱、碼頭 → 廣場 → 燈塔主動線、工坊與燈塔的前庭／平台、群聚森林、依島嶼輪廓取景、名牌移到島外；另有沙灘、岩岸與漸層海面。未加零散裝飾、未改光照。見 `logs/2026-10-29-d2c1-composition.md`。
+> - **D.2c-1 視覺方向接受（2026-10-30）**：中央廣場、道路動線、自然海岸、森林群聚與島嶼輪廓接受；不批准其他島嶼遷移或後續美術擴充。
+> - **D.2c-2 Rendering Performance Optimization（2026-10-30 驗收通過，獨立 commit「static shadow map, tree LOD and deep-sea frame for the 37-tile prototype (Phase D.2c-2)」）**：只改 37 格原型的渲染方式，構圖與資料不變。靜態陰影貼圖（只在投影物件改變時重畫）、全景時的樹木 LOD（由 GLB 自己的樹即時產生，陰影仍來自完整的樹）、深海平面改成海面外框。SwiftShader 四場景 FPS 為 D.2b 的 105～116%；聚焦畫面與 D.2c-1 逐像素相同。見 `logs/2026-10-30-d2c2-performance.md`。技術限制見 KNOWN_ISSUES P1-23（靜態陰影只適用靜態場景）、P1-24（LOD 門檻改由場景設定）、P1-25（真機驗收留在 D.3）。
+> - **D.3 整合（2026-10-30 批准 D.3-0～D.3-2）**：先補正式版的安全網並建立可重現的效能基準（D.3-0），再統一場景設定（D.3-1）與 Explorer（D.3-2）；正式 `/islands` 暫不切換。**D.3-0～D.3-2 已完成**（安全網與基準、場景 preset、共用 Explorer）。**D.3-3 Preflight 已完成**（2026-10-30 批准）：隱藏的候選頁 `/islands/candidate`（切換後的 `/islands`：正式 preset、正式文案、hover、手機單行工具列）與回退頁 `/islands/legacy`（目前 `/islands` 本身）；正式 `/islands` 不變，見 `logs/2026-10-30-d3-3-preflight.md`。D.3-3 Preflight 有條件驗收通過（`72e3eb6`），正式切換未批准。**D.3-4 真機驗收準備已完成**（Mac 上的量測 proxy `perf/device/`、驗收表 `docs/handoff/DEVICE_ACCEPTANCE.md`、`logs/2026-10-30-d3-4-prep.md`），D.3-4 分為 D.3-4A 自動化驗收（Automated Acceptance Passed，限已執行項目：360／390 px 溢出、鍵盤、無障礙名稱等）與 D.3-4B 真機效能驗收（標準測試機 iPhone SE 第 3 代、iPhone 16、中階 Android；Not Measured）；iOS Safari／Screen Reader Not Verified，D.3-4 整體未判定；B 不阻擋其他開發階段。D.3-3 正式切換、D.3-4 真機執行與判定、D.3-7 清理（移除舊渲染器與原型路由；先前文件稱「D.3-5 清理」，2026-10-30 因編號衝突改名，舊紀錄不改）都需另行批准，切換風險見 `logs/2026-10-30-d3-2-shared-explorer.md` §6。見 `logs/2026-10-30-d3-integration-analysis.md`、`logs/2026-10-30-d3-0-baseline.md`。
+> - **D.3-5 Camera Controls／D.3-6 Time-of-Day（2026-10-30 批准規劃，分階段實作）**：規劃與核實後的修正見 `logs/2026-10-30-d3-5-d3-6-analysis.md`。已決定：手機方案 B（單指水平旋轉、垂直捲頁、雙指縮放、仰角固定）、桌機左鍵拖曳旋轉與滾輪直接縮放、傍晚約 40° 月光、Reduced Motion 不自動旋轉但可手動開啟、D.3-4B 在候選頁功能整合後與正式切換前執行。工作項目：D.3-5a 自由相機（Lab Only）→ D.3-5b Auto Orbit → D.3-5c 推進候選頁；D.3-6a 環境抽出 → D.3-6b 四情境與 UI → D.3-6c 傍晚燈光與推進。**D.3-5a 已完成並驗收接受**（`f719f42`，只在 `/islands/hex/scale/37`，見 `logs/2026-10-30-d3-5a-free-camera.md`）；**D.3-5b Auto Orbit 已完成並驗收接受**（`57364a2`，同樣只在實驗室頁，見 `logs/2026-10-30-d3-5b-auto-orbit.md`）；**D.3-6a 環境架構重構已完成**（光源、背景、陰影抽成 `src/lib/islands/environments.ts` 的資料與 `HexEnvironment`；只有中午，每條路由與 `57364a2` 逐像素相同；霧只定義不啟用；GLB 發光材質改為每次掛載自己的複本；效能判定 Inconclusive（輕微，KNOWN_ISSUES P1-30）；見 `logs/2026-10-31-d3-6a-environment.md`）；**D.3-6b 四種時間情境已完成**（只在實驗室頁；資料擴充 `environments.ts`，低太陽的陰影範圍依太陽方向計算，海面色調，原生選單「時間情境」；黃昏太陽 27°、傍晚月光 40°；無霧、無新燈光、不改 GLB；中午與 `63f972e` 逐像素相同；見 `logs/2026-10-31-d3-6b-time-of-day.md`）；**D.3-6c 傍晚暖光與 Lab 收尾已完成**（只在實驗室頁；燈塔燈室／窗戶與路燈燈籠的自有發光材質依情境乘上強度與顏色倍率，黃昏略增、傍晚最明顯；GLB 的暖光材質實為白色發光，所以需要顏色倍率；手機黃昏／傍晚標題精簡、不蓋燈塔；無新光源、Bloom 或曝光變更；見 `logs/2026-10-31-d3-6c-dusk-glow.md`）；**D.3-5c／D.3-6d 候選頁整合已完成**（production preset 加 `camera: 'free'`、`timeOfDay: true`，候選頁與實驗室頁跑同一套相機與環境；單欄版面地圖標題移到地圖上方；候選頁中午 3D 畫面與 `0cfb146` 逐像素相同；見 `logs/2026-10-31-d3-5c-d3-6d-candidate.md`）；**D.3-7a 候選頁手機 UI 修飾已完成**（只在候選頁；≤ 780 px 時提示與「時間情境／自動旋轉／返回全景」移到地圖下方一列、44 px 觸控目標，地圖尺寸與 3D 畫面不變；手機截圖中的「跳至主要內容」查明為比 viewport 高的截圖造成的 artifact，產品 CSS 不變；此「D.3-7a」與上方規劃的「D.3-7 清理」是不同項目；見 `logs/2026-10-31-d3-7a-candidate-mobile-ui.md`）；**D.3-4B：Preparation Complete — Real Device Not Measured**（`perf/device/` 量測 proxy 擴充為候選頁的真機驗收工具：同一 Wi-Fi 的手機連 Mac、先登記裝置，自動量測鏡頭飛行／首幀／自動旋轉／時間切換／draw call／三角形／shader／閒置／context 遺失，28 項人工檢查 Pass／Fail／Not Tested，每台裝置匯出 JSON 與文字報告；應用程式未修改；操作指南 `docs/handoff/DEVICE_ACCEPTANCE.md`，見 `logs/2026-10-31-d3-4b-device-prep.md`；真機結果出來前不得標 Passed）；下一步 D.3-4B 真機驗收（iOS Safari、觸控、陰影品質、真機 GPU），之後才決定是否推進正式 `/islands`，兩者都需另行批准。
+> - **D.2c 後續（未批准）**：其他島嶼的美術、光照。
+>
+> 分析紀錄見 `logs/2026-10-29-hex-world-analysis.md`。中央島、APCS 島、AI 島與解鎖判定仍屬 E～J。
 
 範圍只有一件事：把基礎程式島的渲染來源由原創幾何換成 v2.1 runtime GLB，其餘兩島、地圖、教材與引擎不變。重點：
 
@@ -77,6 +95,8 @@ C.1 → D → E → F → G          （Coding Archipelago）
 **D 不包含**：資料驅動島嶼 schema、解鎖、進度、NPC、任務、EXP、題目或任何 RPG／挑戰系統。
 
 ## Phase E — Data-Driven Islands（Planned）
+
+> **E.1 已完成（2026-10-31）：60 堂課綱架構與學習引擎**。依使用者的 E.1 指示，Phase E 先從「課程」開始：`src/content/curriculum/`（課綱 schema 與驗證、三島各 20 堂大綱、F01～F05 完整教材）、`/curriculum` 目錄與課程頁、視覺化 registry（變數狀態、條件分支已實作，其餘 Planned）、localStorage 學習進度。課程的島嶼 ID 沿用下表的 `island_id`；既有六份互動教材以 `labs` 連結到對應課程。下表中島嶼本身的 schema（GLB 引用、互動節點、解鎖條件、島嶼關聯、所屬群島）**尚未實作**，`src/lib/islands/data.ts` 與 3D 頁面未改。規格見 `docs/curriculum/PHASE_E_CURRICULUM.md`，紀錄見 `logs/2026-10-31-e1-curriculum.md`。**E.2 已完成（2026-10-31）：基礎程式島 20／20 完整教材**（F06～F20；視覺化改為共用的 trace 元件涵蓋變數、迴圈、陣列、函式呼叫與遞迴，另加複雜度示意模型與綜合挑戰分段；完整教材的標準提高為 motivation、至少 3 個範例與 4 題測驗；Java 以本機 IntelliJ 附帶的 JDK 執行驗證；見 `logs/2026-10-31-e2-foundations.md`）。**E.3 已完成（2026-10-31）：資料結構島 20／20 完整教材**（D01～D20；資料結構視覺化由 `src/content/curriculum/simulate.ts` 的模擬器實際執行操作產生，共用 trace 新增堆疊與佇列、鏈結串列、雜湊表、樹、堆積、圖、並查集面板，另有「自己試試」與資料結構比較；完整教材 40／60；見 `logs/2026-10-31-e3-structures.md`）。**E.4 已完成：演算法島 20／20，課綱 60／60 完整教材**（見 `logs/2026-10-31-e4-algorithms.md`）。E.5 範圍待定（需另行批准，候選見 NEXT_STEPS）；EXP、NPC、徽章與中央島 APCS 試煉仍屬 F／G。
 
 目標：每座島以同一份型別化 schema 定義，Coding 與 AI 兩個群島的所有島嶼共用同一套渲染與互動架構，新增島嶼不需改 R3F 元件。
 
@@ -96,6 +116,7 @@ C.1 → D → E → F → G          （Coding Archipelago）
 ### 架構原則
 
 - 以 TypeScript 模組＋`satisfies` 型別檢查為主，必要時再輸出 JSON；不為此引入新的 schema 套件，除非另行批准。
+- 場景的 12 個模組（地形、海洋、高低差、植被、建築、道路、橋樑、地標、NPC、任務點、特效、互動）規劃為本 schema 的 `scene` 區塊，不另立第二套 schema，見 [SCENE_MODULES](SCENE_MODULES.md)（規劃，未批准）。
 - 位置與邊界由資料計算（延續 `getWorldBounds`／`getFocusBounds`），鏡頭與渲染元件不依島數改寫。
 - 每座島的 schema 需有單元測試：課程 slug 存在、interaction_id 能在對應 GLB 中找到、關聯不指向不存在的島。
 - 目前只有三座島有定義；其餘島嶼的名稱與主題待產品規劃，不在 E 中預先虛構內容。

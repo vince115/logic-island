@@ -1,0 +1,618 @@
+{
+  "format": "logic-island.trials-import/1",
+  "batch": {
+    "id": "2026-11-03-mvp-originals",
+    "title": "T.0 MVP 原創測試題（APCS 程式識讀 7 題、銀行資訊類 6 題）",
+    "preparedBy": {
+      "kind": "ai",
+      "name": "claude-opus-5-5"
+    },
+    "preparedAt": "2026-11-03",
+    "note": "由 T.0 的 TypeScript 題目模組轉成匯入格式；內容不變（版本雜湊與 published-hashes.json 相同）。"
+  },
+  "origin": "original",
+  "source": "basis-apcs-reading",
+  "generatedBy": {
+    "model": "claude-opus-5-5",
+    "at": "2026-11-03",
+    "note": "docs/exam-system/03 的原創示例"
+  },
+  "revisionNote": "收錄 03 樣本的原創示例",
+  "reviews": [
+    {
+      "by": "owner",
+      "reviewer": "human",
+      "at": "2026-11-03",
+      "verdict": "approve",
+      "checks": [],
+      "note": "核准 05 計畫 §3 的 MVP 原創測試題清單；逐題審稿在 MVP 驗收時進行"
+    },
+    {
+      "by": "owner",
+      "reviewer": "human",
+      "at": "2026-11-03",
+      "verdict": "approve",
+      "checks": [
+        "wording"
+      ],
+      "note": "MVP 驗收：逐題校閱 13 題後接受 T.0 MVP"
+    }
+  ],
+  "questions": [
+    {
+      "id": "orig-apcs-read-01",
+      "type": "code-reading",
+      "stem": "程式追蹤：執行下列程式片段後，輸出為何？",
+      "code": {
+        "language": "C",
+        "text": "int s = 0;\nfor (int i = 1; i <= 10; i += 3)\n    s += i;\nprintf(\"%d\\n\", s);"
+      },
+      "options": [
+        "12",
+        "15",
+        "22",
+        "34"
+      ],
+      "answer": "C",
+      "explanation": "`i` 依序為 1、4、7、10，總和 22。",
+      "tags": [
+        "prog.loops.for"
+      ],
+      "lessons": [
+        "F07"
+      ],
+      "appearances": [
+        {
+          "kind": "targets",
+          "subjectId": "apcs-current.reading",
+          "relevance": "core"
+        },
+        {
+          "kind": "targets",
+          "subjectId": "bank-it-general.it",
+          "relevance": "related"
+        }
+      ],
+      "difficulty": 1,
+      "verifiedBy": "executed",
+      "reviews": [
+        {
+          "by": "claude-code",
+          "reviewer": "ai",
+          "at": "2026-11-03",
+          "verdict": "approve",
+          "checks": [
+            "answer-verified",
+            "code-executed"
+          ],
+          "note": "程式片段在本機編譯執行（C：cc；Python：python3；Java：IntelliJ 內建 JDK），輸出與正解相同"
+        }
+      ]
+    },
+    {
+      "id": "orig-apcs-read-02",
+      "type": "code-reading",
+      "stem": "程式填空：下列程式要找出陣列 `a` 的最大值，空格處應填入什麼？",
+      "code": {
+        "language": "C",
+        "text": "int a[] = {7, 2, 9, 4}, n = 4, m = a[0];\nfor (int i = 1; i < n; i++)\n    if (/* 空格 */) m = a[i];\nprintf(\"%d\\n\", m);"
+      },
+      "options": [
+        "`a[i] > m`",
+        "`a[i] < m`",
+        "`m > a[0]`",
+        "`i > m`"
+      ],
+      "answer": "A",
+      "explanation": "只有比目前的最大值大時才更新 `m`，執行結果為 9。",
+      "tags": [
+        "prog.arrays",
+        "algo.max-min"
+      ],
+      "lessons": [
+        "F11"
+      ],
+      "appearances": [
+        {
+          "kind": "targets",
+          "subjectId": "apcs-current.reading",
+          "relevance": "core"
+        }
+      ],
+      "difficulty": 1,
+      "verifiedBy": "executed",
+      "reviews": [
+        {
+          "by": "claude-code",
+          "reviewer": "ai",
+          "at": "2026-11-03",
+          "verdict": "approve",
+          "checks": [
+            "answer-verified",
+            "code-executed"
+          ],
+          "note": "程式片段在本機編譯執行（C：cc；Python：python3；Java：IntelliJ 內建 JDK），輸出與正解相同"
+        }
+      ]
+    },
+    {
+      "id": "orig-apcs-read-03",
+      "type": "code-reading",
+      "stem": "程式追蹤：執行下列程式後，輸出為何？",
+      "code": {
+        "language": "C",
+        "text": "int f(int n) {\n    if (n == 0) return 0;\n    return n % 10 + f(n / 10);\n}\n/* main 中 */\nprintf(\"%d\", f(2026));"
+      },
+      "options": [
+        "10",
+        "2026",
+        "8",
+        "6"
+      ],
+      "answer": "A",
+      "explanation": "`f` 計算各位數字的和：2 + 0 + 2 + 6 = 10。",
+      "tags": [
+        "prog.recursion",
+        "prog.operators.arithmetic"
+      ],
+      "lessons": [
+        "F18"
+      ],
+      "appearances": [
+        {
+          "kind": "targets",
+          "subjectId": "apcs-current.reading",
+          "relevance": "core"
+        }
+      ],
+      "difficulty": 2,
+      "verifiedBy": "executed",
+      "reviews": [
+        {
+          "by": "claude-code",
+          "reviewer": "ai",
+          "at": "2026-11-03",
+          "verdict": "approve",
+          "checks": [
+            "answer-verified",
+            "code-executed"
+          ],
+          "note": "程式片段在本機編譯執行（C：cc；Python：python3；Java：IntelliJ 內建 JDK），輸出與正解相同"
+        }
+      ]
+    },
+    {
+      "id": "orig-apcs-read-04",
+      "type": "code-reading",
+      "stem": "測試除錯：下列函式要計算陣列前 `n` 個元素的和，哪一行有錯？",
+      "code": {
+        "language": "C",
+        "text": "int sum(int a[], int n) {\n    int s = 0;                      /* 第 2 行 */\n    for (int i = 0; i <= n; i++)    /* 第 3 行 */\n        s += a[i];                  /* 第 4 行 */\n    return s;                       /* 第 5 行 */\n}"
+      },
+      "options": [
+        "第 2 行",
+        "第 3 行",
+        "第 4 行",
+        "第 5 行"
+      ],
+      "answer": "B",
+      "explanation": "`i <= n` 會多讀一個元素 `a[n]`，超出陣列範圍；應寫成 `i < n`。",
+      "tags": [
+        "prog.debugging.off-by-one",
+        "prog.arrays"
+      ],
+      "lessons": [
+        "F17",
+        "F11"
+      ],
+      "appearances": [
+        {
+          "kind": "targets",
+          "subjectId": "apcs-current.reading",
+          "relevance": "core"
+        }
+      ],
+      "difficulty": 2,
+      "verifiedBy": "executed",
+      "reviews": [
+        {
+          "by": "claude-code",
+          "reviewer": "ai",
+          "at": "2026-11-03",
+          "verdict": "approve",
+          "checks": [
+            "answer-verified",
+            "code-executed"
+          ],
+          "note": "程式片段在本機編譯執行（C：cc；Python：python3；Java：IntelliJ 內建 JDK），輸出與正解相同"
+        }
+      ]
+    },
+    {
+      "id": "orig-apcs-read-05",
+      "type": "code-reading",
+      "stem": "效能分析：下列程式片段中，敘述 `count++` 執行次數的成長階為何？",
+      "code": {
+        "language": "C",
+        "text": "for (int i = 1; i <= n; i *= 2)\n    for (int j = 0; j < n; j++)\n        count++;"
+      },
+      "options": [
+        "O(n)",
+        "O(n log n)",
+        "O(n²)",
+        "O(log n)"
+      ],
+      "answer": "B",
+      "explanation": "外層約執行 log₂n + 1 次，每次內層執行 n 次。",
+      "tags": [
+        "algo.complexity"
+      ],
+      "lessons": [
+        "F19",
+        "A01"
+      ],
+      "appearances": [
+        {
+          "kind": "targets",
+          "subjectId": "apcs-current.reading",
+          "relevance": "core"
+        }
+      ],
+      "difficulty": 2,
+      "verifiedBy": "executed",
+      "reviews": [
+        {
+          "by": "claude-code",
+          "reviewer": "ai",
+          "at": "2026-11-03",
+          "verdict": "approve",
+          "checks": [
+            "answer-verified",
+            "code-executed"
+          ],
+          "note": "程式片段在本機編譯執行（C：cc；Python：python3；Java：IntelliJ 內建 JDK），輸出與正解相同"
+        }
+      ]
+    },
+    {
+      "id": "orig-apcs-read-06",
+      "type": "code-reading",
+      "stem": "計算邏輯：執行下列程式片段後，輸出為何？",
+      "code": {
+        "language": "C",
+        "text": "int x = 5, y = 3;\nx = x ^ y;\ny = x ^ y;\nx = x ^ y;\nprintf(\"%d %d\", x, y);"
+      },
+      "options": [
+        "5 3",
+        "3 5",
+        "6 6",
+        "0 0"
+      ],
+      "answer": "B",
+      "explanation": "連續三次 XOR 會交換兩個變數的值。",
+      "tags": [
+        "prog.operators.bitwise"
+      ],
+      "lessons": [
+        "F04"
+      ],
+      "appearances": [
+        {
+          "kind": "targets",
+          "subjectId": "apcs-current.reading",
+          "relevance": "core"
+        },
+        {
+          "kind": "targets",
+          "subjectId": "moex-info-processing-114.pukao-computer",
+          "relevance": "related"
+        }
+      ],
+      "difficulty": 2,
+      "verifiedBy": "executed",
+      "reviews": [
+        {
+          "by": "claude-code",
+          "reviewer": "ai",
+          "at": "2026-11-03",
+          "verdict": "approve",
+          "checks": [
+            "answer-verified",
+            "code-executed"
+          ],
+          "note": "程式片段在本機編譯執行（C：cc；Python：python3；Java：IntelliJ 內建 JDK），輸出與正解相同"
+        }
+      ]
+    },
+    {
+      "id": "orig-apcs-read-07",
+      "type": "code-reading",
+      "stem": "程式追蹤：執行下列 Python 程式後，輸出為何？",
+      "code": {
+        "language": "Python",
+        "text": "a = [3, 1, 4, 1, 5]\nb = sorted(set(a))\nprint(b[1] + len(b))"
+      },
+      "options": [
+        "5",
+        "6",
+        "7",
+        "8"
+      ],
+      "answer": "C",
+      "explanation": "`set` 去掉重複的 1，排序後為 `[1, 3, 4, 5]`；`b[1]` 是 3、長度是 4，相加為 7。",
+      "tags": [
+        "prog.python.collections",
+        "ds.set"
+      ],
+      "lessons": [
+        "D08"
+      ],
+      "appearances": [
+        {
+          "kind": "targets",
+          "subjectId": "apcs-current.reading",
+          "relevance": "core"
+        }
+      ],
+      "difficulty": 2,
+      "verifiedBy": "executed",
+      "reviews": [
+        {
+          "by": "claude-code",
+          "reviewer": "ai",
+          "at": "2026-11-03",
+          "verdict": "approve",
+          "checks": [
+            "answer-verified",
+            "code-executed"
+          ],
+          "note": "程式片段在本機編譯執行（C：cc；Python：python3；Java：IntelliJ 內建 JDK），輸出與正解相同"
+        }
+      ]
+    },
+    {
+      "id": "orig-bank-01",
+      "type": "single-choice",
+      "source": "basis-bank-it",
+      "stem": "網站登入功能把使用者輸入直接接到 SQL 字串中。下列何者是防範 SQL injection 最有效的作法？",
+      "options": [
+        "在前端用 JavaScript 檢查輸入長度",
+        "使用參數化查詢（prepared statement）",
+        "把資料庫密碼改得更複雜",
+        "關閉資料庫的錯誤訊息即可"
+      ],
+      "answer": "B",
+      "explanation": "參數化查詢把資料和指令分開傳送，輸入不會被當成 SQL 執行；前端檢查可以被繞過。",
+      "tags": [
+        "security.sql-injection",
+        "db.sql"
+      ],
+      "lessons": [
+        "DB17"
+      ],
+      "appearances": [
+        {
+          "kind": "targets",
+          "subjectId": "bank-it-general.it",
+          "relevance": "core"
+        }
+      ],
+      "difficulty": 1,
+      "reviews": [
+        {
+          "by": "claude-code",
+          "reviewer": "ai",
+          "at": "2026-11-03",
+          "verdict": "approve",
+          "checks": [
+            "answer-verified"
+          ],
+          "note": "依概念核對答案（沒有可執行的程式）"
+        }
+      ]
+    },
+    {
+      "id": "orig-bank-02",
+      "type": "single-choice",
+      "source": "basis-bank-it",
+      "stem": "轉帳交易「A 帳戶扣款」與「B 帳戶入帳」必須同時成功或同時不發生。這是 ACID 的哪一個性質？",
+      "options": [
+        "Atomicity",
+        "Consistency",
+        "Isolation",
+        "Durability"
+      ],
+      "answer": "A",
+      "explanation": "全部完成或全部不做是原子性（Atomicity）；一致性指交易前後都符合約束。",
+      "tags": [
+        "db.transaction.acid"
+      ],
+      "lessons": [
+        "DB14"
+      ],
+      "appearances": [
+        {
+          "kind": "targets",
+          "subjectId": "bank-it-general.it",
+          "relevance": "core"
+        }
+      ],
+      "difficulty": 1,
+      "reviews": [
+        {
+          "by": "claude-code",
+          "reviewer": "ai",
+          "at": "2026-11-03",
+          "verdict": "approve",
+          "checks": [
+            "answer-verified"
+          ],
+          "note": "依概念核對答案（沒有可執行的程式）"
+        }
+      ]
+    },
+    {
+      "id": "orig-bank-04",
+      "type": "single-choice",
+      "source": "basis-bank-it",
+      "stem": "下列哪一種傳輸層協定提供可靠、依序的位元組串流傳送？",
+      "options": [
+        "UDP",
+        "TCP",
+        "ICMP",
+        "ARP"
+      ],
+      "answer": "B",
+      "explanation": "TCP 以序號、確認與重送保證可靠且依序；ICMP、ARP 不是傳輸層協定。",
+      "tags": [
+        "network.transport"
+      ],
+      "appearances": [
+        {
+          "kind": "targets",
+          "subjectId": "bank-it-general.it",
+          "relevance": "core"
+        }
+      ],
+      "difficulty": 1,
+      "reviews": [
+        {
+          "by": "claude-code",
+          "reviewer": "ai",
+          "at": "2026-11-03",
+          "verdict": "approve",
+          "checks": [
+            "answer-verified"
+          ],
+          "note": "依概念核對答案（沒有可執行的程式）"
+        }
+      ]
+    },
+    {
+      "id": "orig-bank-05",
+      "type": "single-choice",
+      "source": "basis-bank-it",
+      "stem": "HTTPS 預設使用的 TCP 連接埠是？",
+      "options": [
+        "21",
+        "80",
+        "443",
+        "3389"
+      ],
+      "answer": "C",
+      "explanation": "HTTP 預設為 80，HTTPS 預設為 443。",
+      "tags": [
+        "network.application.https",
+        "security.tls"
+      ],
+      "appearances": [
+        {
+          "kind": "targets",
+          "subjectId": "bank-it-general.it",
+          "relevance": "core"
+        }
+      ],
+      "difficulty": 1,
+      "reviews": [
+        {
+          "by": "claude-code",
+          "reviewer": "ai",
+          "at": "2026-11-03",
+          "verdict": "approve",
+          "checks": [
+            "answer-verified"
+          ],
+          "note": "依概念核對答案（沒有可執行的程式）"
+        }
+      ]
+    },
+    {
+      "id": "orig-bank-06",
+      "type": "code-reading",
+      "source": "basis-bank-it",
+      "stem": "執行下列 Java 程式片段後，輸出為何？",
+      "code": {
+        "language": "Java",
+        "text": "int[] a = {2, 4, 6, 8};\nint s = 0;\nfor (int i = a.length - 1; i >= 0; i -= 2)\n    s += a[i];\nSystem.out.println(s);"
+      },
+      "options": [
+        "20",
+        "12",
+        "8",
+        "6"
+      ],
+      "answer": "B",
+      "explanation": "`i` 從 3 開始每次減 2，只加到 `a[3]` = 8 與 `a[1]` = 4，共 12。",
+      "tags": [
+        "prog.loops.for",
+        "prog.arrays"
+      ],
+      "lessons": [
+        "F07",
+        "F11"
+      ],
+      "appearances": [
+        {
+          "kind": "targets",
+          "subjectId": "bank-it-general.it",
+          "relevance": "core"
+        }
+      ],
+      "difficulty": 1,
+      "verifiedBy": "executed",
+      "reviews": [
+        {
+          "by": "claude-code",
+          "reviewer": "ai",
+          "at": "2026-11-03",
+          "verdict": "approve",
+          "checks": [
+            "answer-verified",
+            "code-executed"
+          ],
+          "note": "程式片段在本機編譯執行（C：cc；Python：python3；Java：IntelliJ 內建 JDK），輸出與正解相同"
+        }
+      ]
+    },
+    {
+      "id": "orig-bank-09",
+      "type": "single-choice",
+      "source": "basis-bank-it",
+      "stem": "一個關聯表的主鍵是（訂單編號, 商品編號），其中「商品名稱」只由「商品編號」決定。這個設計違反了哪一個正規形式？",
+      "options": [
+        "1NF",
+        "2NF",
+        "3NF",
+        "BCNF（但符合 3NF）"
+      ],
+      "answer": "B",
+      "explanation": "非鍵屬性只相依於複合主鍵的一部分，是部分相依，違反 2NF。",
+      "tags": [
+        "db.normalization"
+      ],
+      "lessons": [
+        "DB10"
+      ],
+      "appearances": [
+        {
+          "kind": "targets",
+          "subjectId": "bank-it-general.it",
+          "relevance": "core"
+        }
+      ],
+      "difficulty": 2,
+      "reviews": [
+        {
+          "by": "claude-code",
+          "reviewer": "ai",
+          "at": "2026-11-03",
+          "verdict": "approve",
+          "checks": [
+            "answer-verified"
+          ],
+          "note": "依概念核對答案（沒有可執行的程式）"
+        }
+      ]
+    }
+  ]
+}

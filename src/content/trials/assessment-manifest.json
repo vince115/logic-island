@@ -1,0 +1,813 @@
+{
+ "format": "logic-island.trials-assessment-manifest/1",
+ "algorithm": "sha256",
+ "covers": [
+  "stem",
+  "options",
+  "answer",
+  "points",
+  "explanation",
+  "optionExplanations",
+  "config"
+ ],
+ "entries": {
+  "moex-114-pukao-3448-q01@1": {
+   "hashVersion": 1,
+   "contentHash": "f55bd0cf",
+   "fingerprint": "38c4f3f9842276af15129e72831b019137a787ade522d41fae9c36d9500c8889",
+   "parts": {
+    "stem": "38884be9a6107187",
+    "options": "c405adb1622e02df",
+    "answer": "8c6ea2e7ada0e85f",
+    "points": "74234e98afe7498f",
+    "explanation": "db86a0db7b4febe4",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "725a5a5ca2a93dd4"
+   }
+  },
+  "moex-114-pukao-3448-q01@2": {
+   "hashVersion": 1,
+   "contentHash": "f55bd0cf",
+   "fingerprint": "f0c29d642fd6fc200175db4de6dd4e0c717e8874ddf6d8e04795d3323672befd",
+   "parts": {
+    "stem": "38884be9a6107187",
+    "options": "c405adb1622e02df",
+    "answer": "8c6ea2e7ada0e85f",
+    "points": "74234e98afe7498f",
+    "explanation": "55fda73d0e3018d5",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "c1c16ff97e98ecf5"
+   }
+  },
+  "moex-114-pukao-3448-q02@1": {
+   "hashVersion": 1,
+   "contentHash": "22797038",
+   "fingerprint": "28759f88ada96ef4416e8f13e01de50eb533a3d6b24fa74c78fa14ff9a18ff67",
+   "parts": {
+    "stem": "41494b46bb5edd74",
+    "options": "e0f1a735b8b0ebbe",
+    "answer": "fd89ce741d690104",
+    "points": "74234e98afe7498f",
+    "explanation": "90c762f35194692b",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "d179e417eaf2e71f"
+   }
+  },
+  "moex-114-pukao-3448-q03@1": {
+   "hashVersion": 1,
+   "contentHash": "fee58262",
+   "fingerprint": "2015e89bb6ea25983864897ca8fd01152d1b163415768458fe2d020222a51698",
+   "parts": {
+    "stem": "2e47a69d6691c34e",
+    "options": "7ac3a0361b6e73d7",
+    "answer": "fd89ce741d690104",
+    "points": "74234e98afe7498f",
+    "explanation": "6041235645ed0234",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "e684295ab6ef7206"
+   }
+  },
+  "moex-114-pukao-3448-q04@1": {
+   "hashVersion": 1,
+   "contentHash": "e0d6ecc0",
+   "fingerprint": "6c8833eaf7e9f0bc692056296b3455c3844037c6d626559d7603dbeccc479583",
+   "parts": {
+    "stem": "0987988d129e715b",
+    "options": "96bebea5681a8101",
+    "answer": "8c6ea2e7ada0e85f",
+    "points": "74234e98afe7498f",
+    "explanation": "22b1ea6c00d6fc2a",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "1927c4a072db6f81"
+   }
+  },
+  "moex-114-pukao-3448-q05@1": {
+   "hashVersion": 1,
+   "contentHash": "c5938081",
+   "fingerprint": "28e69195f1d1d5dc6eea58b0f7729cf17bcf7f5a41536158c07d4caae1dcc232",
+   "parts": {
+    "stem": "a3aff8962ad59daa",
+    "options": "29e695a0e45fd6d0",
+    "answer": "3d8687d5fa485e0d",
+    "points": "74234e98afe7498f",
+    "explanation": "394fdaa1df0a833e",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "42e027482f4b85f2"
+   }
+  },
+  "moex-114-pukao-3448-q06@1": {
+   "hashVersion": 1,
+   "contentHash": "aa5c22b6",
+   "fingerprint": "90f8da190803c07d516062116be8b12c030a358820976033cc507daf263bc66b",
+   "parts": {
+    "stem": "8bca51ccad95f364",
+    "options": "97996d2a0ece7c1b",
+    "answer": "8c6ea2e7ada0e85f",
+    "points": "74234e98afe7498f",
+    "explanation": "8cdca5d9d5bc7d02",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "b0fdeb945b7e276e"
+   }
+  },
+  "moex-114-pukao-3448-q06@2": {
+   "hashVersion": 1,
+   "contentHash": "aa5c22b6",
+   "fingerprint": "e9b84e4ddf8b991cf6c93fd3254e9b2fca050aa0238faa0e9e0637819049d8be",
+   "parts": {
+    "stem": "8bca51ccad95f364",
+    "options": "97996d2a0ece7c1b",
+    "answer": "8c6ea2e7ada0e85f",
+    "points": "74234e98afe7498f",
+    "explanation": "93631b3098c0182b",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "0d9262085b43e200"
+   }
+  },
+  "moex-114-pukao-3448-q07@1": {
+   "hashVersion": 1,
+   "contentHash": "cc4466ce",
+   "fingerprint": "f96675ba1c7ff04a77b0bf65e9f851f865ab3024ae4f5b2b60a6e16ddda7238f",
+   "parts": {
+    "stem": "6a92a785e1dbf9dd",
+    "options": "45572f757808924d",
+    "answer": "9c669719f33a860f",
+    "points": "74234e98afe7498f",
+    "explanation": "d2982486d900622a",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "dbfd1f1a1ec1d4a3"
+   }
+  },
+  "moex-114-pukao-3448-q07@2": {
+   "hashVersion": 1,
+   "contentHash": "cc4466ce",
+   "fingerprint": "a113c64e9e34743d565fe3b95013c9d2ab102ae6faae6c4d294ad70e677d23a8",
+   "parts": {
+    "stem": "6a92a785e1dbf9dd",
+    "options": "45572f757808924d",
+    "answer": "9c669719f33a860f",
+    "points": "74234e98afe7498f",
+    "explanation": "38227172f878b48b",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "3b9780554163c8b6"
+   }
+  },
+  "moex-114-pukao-3448-q08@1": {
+   "hashVersion": 1,
+   "contentHash": "64dfbe1d",
+   "fingerprint": "9de74442363cdb86bea4b14fa8786b90fa693c877e65692e15f0e8f906837bdb",
+   "parts": {
+    "stem": "7b89abd04ba5996f",
+    "options": "4b58ad247461fd83",
+    "answer": "8c6ea2e7ada0e85f",
+    "points": "74234e98afe7498f",
+    "explanation": "eea57b273840790c",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "cb337d171d7fc850"
+   }
+  },
+  "moex-114-pukao-3448-q09@1": {
+   "hashVersion": 1,
+   "contentHash": "14e9275a",
+   "fingerprint": "4ecb5d38ea78307bd4833f9d4c6b6762706bd3bbe2ce0301772ef0b7dc61ded5",
+   "parts": {
+    "stem": "eaee2abcef8da430",
+    "options": "472fc4b6f5db181a",
+    "answer": "8c6ea2e7ada0e85f",
+    "points": "74234e98afe7498f",
+    "explanation": "ae7cc738600eef4c",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "4cb4866721a98302"
+   }
+  },
+  "moex-114-pukao-3448-q10@1": {
+   "hashVersion": 1,
+   "contentHash": "825d921b",
+   "fingerprint": "9d6a4624b11a7c65c127e54e1d40abff401d9d807f526adf3e149acd58c81cc3",
+   "parts": {
+    "stem": "568a65696ff4b2c4",
+    "options": "d55e12f357015944",
+    "answer": "9c669719f33a860f",
+    "points": "74234e98afe7498f",
+    "explanation": "fd735c9d963ad9ad",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "519bfcdfd7280d27"
+   }
+  },
+  "moex-114-pukao-3448-q11@1": {
+   "hashVersion": 1,
+   "contentHash": "62271918",
+   "fingerprint": "416ed9421979ff2bf40f9622ac5b4f9a27366acfea1f81e7dd98794101f7bd29",
+   "parts": {
+    "stem": "6b3194beda6c36d7",
+    "options": "8b3ee692079823aa",
+    "answer": "3d8687d5fa485e0d",
+    "points": "74234e98afe7498f",
+    "explanation": "faf03e5c331cef1d",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "f6f579f1264eb8a7"
+   }
+  },
+  "moex-114-pukao-3448-q12@1": {
+   "hashVersion": 1,
+   "contentHash": "623aa1bf",
+   "fingerprint": "e8ed6330a63969bcb0070095a40a557cee8f080b3062537d6e84af8a34fd67fa",
+   "parts": {
+    "stem": "509b69d309e38aa4",
+    "options": "03b7e659860b2832",
+    "answer": "fd89ce741d690104",
+    "points": "74234e98afe7498f",
+    "explanation": "24337bfc37af0741",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "8fce970a69b7a53e"
+   }
+  },
+  "moex-114-pukao-3448-q13@1": {
+   "hashVersion": 1,
+   "contentHash": "bfdfad3b",
+   "fingerprint": "5e4e32b91ba0232f8a2e45ea80468e8ce47ccadb9d34a3228eff9290a879129f",
+   "parts": {
+    "stem": "2d918dc355eb1595",
+    "options": "d94f95f534ff7d08",
+    "answer": "fd89ce741d690104",
+    "points": "74234e98afe7498f",
+    "explanation": "277e649b6f1334f4",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "e935aa033a3b5378"
+   }
+  },
+  "moex-114-pukao-3448-q14@1": {
+   "hashVersion": 1,
+   "contentHash": "869c9436",
+   "fingerprint": "f8e4126fd8da50f4f513c344df8562c8c2c7de38aa79e6983e078628df334924",
+   "parts": {
+    "stem": "2a59d1578c12ce1d",
+    "options": "9f1b10ddd714cf6b",
+    "answer": "8c6ea2e7ada0e85f",
+    "points": "74234e98afe7498f",
+    "explanation": "eb1a796f3dcbcfd5",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "3e2a9f6e3d7e99ed"
+   }
+  },
+  "moex-114-pukao-3448-q15@1": {
+   "hashVersion": 1,
+   "contentHash": "6c2a16aa",
+   "fingerprint": "0223137171dcaa5ab2e9e834af8890235926a876793d8eda580a8e115f4de076",
+   "parts": {
+    "stem": "91f21f07d0166b01",
+    "options": "ebe1f3eb4c559401",
+    "answer": "fd89ce741d690104",
+    "points": "74234e98afe7498f",
+    "explanation": "892cd8f6e81fde74",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "1046298050f85ff6"
+   }
+  },
+  "moex-114-pukao-3448-q16@1": {
+   "hashVersion": 1,
+   "contentHash": "f97daebc",
+   "fingerprint": "9ff49cb043a8417f232abc58b2a6495ca076001c2b1a46fa602b57a67cc9240b",
+   "parts": {
+    "stem": "f00263592c8bd82b",
+    "options": "d7c0ee03e073c3c5",
+    "answer": "9c669719f33a860f",
+    "points": "74234e98afe7498f",
+    "explanation": "5e2147140790a171",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "6adbdf1bcc4ae86d"
+   }
+  },
+  "moex-114-pukao-3448-q17@1": {
+   "hashVersion": 1,
+   "contentHash": "d7955e87",
+   "fingerprint": "d3e499d1f6aeb0036799dcc110662e872118738f21519a4e053d3b456ebb8a2a",
+   "parts": {
+    "stem": "862611f05994ad6a",
+    "options": "c600b81afa444076",
+    "answer": "3d8687d5fa485e0d",
+    "points": "74234e98afe7498f",
+    "explanation": "cf08a412c7547437",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "41c923af087855ba"
+   }
+  },
+  "moex-114-pukao-3448-q18@1": {
+   "hashVersion": 1,
+   "contentHash": "1fa735e1",
+   "fingerprint": "e2946c9efcb0b11f557ce5e157e09c70ecd3aa33710b36492ad91673d387453e",
+   "parts": {
+    "stem": "2bc38188ef0bfb9c",
+    "options": "2228acc81558c8ea",
+    "answer": "3d8687d5fa485e0d",
+    "points": "74234e98afe7498f",
+    "explanation": "f8d58b010262c4d2",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "914c0ca13a1c0792"
+   }
+  },
+  "moex-114-pukao-3448-q19@1": {
+   "hashVersion": 1,
+   "contentHash": "a86c3dba",
+   "fingerprint": "14908c55b779ac430acb255f6ed76ad8933e3238cd6c889db0f4275be8bf5510",
+   "parts": {
+    "stem": "0aee4422e0dc290a",
+    "options": "b365718c58b4e2e2",
+    "answer": "8c6ea2e7ada0e85f",
+    "points": "74234e98afe7498f",
+    "explanation": "39b6d07ac11d45be",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "b550b5e36493a774"
+   }
+  },
+  "moex-114-pukao-3448-q20@1": {
+   "hashVersion": 1,
+   "contentHash": "c8cda6ac",
+   "fingerprint": "ddb40badb88bf1eadd95e9d1ca31235eecf7d18c297632f6eeca95740552bb0d",
+   "parts": {
+    "stem": "3b04ecb46e16fad3",
+    "options": "81494d8d3f30d3be",
+    "answer": "9c669719f33a860f",
+    "points": "74234e98afe7498f",
+    "explanation": "9994c4c24f825d02",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "6b850b2f23807f3c"
+   }
+  },
+  "moex-114-pukao-3448-q21@1": {
+   "hashVersion": 1,
+   "contentHash": "863aac4a",
+   "fingerprint": "8409ed8a5b99a6c2516a96ed678bd43fad6c28dc2e5bf4ca9a34b9b8fd1185eb",
+   "parts": {
+    "stem": "8bc24af5046aba23",
+    "options": "067a080d2640e12d",
+    "answer": "9c669719f33a860f",
+    "points": "74234e98afe7498f",
+    "explanation": "9f284201ad5f2cb2",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "7b1d9841695fb6a8"
+   }
+  },
+  "moex-114-pukao-3448-q22@1": {
+   "hashVersion": 1,
+   "contentHash": "3e7d810c",
+   "fingerprint": "fdeaca490449868fdde87af6f474e03be9b55af48543567a8f79eb57fd821c9f",
+   "parts": {
+    "stem": "8a647b647c41c4de",
+    "options": "3e5a13b8f14776bf",
+    "answer": "fd89ce741d690104",
+    "points": "74234e98afe7498f",
+    "explanation": "c04b12cddaa9499b",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "fdc30fce461b4733"
+   }
+  },
+  "moex-114-pukao-3448-q23@1": {
+   "hashVersion": 1,
+   "contentHash": "f96ffcf7",
+   "fingerprint": "1c4d7306d8c892a6055b00c7cd1e157ba3ffd4e90ba107241e586f2a64fbd180",
+   "parts": {
+    "stem": "200e3e8059cefe91",
+    "options": "2685bcfa40bee546",
+    "answer": "9c669719f33a860f",
+    "points": "74234e98afe7498f",
+    "explanation": "b40854635082a830",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "b05a12bb051e216f"
+   }
+  },
+  "moex-114-pukao-3448-q24@1": {
+   "hashVersion": 1,
+   "contentHash": "69d51590",
+   "fingerprint": "1faf9b6ad2b2b289cfc3f3ea2a1cdb28bbd18f726cec7c9eab2201c0ec87a430",
+   "parts": {
+    "stem": "4051932acd3c5a8e",
+    "options": "713f636fe5f2d903",
+    "answer": "8c6ea2e7ada0e85f",
+    "points": "74234e98afe7498f",
+    "explanation": "10434c9988016433",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "b14b8497aa033429"
+   }
+  },
+  "moex-114-pukao-3448-q25@1": {
+   "hashVersion": 1,
+   "contentHash": "0f9e44db",
+   "fingerprint": "b71cd6853f42dcb630da26171f1e8899486dc81593b017aaeb137739971ecfd9",
+   "parts": {
+    "stem": "2e7ff8522c542b58",
+    "options": "0a5bbb3c01148e37",
+    "answer": "3d8687d5fa485e0d",
+    "points": "74234e98afe7498f",
+    "explanation": "b5ff388f91e03069",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "6620e12007b251c2"
+   }
+  },
+  "moex-114-pukao-3448-q26@1": {
+   "hashVersion": 1,
+   "contentHash": "654a2076",
+   "fingerprint": "a327480463613cece2915b02db4bddd1648c3771c69c4db8f170391699ae7c63",
+   "parts": {
+    "stem": "ea6e4f7248e33885",
+    "options": "28c2e43070d0b6dd",
+    "answer": "9c669719f33a860f",
+    "points": "74234e98afe7498f",
+    "explanation": "3e6233cbc2007462",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "583a50197011e6a3"
+   }
+  },
+  "moex-114-pukao-3448-q27@1": {
+   "hashVersion": 1,
+   "contentHash": "832d912d",
+   "fingerprint": "24b9a03483693548da93cfa40092a5a9311a93c3d2412e3efe49d9356278f4d3",
+   "parts": {
+    "stem": "6fea359f4eec610c",
+    "options": "d54c6d535dee1352",
+    "answer": "79cc434460c9c0e6",
+    "points": "74234e98afe7498f",
+    "explanation": "cff3acbafa04221b",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "793f37c1be8a4236"
+   }
+  },
+  "moex-114-pukao-3448-q28@1": {
+   "hashVersion": 1,
+   "contentHash": "c4e1db76",
+   "fingerprint": "cc6cb402906fb920074360e2ad40802ad260610c11ceaa23a6c3b35599524e76",
+   "parts": {
+    "stem": "cf291ec70cf73788",
+    "options": "3a4d993acbf8f114",
+    "answer": "fd89ce741d690104",
+    "points": "74234e98afe7498f",
+    "explanation": "82b34c39841f0686",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "ef630b7dd1106874"
+   }
+  },
+  "moex-114-pukao-3448-q29@1": {
+   "hashVersion": 1,
+   "contentHash": "d49b5c9d",
+   "fingerprint": "52566ac89d74e654c790be01f9f228b466f494e7d0a4b79e627127c4ccd34610",
+   "parts": {
+    "stem": "164696e52c150d22",
+    "options": "284c04a8d6db6a94",
+    "answer": "9c669719f33a860f",
+    "points": "74234e98afe7498f",
+    "explanation": "e0ee07d99e52fc0e",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "b75e3966adf1a9f1"
+   }
+  },
+  "moex-114-pukao-3448-q30@1": {
+   "hashVersion": 1,
+   "contentHash": "854a2be3",
+   "fingerprint": "0a50cea665d52363d8e255263e07abddf048293477f2d6f5e58587f1d42fb228",
+   "parts": {
+    "stem": "94a9be5cc81881ce",
+    "options": "539dc04e3840a377",
+    "answer": "8c6ea2e7ada0e85f",
+    "points": "74234e98afe7498f",
+    "explanation": "9ed48b962a88379b",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "24e59fb4af233c07"
+   }
+  },
+  "moex-114-pukao-3448-q31@1": {
+   "hashVersion": 1,
+   "contentHash": "a1aa63b7",
+   "fingerprint": "69ae8a7b17a7895bc6d00a85dc476885d332bacf0d4af1249edb21f39fed9657",
+   "parts": {
+    "stem": "f05f03b4188351b5",
+    "options": "76c120f3dc80094b",
+    "answer": "8c6ea2e7ada0e85f",
+    "points": "74234e98afe7498f",
+    "explanation": "7313e26a1b0a6d61",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "92982392bee89bda"
+   }
+  },
+  "moex-114-pukao-3448-q32@1": {
+   "hashVersion": 1,
+   "contentHash": "5ee91058",
+   "fingerprint": "0c59ec2fc544105263addc25969df321dab5f44e1f043a3577e32cf75ec46c9e",
+   "parts": {
+    "stem": "d9d366a99dd38d25",
+    "options": "0d3f06f1949c6dc7",
+    "answer": "3d8687d5fa485e0d",
+    "points": "74234e98afe7498f",
+    "explanation": "2abf986f41e44f7c",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "f0d0dac6f1a8585d"
+   }
+  },
+  "moex-114-pukao-3448-q33@1": {
+   "hashVersion": 1,
+   "contentHash": "0559d7fe",
+   "fingerprint": "a4cc3ed09ec933b1e00fc87bc6d3d916a415c18bd0761c70f6535b58ab94d186",
+   "parts": {
+    "stem": "4cf22582d28119c0",
+    "options": "c3ee409a818fd75b",
+    "answer": "8c6ea2e7ada0e85f",
+    "points": "74234e98afe7498f",
+    "explanation": "6efd56c5e06f499d",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "3e4376c3f4ab8ed0"
+   }
+  },
+  "moex-114-pukao-3448-q34@1": {
+   "hashVersion": 1,
+   "contentHash": "0d730b9a",
+   "fingerprint": "1faf45b711a167c0602abe9a53406dd54d1241d6ebd2c79946a22f39d0a1742a",
+   "parts": {
+    "stem": "0e159f7a1a2432e3",
+    "options": "349a6bceaa6bdd6a",
+    "answer": "9c669719f33a860f",
+    "points": "74234e98afe7498f",
+    "explanation": "ea606bd3aa0f05d8",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "8661633c452734c7"
+   }
+  },
+  "moex-114-pukao-3448-q35@1": {
+   "hashVersion": 1,
+   "contentHash": "417e690b",
+   "fingerprint": "7427deeabff0cbb7847097d9a76fa640ccb66fe29e334a6a26b9a463df0700e6",
+   "parts": {
+    "stem": "bcb05e5e176c742f",
+    "options": "14bd09e7c6c10c51",
+    "answer": "8c6ea2e7ada0e85f",
+    "points": "74234e98afe7498f",
+    "explanation": "a60e8f6bba651e11",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "650effb57ef26dac"
+   }
+  },
+  "moex-114-pukao-3448-q36@1": {
+   "hashVersion": 1,
+   "contentHash": "02e9e8fd",
+   "fingerprint": "d0a80d903484c6df4f8ab1315bde0fc4664279406679b548990f504536319d75",
+   "parts": {
+    "stem": "155f3efa82c53b5a",
+    "options": "0fa504b84a4a381e",
+    "answer": "8c6ea2e7ada0e85f",
+    "points": "74234e98afe7498f",
+    "explanation": "4bff11575977c624",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "11d6456ca55072b9"
+   }
+  },
+  "moex-114-pukao-3448-q36@2": {
+   "hashVersion": 1,
+   "contentHash": "02e9e8fd",
+   "fingerprint": "97968ab48c863b41abfc5c72d9c0c58c340fce7260cef52b4075d75edffa5a48",
+   "parts": {
+    "stem": "155f3efa82c53b5a",
+    "options": "0fa504b84a4a381e",
+    "answer": "8c6ea2e7ada0e85f",
+    "points": "74234e98afe7498f",
+    "explanation": "33c038301d05bb28",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "aabf654d03ec346e"
+   }
+  },
+  "moex-114-pukao-3448-q37@1": {
+   "hashVersion": 1,
+   "contentHash": "21909172",
+   "fingerprint": "665fcc559a60230b4a5a4084a7361f568d199f7ea333240a5d57dfc30c3c1518",
+   "parts": {
+    "stem": "df3b02248a630b91",
+    "options": "2ce0be443598bdd0",
+    "answer": "3d8687d5fa485e0d",
+    "points": "74234e98afe7498f",
+    "explanation": "65e227f5f11121e5",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "b7d177364513c20f"
+   }
+  },
+  "moex-114-pukao-3448-q38@1": {
+   "hashVersion": 1,
+   "contentHash": "7fa5f79d",
+   "fingerprint": "7705474f183705657f9832d141493d78a1deca6dea6b2b9572f72f68049171d3",
+   "parts": {
+    "stem": "8e00ef071bf69531",
+    "options": "41712ed6e172726e",
+    "answer": "3d8687d5fa485e0d",
+    "points": "74234e98afe7498f",
+    "explanation": "9d622265e1e535de",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "88cd03ba88d2c6b7"
+   }
+  },
+  "moex-114-pukao-3448-q39@1": {
+   "hashVersion": 1,
+   "contentHash": "5dab44e1",
+   "fingerprint": "cce3254fcb9bc4ce680fec904eaafa0d20e67c5a139b3b4ceaf9bb0060d25197",
+   "parts": {
+    "stem": "407fccd9a5792070",
+    "options": "baafb8d6ab60c69b",
+    "answer": "9c669719f33a860f",
+    "points": "74234e98afe7498f",
+    "explanation": "cf444e206bca46bf",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "d28c08bd8fd202ed"
+   }
+  },
+  "moex-114-pukao-3448-q40@1": {
+   "hashVersion": 1,
+   "contentHash": "3f0e8c0d",
+   "fingerprint": "540abc90662f209fb3ef91a043450913de253416228497f6b50d5e02babc2db1",
+   "parts": {
+    "stem": "eb429d7177e20fd4",
+    "options": "53d43c7f88877c61",
+    "answer": "8c6ea2e7ada0e85f",
+    "points": "74234e98afe7498f",
+    "explanation": "83b96397f17fb0cc",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "c064dee25c9a1a5f"
+   }
+  },
+  "orig-apcs-read-01@1": {
+   "hashVersion": 1,
+   "contentHash": "28dda20a",
+   "fingerprint": "3a922d738bcee13dfbf606baeda15061aea0e2e6b2df7bd1b53d8d9f15107d53",
+   "parts": {
+    "stem": "5846355007a3b5ab",
+    "options": "563f3e0770c41e94",
+    "answer": "6299449a019954eb",
+    "points": "74234e98afe7498f",
+    "explanation": "b69f2088016abad1",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "92229f017c0ca6c1"
+   }
+  },
+  "orig-apcs-read-02@1": {
+   "hashVersion": 1,
+   "contentHash": "d5a7e142",
+   "fingerprint": "a21412b8325aabee15e4ef152c48386ab28524d46a521473a2de344b16b5d668",
+   "parts": {
+    "stem": "3a0cda921857ad72",
+    "options": "5f10ad6f066fa205",
+    "answer": "9b88d78e2310977d",
+    "points": "74234e98afe7498f",
+    "explanation": "470d63f77aa27ba0",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "5ddd76465af490e7"
+   }
+  },
+  "orig-apcs-read-03@1": {
+   "hashVersion": 1,
+   "contentHash": "6e1cd90e",
+   "fingerprint": "cbf7d446c5bdce808686aaf2b10022eb1da0b3e9429e98e16972099ab043afe4",
+   "parts": {
+    "stem": "1e2c24029fccdd6c",
+    "options": "965e034c48ed1fe6",
+    "answer": "9b88d78e2310977d",
+    "points": "74234e98afe7498f",
+    "explanation": "1b80bb60ce187c5f",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "3068386f9f1706df"
+   }
+  },
+  "orig-apcs-read-04@1": {
+   "hashVersion": 1,
+   "contentHash": "f1ec129b",
+   "fingerprint": "582926d919f28510fc740a574423532a148b905d258dc3a97857bc96ad3c1599",
+   "parts": {
+    "stem": "6a9de67a1337e280",
+    "options": "20818aa6124a62d3",
+    "answer": "62b2f1647fffa3b1",
+    "points": "74234e98afe7498f",
+    "explanation": "a64bfe4dd680a691",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "ef14fd3111edf655"
+   }
+  },
+  "orig-apcs-read-05@1": {
+   "hashVersion": 1,
+   "contentHash": "cdf560d6",
+   "fingerprint": "1a8ad30823108cc7b6f97adf1f753cfc3d9c726a48bdf47583c3fb3639bfe0a7",
+   "parts": {
+    "stem": "c1fb16d044127897",
+    "options": "9d71753538fa76b7",
+    "answer": "62b2f1647fffa3b1",
+    "points": "74234e98afe7498f",
+    "explanation": "b0f483682b000ca3",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "67df2a99d8628015"
+   }
+  },
+  "orig-apcs-read-06@1": {
+   "hashVersion": 1,
+   "contentHash": "ffff9a5f",
+   "fingerprint": "22be45d9089f4f49074df0abc6d4b6683a393028acdf7acebe207c966f795e60",
+   "parts": {
+    "stem": "56d964dea210374e",
+    "options": "9448502532a4ad51",
+    "answer": "62b2f1647fffa3b1",
+    "points": "74234e98afe7498f",
+    "explanation": "64ca2b4479b1e3ac",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "9413e9b3fcaa72d8"
+   }
+  },
+  "orig-apcs-read-07@1": {
+   "hashVersion": 1,
+   "contentHash": "61bff231",
+   "fingerprint": "c1d7e69cb6fbe8d0daeea9edc331f9bb19ca6907661567c531b3c4ff2d1c1b49",
+   "parts": {
+    "stem": "aeef65c4e439253d",
+    "options": "364a174f9895df8c",
+    "answer": "6299449a019954eb",
+    "points": "74234e98afe7498f",
+    "explanation": "fa75875833e0f573",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "d8273bde510fa157"
+   }
+  },
+  "orig-bank-01@1": {
+   "hashVersion": 1,
+   "contentHash": "a28b091b",
+   "fingerprint": "0f57d9e6b96f56f56e7cc6fd2346738cdddbe7d67caa992c1594a6dfcdfd36ab",
+   "parts": {
+    "stem": "5fcce31db83e0ac4",
+    "options": "6a2a7f18af6c1ad4",
+    "answer": "8ed7631852bf31b0",
+    "points": "74234e98afe7498f",
+    "explanation": "23a5cd77b5d788f5",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "f679995260572ecb"
+   }
+  },
+  "orig-bank-02@1": {
+   "hashVersion": 1,
+   "contentHash": "6c299c71",
+   "fingerprint": "89f7bb2a0305692ad95e0d7bc7de2c13dde2d39eed277d1dc5a73268addd94dc",
+   "parts": {
+    "stem": "245b4598e6929444",
+    "options": "d55f5ffa4929bd65",
+    "answer": "c61a0e743d1fd84d",
+    "points": "74234e98afe7498f",
+    "explanation": "206b9bccc4b66085",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "3a4e794bb8c8e84a"
+   }
+  },
+  "orig-bank-04@1": {
+   "hashVersion": 1,
+   "contentHash": "a1393fec",
+   "fingerprint": "72f82556ea62cdd9c176cccc70dfe7f98916930a76b59185b5d25984ed619d75",
+   "parts": {
+    "stem": "d37f3ae9adc160bd",
+    "options": "b79e9343eb23e95e",
+    "answer": "8ed7631852bf31b0",
+    "points": "74234e98afe7498f",
+    "explanation": "6e082455f2ca8280",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "ba11f3220592e569"
+   }
+  },
+  "orig-bank-05@1": {
+   "hashVersion": 1,
+   "contentHash": "02ae774e",
+   "fingerprint": "508ed8d5a9174c9982485028e14fef6dbac685a71b16ccd07b0fc6932f11061b",
+   "parts": {
+    "stem": "c450df5397274978",
+    "options": "7408eea03a2dda3e",
+    "answer": "96d8861811a8a178",
+    "points": "74234e98afe7498f",
+    "explanation": "3b479df0a3750bad",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "734e88be6c4767b0"
+   }
+  },
+  "orig-bank-06@1": {
+   "hashVersion": 1,
+   "contentHash": "cb03c0a1",
+   "fingerprint": "eb283b7ca024c86b3504ef56aea3cc9e37eaf7e09904f6ad41e6081d7449f88e",
+   "parts": {
+    "stem": "207d5054e2fd42d2",
+    "options": "ebc384f154aba64f",
+    "answer": "62b2f1647fffa3b1",
+    "points": "74234e98afe7498f",
+    "explanation": "5f28775948208af3",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "7fa88e3baa164c71"
+   }
+  },
+  "orig-bank-09@1": {
+   "hashVersion": 1,
+   "contentHash": "653c3477",
+   "fingerprint": "7720758710bfc2e78e10ec1effcc02215be1a7907688a2e1f6f4613febc43917",
+   "parts": {
+    "stem": "cbe1194967b67ae3",
+    "options": "396e7fd09106397b",
+    "answer": "8ed7631852bf31b0",
+    "points": "74234e98afe7498f",
+    "explanation": "617a87e4ca3a9a8a",
+    "optionExplanations": "74234e98afe7498f",
+    "config": "3ef53625c34fdba5"
+   }
+  }
+ }
+}

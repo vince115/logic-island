@@ -15,7 +15,7 @@
   margin-bottom: 26px;
 }
 .pageHeading h1 {
-  font-size: 34px;
+  font-size: var(--text-3xl);
   font-weight: 700;
   letter-spacing: -1px;
   margin: 12px 0 8px;
@@ -25,13 +25,13 @@
   flex-wrap: wrap;
 }
 .pageHeading h1 > span {
-  font-size: 17px;
+  font-size: var(--text-lg);
   font-weight: 500;
   color: var(--muted);
   letter-spacing: 0;
 }
 .pageHeading p {
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--muted);
   max-width: 560px;
 }
@@ -39,14 +39,14 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 600;
   white-space: nowrap;
   color: var(--accent-ink, var(--accent));
 }
 
 .eyebrow {
-  font: 600 10px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace;
+  font: 600 var(--text-xs)/1.6 ui-monospace, SFMono-Regular, Consolas, monospace;
   letter-spacing: 1.6px;
   color: var(--accent-ink, var(--accent));
   display: inline-flex;
@@ -58,7 +58,7 @@
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 0 6px;
-  font-size: 9px;
+  font-size: var(--text-xs);
   letter-spacing: 1px;
 }
 
@@ -82,7 +82,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 600;
   min-width: 0;
 }
@@ -91,7 +91,7 @@
   flex: none;
 }
 .viewCaption small {
-  font: 9px ui-monospace, monospace;
+  font: var(--text-xs) ui-monospace, monospace;
   letter-spacing: 1px;
   color: var(--muted);
 }
@@ -112,7 +112,7 @@
   border-radius: 5px;
   background: transparent;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 600;
   padding: 5px 12px;
 }
@@ -126,10 +126,36 @@
   opacity: 0.45;
 }
 
+/* Hex World preview (D.2a): link back to the production map. */
+.previewBack {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--soft);
+  color: var(--text);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 6px 12px;
+}
+.previewBack:hover {
+  background: var(--panel);
+}
+.previewLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.previewBack[aria-current='page'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .fallbackNotice {
   margin: 0;
   padding: 10px 18px;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--text);
   background: var(--soft);
   border-bottom: 1px solid var(--border);
@@ -160,6 +186,17 @@
 .canvasWrap canvas {
   touch-action: none;
 }
+/* D.3-5a free camera (lab): drag to turn. On touch screens one finger turns the map left and right while up and
+   down scrolls the page; HexCamera sets the same on the wrapper camera-controls listens on, which also holds the labels. */
+.canvasWrap[data-camera='free'] {
+  cursor: grab;
+}
+.canvasWrap[data-camera='free']:active {
+  cursor: grabbing;
+}
+.canvasWrap[data-camera='free'] canvas {
+  touch-action: pan-y;
+}
 .canvasFallback {
   position: absolute;
   inset: 0;
@@ -167,7 +204,7 @@
   place-items: center;
   padding: 24px;
   text-align: center;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: #3d4f69;
 }
 
@@ -179,17 +216,17 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: #1d2b42;
 }
 .loading small {
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-weight: 400;
   color: #5c6d85;
 }
 .loadingMark {
-  font-size: 26px;
+  font-size: var(--text-2xl);
   line-height: 1;
   color: #2563c5;
   animation: pulse 1.4s ease-in-out infinite;
@@ -210,13 +247,13 @@
 }
 .stageCaption span {
   display: block;
-  font: 600 9px ui-monospace, monospace;
+  font: 600 var(--text-xs) ui-monospace, monospace;
   letter-spacing: 1.8px;
   color: #2563c5;
   margin-bottom: 6px;
 }
 .stageCaption strong {
-  font-size: 19px;
+  font-size: var(--text-lg);
   line-height: 1.45;
   font-weight: 700;
   letter-spacing: -0.4px;
@@ -234,7 +271,7 @@
   display: grid;
   place-items: center;
   text-align: center;
-  font: 600 10px/1.1 ui-monospace, monospace;
+  font: 600 var(--text-xs)/1.1 ui-monospace, monospace;
   color: #3d4f69;
   background: #ffffffb3;
   pointer-events: none;
@@ -260,7 +297,7 @@
   border-radius: 999px;
   background: #ffffffd9;
   color: #3d4f69;
-  font-size: 11px;
+  font-size: var(--text-xs);
 }
 .stageBottom > span i {
   width: 6px;
@@ -277,13 +314,66 @@
   border-radius: 6px;
   background: #fff;
   color: #1d2b42;
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-weight: 600;
   padding: 6px 11px;
 }
 .stageBottom button:disabled {
   cursor: default;
   opacity: 0.5;
+}
+/* D.3-5b (free camera only): 自動旋轉 and 返回全景 side by side; the pressed state reads without colour alone. */
+.stageActions {
+  display: flex;
+  gap: 8px;
+}
+.stageActions button[aria-pressed='true'] {
+  border-color: #2563c5;
+  background: #e8f0fe;
+  color: #1a4fa0;
+  box-shadow: inset 0 0 0 1px #2563c5;
+}
+/* D.3-6b time-of-day select (lab): styled like the buttons beside it. */
+.stageActions select {
+  pointer-events: auto;
+  border: 1px solid #b6c7dd;
+  border-radius: 6px;
+  background: #fff;
+  color: #1d2b42;
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  height: auto;
+  padding: 5px 6px;
+}
+/* At sunset and dusk the sea behind the map caption darkens, so the caption gets a backing that keeps it readable over
+ * any part of the map: light like the hint at sunset, dark with light text at dusk. */
+.hexStage[data-environment='sunset'] .stageCaption,
+.hexStage[data-environment='dusk'] .stageCaption {
+  margin: -8px 0 0 -10px;
+  padding: 8px 12px 10px 10px;
+  border-radius: 8px;
+  background: #ffffffe6;
+}
+.hexStage[data-environment='sunset'] .stageCaption span {
+  color: #1a4fa0;
+}
+.hexStage[data-environment='dusk'] .stageCaption {
+  background: #121c33d9;
+  color: #f2f5ff;
+}
+.hexStage[data-environment='dusk'] .stageCaption span {
+  color: #b4c8ff;
+}
+/* D.3-6d (candidate): on single-column screens the caption leaves the map for a row above it (see the 780 px rule). */
+.stageCaptionAbove {
+  display: none;
+}
+/* D.3-7a (candidate): the map and its button row. On wide screens the row sits over the map as before; on single-column
+ * screens it becomes a row of its own below the map (see the D.3-7a rule at the end). */
+.stageFrame {
+  position: relative;
+  min-width: 0;
 }
 
 /* Html label rendered by drei inside the canvas overlay. */
@@ -296,7 +386,7 @@
   border-radius: 999px;
   background: #ffffffe6;
   color: #1d2b42;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 650;
   padding: 5px 12px 5px 9px;
   box-shadow: 0 4px 14px #172b4824;
@@ -309,7 +399,7 @@
   background: var(--island-accent, #2563c5);
 }
 .islandLabel small {
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: #6d7d94;
 }
 .islandLabel:hover {
@@ -337,7 +427,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 650;
 }
 .navigationHeading > svg {
@@ -345,7 +435,7 @@
 }
 .navigationHeading small {
   margin-left: auto;
-  font: 9px ui-monospace, monospace;
+  font: var(--text-xs) ui-monospace, monospace;
   letter-spacing: 1px;
   color: var(--muted);
 }
@@ -376,12 +466,12 @@
 }
 .choice strong {
   display: block;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 650;
 }
 .choice small {
   display: block;
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 .choice > svg {
@@ -396,7 +486,7 @@
   background: var(--soft);
 }
 .choiceNumber {
-  font: 600 12px ui-monospace, monospace;
+  font: 600 var(--text-xs) ui-monospace, monospace;
 }
 
 .welcome {
@@ -416,11 +506,11 @@
   margin-bottom: 10px;
 }
 .welcome h2 {
-  font-size: 16px;
+  font-size: var(--text-md);
   font-weight: 650;
 }
 .welcome p {
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--muted);
   margin-top: 6px;
 }
@@ -430,11 +520,11 @@
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 14px;
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 .guide span {
-  font: 600 10px ui-monospace, monospace;
+  font: 600 var(--text-xs) ui-monospace, monospace;
   color: var(--accent-ink, var(--accent));
 }
 
@@ -444,23 +534,23 @@
   gap: 8px;
 }
 .detailEyebrow {
-  font: 600 9px ui-monospace, monospace;
+  font: 600 var(--text-xs) ui-monospace, monospace;
   letter-spacing: 1.6px;
   color: var(--accent-ink, var(--accent));
   text-transform: uppercase;
 }
 .detail h2 {
-  font-size: 20px;
+  font-size: var(--text-xl);
   font-weight: 700;
 }
 .detail > p {
-  font-size: 12px;
+  font-size: var(--text-xs);
   line-height: 1.85;
   color: var(--muted);
 }
 .landmark {
   align-self: flex-start;
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -492,12 +582,12 @@
 }
 .lessonLinks strong {
   display: block;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 650;
 }
 .lessonLinks small {
   display: block;
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 .lessonLinks a > svg {
@@ -505,7 +595,7 @@
   flex: none;
 }
 .lessonNumber {
-  font: 600 11px ui-monospace, monospace;
+  font: 600 var(--text-xs) ui-monospace, monospace;
   color: var(--muted);
 }
 
@@ -518,7 +608,7 @@
 }
 .foundationEntry small {
   display: block;
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted);
   margin-bottom: 6px;
 }
@@ -526,7 +616,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 650;
   color: var(--accent-ink, var(--accent));
 }
@@ -536,7 +626,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--muted);
   border-top: 1px solid var(--border);
   padding-top: 14px;
@@ -556,7 +646,7 @@
   flex-wrap: wrap;
   padding: 12px 18px;
   border-top: 1px solid var(--border);
-  font: 10px ui-monospace, monospace;
+  font: var(--text-xs) ui-monospace, monospace;
   letter-spacing: 1px;
   color: var(--muted);
 }
@@ -573,7 +663,7 @@
   align-items: baseline;
   flex-wrap: wrap;
   margin-top: 22px;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 .pageNote > span {
@@ -600,7 +690,7 @@
     align-items: flex-start;
   }
   .pageHeading h1 {
-    font-size: 28px;
+    font-size: var(--text-2xl);
   }
   .explorerBody,
   .listBody {
@@ -618,7 +708,33 @@
     grid-template-columns: minmax(0, 1fr);
   }
   .stageCaption strong {
-    font-size: 16px;
+    font-size: var(--text-md);
+  }
+  .stageCaptionWide {
+    display: none;
+  }
+  .stageCaptionAbove {
+    display: block;
+    padding: 12px 16px 11px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+  }
+  .stageCaptionAbove span {
+    display: block;
+    font: 600 var(--text-xs) ui-monospace, monospace;
+    letter-spacing: 1.8px;
+    color: var(--accent-ink, var(--accent));
+    margin-bottom: 3px;
+  }
+  .stageCaptionAbove strong {
+    font-size: var(--text-md);
+    line-height: 1.45;
+    font-weight: 700;
+  }
+  /* One line: the row is wide enough, and the map below keeps its full height. */
+  .stageCaptionAbove br {
+    display: none;
   }
 }
 
@@ -639,10 +755,28 @@
     align-items: stretch;
   }
   .stageBottom > span {
-    font-size: 10px;
+    font-size: var(--text-xs);
   }
-  .stageBottom button {
+  .stageBottom button,
+  .stageActions {
     align-self: flex-end;
+  }
+  /* D.3-6c: on phones the sunset and dusk caption backing reached over the lighthouse, so there it keeps to the title
+   * alone, tucked into the corner (the eyebrow is a decorative English line; the title still names the map). */
+  .hexStage[data-environment='sunset'] .stageCaption,
+  .hexStage[data-environment='dusk'] .stageCaption {
+    top: 12px;
+    left: 12px;
+    margin: 0;
+    padding: 5px 9px 6px;
+  }
+  .hexStage[data-environment='sunset'] .stageCaption span,
+  .hexStage[data-environment='dusk'] .stageCaption span {
+    display: none;
+  }
+  .hexStage[data-environment='sunset'] .stageCaption strong,
+  .hexStage[data-environment='dusk'] .stageCaption strong {
+    font-size: var(--text-base);
   }
   .sideNavigation,
   .listNavigation {
@@ -656,5 +790,593 @@
   }
   .islandLabel:hover {
     transform: none;
+  }
+}
+
+/* GLB anchor labels: positioned by Anchor nodes, never clickable. */
+.anchorWrapper {
+  pointer-events: none;
+}
+.anchorLabel {
+  display: inline-block;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  border-radius: 6px;
+  background: #1d2b42d9;
+  color: #ffffff;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 3px 8px;
+  box-shadow: 0 3px 10px #172b4826;
+}
+.anchorInfo {
+  position: relative;
+  width: min(220px, 60vw);
+  border: 1px solid #ffffff;
+  border-radius: 10px;
+  background: #fffffff2;
+  color: #1d2b42;
+  padding: 10px 30px 10px 12px;
+  box-shadow: 0 6px 18px #172b4830;
+  transform: translateY(-54px);
+}
+.anchorInfo strong {
+  display: block;
+  font-size: var(--text-sm);
+}
+.anchorInfo p {
+  margin: 4px 0 0;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: #46576f;
+}
+.anchorInfo button {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  border: 0;
+  background: none;
+  color: #6d7d94;
+  font-size: var(--text-md);
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* Scale prototype: short light markers that sit just below an anchor, so they do not cover the building. */
+.hexPoi {
+  display: inline-block;
+  transform: translateY(70%);
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  border: 1px solid #ffffffd9;
+  border-radius: 999px;
+  background: #ffffffcc;
+  color: #2d3e55;
+  font-size: var(--text-xs);
+  font-weight: 650;
+  padding: 1px 7px;
+  box-shadow: 0 2px 6px #172b481f;
+}
+
+/* Scale prototype: HTML targets of the focused island, below the canvas in the first grid column. */
+.hexStageColumn {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.hexPoiPanel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+}
+.hexPoiHeading {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text);
+}
+.hexPoiButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.hexPoiButtons button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: 650;
+  padding: 6px 12px;
+}
+.hexPoiButtons button small {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--muted);
+}
+.hexPoiButtons button[aria-expanded='true'] {
+  border-color: var(--accent);
+}
+.hexPoiButtons button:focus-visible,
+.hexPoiInfo button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.hexPoiInfo {
+  position: relative;
+  flex-basis: 100%;
+}
+.hexPoiInfo:empty {
+  display: none;
+}
+.hexPoiInfo strong {
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+.hexPoiInfo p {
+  margin: 2px 32px 0 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+.hexPoiInfo button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  padding: 4px;
+}
+
+/* Hex World preview labels: full names on desktop, colored pins on phones. */
+.hexLabelText {
+  font-weight: inherit;
+}
+@media (max-width: 700px) {
+  /* Overview pins: colored dots only; the name stays as the accessible label and in the list below. */
+  .hexLabel {
+    gap: 0;
+    padding: 5px;
+  }
+  .hexLabel small {
+    display: none;
+  }
+  .hexLabelText {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .hexLabel > span {
+    width: 12px;
+    height: 12px;
+  }
+  /* On phones the HTML target panel carries the info; the 3D mirror bubble would only cover the island. */
+  .hexInfoMirror {
+    display: none;
+  }
+  /* Once a settlement is focused, the hint text gives way so the dock stays reachable. */
+  .hexStage[data-focused='true'] .stageBottom > span {
+    display: none;
+  }
+  .hexAnchorLabel {
+    font-size: var(--text-xs);
+    padding: 2px 6px;
+  }
+}
+/* D.2c-1 compact labels: captions off each island's outer coast, hanging outward so they never cover the outline. */
+.hexLabelCompact[data-side='left'] {
+  transform: translateX(-50%);
+}
+.hexLabelCompact[data-side='right'] {
+  transform: translateX(50%);
+}
+.hexLabelCompact[data-side='below'] {
+  transform: translateY(60%);
+}
+.hexLabelCompact[data-side='above'] {
+  transform: translateY(-60%);
+}
+/* D.3-3 preflight: the label lights when the mouse is on it or on its island in 3D (no 3D highlight is drawn). */
+.hexLabelCompact:hover,
+.hexLabelCompact[data-hovered='true'] {
+  border-color: var(--island-accent, #2563c5);
+  box-shadow: 0 0 0 2px var(--island-accent, #2563c5), 0 6px 18px #172b4830;
+}
+/* Production hex explorer: on phones the caption and the mode switch share one row; the small tag gives way. */
+@media (max-width: 430px) {
+  .singleRowToolbar {
+    flex-wrap: nowrap;
+  }
+  .singleRowToolbar .viewCaption span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .singleRowToolbar .viewCaption small {
+    display: none;
+  }
+  .singleRowToolbar .modeSwitch {
+    flex: none;
+  }
+}
+/* D.3-7a (candidate): on single-column screens the hint and the buttons leave the map for a row below it, so nothing
+ * covers the lower part of the map. Theme colours (the row is on the panel, not the map); touch-sized buttons of equal
+ * height that share the row and wrap rather than shrink. The map itself keeps its size. */
+@media (max-width: 780px) {
+  .stageBottom.stageDock {
+    position: static;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px 12px 12px;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+  }
+  .stageBottom.stageDock > span {
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    color: var(--text);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+  }
+  .stageBottom.stageDock > span i {
+    flex: none;
+  }
+  .stageDock .stageActions {
+    align-self: stretch;
+    flex-wrap: wrap;
+  }
+  .stageDock .stageActions > * {
+    flex: 1 1 0;
+    justify-content: center;
+    min-width: max-content;
+    min-height: 44px;
+    border-color: var(--border-strong);
+    border-radius: 8px;
+    background: var(--panel);
+    color: var(--text);
+    font-size: var(--text-sm);
+  }
+  .stageDock .stageActions select {
+    padding: 0 10px;
+    text-align-last: center;
+  }
+}
+
+/* 2026-11-01 home page: the explorer fills the screen below the site header (--header-h: 64 px; 88 px on phones), edge to edge.
+   Only the home page sets data-layout; the framed explorer elsewhere is unchanged. */
+.explorer[data-layout='fullscreen'] {
+  border: 0;
+  border-radius: 0;
+}
+.explorer[data-layout='fullscreen'] .explorerBody {
+  min-height: 0;
+}
+/* With the island list hidden (the header's 清單 button), the map takes the full width. */
+.explorer[data-layout='fullscreen'] .explorerBody[data-list='hidden'] {
+  grid-template-columns: minmax(0, 1fr);
+}
+.explorer[data-layout='fullscreen'] .stage {
+  height: 100svh;
+  min-height: 600px;
+}
+/* The navbar (--header-h) floats over the top of the map on wide screens: the caption and the list start below it. */
+@media (min-width: 781px) {
+  .explorer[data-layout='fullscreen'] .stageCaption {
+    top: calc(var(--header-h) + 22px);
+  }
+  .explorer[data-layout='fullscreen'] .sideNavigation {
+    padding-top: calc(var(--header-h) + 22px);
+    /* The island's subjects can be long: the list scrolls inside itself and the map keeps the full screen. */
+    max-height: 100svh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+@media (max-width: 780px) {
+  /* Below the header: the caption above the map and the control row below it. */
+  .explorer[data-layout='fullscreen'] .stage {
+    height: calc(100svh - var(--header-h) - 142px);
+    min-height: 340px;
+  }
+}
+/* The 清單 button in the site header (full-screen map): on phones it shares the first header row with the theme
+   button, so it shows its icon only; the word stays for screen readers. */
+@media (max-width: 780px) {
+  .modeSwitch[data-in-header='true'] button {
+    padding: 5px 9px;
+  }
+  .modeSwitch[data-in-header='true'] .modeLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* 2026-11-01: an island's subjects (units) in the side list: each opens to its lessons, with progress in words. */
+.subjects {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+.unitList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+.unitList details {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.unitList summary {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  cursor: pointer;
+  list-style-position: outside;
+}
+.unitList summary::-webkit-details-marker {
+  display: none;
+}
+.unitList summary::after {
+  content: '＋';
+  margin-left: auto;
+  color: var(--muted);
+}
+.unitList details[open] summary::after {
+  content: '－';
+}
+.unitList summary strong {
+  display: block;
+  font-size: var(--text-sm);
+}
+.unitList summary small {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+.unitNumber {
+  font: 600 var(--text-xs) ui-monospace, monospace;
+}
+.unitLessons {
+  list-style: none;
+  padding: 0 8px 8px;
+  margin: 0;
+  display: grid;
+  gap: 2px;
+}
+.unitLessons a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: var(--text-sm);
+}
+.unitLessons a:hover {
+  background: var(--soft);
+  color: var(--accent-ink, var(--accent));
+}
+.unitLessonId {
+  font: var(--text-xs) ui-monospace, monospace;
+  color: var(--muted);
+  min-width: 26px;
+}
+.unitLessonTitle {
+  flex: 1;
+  min-width: 0;
+}
+/* 互動實驗島: each lab's subtitle after its name. */
+.labSubtitle {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.unitStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--accent-ink, var(--accent));
+}
+.unitStatus[data-status='completed'] {
+  color: #188038;
+}
+.unitLabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: center;
+  font-size: var(--text-xs);
+}
+.unitLabs small {
+  width: 100%;
+  color: var(--muted);
+}
+.unitLabs a,
+.unitAll {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  color: var(--accent-ink, var(--accent));
+}
+.unitAll {
+  font-size: var(--text-xs);
+}
+
+/* The chosen island's subjects as a floating panel over the map (home page): at the lower left on wide screens, along
+   the bottom of the map on phones. The island list beside the map keeps only the islands. The heading stays put and
+   only the body scrolls, its scrollbar inset so it stays clear of the rounded corners. */
+.subjectsFloating {
+  display: none;
+}
+.explorer[data-layout='fullscreen'] .subjectsFloating {
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  z-index: 3;
+  overflow: hidden;
+  padding: 14px 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--panel) 72%, transparent);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  backdrop-filter: blur(12px) saturate(1.4);
+  box-shadow: 0 14px 40px #172b4826;
+}
+@media (min-width: 781px) {
+  .explorer[data-layout='fullscreen'] .subjectsFloating {
+    left: 16px;
+    bottom: 64px;
+    width: min(380px, calc(100% - 32px));
+    max-height: calc(100svh - var(--header-h) - 190px);
+  }
+}
+@media (max-width: 780px) {
+  .explorer[data-layout='fullscreen'] .subjectsFloating {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    max-height: 56%;
+    padding: 12px 0 10px;
+  }
+  .explorer[data-layout='fullscreen'] .subjectsHead {
+    padding: 0 12px 8px;
+  }
+  .explorer[data-layout='fullscreen'] .subjectsBody {
+    padding: 0 6px 2px 12px;
+  }
+}
+.explorer[data-layout='fullscreen'] .subjectsHead {
+  flex: none;
+  padding: 0 16px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  margin-bottom: 8px;
+}
+.subjectsBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin-right: 6px;
+  padding: 0 8px 4px 16px;
+}
+/* A thin rounded scrollbar set in from the panel's edge (like puma.taipei/heart-island), not the square system one. */
+.subjectsBody::-webkit-scrollbar {
+  width: 10px;
+}
+.subjectsBody::-webkit-scrollbar-track {
+  margin-block: 2px;
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 6%, transparent) padding-box;
+}
+.subjectsBody::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 24%, transparent) padding-box;
+}
+.subjectsBody::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--text) 38%, transparent);
+}
+@supports not selector(::-webkit-scrollbar) {
+  .subjectsBody {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--text) 24%, transparent) transparent;
+  }
+}
+.subjectsHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+.subjectsHead small {
+  display: block;
+  font: 600 var(--text-xs) ui-monospace, monospace;
+  letter-spacing: 1.4px;
+  color: var(--accent-ink, var(--accent));
+}
+.subjectsHead strong {
+  font-size: var(--text-lg);
+}
+.subjectsHead button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+/*
+ * 2026-11-02: the panels over the full-screen map take the navbar's look — the panel colour at 72% with blur — so the
+ * map shows through them. On wide screens the island list floats over the map's right edge (the map spans the full
+ * width, as the navbar floats over its top); its bottom controls stay left of the list. Cards inside both panels are
+ * translucent too. Phones keep the list below the map.
+ */
+.explorer[data-layout='fullscreen'] .subjectsFloating .unitList details {
+  background: color-mix(in srgb, var(--panel) 62%, transparent);
+}
+@media (min-width: 781px) {
+  .explorer[data-layout='fullscreen'] .explorerBody {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .explorer[data-layout='fullscreen'] .sideNavigation {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 4;
+    width: 340px;
+    border-left: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+    background: color-mix(in srgb, var(--panel) 72%, transparent);
+    -webkit-backdrop-filter: blur(12px) saturate(1.4);
+    backdrop-filter: blur(12px) saturate(1.4);
+  }
+  .explorer[data-layout='fullscreen'] .sideNavigation .choice {
+    background: color-mix(in srgb, var(--panel) 62%, transparent);
+  }
+  .explorer[data-layout='fullscreen'] .sideNavigation .choiceSelected {
+    background: color-mix(in srgb, var(--soft) 80%, transparent);
+  }
+  .explorer[data-layout='fullscreen'] .explorerBody:not([data-list='hidden']) .stageBottom {
+    right: calc(340px + 16px);
+  }
+}
+@media (min-width: 781px) and (max-width: 1050px) {
+  .explorer[data-layout='fullscreen'] .sideNavigation {
+    width: 300px;
+  }
+  .explorer[data-layout='fullscreen'] .explorerBody:not([data-list='hidden']) .stageBottom {
+    right: calc(300px + 16px);
   }
 }

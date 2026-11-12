@@ -44,12 +44,12 @@ src/lib/islands/data.ts + getCourse（只取導航資料）
 
 | 教材／路由 | 互動與視圖 | 範例固定輸出 | 已執行測試／限制 |
 |---|---|---|---|
-| Array：`/learn/array`、`/visualize/array` | cells；讀取／更新索引、新值 | `6`、`9` 兩行 | access/update、越界、快照與 DOM 回放；空陣列索引無效 |
-| Stack：`/learn/stack`、`/visualize/stack` | stack；Push／Pop、新值、空集合 | `9` | push/pop/空集合、快照、DOM；一次單一操作，不是持續累積互動歷史 |
-| Queue：`/learn/queue`、`/visualize/queue` | queue；Enqueue／Dequeue | `8` | FIFO／空集合、快照、DOM；動畫 shift 為 O(n)，範例 deque／ArrayDeque 的複雜度不可混淆 |
-| Binary Search：`/learn/binary-search`、`/visualize/binary-search` | cells；遞增陣列／target／範圍 frontier | `4` | 找到／找不到／空／重複值／未排序、快照、DOM；相同值不保證第一個索引 |
-| Bubble Sort：`/learn/bubble-sort`、`/visualize/bubble-sort` | bars；相鄰比較交換、輸入陣列 | `2 3 4 6 7 8` | 負數／空／單值／重複／已排序／提前結束、快照、DOM；負數以絕對值畫高度，不是有正負軸的長條圖 |
-| BFS：`/learn/bfs`、`/visualize/bfs` | SVG graph；無向邊／起點、frontier、visited | `0 1 2 3 4` | 環／不連通／自環／重複邊／孤立起點／錯誤起點、快照、DOM；只遍歷起點分量、不輸出最短路徑重建 |
+| Array：`/learn/array` | cells；讀取／更新索引、新值 | `6`、`9` 兩行 | access/update、越界、快照與 DOM 回放；空陣列索引無效 |
+| Stack：`/learn/stack` | stack；Push／Pop、新值、空集合 | `9` | push/pop/空集合、快照、DOM；一次單一操作，不是持續累積互動歷史 |
+| Queue：`/learn/queue` | queue；Enqueue／Dequeue | `8` | FIFO／空集合、快照、DOM；動畫 shift 為 O(n)，範例 deque／ArrayDeque 的複雜度不可混淆 |
+| Binary Search：`/learn/binary-search` | cells；遞增陣列／target／範圍 frontier | `4` | 找到／找不到／空／重複值／未排序、快照、DOM；相同值不保證第一個索引 |
+| Bubble Sort：`/learn/bubble-sort` | bars；相鄰比較交換、輸入陣列 | `2 3 4 6 7 8` | 負數／空／單值／重複／已排序／提前結束、快照、DOM；負數以絕對值畫高度，不是有正負軸的長條圖 |
+| BFS：`/learn/bfs` | SVG graph；無向邊／起點、frontier、visited | `0 1 2 3 4` | 環／不連通／自環／重複邊／孤立起點／錯誤起點、快照、DOM；只遍歷起點分量、不輸出最短路徑重建 |
 
 本輪六課 Python、C++17 都實際執行通過；六課 Java 都因無 JDK skip（非失敗、非通過）。測試檔 `tests/examples.test.ts` 會將三語程式輸出比對固定預期；`tests/engine.test.ts` 有 21 項；`tests/player.test.tsx` 有 12 項。`e2e/player.spec.ts` 對六課與導覽有 22 個桌機／手機模擬案例，但本輪僅列出、沒有執行。沒有 code coverage 百分比，不宣稱完整覆蓋。
 
