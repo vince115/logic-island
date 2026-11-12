@@ -8,9 +8,16 @@ import type { AnyLessonId, LessonPrefix } from './lesson-id';
  * Nothing here holds progress; unlock conditions are rules, evaluated against progress at runtime.
  */
 
-export const REGION_IDS = ['cs', 'ai'] as const;
+// Multi-archipelago v2 (P1b): design and web join; the order of this list is not the display order (Region.order is).
+export const REGION_IDS = ['cs', 'ai', 'design', 'web'] as const;
 export type RegionId = typeof REGION_IDS[number];
-export interface Region { id: RegionId; name: string; nameEn: string; order: number }
+/**
+ * Multi-archipelago v2: a navigation group inside a region (the AI region's three themes). Whole islands only, each in
+ * at most one group of its own region; groups never change lesson IDs, routes or the 3D map.
+ */
+export interface RegionGroup { id: string; label: string; islandIds: string[] }
+/** `order` is the explicit display order of the regions (sidebar, catalog, world); never inferred from the ID. */
+export interface Region { id: RegionId; name: string; nameEn: string; order: number; groups?: RegionGroup[] }
 
 /** subject: has lessons and a region. tool: shared across subjects (the Interactive Lab Island), no lessons, no number. */
 export type IslandKind = 'subject' | 'tool';

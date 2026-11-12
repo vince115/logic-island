@@ -41,7 +41,7 @@ test.describe('trial hall to result (flag on)', () => {
 
   test('the hall groups the exams by archipelago; only exams with a paper open', async ({ page }) => {
     await page.goto('/trials');
-    const cs = page.getByRole('region', { name: '資訊科學群島' }), ai = page.getByRole('region', { name: '人工智慧群島' });
+    const cs = page.getByRole('region', { name: '程式與資訊群島' }), ai = page.getByRole('region', { name: 'AI 人工智慧群島' });
     await expect(cs.getByRole('link', { name: /APCS 程式檢測/ })).toBeVisible();
     await expect(cs.getByRole('link', { name: /銀行資訊類/ })).toBeVisible();
     await expect(cs.getByRole('link', { name: /高普考資訊處理/ })).toBeVisible();
@@ -130,7 +130,7 @@ test.describe('archipelago entries on the world pages (both flags)', () => {
 
   test('the overview guide and each region list their trials; iPAS is named but not open', async ({ page }) => {
     await page.goto('/world');
-    const cs = page.getByRole('group', { name: '資訊科學群島試煉' }), ai = page.getByRole('group', { name: '人工智慧群島試煉' });
+    const cs = page.getByRole('group', { name: '程式與資訊群島試煉' }), ai = page.getByRole('group', { name: 'AI 人工智慧群島試煉' });
     await expect(cs.getByRole('link', { name: /APCS 程式檢測/ })).toHaveAttribute('href', '/trials/apcs');
     await expect(cs.getByRole('link', { name: /高普考資訊處理/ })).toHaveAttribute('href', '/trials/moex-info-processing');
     await expect(cs.getByRole('link', { name: /銀行資訊類/ })).toHaveAttribute('href', '/trials/bank-it');
@@ -139,13 +139,13 @@ test.describe('archipelago entries on the world pages (both flags)', () => {
     await noSideways(page);
 
     await page.goto('/world/ai');
-    const below = page.getByRole('group', { name: '人工智慧群島試煉' });
+    const below = page.getByRole('group', { name: 'AI 人工智慧群島試煉' });
     await below.scrollIntoViewIfNeeded();
     await expect(below).toBeVisible();
     await below.getByRole('link', { name: '試煉大廳' }).click();
     await expect(page).toHaveURL(/\/trials#region-ai$/);
     await page.goto('/world/cs');
-    await page.getByRole('group', { name: '資訊科學群島試煉' }).getByRole('link', { name: /APCS 程式檢測/ }).click();
+    await page.getByRole('group', { name: '程式與資訊群島試煉' }).getByRole('link', { name: /APCS 程式檢測/ }).click();
     await expect(page.getByRole('heading', { name: 'APCS 大學程式設計先修檢測' })).toBeVisible();
   });
 });

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { FocusMode } from '@/components/nav/focus-mode';
 import { useRouter } from 'next/navigation';
 import { DrawError, sessionPaper, unresumable } from '@/lib/trials/draw';
 import { abandon, answerQuestion, finish, isOver, markedCount, remaining, selectOf, startSession, toggleMark, toggleOption, unanswered, type EnginePaper } from '@/lib/trials/engine';
@@ -224,6 +225,8 @@ export function ExamRunner({ paper }: { paper: PaperView }) {
   const want = selectOf(item), picked = item.answer?.selected ?? [];
 
   return <section aria-label="作答區">
+    {/* 2026-11-12: a timed mock exam hides the site navigation until it is submitted. */}
+    <FocusMode/>
     {notices}
     {!resumed && open.items.some(i => i.answer) && <p className={styles.notice} role="status">已接續上次未完成的作答（開始於 {new Date(open.startedAt).toLocaleString('zh-TW')}）。</p>}
     <div className={styles.runnerBar}>

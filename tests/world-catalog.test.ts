@@ -6,7 +6,7 @@ import { validateWorld } from '../src/content/world/validate';
 import { BACKUP_KEY, PROGRESS_VERSION, STORAGE_KEY, parse } from '../src/lib/progress';
 import { BLUEPRINT, readJson } from '../scripts/planning-data.mjs';
 
-// Phase F.0: the 320-lesson catalog (src/content/world/catalog.ts): 60 complete lessons from the curriculum, 260 planned
+// Phase F.0: the lesson catalog (src/content/world/catalog.ts): 60 complete lessons from the curriculum, 260 planned
 // ones as metadata only, and nothing about the existing lessons, pages or progress changed.
 const mutate = (id: string, change: Partial<CatalogLesson>) => catalogLessons.map(l => l.lessonId === id ? { ...l, ...change } : l);
 
@@ -16,11 +16,17 @@ describe('lesson catalog (F.0)', () => {
     expect(validateWorld(world, catalogLessons)).toEqual([]);
   });
 
-  it('knows 320 lessons: every curriculum lesson complete (60 + the written database lessons), the rest planned', () => {
-    expect(catalogCounts()).toEqual({ total: 320, complete: lessons.length, planned: 320 - lessons.length });
+  it('knows every lesson of the plan: every curriculum lesson complete (60 + the written database lessons), the rest planned', () => {
+    const declared = world.islands.reduce((n, i) => n + i.lessonCount, 0);
+    expect(catalogCounts()).toEqual({ total: declared, complete: lessons.length, planned: declared - lessons.length });
     expect(lessonsOfIsland('databases').filter(l => l.lessonStatus === 'complete').map(l => l.lessonId)).toEqual(lessons.filter(l => l.islandId === 'databases').map(l => l.lessonId));
     expect(catalogLessons.slice(0, 3).map(l => l.lessonId)).toEqual(['F01', 'F02', 'F03']);
-    expect(catalogLessons.at(-1)?.lessonId).toBe('OPS20');
+    // Multi-archipelago v2: regions in order (cs, ai, design, web); the web region's last island ends the catalog.
+    expect(catalogLessons.at(-1)?.lessonId).toBe('MOB13');
+    expect(catalogLessons.findIndex(l => l.lessonId === 'OPS20')).toBeLessThan(catalogLessons.findIndex(l => l.lessonId === 'UI01'));
+    expect(lessonsOfIsland('interaction-design')).toHaveLength(14);
+    expect(getCatalogLesson('UI10')).toMatchObject({ islandId: 'ui-design', lessonStatus: 'planned', activity: 'color-contrast' });
+    expect(getCatalogLesson('UI10')?.href).toBeUndefined();
     expect(lessonsOfIsland('machine-learning')).toHaveLength(25);
     expect(getCatalogLesson('DB01')).toMatchObject({ islandId: 'databases', lessonStatus: 'complete', href: '/curriculum/database-concepts', activity: 'sql-playground' });
     // F.1d: the database island is written to the end; DB19 keeps its blueprint gap (cloud platforms) once written.

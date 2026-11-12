@@ -21,7 +21,7 @@
 | P1-06 | Blender addon 1.8／protocol 14，server 預期 15；MCP status 仍可回應 | Claude 的 MCP 設定／連線不會自動繼承；先 read-only 檢查，不擅自升級或重啟。get_format_items callback 是版本實作，不是穩定跨版 API |
 | P1-07 | Java 無 JDK；Web E2E 未跑；原型沒有 islands 測試；真實手機未測 | 目前單元成功不保證 hydration／WebGL／觸控。build 修復後再實測，工具／安裝需按新授權執行。**2026-10-29（D.1）：Web E2E 已在隔離副本執行，新增 islands E2E；真機與 Java 仍未驗證，見 P1-11** |
 | P1-08 | 既有 R3F 原型是三座 local geometry，正式資產只有基礎島候選 | 原型≠Phase D。換 GLB 必須更新 registry union、尺度 bounds、光照、loading／fallback、node ID map、資源清理，不能直接替換路徑即完成。**2026-10-29（D.1）：基礎程式島已在分支改用 GLB（registry、bounds、fallback、節點名稱對照、clone 不 dispose 共用資源）；光照未調整，屬 D.2** |
-| P1-11 | 既有 `e2e/player.spec.ts` 3 個案例失敗：bfs 教材（desktop）「播放」按鈕不在 viewport；「播放中更換輸入」（desktop／mobile）找不到 `操作` 欄位。D.0 基線同樣失敗，與 D.1 無關 | 這套 E2E 先前從未執行過。需另案判斷是測試過時或播放器問題；不在 Phase D 範圍。**2026-10-30：D.2c-1／D.2c-2 不處理，維持獨立追蹤；兩輪全套 E2E 都是同樣 3 項失敗**；2026-11-02 E.5 整併後（`b52b8e9`）全套 E2E 仍是同樣 3 項，未處理 |
+| P1-11 | 既有 `e2e/player.spec.ts` 3 個案例失敗：bfs 教材（desktop）「播放」按鈕不在 viewport；「播放中更換輸入」（desktop／mobile）找不到 `操作` 欄位。D.0 基線同樣失敗，與 D.1 無關 | 這套 E2E 先前從未執行過。需另案判斷是測試過時或播放器問題；不在 Phase D 範圍。**2026-10-30：D.2c-1／D.2c-2 不處理，維持獨立追蹤；兩輪全套 E2E 都是同樣 3 項失敗**；2026-11-02 E.5 整併後（`b52b8e9`）全套 E2E 仍是同樣 3 項，未處理 **2026-11-12（多群島 v2 R2a）已修復**：(1) 「操作」是測試定位錯誤：`<label>` 包住 `<select>`，label 文字含選項（操作存取更新），`getByLabel(exact)` 永遠找不到；元件的無障礙名稱就是「操作」，改用 `getByRole('combobox', { name: '操作', exact: true })`，嚴格度不變，播放器不需修改。(2) BFS 是版面問題：圖形場景比其他五個實驗高約 100 px，1440×1000 下播放鍵在 y=1017～1057；SVG 上限 310→270 px、兩行佇列資訊並排，播放鍵底部移到 986（仍比手機版的 226 px 圖形大）。desktop／mobile 都是 22/22 |
 | P1-12 | D.1 手機視窗（390 px）上「工坊 · 學習路線」與「碼頭」標籤互相靠近，碼頭可點範圍小（大多在 START 標記） | 標籤不攔截點擊，但目標小、易誤觸工坊。屬 D.2 鏡頭拉近／標籤避讓評估 |
 | P1-14 | drei `Html` 在同一個 Canvas 中第一個掛載的標籤，若之後沒有重新 render，內容會一直是空的（D.2a 開發時發現）。`/islands` 因 onReady 會 setState 而沒有遇到 | D.2a 的預覽也改成 onReady 時 setState。根本原因尚未查明；之後新增 Html 標籤時要確認第一個有內容 |
 | P1-15 | camera-controls 3.1.2 的 `fitToBox` 會把鏡頭轉到最近的軸向（`camera-controls.module.js:1627` 附近的 round to closest axis）。`/islands` 共用的 `camera-controller.tsx` 因此實際上接近正側視，不是等距視角 | D.2a 預覽改用獨立的 `hex-camera.tsx`（固定視角方向，用正交 zoom 框選），`/islands` 未修改。是否修正正式鏡頭屬 D.2b 以後 |
@@ -49,6 +49,9 @@
 | P1-10 | .gitignore 不排除 .env*、沒有二進位策略 | 當前無秘密 env 檔，但未來建立 Git 前要審查 ignore／LFS／來源歸屬；不要把1.2G node_modules、298M .next 或整個 Codex folder 放入版控 |
 
 ## P2：可延後但需有記錄
+
+- （2026-11-12，多群島 v2 P4 量測）全站 `--muted` 文字色在淺色主題的白色面板上對比只有 **4.19：1**（`#6d7d94` on `#ffffff`），一般文字未達 WCAG AA 4.5；深色主題 `#9aaec9` on `#172131` 為 7.14。以 `src/lib/contrast.ts` 計算。色彩與無障礙實驗室自己的通過／未通過色已另設並通過 AA。**2026-11-12（R2b）已修正**：淺色 `--muted` 改為 `#5b6b82`（白 5.43、`--bg` 5.20、`--soft` 4.86、`--cell` 4.60、hover 底 4.70，與 `--text` 仍有 2.62 倍層次差）；深色不變（5.33～7.94）；程式碼行號 `#7389a7`→`#7d91ae`（4.44→4.95／深色 5.63）；側欄規劃中課程與 `/learn` 規劃中卡片原本用 `opacity` 變淡（實際約 2.9：1），改為虛線標記、文字保持 AA；工具實驗卡右上的狀態字（NEW／規劃中）原本沿用 `.course-number` 的 `--border-strong`（約 1.8：1），改用 `--muted`。停用按鈕的 `opacity`（WCAG 1.4.3 對停用元件豁免）與 `.course-number`（裝飾性編號，`--border-strong`）未改。
+- （2026-11-12，多群島 v2）`archipelago/v2` 以公開線 `origin/trials/mvp` 為基底，cherry-pick 本機側欄 commit；本機 `trials/mvp` 上的 `f241639`（350 題以結構檢查發布、自由練習卷）**不在**此分支，公開題庫的 iPAS／CCAR-F 仍無試卷。是否與如何公開這些題目屬發布政策決定，見 `docs/planning/P5_EXAM_ENGINE_INTEGRATION.md` §4。
 
 - （2026-11-03，M3.1 Regional World prototype，**正式上線前必須解決**）手機區域總覽的最小島寬：CS 73 px、AI 85 px，目標 88 px（iPhone 13 的地圖舞台只有 390×434）。
   - 使用者暫時接受 44 px 觸控區、清單導覽與島嶼聚焦作為 prototype 的替代方案，**不算通過**。

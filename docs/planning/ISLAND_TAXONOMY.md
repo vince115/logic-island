@@ -1,21 +1,24 @@
 # 島嶼分類（Island Taxonomy）
 
-> Phase F.0 規劃文件（2026-11-02）。**只是規劃**：除了「現況」欄標為 Complete 的三座島與互動實驗島，其餘島嶼都尚未實作。
+> Phase F.0 規劃文件（2026-11-02），2026-11-12 依多群島 v2 擴充為四區域。**只是規劃**：除了「現況」欄標為 Complete 的島與互動實驗島，其餘島嶼都尚未實作。
 > 總覽見 [MULTI_ARCHIPELAGO_MASTER_PLAN](MULTI_ARCHIPELAGO_MASTER_PLAN.md)；每堂課的藍圖見 [CURRICULUM_320_BLUEPRINT](CURRICULUM_320_BLUEPRINT.md)。
 
 ## 1. 數量（唯一來源）
 
+> 2026-11-12 更新（多群島 v2，D2／D3 決策）：新增 Region C `design` 與 Region D `web`。程式不再寫死總數；這張表與 `tests/world.test.ts` 的 taxonomy contract 是唯一釘住數字的兩處，修改時要同時改並在 commit 說明批准來源。
+
 | 項目 | 數量 |
 |---|---:|
-| 正式學科島 | **15**（Region A 8 座、Region B 7 座） |
+| 區域（Region） | **4**（`cs`、`ai`、`design`、`web`；顯示順序由 `Region.order` 決定） |
+| 正式學科島 | **23**（`cs` 8、`ai` 7、`design` 4、`web` 4） |
 | 共用工具島 | **1**（互動實驗島，不是學科、不計課數） |
-| 總課數 | **320**（Region A 160、Region B 160） |
-| 已完成（Complete） | **60**（F、D、A 三島各 20 堂，2026-11-01 完成） |
-| 規劃中（Planned） | **260** |
+| 規劃總課數 | **431**（`cs` 160、`ai` 160、`design` 56、`web` 55） |
+| 已完成（Complete，教材已開放） | **80**（F、DS、AL、DB 四島各 20 堂） |
+| 規劃中（Planned，只有大綱） | **351** |
 
-其他規劃文件中的數字都以本表為準；[validate](CURRICULUM_320_BLUEPRINT.md#驗證) 以資料檔機器檢查這些數字。
+其他規劃文件中的數字都以本表為準；資料由 `validateWorld`（結構）與 taxonomy contract（數量）檢查。
 
-## 2. Region A — Computer Science Archipelago（`cs`，160 堂）
+## 2. Region A — 程式與資訊群島 Computer Science Archipelago（`cs`，160 堂）
 
 | # | 顯示代碼 | `islandId` | 島嶼 | 課數 | Lesson ID | 現況 |
 |---:|---|---|---|---:|---|---|
@@ -23,14 +26,14 @@
 | 02 | DS | `structures` | 資料結構島 Data Structures | 20 | **D01–D20** | **Complete** |
 | 03 | AL | `algorithms` | 演算法島 Algorithms | 20 | **A01–A20** | **Complete** |
 | 04 | PL | `programming-languages` | 程式語言島 Programming Languages | 20 | PL01–PL20 | Planned |
-| 05 | DB | `databases` | 資料庫應用島 Database Applications | 20 | DB01–DB20 | Planned |
+| 05 | DB | `databases` | 資料庫應用島 Database Applications | 20 | DB01–DB20 | **Complete**（2026-11-02） |
 | 06 | CN | `networks` | 計算機網路島 Computer Networks | 20 | CN01–CN20 | Planned |
 | 07 | SA | `systems-analysis` | 系統分析與設計島 Systems Analysis & Design | 20 | SA01–SA20 | Planned |
 | 08 | MIS | `information-systems` | 管理資訊系統島 Management Information Systems | 20 | MIS01–MIS20 | Planned |
 
 注意：資料結構島與演算法島的**既有** Lesson ID 是單一字母 `D`／`A`（D01、A01），顯示代碼 DS／AL 只用在文件與介面，**不改既有 ID 或 slug**。
 
-## 3. Region B — Artificial Intelligence Archipelago（`ai`，160 堂）
+## 3. Region B — AI 人工智慧群島 Artificial Intelligence Archipelago（`ai`，160 堂）
 
 | # | 顯示代碼 | `islandId` | 島嶼 | 課數 | Lesson ID | 現況 |
 |---:|---|---|---|---:|---|---|
@@ -41,6 +44,28 @@
 | 05 | GEN | `generative-ai` | 生成式 AI 島 Generative AI | 20 | GEN01–GEN20 | Planned |
 | 06 | AG | `ai-agents` | AI 代理島 AI Agents | 25 | AG01–AG25 | Planned |
 | 07 | OPS | `ai-engineering` | AI 工程與 MLOps 島 AI Engineering & MLOps | 20 | OPS01–OPS20 | Planned |
+
+導覽分組（`Region.groups`，只影響側欄與清單的分組，不改島嶼、課號、路由或 3D）：**AI 原理與模型**（AIF、ML、DL）、**生成式 AI 與大型語言模型**（LLM、GEN）、**AI 應用與系統工程**（AG、OPS）。「AI 架構」是學習路線 J（`J-ai-architecture`），不是分組。
+
+## 3a. Region C — 數位設計群島 Digital Design Archipelago（`design`，56 堂）
+
+| # | 顯示代碼 | `islandId` | 島嶼 | 課數 | Lesson ID | 現況 |
+|---:|---|---|---|---:|---|---|
+| 01 | UI | `ui-design` | UI 設計島 UI Design | 15 | UI01–UI15 | Planned |
+| 02 | UX | `ux-research` | UX 研究島 UX Research | 15 | UX01–UX15 | Planned |
+| 03 | IXD | `interaction-design` | 互動設計島 Interaction Design | 14 | IXD01–IXD14 | Planned |
+| 04 | DSY | `design-systems` | 設計系統島 Design Systems | 12 | DSY01–DSY12 | Planned |
+
+## 3b. Region D — 網頁與應用開發群島 Web and App Development Archipelago（`web`，55 堂）
+
+| # | 顯示代碼 | `islandId` | 島嶼 | 課數 | Lesson ID | 現況 |
+|---:|---|---|---|---:|---|---|
+| 01 | WEB | `web-foundations` | 網頁基礎島 Web Foundations | 15 | WEB01–WEB15 | Planned |
+| 02 | FE | `frontend` | 前端開發島 Frontend Development | 15 | FE01–FE15 | Planned |
+| 03 | RWD | `responsive-design` | 響應式設計島 Responsive Design | 12 | RWD01–RWD12 | Planned |
+| 04 | MOB | `mobile-apps` | 行動應用島 Mobile Apps | 13 | MOB01–MOB13 | Planned |
+
+島嶼定位、每堂大綱與跨島邊界見 [MULTI_ARCHIPELAGO_IA_V2 §2.3–2.5](MULTI_ARCHIPELAGO_IA_V2.md)。跨島引用（必要與建議先修）只指向**更前面的區域或島**（`cs` → `ai` → `design` → `web`，區內依島號），因為課綱驗證器對兩種先修都做循環檢查。
 
 ## 4. 共用工具島：互動實驗島（Interactive Lab Island）
 
@@ -66,7 +91,7 @@
 - `src/content/curriculum/schema.ts` 的 `LessonId` 型別是 `` `${'F' | 'D' | 'A'}${string}` ``，`DB01`、`DL01` 會被視為 `D…`，`AIF01`、`AG01` 會被視為 `A…`。
 - `validateCurriculum` 以 `startsWith(ISLAND_PREFIX[island])` 檢查歸屬，`DB01` 會被誤認為資料結構島的課。
 
-規定：Lesson ID 一律以**完整前綴**解析，`^(F|D|A|PL|DB|CN|SA|MIS|AIF|ML|DL|LLM|GEN|AG|OPS)(\d{2})$`（regex 會回溯，`DB01` 解析為 `DB`＋`01`）；型別改為列舉前綴的聯集。這是 F.0 實作項目，見 [ISLAND_CONFIG_DESIGN](ISLAND_CONFIG_DESIGN.md#6-lesson-id-與前綴)。
+規定：Lesson ID 一律以**完整前綴**解析，`^(F|D|A|PL|DB|CN|SA|MIS|AIF|ML|DL|LLM|GEN|AG|OPS|UI|UX|IXD|DSY|WEB|FE|RWD|MOB)(\d{2})$`（2026-11-12 加入 design／web 的 8 個前綴；`FE01`、`DSY01` 不會被讀成 F、D）$`（regex 會回溯，`DB01` 解析為 `DB`＋`01`）；型別改為列舉前綴的聯集。這是 F.0 實作項目，見 [ISLAND_CONFIG_DESIGN](ISLAND_CONFIG_DESIGN.md#6-lesson-id-與前綴)。
 
 ## 6. 島嶼定位與邊界
 

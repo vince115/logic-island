@@ -31,8 +31,9 @@ test('首頁與主選單導航', async ({ page }) => {
   await expect(page).toHaveURL('/curriculum');
   await menu.getByRole('link', { name: '互動實驗島' }).click();
   await expect(page).toHaveURL('/learn');
-  await expect(page.locator('.course-card')).toHaveCount(6);
-  await page.locator('.course-card').first().click();
+  // Multi-archipelago v2 (P4): the six algorithm labs; tool labs (data-kind="tool") are listed beside them.
+  await expect(page.locator('.course-card:not([data-kind])')).toHaveCount(6);
+  await page.locator('.course-card:not([data-kind])').first().click();
   await expect(page).toHaveURL('/learn/array');
   await menu.getByRole('link', { name: '探索群島' }).click();
   await expect(page).toHaveURL('/');
@@ -109,7 +110,9 @@ test('播放中更換輸入後重建步驟與更新值', async ({ page }) => {
   await control(page, '播放').click();
   await page.clock.runFor(850);
   await page.getByLabel('輸入資料').fill('10, 20, 30');
-  await page.getByLabel('操作', { exact: true }).selectOption('update');
+  // The label wraps the select, so its text content also holds the option texts (操作存取更新) and getByLabel(exact)
+  // never matches; the select's accessible name is exactly 操作.
+  await page.getByRole('combobox', { name: '操作', exact: true }).selectOption('update');
   await page.getByLabel('新值', { exact: true }).fill('99');
   await control(page, '套用輸入').click();
   await expect(progress(page)).toHaveValue('0');

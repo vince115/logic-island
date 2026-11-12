@@ -1,0 +1,20 @@
+/* Multi-archipelago v2 (P4): a tool lab's page on the Interactive Lab Island. */
+.page { padding-top: 28px; padding-bottom: 48px; }
+.page > :global(.eyebrow) { display: block; margin-top: 22px; }
+.page h1 { font-size: var(--text-3xl); font-weight: 700; margin: 6px 0 4px; }
+.intro { max-width: 720px; color: var(--muted); margin-top: 6px; }
+.steps { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; margin: 14px 0 0; }
+.steps li { padding: 4px 10px; border-radius: 999px; background: var(--soft); font: var(--text-xs) ui-monospace, monospace; }
+.understand, .lessons { margin-top: 18px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); padding: 16px 18px; }
+.understand h2, .lessons h2 { display: flex; flex-direction: column; gap: 2px; font-size: var(--text-lg); margin-bottom: 10px; }
+.understand h2 span { font: 600 var(--text-xs) ui-monospace, monospace; letter-spacing: 1px; color: var(--muted); }
+.understand h3 { font-size: var(--text-sm); margin-top: 12px; }
+.understand p, .understand li { font-size: var(--text-sm); line-height: 1.7; }
+.understand ul { padding-left: 1.2em; margin: 6px 0; }
+.lessons ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 2px; }
+.lessons li { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 6px 0; border-top: 1px solid var(--border); font-size: var(--text-sm); }
+.lessons li:first-child { border-top: 0; }
+.lessons a { color: var(--accent-ink, var(--accent)); font-weight: 650; }
+.code { font: var(--text-xs) ui-monospace, monospace; color: var(--muted); }
+.status { font-size: var(--text-xs); font-weight: 700; padding: 1px 8px; border-radius: 999px; background: var(--soft); color: var(--muted); }
+.status[data-status='published'] { color: var(--accent-ink, var(--accent)); }

@@ -14,11 +14,18 @@ const path = (id: string) => getLearningPath(id)!;
 const prefix = (id: string) => parseLessonId(id)?.prefix;
 
 describe('learning paths (F.0)', () => {
-  it('has six valid paths, in the planning order', () => {
+  it('has seven valid paths, in the planning order (J: AI 架構, multi-archipelago v2)', () => {
     expect(validatePaths(learningPaths)).toEqual([]);
-    expect(learningPaths.map(p => p.id[0])).toEqual(['A', 'B', 'C', 'D', 'E', 'F']);
-    expect(learningPaths.map(p => p.lessons.length)).toEqual([60, 86, 54, 84, 142, 89]);
+    expect(learningPaths.map(p => p.id[0])).toEqual(['A', 'B', 'C', 'D', 'E', 'F', 'J']);
+    expect(learningPaths.map(p => p.lessons.length)).toEqual([60, 86, 54, 84, 142, 89, 66]);
     for (const p of learningPaths) expect(p.description, p.id).not.toBe('');
+  });
+
+  it('builds path J (AI 架構) from MCP, guardrails, evaluation and operations, without Machine Learning or Deep Learning', () => {
+    const j = path('J-ai-architecture');
+    for (const id of ['AG12', 'AG13', 'AG17', 'AG18', 'AG24', 'OPS03', 'OPS17', 'LLM20', 'LLM24']) expect(j.targets).toContain(id);
+    expect(j.lessons.filter(id => /^(ML|DL)\d/.test(id))).toEqual([]);
+    expect(j.completion.learnable).toBe(false);
   });
 
   it('keeps path A to the 60 complete lessons, the only path a learner can take today', () => {
@@ -77,8 +84,9 @@ describe('learning paths (F.0)', () => {
   });
 
   it('answers which paths a lesson is on and how far a learner is, without storing progress', () => {
-    expect(pathsWithLesson('F01').map(p => p.id[0])).toEqual(['A', 'B', 'C', 'D', 'E', 'F']);
+    expect(pathsWithLesson('F01').map(p => p.id[0])).toEqual(['A', 'B', 'C', 'D', 'E', 'F', 'J']);
     expect(pathsWithLesson('AG25').map(p => p.id[0])).toEqual(['F']);
+    expect(pathsWithLesson('AG12').map(p => p.id[0])).toEqual(['F', 'J']);
     const done = new Set(['F01', 'F02']);
     expect(pathProgress(path('A-apcs-cs-foundations'), id => done.has(id))).toEqual({ completed: 2, total: 60, done: false });
   });
@@ -89,17 +97,21 @@ describe('activity registry (F.0)', () => {
     expect(validateActivities(activities, islandIds)).toEqual([]);
   });
 
-  it('holds the 20 visualizations and 6 labs as implemented, and the 61 new activities as planned', () => {
+  it('holds the 20 visualizations and 6 labs as implemented, and every other activity of the plan as an activity', () => {
     const of = (type: ActivityMeta['type']) => activities.filter(a => a.type === type);
     expect(of('visualization').map(a => a.id)).toEqual(Object.keys(visualizations).filter(k => k !== 'none'));
     expect(of('visualization').every(a => a.tier === 'T0' && a.availability === 'implemented')).toBe(true);
     expect(of('lab').map(a => a.id)).toEqual(courses.map(c => `lab:${c.slug}`));
     expect(of('lab').every(a => a.availability === 'implemented' && a.subjects[0] === 'labs')).toBe(true);
-    expect(of('activity')).toHaveLength(61);
+    // One entry per activity the lessons name that is not an existing visualization (61 for the CS and AI plan).
+    const named = new Set(catalogLessons.map(l => l.activity).filter(id => id !== 'none' && !(id in visualizations)));
+    expect(of('activity').map(a => a.id).sort()).toEqual([...named].sort());
     // Phase F.1a: the SQL playground is implemented (the written database lessons use it); F.1b adds the ER builder and
     // the normalization steps once a written lesson uses them; the rest stay planned.
     const used = new Set(lessons.filter(l => l.lessonStatus === 'complete' && l.activity).map(l => l.activity!));
-    expect(of('activity').filter(a => a.availability === 'implemented').map(a => a.id)).toEqual(['architecture-diagram', 'erd-builder', 'normalization-steps', 'protocol-sequence', 'query-plan', 'sql-playground', 'transaction-timeline'].filter(id => used.has(id as 'sql-playground')));
+    // Multi-archipelago v2 (P4): color-contrast is implemented by its standalone lab (/learn/color-contrast).
+    expect(of('activity').filter(a => a.availability === 'implemented').map(a => a.id)).toEqual(['architecture-diagram', 'color-contrast', 'erd-builder', 'normalization-steps', 'protocol-sequence', 'query-plan', 'sql-playground', 'transaction-timeline'].filter(id => id === 'color-contrast' || used.has(id as 'sql-playground')));
+    expect(getActivity('color-contrast')).toMatchObject({ lab: 'color-contrast', version: '1.0.0', subjects: ['labs', 'ui-design'] });
     expect(used.has('sql-playground')).toBe(true);
     expect(of('activity').every(a => a.subjects.length > 0)).toBe(true);
     // The existing visualization statuses are untouched.

@@ -6,6 +6,7 @@ import { TRACE_KINDS, type VisualizationType } from '@/content/curriculum/schema
 import { algorithmIds } from '@/lib/engine';
 import { catalogLessons } from './catalog';
 import { LAB_ISLAND_ID } from './islands';
+import { labRegistry } from './labs';
 
 /*
  * Phase F.0 activity registry: one metadata contract for the 20 lesson visualizations, the 6 labs and the 61 activities
@@ -48,6 +49,8 @@ export interface ActivityMeta {
    */
   accessibility: { keyboard: true; textAlternative: string };
   version: string;
+  /** Multi-archipelago v2 (P4): the Interactive Lab Island entry (/learn/<lab>) of this activity, when it has one. */
+  lab?: string;
 }
 
 const subjectsOf = (activity: string) => [...new Set(catalogLessons.filter(l => l.activity === activity).map(l => l.islandId))];
@@ -103,6 +106,13 @@ const PLANNED: Record<string, [ActivityTier, ActivityInput[]]> = {
   'process-model': ['T1', ['diagram']], 'requirements-board': ['T1', ['diagram', 'text']], 'case-study-board': ['T1', ['text']],
   'ast-explorer': ['T1', ['preset', 'text']], 'type-checker': ['T1', ['preset', 'text']], 'compiler-pipeline': ['T1', ['preset', 'text']],
   'subnet-calculator': ['T1', ['custom-values']], 'routing-table': ['T1', ['preset', 'parameters']],
+  // Multi-archipelago v2 (P1b): design and web activities, all deterministic in the browser. The contrast lab computes
+  // WCAG ratios from the learner's colors; the layout playgrounds set style values on prepared boxes, never run the
+  // learner's CSS; the accessibility checker reads prepared snippets only.
+  'color-contrast': ['T1', ['custom-values']], 'visual-hierarchy': ['T1', ['parameters']], 'a11y-checker': ['T1', ['preset', 'parameters']],
+  'design-token-board': ['T1', ['parameters']], 'flexbox-playground': ['T1', ['parameters']], 'grid-playground': ['T1', ['parameters']],
+  'responsive-sim': ['T1', ['parameters']], 'mobile-nav-sim': ['T1', ['parameters']], 'dom-explorer': ['T1', ['preset']],
+  'react-state-flow': ['T1', ['preset', 'parameters']],
   'agent-workflow': ['T1', ['preset', 'parameters']], 'tool-call-trace': ['T1', ['preset', 'parameters']],
   'memory-inspector': ['T1', ['preset', 'parameters']], 'multi-agent-board': ['T1', ['preset', 'parameters']], 'guardrail-sim': ['T1', ['preset', 'parameters']],
 };
@@ -118,6 +128,8 @@ const IMPLEMENTED_TEXT: Record<string, string> = {
   'transaction-timeline': '時間軸是表格（每一步的敘述與結果），已提交的值、交易內的值、日誌、等待與中止、發生的異常都以文字寫出（aria-live）',
   // Phase F.1d (DB16, DB19).
   'protocol-sequence': '每一次往返以文字列出（送出的 SQL、參數、傳回的列數），往返次數與總列數以 aria-live 宣告',
+  // Multi-archipelago v2 (P4): the first tool lab of the Interactive Lab Island, /learn/color-contrast.
+  'color-contrast': '對比率、每個 WCAG 等級（一般與大型文字、非文字元件）是否通過、建議的合格顏色都以文字寫出，並以 aria-live 宣告',
   'architecture-diagram': '架構圖有文字說明；複本讀到的值、是否過時、切換時遺失的寫入、還原步驟與資料損失都以表格與文字寫出（aria-live）',
 };
 const existing = new Set(visualizationEntries.map(v => v.id));
@@ -127,10 +139,13 @@ const plannedEntries: ActivityMeta[] = [...new Set(catalogLessons.map(l => l.act
     const [tier, inputs] = PLANNED[id] ?? PLANNED_DEFAULT;
     // Phase F.1a: an activity a complete lesson uses is implemented (the SQL playground, src/components/curriculum/sql-playground.tsx;
     // F.1b: the ER builder and the normalization steps, er-builder.tsx and normalization-workbench.tsx).
-    const implemented = catalogLessons.some(l => l.activity === id && l.lessonStatus === 'complete');
-    return { id, type: 'activity', subjects: subjectsOf(id), tier, runtime: TIER_RUNTIME[tier], availability: implemented ? 'implemented' : 'planned', inputs,
-      version: implemented ? '1.0.0' : '0.1.0',
-      accessibility: { keyboard: true, textAlternative: IMPLEMENTED_TEXT[id] ?? '必要：實作時提供與畫面等效的文字說明' } };
+    // P4: an activity is also implemented when its standalone lab on the Interactive Lab Island is (one activity per lab).
+    const lab = labRegistry.find(l => l.kind === 'tool' && l.activities.includes(id));
+    const standalone = lab?.status === 'implemented' && lab.activities.length === 1;
+    const implemented = standalone || catalogLessons.some(l => l.activity === id && l.lessonStatus === 'complete');
+    return { id, type: 'activity', subjects: standalone ? [LAB_ISLAND_ID, ...subjectsOf(id)] : subjectsOf(id), tier, runtime: TIER_RUNTIME[tier],
+      availability: implemented ? 'implemented' : 'planned', inputs, version: implemented ? '1.0.0' : '0.1.0',
+      accessibility: { keyboard: true, textAlternative: IMPLEMENTED_TEXT[id] ?? '必要：實作時提供與畫面等效的文字說明' }, ...lab ? { lab: lab.id } : {} };
   });
 
 export const activities: ActivityMeta[] = [...visualizationEntries, ...labEntries, ...plannedEntries];
