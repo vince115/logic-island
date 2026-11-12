@@ -3,6 +3,7 @@ import { Breadcrumbs } from '@/components/nav/breadcrumbs';
 import { CONTENT_STATUS_LABELS } from '@/content/world/catalog';
 import { APPROACH_STEPS, LAB_DOMAIN_LABELS, lessonsUsingLab, type LabEntry } from '@/content/world/labs';
 import { ContrastLab } from './contrast-lab';
+import { FlexboxLab } from './flexbox-lab';
 import styles from './tool-lab.module.css';
 
 /*
@@ -22,9 +23,18 @@ const UNDERSTAND: Record<string, React.ReactNode> = {
     </ul>
     <p>對比只是可讀性的一部分：不要只靠顏色傳達意義（例如錯誤欄位同時加上文字與圖示），也要讓使用者能放大文字而不破版。</p>
   </>,
+  'flexbox-playground': <>
+    <p>Flexbox 把容器裡的項目排成一條線。<strong>主軸</strong>是排列的方向（<code>flex-direction</code>：row 水平、column 垂直），<strong>交錯軸</strong>和它垂直。</p>
+    <ul>
+      <li><code>justify-content</code> 分配<strong>主軸</strong>上的剩餘空間：靠起點、置中、靠終點，或平分在項目之間。</li>
+      <li><code>align-items</code> 決定項目在<strong>交錯軸</strong>上怎麼對齊；預設 stretch 會把項目拉滿。</li>
+      <li><code>flex-wrap</code> 讓空間不夠時換行；<code>gap</code> 是項目之間固定的間距；<code>flex-grow</code> 讓某個項目吃掉剩下的空間。</li>
+    </ul>
+    <p>Flexbox 適合一維排列（一列導覽、一排按鈕、置中一個元素）；同時要控制欄與列時，改用 CSS Grid。</p>
+  </>,
 };
 
-const LABS: Record<string, () => React.ReactNode> = { 'color-contrast': () => <ContrastLab/> };
+const LABS: Record<string, () => React.ReactNode> = { 'color-contrast': () => <ContrastLab/>, 'flexbox-playground': () => <FlexboxLab/> };
 export const hasToolLabComponent = (id: string) => id in LABS;
 
 export function ToolLabPage({ lab }: { lab: LabEntry }) {

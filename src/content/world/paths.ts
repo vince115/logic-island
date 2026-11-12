@@ -36,6 +36,9 @@ const DESCRIPTIONS: Record<string, string> = {
   'D-enterprise-information-systems': '資料庫、系統分析與管理資訊系統：能分析企業流程、設計資訊系統，並評估 ERP／BI 等方案的商業價值與風險。',
   'E-ai-research': 'AI 基礎、機器學習、深度學習、LLM 模型軌與生成式 AI：能從原理推導並實作與訓練神經網路，理解 Transformer、LLM 與擴散模型。',
   'F-ai-application-engineering': 'LLM 應用軌、AI 代理與 AI 工程：能設計、實作、評估並上線以 LLM 與工具呼叫為核心的 AI 應用；不需要機器學習或深度學習。',
+  // R7 (2026-11-12): the two paths of the design and web regions (IA v2 §2.7, candidates G and H, approved with R7).
+  'G-frontend-engineering': '網頁基礎、響應式設計、前端開發與行動應用：能用 HTML、CSS、JavaScript 與 React／Next.js 做出可存取、響應式的網站並上線；只需要基礎程式島的變數、條件、迴圈與函式。',
+  'H-product-design': '介面設計、使用者研究、互動設計與設計系統：能從研究、資訊架構、原型到可用性測試，交付一個小型設計系統；不需要寫程式。',
   // Multi-archipelago v2 (P1b): the 「AI 架構」 theme is a path, not a navigation group, because its lessons sit on three islands.
   'J-ai-architecture': '模型與供應商選擇、MCP、Agent 護欄與安全、評估、可觀測性與上線維運：能做出 AI 系統的架構決策，並說明安全、成本與評估的取捨；不需要機器學習或深度學習。',
 };
