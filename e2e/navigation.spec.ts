@@ -41,7 +41,11 @@ test('互動實驗島列出六個實驗；實驗頁沒有模式切換，麵包�
   await page.goto('/learn');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('互動實驗島');
   await expect(page).toHaveTitle(/^互動實驗島 \| Logic Island$/);
-  await expect(page.locator('a.course-card')).toHaveCount(6);
+  // Multi-archipelago v2 (P4): the six algorithm labs, plus the tool labs that are open; planned ones are not links.
+  await expect(page.locator('a.course-card:not([data-kind])')).toHaveCount(6);
+  await expect(page.locator('a.course-card[data-kind="tool"]')).toHaveAttribute('href', '/learn/color-contrast');
+  await expect(page.locator('.course-card[data-status="planned"]').first()).toBeVisible();
+  await expect(page.locator('a.course-card[data-status="planned"]')).toHaveCount(0);
   await page.goto('/learn/array');
   await expect(page.getByRole('link', { name: /專注互動實驗|閱讀完整教材/ })).toHaveCount(0);
   // Lab code tabs read C++, Java, Python, JavaScript (2026-11-02).
@@ -72,8 +76,9 @@ test('404 頁指向完整課綱與互動實驗島', async ({ page }) => {
 test('六個實驗與所有課綱頁（含資料庫應用島已開放的課）都能開啟，頁面內的站內連結沒有失效', async ({ page, request }, info) => {
   test.skip(!info.project.name.startsWith('desktop'), 'Same pages on both projects; one pass is enough.');
   test.setTimeout(240_000);
-  const pages = ['/', '/learn', '/curriculum', ...courses.map(c => `/learn/${c.slug}`), ...lessons.map(l => `/curriculum/${l.slug}`)];
-  expect(pages).toHaveLength(3 + 6 + lessons.length);
+  // P4: the open tool labs are crawled too (/learn/color-contrast).
+  const pages = ['/', '/learn', '/curriculum', ...courses.map(c => `/learn/${c.slug}`), '/learn/color-contrast', ...lessons.map(l => `/curriculum/${l.slug}`)];
+  expect(pages).toHaveLength(3 + 7 + lessons.length);
   const links = new Set<string>();
   for (const path of pages) {
     const res = await page.goto(path);
@@ -143,4 +148,29 @@ test('規劃中的群島與課程看得到但不能點：側欄停用列與完�
   await expect(rows).toHaveCount(25);
   await expect(tree.locator('a[href*="prompt-engineering"]')).toHaveCount(0);
   expect((await page.request.get('/curriculum/prompt-engineering')).status()).toBe(404);
+});
+
+// Multi-archipelago v2 (P4): 色彩與無障礙實驗室 computes WCAG ratios as the learner types, and its fix passes.
+test('色彩與無障礙實驗室：輸入顏色即時判定 AA／AAA，套用建議色後通過', async ({ page }) => {
+  await page.goto('/learn/color-contrast');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('色彩與無障礙實驗室');
+  const verdict = page.locator('[aria-live="polite"]');
+  await expect(verdict).toContainText('對比率 2.67：1');
+  await expect(verdict).toContainText('AA 未通過');
+  const text = page.getByRole('textbox', { name: '文字顏色', exact: true });
+  await text.fill('#767676');
+  await expect(verdict).toContainText('對比率 4.54：1');
+  await expect(verdict).toContainText('AA 通過');
+  await text.fill('#9e9e9e');
+  await page.getByRole('button', { name: /^套用 #/ }).first().click();
+  await expect(verdict).toContainText('AA 通過');
+  // Large text: 24px passes AA at 3:1.
+  await text.fill('#949494');
+  await page.getByRole('slider', { name: /^字級/ }).fill('24');
+  await expect(verdict).toContainText('大型文字');
+  await expect(verdict).toContainText('AA 通過');
+  // The lessons that will use it are listed as planned, never linked.
+  const lessons = page.getByRole('region', { name: '使用這個實驗的課程' });
+  await expect(lessons.getByText('UI10')).toBeVisible();
+  await expect(lessons.getByRole('link')).toHaveCount(0);
 });

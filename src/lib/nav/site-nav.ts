@@ -1,10 +1,10 @@
-import { courses } from '@/content/courses';
 import { islands as curriculumIslands, lessons } from '@/content/curriculum';
 import { DIFFICULTY_LABELS } from '@/content/curriculum/registry';
 import { DIFFICULTIES, type Difficulty } from '@/content/curriculum/schema';
 import { getIsland, islandsInRegion, orderedRegions, regionStatus } from '@/content/world';
 import { CONTENT_STATUS_LABELS, contentStatusOf, lessonsOfIsland } from '@/content/world/catalog';
 import type { IslandConfig, RegionId } from '@/content/world/types';
+import { LAB_DOMAIN_LABELS, LAB_DOMAINS, labsOfDomain } from '@/content/world/labs';
 import { databaseIsland, islands as mapIslands, labIsland } from '@/lib/islands/data';
 
 /*
@@ -115,12 +115,16 @@ export function courseTree(): NavGroup[] {
   });
 }
 
-/** 互動實驗島: the six labs by category, in course order. */
+/**
+ * 互動實驗島: every lab of the registry by learning domain (multi-archipelago v2, P4). Implemented labs link to their
+ * page; planned ones are shown as 規劃中 without a link.
+ */
 export function labTree(): NavGroup[] {
-  return [...new Set(courses.map(c => c.category))].map(category => ({
-    id: `l:${category}`, label: category, hint: `${courses.filter(c => c.category === category).length}`,
-    children: courses.filter(c => c.category === category).map(c => ({ id: `l:${c.slug}`, label: `${c.title} · ${c.subtitle}`, href: `/learn/${c.slug}` })),
-  }));
+  return LAB_DOMAINS.flatMap(domain => {
+    const labs = labsOfDomain(domain);
+    return labs.length ? [{ id: `l:${domain}`, label: LAB_DOMAIN_LABELS[domain], hint: `${labs.filter(l => l.status === 'implemented').length}／${labs.length}`,
+      children: labs.map((l): NavNode => l.status === 'implemented' ? { id: `l:${l.id}`, label: l.title, href: `/learn/${l.id}` } : { id: `l:${l.id}`, label: l.title, disabled: '規劃中' }) }] : [];
+  });
 }
 
 /** Where a lesson sits, for the breadcrumb and the preview: its region, its island, its level and the 2D indexes. */

@@ -1,0 +1,65 @@
+/* Multi-archipelago v2 (P4): 色彩與無障礙實驗室. Site tokens only (globals.css), so light and dusk both work; the preview
+   alone uses the learner's colors. */
+.lab { --pass: #137333; --fail: #b3261e; display: grid; gap: 18px; margin-top: 18px; }
+:global([data-theme='dark']) .lab { --pass: #81c995; --fail: #f2b8b5; }
+.panel { border: 1px solid var(--border); border-radius: 12px; background: var(--panel); padding: 16px 18px; min-width: 0; }
+.panel h2 { display: flex; flex-direction: column; gap: 2px; font-size: var(--text-lg); margin-bottom: 12px; }
+.panel h2 span { font: 600 var(--text-xs) ui-monospace, monospace; letter-spacing: 1px; color: var(--muted); }
+
+.controls { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px 14px; align-items: end; }
+.field { display: grid; gap: 6px; min-width: 0; }
+.field label { font-size: var(--text-sm); font-weight: 650; }
+.colorRow { display: flex; gap: 8px; align-items: center; }
+.colorRow input[type='color'] { width: 44px; height: 44px; padding: 2px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); flex: none; }
+.colorRow input[type='text'] {
+  flex: 1; min-width: 0; height: 44px; padding: 0 10px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg); color: var(--text); font: var(--text-sm) ui-monospace, monospace;
+}
+.colorRow input[aria-invalid] { border-color: var(--fail); }
+.error { color: var(--fail); font-size: var(--text-xs); }
+.swap, .presets button, .fix button {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: var(--text-sm); font-weight: 650;
+}
+.swap:hover, .presets button:hover, .fix button:hover { background: var(--soft); }
+.field input[type='range'] { width: 100%; min-height: 44px; }
+.check { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: var(--text-sm); font-weight: 650; }
+.check input[type='checkbox'] { width: 18px; height: 18px; padding: 0; }
+
+.presets { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.presets button { font-weight: 500; font-size: var(--text-xs); }
+.presets button span { display: inline-grid; place-items: center; width: 26px; height: 22px; border-radius: 5px; font-weight: 700;
+  color: var(--preset-fg); background: var(--preset-bg); border: 1px solid var(--border); }
+
+.preview { margin-top: 14px; padding: 18px; border-radius: 10px; border: 1px solid var(--border); display: grid; gap: 8px; overflow-wrap: anywhere; }
+.preview p { margin: 0; line-height: 1.5; }
+.small { font-size: 14px; }
+.large { font-size: 24px; font-weight: 400; }
+.ui { justify-self: start; padding: 6px 12px; border: 2px solid; border-radius: 8px; font-size: 14px; }
+
+.ratio { display: flex; align-items: baseline; gap: 2px; margin: 0; }
+.ratio strong { font: 700 44px/1 ui-monospace, monospace; }
+.ratio span { font-size: var(--text-lg); color: var(--muted); }
+.summary { margin: 8px 0 12px; font-size: var(--text-sm); }
+.table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.table th, .table td { text-align: left; padding: 8px 10px; border-top: 1px solid var(--border); vertical-align: top; }
+.table thead th { border-top: 0; font-size: var(--text-xs); color: var(--muted); }
+.table tbody th small { display: block; font-weight: 400; font-size: var(--text-xs); color: var(--muted); }
+.table tr[data-current] { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.table td { white-space: nowrap; }
+.pass, .fail { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; font-weight: 700; font-size: var(--text-xs); }
+.pass { color: var(--pass); }
+.fail { color: var(--fail); }
+
+.note { font-size: var(--text-xs); color: var(--muted); margin: 0 0 10px; }
+.fixes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.fix { display: grid; gap: 8px; align-content: start; }
+.fix h3 { font-size: var(--text-sm); }
+.swatch { padding: 12px; border-radius: 8px; border: 1px solid var(--border); font: 700 var(--text-md) ui-monospace, monospace; }
+.code { margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--soft); font: var(--text-xs) ui-monospace, monospace; white-space: pre-wrap; }
+
+@media (max-width: 640px) {
+  .controls { grid-template-columns: 1fr; }
+  .swap { justify-self: start; }
+  .table td { white-space: normal; }
+}

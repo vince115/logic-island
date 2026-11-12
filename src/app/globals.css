@@ -33,3 +33,5 @@
  */
 :root{--hl-keyword:#c7a2f2;--hl-type:#5ccfbf;--hl-function:#82b4ff;--hl-variable:#dbe5f5;--hl-string:#a8d98f;--hl-number:#f4b183;--hl-comment:#8597b6;--hl-operator:#9ec4e0;--hl-class:#ebcb7a;--hl-constant:#f598ac;--hl-builtin:#7fd8e8}
 .tk-keyword{color:var(--hl-keyword)}.tk-type{color:var(--hl-type)}.tk-function{color:var(--hl-function)}.tk-variable{color:var(--hl-variable)}.tk-string{color:var(--hl-string)}.tk-number{color:var(--hl-number)}.tk-comment{color:var(--hl-comment);font-style:italic}.tk-operator{color:var(--hl-operator)}.tk-class{color:var(--hl-class)}.tk-constant{color:var(--hl-constant)}.tk-builtin{color:var(--hl-builtin)}
+/* Multi-archipelago v2 (P4): a planned lab on 互動實驗島 is listed but not a link. */
+.course-card[data-status=planned]{opacity:.72;border-style:dashed}.course-card[data-status=planned]:hover{transform:none;border-color:var(--border)}
