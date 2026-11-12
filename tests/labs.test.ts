@@ -17,12 +17,14 @@ describe('lab registry', () => {
     expect(algorithm.filter(l => l.domain === 'algorithms').map(l => l.id)).toEqual(['binary-search', 'bubble-sort', 'bfs']);
   });
 
-  it('has the color contrast and Flexbox labs implemented (design approach) and the others planned', () => {
-    // R7: Flexbox Playground is the second tool lab; the web layout labs are one per activity.
-    expect(implementedToolLabs().map(l => l.id)).toEqual(['color-contrast', 'flexbox-playground']);
+  it('has the color contrast, Flexbox and Linux terminal labs implemented and the others planned', () => {
+    // R7: Flexbox Playground is the second tool lab; the web layout labs are one per activity. P7: Linux Terminal Simulator.
+    expect(implementedToolLabs().map(l => l.id)).toEqual(['color-contrast', 'flexbox-playground', 'linux-terminal']);
     expect(getLab('flexbox-playground')).toMatchObject({ domain: 'web-design', approach: 'design', activities: ['flexbox-playground'] });
+    expect(getLab('linux-terminal')).toMatchObject({ domain: 'systems-cloud', approach: 'code', activities: ['terminal-sim'] });
     expect(getLab('color-contrast')).toMatchObject({ domain: 'ui-ux', approach: 'design', activities: ['color-contrast'] });
-    expect(labRegistry.filter(l => l.status === 'planned').map(l => l.domain)).toEqual(['web-design', 'web-design', 'mobile', 'ui-ux', 'ai', 'ai', 'ai']);
+    expect(labRegistry.filter(l => l.status === 'planned').map(l => l.domain)).toEqual(['web-design', 'web-design', 'mobile', 'ui-ux', 'ai', 'ai', 'ai',
+      'systems-cloud', 'systems-cloud', 'systems-cloud']);
     for (const d of LAB_DOMAINS) expect(labRegistry.some(l => l.domain === d), d).toBe(true);
   });
 

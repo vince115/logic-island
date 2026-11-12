@@ -25,11 +25,11 @@ describe('region overview', () => {
     expect(cs.ungrouped.filter(i => i.href).map(i => i.code)).toEqual(['F', 'DS', 'AL', 'DB']);
   });
 
-  it('counts agree with the catalog for every region (431 lessons, 80 open)', () => {
+  it('counts agree with the catalog for every region (520 lessons, 80 open; P6 adds sys)', () => {
     const all = REGION_IDS.map(regionOverview);
     expect(all.reduce((n, o) => n + o.lessonCount, 0)).toBe(catalogLessons.length);
     expect(all.reduce((n, o) => n + o.published, 0)).toBe(catalogLessons.filter(l => l.lessonStatus === 'complete').length);
-    expect(all.map(o => [o.id, o.islandCount, o.lessonCount])).toEqual([['cs', 8, 160], ['ai', 7, 160], ['design', 4, 56], ['web', 4, 55]]);
+    expect(all.map(o => [o.id, o.islandCount, o.lessonCount])).toEqual([['cs', 8, 160], ['ai', 7, 160], ['design', 4, 56], ['web', 4, 55], ['sys', 6, 89]]);
   });
 
   it('places each learning path in the region of most of its targets: E, F and J lead through the AI islands', () => {
@@ -46,7 +46,7 @@ describe('region overview', () => {
   });
 
   it('entries for the home page and /curriculum: every region in order, each to its own overview', () => {
-    expect(regionEntries().map(r => [r.id, r.href, r.status])).toEqual([['cs', '/regions/cs', 'available'], ['ai', '/regions/ai', 'planned'], ['design', '/regions/design', 'planned'], ['web', '/regions/web', 'planned']]);
+    expect(regionEntries().map(r => [r.id, r.href, r.status])).toEqual([['cs', '/regions/cs', 'available'], ['ai', '/regions/ai', 'planned'], ['design', '/regions/design', 'planned'], ['web', '/regions/web', 'planned'], ['sys', '/regions/sys', 'planned']]);
     expect(regionHref('ai')).toBe('/regions/ai');
     expect(isRegionId('ai')).toBe(true);
     expect(isRegionId('labs')).toBe(false);

@@ -15,10 +15,12 @@ import { catalogLessons, contentStatusOf, type ContentStatus } from './catalog';
  * whose `labs` name it, a tool lab by lessons whose `activity` is one of its activities.
  */
 
-export const LAB_DOMAINS = ['data-structures', 'algorithms', 'ui-ux', 'web-design', 'mobile', 'ai'] as const;
+// P7: systems-cloud joins for the fifth region; still one shared island and one registry, no second lab engine.
+export const LAB_DOMAINS = ['data-structures', 'algorithms', 'ui-ux', 'web-design', 'mobile', 'ai', 'systems-cloud'] as const;
 export type LabDomain = typeof LAB_DOMAINS[number];
 export const LAB_DOMAIN_LABELS: Record<LabDomain, string> = {
   'data-structures': '資料結構', algorithms: '演算法', 'ui-ux': 'UI／UX', 'web-design': '網頁設計', mobile: '行動裝置設計', ai: 'AI',
+  'systems-cloud': '系統與雲端',
 };
 
 /** Code labs: Think → Visualize → Code. Design labs: Understand → Experiment → Build. */
@@ -69,6 +71,16 @@ const toolLabs: LabEntry[] = [
     activities: ['prompt-lab'], summary: '比較不同提示版本的預錄回應；不呼叫真實的語言模型。' },
   { id: 'rag-pipeline', kind: 'tool', domain: 'ai', title: 'RAG Pipeline Visualization', approach: 'design', status: 'planned',
     activities: ['rag-explorer'], summary: '逐步看見切塊、檢索、重排序與組合提示，資料與分數皆為預先計算。' },
+  // P7 (docs/planning/P7_SYSTEMS_LABS.md): simulations only; nothing runs a real shell, Docker daemon or network request.
+  { id: 'linux-terminal', kind: 'tool', domain: 'systems-cloud', title: 'Linux Terminal Simulator', approach: 'code', status: 'implemented',
+    activities: ['terminal-sim'], summary: '在瀏覽器內的虛擬檔案系統練習 pwd、ls、cd、mkdir、touch、cat、cp、mv、rm 與 chmod；不執行真實的 Shell，也不存取主機檔案。',
+    objectives: ['在目錄樹中用相對與絕對路徑移動', '建立、複製、移動與刪除檔案', '讀懂並設定 rwx 權限'] },
+  { id: 'docker-playground', kind: 'tool', domain: 'systems-cloud', title: 'Docker Container Playground', approach: 'code', status: 'planned',
+    activities: ['container-playground'], summary: '以狀態機模擬 Image → Container → Volume → Network：建置、執行、停止、刪除、掛載與連線；不啟動真實的 Docker Daemon。' },
+  { id: 'network-request', kind: 'tool', domain: 'systems-cloud', title: 'Network Request Visualizer', approach: 'code', status: 'planned',
+    activities: ['request-path'], summary: '逐步觀察 Browser → DNS → TLS → Reverse Proxy → Application → Database 的一次請求；資料為預先定義的情境。' },
+  { id: 'cicd-pipeline', kind: 'tool', domain: 'systems-cloud', title: 'CI/CD Pipeline Simulator', approach: 'code', status: 'planned',
+    activities: ['pipeline-sim'], summary: '模擬 Commit → Build → Test → Deploy → Monitor，切換成功、失敗與回滾情境。' },
 ];
 
 export const labRegistry: LabEntry[] = [...algorithmLabs, ...toolLabs];

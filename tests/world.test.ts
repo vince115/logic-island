@@ -42,6 +42,15 @@ describe('lesson IDs (F.0)', () => {
     expect(islandOfLesson('WEB01')?.id).toBe('web-foundations');
     expect(islandOfLesson('RWD12')?.id).toBe('responsive-design');
     expect(islandOfLesson('MOB13')?.id).toBe('mobile-apps');
+    // P6: CICD is a four-letter prefix; KUB, LNX and DKR share no prefix with older islands, SRV and CLD neither.
+    expect(parseLessonId('CICD15')).toEqual({ prefix: 'CICD', number: 15 });
+    expect(islandOfLesson('LNX01')?.id).toBe('linux-systems');
+    expect(islandOfLesson('DKR15')?.id).toBe('docker-containers');
+    expect(islandOfLesson('SRV14')?.id).toBe('network-servers');
+    expect(islandOfLesson('CLD01')?.id).toBe('cloud-infrastructure');
+    expect(islandOfLesson('CICD01')?.id).toBe('devops-cicd');
+    expect(islandOfLesson('KUB15')?.id).toBe('kubernetes-reliability');
+    for (const id of ['CIC01', 'CICD1', 'K8S01', 'SYS01']) expect(parseLessonId(id), id).toBeUndefined();
     for (const id of ['FE1', 'F1E01', 'DSY', 'UIX01', 'WE01']) expect(parseLessonId(id), id).toBeUndefined();
   });
 
@@ -71,21 +80,25 @@ describe('world registry (F.0)', () => {
    */
   it('pins the approved taxonomy: regions in order, their islands and planned lessons', () => {
     // 2026-11-12 (D2, D3): design and web join with 4 islands each; 23 subject islands, 431 planned lessons.
+    // 2026-11-12 (P6, Five-Region Architecture Expansion): sys joins with 6 islands and 89 lessons; 29 islands, 520 lessons.
     expect(taxonomy()).toEqual([
       { region: 'cs', islands: 8, lessons: 160 },
       { region: 'ai', islands: 7, lessons: 160 },
       { region: 'design', islands: 4, lessons: 56 },
       { region: 'web', islands: 4, lessons: 55 },
+      { region: 'sys', islands: 6, lessons: 89 },
     ]);
-    expect(subjectIslands).toHaveLength(23);
-    expect(DECLARED).toBe(431);
+    expect(subjectIslands).toHaveLength(29);
+    expect(DECLARED).toBe(520);
+    expect(islandsInRegion('sys').map(i => [i.code, i.lessonCount])).toEqual([['LNX', 15], ['DKR', 15], ['SRV', 14], ['CLD', 15], ['CICD', 15], ['KUB', 15]]);
     expect(islandsInRegion('design').map(i => [i.code, i.lessonCount])).toEqual([['UI', 15], ['UX', 15], ['IXD', 14], ['DSY', 12]]);
     expect(islandsInRegion('web').map(i => [i.code, i.lessonCount])).toEqual([['WEB', 15], ['FE', 15], ['RWD', 12], ['MOB', 13]]);
   });
 
   it('names the regions as approved and groups the seven AI islands without splitting one (multi-archipelago v2)', () => {
     expect(orderedRegions.map(r => [r.id, r.name])).toEqual([
-      ['cs', '程式與資訊群島'], ['ai', 'AI 人工智慧群島'], ['design', '數位設計群島'], ['web', '網頁與應用開發群島']]);
+      ['cs', '程式與資訊群島'], ['ai', 'AI 人工智慧群島'], ['design', '數位設計群島'], ['web', '網頁與應用開發群島'],
+      ['sys', '系統與雲端工程群島']]);
     const groups = orderedRegions.find(r => r.id === 'ai')!.groups!;
     expect(groups.map(g => g.label)).toEqual(['AI 原理與模型', '生成式 AI 與大型語言模型', 'AI 應用與系統工程']);
     expect(groups.flatMap(g => g.islandIds).sort()).toEqual(islandsInRegion('ai').map(i => i.id).sort());
@@ -104,11 +117,12 @@ describe('world registry (F.0)', () => {
     expect(labIslandConfig.labs).toEqual(['array', 'stack', 'queue', 'binary-search', 'bubble-sort', 'bfs']);
   });
 
-  it('marks the three existing islands and the database island (written to the end in F.1d) complete, and the other nineteen planned', () => {
+  it('marks the three existing islands and the database island (written to the end in F.1d) complete, and the other twenty-five planned', () => {
     expect(subjectIslands.filter(i => i.status === 'complete').map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'databases']);
     expect(subjectIslands.filter(i => i.status === 'available').map(i => i.id)).toEqual([]);
-    expect(subjectIslands.filter(i => i.status === 'planned')).toHaveLength(19);
+    expect(subjectIslands.filter(i => i.status === 'planned')).toHaveLength(25);
     expect(regionStatus('design')).toBe('planned');
+    expect(regionStatus('sys')).toBe('planned');
     expect(regionStatus('web')).toBe('planned');
     for (const island of subjectIslands.filter(i => i.status === 'planned')) expect(island.entryPoints, island.id).toEqual([]);
     expect(getIsland('databases')?.entryPoints.map(e => e.target)).toEqual(['/curriculum#island-databases', '/curriculum/database-concepts']);

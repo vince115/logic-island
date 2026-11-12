@@ -19,6 +19,7 @@ describe('planning data (F.0)', () => {
       for (const field of ['sections', 'examples', 'quiz', 'exercises', 'content']) expect(lesson, lesson.lessonId).not.toHaveProperty(field);
     }
     expect(data.paths.map((p: { id: string }) => p.id)).toEqual([
-      'A-apcs-cs-foundations', 'B-software-engineering', 'C-network-and-systems', 'D-enterprise-information-systems', 'E-ai-research', 'F-ai-application-engineering', 'G-frontend-engineering', 'H-product-design', 'J-ai-architecture']);
+      'A-apcs-cs-foundations', 'B-software-engineering', 'C-network-and-systems', 'D-enterprise-information-systems', 'E-ai-research', 'F-ai-application-engineering', 'G-frontend-engineering', 'H-product-design', 'J-ai-architecture',
+      'K-fullstack-deployment', 'L-ai-infrastructure', 'M-cloud-devops-foundations']);
   });
 });

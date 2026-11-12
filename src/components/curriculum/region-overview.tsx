@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { DIFFICULTY_LABELS } from '@/content/curriculum/registry';
-import { islandsInRegion, orderedRegions, regionStatus } from '@/content/world';
+import { islandsInRegion, orderedRegions, regionCountZh, regionStatus } from '@/content/world';
 import { CONTENT_STATUS_LABELS, contentStatusOf, lessonsOfIsland } from '@/content/world/catalog';
 import type { IslandConfig, Region, RegionId } from '@/content/world/types';
 import { regionHint } from '@/lib/nav/site-nav';
@@ -11,16 +11,16 @@ import overview from './catalog-overview.module.css';
 import styles from './curriculum.module.css';
 
 /*
- * Multi-archipelago v2 (P2): the four regions on /curriculum. The strip says what each region holds and how much of it
+ * Multi-archipelago v2 (P2): the regions on /curriculum (five since P6). The strip says what each region holds and how much of it
  * can be opened today; each region's section lists its planned islands with their outline folded away. Nothing here
  * links to a lesson page: planned lessons have none, so they are text marked 規劃中 (CONTENT_STATUS_LABELS).
  */
 
-export const REGION_ACCENT: Record<RegionId, string> = { cs: '#4285f4', ai: '#3949ab', design: '#d81b60', web: '#e65100' };
+export const REGION_ACCENT: Record<RegionId, string> = { cs: '#4285f4', ai: '#3949ab', design: '#d81b60', web: '#e65100', sys: '#0097a7' };
 
-/** The four regions, in order, each a link to its section on this page. */
+/** The regions, in order, each a link to its section on this page. */
 export function RegionStrip() {
-  return <nav aria-label="四大群島" className={overview.regions}>
+  return <nav aria-label={`${regionCountZh()}大群島`} className={overview.regions}>
     {orderedRegions.map(region => {
       const list = islandsInRegion(region.id), status = regionStatus(region.id);
       return <a key={region.id} href={`#region-${region.id}`} className={overview.region} style={{ '--island-accent': REGION_ACCENT[region.id] } as CSSProperties}>
@@ -89,6 +89,7 @@ export function PlannedRegion({ region }: { region: Region }) {
   const ungrouped = list.filter(i => !groups.some(g => g.islandIds.includes(i.id)));
   return <section id={`region-${region.id}`} className={overview.regionSection} style={{ '--island-accent': REGION_ACCENT[region.id] } as CSSProperties} aria-labelledby={`region-${region.id}-title`}>
     <h2 id={`region-${region.id}-title`}>{region.name}<span>{region.nameEn}</span></h2>
+    {region.summary && <p className={styles.muted}>{region.summary}</p>}
     <p className={styles.islandOpen}>{islandsInRegion(region.id).length} 座主題島、{regionHint(region.id)}：只有課程大綱，教材尚未開放，不能點選。</p>
     <Link href={`/regions/${region.id}`} className={overview.regionLink}>{region.name}總覽<ArrowRight size={13} aria-hidden/></Link>
     <RegionExams region={region.id}/>

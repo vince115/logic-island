@@ -133,13 +133,15 @@ describe('regional world panel data and flag (M3.1)', () => {
 describe('regions without a 3D layout (multi-archipelago v2)', async () => {
   const { regionSummaries, unmappedRegions } = await import('@/lib/world/learning-islands');
   const { MAPPED_REGION_IDS, isMappedRegion } = await import('@/lib/islands/regions/region-layouts');
-  it('maps cs and ai only, and lists design and web as planned regions with no /world link', () => {
+  it('maps cs and ai only, and lists design, web and sys as planned regions with no /world link', () => {
     expect(regionSummaries().map(r => [r.id, r.href])).toEqual([['cs', '/world/cs'], ['ai', '/world/ai']]);
     expect(unmappedRegions()).toEqual([
       { id: 'design', name: '數位設計群島', nameEn: 'Digital Design Archipelago', islands: 4, lessons: 56 },
       { id: 'web', name: '網頁與應用開發群島', nameEn: 'Web and App Development Archipelago', islands: 4, lessons: 55 },
+      { id: 'sys', name: '系統與雲端工程群島', nameEn: 'Systems & Cloud Engineering Archipelago', islands: 6, lessons: 89 },
     ]);
     expect(MAPPED_REGION_IDS).toEqual(['cs', 'ai']);
     expect(isMappedRegion('design')).toBe(false);
+    expect(isMappedRegion('sys')).toBe(false);
   });
 });

@@ -1,0 +1,54 @@
+/* P7: Linux Terminal Simulator. The terminal keeps a dark screen in both themes (like a real terminal); everything else
+   uses the site tokens (globals.css). Contrast on the screen: text #e2e8f0 14.48:1, errors #fca5a5 9.41:1, prompt
+   #86efac 12.71:1 on #0f172a. */
+.lab { display: grid; gap: 18px; margin-top: 18px; }
+.panel { border: 1px solid var(--border); border-radius: 12px; background: var(--panel); padding: 16px 18px; min-width: 0; }
+.panel h2 { display: flex; flex-direction: column; gap: 2px; font-size: var(--text-lg); margin-bottom: 12px; }
+.panel h2 span { font: 600 var(--text-xs) ui-monospace, monospace; letter-spacing: 1px; color: var(--muted); }
+
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 300px); gap: 14px; }
+@media (max-width: 860px) { .workspace { grid-template-columns: minmax(0, 1fr); } }
+
+.terminal { border-radius: 10px; overflow: hidden; background: #0f172a; color: #e2e8f0; border: 1px solid #1e293b; min-width: 0; }
+.screen { height: 320px; overflow: auto; padding: 12px 14px; font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.line { white-space: pre-wrap; overflow-wrap: anywhere; }
+.line[data-kind='err'] { color: #fca5a5; }
+.line[data-kind='cmd'] { color: #f8fafc; }
+.prompt { color: #86efac; font: inherit; font-weight: 600; }
+.inputRow { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-top: 1px solid #1e293b; font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.inputRow label { flex: none; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inputRow input {
+  flex: 1; min-width: 0; min-height: 40px; padding: 0 8px; border-radius: 6px; border: 1px solid #334155;
+  background: #020617; color: #f8fafc; font: inherit; font-size: 16px;
+}
+.inputRow input:focus-visible { outline: 2px solid #86efac; outline-offset: 1px; }
+.inputRow button { flex: none; min-height: 40px; padding: 0 12px; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: #f8fafc; font-weight: 650; }
+
+/* Phones: the prompt takes its own line so the input keeps a usable width. */
+@media (max-width: 520px) { .inputRow { flex-wrap: wrap; } .inputRow label { flex-basis: 100%; max-width: 100%; } }
+
+.side { min-width: 0; }
+.side h3 { font-size: var(--text-sm); margin-bottom: 6px; }
+.tree { margin: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text);
+  font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; overflow: auto; max-height: 360px; white-space: pre; }
+
+.help { font-size: var(--text-xs); color: var(--muted); margin-top: 10px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
+.actions button {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: var(--text-sm); font-weight: 650;
+}
+.actions button:hover { background: var(--soft); }
+.quick { display: flex; flex-wrap: wrap; gap: 8px; margin-right: auto; }
+.quick code { font: var(--text-xs) ui-monospace, monospace; }
+
+.tasks { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
+.tasks li { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 8px; padding: 8px 0; border-top: 1px solid var(--border); color: var(--muted); }
+.tasks li:first-child { border-top: 0; }
+.tasks li > svg { margin-top: 3px; }
+.tasks strong { color: var(--text); font-size: var(--text-sm); }
+.tasks p { font-size: var(--text-sm); margin: 2px 0 0; color: var(--text); }
+.tasks details { margin-top: 4px; font-size: var(--text-xs); }
+.tasks summary { cursor: pointer; color: var(--accent-ink, var(--accent)); font-weight: 650; min-height: 24px; }
+.tasks details p { color: var(--muted); font-size: var(--text-xs); }
+.ok { color: var(--accent-ink, var(--accent)); }
