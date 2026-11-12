@@ -16,6 +16,7 @@
 | [M3_CS_AI_MASTER_PLAN](M3_CS_AI_MASTER_PLAN.md) | M3.0（2026-11-03）：CS 與 AI 課綱對照、Single／Regional World、兩區 Hex Layout 草案、M3.1–M3.6 Roadmap、待批准決策 |
 | [M3_1_REGIONAL_WORLD_ARCHITECTURE](M3_1_REGIONAL_WORLD_ARCHITECTURE.md) | M3.1 提案（2026-11-03）：區域架構、座標驗證結果、導覽流程、Feature Flag、鏡頭、GLB Scale／Anchor Contract、量測方案、M3.2 進入條件 |
 | [ARCHIPELAGO_GLB_ART_DIRECTION](ARCHIPELAGO_GLB_ART_DIRECTION.md) | M3.0：CS／AI 各島的 GLB 美術方向、共用 GLB 管線、節點與材質契約、預算 |
+| [MULTI_ARCHIPELAGO_IA_V2](MULTI_ARCHIPELAGO_IA_V2.md) | 2026-11-12（D1–D3 已決策，方向原則批准）：四區域（新增 `design`、`web`）、AI 七島保留並以 3 組導覽分組、Design／Web 111 堂大綱、AI 最小曝光方案、活動 registry 評估、驗證改為資料＋規格、P1a／P1b 實作清單（**P1 未批准**） |
 | [PHASE_F_ROADMAP](PHASE_F_ROADMAP.md) | E.5、F.0–F.6 分期、依賴、驗收、工作量、風險；與舊 ROADMAP 編號的對應 |
 
 ## 1. Repository Audit（2026-11-02）
@@ -51,6 +52,8 @@
 | Region A — Computer Science | 8 | 160 | 60 | 100 |
 | Region B — Artificial Intelligence | 7 | 160 | 0 | 160 |
 | **合計** | **15**（＋1 實驗島） | **320** | **60** | **260** |
+
+> **2026-11-12 更新**：上表是 2026-11-02 的快照（當時 60 堂完成；資料庫應用島完成後為 80 堂）。依 [MULTI_ARCHIPELAGO_IA_V2](MULTI_ARCHIPELAGO_IA_V2.md#26-重新計算的數量) 的 D2／D3 決策，規劃規模改為 **4 區域、23 座學科島（＋1 實驗島）、431 堂（80 complete、351 planned）**：新增 `design` 4 島 56 堂、`web` 4 島 55 堂，CS 與 AI 不變。程式中的 `EXPECTED` 常數將在 P1 改為以資料＋規格驗證，數字以藍圖資料與 ISLAND_TAXONOMY 為準（P1b 更新）。
 
 ## 4. 關鍵決策摘要
 
