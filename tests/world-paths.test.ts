@@ -14,10 +14,10 @@ const path = (id: string) => getLearningPath(id)!;
 const prefix = (id: string) => parseLessonId(id)?.prefix;
 
 describe('learning paths (F.0)', () => {
-  it('has ten valid paths, in the planning order (J: AI 架構, multi-archipelago v2; K, L, M: P6)', () => {
+  it('has twelve valid paths, in the planning order (J: AI 架構, multi-archipelago v2; G, H: design and web, R7; K, L, M: P6)', () => {
     expect(validatePaths(learningPaths)).toEqual([]);
-    expect(learningPaths.map(p => p.id[0])).toEqual(['A', 'B', 'C', 'D', 'E', 'F', 'J', 'K', 'L', 'M']);
-    expect(learningPaths.map(p => p.lessons.length)).toEqual([60, 86, 54, 84, 142, 89, 66, 62, 60, 48]);
+    expect(learningPaths.map(p => p.id[0])).toEqual(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M']);
+    expect(learningPaths.map(p => p.lessons.length)).toEqual([60, 86, 54, 84, 142, 89, 62, 56, 66, 62, 60, 48]);
     for (const p of learningPaths) expect(p.description, p.id).not.toBe('');
   });
 
@@ -35,6 +35,17 @@ describe('learning paths (F.0)', () => {
     expect([...prefixes('M-cloud-devops-foundations')]).toEqual(expect.arrayContaining(['CN', 'LNX', 'SRV', 'DKR', 'CLD', 'CICD', 'KUB']));
     expect(path('L-ai-infrastructure').targets).toContain('OPS07');
     expect(path('M-cloud-devops-foundations').gaps).toContain('作業系統原理（行程、排程、記憶體管理）');
+  });
+
+  // R7: every lesson of the web islands, and only the 基礎程式島 lessons they require; the design islands need nothing outside.
+  it('builds path G (前端工程) from the four web islands and path H (產品設計) from the four design islands', () => {
+    const g = path('G-frontend-engineering'), h = path('H-product-design');
+    expect(new Set(g.targets.map(prefix))).toEqual(new Set(['WEB', 'RWD', 'FE', 'MOB']));
+    expect(g.targets).toHaveLength(55);
+    expect(g.requiredPrerequisites).toEqual(['F01', 'F02', 'F03', 'F04', 'F05', 'F07', 'F13']);
+    expect(new Set(h.targets.map(prefix))).toEqual(new Set(['UI', 'UX', 'IXD', 'DSY']));
+    expect(h).toMatchObject({ requiredPrerequisites: [], lessons: h.targets });
+    for (const p of [g, h]) expect(p.completion.learnable, p.id).toBe(false);
   });
 
   it('keeps path A to the 60 complete lessons, the only path a learner can take today', () => {
@@ -93,7 +104,7 @@ describe('learning paths (F.0)', () => {
   });
 
   it('answers which paths a lesson is on and how far a learner is, without storing progress', () => {
-    expect(pathsWithLesson('F01').map(p => p.id[0])).toEqual(['A', 'B', 'C', 'D', 'E', 'F', 'J', 'K', 'L', 'M']);
+    expect(pathsWithLesson('F01').map(p => p.id[0])).toEqual(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'J', 'K', 'L', 'M']);  // R7: F01 is required by the web path G too.
     expect(pathsWithLesson('LNX01').map(p => p.id[0])).toEqual(['K', 'L', 'M']);
     expect(pathsWithLesson('AG25').map(p => p.id[0])).toEqual(['F']);
     expect(pathsWithLesson('AG12').map(p => p.id[0])).toEqual(['F', 'J']);
@@ -120,9 +131,9 @@ describe('activity registry (F.0)', () => {
     // the normalization steps once a written lesson uses them; the rest stay planned.
     const used = new Set(lessons.filter(l => l.lessonStatus === 'complete' && l.activity).map(l => l.activity!));
     // Multi-archipelago v2 (P4): color-contrast is implemented by its standalone lab (/learn/color-contrast).
-    // P7: terminal-sim likewise, by /learn/linux-terminal.
-    const standalone = new Set(['color-contrast', 'terminal-sim']);
-    expect(of('activity').filter(a => a.availability === 'implemented').map(a => a.id)).toEqual(['architecture-diagram', 'color-contrast', 'erd-builder', 'normalization-steps', 'protocol-sequence', 'query-plan', 'sql-playground', 'terminal-sim', 'transaction-timeline'].filter(id => standalone.has(id) || used.has(id as 'sql-playground')));
+    // P7: terminal-sim likewise, by /learn/linux-terminal (R7: flexbox-playground by its own page).
+    const standalone = new Set(['color-contrast', 'flexbox-playground', 'terminal-sim']);
+    expect(of('activity').filter(a => a.availability === 'implemented').map(a => a.id)).toEqual(['architecture-diagram', 'color-contrast', 'erd-builder', 'flexbox-playground', 'normalization-steps', 'protocol-sequence', 'query-plan', 'sql-playground', 'terminal-sim', 'transaction-timeline'].filter(id => standalone.has(id) || used.has(id as 'sql-playground')));
     expect(getActivity('color-contrast')).toMatchObject({ lab: 'color-contrast', version: '1.0.0', subjects: ['labs', 'ui-design'] });
     expect(getActivity('terminal-sim')).toMatchObject({ lab: 'linux-terminal', version: '1.0.0', availability: 'implemented' });
     expect(getActivity('terminal-sim')!.subjects).toEqual(['labs', 'linux-systems', 'network-servers']);

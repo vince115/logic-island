@@ -43,8 +43,9 @@ test('互動實驗島列出六個實驗；實驗頁沒有模式切換，麵包�
   await expect(page).toHaveTitle(/^互動實驗島 \| Logic Island$/);
   // Multi-archipelago v2 (P4): the six algorithm labs, plus the tool labs that are open; planned ones are not links.
   await expect(page.locator('a.course-card:not([data-kind])')).toHaveCount(6);
-  // P7: the Linux Terminal Simulator joins the color contrast lab as an open tool lab.
-  await expect(page.locator('a.course-card[data-kind="tool"]').evaluateAll(as => as.map(a => a.getAttribute('href')))).resolves.toEqual(['/learn/color-contrast', '/learn/linux-terminal']);
+  // R7: open tool labs are links, the planned ones cards without a link; P7 adds the Linux Terminal Simulator.
+  await expect(page.locator('a.course-card[data-kind="tool"]')).toHaveCount(3);
+  expect(await page.locator('a.course-card[data-kind="tool"]').evaluateAll(as => as.map(a => a.getAttribute('href')))).toEqual(['/learn/color-contrast', '/learn/flexbox-playground', '/learn/linux-terminal']);
   await expect(page.locator('.course-card[data-status="planned"]').first()).toBeVisible();
   await expect(page.locator('a.course-card[data-status="planned"]')).toHaveCount(0);
   await page.goto('/learn/array');
@@ -77,10 +78,10 @@ test('404 頁指向完整課綱與互動實驗島', async ({ page }) => {
 test('六個實驗與所有課綱頁（含資料庫應用島已開放的課）都能開啟，頁面內的站內連結沒有失效', async ({ page, request }, info) => {
   test.skip(!info.project.name.startsWith('desktop'), 'Same pages on both projects; one pass is enough.');
   test.setTimeout(240_000);
-  // P4: the open tool labs are crawled too (/learn/color-contrast); P7 adds /learn/linux-terminal.
+  // P4, R7: the open tool labs are crawled too (/learn/color-contrast, /learn/flexbox-playground); P7 adds /learn/linux-terminal.
   // R6: and the region overviews (P6 adds sys).
-  const pages = ['/', '/learn', '/curriculum', ...['cs', 'ai', 'design', 'web', 'sys'].map(r => `/regions/${r}`), ...courses.map(c => `/learn/${c.slug}`), '/learn/color-contrast', '/learn/linux-terminal', ...lessons.map(l => `/curriculum/${l.slug}`)];
-  expect(pages).toHaveLength(3 + 5 + 8 + lessons.length);
+  const pages = ['/', '/learn', '/curriculum', ...['cs', 'ai', 'design', 'web', 'sys'].map(r => `/regions/${r}`), ...courses.map(c => `/learn/${c.slug}`), '/learn/color-contrast', '/learn/flexbox-playground', '/learn/linux-terminal', ...lessons.map(l => `/curriculum/${l.slug}`)];
+  expect(pages).toHaveLength(3 + 5 + 9 + lessons.length);
   const links = new Set<string>();
   for (const path of pages) {
     const res = await page.goto(path);
@@ -250,4 +251,31 @@ test('AI 群島入口：首頁「更多學習群島」→ 群島總覽，七座�
   await page.goto('/curriculum');
   await expect(page.locator('#region-ai').getByRole('link', { name: 'AI 人工智慧群島總覽' })).toHaveAttribute('href', '/regions/ai');
   expect((await page.request.get('/regions/labs')).status()).toBe(404);
+});
+
+// R7: Flexbox Playground — the preview is a real flex container that follows the controls, and the CSS matches it.
+test('Flexbox Playground：調整屬性後預覽與 CSS 同步，預設版面可一鍵套用，課程列為規劃中', async ({ page }) => {
+  await page.goto('/learn/flexbox-playground');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Flexbox Playground');
+  const preview = page.getByTestId('flex-preview'), css = page.locator('pre code');
+  await expect(preview.locator('> div')).toHaveCount(4);
+  await page.getByLabel('justify-content').selectOption('space-between');
+  await page.getByLabel('align-items').selectOption('center');
+  await expect(preview).toHaveCSS('justify-content', 'space-between');
+  await expect(css).toContainText('justify-content: space-between;');
+  await expect(css).toContainText('align-items: center;');
+  await expect(page.locator('[aria-live="polite"]')).toContainText('頭尾貼齊');
+  await page.getByLabel('flex-direction').selectOption('column');
+  await expect(preview).toHaveCSS('flex-direction', 'column');
+  await expect(page.locator('[aria-live="polite"]')).toContainText('主軸是垂直方向');
+  await page.getByRole('button', { name: '卡片換行' }).click();
+  await expect(preview.locator('> div')).toHaveCount(7);
+  await expect(css).toContainText('flex-wrap: wrap;');
+  await page.getByLabel('flex-grow: 1 的項目').selectOption('2');
+  await expect(preview.locator('> div').nth(1)).toHaveCSS('flex-grow', '1');
+  await expect(css).toContainText('.item:nth-child(2)');
+  const lessons = page.getByRole('region', { name: '使用這個實驗的課程' });
+  await expect(lessons.getByText('RWD03')).toBeVisible();
+  await expect(lessons.locator('a')).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

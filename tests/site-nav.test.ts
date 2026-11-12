@@ -72,8 +72,8 @@ describe('lab tree', () => {
   it('lists every lab by learning domain: the six algorithm labs, the implemented tool labs, planned ones without a link', () => {
     const tree = labTree();
     expect(tree.map(g => g.label)).toEqual(['資料結構', '演算法', 'UI／UX', '網頁設計', '行動裝置設計', 'AI', '系統與雲端']);
-    expect(hrefs(tree).sort()).toEqual([...courses.map(c => `/learn/${c.slug}`), '/learn/color-contrast', '/learn/linux-terminal'].sort());
-    expect(leaves(tree).filter(isDisabled).map(n => n.label)).toContain('Responsive Layout Playground');
+    expect(hrefs(tree).sort()).toEqual([...courses.map(c => `/learn/${c.slug}`), '/learn/color-contrast', '/learn/flexbox-playground', '/learn/linux-terminal'].sort());
+    expect(leaves(tree).filter(isDisabled).map(n => n.label)).toContain('Responsive Layout Simulator');
   });
 });
 
