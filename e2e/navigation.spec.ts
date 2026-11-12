@@ -43,7 +43,8 @@ test('互動實驗島列出六個實驗；實驗頁沒有模式切換，麵包�
   await expect(page).toHaveTitle(/^互動實驗島 \| Logic Island$/);
   // Multi-archipelago v2 (P4): the six algorithm labs, plus the tool labs that are open; planned ones are not links.
   await expect(page.locator('a.course-card:not([data-kind])')).toHaveCount(6);
-  await expect(page.locator('a.course-card[data-kind="tool"]')).toHaveAttribute('href', '/learn/color-contrast');
+  // P7: the Linux Terminal Simulator joins the color contrast lab as an open tool lab.
+  await expect(page.locator('a.course-card[data-kind="tool"]').evaluateAll(as => as.map(a => a.getAttribute('href')))).resolves.toEqual(['/learn/color-contrast', '/learn/linux-terminal']);
   await expect(page.locator('.course-card[data-status="planned"]').first()).toBeVisible();
   await expect(page.locator('a.course-card[data-status="planned"]')).toHaveCount(0);
   await page.goto('/learn/array');
@@ -76,9 +77,9 @@ test('404 頁指向完整課綱與互動實驗島', async ({ page }) => {
 test('六個實驗與所有課綱頁（含資料庫應用島已開放的課）都能開啟，頁面內的站內連結沒有失效', async ({ page, request }, info) => {
   test.skip(!info.project.name.startsWith('desktop'), 'Same pages on both projects; one pass is enough.');
   test.setTimeout(240_000);
-  // P4: the open tool labs are crawled too (/learn/color-contrast).
-  const pages = ['/', '/learn', '/curriculum', ...courses.map(c => `/learn/${c.slug}`), '/learn/color-contrast', ...lessons.map(l => `/curriculum/${l.slug}`)];
-  expect(pages).toHaveLength(3 + 7 + lessons.length);
+  // P4: the open tool labs are crawled too (/learn/color-contrast); P7 adds /learn/linux-terminal.
+  const pages = ['/', '/learn', '/curriculum', ...courses.map(c => `/learn/${c.slug}`), '/learn/color-contrast', '/learn/linux-terminal', ...lessons.map(l => `/curriculum/${l.slug}`)];
+  expect(pages).toHaveLength(3 + 8 + lessons.length);
   const links = new Set<string>();
   for (const path of pages) {
     const res = await page.goto(path);
@@ -172,5 +173,43 @@ test('色彩與無障礙實驗室：輸入顏色即時判定 AA／AAA，套用�
   // The lessons that will use it are listed as planned, never linked.
   const lessons = page.getByRole('region', { name: '使用這個實驗的課程' });
   await expect(lessons.getByText('UI10')).toBeVisible();
+  await expect(lessons.getByRole('link')).toHaveCount(0);
+});
+
+// P7: Linux Terminal Simulator. Commands run on a virtual file system in the page; a task completes from the result,
+// permissions are enforced for the non-root learner, and a reset restores the starting machine.
+test('Linux Terminal Simulator：指令改變虛擬檔案系統、任務依結果完成、權限有效、可重設', async ({ page }) => {
+  await page.goto('/learn/linux-terminal');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Linux Terminal Simulator');
+  const input = page.getByRole('textbox', { name: /^輸入指令/ });
+  const screen = page.getByRole('log', { name: '終端機輸出' });
+  const tasks = page.getByRole('region', { name: /完成 \d+／7/ });
+  await expect(tasks.getByRole('heading', { level: 2 })).toContainText('完成 0／7');
+  await input.fill('mkdir projects');
+  await input.press('Enter');
+  await input.fill('cd projects');
+  await input.press('Enter');
+  await expect(input).toHaveAccessibleName('輸入指令（目前位置 ~/projects）');
+  await input.fill('echo "hello" > notes.txt');
+  await input.press('Enter');
+  await input.fill('cat notes.txt');
+  await input.press('Enter');
+  await expect(screen).toContainText('hello');
+  await expect(tasks.getByRole('heading', { level: 2 })).toContainText('完成 2／7');
+  await input.fill('cat /etc/shadow');
+  await input.press('Enter');
+  await expect(screen).toContainText('cat: /etc/shadow: Permission denied');
+  await input.fill('ls | grep a');
+  await input.press('Enter');
+  await expect(screen).toContainText('不支援');
+  // History: ↑ brings the last command back.
+  await input.press('ArrowUp');
+  await expect(input).toHaveValue('ls | grep a');
+  await page.getByRole('button', { name: '重設環境' }).click();
+  await expect(tasks.getByRole('heading', { level: 2 })).toContainText('完成 0／7');
+  await expect(page.getByLabel('家目錄的檔案樹，含權限與目前位置')).not.toContainText('projects');
+  // The lessons that will use it are listed as planned, never linked.
+  const lessons = page.getByRole('region', { name: '使用這個實驗的課程' });
+  await expect(lessons.getByText('LNX02')).toBeVisible();
   await expect(lessons.getByRole('link')).toHaveCount(0);
 });

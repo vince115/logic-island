@@ -18,6 +18,7 @@
 | [ARCHIPELAGO_GLB_ART_DIRECTION](ARCHIPELAGO_GLB_ART_DIRECTION.md) | M3.0：CS／AI 各島的 GLB 美術方向、共用 GLB 管線、節點與材質契約、預算 |
 | [MULTI_ARCHIPELAGO_IA_V2](MULTI_ARCHIPELAGO_IA_V2.md) | 2026-11-12（D1–D3 已決策，方向原則批准）：四區域（新增 `design`、`web`）、AI 七島保留並以 3 組導覽分組、Design／Web 111 堂大綱、AI 最小曝光方案、活動 registry 評估、驗證改為資料＋規格、P1a／P1b 實作清單（**P1 未批准**） |
 | [P6_SYSTEMS_CLOUD_REGION](P6_SYSTEMS_CLOUD_REGION.md) | 2026-11-12（P6）：第五區域 `sys` 6 島 89 堂、與 CN／OPS／MIS 的分界、路線 K／L／M、3D 建置方案；規模改為 5 區、29 島、520 堂（80 已開放） |
+| [P7_SYSTEMS_LABS](P7_SYSTEMS_LABS.md) | 2026-11-12（P7）：系統與雲端實驗分類、Linux Terminal Simulator（MVP 已實作，`/learn/linux-terminal`）的技術設計、安全模型與測試；Docker、Network、CI/CD 實驗為規劃中 |
 | [PHASE_F_ROADMAP](PHASE_F_ROADMAP.md) | E.5、F.0–F.6 分期、依賴、驗收、工作量、風險；與舊 ROADMAP 編號的對應 |
 
 ## 1. Repository Audit（2026-11-02）

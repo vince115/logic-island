@@ -3,6 +3,7 @@ import { Breadcrumbs } from '@/components/nav/breadcrumbs';
 import { CONTENT_STATUS_LABELS } from '@/content/world/catalog';
 import { APPROACH_STEPS, LAB_DOMAIN_LABELS, lessonsUsingLab, type LabEntry } from '@/content/world/labs';
 import { ContrastLab } from './contrast-lab';
+import { TerminalLab } from './terminal-lab';
 import styles from './tool-lab.module.css';
 
 /*
@@ -22,9 +23,19 @@ const UNDERSTAND: Record<string, React.ReactNode> = {
     </ul>
     <p>對比只是可讀性的一部分：不要只靠顏色傳達意義（例如錯誤欄位同時加上文字與圖示），也要讓使用者能放大文字而不破版。</p>
   </>,
+  // P7: what the terminal does before the learner types (Think).
+  'linux-terminal': <>
+    <p>終端機裡的 Shell 讀一行指令、執行、印出結果。Linux 的所有檔案都掛在同一棵目錄樹上：<code>/</code> 是根目錄，<code>~</code> 是自己的家目錄，<code>.</code> 是目前目錄，<code>..</code> 是上一層。</p>
+    <ul>
+      <li><strong>路徑</strong>：以 <code>/</code> 開頭的是絕對路徑，其他都相對於目前所在的目錄（<code>pwd</code> 會告訴你在哪裡）。</li>
+      <li><strong>權限</strong>：<code>ls -l</code> 的 <code>rwxr-xr-x</code> 依序是擁有者、群組、其他人的讀（r）、寫（w）、執行（x）；目錄的 x 代表可以進入。八進位寫法 r=4、w=2、x=1，所以 <code>644</code> 是 <code>rw-r--r--</code>。</li>
+      <li><strong>刪除無法復原</strong>：<code>rm</code> 沒有資源回收筒，刪除目錄要加 <code>-r</code>，下指令前先用 <code>ls</code> 確認。</li>
+    </ul>
+    <p>這是瀏覽器內的模擬：檔案只存在這個頁面的記憶體裡，只支援固定的指令，不會執行真實的 Shell、不會讀寫你的電腦，重新整理或按「重設環境」就回到最初的樣子。你的身分是一般使用者 <code>learner</code>，所以 <code>/etc/shadow</code> 讀不到、<code>/etc</code> 裡也不能建立檔案，這正是權限在保護系統。</p>
+  </>,
 };
 
-const LABS: Record<string, () => React.ReactNode> = { 'color-contrast': () => <ContrastLab/> };
+const LABS: Record<string, () => React.ReactNode> = { 'color-contrast': () => <ContrastLab/>, 'linux-terminal': () => <TerminalLab/> };
 export const hasToolLabComponent = (id: string) => id in LABS;
 
 export function ToolLabPage({ lab }: { lab: LabEntry }) {

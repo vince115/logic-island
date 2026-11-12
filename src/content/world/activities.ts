@@ -135,6 +135,8 @@ const IMPLEMENTED_TEXT: Record<string, string> = {
   'protocol-sequence': '每一次往返以文字列出（送出的 SQL、參數、傳回的列數），往返次數與總列數以 aria-live 宣告',
   // Multi-archipelago v2 (P4): the first tool lab of the Interactive Lab Island, /learn/color-contrast.
   'color-contrast': '對比率、每個 WCAG 等級（一般與大型文字、非文字元件）是否通過、建議的合格顏色都以文字寫出，並以 aria-live 宣告',
+  // P7: the Linux Terminal Simulator, /learn/linux-terminal.
+  'terminal-sim': '終端機輸出是 role="log" 的文字；家目錄以含權限與目前位置的文字樹呈現；完成的任務以 aria-live 宣告',
   'architecture-diagram': '架構圖有文字說明；複本讀到的值、是否過時、切換時遺失的寫入、還原步驟與資料損失都以表格與文字寫出（aria-live）',
 };
 const existing = new Set(visualizationEntries.map(v => v.id));

@@ -120,8 +120,12 @@ describe('activity registry (F.0)', () => {
     // the normalization steps once a written lesson uses them; the rest stay planned.
     const used = new Set(lessons.filter(l => l.lessonStatus === 'complete' && l.activity).map(l => l.activity!));
     // Multi-archipelago v2 (P4): color-contrast is implemented by its standalone lab (/learn/color-contrast).
-    expect(of('activity').filter(a => a.availability === 'implemented').map(a => a.id)).toEqual(['architecture-diagram', 'color-contrast', 'erd-builder', 'normalization-steps', 'protocol-sequence', 'query-plan', 'sql-playground', 'transaction-timeline'].filter(id => id === 'color-contrast' || used.has(id as 'sql-playground')));
+    // P7: terminal-sim likewise, by /learn/linux-terminal.
+    const standalone = new Set(['color-contrast', 'terminal-sim']);
+    expect(of('activity').filter(a => a.availability === 'implemented').map(a => a.id)).toEqual(['architecture-diagram', 'color-contrast', 'erd-builder', 'normalization-steps', 'protocol-sequence', 'query-plan', 'sql-playground', 'terminal-sim', 'transaction-timeline'].filter(id => standalone.has(id) || used.has(id as 'sql-playground')));
     expect(getActivity('color-contrast')).toMatchObject({ lab: 'color-contrast', version: '1.0.0', subjects: ['labs', 'ui-design'] });
+    expect(getActivity('terminal-sim')).toMatchObject({ lab: 'linux-terminal', version: '1.0.0', availability: 'implemented' });
+    expect(getActivity('terminal-sim')!.subjects).toEqual(['labs', 'linux-systems', 'network-servers']);
     expect(used.has('sql-playground')).toBe(true);
     expect(of('activity').every(a => a.subjects.length > 0)).toBe(true);
     // The existing visualization statuses are untouched.

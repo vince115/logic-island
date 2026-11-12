@@ -595,6 +595,7 @@ P2-A（§3.2，AI 可見性）可以在 P1 之前或之後獨立做；P2（側�
 | R3 | 整合驗收：taxonomy cs 8/160、ai 7/160、design 4/56、web 4/55；80 堂已開放課 HTTP 200、351 堂規劃中沒有 href、抽樣頁面無連到規劃中 slug；AI 三組；路線 J 66 堂無 ML／DL；6 個演算法實驗＋`/learn/color-contrast` 200、planned 實驗 404；旗標建置 `/world/design`、`/world/web` 404，iPAS／CCAR-F 不連結；旗標建置 `.next` leak-scan 乾淨；3D 只有型別與側欄 `?island=`（可選）變更，無模型／資產變更 | tsc、ESLint 0；Vitest 70 檔 1871 通過、9 skip（Java 與私人題庫條件）；navigation＋player 38 通過（2 個設計上只跑桌機）；旗標建置 regional-world＋trials＋islands 70 通過、trials-history 6 通過；未執行：4 個需私人題庫 fixture 建置的 trials E2E、真機 |
 
 | P6（五區域） | 第五區域 `sys`（分支 `archipelago/p6-sys`）：6 島 89 堂、路線 K／L／M、5 個 T1 活動、實驗領域 `systems-cloud`；側欄與 `/curriculum` 由資料自動帶入；`/world` 清單自動列為規劃中。詳見 [P6_SYSTEMS_CLOUD_REGION](P6_SYSTEMS_CLOUD_REGION.md) | tsc、ESLint 0；Vitest 1872 通過、9 skip；預設與旗標建置；navigation＋player 38、旗標 E2E 76 通過；`.next` leak-scan 乾淨 |
+| P7 | Linux Terminal Simulator MVP（`/learn/linux-terminal`）：瀏覽器內虛擬檔案系統、14 個指令、7 個任務、一般使用者權限；路由契約**刻意**新增一筆。Docker／Network／CI/CD 實驗仍為規劃中。詳見 [P7_SYSTEMS_LABS](P7_SYSTEMS_LABS.md) | `terminal.test.ts` 15 通過；navigation＋player 40 通過、2 skip |
 
 ## 11. 本文件的驗證方式
 

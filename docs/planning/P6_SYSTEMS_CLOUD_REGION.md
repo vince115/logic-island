@@ -310,7 +310,7 @@ DevOps 的文化與實務：團隊 Git 流程、持續整合、GitHub Actions、
 | TypeScript | `tsc --noEmit` | 0 錯誤 |
 | ESLint | `eslint src tests e2e` | 0 |
 | Vitest | `vitest run`（公開模式，PATH 加 IntelliJ 內建 JDK 讓 Java 範例實際編譯） | 70 檔、1872 通過、9 skip（私人題庫條件，與 R3 基線相同）；不加 JDK 時 1593 通過、288 skip |
-| 預設建置 | `next build` | 通過；101 個預先產生路由，與 P4 之後相同（路由契約不變） |
+| 預設建置 | `next build` | 通過；101 個預先產生路由，與 P4 之後相同（P6 不改路由契約；P7 才刻意新增 `/learn/linux-terminal`，見 [P7_SYSTEMS_LABS §4](P7_SYSTEMS_LABS.md#4-測試計畫與結果)） |
 | E2E（預設） | `navigation.spec`、`player.spec`（桌機＋手機） | 38 通過、2 skip（設計上只跑桌機） |
 | 旗標建置 | `LOGIC_ISLAND_TRIALS=1 LOGIC_ISLAND_REGIONAL_WORLD=1 next build`（112 頁） | 通過 |
 | E2E（旗標） | `regional-world`、`trials`、`trials-history`、`islands` | 76 通過、6 skip |

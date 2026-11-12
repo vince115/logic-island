@@ -66,7 +66,7 @@ const toolLabs: LabEntry[] = [
   { id: 'rag-pipeline', kind: 'tool', domain: 'ai', title: 'RAG Pipeline Visualization', approach: 'design', status: 'planned',
     activities: ['rag-explorer'], summary: '逐步看見切塊、檢索、重排序與組合提示，資料與分數皆為預先計算。' },
   // P7 (docs/planning/P7_SYSTEMS_LABS.md): simulations only; nothing runs a real shell, Docker daemon or network request.
-  { id: 'linux-terminal', kind: 'tool', domain: 'systems-cloud', title: 'Linux Terminal Simulator', approach: 'code', status: 'planned',
+  { id: 'linux-terminal', kind: 'tool', domain: 'systems-cloud', title: 'Linux Terminal Simulator', approach: 'code', status: 'implemented',
     activities: ['terminal-sim'], summary: '在瀏覽器內的虛擬檔案系統練習 pwd、ls、cd、mkdir、touch、cat、cp、mv、rm 與 chmod；不執行真實的 Shell，也不存取主機檔案。',
     objectives: ['在目錄樹中用相對與絕對路徑移動', '建立、複製、移動與刪除檔案', '讀懂並設定 rwx 權限'] },
   { id: 'docker-playground', kind: 'tool', domain: 'systems-cloud', title: 'Docker Container Playground', approach: 'code', status: 'planned',
