@@ -8,7 +8,8 @@ import type { AnyLessonId, LessonPrefix } from './lesson-id';
  * Nothing here holds progress; unlock conditions are rules, evaluated against progress at runtime.
  */
 
-export const REGION_IDS = ['cs', 'ai'] as const;
+// Multi-archipelago v2 (P1b): design and web join; the order of this list is not the display order (Region.order is).
+export const REGION_IDS = ['cs', 'ai', 'design', 'web'] as const;
 export type RegionId = typeof REGION_IDS[number];
 /**
  * Multi-archipelago v2: a navigation group inside a region (the AI region's three themes). Whole islands only, each in

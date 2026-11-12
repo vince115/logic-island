@@ -30,6 +30,19 @@ describe('lesson IDs (F.0)', () => {
     expect(islandOfLesson('AG01')?.id).toBe('ai-agents');
     expect(islandOfLesson('D01')?.id).toBe('structures');
     expect(islandOfLesson('A01')?.id).toBe('algorithms');
+    // Multi-archipelago v2: the new prefixes share first letters with old ones and still resolve by the whole prefix.
+    expect(parseLessonId('FE01')).toEqual({ prefix: 'FE', number: 1 });
+    expect(parseLessonId('DSY01')).toEqual({ prefix: 'DSY', number: 1 });
+    expect(islandOfLesson('FE01')?.id).toBe('frontend');
+    expect(islandOfLesson('F01')?.id).toBe('foundations');
+    expect(islandOfLesson('DSY12')?.id).toBe('design-systems');
+    expect(islandOfLesson('UI10')?.id).toBe('ui-design');
+    expect(islandOfLesson('UX01')?.id).toBe('ux-research');
+    expect(islandOfLesson('IXD14')?.id).toBe('interaction-design');
+    expect(islandOfLesson('WEB01')?.id).toBe('web-foundations');
+    expect(islandOfLesson('RWD12')?.id).toBe('responsive-design');
+    expect(islandOfLesson('MOB13')?.id).toBe('mobile-apps');
+    for (const id of ['FE1', 'F1E01', 'DSY', 'UIX01', 'WE01']) expect(parseLessonId(id), id).toBeUndefined();
   });
 
   it('rejects anything that is not exactly a prefix and two digits', () => {
@@ -57,10 +70,26 @@ describe('world registry (F.0)', () => {
    * changed the plan named in the commit.
    */
   it('pins the approved taxonomy: regions in order, their islands and planned lessons', () => {
+    // 2026-11-12 (D2, D3): design and web join with 4 islands each; 23 subject islands, 431 planned lessons.
     expect(taxonomy()).toEqual([
       { region: 'cs', islands: 8, lessons: 160 },
       { region: 'ai', islands: 7, lessons: 160 },
+      { region: 'design', islands: 4, lessons: 56 },
+      { region: 'web', islands: 4, lessons: 55 },
     ]);
+    expect(subjectIslands).toHaveLength(23);
+    expect(DECLARED).toBe(431);
+    expect(islandsInRegion('design').map(i => [i.code, i.lessonCount])).toEqual([['UI', 15], ['UX', 15], ['IXD', 14], ['DSY', 12]]);
+    expect(islandsInRegion('web').map(i => [i.code, i.lessonCount])).toEqual([['WEB', 15], ['FE', 15], ['RWD', 12], ['MOB', 13]]);
+  });
+
+  it('names the regions as approved and groups the seven AI islands without splitting one (multi-archipelago v2)', () => {
+    expect(orderedRegions.map(r => [r.id, r.name])).toEqual([
+      ['cs', '程式與資訊群島'], ['ai', 'AI 人工智慧群島'], ['design', '數位設計群島'], ['web', '網頁與應用開發群島']]);
+    const groups = orderedRegions.find(r => r.id === 'ai')!.groups!;
+    expect(groups.map(g => g.label)).toEqual(['AI 原理與模型', '生成式 AI 與大型語言模型', 'AI 應用與系統工程']);
+    expect(groups.flatMap(g => g.islandIds).sort()).toEqual(islandsInRegion('ai').map(i => i.id).sort());
+    expect(islandsInRegion('ai').map(i => i.code)).toEqual(['AIF', 'ML', 'DL', 'LLM', 'GEN', 'AG', 'OPS']);
   });
 
   it('keeps the CS and AI islands, their codes and lesson counts, and 1 shared lab island', () => {
@@ -75,10 +104,12 @@ describe('world registry (F.0)', () => {
     expect(labIslandConfig.labs).toEqual(['array', 'stack', 'queue', 'binary-search', 'bubble-sort', 'bfs']);
   });
 
-  it('marks the three existing islands and the database island (written to the end in F.1d) complete, and the other eleven planned', () => {
+  it('marks the three existing islands and the database island (written to the end in F.1d) complete, and the other nineteen planned', () => {
     expect(subjectIslands.filter(i => i.status === 'complete').map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'databases']);
     expect(subjectIslands.filter(i => i.status === 'available').map(i => i.id)).toEqual([]);
-    expect(subjectIslands.filter(i => i.status === 'planned')).toHaveLength(11);
+    expect(subjectIslands.filter(i => i.status === 'planned')).toHaveLength(19);
+    expect(regionStatus('design')).toBe('planned');
+    expect(regionStatus('web')).toBe('planned');
     for (const island of subjectIslands.filter(i => i.status === 'planned')) expect(island.entryPoints, island.id).toEqual([]);
     expect(getIsland('databases')?.entryPoints.map(e => e.target)).toEqual(['/curriculum#island-databases', '/curriculum/database-concepts']);
     expect(DB_OPEN).toBeGreaterThan(0);

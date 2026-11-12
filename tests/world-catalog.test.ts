@@ -21,7 +21,12 @@ describe('lesson catalog (F.0)', () => {
     expect(catalogCounts()).toEqual({ total: declared, complete: lessons.length, planned: declared - lessons.length });
     expect(lessonsOfIsland('databases').filter(l => l.lessonStatus === 'complete').map(l => l.lessonId)).toEqual(lessons.filter(l => l.islandId === 'databases').map(l => l.lessonId));
     expect(catalogLessons.slice(0, 3).map(l => l.lessonId)).toEqual(['F01', 'F02', 'F03']);
-    expect(catalogLessons.at(-1)?.lessonId).toBe('OPS20');
+    // Multi-archipelago v2: regions in order (cs, ai, design, web); the web region's last island ends the catalog.
+    expect(catalogLessons.at(-1)?.lessonId).toBe('MOB13');
+    expect(catalogLessons.findIndex(l => l.lessonId === 'OPS20')).toBeLessThan(catalogLessons.findIndex(l => l.lessonId === 'UI01'));
+    expect(lessonsOfIsland('interaction-design')).toHaveLength(14);
+    expect(getCatalogLesson('UI10')).toMatchObject({ islandId: 'ui-design', lessonStatus: 'planned', activity: 'color-contrast' });
+    expect(getCatalogLesson('UI10')?.href).toBeUndefined();
     expect(lessonsOfIsland('machine-learning')).toHaveLength(25);
     expect(getCatalogLesson('DB01')).toMatchObject({ islandId: 'databases', lessonStatus: 'complete', href: '/curriculum/database-concepts', activity: 'sql-playground' });
     // F.1d: the database island is written to the end; DB19 keeps its blueprint gap (cloud platforms) once written.

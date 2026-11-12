@@ -5,15 +5,25 @@ import planning from './planning-data.json';
 import type { IslandConfig, IslandLink, Region, RegionId } from './types';
 
 /*
- * Phase F.0: the two regions and sixteen islands (15 subject islands, 160 + 160 lessons, and the shared Interactive
- * Lab Island). Counts and codes follow docs/planning/ISLAND_TAXONOMY.md. Planned islands take their names and
+ * Phase F.0: the regions and islands of the plan, and the shared Interactive Lab Island. Multi-archipelago v2 (P1b):
+ * four regions, 23 subject islands; counts and codes follow docs/planning/ISLAND_TAXONOMY.md, and the totals are
+ * pinned only by the taxonomy contract in tests/world.test.ts. Planned islands take their names and
  * description from the planning data (scripts/planning-data.mjs); the existing three keep the curriculum's text, and
  * src/content/curriculum/registry.ts now reads them from here.
  */
 
 export const regions: Region[] = [
-  { id: 'cs', name: '資訊科學群島', nameEn: planning.regions.cs, order: 1 },
-  { id: 'ai', name: '人工智慧群島', nameEn: planning.regions.ai, order: 2 },
+  // Multi-archipelago v2: display names as approved on 2026-11-12; IDs, lesson IDs and routes unchanged.
+  { id: 'cs', name: '程式與資訊群島', nameEn: planning.regions.cs, order: 1 },
+  { id: 'ai', name: 'AI 人工智慧群島', nameEn: planning.regions.ai, order: 2, groups: [
+    // Whole islands by what their lessons teach (docs/planning/MULTI_ARCHIPELAGO_IA_V2.md §2.2). 「AI 架構」 is path J,
+    // not a group: its lessons sit on three islands.
+    { id: 'ai-core', label: 'AI 原理與模型', islandIds: ['ai-foundations', 'machine-learning', 'deep-learning'] },
+    { id: 'ai-genai', label: '生成式 AI 與大型語言模型', islandIds: ['large-language-models', 'generative-ai'] },
+    { id: 'ai-systems', label: 'AI 應用與系統工程', islandIds: ['ai-agents', 'ai-engineering'] },
+  ] },
+  { id: 'design', name: '數位設計群島', nameEn: planning.regions.design, order: 3 },
+  { id: 'web', name: '網頁與應用開發群島', nameEn: planning.regions.web, order: 4 },
 ];
 
 const curriculumAnchor = (id: string) => ({ id: 'curriculum', label: '完整課綱', target: `/curriculum#island-${id}` });
@@ -71,6 +81,15 @@ export const worldIslands: IslandConfig[] = [
   fromPlan('generative-ai', 'GEN', 5, 20, '#e8710a'),
   fromPlan('ai-agents', 'AG', 6, 25, '#3949ab'),
   fromPlan('ai-engineering', 'OPS', 7, 20, '#546e7a'),
+  // Multi-archipelago v2 (P1b): planned islands of the design and web regions; no lesson is written, so no entry point.
+  fromPlan('ui-design', 'UI', 1, 15, '#d81b60'),
+  fromPlan('ux-research', 'UX', 2, 15, '#8e24aa'),
+  fromPlan('interaction-design', 'IXD', 3, 14, '#00acc1'),
+  fromPlan('design-systems', 'DSY', 4, 12, '#6d4c41'),
+  fromPlan('web-foundations', 'WEB', 1, 15, '#e65100'),
+  fromPlan('frontend', 'FE', 2, 15, '#0277bd'),
+  fromPlan('responsive-design', 'RWD', 3, 12, '#558b2f'),
+  fromPlan('mobile-apps', 'MOB', 4, 13, '#ad1457'),
   {
     id: LAB_ISLAND_ID, kind: 'tool', code: 'LAB', name: '互動實驗島', nameEn: 'Interactive Lab Island',
     description: '跨學科共用的工具島：自己輸入資料，逐步播放陣列、堆疊、佇列、搜尋、排序與圖的走訪；不是學科、沒有課程編號。',

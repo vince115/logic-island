@@ -7,7 +7,9 @@
   },
   "regions": {
     "cs": "Computer Science Archipelago",
-    "ai": "Artificial Intelligence Archipelago"
+    "ai": "Artificial Intelligence Archipelago",
+    "design": "Digital Design Archipelago",
+    "web": "Web and App Development Archipelago"
   },
   "islands": {
     "programming-languages": {
@@ -93,6 +95,62 @@
       "name": "AI 工程與 MLOps 島",
       "nameEn": "AI Engineering & MLOps",
       "description": "教 AI 系統從原型到上線與維運：服務 API、模型閘道、容器、部署模式、GPU 推論、自動擴展、CI／CD、可觀測性、漂移監控、線上評估、成本、安全法遵、事故應變與 SLO；標記 mlops 的課（模型打包、模型註冊、資料與特徵管線、持續訓練）才需要 ML／DL 背景，其餘課程對只走 AI 應用路徑的學習者開放。Agent 設計在 AG 島，網路與架構基礎在 CN／SA 島。"
+    },
+    "ui-design": {
+      "code": "UI",
+      "regionId": "design",
+      "name": "UI 設計島",
+      "nameEn": "UI Design",
+      "description": "用視覺層級、間距、格線、字體與色彩做出清楚一致的介面，並以 WCAG 對比確認可讀性；涵蓋元件狀態、深色模式與資料密集介面。CSS 的實作交給網頁與應用開發群島。"
+    },
+    "ux-research": {
+      "code": "UX",
+      "regionId": "design",
+      "name": "UX 研究島",
+      "nameEn": "UX Research",
+      "description": "規劃並執行使用者研究：訪談、問卷、觀察與親和圖，整理成人物誌、旅程地圖、資訊架構與 User Flow，再以 wireframe 與可用性測試驗證。需求工程的方法引用系統分析與設計島。"
+    },
+    "interaction-design": {
+      "code": "IXD",
+      "regionId": "design",
+      "name": "互動設計島",
+      "nameEn": "Interaction Design",
+      "description": "設計有清楚回饋、能預防錯誤、對鍵盤與輔助科技友善的互動：可供性、表單、狀態、導覽、動效與無障礙原則，並以原型測試迭代。程式實作交給網頁與應用開發群島。"
+    },
+    "design-systems": {
+      "code": "DSY",
+      "regionId": "design",
+      "name": "設計系統島",
+      "nameEn": "Design Systems",
+      "description": "定義分層的 Design Tokens 與元件規格，撰寫文件、規劃版本與治理，讓設計與程式保持同步。元件的 React 實作交給前端開發島。"
+    },
+    "web-foundations": {
+      "code": "WEB",
+      "regionId": "web",
+      "name": "網頁基礎島",
+      "nameEn": "Web Foundations",
+      "description": "用語意 HTML、CSS 與原生 JavaScript 做出可存取、可互動、能向 API 取資料的網頁，並了解瀏覽器如何載入頁面。JavaScript 語法基礎沿用基礎程式島，HTTP 協定細節引用計算機網路島。"
+    },
+    "frontend": {
+      "code": "FE",
+      "regionId": "web",
+      "name": "前端開發島",
+      "nameEn": "Frontend Development",
+      "description": "用 TypeScript、React 與 Next.js App Router 建立有型別、可測試、可存取的元件與頁面，涵蓋狀態、資料取得、渲染策略與串流的 AI 介面。"
+    },
+    "responsive-design": {
+      "code": "RWD",
+      "regionId": "web",
+      "name": "響應式設計島",
+      "nameEn": "Responsive Design",
+      "description": "用 Flexbox、CSS Grid、Media Query、Container Query 與流體尺寸，做出從手機到桌機都可用的版面與媒體。"
+    },
+    "mobile-apps": {
+      "code": "MOB",
+      "regionId": "web",
+      "name": "行動應用島",
+      "nameEn": "Mobile Apps",
+      "description": "設計並實作符合行動情境的介面與觸控互動，做出可安裝、可離線的 PWA，並在模擬器與真機上驗證效能與無障礙。原生 App 開發不在範圍內。"
     }
   },
   "plannedLessons": [
@@ -8384,6 +8442,3020 @@
       "exerciseType": "design",
       "outcome": "學完後能交付一個可部署、可監控、可回復並附上線審查報告的 AI 系統。",
       "track": "engineering"
+    },
+    {
+      "lessonId": "UI01",
+      "islandId": "ui-design",
+      "slug": "what-is-ui-design",
+      "title": "介面設計是什麼：好介面的判準",
+      "titleEn": "What UI Design Is",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "說明介面設計要解決的問題與評估判準",
+        "比較兩個介面在清楚、一致與效率上的差異",
+        "用一致的詞彙描述介面問題"
+      ],
+      "concepts": [
+        "介面的目的",
+        "可用性與美感",
+        "一致性",
+        "設計判準"
+      ],
+      "prerequisites": [],
+      "recommended": [
+        "SA14"
+      ],
+      "activity": "case-study-board",
+      "exerciseType": "analysis",
+      "outcome": "學完後能用明確判準說出一個畫面哪裡好用、哪裡讓人困惑。"
+    },
+    {
+      "lessonId": "UI02",
+      "islandId": "ui-design",
+      "slug": "visual-hierarchy",
+      "title": "視覺層級：大小、對比、位置",
+      "titleEn": "Visual Hierarchy",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "用大小、粗細、對比與位置建立主次",
+        "預測使用者第一眼會看哪裡",
+        "調整層級讓主要行動最明顯"
+      ],
+      "concepts": [
+        "視覺權重",
+        "大小與粗細",
+        "對比",
+        "閱讀動線"
+      ],
+      "prerequisites": [
+        "UI01"
+      ],
+      "recommended": [],
+      "activity": "visual-hierarchy",
+      "exerciseType": "design",
+      "outcome": "學完後能重新排列一個畫面，讓最重要的資訊與按鈕先被看見。"
+    },
+    {
+      "lessonId": "UI03",
+      "islandId": "ui-design",
+      "slug": "gestalt-and-grouping",
+      "title": "格式塔原則與分組",
+      "titleEn": "Gestalt Principles and Grouping",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "辨認介面中的格式塔原則",
+        "用間距與容器表達資訊的分組",
+        "找出分組與實際意義不一致的地方"
+      ],
+      "concepts": [
+        "接近性",
+        "相似性",
+        "共同區域",
+        "連續性"
+      ],
+      "prerequisites": [
+        "UI02"
+      ],
+      "recommended": [],
+      "activity": "visual-hierarchy",
+      "exerciseType": "design",
+      "outcome": "學完後能只靠間距與對齊讓表單欄位自然分組。"
+    },
+    {
+      "lessonId": "UI04",
+      "islandId": "ui-design",
+      "slug": "spacing-and-rhythm",
+      "title": "間距與節奏：4／8 pt 系統",
+      "titleEn": "Spacing and Rhythm",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "為介面定義一組間距尺度",
+        "依關係遠近套用不同間距",
+        "檢查畫面中不一致的間距"
+      ],
+      "concepts": [
+        "間距尺度",
+        "4／8 pt 系統",
+        "內距與外距",
+        "垂直節奏"
+      ],
+      "prerequisites": [
+        "UI03"
+      ],
+      "recommended": [],
+      "activity": "case-study-board",
+      "exerciseType": "design",
+      "outcome": "學完後能把一個間距零亂的畫面整理成一致的節奏。"
+    },
+    {
+      "lessonId": "UI05",
+      "islandId": "ui-design",
+      "slug": "layout-grids-and-alignment",
+      "title": "版面格線與對齊",
+      "titleEn": "Layout Grids and Alignment",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "設計 4／8／12 欄的版面格線",
+        "讓元素對齊格線與彼此",
+        "在不同寬度下調整欄數"
+      ],
+      "concepts": [
+        "欄格線",
+        "欄距與邊界",
+        "對齊線",
+        "基線"
+      ],
+      "prerequisites": [
+        "UI04"
+      ],
+      "recommended": [],
+      "activity": "grid-playground",
+      "exerciseType": "design",
+      "outcome": "學完後能為一個頁面規劃格線，並說明每個元素對齊到哪條線。"
+    },
+    {
+      "lessonId": "UI06",
+      "islandId": "ui-design",
+      "slug": "typography-basics",
+      "title": "字體排印：字級、行高、行長",
+      "titleEn": "Typography Basics",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "建立有層級的字級尺度",
+        "依內文長度設定行高與行長",
+        "用字重與字級而非顏色區分層級"
+      ],
+      "concepts": [
+        "字級尺度",
+        "行高",
+        "行長",
+        "字重"
+      ],
+      "prerequisites": [
+        "UI02"
+      ],
+      "recommended": [],
+      "activity": "case-study-board",
+      "exerciseType": "design",
+      "outcome": "學完後能為一篇文章頁訂出易讀的字級、行高與行長。"
+    },
+    {
+      "lessonId": "UI07",
+      "islandId": "ui-design",
+      "slug": "cjk-and-multilingual-typography",
+      "title": "中文與多語排版",
+      "titleEn": "CJK and Multilingual Typography",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "選擇適合介面的中文字體與後備字體",
+        "處理中英混排的間距與基線",
+        "避免標點與數字在換行時被拆開"
+      ],
+      "concepts": [
+        "中文字體",
+        "標點擠壓",
+        "中英混排",
+        "換行規則"
+      ],
+      "prerequisites": [
+        "UI06"
+      ],
+      "recommended": [],
+      "activity": "case-study-board",
+      "exerciseType": "design",
+      "outcome": "學完後能讓繁體中文與英文混排的介面看起來整齊易讀。"
+    },
+    {
+      "lessonId": "UI08",
+      "islandId": "ui-design",
+      "slug": "color-fundamentals",
+      "title": "色彩基礎：色相、明度、彩度",
+      "titleEn": "Color Fundamentals",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "用 HSL 描述與調整顏色",
+        "用明度差而非色相區分前景與背景",
+        "說明色彩模型之間的差異"
+      ],
+      "concepts": [
+        "色相",
+        "明度",
+        "彩度",
+        "色彩模型"
+      ],
+      "prerequisites": [
+        "UI01"
+      ],
+      "recommended": [],
+      "activity": "color-contrast",
+      "exerciseType": "calculation",
+      "outcome": "學完後能用明度與彩度調出一組有主次的介面配色。"
+    },
+    {
+      "lessonId": "UI09",
+      "islandId": "ui-design",
+      "slug": "color-systems-and-semantic-colors",
+      "title": "色彩系統與語意色",
+      "titleEn": "Color Systems and Semantic Colors",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "為品牌建立主色、中性色與色階",
+        "定義成功、警告、錯誤等語意色",
+        "避免只用顏色傳達意義"
+      ],
+      "concepts": [
+        "主色與中性色",
+        "色階",
+        "語意色",
+        "狀態色"
+      ],
+      "prerequisites": [
+        "UI08"
+      ],
+      "recommended": [],
+      "activity": "color-contrast",
+      "exerciseType": "design",
+      "outcome": "學完後能交付一份有色階與語意命名的介面色彩規格。"
+    },
+    {
+      "lessonId": "UI10",
+      "islandId": "ui-design",
+      "slug": "contrast-and-readability",
+      "title": "對比與可讀性：WCAG 對比",
+      "titleEn": "Contrast and Readability",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "依 WCAG 公式計算兩個顏色的對比率",
+        "判斷一般文字與大型文字是否通過 AA／AAA",
+        "調整顏色讓文字通過對比門檻"
+      ],
+      "concepts": [
+        "相對亮度",
+        "對比率",
+        "WCAG AA／AAA",
+        "大型文字"
+      ],
+      "prerequisites": [
+        "UI08"
+      ],
+      "recommended": [],
+      "activity": "color-contrast",
+      "exerciseType": "calculation",
+      "outcome": "學完後能計算任兩色的對比率，並把不合格的配色修正到 WCAG AA。"
+    },
+    {
+      "lessonId": "UI11",
+      "islandId": "ui-design",
+      "slug": "icons-and-imagery",
+      "title": "圖示與圖像",
+      "titleEn": "Icons and Imagery",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "挑選語意清楚、風格一致的圖示",
+        "判斷何時需要圖示加文字標籤",
+        "為圖像寫出合適的替代文字"
+      ],
+      "concepts": [
+        "圖示語意",
+        "圖示尺寸與筆畫",
+        "圖文搭配",
+        "替代文字"
+      ],
+      "prerequisites": [
+        "UI03"
+      ],
+      "recommended": [],
+      "activity": "case-study-board",
+      "exerciseType": "analysis",
+      "outcome": "學完後能檢查一組圖示的一致性，並找出需要加上文字的圖示。"
+    },
+    {
+      "lessonId": "UI12",
+      "islandId": "ui-design",
+      "slug": "component-states",
+      "title": "元件狀態：懸停、焦點、停用、錯誤",
+      "titleEn": "Component States",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "為按鈕與輸入框設計完整的狀態",
+        "設計清楚可見的焦點樣式",
+        "區分停用、唯讀與錯誤的視覺表現"
+      ],
+      "concepts": [
+        "互動狀態",
+        "焦點樣式",
+        "停用與唯讀",
+        "錯誤狀態"
+      ],
+      "prerequisites": [
+        "UI09"
+      ],
+      "recommended": [],
+      "activity": "case-study-board",
+      "exerciseType": "design",
+      "outcome": "學完後能為一個輸入元件畫出所有狀態，且每種狀態都看得出差別。"
+    },
+    {
+      "lessonId": "UI13",
+      "islandId": "ui-design",
+      "slug": "dark-mode-and-theming",
+      "title": "深色模式與主題",
+      "titleEn": "Dark Mode and Theming",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "把淺色配色轉換為深色配色",
+        "在深色模式下維持對比與層級",
+        "規劃可切換的主題"
+      ],
+      "concepts": [
+        "深色模式",
+        "表面與高度",
+        "主題切換",
+        "對比維持"
+      ],
+      "prerequisites": [
+        "UI09",
+        "UI10"
+      ],
+      "recommended": [],
+      "activity": "color-contrast",
+      "exerciseType": "design",
+      "outcome": "學完後能為一個畫面做出通過對比檢查的深色版本。"
+    },
+    {
+      "lessonId": "UI14",
+      "islandId": "ui-design",
+      "slug": "data-dense-interfaces",
+      "title": "資料密集介面：表格與儀表板",
+      "titleEn": "Data-Dense Interfaces",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "設計易於掃讀與比較的表格",
+        "安排儀表板的指標層級",
+        "在高資訊密度下維持可讀性"
+      ],
+      "concepts": [
+        "表格設計",
+        "數字對齊",
+        "儀表板層級",
+        "資訊密度"
+      ],
+      "prerequisites": [
+        "UI05",
+        "UI12"
+      ],
+      "recommended": [],
+      "activity": "case-study-board",
+      "exerciseType": "design",
+      "outcome": "學完後能把一份雜亂的報表重新設計成可快速比較的表格與儀表板。"
+    },
+    {
+      "lessonId": "UI15",
+      "islandId": "ui-design",
+      "slug": "ui-design-capstone",
+      "title": "UI 設計島綜合專題：重新設計一個畫面",
+      "titleEn": "UI Design Capstone",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "評估一個既有畫面的問題",
+        "提出新的版面、字體、色彩與狀態設計",
+        "用設計說明解釋每個決定"
+      ],
+      "concepts": [
+        "設計評估",
+        "版面與層級",
+        "色彩與字體",
+        "設計說明"
+      ],
+      "prerequisites": [
+        "UI05",
+        "UI07",
+        "UI12"
+      ],
+      "recommended": [
+        "UI13",
+        "UI14"
+      ],
+      "activity": "challenge-stages",
+      "exerciseType": "design",
+      "outcome": "學完後能完成一個畫面的改版，並附上可檢查的設計說明。"
+    },
+    {
+      "lessonId": "UX01",
+      "islandId": "ux-research",
+      "slug": "ux-and-usability",
+      "title": "使用者體驗與可用性",
+      "titleEn": "User Experience and Usability",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "區分使用者體驗、可用性與介面設計",
+        "用可用性要素描述一次使用經驗",
+        "找出設計背後未被驗證的假設"
+      ],
+      "concepts": [
+        "使用者體驗",
+        "可用性五要素",
+        "使用情境",
+        "設計假設"
+      ],
+      "prerequisites": [],
+      "recommended": [
+        "SA14"
+      ],
+      "activity": "case-study-board",
+      "exerciseType": "analysis",
+      "outcome": "學完後能說出一個產品的體驗問題，並區分它是假設、研究發現還是個人意見。"
+    },
+    {
+      "lessonId": "UX02",
+      "islandId": "ux-research",
+      "slug": "user-centered-design-process",
+      "title": "以使用者為中心的設計流程",
+      "titleEn": "User-Centered Design Process",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "說明探索、定義、發展、交付各階段的目的",
+        "為一個專案安排研究與設計的時程",
+        "說明為何需要迭代"
+      ],
+      "concepts": [
+        "以使用者為中心的設計",
+        "雙鑽石流程",
+        "迭代",
+        "研究與設計的關係"
+      ],
+      "prerequisites": [
+        "UX01"
+      ],
+      "recommended": [
+        "SA01"
+      ],
+      "activity": "process-model",
+      "exerciseType": "analysis",
+      "outcome": "學完後能為一個小專案畫出從研究到交付的設計流程。"
+    },
+    {
+      "lessonId": "UX03",
+      "islandId": "ux-research",
+      "slug": "research-questions-and-ethics",
+      "title": "研究問題、研究計畫與研究倫理",
+      "titleEn": "Research Questions, Plans and Ethics",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "把模糊的需求改寫成可回答的研究問題",
+        "依問題選擇質性或量化方法",
+        "規劃知情同意與資料保護"
+      ],
+      "concepts": [
+        "研究問題",
+        "研究方法選擇",
+        "知情同意",
+        "個資保護"
+      ],
+      "prerequisites": [
+        "UX02"
+      ],
+      "recommended": [],
+      "activity": "requirements-board",
+      "exerciseType": "design",
+      "outcome": "學完後能寫出一份一頁的研究計畫，包含問題、方法、對象與同意流程。"
+    },
+    {
+      "lessonId": "UX04",
+      "islandId": "ux-research",
+      "slug": "user-interviews",
+      "title": "使用者訪談",
+      "titleEn": "User Interviews",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "撰寫不帶引導的訪談大綱",
+        "用追問挖出具體的行為與情境",
+        "記錄可分析的訪談筆記"
+      ],
+      "concepts": [
+        "訪談大綱",
+        "開放式問題",
+        "追問",
+        "避免引導"
+      ],
+      "prerequisites": [
+        "UX03"
+      ],
+      "recommended": [
+        "SA04"
+      ],
+      "activity": "case-study-board",
+      "exerciseType": "case-study",
+      "outcome": "學完後能設計並進行一場 30 分鐘的使用者訪談。"
+    },
+    {
+      "lessonId": "UX05",
+      "islandId": "ux-research",
+      "slug": "surveys-and-quantitative-research",
+      "title": "問卷與量化研究",
+      "titleEn": "Surveys and Quantitative Research",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "設計不帶偏誤的問卷題目",
+        "選擇合適的量表與題型",
+        "以描述統計解讀問卷結果並說明限制"
+      ],
+      "concepts": [
+        "問卷設計",
+        "量表",
+        "抽樣",
+        "描述統計"
+      ],
+      "prerequisites": [
+        "UX03"
+      ],
+      "recommended": [],
+      "activity": "data-explorer",
+      "exerciseType": "analysis",
+      "outcome": "學完後能設計一份短問卷，並正確解讀回收結果的意義與限制。"
+    },
+    {
+      "lessonId": "UX06",
+      "islandId": "ux-research",
+      "slug": "observation-and-contextual-inquiry",
+      "title": "觀察與情境研究",
+      "titleEn": "Observation and Contextual Inquiry",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "在使用者的實際環境中觀察工作流程",
+        "記錄說法與行為不一致之處",
+        "把觀察整理成可分析的紀錄"
+      ],
+      "concepts": [
+        "情境訪查",
+        "師徒模式",
+        "工作環境",
+        "行為與說法的落差"
+      ],
+      "prerequisites": [
+        "UX04"
+      ],
+      "recommended": [],
+      "activity": "case-study-board",
+      "exerciseType": "case-study",
+      "outcome": "學完後能從一次情境觀察中找出訪談問不到的問題。"
+    },
+    {
+      "lessonId": "UX07",
+      "islandId": "ux-research",
+      "slug": "synthesis-and-affinity-diagrams",
+      "title": "研究資料整理：親和圖",
+      "titleEn": "Synthesis and Affinity Diagrams",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "把訪談紀錄拆成獨立的觀察",
+        "以親和圖歸納主題",
+        "從主題寫出有證據的洞察"
+      ],
+      "concepts": [
+        "資料拆解",
+        "親和圖",
+        "主題歸納",
+        "洞察"
+      ],
+      "prerequisites": [
+        "UX04"
+      ],
+      "recommended": [],
+      "activity": "case-study-board",
+      "exerciseType": "analysis",
+      "outcome": "學完後能把多份訪談紀錄整理成有證據支持的研究洞察。"
+    },
+    {
+      "lessonId": "UX08",
+      "islandId": "ux-research",
+      "slug": "personas-and-jobs-to-be-done",
+      "title": "人物誌與待完成工作（JTBD）",
+      "titleEn": "Personas and Jobs to Be Done",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "依研究資料建立人物誌",
+        "用 JTBD 描述使用者要完成的工作",
+        "檢查人物誌是否有研究依據"
+      ],
+      "concepts": [
+        "人物誌",
+        "待完成工作",
+        "目標與痛點",
+        "避免刻板印象"
+      ],
+      "prerequisites": [
+        "UX07"
+      ],
+      "recommended": [],
+      "activity": "requirements-board",
+      "exerciseType": "design",
+      "outcome": "學完後能交付一份有研究依據、不靠刻板印象的人物誌與 JTBD 陳述。"
+    },
+    {
+      "lessonId": "UX09",
+      "islandId": "ux-research",
+      "slug": "customer-journey-maps",
+      "title": "使用者旅程地圖",
+      "titleEn": "Customer Journey Maps",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "畫出使用者完成一件事的旅程",
+        "標示每個接觸點的感受與痛點",
+        "從旅程中找出設計機會"
+      ],
+      "concepts": [
+        "旅程階段",
+        "接觸點",
+        "情緒曲線",
+        "機會點"
+      ],
+      "prerequisites": [
+        "UX08"
+      ],
+      "recommended": [],
+      "activity": "process-model",
+      "exerciseType": "diagram",
+      "outcome": "學完後能畫出一張旅程地圖，並指出最值得改善的兩個環節。"
+    },
+    {
+      "lessonId": "UX10",
+      "islandId": "ux-research",
+      "slug": "information-architecture",
+      "title": "資訊架構：分類、標籤、導覽",
+      "titleEn": "Information Architecture",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "為內容建立分類與層級",
+        "為導覽項目取清楚的標籤",
+        "畫出網站地圖並檢查層級深度"
+      ],
+      "concepts": [
+        "分類系統",
+        "標籤命名",
+        "導覽結構",
+        "網站地圖"
+      ],
+      "prerequisites": [
+        "UX08"
+      ],
+      "recommended": [],
+      "activity": "process-model",
+      "exerciseType": "diagram",
+      "outcome": "學完後能為一個內容網站規劃不超過三層的資訊架構。"
+    },
+    {
+      "lessonId": "UX11",
+      "islandId": "ux-research",
+      "slug": "card-sorting-and-tree-testing",
+      "title": "卡片分類與樹狀測試",
+      "titleEn": "Card Sorting and Tree Testing",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "設計並執行一次卡片分類",
+        "用樹狀測試驗證導覽結構",
+        "依成功率與路徑調整資訊架構"
+      ],
+      "concepts": [
+        "開放式卡片分類",
+        "封閉式卡片分類",
+        "樹狀測試",
+        "成功率"
+      ],
+      "prerequisites": [
+        "UX10"
+      ],
+      "recommended": [],
+      "activity": "data-explorer",
+      "exerciseType": "analysis",
+      "outcome": "學完後能用卡片分類與樹狀測試的結果修改導覽結構。"
+    },
+    {
+      "lessonId": "UX12",
+      "islandId": "ux-research",
+      "slug": "user-flows-and-task-flows",
+      "title": "User Flow 與任務流程",
+      "titleEn": "User Flows and Task Flows",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "畫出使用者完成任務的流程",
+        "標示決策點與例外路徑",
+        "找出流程中多餘或容易出錯的步驟"
+      ],
+      "concepts": [
+        "User Flow",
+        "任務流程",
+        "決策點",
+        "錯誤與例外路徑"
+      ],
+      "prerequisites": [
+        "UX10"
+      ],
+      "recommended": [
+        "SA06"
+      ],
+      "activity": "process-model",
+      "exerciseType": "diagram",
+      "outcome": "學完後能畫出一個註冊流程的完整 User Flow，包含錯誤與返回路徑。"
+    },
+    {
+      "lessonId": "UX13",
+      "islandId": "ux-research",
+      "slug": "wireframing",
+      "title": "Wireframe：從低擬真到中擬真",
+      "titleEn": "Wireframing",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "用低擬真線框快速探索版面",
+        "把流程轉換成中擬真線框",
+        "在線框上標註行為與內容"
+      ],
+      "concepts": [
+        "低擬真線框",
+        "中擬真線框",
+        "內容優先",
+        "標註"
+      ],
+      "prerequisites": [
+        "UX12"
+      ],
+      "recommended": [
+        "UI04"
+      ],
+      "activity": "case-study-board",
+      "exerciseType": "design",
+      "outcome": "學完後能把一個 User Flow 轉成可討論、可測試的線框圖。"
+    },
+    {
+      "lessonId": "UX14",
+      "islandId": "ux-research",
+      "slug": "usability-testing",
+      "title": "可用性測試與嚴重度評估",
+      "titleEn": "Usability Testing and Severity Rating",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "撰寫可用性測試任務與腳本",
+        "主持放聲思考測試並記錄問題",
+        "依嚴重度排序問題並提出修正"
+      ],
+      "concepts": [
+        "測試任務",
+        "放聲思考",
+        "嚴重度評估",
+        "測試報告"
+      ],
+      "prerequisites": [
+        "UX13"
+      ],
+      "recommended": [],
+      "activity": "case-study-board",
+      "exerciseType": "case-study",
+      "outcome": "學完後能完成一輪五人可用性測試，並交付依嚴重度排序的問題清單。"
+    },
+    {
+      "lessonId": "UX15",
+      "islandId": "ux-research",
+      "slug": "ux-research-capstone",
+      "title": "UX 研究島綜合專題：一個功能的研究報告",
+      "titleEn": "UX Research Capstone",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "為一個功能規劃並執行研究",
+        "整理成旅程、資訊架構與測試發現",
+        "提出有證據支持的設計建議"
+      ],
+      "concepts": [
+        "研究計畫",
+        "研究整理",
+        "設計建議",
+        "研究報告"
+      ],
+      "prerequisites": [
+        "UX09",
+        "UX11",
+        "UX14"
+      ],
+      "recommended": [],
+      "activity": "challenge-stages",
+      "exerciseType": "case-study",
+      "outcome": "學完後能交付一份從研究問題到設計建議的完整研究報告。"
+    },
+    {
+      "lessonId": "IXD01",
+      "islandId": "interaction-design",
+      "slug": "affordances-signifiers-and-feedback",
+      "title": "可供性、訊號與回饋",
+      "titleEn": "Affordances, Signifiers and Feedback",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "辨認介面中的可供性與訊號",
+        "為每個操作設計即時回饋",
+        "找出使用者不知道能操作的元素"
+      ],
+      "concepts": [
+        "可供性",
+        "訊號",
+        "回饋",
+        "對應"
+      ],
+      "prerequisites": [],
+      "recommended": [
+        "UX01"
+      ],
+      "activity": "case-study-board",
+      "exerciseType": "analysis",
+      "outcome": "學完後能指出一個介面中「看起來不能點」或「點了沒反應」的地方並修正。"
+    },
+    {
+      "lessonId": "IXD02",
+      "islandId": "interaction-design",
+      "slug": "mental-models-and-consistency",
+      "title": "心智模型與一致性",
+      "titleEn": "Mental Models and Consistency",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "說明使用者心智模型與系統模型的落差",
+        "遵循平台慣例設計互動",
+        "找出同一產品內不一致的互動"
+      ],
+      "concepts": [
+        "心智模型",
+        "慣例",
+        "內部一致性",
+        "外部一致性"
+      ],
+      "prerequisites": [
+        "IXD01"
+      ],
+      "recommended": [],
+      "activity": "case-study-board",
+      "exerciseType": "analysis",
+      "outcome": "學完後能找出一個產品中違反使用者預期的互動並提出修正。"
+    },
+    {
+      "lessonId": "IXD03",
+      "islandId": "interaction-design",
+      "slug": "prototyping-fidelity",
+      "title": "原型：低擬真與高擬真",
+      "titleEn": "Prototyping Fidelity",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "依要驗證的問題選擇原型擬真度",
+        "製作可點擊的流程原型",
+        "說明原型與正式產品的差別"
+      ],
+      "concepts": [
+        "紙上原型",
+        "可點擊原型",
+        "擬真度",
+        "原型目的"
+      ],
+      "prerequisites": [
+        "IXD01"
+      ],
+      "recommended": [
+        "UX13"
+      ],
+      "activity": "case-study-board",
+      "exerciseType": "design",
+      "outcome": "學完後能為一個流程做出剛好足以測試的原型。"
+    },
+    {
+      "lessonId": "IXD04",
+      "islandId": "interaction-design",
+      "slug": "error-prevention-and-messages",
+      "title": "錯誤預防與錯誤訊息",
+      "titleEn": "Error Prevention and Messages",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "用限制、預設值與確認預防錯誤",
+        "寫出說明原因與解法的錯誤訊息",
+        "設計可以復原的操作"
+      ],
+      "concepts": [
+        "錯誤預防",
+        "限制與預設值",
+        "錯誤訊息",
+        "復原"
+      ],
+      "prerequisites": [
+        "IXD02"
+      ],
+      "recommended": [
+        "UI12"
+      ],
+      "activity": "case-study-board",
+      "exerciseType": "design",
+      "outcome": "學完後能把一組讓人困惑的錯誤訊息改寫成可以照著做的指引。"
+    },
+    {
+      "lessonId": "IXD05",
+      "islandId": "interaction-design",
+      "slug": "form-design",
+      "title": "表單設計",
+      "titleEn": "Form Design",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "設計標籤清楚、順序合理的表單",
+        "決定驗證的時機與訊息位置",
+        "減少不必要的欄位"
+      ],
+      "concepts": [
+        "欄位標籤",
+        "欄位分組",
+        "即時驗證",
+        "必填與選填"
+      ],
+      "prerequisites": [
+        "IXD04"
+      ],
+      "recommended": [],
+      "activity": "case-study-board",
+      "exerciseType": "design",
+      "outcome": "學完後能重新設計一份報名表單，讓填寫時間與錯誤都減少。"
+    },
+    {
+      "lessonId": "IXD06",
+      "islandId": "interaction-design",
+      "slug": "loading-empty-and-progress-states",
+      "title": "載入、空狀態與進度",
+      "titleEn": "Loading, Empty and Progress States",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "為等待時間選擇合適的載入表現",
+        "設計能引導下一步的空狀態",
+        "為長時間任務設計進度與取消"
+      ],
+      "concepts": [
+        "載入狀態",
+        "骨架畫面",
+        "空狀態",
+        "進度指示"
+      ],
+      "prerequisites": [
+        "IXD01"
+      ],
+      "recommended": [],
+      "activity": "case-study-board",
+      "exerciseType": "design",
+      "outcome": "學完後能為一個清單頁設計載入、空與錯誤三種狀態。"
+    },
+    {
+      "lessonId": "IXD07",
+      "islandId": "interaction-design",
+      "slug": "navigation-patterns",
+      "title": "導覽模式",
+      "titleEn": "Navigation Patterns",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "比較頂部導覽、側欄、分頁與麵包屑的適用情境",
+        "讓使用者隨時知道自己在哪裡",
+        "依內容規模選擇導覽模式"
+      ],
+      "concepts": [
+        "全域導覽",
+        "區域導覽",
+        "麵包屑",
+        "導覽模式比較"
+      ],
+      "prerequisites": [
+        "IXD02"
+      ],
+      "recommended": [
+        "UX10"
+      ],
+      "activity": "mobile-nav-sim",
+      "exerciseType": "analysis",
+      "outcome": "學完後能為一個網站選擇導覽模式，並說明在手機與桌機上的差異。"
+    },
+    {
+      "lessonId": "IXD08",
+      "islandId": "interaction-design",
+      "slug": "accessibility-principles",
+      "title": "無障礙原則：POUR 與 WCAG",
+      "titleEn": "Accessibility Principles",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "用 POUR 原則檢查一個介面",
+        "說明 WCAG 等級與常見準則",
+        "找出只靠顏色、滑鼠或聲音才能使用的地方"
+      ],
+      "concepts": [
+        "可感知",
+        "可操作",
+        "可理解",
+        "穩健性"
+      ],
+      "prerequisites": [
+        "IXD01"
+      ],
+      "recommended": [
+        "UI10"
+      ],
+      "activity": "a11y-checker",
+      "exerciseType": "analysis",
+      "outcome": "學完後能用 POUR 原則找出一個畫面的主要無障礙問題。"
+    },
+    {
+      "lessonId": "IXD09",
+      "islandId": "interaction-design",
+      "slug": "keyboard-and-screen-reader-use",
+      "title": "鍵盤與螢幕閱讀器的使用情境",
+      "titleEn": "Keyboard and Screen Reader Use",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "只用鍵盤完成一個任務並記錄障礙",
+        "規劃合理的焦點順序",
+        "說明螢幕閱讀器如何讀出元件"
+      ],
+      "concepts": [
+        "焦點順序",
+        "跳至主要內容",
+        "螢幕閱讀器",
+        "朗讀名稱"
+      ],
+      "prerequisites": [
+        "IXD08"
+      ],
+      "recommended": [],
+      "activity": "a11y-checker",
+      "exerciseType": "analysis",
+      "outcome": "學完後能只用鍵盤與螢幕閱讀器測試一個流程，並列出必須修正的問題。"
+    },
+    {
+      "lessonId": "IXD10",
+      "islandId": "interaction-design",
+      "slug": "target-size-and-gestures",
+      "title": "目標尺寸、Fitts 定律與手勢設計",
+      "titleEn": "Target Size and Gesture Design",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "用 Fitts 定律評估目標大小與距離",
+        "依觸控準則設定目標尺寸",
+        "為手勢提供看得見的替代操作"
+      ],
+      "concepts": [
+        "Fitts 定律",
+        "觸控目標尺寸",
+        "手勢的可發現性",
+        "替代操作"
+      ],
+      "prerequisites": [
+        "IXD01"
+      ],
+      "recommended": [],
+      "activity": "case-study-board",
+      "exerciseType": "calculation",
+      "outcome": "學完後能找出太小或太近的觸控目標，並為隱藏手勢補上替代方式。"
+    },
+    {
+      "lessonId": "IXD11",
+      "islandId": "interaction-design",
+      "slug": "motion-and-reduced-motion",
+      "title": "動效：時間、緩動與減少動態",
+      "titleEn": "Motion and Reduced Motion",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "判斷動效是否幫助理解",
+        "為轉場設定時間與緩動",
+        "尊重使用者的減少動態設定"
+      ],
+      "concepts": [
+        "動效目的",
+        "時間與緩動",
+        "轉場",
+        "減少動態偏好"
+      ],
+      "prerequisites": [
+        "IXD06"
+      ],
+      "recommended": [],
+      "activity": "case-study-board",
+      "exerciseType": "design",
+      "outcome": "學完後能為一個介面設計有目的的動效，並提供減少動態時的替代。"
+    },
+    {
+      "lessonId": "IXD12",
+      "islandId": "interaction-design",
+      "slug": "prototype-testing-and-iteration",
+      "title": "原型測試與迭代",
+      "titleEn": "Prototype Testing and Iteration",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "用原型驗證特定設計假設",
+        "依測試結果迭代原型",
+        "記錄每次迭代的理由與結果"
+      ],
+      "concepts": [
+        "測試計畫",
+        "迭代紀錄",
+        "設計決策",
+        "驗證假設"
+      ],
+      "prerequisites": [
+        "IXD03"
+      ],
+      "recommended": [
+        "UX14"
+      ],
+      "activity": "case-study-board",
+      "exerciseType": "case-study",
+      "outcome": "學完後能完成兩輪原型測試與迭代，並說明每次修改的依據。"
+    },
+    {
+      "lessonId": "IXD13",
+      "islandId": "interaction-design",
+      "slug": "ux-writing-and-microcopy",
+      "title": "介面文案與微文案",
+      "titleEn": "UX Writing and Microcopy",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "為按鈕與提示寫出明確的行動文字",
+        "維持全產品一致的用語",
+        "依情境調整語氣"
+      ],
+      "concepts": [
+        "微文案",
+        "按鈕文字",
+        "語氣",
+        "一致用語"
+      ],
+      "prerequisites": [
+        "IXD04"
+      ],
+      "recommended": [],
+      "activity": "case-study-board",
+      "exerciseType": "design",
+      "outcome": "學完後能改寫一個流程的所有按鈕與提示，讓使用者不必猜下一步。"
+    },
+    {
+      "lessonId": "IXD14",
+      "islandId": "interaction-design",
+      "slug": "interaction-design-capstone",
+      "title": "互動設計島綜合專題：可存取的互動原型",
+      "titleEn": "Interaction Design Capstone",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "為一個任務設計完整的互動與狀態",
+        "以鍵盤與輔助科技檢查原型",
+        "依測試迭代並交付互動規格"
+      ],
+      "concepts": [
+        "互動規格",
+        "無障礙檢查",
+        "原型測試",
+        "設計說明"
+      ],
+      "prerequisites": [
+        "IXD05",
+        "IXD09",
+        "IXD12"
+      ],
+      "recommended": [],
+      "activity": "challenge-stages",
+      "exerciseType": "design",
+      "outcome": "學完後能交付一個經過測試、可用鍵盤操作的互動原型與規格。"
+    },
+    {
+      "lessonId": "DSY01",
+      "islandId": "design-systems",
+      "slug": "what-is-a-design-system",
+      "title": "什麼是設計系統",
+      "titleEn": "What a Design System Is",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "區分風格指南、元件庫與設計系統",
+        "說明設計系統帶來的效益與成本",
+        "評估一個團隊是否需要設計系統"
+      ],
+      "concepts": [
+        "設計系統",
+        "風格指南",
+        "元件庫",
+        "共享語言"
+      ],
+      "prerequisites": [],
+      "recommended": [
+        "UI01"
+      ],
+      "activity": "case-study-board",
+      "exerciseType": "analysis",
+      "outcome": "學完後能說明一個團隊導入設計系統的理由與代價。"
+    },
+    {
+      "lessonId": "DSY02",
+      "islandId": "design-systems",
+      "slug": "design-tokens",
+      "title": "Design Tokens：色彩、字體、間距",
+      "titleEn": "Design Tokens",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "把設計決策寫成具名的 token",
+        "為色彩、字體與間距建立 token",
+        "找出寫死數值而應改用 token 的地方"
+      ],
+      "concepts": [
+        "Design Token",
+        "色彩 token",
+        "字體 token",
+        "間距 token"
+      ],
+      "prerequisites": [
+        "DSY01"
+      ],
+      "recommended": [
+        "UI04",
+        "UI09"
+      ],
+      "activity": "design-token-board",
+      "exerciseType": "design",
+      "outcome": "學完後能把一份設計稿的色彩、字體與間距整理成 token 清單。"
+    },
+    {
+      "lessonId": "DSY03",
+      "islandId": "design-systems",
+      "slug": "token-tiers",
+      "title": "Token 分層：基礎、語意、元件",
+      "titleEn": "Token Tiers",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "區分基礎、語意與元件三層 token",
+        "用別名讓語意 token 指向基礎 token",
+        "判斷一個值應該放在哪一層"
+      ],
+      "concepts": [
+        "基礎 token",
+        "語意 token",
+        "元件 token",
+        "別名"
+      ],
+      "prerequisites": [
+        "DSY02"
+      ],
+      "recommended": [],
+      "activity": "design-token-board",
+      "exerciseType": "design",
+      "outcome": "學完後能把扁平的 token 清單重構成三層，讓換色只需改一處。"
+    },
+    {
+      "lessonId": "DSY04",
+      "islandId": "design-systems",
+      "slug": "theming-and-multi-brand",
+      "title": "主題與多品牌",
+      "titleEn": "Theming and Multi-Brand",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "用語意 token 支援淺色與深色主題",
+        "以覆寫支援多個品牌",
+        "檢查每個主題的對比是否合格"
+      ],
+      "concepts": [
+        "主題",
+        "模式切換",
+        "多品牌",
+        "token 覆寫"
+      ],
+      "prerequisites": [
+        "DSY03"
+      ],
+      "recommended": [
+        "UI13"
+      ],
+      "activity": "design-token-board",
+      "exerciseType": "design",
+      "outcome": "學完後能只換一組 token 就讓元件切換主題或品牌。"
+    },
+    {
+      "lessonId": "DSY05",
+      "islandId": "design-systems",
+      "slug": "component-anatomy",
+      "title": "元件解剖：結構、變體、狀態",
+      "titleEn": "Component Anatomy",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "拆解元件的組成部分",
+        "定義變體、尺寸與狀態的組合",
+        "避免變體數量失控"
+      ],
+      "concepts": [
+        "元件結構",
+        "變體",
+        "尺寸",
+        "狀態"
+      ],
+      "prerequisites": [
+        "DSY02"
+      ],
+      "recommended": [
+        "UI12"
+      ],
+      "activity": "case-study-board",
+      "exerciseType": "design",
+      "outcome": "學完後能為一個按鈕元件寫出完整的結構、變體與狀態規格。"
+    },
+    {
+      "lessonId": "DSY06",
+      "islandId": "design-systems",
+      "slug": "component-api-specs",
+      "title": "元件 API 規格：屬性與組合",
+      "titleEn": "Component API Specifications",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "為元件設計清楚的屬性與預設值",
+        "以組合取代大量布林設定",
+        "寫出設計與工程共用的元件規格"
+      ],
+      "concepts": [
+        "元件屬性",
+        "組合優於設定",
+        "插槽",
+        "預設值"
+      ],
+      "prerequisites": [
+        "DSY05"
+      ],
+      "recommended": [],
+      "activity": "case-study-board",
+      "exerciseType": "design",
+      "outcome": "學完後能為一個對話框元件寫出可供工程實作的 API 規格。"
+    },
+    {
+      "lessonId": "DSY07",
+      "islandId": "design-systems",
+      "slug": "accessibility-built-into-components",
+      "title": "把無障礙內建到元件",
+      "titleEn": "Accessibility Built into Components",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "為元件寫出鍵盤與朗讀行為規格",
+        "把對比與焦點要求寫進元件",
+        "用檢查清單驗收元件的無障礙"
+      ],
+      "concepts": [
+        "元件無障礙規格",
+        "焦點管理",
+        "角色與狀態",
+        "對比要求"
+      ],
+      "prerequisites": [
+        "DSY05"
+      ],
+      "recommended": [
+        "IXD08"
+      ],
+      "activity": "a11y-checker",
+      "exerciseType": "analysis",
+      "outcome": "學完後能為一個元件列出無障礙驗收清單，讓每個使用它的頁面自動符合。"
+    },
+    {
+      "lessonId": "DSY08",
+      "islandId": "design-systems",
+      "slug": "design-system-documentation",
+      "title": "設計系統文件",
+      "titleEn": "Design System Documentation",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "撰寫元件的用途、使用時機與禁忌",
+        "提供可複製的範例",
+        "組織容易查找的文件結構"
+      ],
+      "concepts": [
+        "使用指南",
+        "可以與不可以",
+        "範例",
+        "文件結構"
+      ],
+      "prerequisites": [
+        "DSY05"
+      ],
+      "recommended": [],
+      "activity": "case-study-board",
+      "exerciseType": "design",
+      "outcome": "學完後能為一個元件寫出讓新成員不需詢問就能正確使用的文件。"
+    },
+    {
+      "lessonId": "DSY09",
+      "islandId": "design-systems",
+      "slug": "versioning-and-deprecation",
+      "title": "版本、變更紀錄與廢棄",
+      "titleEn": "Versioning and Deprecation",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "用語意化版本標示變更的影響",
+        "撰寫使用者看得懂的變更紀錄",
+        "規劃元件的廢棄與遷移"
+      ],
+      "concepts": [
+        "語意化版本",
+        "變更紀錄",
+        "破壞性變更",
+        "廢棄流程"
+      ],
+      "prerequisites": [
+        "DSY08"
+      ],
+      "recommended": [],
+      "activity": "case-study-board",
+      "exerciseType": "analysis",
+      "outcome": "學完後能為一次破壞性變更訂出版本、公告與遷移計畫。"
+    },
+    {
+      "lessonId": "DSY10",
+      "islandId": "design-systems",
+      "slug": "design-to-code-token-pipeline",
+      "title": "設計到程式：Token 輸出管線",
+      "titleEn": "Design-to-Code Token Pipeline",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "說明 token 從設計工具到程式的流程",
+        "把同一組 token 輸出成 CSS 變數與其他格式",
+        "確保設計與程式只有一個來源"
+      ],
+      "concepts": [
+        "token 格式",
+        "轉換工具",
+        "多平台輸出",
+        "單一來源"
+      ],
+      "prerequisites": [
+        "DSY03"
+      ],
+      "recommended": [],
+      "activity": "pipeline-diagram",
+      "exerciseType": "config",
+      "outcome": "學完後能設計一條 token 管線，讓設計修改自動反映到程式。"
+    },
+    {
+      "lessonId": "DSY11",
+      "islandId": "design-systems",
+      "slug": "governance-and-contribution",
+      "title": "治理與貢獻流程",
+      "titleEn": "Governance and Contribution",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "比較集中式與聯邦式治理",
+        "設計新元件的提案與審查流程",
+        "用指標追蹤設計系統的採用"
+      ],
+      "concepts": [
+        "治理模式",
+        "貢獻流程",
+        "審查",
+        "採用率"
+      ],
+      "prerequisites": [
+        "DSY09"
+      ],
+      "recommended": [],
+      "activity": "process-model",
+      "exerciseType": "analysis",
+      "outcome": "學完後能為一個團隊訂出設計系統的貢獻與審查流程。"
+    },
+    {
+      "lessonId": "DSY12",
+      "islandId": "design-systems",
+      "slug": "design-systems-capstone",
+      "title": "設計系統島綜合專題：一個迷你設計系統",
+      "titleEn": "Design Systems Capstone",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "建立三層 token 與兩個主題",
+        "完成三個元件的規格與無障礙要求",
+        "撰寫文件與版本計畫"
+      ],
+      "concepts": [
+        "token 架構",
+        "元件規格",
+        "文件",
+        "版本計畫"
+      ],
+      "prerequisites": [
+        "DSY04",
+        "DSY07",
+        "DSY10"
+      ],
+      "recommended": [
+        "DSY11"
+      ],
+      "activity": "challenge-stages",
+      "exerciseType": "design",
+      "outcome": "學完後能交付一個有 token、元件規格、文件與版本計畫的迷你設計系統。"
+    },
+    {
+      "lessonId": "WEB01",
+      "islandId": "web-foundations",
+      "slug": "how-the-web-works",
+      "title": "網頁如何運作：瀏覽器、HTML、CSS、JS",
+      "titleEn": "How the Web Works",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "說明 HTML、CSS 與 JavaScript 各自負責什麼",
+        "描述瀏覽器從網址到畫面的主要步驟",
+        "用開發者工具檢查一個網頁"
+      ],
+      "concepts": [
+        "瀏覽器",
+        "HTML／CSS／JS 的分工",
+        "DOM",
+        "頁面載入流程"
+      ],
+      "prerequisites": [],
+      "recommended": [
+        "CN12"
+      ],
+      "activity": "pipeline-diagram",
+      "exerciseType": "analysis",
+      "outcome": "學完後能說明一個網頁從輸入網址到出現在螢幕上的主要步驟。"
+    },
+    {
+      "lessonId": "WEB02",
+      "islandId": "web-foundations",
+      "slug": "html-structure-and-semantics",
+      "title": "HTML 文件結構與語意元素",
+      "titleEn": "HTML Structure and Semantic Elements",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "寫出結構正確的 HTML 文件",
+        "用語意元素取代無意義的 div",
+        "建立合理的標題層級"
+      ],
+      "concepts": [
+        "文件結構",
+        "語意元素",
+        "標題層級",
+        "地標區域"
+      ],
+      "prerequisites": [
+        "WEB01"
+      ],
+      "recommended": [],
+      "activity": "dom-explorer",
+      "exerciseType": "code",
+      "outcome": "學完後能寫出一份結構與標題層級都正確的語意 HTML 頁面。"
+    },
+    {
+      "lessonId": "WEB03",
+      "islandId": "web-foundations",
+      "slug": "text-links-and-media",
+      "title": "文字、連結、圖片與媒體",
+      "titleEn": "Text, Links, Images and Media",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "正確使用連結與錨點",
+        "為圖片寫替代文字並設定尺寸",
+        "嵌入影音並提供字幕"
+      ],
+      "concepts": [
+        "連結",
+        "圖片與替代文字",
+        "影音元素",
+        "相對與絕對路徑"
+      ],
+      "prerequisites": [
+        "WEB02"
+      ],
+      "recommended": [],
+      "activity": "dom-explorer",
+      "exerciseType": "code",
+      "outcome": "學完後能做出圖文並茂、連結與替代文字都正確的頁面。"
+    },
+    {
+      "lessonId": "WEB04",
+      "islandId": "web-foundations",
+      "slug": "forms-and-native-validation",
+      "title": "表單元素與原生驗證",
+      "titleEn": "Forms and Native Validation",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "用 label 正確關聯輸入欄位",
+        "選擇適合的輸入類型",
+        "使用原生驗證屬性"
+      ],
+      "concepts": [
+        "表單元素",
+        "label 關聯",
+        "輸入類型",
+        "原生驗證"
+      ],
+      "prerequisites": [
+        "WEB02"
+      ],
+      "recommended": [
+        "IXD05"
+      ],
+      "activity": "dom-explorer",
+      "exerciseType": "code",
+      "outcome": "學完後能寫出不需 JavaScript 就有基本驗證、且可用鍵盤操作的表單。"
+    },
+    {
+      "lessonId": "WEB05",
+      "islandId": "web-foundations",
+      "slug": "css-selectors-cascade-and-specificity",
+      "title": "CSS 選擇器、串接與特異性",
+      "titleEn": "CSS Selectors, Cascade and Specificity",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "用選擇器選取元素",
+        "判斷多條規則衝突時哪條生效",
+        "避免特異性過高的寫法"
+      ],
+      "concepts": [
+        "選擇器",
+        "串接",
+        "特異性",
+        "繼承"
+      ],
+      "prerequisites": [
+        "WEB02"
+      ],
+      "recommended": [],
+      "activity": "dom-explorer",
+      "exerciseType": "code",
+      "outcome": "學完後能說明任一個元素的樣式是由哪條規則決定的。"
+    },
+    {
+      "lessonId": "WEB06",
+      "islandId": "web-foundations",
+      "slug": "box-model-and-normal-flow",
+      "title": "盒模型與一般排版流",
+      "titleEn": "Box Model and Normal Flow",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "計算元素的實際寬高",
+        "區分區塊與行內元素的排版",
+        "解釋外距合併"
+      ],
+      "concepts": [
+        "盒模型",
+        "box-sizing",
+        "區塊與行內",
+        "外距合併"
+      ],
+      "prerequisites": [
+        "WEB05"
+      ],
+      "recommended": [],
+      "activity": "dom-explorer",
+      "exerciseType": "calculation",
+      "outcome": "學完後能預測一個元素在頁面上佔多大空間。"
+    },
+    {
+      "lessonId": "WEB07",
+      "islandId": "web-foundations",
+      "slug": "positioning-and-stacking",
+      "title": "定位與堆疊順序",
+      "titleEn": "Positioning and Stacking",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "使用相對、絕對、固定與黏貼定位",
+        "找出定位元素的包含區塊",
+        "解釋 z-index 無效的原因"
+      ],
+      "concepts": [
+        "position",
+        "包含區塊",
+        "z-index",
+        "堆疊環境"
+      ],
+      "prerequisites": [
+        "WEB06"
+      ],
+      "recommended": [],
+      "activity": "dom-explorer",
+      "exerciseType": "code",
+      "outcome": "學完後能做出固定頁首與浮動提示，且知道它們為何疊在正確的層。"
+    },
+    {
+      "lessonId": "WEB08",
+      "islandId": "web-foundations",
+      "slug": "javascript-and-the-dom",
+      "title": "JavaScript 與 DOM：選取與修改",
+      "titleEn": "JavaScript and the DOM",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "用 querySelector 選取元素",
+        "修改元素的文字、屬性與類別",
+        "動態建立並插入元素"
+      ],
+      "concepts": [
+        "DOM 樹",
+        "選取元素",
+        "修改內容與屬性",
+        "建立元素"
+      ],
+      "prerequisites": [
+        "WEB02",
+        "F13"
+      ],
+      "recommended": [
+        "F02",
+        "F05",
+        "F07"
+      ],
+      "activity": "dom-explorer",
+      "exerciseType": "code",
+      "outcome": "學完後能用 JavaScript 依資料產生一份清單並插入頁面。"
+    },
+    {
+      "lessonId": "WEB09",
+      "islandId": "web-foundations",
+      "slug": "events-and-delegation",
+      "title": "事件與事件委派",
+      "titleEn": "Events and Delegation",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "為元素加上事件監聽",
+        "說明事件冒泡的順序",
+        "用事件委派處理動態元素"
+      ],
+      "concepts": [
+        "事件監聽",
+        "事件物件",
+        "冒泡",
+        "事件委派"
+      ],
+      "prerequisites": [
+        "WEB08"
+      ],
+      "recommended": [],
+      "activity": "dom-explorer",
+      "exerciseType": "code",
+      "outcome": "學完後能用一個監聽器處理清單中每個項目的點擊。"
+    },
+    {
+      "lessonId": "WEB10",
+      "islandId": "web-foundations",
+      "slug": "asynchronous-javascript",
+      "title": "非同步 JavaScript：Promise 與 async／await",
+      "titleEn": "Asynchronous JavaScript",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "說明事件迴圈如何排程工作",
+        "用 async／await 撰寫非同步流程",
+        "處理非同步錯誤"
+      ],
+      "concepts": [
+        "事件迴圈",
+        "Promise",
+        "async／await",
+        "錯誤處理"
+      ],
+      "prerequisites": [
+        "WEB09"
+      ],
+      "recommended": [],
+      "activity": "concurrency-timeline",
+      "exerciseType": "code",
+      "outcome": "學完後能寫出依序與並行執行的非同步流程，並正確處理錯誤。"
+    },
+    {
+      "lessonId": "WEB11",
+      "islandId": "web-foundations",
+      "slug": "fetch-json-and-apis",
+      "title": "fetch、JSON 與 API",
+      "titleEn": "fetch, JSON and APIs",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "用 fetch 呼叫 API 並解析 JSON",
+        "依狀態碼處理成功與失敗",
+        "在畫面上呈現載入與錯誤狀態"
+      ],
+      "concepts": [
+        "fetch",
+        "JSON",
+        "HTTP 狀態碼",
+        "載入與錯誤狀態"
+      ],
+      "prerequisites": [
+        "WEB10"
+      ],
+      "recommended": [
+        "CN12",
+        "CN14",
+        "DB16"
+      ],
+      "activity": "protocol-sequence",
+      "exerciseType": "code",
+      "outcome": "學完後能做出向 API 取資料、並處理載入與錯誤的頁面。"
+    },
+    {
+      "lessonId": "WEB12",
+      "islandId": "web-foundations",
+      "slug": "browser-storage",
+      "title": "瀏覽器儲存：localStorage 與 Cookie",
+      "titleEn": "Browser Storage",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "選擇適合的瀏覽器儲存方式",
+        "讀寫並版本化本機資料",
+        "說明哪些資料不應存在瀏覽器"
+      ],
+      "concepts": [
+        "localStorage",
+        "sessionStorage",
+        "Cookie",
+        "儲存的安全性"
+      ],
+      "prerequisites": [
+        "WEB10"
+      ],
+      "recommended": [
+        "CN18"
+      ],
+      "activity": "memory-inspector",
+      "exerciseType": "code",
+      "outcome": "學完後能把使用者偏好安全地存在瀏覽器，並處理資料格式改版。"
+    },
+    {
+      "lessonId": "WEB13",
+      "islandId": "web-foundations",
+      "slug": "semantic-html-and-aria",
+      "title": "語意 HTML 與 ARIA 的無障礙實作",
+      "titleEn": "Semantic HTML and ARIA",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "優先使用原生語意元素",
+        "在必要時正確加上 ARIA",
+        "管理動態內容的焦點與朗讀"
+      ],
+      "concepts": [
+        "無障礙名稱",
+        "ARIA 角色與狀態",
+        "焦點管理",
+        "第一條 ARIA 規則"
+      ],
+      "prerequisites": [
+        "WEB04",
+        "WEB09"
+      ],
+      "recommended": [
+        "IXD08"
+      ],
+      "activity": "a11y-checker",
+      "exerciseType": "code",
+      "outcome": "學完後能修正一個自製下拉選單，讓鍵盤與螢幕閱讀器都能使用。"
+    },
+    {
+      "lessonId": "WEB14",
+      "islandId": "web-foundations",
+      "slug": "web-performance-basics",
+      "title": "網頁效能基礎：載入與 Core Web Vitals",
+      "titleEn": "Web Performance Basics",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "用工具量測頁面的載入效能",
+        "解讀 LCP、INP、CLS",
+        "提出減少阻塞與版面位移的改善"
+      ],
+      "concepts": [
+        "關鍵渲染路徑",
+        "Core Web Vitals",
+        "資源載入",
+        "效能量測"
+      ],
+      "prerequisites": [
+        "WEB07",
+        "WEB11"
+      ],
+      "recommended": [
+        "CN15"
+      ],
+      "activity": "metric-explorer",
+      "exerciseType": "analysis",
+      "outcome": "學完後能量測一個頁面的 Core Web Vitals，並提出三項有效改善。"
+    },
+    {
+      "lessonId": "WEB15",
+      "islandId": "web-foundations",
+      "slug": "web-foundations-capstone",
+      "title": "網頁基礎島綜合專題：無框架的小型網站",
+      "titleEn": "Web Foundations Capstone",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "以語意 HTML 與 CSS 建立多頁網站",
+        "用 JavaScript 加入互動與 API 資料",
+        "通過無障礙與效能檢查"
+      ],
+      "concepts": [
+        "語意結構",
+        "互動與資料",
+        "無障礙",
+        "效能"
+      ],
+      "prerequisites": [
+        "WEB11",
+        "WEB13"
+      ],
+      "recommended": [
+        "WEB14"
+      ],
+      "activity": "challenge-stages",
+      "exerciseType": "code",
+      "outcome": "學完後能不用框架完成一個可存取、會取資料的小型網站。"
+    },
+    {
+      "lessonId": "FE01",
+      "islandId": "frontend",
+      "slug": "why-frameworks-and-components",
+      "title": "為什麼需要框架與元件",
+      "titleEn": "Why Frameworks and Components",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "比較命令式 DOM 操作與宣告式 UI",
+        "說明元件化的好處",
+        "評估何時需要框架"
+      ],
+      "concepts": [
+        "宣告式 UI",
+        "元件",
+        "狀態與畫面同步",
+        "框架取捨"
+      ],
+      "prerequisites": [
+        "WEB09"
+      ],
+      "recommended": [],
+      "activity": "case-study-board",
+      "exerciseType": "analysis",
+      "outcome": "學完後能說明為什麼一個互動頁面改用元件與框架會更好維護。"
+    },
+    {
+      "lessonId": "FE02",
+      "islandId": "frontend",
+      "slug": "typescript-basic-types",
+      "title": "TypeScript 基礎型別",
+      "titleEn": "TypeScript Basic Types",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "為變數與函式加上型別",
+        "讀懂常見的型別錯誤",
+        "在 strict 模式下撰寫程式"
+      ],
+      "concepts": [
+        "型別註記",
+        "型別推論",
+        "陣列與物件型別",
+        "strict 模式"
+      ],
+      "prerequisites": [
+        "WEB08"
+      ],
+      "recommended": [],
+      "activity": "type-checker",
+      "exerciseType": "code",
+      "outcome": "學完後能把一段 JavaScript 改寫成通過 strict 檢查的 TypeScript。"
+    },
+    {
+      "lessonId": "FE03",
+      "islandId": "frontend",
+      "slug": "typescript-interfaces-unions-generics",
+      "title": "TypeScript 介面、聯集與泛型",
+      "titleEn": "TypeScript Interfaces, Unions and Generics",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "用介面與型別描述資料",
+        "用判別聯集表示不同狀態",
+        "寫出可重用的泛型函式"
+      ],
+      "concepts": [
+        "interface 與 type",
+        "聯集與窄化",
+        "判別聯集",
+        "泛型"
+      ],
+      "prerequisites": [
+        "FE02"
+      ],
+      "recommended": [
+        "PL04"
+      ],
+      "activity": "type-checker",
+      "exerciseType": "code",
+      "outcome": "學完後能用判別聯集表示資料的載入、成功與失敗狀態。"
+    },
+    {
+      "lessonId": "FE04",
+      "islandId": "frontend",
+      "slug": "modules-and-build-tools",
+      "title": "模組與建置工具",
+      "titleEn": "Modules and Build Tools",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "使用 ES 模組組織程式",
+        "說明套件管理與鎖定檔的作用",
+        "描述打包與建置的主要步驟"
+      ],
+      "concepts": [
+        "ES 模組",
+        "套件管理",
+        "打包",
+        "建置流程"
+      ],
+      "prerequisites": [
+        "FE02"
+      ],
+      "recommended": [],
+      "activity": "pipeline-diagram",
+      "exerciseType": "config",
+      "outcome": "學完後能說明一個前端專案從原始碼到部署檔案經過哪些步驟。"
+    },
+    {
+      "lessonId": "FE05",
+      "islandId": "frontend",
+      "slug": "react-components-and-jsx",
+      "title": "React 元件與 JSX",
+      "titleEn": "React Components and JSX",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "用函式元件與 JSX 描述畫面",
+        "渲染清單並設定穩定的 key",
+        "依條件顯示不同內容"
+      ],
+      "concepts": [
+        "元件",
+        "JSX",
+        "清單與 key",
+        "條件渲染"
+      ],
+      "prerequisites": [
+        "FE01"
+      ],
+      "recommended": [],
+      "activity": "react-state-flow",
+      "exerciseType": "code",
+      "outcome": "學完後能把一個靜態頁面拆成可重用的 React 元件。"
+    },
+    {
+      "lessonId": "FE06",
+      "islandId": "frontend",
+      "slug": "props-and-state",
+      "title": "Props 與 State",
+      "titleEn": "Props and State",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "用 props 傳遞資料",
+        "用 state 保存會變動的資料",
+        "把共用狀態提升到共同父元件"
+      ],
+      "concepts": [
+        "props",
+        "state",
+        "單向資料流",
+        "狀態提升"
+      ],
+      "prerequisites": [
+        "FE05"
+      ],
+      "recommended": [
+        "DSY06"
+      ],
+      "activity": "react-state-flow",
+      "exerciseType": "code",
+      "outcome": "學完後能讓兩個元件共用同一份狀態且保持同步。"
+    },
+    {
+      "lessonId": "FE07",
+      "islandId": "frontend",
+      "slug": "events-forms-and-controlled-components",
+      "title": "事件、表單與受控元件",
+      "titleEn": "Events, Forms and Controlled Components",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "處理使用者事件並更新狀態",
+        "用受控元件管理表單",
+        "在送出前驗證並顯示錯誤"
+      ],
+      "concepts": [
+        "事件處理",
+        "受控元件",
+        "表單驗證",
+        "送出流程"
+      ],
+      "prerequisites": [
+        "FE06"
+      ],
+      "recommended": [
+        "IXD05"
+      ],
+      "activity": "react-state-flow",
+      "exerciseType": "code",
+      "outcome": "學完後能做出有即時驗證與錯誤訊息的 React 表單。"
+    },
+    {
+      "lessonId": "FE08",
+      "islandId": "frontend",
+      "slug": "effects-and-data-fetching",
+      "title": "Effect 與資料取得",
+      "titleEn": "Effects and Data Fetching",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "判斷何時需要 Effect",
+        "在元件中取得資料並處理競態",
+        "呈現載入、錯誤與空狀態"
+      ],
+      "concepts": [
+        "副作用",
+        "useEffect",
+        "競態與取消",
+        "載入狀態"
+      ],
+      "prerequisites": [
+        "FE07",
+        "WEB11"
+      ],
+      "recommended": [],
+      "activity": "react-state-flow",
+      "exerciseType": "code",
+      "outcome": "學完後能寫出切換頁面時不會顯示錯誤資料的資料取得元件。"
+    },
+    {
+      "lessonId": "FE09",
+      "islandId": "frontend",
+      "slug": "state-management-and-data-flow",
+      "title": "狀態管理與資料流",
+      "titleEn": "State Management and Data Flow",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "區分區域狀態、全域狀態與伺服器狀態",
+        "用 reducer 管理複雜狀態",
+        "避免不必要的全域狀態"
+      ],
+      "concepts": [
+        "區域與全域狀態",
+        "Context",
+        "reducer",
+        "伺服器狀態"
+      ],
+      "prerequisites": [
+        "FE08"
+      ],
+      "recommended": [],
+      "activity": "react-state-flow",
+      "exerciseType": "code",
+      "outcome": "學完後能為一個應用規劃狀態放在哪裡，並說明理由。"
+    },
+    {
+      "lessonId": "FE10",
+      "islandId": "frontend",
+      "slug": "nextjs-app-router-routing-and-layouts",
+      "title": "Next.js App Router：路由與版面",
+      "titleEn": "Next.js App Router: Routing and Layouts",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "用資料夾建立頁面與巢狀版面",
+        "建立動態路由並產生靜態參數",
+        "處理找不到頁面的情況"
+      ],
+      "concepts": [
+        "檔案式路由",
+        "版面",
+        "動態路由",
+        "靜態參數"
+      ],
+      "prerequisites": [
+        "FE06"
+      ],
+      "recommended": [],
+      "activity": "architecture-diagram",
+      "exerciseType": "code",
+      "outcome": "學完後能用 App Router 建立有共用版面與動態頁面的網站。"
+    },
+    {
+      "lessonId": "FE11",
+      "islandId": "frontend",
+      "slug": "server-and-client-components",
+      "title": "Server／Client Components 與渲染策略",
+      "titleEn": "Server and Client Components",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "區分 Server 與 Client Components 的職責",
+        "選擇靜態、動態或串流渲染",
+        "減少送到瀏覽器的 JavaScript"
+      ],
+      "concepts": [
+        "Server Components",
+        "Client Components",
+        "靜態與動態渲染",
+        "串流"
+      ],
+      "prerequisites": [
+        "FE10"
+      ],
+      "recommended": [
+        "WEB14"
+      ],
+      "activity": "architecture-diagram",
+      "exerciseType": "analysis",
+      "outcome": "學完後能為每個頁面選擇渲染策略，並說明對效能的影響。"
+    },
+    {
+      "lessonId": "FE12",
+      "islandId": "frontend",
+      "slug": "frontend-testing",
+      "title": "前端測試：單元與元件測試",
+      "titleEn": "Frontend Testing",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "為純函式寫單元測試",
+        "以使用者看到的角色與名稱測試元件",
+        "決定哪些情境值得測試"
+      ],
+      "concepts": [
+        "單元測試",
+        "元件測試",
+        "以使用者角度查詢",
+        "測試替身"
+      ],
+      "prerequisites": [
+        "FE07"
+      ],
+      "recommended": [
+        "SA16"
+      ],
+      "activity": "case-study-board",
+      "exerciseType": "code",
+      "outcome": "學完後能為一個表單元件寫出模擬使用者操作的測試。"
+    },
+    {
+      "lessonId": "FE13",
+      "islandId": "frontend",
+      "slug": "accessible-component-implementation",
+      "title": "可存取的元件實作",
+      "titleEn": "Accessible Component Implementation",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "依 ARIA 模式實作對話框與分頁",
+        "管理開啟與關閉時的焦點",
+        "用自動與手動方式測試無障礙"
+      ],
+      "concepts": [
+        "焦點管理",
+        "鍵盤操作",
+        "ARIA 模式",
+        "無障礙測試"
+      ],
+      "prerequisites": [
+        "FE07",
+        "WEB13"
+      ],
+      "recommended": [
+        "DSY07",
+        "IXD09"
+      ],
+      "activity": "a11y-checker",
+      "exerciseType": "code",
+      "outcome": "學完後能實作一個鍵盤與螢幕閱讀器都能使用的對話框元件。"
+    },
+    {
+      "lessonId": "FE14",
+      "islandId": "frontend",
+      "slug": "streaming-ui-and-ai-interfaces",
+      "title": "串流 UI 與 AI 介面",
+      "titleEn": "Streaming UI and AI Interfaces",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "逐步渲染串流回應",
+        "提供停止、重試與錯誤處理",
+        "讓使用者知道內容由 AI 產生且可能有誤"
+      ],
+      "concepts": [
+        "串流回應",
+        "逐步渲染",
+        "取消與重試",
+        "AI 介面的透明度"
+      ],
+      "prerequisites": [
+        "FE08"
+      ],
+      "recommended": [
+        "LLM09",
+        "AG03"
+      ],
+      "activity": "tool-call-trace",
+      "exerciseType": "code",
+      "outcome": "學完後能做出可中止、可重試、清楚標示 AI 內容的聊天介面。"
+    },
+    {
+      "lessonId": "FE15",
+      "islandId": "frontend",
+      "slug": "frontend-capstone",
+      "title": "前端開發島綜合專題：Next.js 應用",
+      "titleEn": "Frontend Capstone",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "用 Next.js 建立有多個頁面的應用",
+        "以型別與測試確保品質",
+        "通過無障礙與效能檢查"
+      ],
+      "concepts": [
+        "應用架構",
+        "型別與測試",
+        "無障礙",
+        "渲染策略"
+      ],
+      "prerequisites": [
+        "FE11",
+        "FE12",
+        "FE13"
+      ],
+      "recommended": [
+        "FE09"
+      ],
+      "activity": "challenge-stages",
+      "exerciseType": "code",
+      "outcome": "學完後能完成一個有型別、測試與無障礙品質的 Next.js 應用。"
+    },
+    {
+      "lessonId": "RWD01",
+      "islandId": "responsive-design",
+      "slug": "responsive-principles-mobile-first",
+      "title": "響應式原則與行動優先",
+      "titleEn": "Responsive Principles and Mobile First",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "說明響應式設計的目標",
+        "以行動優先撰寫樣式",
+        "依內容而非裝置決定版面變化"
+      ],
+      "concepts": [
+        "響應式設計",
+        "行動優先",
+        "內容優先",
+        "漸進增強"
+      ],
+      "prerequisites": [
+        "WEB06"
+      ],
+      "recommended": [],
+      "activity": "responsive-sim",
+      "exerciseType": "analysis",
+      "outcome": "學完後能說明一個頁面從手機到桌機應該如何變化。"
+    },
+    {
+      "lessonId": "RWD02",
+      "islandId": "responsive-design",
+      "slug": "viewport-and-relative-units",
+      "title": "viewport 與相對單位",
+      "titleEn": "Viewport and Relative Units",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "正確設定 viewport",
+        "選擇合適的相對單位",
+        "避免固定尺寸造成的橫向捲動"
+      ],
+      "concepts": [
+        "viewport 設定",
+        "rem 與 em",
+        "百分比",
+        "vw 與 dvh"
+      ],
+      "prerequisites": [
+        "RWD01"
+      ],
+      "recommended": [],
+      "activity": "responsive-sim",
+      "exerciseType": "calculation",
+      "outcome": "學完後能讓一個固定寬度的頁面在手機上不再橫向捲動。"
+    },
+    {
+      "lessonId": "RWD03",
+      "islandId": "responsive-design",
+      "slug": "flexbox-basics",
+      "title": "Flexbox 基礎：主軸與交錯軸",
+      "titleEn": "Flexbox Basics",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "建立 flex 容器並改變方向",
+        "沿主軸與交錯軸對齊項目",
+        "預測項目的排列結果"
+      ],
+      "concepts": [
+        "flex 容器",
+        "主軸與交錯軸",
+        "justify-content",
+        "align-items"
+      ],
+      "prerequisites": [
+        "WEB06"
+      ],
+      "recommended": [],
+      "activity": "flexbox-playground",
+      "exerciseType": "code",
+      "outcome": "學完後能用 Flexbox 做出水平導覽列與置中的內容。"
+    },
+    {
+      "lessonId": "RWD04",
+      "islandId": "responsive-design",
+      "slug": "flexbox-advanced",
+      "title": "Flexbox 進階：伸縮、換行與對齊",
+      "titleEn": "Flexbox: Grow, Wrap and Align",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "控制項目如何分配剩餘空間",
+        "讓項目在空間不足時換行",
+        "用 gap 取代外距"
+      ],
+      "concepts": [
+        "flex-grow 與 flex-shrink",
+        "flex-basis",
+        "flex-wrap",
+        "gap"
+      ],
+      "prerequisites": [
+        "RWD03"
+      ],
+      "recommended": [],
+      "activity": "flexbox-playground",
+      "exerciseType": "code",
+      "outcome": "學完後能做出會依寬度自動換行、平均分配的卡片列。"
+    },
+    {
+      "lessonId": "RWD05",
+      "islandId": "responsive-design",
+      "slug": "css-grid-basics",
+      "title": "CSS Grid 基礎",
+      "titleEn": "CSS Grid Basics",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "定義欄與列的軌道",
+        "使用 fr 單位分配空間",
+        "把項目放到指定格位"
+      ],
+      "concepts": [
+        "grid 容器",
+        "軌道",
+        "fr 單位",
+        "項目放置"
+      ],
+      "prerequisites": [
+        "WEB06"
+      ],
+      "recommended": [
+        "UI05"
+      ],
+      "activity": "grid-playground",
+      "exerciseType": "code",
+      "outcome": "學完後能用 CSS Grid 做出有頁首、側欄與內容區的版面。"
+    },
+    {
+      "lessonId": "RWD06",
+      "islandId": "responsive-design",
+      "slug": "css-grid-advanced",
+      "title": "CSS Grid 進階：區域與自動排列",
+      "titleEn": "CSS Grid: Areas and Auto Placement",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "用命名區域描述版面",
+        "用 auto-fit 與 minmax 做出自適應格線",
+        "控制自動排列的順序"
+      ],
+      "concepts": [
+        "grid-template-areas",
+        "auto-fill 與 auto-fit",
+        "minmax",
+        "自動排列"
+      ],
+      "prerequisites": [
+        "RWD05"
+      ],
+      "recommended": [],
+      "activity": "grid-playground",
+      "exerciseType": "code",
+      "outcome": "學完後能不寫 Media Query 就做出會自動調整欄數的圖片牆。"
+    },
+    {
+      "lessonId": "RWD07",
+      "islandId": "responsive-design",
+      "slug": "media-queries-and-breakpoints",
+      "title": "Media Query 與斷點策略",
+      "titleEn": "Media Queries and Breakpoints",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "依內容需要設定斷點",
+        "用 Media Query 調整版面",
+        "回應深色模式與減少動態偏好"
+      ],
+      "concepts": [
+        "Media Query",
+        "斷點",
+        "偏好查詢",
+        "內容導向斷點"
+      ],
+      "prerequisites": [
+        "RWD02"
+      ],
+      "recommended": [],
+      "activity": "responsive-sim",
+      "exerciseType": "code",
+      "outcome": "學完後能為一個頁面訂出最少而足夠的斷點。"
+    },
+    {
+      "lessonId": "RWD08",
+      "islandId": "responsive-design",
+      "slug": "container-queries",
+      "title": "Container Query",
+      "titleEn": "Container Queries",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "讓元件依所在容器而非視窗調整",
+        "設定容器類型與名稱",
+        "比較 Container Query 與 Media Query"
+      ],
+      "concepts": [
+        "容器查詢",
+        "容器類型",
+        "元件層級響應",
+        "容器單位"
+      ],
+      "prerequisites": [
+        "RWD07"
+      ],
+      "recommended": [
+        "DSY05"
+      ],
+      "activity": "responsive-sim",
+      "exerciseType": "code",
+      "outcome": "學完後能做出放在側欄或主內容都能自動調整的卡片元件。"
+    },
+    {
+      "lessonId": "RWD09",
+      "islandId": "responsive-design",
+      "slug": "fluid-type-and-clamp",
+      "title": "流體字級與 clamp()",
+      "titleEn": "Fluid Typography and clamp()",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "用 clamp() 設定隨寬度變化的字級",
+        "設定合理的最小與最大值",
+        "確認使用者放大文字時仍可閱讀"
+      ],
+      "concepts": [
+        "流體字級",
+        "clamp()",
+        "最小與最大值",
+        "可縮放性"
+      ],
+      "prerequisites": [
+        "RWD02"
+      ],
+      "recommended": [
+        "UI06"
+      ],
+      "activity": "responsive-sim",
+      "exerciseType": "calculation",
+      "outcome": "學完後能讓標題字級在手機與桌機之間平滑變化且不失控。"
+    },
+    {
+      "lessonId": "RWD10",
+      "islandId": "responsive-design",
+      "slug": "responsive-images-and-media",
+      "title": "響應式圖片與媒體",
+      "titleEn": "Responsive Images and Media",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "依螢幕提供不同解析度的圖片",
+        "用長寬比避免版面位移",
+        "延遲載入畫面外的媒體"
+      ],
+      "concepts": [
+        "srcset 與 sizes",
+        "picture 元素",
+        "長寬比",
+        "延遲載入"
+      ],
+      "prerequisites": [
+        "RWD07"
+      ],
+      "recommended": [
+        "WEB14"
+      ],
+      "activity": "responsive-sim",
+      "exerciseType": "code",
+      "outcome": "學完後能讓圖片在各種螢幕上清晰、不浪費流量也不造成位移。"
+    },
+    {
+      "lessonId": "RWD11",
+      "islandId": "responsive-design",
+      "slug": "responsive-navigation-and-tables",
+      "title": "響應式導覽與表格",
+      "titleEn": "Responsive Navigation and Tables",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "在小螢幕上收合導覽並保持可用",
+        "依資料特性選擇表格的響應方式",
+        "保留最重要的資訊"
+      ],
+      "concepts": [
+        "導覽收合",
+        "表格重排",
+        "水平捲動",
+        "優先順序"
+      ],
+      "prerequisites": [
+        "RWD04",
+        "RWD07"
+      ],
+      "recommended": [
+        "IXD07",
+        "UI14"
+      ],
+      "activity": "mobile-nav-sim",
+      "exerciseType": "design",
+      "outcome": "學完後能讓一個多欄表格與主導覽在手機上仍然好用。"
+    },
+    {
+      "lessonId": "RWD12",
+      "islandId": "responsive-design",
+      "slug": "responsive-design-capstone",
+      "title": "響應式設計島綜合專題：一頁跨裝置版面",
+      "titleEn": "Responsive Design Capstone",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "完成一個從手機到桌機都可用的頁面",
+        "組合 Flexbox、Grid 與 Container Query",
+        "在多種寬度下測試並修正"
+      ],
+      "concepts": [
+        "跨裝置版面",
+        "元件響應",
+        "圖片與字級",
+        "測試"
+      ],
+      "prerequisites": [
+        "RWD06",
+        "RWD08",
+        "RWD11"
+      ],
+      "recommended": [
+        "RWD09",
+        "RWD10"
+      ],
+      "activity": "challenge-stages",
+      "exerciseType": "code",
+      "outcome": "學完後能交付一個在手機、平板與桌機上都好用的頁面。"
+    },
+    {
+      "lessonId": "MOB01",
+      "islandId": "mobile-apps",
+      "slug": "mobile-context-and-constraints",
+      "title": "行動情境與限制",
+      "titleEn": "Mobile Context and Constraints",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "描述行動裝置的使用情境與限制",
+        "依單手操作安排重要操作",
+        "考慮不穩定的網路與有限電量"
+      ],
+      "concepts": [
+        "使用情境",
+        "單手操作",
+        "網路與電量",
+        "螢幕尺寸"
+      ],
+      "prerequisites": [
+        "RWD01"
+      ],
+      "recommended": [
+        "CN04"
+      ],
+      "activity": "case-study-board",
+      "exerciseType": "analysis",
+      "outcome": "學完後能指出一個網站在手機情境下最大的三個問題。"
+    },
+    {
+      "lessonId": "MOB02",
+      "islandId": "mobile-apps",
+      "slug": "mobile-ui-patterns",
+      "title": "行動 UI 模式：Tab bar、Drawer、Bottom sheet",
+      "titleEn": "Mobile UI Patterns",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "比較三種行動導覽模式的優缺點",
+        "依功能數量與使用頻率選擇模式",
+        "說明每種模式的可及範圍"
+      ],
+      "concepts": [
+        "Tab bar",
+        "Drawer",
+        "Bottom sheet",
+        "模式選擇"
+      ],
+      "prerequisites": [
+        "MOB01"
+      ],
+      "recommended": [
+        "IXD07"
+      ],
+      "activity": "mobile-nav-sim",
+      "exerciseType": "analysis",
+      "outcome": "學完後能為一個 App 選擇導覽模式並說明理由。"
+    },
+    {
+      "lessonId": "MOB03",
+      "islandId": "mobile-apps",
+      "slug": "touch-targets-and-gestures-implementation",
+      "title": "觸控目標與手勢的實作",
+      "titleEn": "Implementing Touch Targets and Gestures",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "讓觸控目標達到建議尺寸",
+        "擴大點擊區域而不改變外觀",
+        "避免手勢與系統手勢衝突"
+      ],
+      "concepts": [
+        "觸控目標尺寸",
+        "點擊區域",
+        "手勢衝突",
+        "替代操作"
+      ],
+      "prerequisites": [
+        "MOB02"
+      ],
+      "recommended": [
+        "IXD10"
+      ],
+      "activity": "mobile-nav-sim",
+      "exerciseType": "code",
+      "outcome": "學完後能修正一個觸控目標過小、手勢衝突的介面。"
+    },
+    {
+      "lessonId": "MOB04",
+      "islandId": "mobile-apps",
+      "slug": "pointer-and-touch-events",
+      "title": "Pointer Events 與觸控事件",
+      "titleEn": "Pointer and Touch Events",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "用 Pointer Events 同時支援觸控與滑鼠",
+        "實作可取消的拖曳",
+        "用被動監聽避免捲動卡頓"
+      ],
+      "concepts": [
+        "Pointer Events",
+        "觸控與滑鼠的差異",
+        "拖曳",
+        "被動監聽"
+      ],
+      "prerequisites": [
+        "MOB03",
+        "WEB09"
+      ],
+      "recommended": [],
+      "activity": "dom-explorer",
+      "exerciseType": "code",
+      "outcome": "學完後能做出觸控與滑鼠都能操作、捲動仍順暢的拖曳元件。"
+    },
+    {
+      "lessonId": "MOB05",
+      "islandId": "mobile-apps",
+      "slug": "mobile-forms-and-virtual-keyboards",
+      "title": "行動表單與虛擬鍵盤",
+      "titleEn": "Mobile Forms and Virtual Keyboards",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "用 inputmode 與 autocomplete 叫出合適的鍵盤",
+        "避免虛擬鍵盤遮住欄位",
+        "減少在手機上的輸入量"
+      ],
+      "concepts": [
+        "inputmode",
+        "自動完成",
+        "虛擬鍵盤遮擋",
+        "欄位捲動"
+      ],
+      "prerequisites": [
+        "MOB02",
+        "WEB04"
+      ],
+      "recommended": [
+        "IXD05"
+      ],
+      "activity": "case-study-board",
+      "exerciseType": "code",
+      "outcome": "學完後能讓一份結帳表單在手機上好填、不被鍵盤遮住。"
+    },
+    {
+      "lessonId": "MOB06",
+      "islandId": "mobile-apps",
+      "slug": "safe-areas-orientation-and-viewport-height",
+      "title": "安全區域、方向與動態視窗高度",
+      "titleEn": "Safe Areas, Orientation and Viewport Height",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "用安全區域避開瀏海與手勢列",
+        "處理橫直方向切換",
+        "用動態視窗單位避免內容被工具列遮住"
+      ],
+      "concepts": [
+        "安全區域",
+        "env()",
+        "方向變化",
+        "dvh 與 svh"
+      ],
+      "prerequisites": [
+        "RWD07"
+      ],
+      "recommended": [],
+      "activity": "responsive-sim",
+      "exerciseType": "code",
+      "outcome": "學完後能讓固定在底部的按鈕在各種手機上都不被遮住。"
+    },
+    {
+      "lessonId": "MOB07",
+      "islandId": "mobile-apps",
+      "slug": "native-cross-platform-or-pwa",
+      "title": "原生、跨平台與 PWA 的選擇",
+      "titleEn": "Native, Cross-Platform or PWA",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "比較原生、跨平台與 PWA 的能力與成本",
+        "依需求選擇技術路線",
+        "說明各平台對 PWA 的限制"
+      ],
+      "concepts": [
+        "原生 App",
+        "跨平台框架",
+        "PWA",
+        "取捨"
+      ],
+      "prerequisites": [
+        "MOB01"
+      ],
+      "recommended": [],
+      "activity": "decision-simulation",
+      "exerciseType": "analysis",
+      "outcome": "學完後能為一個產品需求選擇原生、跨平台或 PWA，並說明取捨。"
+    },
+    {
+      "lessonId": "MOB08",
+      "islandId": "mobile-apps",
+      "slug": "pwa-basics",
+      "title": "PWA 基礎：Manifest 與安裝",
+      "titleEn": "PWA Basics",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "撰寫 Web App Manifest",
+        "提供各尺寸圖示",
+        "確認網站符合安裝條件"
+      ],
+      "concepts": [
+        "Web App Manifest",
+        "圖示與啟動畫面",
+        "安裝條件",
+        "顯示模式"
+      ],
+      "prerequisites": [
+        "MOB07",
+        "WEB11"
+      ],
+      "recommended": [],
+      "activity": "case-study-board",
+      "exerciseType": "config",
+      "outcome": "學完後能讓一個網站可以被安裝到手機主畫面。"
+    },
+    {
+      "lessonId": "MOB09",
+      "islandId": "mobile-apps",
+      "slug": "service-workers-and-offline",
+      "title": "Service Worker 與離線",
+      "titleEn": "Service Workers and Offline",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "註冊 Service Worker 並說明生命週期",
+        "依資源選擇快取策略",
+        "處理新版本更新"
+      ],
+      "concepts": [
+        "Service Worker 生命週期",
+        "快取策略",
+        "離線頁面",
+        "更新流程"
+      ],
+      "prerequisites": [
+        "MOB08"
+      ],
+      "recommended": [
+        "CN15"
+      ],
+      "activity": "protocol-sequence",
+      "exerciseType": "code",
+      "outcome": "學完後能讓一個網站在離線時仍可開啟，且更新時不會卡在舊版。"
+    },
+    {
+      "lessonId": "MOB10",
+      "islandId": "mobile-apps",
+      "slug": "mobile-performance-and-power",
+      "title": "行動效能與省電",
+      "titleEn": "Mobile Performance and Power",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "在節流條件下量測效能",
+        "減少主執行緒的長任務",
+        "避免耗電的動畫與輪詢"
+      ],
+      "concepts": [
+        "低階裝置",
+        "主執行緒",
+        "動畫效能",
+        "省電"
+      ],
+      "prerequisites": [
+        "MOB06"
+      ],
+      "recommended": [
+        "WEB14"
+      ],
+      "activity": "metric-explorer",
+      "exerciseType": "analysis",
+      "outcome": "學完後能找出一個頁面在低階手機上卡頓的原因並改善。"
+    },
+    {
+      "lessonId": "MOB11",
+      "islandId": "mobile-apps",
+      "slug": "mobile-accessibility",
+      "title": "行動無障礙：螢幕閱讀器與縮放",
+      "titleEn": "Mobile Accessibility",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "用行動螢幕閱讀器測試頁面",
+        "支援放大與大字設定",
+        "為只靠手勢的操作提供替代"
+      ],
+      "concepts": [
+        "行動螢幕閱讀器",
+        "縮放與文字大小",
+        "方向鎖定",
+        "觸控替代"
+      ],
+      "prerequisites": [
+        "MOB02"
+      ],
+      "recommended": [
+        "IXD08",
+        "WEB13"
+      ],
+      "activity": "a11y-checker",
+      "exerciseType": "analysis",
+      "outcome": "學完後能用手機的螢幕閱讀器完成測試，並列出必須修正的問題。"
+    },
+    {
+      "lessonId": "MOB12",
+      "islandId": "mobile-apps",
+      "slug": "mobile-device-testing",
+      "title": "行動裝置測試：模擬器與真機",
+      "titleEn": "Mobile Device Testing",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "區分模擬器與真機能驗證的範圍",
+        "用遠端除錯檢查真機上的問題",
+        "規劃裝置測試矩陣"
+      ],
+      "concepts": [
+        "裝置模擬",
+        "真機測試",
+        "遠端除錯",
+        "測試矩陣"
+      ],
+      "prerequisites": [
+        "MOB06"
+      ],
+      "recommended": [
+        "FE12"
+      ],
+      "activity": "case-study-board",
+      "exerciseType": "analysis",
+      "outcome": "學完後能訂出一份裝置測試矩陣，並說明哪些問題只有真機才看得到。"
+    },
+    {
+      "lessonId": "MOB13",
+      "islandId": "mobile-apps",
+      "slug": "mobile-apps-capstone",
+      "title": "行動應用島綜合專題：一個可離線的 PWA",
+      "titleEn": "Mobile Apps Capstone",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "完成一個可安裝、可離線的 PWA",
+        "通過觸控、無障礙與效能檢查",
+        "在真機上驗證並記錄結果"
+      ],
+      "concepts": [
+        "行動導覽",
+        "觸控與表單",
+        "離線",
+        "無障礙與效能"
+      ],
+      "prerequisites": [
+        "MOB05",
+        "MOB09",
+        "MOB11"
+      ],
+      "recommended": [
+        "MOB10",
+        "MOB12"
+      ],
+      "activity": "challenge-stages",
+      "exerciseType": "code",
+      "outcome": "學完後能交付一個在真機上驗證過、可離線使用的 PWA。"
     }
   ],
   "paths": [
@@ -9322,6 +12394,101 @@
         "OPS18",
         "OPS19",
         "OPS20"
+      ]
+    },
+    {
+      "id": "J-ai-architecture",
+      "title": "AI 架構",
+      "titleEn": "AI Architecture",
+      "targets": [
+        "LLM20",
+        "LLM24",
+        "AG12",
+        "AG13",
+        "AG17",
+        "AG18",
+        "AG19",
+        "AG20",
+        "AG21",
+        "AG22",
+        "AG23",
+        "AG24",
+        "OPS03",
+        "OPS13",
+        "OPS14",
+        "OPS15",
+        "OPS16",
+        "OPS17",
+        "OPS18",
+        "OPS19"
+      ],
+      "lessons": [
+        "F01",
+        "F02",
+        "F03",
+        "F04",
+        "F05",
+        "F07",
+        "F08",
+        "F09",
+        "F13",
+        "F14",
+        "F17",
+        "CN01",
+        "CN05",
+        "CN09",
+        "CN12",
+        "CN13",
+        "CN14",
+        "CN18",
+        "SA01",
+        "SA04",
+        "SA05",
+        "SA16",
+        "AIF01",
+        "AIF03",
+        "LLM01",
+        "LLM02",
+        "LLM03",
+        "LLM09",
+        "LLM10",
+        "LLM12",
+        "LLM14",
+        "LLM15",
+        "LLM16",
+        "LLM17",
+        "LLM20",
+        "LLM24",
+        "AG01",
+        "AG02",
+        "AG03",
+        "AG05",
+        "AG06",
+        "AG08",
+        "AG12",
+        "AG13",
+        "AG17",
+        "AG18",
+        "AG19",
+        "AG20",
+        "AG21",
+        "AG22",
+        "AG23",
+        "AG24",
+        "OPS01",
+        "OPS02",
+        "OPS03",
+        "OPS04",
+        "OPS06",
+        "OPS08",
+        "OPS11",
+        "OPS13",
+        "OPS14",
+        "OPS15",
+        "OPS16",
+        "OPS17",
+        "OPS18",
+        "OPS19"
       ]
     }
   ]

@@ -7,7 +7,7 @@ import { regionalWorldEnabled } from '@/lib/world/flag';
 import { hubSummary, regionSummaries } from '@/lib/world/learning-islands';
 
 // M3.1 regional world prototype: unlinked and kept out of search indexes; built only with LOGIC_ISLAND_REGIONAL_WORLD=1.
-export const metadata: Metadata = { title: '世界總覽（Regional World 原型）', description: 'Logic Island 世界總覽原型：資訊科學群島、中央樞紐與人工智慧群島。', robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: '世界總覽（Regional World 原型）', description: 'Logic Island 世界總覽原型：程式與資訊群島、中央樞紐與 AI 人工智慧群島。', robots: { index: false, follow: false } };
 
 export default function WorldPage() {
   if (!regionalWorldEnabled()) notFound();

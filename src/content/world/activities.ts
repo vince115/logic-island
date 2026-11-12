@@ -103,6 +103,13 @@ const PLANNED: Record<string, [ActivityTier, ActivityInput[]]> = {
   'process-model': ['T1', ['diagram']], 'requirements-board': ['T1', ['diagram', 'text']], 'case-study-board': ['T1', ['text']],
   'ast-explorer': ['T1', ['preset', 'text']], 'type-checker': ['T1', ['preset', 'text']], 'compiler-pipeline': ['T1', ['preset', 'text']],
   'subnet-calculator': ['T1', ['custom-values']], 'routing-table': ['T1', ['preset', 'parameters']],
+  // Multi-archipelago v2 (P1b): design and web activities, all deterministic in the browser. The contrast lab computes
+  // WCAG ratios from the learner's colors; the layout playgrounds set style values on prepared boxes, never run the
+  // learner's CSS; the accessibility checker reads prepared snippets only.
+  'color-contrast': ['T1', ['custom-values']], 'visual-hierarchy': ['T1', ['parameters']], 'a11y-checker': ['T1', ['preset', 'parameters']],
+  'design-token-board': ['T1', ['parameters']], 'flexbox-playground': ['T1', ['parameters']], 'grid-playground': ['T1', ['parameters']],
+  'responsive-sim': ['T1', ['parameters']], 'mobile-nav-sim': ['T1', ['parameters']], 'dom-explorer': ['T1', ['preset']],
+  'react-state-flow': ['T1', ['preset', 'parameters']],
   'agent-workflow': ['T1', ['preset', 'parameters']], 'tool-call-trace': ['T1', ['preset', 'parameters']],
   'memory-inspector': ['T1', ['preset', 'parameters']], 'multi-agent-board': ['T1', ['preset', 'parameters']], 'guardrail-sim': ['T1', ['preset', 'parameters']],
 };

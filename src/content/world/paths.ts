@@ -36,6 +36,8 @@ const DESCRIPTIONS: Record<string, string> = {
   'D-enterprise-information-systems': '資料庫、系統分析與管理資訊系統：能分析企業流程、設計資訊系統，並評估 ERP／BI 等方案的商業價值與風險。',
   'E-ai-research': 'AI 基礎、機器學習、深度學習、LLM 模型軌與生成式 AI：能從原理推導並實作與訓練神經網路，理解 Transformer、LLM 與擴散模型。',
   'F-ai-application-engineering': 'LLM 應用軌、AI 代理與 AI 工程：能設計、實作、評估並上線以 LLM 與工具呼叫為核心的 AI 應用；不需要機器學習或深度學習。',
+  // Multi-archipelago v2 (P1b): the 「AI 架構」 theme is a path, not a navigation group, because its lessons sit on three islands.
+  'J-ai-architecture': '模型與供應商選擇、MCP、Agent 護欄與安全、評估、可觀測性與上線維運：能做出 AI 系統的架構決策，並說明安全、成本與評估的取捨；不需要機器學習或深度學習。',
 };
 
 function build(path: (typeof planning.paths)[number]): LearningPath {

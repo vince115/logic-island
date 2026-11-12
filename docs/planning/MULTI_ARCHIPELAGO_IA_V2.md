@@ -2,7 +2,7 @@
 
 > 初版 2026-11-12；同日依使用者決策（D1–D3）修訂。Asia/Taipei。
 > **只有規劃**：沒有修改 `src/`、測試、題庫、套件、3D 資產或部署設定，沒有 commit、push 或部署。
-> v2 的整體方向已由使用者**原則批准**；P1 實作**尚未批准**，等待下一次明確授權。
+> v2 的整體方向已由使用者**原則批准**。2026-11-12 使用者授權依序實作 P1a → P1b → P2，並進行 P3 盤點、P4 共用實驗架構與第一個實驗、P5 整合盤點；各階段實作紀錄見 §10。
 > 相關文件：[MULTI_ARCHIPELAGO_MASTER_PLAN](MULTI_ARCHIPELAGO_MASTER_PLAN.md)、[ISLAND_TAXONOMY](ISLAND_TAXONOMY.md)、[M3_CS_AI_MASTER_PLAN §10](M3_CS_AI_MASTER_PLAN.md#10-決策紀錄2026-11-03-使用者有條件批准)。
 
 ## 0. 決策紀錄
@@ -568,7 +568,25 @@ P2-A（§3.2，AI 可見性）可以在 P1 之前或之後獨立做；P2（側�
 
 ---
 
-## 9. 本文件的驗證方式
+## 9. P1b 實作時的修正紀錄（2026-11-12）
+
+依「輕微文字或分類問題可依規劃原則修正並記錄」處理；沒有大規模課綱重組。
+
+1. **跨島引用改為單向**。`validateCatalog` 對必要與建議先修**都**做循環檢查，§2.4–2.5 表格中有幾對互相引用的課（例如 UI10 ↔ IXD08、DSY07 ↔ FE13）會形成循環。規則改為：跨島引用只指向更前面的區域或島（`cs` → `ai` → `design` → `web`，區內依島號），原則先、實作後。因此從藍圖移除下列「指向後面」的建議連結（反方向的連結保留）：UI05→RWD05、UI09→DSY02、UI10→IXD08、UI12→IXD04／FE13、UI13→DSY04、UX14→IXD12、IXD05→WEB04、IXD07→MOB02、IXD08→WEB13、IXD09→FE13、IXD10→MOB03、DSY06→FE06、DSY07→FE13、DSY10→FE04。SA14 不新增連到 UI／UX 的建議（會與 UI01、UX01 形成循環，且不改 CS 既有資料）。
+2. **每堂課都有活動 id**。藍圖中沒有任何課使用 `none`，§2.4–2.5 標「—」的課改用既有活動（`case-study-board`、`process-model`、`requirements-board`、`data-explorer`、`pipeline-diagram`、`architecture-diagram`、`protocol-sequence`、`concurrency-timeline`、`memory-inspector`、`metric-explorer`、`decision-simulation`、`tool-call-trace`、`type-checker`、綜合專題用 `challenge-stages`），另新增兩個活動 id：`dom-explorer`（WEB02–WEB09、MOB04：DOM 樹、串接、盒模型與事件）、`react-state-flow`（FE05–FE09：元件、props、state 與資料流）。新活動共 10 個，全部 T1、planned。
+3. **Neural Network Visualization** 對應 DL 島既有的 `nn-forward`（與 `backprop-graph`、`training-curves`）。
+4. **路線 J**：targets 為 LLM20、LLM24、AG12、AG13、AG17–AG24、OPS03、OPS13–OPS19；加上必要先修後共 66 堂，沒有 ML／DL。路線 G、H、I 仍是候選，未寫入資料。
+5. **區域名稱**：`cs` 顯示為「程式與資訊群島」、`ai` 顯示為「AI 人工智慧群島」（使用者 2026-11-12 指定）；`/world` 原型頁與 E2E 文字同步更新。
+
+## 10. 實作紀錄
+
+| 階段 | 內容 | 驗證 |
+|---|---|---|
+| 基線 | worktree `logic-island-archipelago`、分支 `archipelago/v2`，從公開線 `origin/trials/mvp`（`4cbe587`）開始；cherry-pick 本機側欄 commit `0849c3f`（公開題庫沒有自由練習卷，移除 `paper.free` 兩處）。原本機分支含私人題庫歷史，pre-push hook 會拒絕，故不以它為基底 | tsc、ESLint、Vitest（公開模式 67 檔 1848 通過、9 skip）、build（100 個預先產生路由） |
+| P1a | 驗證改為結構規則；`Region.order`、`Region.groups`、`regionStatus`、`taxonomy()`；`REGION_LAYOUTS` 只含有 3D 地圖的區域；路由契約快照 | 同上；路由集合與基線相同 |
+| P1b | 4 區域、23 島、431 堂（80 complete、351 planned）；AI 三組；路線 J；10 個新活動 | 見 commit 說明 |
+
+## 11. 本文件的驗證方式
 
 - 每個現況結論都附檔案與行號，來自兩次唯讀盤點與本輪抽查（`validate.ts:9-120`、`activities.ts:85-157`、`catalog.ts:47-62`、`region-layouts.ts:70-80`、`src/app/world/[region]/page.tsx:17-20`、`scripts/planning-data.mjs:33-44`、`curriculum-blueprint.json` 的欄位、`tests/world*.test.ts` 的寫死數字）。
 - AI 分組依據是 `planning-data.json` 中 160 堂 AI 大綱的標題與難度。

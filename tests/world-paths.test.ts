@@ -14,11 +14,18 @@ const path = (id: string) => getLearningPath(id)!;
 const prefix = (id: string) => parseLessonId(id)?.prefix;
 
 describe('learning paths (F.0)', () => {
-  it('has six valid paths, in the planning order', () => {
+  it('has seven valid paths, in the planning order (J: AI 架構, multi-archipelago v2)', () => {
     expect(validatePaths(learningPaths)).toEqual([]);
-    expect(learningPaths.map(p => p.id[0])).toEqual(['A', 'B', 'C', 'D', 'E', 'F']);
-    expect(learningPaths.map(p => p.lessons.length)).toEqual([60, 86, 54, 84, 142, 89]);
+    expect(learningPaths.map(p => p.id[0])).toEqual(['A', 'B', 'C', 'D', 'E', 'F', 'J']);
+    expect(learningPaths.map(p => p.lessons.length)).toEqual([60, 86, 54, 84, 142, 89, 66]);
     for (const p of learningPaths) expect(p.description, p.id).not.toBe('');
+  });
+
+  it('builds path J (AI 架構) from MCP, guardrails, evaluation and operations, without Machine Learning or Deep Learning', () => {
+    const j = path('J-ai-architecture');
+    for (const id of ['AG12', 'AG13', 'AG17', 'AG18', 'AG24', 'OPS03', 'OPS17', 'LLM20', 'LLM24']) expect(j.targets).toContain(id);
+    expect(j.lessons.filter(id => /^(ML|DL)\d/.test(id))).toEqual([]);
+    expect(j.completion.learnable).toBe(false);
   });
 
   it('keeps path A to the 60 complete lessons, the only path a learner can take today', () => {
@@ -77,8 +84,9 @@ describe('learning paths (F.0)', () => {
   });
 
   it('answers which paths a lesson is on and how far a learner is, without storing progress', () => {
-    expect(pathsWithLesson('F01').map(p => p.id[0])).toEqual(['A', 'B', 'C', 'D', 'E', 'F']);
+    expect(pathsWithLesson('F01').map(p => p.id[0])).toEqual(['A', 'B', 'C', 'D', 'E', 'F', 'J']);
     expect(pathsWithLesson('AG25').map(p => p.id[0])).toEqual(['F']);
+    expect(pathsWithLesson('AG12').map(p => p.id[0])).toEqual(['F', 'J']);
     const done = new Set(['F01', 'F02']);
     expect(pathProgress(path('A-apcs-cs-foundations'), id => done.has(id))).toEqual({ completed: 2, total: 60, done: false });
   });

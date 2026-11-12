@@ -39,7 +39,7 @@ export function WorldOverview({ regions, hub, trials }: { regions: RegionSummary
   return <section className={styles.overview} aria-label="世界總覽">
     <div className={styles.stage}>
       {available ? <SceneBoundary onUnavailable={unavailable}>
-        <Scene targets={targets} insetRight={wide ? 360 : 0} shape={wide ? 'wide' : 'tall'} label="Logic Island 世界總覽：資訊科學群島、中央樞紐與人工智慧群島，亦可使用清單導航" onReady={ready} onUnavailable={unavailable}/>
+        <Scene targets={targets} insetRight={wide ? 360 : 0} shape={wide ? 'wide' : 'tall'} label="Logic Island 世界總覽：程式與資訊群島、中央樞紐與 AI 人工智慧群島，亦可使用清單導航" onReady={ready} onUnavailable={unavailable}/>
       </SceneBoundary> : <p className={styles.fallbackNotice} role="status">此裝置的 3D 場景無法使用，已切換至清單導航。所有區域與教材仍可開啟。</p>}
     </div>
     <nav className={styles.guide} aria-label="世界導覽">
