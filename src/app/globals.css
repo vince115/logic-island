@@ -35,3 +35,9 @@
 .tk-keyword{color:var(--hl-keyword)}.tk-type{color:var(--hl-type)}.tk-function{color:var(--hl-function)}.tk-variable{color:var(--hl-variable)}.tk-string{color:var(--hl-string)}.tk-number{color:var(--hl-number)}.tk-comment{color:var(--hl-comment);font-style:italic}.tk-operator{color:var(--hl-operator)}.tk-class{color:var(--hl-class)}.tk-constant{color:var(--hl-constant)}.tk-builtin{color:var(--hl-builtin)}
 /* Multi-archipelago v2 (P4): a planned lab on 互動實驗島 is listed but not a link. */
 .course-card[data-status=planned]{border-style:dashed;background:var(--bg)}.course-card[data-kind=tool] .course-number{color:var(--muted)}.course-card[data-status=planned]:hover{transform:none;border-color:var(--border)}
+
+/* R6e: the accessible foreground of a region or island accent. The brand accent (--island-accent) stays as it is for
+   borders, bars and tints; text drawn in it is mixed 55% with the theme's text colour, which keeps the hue and reaches
+   WCAG AA (≥ 4.5:1) on its 12% tint in both themes for every region (lowest: AI in dark, about 5.0). Declared on every
+   element so it follows the --island-accent set inline on a card, section or link. */
+*{--island-accent-fg:color-mix(in srgb,var(--island-accent,var(--accent)) 55%,var(--text))}

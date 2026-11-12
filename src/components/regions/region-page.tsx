@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Route } from 'lucide-react';
-import { getIsland } from '@/content/world';
+import { getIsland, regionCountZh } from '@/content/world';
 import { Breadcrumbs } from '@/components/nav/breadcrumbs';
 import { PlannedIsland, REGION_ACCENT, RegionExams } from '@/components/curriculum/region-overview';
 import { regionEntries, type RegionIslandSummary, type RegionOverview } from '@/lib/world/region-overview';
@@ -35,7 +35,7 @@ function IslandCard({ island }: { island: RegionIslandSummary }) {
 export function RegionPage({ overview: o }: { overview: RegionOverview }) {
   const planned = o.status === 'planned', others = regionEntries().filter(r => r.id !== o.id);
   return <main id="main" className={`container ${styles.page}`} style={{ '--island-accent': REGION_ACCENT[o.id] } as CSSProperties}>
-    <Breadcrumbs items={[{ label: '探索群島', href: '/' }, { label: '四大群島', href: '/curriculum' }, { label: o.name }]}/>
+    <Breadcrumbs items={[{ label: '探索群島', href: '/' }, { label: `${regionCountZh()}大群島`, href: '/curriculum' }, { label: o.name }]}/>
     <header className={styles.hero}>
       <span className="eyebrow">{o.nameEn} · 第 {o.order} 群島</span>
       <h1>{o.name}</h1>
@@ -63,7 +63,8 @@ export function RegionPage({ overview: o }: { overview: RegionOverview }) {
       <ul>{o.paths.map(p => <li key={p.id}>
         <strong>{p.title}<small>{p.titleEn}</small></strong>
         <p>{p.description}</p>
-        <span className={styles.pathMeta}>{p.lessonCount} 堂 · 已開放 {p.publishedLessons} 堂{p.learnable ? '' : ' · 規劃中'}</span>
+        {/* R7: the path's length is lessons to take, not lessons written; say how many are open and how many are not. */}
+        <span className={styles.pathMeta}>路線共 {p.lessonCount} 堂 · 已開放 {p.publishedLessons} 堂{p.learnable ? '' : ` · 其餘 ${p.lessonCount - p.publishedLessons} 堂規劃中`}</span>
       </li>)}</ul>
     </section>}
 

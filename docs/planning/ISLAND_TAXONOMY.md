@@ -5,16 +5,16 @@
 
 ## 1. 數量（唯一來源）
 
-> 2026-11-12 更新（多群島 v2，D2／D3 決策）：新增 Region C `design` 與 Region D `web`。程式不再寫死總數；這張表與 `tests/world.test.ts` 的 taxonomy contract 是唯一釘住數字的兩處，修改時要同時改並在 commit 說明批准來源。
+> 2026-11-12 更新（多群島 v2，D2／D3 決策）：新增 Region C `design` 與 Region D `web`。同日 P6（Five-Region Architecture Expansion）新增 Region E `sys`。程式不再寫死總數；這張表與 `tests/world.test.ts` 的 taxonomy contract 是唯一釘住數字的兩處，修改時要同時改並在 commit 說明批准來源。
 
 | 項目 | 數量 |
 |---|---:|
-| 區域（Region） | **4**（`cs`、`ai`、`design`、`web`；顯示順序由 `Region.order` 決定） |
-| 正式學科島 | **23**（`cs` 8、`ai` 7、`design` 4、`web` 4） |
+| 區域（Region） | **5**（`cs`、`ai`、`design`、`web`、`sys`；顯示順序由 `Region.order` 決定） |
+| 正式學科島 | **29**（`cs` 8、`ai` 7、`design` 4、`web` 4、`sys` 6） |
 | 共用工具島 | **1**（互動實驗島，不是學科、不計課數） |
-| 規劃總課數 | **431**（`cs` 160、`ai` 160、`design` 56、`web` 55） |
+| 規劃總課數 | **520**（`cs` 160、`ai` 160、`design` 56、`web` 55、`sys` 89） |
 | 已完成（Complete，教材已開放） | **80**（F、DS、AL、DB 四島各 20 堂） |
-| 規劃中（Planned，只有大綱） | **351** |
+| 規劃中（Planned，只有大綱） | **440** |
 
 其他規劃文件中的數字都以本表為準；資料由 `validateWorld`（結構）與 taxonomy contract（數量）檢查。
 
@@ -65,7 +65,20 @@
 | 03 | RWD | `responsive-design` | 響應式設計島 Responsive Design | 12 | RWD01–RWD12 | Planned |
 | 04 | MOB | `mobile-apps` | 行動應用島 Mobile Apps | 13 | MOB01–MOB13 | Planned |
 
-島嶼定位、每堂大綱與跨島邊界見 [MULTI_ARCHIPELAGO_IA_V2 §2.3–2.5](MULTI_ARCHIPELAGO_IA_V2.md)。跨島引用（必要與建議先修）只指向**更前面的區域或島**（`cs` → `ai` → `design` → `web`，區內依島號），因為課綱驗證器對兩種先修都做循環檢查。
+島嶼定位、每堂大綱與跨島邊界見 [MULTI_ARCHIPELAGO_IA_V2 §2.3–2.5](MULTI_ARCHIPELAGO_IA_V2.md)。跨島引用（必要與建議先修）只指向**更前面的區域或島**（`cs` → `ai` → `design` → `web` → `sys`，區內依島號），因為課綱驗證器對兩種先修都做循環檢查。
+
+## 3c. Region E — 系統與雲端工程群島 Systems & Cloud Engineering Archipelago（`sys`，89 堂）
+
+| # | 顯示代碼 | `islandId` | 島嶼 | 課數 | Lesson ID | 現況 |
+|---:|---|---|---|---:|---|---|
+| 01 | LNX | `linux-systems` | Linux 系統島 Linux Systems | 15 | LNX01–LNX15 | Planned |
+| 02 | DKR | `docker-containers` | Docker 容器島 Docker Containers | 15 | DKR01–DKR15 | Planned |
+| 03 | SRV | `network-servers` | 網路與伺服器島 Networks and Servers | 14 | SRV01–SRV14 | Planned |
+| 04 | CLD | `cloud-infrastructure` | 雲端基礎設施島 Cloud Infrastructure | 15 | CLD01–CLD15 | Planned |
+| 05 | CICD | `devops-cicd` | DevOps 與 CI/CD 島 DevOps and CI/CD | 15 | CICD01–CICD15 | Planned |
+| 06 | KUB | `kubernetes-reliability` | Kubernetes 與可靠性工程島 Kubernetes and Reliability Engineering | 15 | KUB01–KUB15 | Planned |
+
+每堂大綱、與 CN／OPS／MIS 的分界、學習路線 K／L／M 見 [P6_SYSTEMS_CLOUD_REGION](P6_SYSTEMS_CLOUD_REGION.md)。SYS 對其他區域的 36 個引用全部是建議先修。
 
 ## 4. 共用工具島：互動實驗島（Interactive Lab Island）
 

@@ -41,6 +41,10 @@ const DESCRIPTIONS: Record<string, string> = {
   'H-product-design': '介面設計、使用者研究、互動設計與設計系統：能從研究、資訊架構、原型到可用性測試，交付一個小型設計系統；不需要寫程式。',
   // Multi-archipelago v2 (P1b): the 「AI 架構」 theme is a path, not a navigation group, because its lessons sit on three islands.
   'J-ai-architecture': '模型與供應商選擇、MCP、Agent 護欄與安全、評估、可觀測性與上線維運：能做出 AI 系統的架構決策，並說明安全、成本與評估的取捨；不需要機器學習或深度學習。',
+  // P6: three paths into the systems and cloud engineering region (docs/planning/P6_SYSTEMS_CLOUD_REGION.md §5).
+  'K-fullstack-deployment': 'Next.js 前端與資料庫串接，到 Docker、Linux 主機、TLS 與反向代理、部署管線與雲端虛擬機：能把自己寫的網頁應用部署上線。後端框架目前沒有對應的島，以資料庫串接（DB16）代替。',
+  'L-ai-infrastructure': 'LLM API 與 AI 服務、GPU 推論，到容器、雲端主機、部署管線與 Kubernetes 可觀測性：能把 AI 服務部署到可擴展、可監控的基礎設施上。CUDA 與 GPU 叢集管理列為未來進階方向。',
+  'M-cloud-devops-foundations': 'IP、TCP 與 HTTP 的協定基礎，到 Linux、網路診斷、容器、VPC 與 Terraform、CI/CD 與 Kubernetes 滾動更新：雲端與 DevOps 工程的入門路線。作業系統原理目前沒有對應的島，列為課程缺口。',
 };
 
 function build(path: (typeof planning.paths)[number]): LearningPath {
