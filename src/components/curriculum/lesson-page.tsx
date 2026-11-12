@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, Check, ChevronRight, FlaskConical } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, FlaskConical } from 'lucide-react';
+import { Breadcrumbs } from '@/components/nav/breadcrumbs';
 import { getCourse } from '@/content/courses';
 import { getContent, islands, lessons, visualizations } from '@/content/curriculum';
 import { APCS_LABELS, DIFFICULTY_LABELS } from '@/content/curriculum/registry';
@@ -25,9 +26,8 @@ export function LessonPage({ lesson }: { lesson: LessonMeta }) {
   // Phase F.1b: previous and next stay inside the island; a planned next lesson is named without a link.
   const nav = lessonNavigation(lesson.lessonId), { previous, next, plannedNext } = nav;
   return <main id="main" className={`container ${styles.lesson}`}>
-    <nav className="breadcrumbs" aria-label="麵包屑">
-      <Link href="/curriculum">完整課綱</Link><ChevronRight size={14} aria-hidden/><span>{island.name}</span><ChevronRight size={14} aria-hidden/><span aria-current="page">{lesson.title}</span>
-    </nav>
+    {/* 2026-11-12: 探索群島 / island (its part of the curriculum) / level / this lesson. */}
+    <Breadcrumbs items={[{ label: '探索群島', href: '/' }, { label: island.name, href: `/curriculum#island-${island.id}` }, { label: DIFFICULTY_LABELS[lesson.difficulty] }, { label: `${lesson.lessonId} ${lesson.title}` }]}/>
     <header className={styles.lessonHeader}>
       <span className="eyebrow">{island.name} · {lesson.lessonId}</span>
       <h1>{lesson.title}</h1>

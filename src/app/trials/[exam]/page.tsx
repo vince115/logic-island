@@ -5,6 +5,8 @@ import { examStatus, getEdition, getExam, originOfPaper, papersOfExam, sourceByI
 import { paperQuestionCount, paperTotalPoints } from '@/content/trials/schema';
 import { PaperHistory } from '@/components/trials/paper-history';
 import { trialsEnabled } from '@/lib/trials/flag';
+import { Breadcrumbs } from '@/components/nav/breadcrumbs';
+import { examFamilyLabel, examLabel } from '@/lib/nav/exam-nav';
 import styles from '@/components/trials/trials.module.css';
 
 /*
@@ -24,7 +26,7 @@ export default async function ExamPage({ params }: { params: Promise<{ exam: str
   if (!trialsEnabled() || !exam || examStatus(exam.id) !== 'available') notFound();
   const official = sourceById.get(exam.official.sourceId)!;
   return <main id="main" className={`container ${styles.page}`}>
-    <nav className="breadcrumbs" aria-label="麵包屑"><Link href="/trials">試煉大廳</Link><span aria-hidden>/</span><span>{exam.name}</span></nav>
+    <Breadcrumbs items={[{ label: '模擬考試', href: '/trials' }, { label: examFamilyLabel(exam.id)! }, { label: examLabel(exam.id) }]}/>
     <h1>{exam.name}</h1>
     <p className={styles.lead}>主辦：{exam.issuer}。官方資訊：<a href={exam.official.url} target="_blank" rel="noopener noreferrer">{official.title}</a>（{official.retrievedAt} 查閱）</p>
     <p className={styles.notice}>{exam.disclaimer}</p>

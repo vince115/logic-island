@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { examOfSubject, trialBank } from '@/content/trials';
 import { ExamRunner } from '@/components/trials/exam-runner';
 import { trialsEnabled } from '@/lib/trials/flag';
+import { Breadcrumbs } from '@/components/nav/breadcrumbs';
+import { examFamilyLabel, examLabel } from '@/lib/nav/exam-nav';
 import { paperView } from '@/lib/trials/views';
 import styles from '@/components/trials/trials.module.css';
 
@@ -22,7 +23,7 @@ export default async function PaperPage({ params }: { params: Promise<{ exam: st
   const view = paperView(paper);
   if (!trialsEnabled() || !view || view.examId !== exam) notFound();
   return <main id="main" className={`container ${styles.page}`}>
-    <nav className="breadcrumbs" aria-label="麵包屑"><Link href="/trials">試煉大廳</Link><span aria-hidden>/</span><Link href={`/trials/${exam}`}>{view.examName}</Link><span aria-hidden>/</span><span>{view.title}</span></nav>
+    <Breadcrumbs items={[{ label: '模擬考試', href: '/trials' }, { label: examFamilyLabel(exam)! }, { label: examLabel(exam), href: `/trials/${exam}` }, { label: view.title }]}/>
     <h1>{view.title}</h1>
     <p className={styles.lead}>{view.examName} · {view.subjectName}。{view.description}</p>
     {view.note && <p className={styles.muted}>{view.note}</p>}

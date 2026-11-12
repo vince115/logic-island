@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback, useSyncExternalStore } from 'react';
 import { LAB_ISLAND_ID, islandsHomeWorld, islandsWorld } from '@/lib/islands/islands-world';
 import type { LearningIsland } from '@/lib/islands/types';
 import { HexWorldExplorer, type ExplorerCopy } from './hex-world-explorer';
@@ -29,10 +30,32 @@ export const HEADER_TOOLS_ID = 'header-tools';
  * on single-column screens the map caption sits above the map, so turning or zooming never brings an island under it.
  * D.3-7a: there the hint and the map buttons also leave the map, for a row below it.
  */
-export function IslandsWorldExplorer({islands,layout}:{islands:LearningIsland[];layout?:'card'|'fullscreen'}) {
+/*
+ * 2026-11-12: the home map can open on one island, `/?island=<id>` (the sidebar's 返回 3D 島嶼). Choosing another island
+ * replaces the address without a navigation, so the scene is never rebuilt and Back from a lesson returns to the island
+ * that was open. Without the parameter the map opens on the whole archipelago, as before; an unknown id is ignored.
+ */
+const ISLAND_CHANGE='logic-island:island-param';
+const subscribeIsland=(onChange:()=>void)=>{addEventListener('popstate',onChange);addEventListener(ISLAND_CHANGE,onChange);return ()=>{removeEventListener('popstate',onChange);removeEventListener(ISLAND_CHANGE,onChange);};};
+const islandParam=()=>new URLSearchParams(location.search).get('island');
+function useIslandInAddress(ids:string[]){
+  const requested=useSyncExternalStore(subscribeIsland,islandParam,()=>null);
+  const selectedId=requested&&ids.includes(requested)?requested:null;
+  const change=useCallback((id:string|null)=>{
+    const url=new URL(location.href);
+    if(id) url.searchParams.set('island',id); else url.searchParams.delete('island');
+    history.replaceState(history.state,'',`${url.pathname}${url.search}${url.hash}`);
+    dispatchEvent(new Event(ISLAND_CHANGE));
+  },[]);
+  return {selectedId,change};
+}
+
+export function IslandsWorldExplorer({islands,layout,islandInAddress=false}:{islands:LearningIsland[];layout?:'card'|'fullscreen';islandInAddress?:boolean}) {
   const lessons=islands.reduce((sum,island)=>sum+island.lessons.length,0);
   const home=islands.some(island=>island.id===LAB_ISLAND_ID);
+  const address=useIslandInAddress(islands.map(i=>i.id));
   return <HexWorldExplorer islands={islands} world={(home?islandsHomeWorld:islandsWorld).world} options={home?HOME_OPTIONS:OPTIONS} poiPanel captionAbove controlsBelow layout={layout} modeSwitchTarget={layout==='fullscreen'?HEADER_TOOLS_ID:undefined} copy={home?HOME_COPY:ISLANDS_COPY}
+    {...islandInAddress?{selectedId:address.selectedId,onSelectedChange:address.change}:{}}
     // The island and lesson counts stay with the inner map page; the full-screen home map leaves them out.
     footer={layout==='fullscreen'?undefined:<span>{islands.length} 座主題島嶼 <b>/</b> {lessons} 份教材入口 <b>/</b> 一步步建立理解</span>}/>;
 }

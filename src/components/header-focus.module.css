@@ -1,0 +1,6 @@
+/*
+ * 2026-11-12 focus mode (src/components/nav/focus-mode.tsx): during a timed mock exam the header's menu and 開始學習
+ * step aside. Kept apart from nav.module.css: the root layout imports the header before globals.css, and a module shared
+ * with the 2D areas would pull their CSS ahead of the site-wide rules.
+ */
+:global(html[data-focus='exam']) .focusHidden { display: none; }

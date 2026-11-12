@@ -25,7 +25,8 @@ test('主選單：探索群島／完整課綱／互動實驗島，目前頁面�
   for (const [path, active] of [['/', '探索群島'], ['/curriculum', '完整課綱'], [`/curriculum/${F01.slug}`, '完整課綱'], ['/learn', '互動實驗島'], ['/learn/stack', '互動實驗島']]) {
     await page.goto(path);
     const menu = page.getByRole('navigation', { name: '主選單' });
-    await expect(menu.getByRole('link')).toHaveText(['探索群島', '完整課綱', '互動實驗島']);
+    // 2026-11-12: a build with the trial system (LOGIC_ISLAND_TRIALS=1) adds 模擬考試 to the header.
+    await expect(menu.getByRole('link')).toHaveText(['探索群島', '完整課綱', '互動實驗島', ...process.env.LOGIC_ISLAND_TRIALS === '1' ? ['模擬考試'] : []]);
     await expect(menu.locator('a.active'), path).toHaveText(active);
   }
   const start = page.getByRole('banner').getByRole('link', { name: /開始學習/, includeHidden: true });
@@ -88,4 +89,34 @@ test('六個實驗與所有課綱頁（含資料庫應用島已開放的課）�
     if (res.status() !== 200) broken.push(`${href} → ${res.status()}`);
   }
   expect(broken).toEqual([]);
+});
+
+// 2026-11-12 unified sidebar: the tree opens the way to the current lesson, the island card leads back to its 3D island,
+// and on phones the menu is a drawer that Escape closes.
+test('側欄：目前課程所在的島與難度自動展開並標示，島嶼卡片回到 3D 島嶼；手機版是可用 Escape 關閉的抽屜', async ({ page }, info) => {
+  const D10 = lessons.find(l => l.lessonId === 'D10')!;
+  await page.goto(`/curriculum/${D10.slug}`);
+  const sidebar = page.locator('#site-sidebar');
+  if (info.project.name.startsWith('mobile')) {
+    await expect(sidebar).toBeHidden();
+    await page.getByRole('button', { name: '選單' }).click();
+    await expect(sidebar).toBeVisible();
+    await expect(page.getByRole('button', { name: '關閉導覽選單' })).toBeFocused();
+  }
+  const tree = sidebar.getByRole('navigation', { name: '課程學習目錄' });
+  await expect(tree.getByRole('button', { name: /資料結構島/ })).toHaveAttribute('aria-expanded', 'true');
+  await expect(tree.getByRole('button', { name: /基礎程式島/ })).toHaveAttribute('aria-expanded', 'false');
+  await expect(tree.locator('a[aria-current="page"]')).toHaveAttribute('href', `/curriculum/${D10.slug}`);
+  // Never all 80 at once: only the open level's lessons are listed.
+  expect(await tree.locator('a[href^="/curriculum/"]').count()).toBeLessThan(20);
+  await expect(sidebar.getByRole('link', { name: '返回 3D 島嶼' })).toHaveAttribute('href', '/?island=structures');
+  await expect(page.getByRole('navigation', { name: '麵包屑' })).toHaveText(/探索群島.*資料結構島.*D10/);
+  if (info.project.name.startsWith('mobile')) {
+    await page.keyboard.press('Escape');
+    await expect(sidebar).toBeHidden();
+    await expect(page.getByRole('button', { name: '選單' })).toBeFocused();
+  }
+  await page.goto('/?island=structures');
+  await expect(page.getByRole('navigation', { name: '主選單' })).toBeVisible();
+  expect(new URL(page.url()).searchParams.get('island')).toBe('structures');
 });

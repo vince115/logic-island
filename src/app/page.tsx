@@ -28,4 +28,4 @@ units:UNITS[island.id as IslandId]?.map(unit=>({title:unit.title,summary:unit.su
 // 互動實驗島: the labs of /learn, grouped by course category in course order.
 labGroups:island.id===labIsland.id?[...new Set(courses.map(c=>c.category))].map(title=>({title,
   labs:courses.filter(c=>c.category===title).map(c=>({slug:c.slug,title:c.title,subtitle:c.subtitle}))})):undefined}));
-export default function Home(){return <main id="main"><h1 className="visually-hidden">Logic Island 程式邏輯島</h1><div className="home-world"><IslandsWorldExplorer islands={learningIslands} layout="fullscreen"/></div></main>;}
+export default function Home(){return <main id="main"><h1 className="visually-hidden">Logic Island 程式邏輯島</h1><div className="home-world"><IslandsWorldExplorer islands={learningIslands} layout="fullscreen" islandInAddress/></div></main>;}
