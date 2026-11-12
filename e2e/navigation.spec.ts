@@ -238,7 +238,11 @@ test('AI 群島入口：首頁「更多學習群島」→ 群島總覽，七座�
   // The learning paths through the region, path J (AI 架構) among them, still 規劃中.
   const paths = main.locator('section[aria-labelledby="region-paths"] li');
   await expect(paths).toHaveCount(3);
-  await expect(paths.filter({ hasText: 'AI 架構' })).toContainText('66 堂');
+  // A path's length is lessons to take, never lessons written: the open and planned counts are spelled out (R7).
+  await expect(paths.filter({ hasText: 'AI 架構' })).toContainText('路線共 66 堂 · 已開放 11 堂 · 其餘 55 堂規劃中');
+  await page.goto('/regions/web');
+  await expect(page.locator('section[aria-labelledby="region-paths"] li')).toHaveText([/前端工程.*路線共 62 堂 · 已開放 7 堂 · 其餘 55 堂規劃中/]);
+  await page.goto('/regions/ai');
   await expect(page.getByRole('navigation', { name: '麵包屑' })).toHaveText(/探索群島.*五大群島.*AI 人工智慧群島/);
   const sidebar = page.locator('#site-sidebar');
   if (phone) { await page.getByRole('button', { name: '選單' }).click(); await expect(sidebar).toBeVisible(); }

@@ -53,3 +53,14 @@
 ## 4. 驗證
 
 見 `MULTI_ARCHIPELAGO_IA_V2.md` §10 的 R7 列。
+
+## 5. 發布（2026-11-12）
+
+| 項目 | 結果 |
+|---|---|
+| PR [#4](https://github.com/vince115/logic-island/pull/4) | `1e14d85`；CI 全部必要步驟通過（compare 模式）、Vercel Preview 成功；以 merge commit 合併為 `main` **`aaf1d0a`** |
+| 正式部署 | Vercel Production `aaf1d0a` 成功，https://logic-island-psi.vercel.app |
+| 正式站 smoke（1440 桌機、iPhone 13） | `/regions/design`、`/regions/web` 各 4 座島皆規劃中、無課程連結；路線 H 56 堂（已開放 0）、G 62 堂（已開放 7）；`/learn/flexbox-playground` 可操作（選項與預設版面即時改變真實容器與 CSS）；工具卡連結只有色彩與 Flexbox，Grid／Responsive／Mobile Navigation 等 7 張為規劃中且無連結，網址 404；首頁 3D canvas、GLB 200；`/curriculum` 80 堂；`/regions/ai` 7 島皆規劃中；`/trials`、`/world` 404；無水平溢出、無 console 錯誤 |
+| 洩漏掃描 | 正式站回應（296 份 HTML／JS）、提交範圍與 `.next` 皆乾淨 |
+| 後續修正 | 路線卡原寫「62 堂 · 已開放 7 堂 · 規劃中」，總數可能被讀成已完成教材數；改為「路線共 62 堂 · 已開放 7 堂 · 其餘 55 堂規劃中」並加 E2E 斷言（本記錄所在的 PR） |
+

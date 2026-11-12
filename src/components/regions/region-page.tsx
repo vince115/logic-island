@@ -63,7 +63,8 @@ export function RegionPage({ overview: o }: { overview: RegionOverview }) {
       <ul>{o.paths.map(p => <li key={p.id}>
         <strong>{p.title}<small>{p.titleEn}</small></strong>
         <p>{p.description}</p>
-        <span className={styles.pathMeta}>{p.lessonCount} 堂 · 已開放 {p.publishedLessons} 堂{p.learnable ? '' : ' · 規劃中'}</span>
+        {/* R7: the path's length is lessons to take, not lessons written; say how many are open and how many are not. */}
+        <span className={styles.pathMeta}>路線共 {p.lessonCount} 堂 · 已開放 {p.publishedLessons} 堂{p.learnable ? '' : ` · 其餘 ${p.lessonCount - p.publishedLessons} 堂規劃中`}</span>
       </li>)}</ul>
     </section>}
 

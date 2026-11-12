@@ -341,4 +341,4 @@ R5 之後 `main` 已含 PR #1（`archipelago/v2`）、PR #2（`trials/mvp`）、
 
 `/regions/sys`：6 座島、89 堂規劃中、沒有任何 `/curriculum/` 課程連結、無水平捲動。
 
-PR #4（`r7/design-web`，另一個 session）在本分支開 PR 後合併進 `main@aaf1d0a`，本分支再以 merge 帶入：`tool-lab-page.tsx` 保留 Flexbox 與 Linux 終端機兩個實驗；學習路線依序為 A–F、G、H（R7）、J、K、L、M（P6），共 12 條；工具實驗開放 3 個（色彩對比、Flexbox、Linux 終端機）；`planning-data.json` 由 `scripts/planning-data.mjs` 重新產生，與合併結果一致。對 `main` 的路由契約差異只有 `/learn/linux-terminal` 與 `/regions/sys`（兩種建置各一）。
+PR #4（`r7/design-web`，另一個 session）在本分支開 PR 後合併進 `main@aaf1d0a`（之後 PR #5 R7 發布紀錄為 `main@1f93cc8`），本分支再以 merge 帶入：`tool-lab-page.tsx` 保留 Flexbox 與 Linux 終端機兩個實驗；學習路線依序為 A–F、G、H（R7）、J、K、L、M（P6），共 12 條；工具實驗開放 3 個（色彩對比、Flexbox、Linux 終端機）；`planning-data.json` 由 `scripts/planning-data.mjs` 重新產生，與合併結果一致。對 `main` 的路由契約差異只有 `/learn/linux-terminal` 與 `/regions/sys`（兩種建置各一）。
