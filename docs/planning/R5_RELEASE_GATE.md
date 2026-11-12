@@ -28,6 +28,14 @@ main f45c867 ─(6)→ trials/mvp 4cbe587 ─(11)→ archipelago/v2 034e9c6
 
 **結論**：沒有任何證據顯示這個 repository 接了 Git 自動部署（Vercel 的 Git 整合會在每次 push 產生 GitHub deployment 與 status，這裡一次都沒有）。但 `vince115s-projects` 的 Vercel 設定**尚未確認**，因此不能斷言合併 `main` 不會更新正式網站。合併前請確認該 scope 沒有連到 `vince115/logic-island` 的專案（或其 Production Branch 不是 `main`）。
 
+## 2a. 部署確認（使用者建立 Vercel 專案後）
+
+- Vercel 專案 `vince115s-projects/logic-island` 以 Git 連到 `vince115/logic-island`：`main` 的 `f45c867` 有 Vercel commit status `success`，正式網址 https://logic-island-psi.vercel.app 顯示的是 `f45c867` 的舊首頁（學習路線、演算法視覺化）。
+- PR #2（`trials/mvp` → `main`）觸發 Vercel **Preview**：`c721e52` 建置成功；preview 網址受 Vercel Authentication 保護（302 到 SSO），無法匿名 smoke。
+- 因此合併到 `main` **會**觸發 Production Deployment；使用者已明確授權將通過 Release Gate 的新版部署到正式站。
+- 3D 首頁、GLB（`public/models/islands/basics-island.v2.1.glb`）與 80 堂課只在 `trials/mvp` 與 `archipelago/v2`，不在 `main`：正式站顯示舊版是因為 `main` 還停在 Phase C.1，不是 Three.js／GLB 錯誤。
+- 正式建置沒有設 `LOGIC_ISLAND_TRIALS`／`LOGIC_ISLAND_REGIONAL_WORLD`：`/trials`、`/world` 為 404；Vercel 建置環境沒有 `private/`。
+
 ## 3. 兩段 diff 的內容與風險（R5c）
 
 ### 3.1 `main` → `trials/mvp`（6 commits，530 檔，+141,719／−148）
@@ -110,4 +118,4 @@ main f45c867 ─(6)→ trials/mvp 4cbe587 ─(11)→ archipelago/v2 034e9c6
 | 洩漏掃描 `origin/main..origin/archipelago/v2`（673 段文字＋commit 訊息） | 乾淨；私人歷史 commit 0 |
 | PR #1 差異 | 14 個 commit＝原 11 個＋R5 的 2 個文件與 1 個 `trials/mvp` merge commit |
 | 本機 smoke（`1df9d30` 預設建置，即兩次合併後 `main` 的樹） | build 通過；`/`、`/curriculum`、`/learn`、7 個實驗、`/islands`、課程頁 200；`/trials`、`/world`、規劃中實驗 404；`/visualize*` 308；navigation＋player E2E 38 通過 |
-| 部署影響 | **未確認**（§2）：合併暫停 |
+| 部署影響 | **已確認**（§2a）：使用者已授權正式部署 |
