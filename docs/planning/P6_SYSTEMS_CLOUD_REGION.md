@@ -319,6 +319,26 @@ DevOps 的文化與實務：團隊 Git 流程、持續整合、GitHub Actions、
 
 未執行：真機、需私人題庫 fixture 建置的 trials E2E、3D 效能（本次沒有 3D 變更）。
 
-## 8. 已知問題（本次發現，未修改）
+## 8. 區域狀態標籤對比（已在整合時修正）
 
-- 深色模式下 `/curriculum` 區域列的狀態標籤：AI（`#3949ab`）對比 2.09、設計（`#d81b60`）3.27，未達 AA 4.5。這是 P2 的既有區域色；SYS 選用 `#0097a7`（4.61）避免同樣問題。修正 AI、設計的顏色需要調整已核准的區域色，留待決策。
+原紀錄「AI 2.09、設計 3.27、SYS 4.61」量的是強調色對面板底色；標籤實際畫在 12% 的強調色底上，重新計算後亮色模式的 CS 3.12、Web 3.25、SYS 3.05，深色模式的 AI 1.95、設計 3.07、CS 3.88、Web 3.83、SYS 3.96 都未達 AA 4.5。
+
+處理方式（不改已核准的品牌色）：新增前景 token `--island-accent-fg`（`src/app/globals.css`），值為強調色與主題文字色 `--text` 以 55%／45% 混合；邊框、色條、底色仍用原本的 `--island-accent`。用到強調色當文字的四條規則改用它：`/curriculum` 區域列狀態標籤、規劃中島的課號、群島總覽頁的課號、側欄島卡的難度標籤。
+
+實測（瀏覽器計算實際算繪色，含疊色）：`/curriculum` 31 個標籤最低亮色 5.02、深色 4.66；`/regions/sys` 全頁文字最低亮色 4.86、深色 4.70。
+
+## 9. 與 main 的整合（2026-11-12）
+
+R5 之後 `main` 已含 PR #1（`archipelago/v2`）、PR #2（`trials/mvp`）、PR #3（另一個 session 的 R6：群島總覽頁 `/regions/[region]`）。本分支以 **merge**（`7d79146`，未 rebase、未 squash）帶入 `main@6d62e33`：
+
+| 項目 | 處理 |
+|---|---|
+| 衝突 `region-overview.tsx` | 沿用 R6 的 `export const REGION_ACCENT`，加入 `sys` |
+| 衝突 `e2e/navigation.spec.ts` | 爬站涵蓋五個群島總覽與 `/learn/linux-terminal`；終端機與 AI 入口兩個測試都保留 |
+| 新路由 `/regions/sys` | R6 由 `REGION_IDS` 產生頁面，加入 sys 後自動出現；路由契約兩種建置各 +1 行（`sys`），已刻意更新 snapshot |
+| R6 測試中的四區域釘值 | 首頁「更多學習群島」4 個連結、區域合計含 sys（6 島、89 課）、側欄總覽連結 5 個 |
+| 麵包屑「四大群島」 | 改用 `regionCountZh()` |
+
+`/regions/sys`：6 座島、89 堂規劃中、沒有任何 `/curriculum/` 課程連結、無水平捲動。
+
+尚未合併的 PR #4（`r7/design-web`，另一個 session）不在本分支；它與本分支在 `tool-lab-page.tsx`、`labs.test.ts`、`world-paths.test.ts`、`world-planning.test.ts`、`site-nav.test.ts`、路由 snapshot、`navigation.spec.ts` 會有衝突（兩邊都新增實驗與路線），後合併的一方需以 merge 解決。
