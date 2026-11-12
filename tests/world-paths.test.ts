@@ -14,10 +14,10 @@ const path = (id: string) => getLearningPath(id)!;
 const prefix = (id: string) => parseLessonId(id)?.prefix;
 
 describe('learning paths (F.0)', () => {
-  it('has seven valid paths, in the planning order (J: AI 架構, multi-archipelago v2)', () => {
+  it('has ten valid paths, in the planning order (J: AI 架構, multi-archipelago v2; K, L, M: P6)', () => {
     expect(validatePaths(learningPaths)).toEqual([]);
-    expect(learningPaths.map(p => p.id[0])).toEqual(['A', 'B', 'C', 'D', 'E', 'F', 'J']);
-    expect(learningPaths.map(p => p.lessons.length)).toEqual([60, 86, 54, 84, 142, 89, 66]);
+    expect(learningPaths.map(p => p.id[0])).toEqual(['A', 'B', 'C', 'D', 'E', 'F', 'J', 'K', 'L', 'M']);
+    expect(learningPaths.map(p => p.lessons.length)).toEqual([60, 86, 54, 84, 142, 89, 66, 62, 60, 48]);
     for (const p of learningPaths) expect(p.description, p.id).not.toBe('');
   });
 
@@ -26,6 +26,15 @@ describe('learning paths (F.0)', () => {
     for (const id of ['AG12', 'AG13', 'AG17', 'AG18', 'AG24', 'OPS03', 'OPS17', 'LLM20', 'LLM24']) expect(j.targets).toContain(id);
     expect(j.lessons.filter(id => /^(ML|DL)\d/.test(id))).toEqual([]);
     expect(j.completion.learnable).toBe(false);
+  });
+
+  it('routes the three systems paths from their regions into sys, with existing lessons only (P6)', () => {
+    const prefixes = (id: string) => new Set(path(id).lessons.map(l => parseLessonId(l)!.prefix));
+    expect([...prefixes('K-fullstack-deployment')]).toEqual(expect.arrayContaining(['FE', 'DB', 'DKR', 'LNX', 'SRV', 'CICD', 'CLD']));
+    expect([...prefixes('L-ai-infrastructure')]).toEqual(expect.arrayContaining(['LLM', 'OPS', 'DKR', 'CLD', 'CICD', 'KUB']));
+    expect([...prefixes('M-cloud-devops-foundations')]).toEqual(expect.arrayContaining(['CN', 'LNX', 'SRV', 'DKR', 'CLD', 'CICD', 'KUB']));
+    expect(path('L-ai-infrastructure').targets).toContain('OPS07');
+    expect(path('M-cloud-devops-foundations').gaps).toContain('作業系統原理（行程、排程、記憶體管理）');
   });
 
   it('keeps path A to the 60 complete lessons, the only path a learner can take today', () => {
@@ -84,7 +93,8 @@ describe('learning paths (F.0)', () => {
   });
 
   it('answers which paths a lesson is on and how far a learner is, without storing progress', () => {
-    expect(pathsWithLesson('F01').map(p => p.id[0])).toEqual(['A', 'B', 'C', 'D', 'E', 'F', 'J']);
+    expect(pathsWithLesson('F01').map(p => p.id[0])).toEqual(['A', 'B', 'C', 'D', 'E', 'F', 'J', 'K', 'L', 'M']);
+    expect(pathsWithLesson('LNX01').map(p => p.id[0])).toEqual(['K', 'L', 'M']);
     expect(pathsWithLesson('AG25').map(p => p.id[0])).toEqual(['F']);
     expect(pathsWithLesson('AG12').map(p => p.id[0])).toEqual(['F', 'J']);
     const done = new Set(['F01', 'F02']);

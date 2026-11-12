@@ -20,7 +20,8 @@ describe('lab registry', () => {
   it('has the color contrast lab implemented (design approach) and the others planned', () => {
     expect(implementedToolLabs().map(l => l.id)).toEqual(['color-contrast']);
     expect(getLab('color-contrast')).toMatchObject({ domain: 'ui-ux', approach: 'design', activities: ['color-contrast'] });
-    expect(labRegistry.filter(l => l.status === 'planned').map(l => l.domain)).toEqual(['web-design', 'mobile', 'ui-ux', 'ai', 'ai', 'ai']);
+    expect(labRegistry.filter(l => l.status === 'planned').map(l => l.domain)).toEqual(['web-design', 'mobile', 'ui-ux', 'ai', 'ai', 'ai',
+      'systems-cloud', 'systems-cloud', 'systems-cloud', 'systems-cloud']);
     for (const d of LAB_DOMAINS) expect(labRegistry.some(l => l.domain === d), d).toBe(true);
   });
 

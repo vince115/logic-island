@@ -135,7 +135,7 @@ test('側欄：目前課程所在的島與難度自動展開並標示，島嶼�
 test('規劃中的群島與課程看得到但不能點：側欄停用列與完整課綱的大綱都沒有連結', async ({ page }, info) => {
   test.skip(!info.project.name.startsWith('desktop'), 'Same data on both projects.');
   await page.goto('/curriculum');
-  await expect(page.getByRole('navigation', { name: '四大群島' }).getByRole('link')).toHaveCount(4);
+  await expect(page.getByRole('navigation', { name: '五大群島' }).getByRole('link')).toHaveCount(5);
   const ai = page.locator('#region-ai');
   await expect(ai.getByRole('heading', { level: 2 })).toContainText('AI 人工智慧群島');
   await expect(ai.locator('article')).toHaveCount(7);

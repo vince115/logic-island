@@ -594,6 +594,8 @@ P2-A（§3.2，AI 可見性）可以在 P1 之前或之後獨立做；P2（側�
 | R2b | 淺色 `--muted` `#6d7d94`→`#5b6b82`（3.55～4.19→4.60～5.43）；行號 4.44→4.95；規劃中側欄列與卡片不再用 opacity；工具卡狀態字改 `--muted` | 6 頁 × 淺／深色掃描所有 `--muted` 文字：最低 4.86／6.15 |
 | R3 | 整合驗收：taxonomy cs 8/160、ai 7/160、design 4/56、web 4/55；80 堂已開放課 HTTP 200、351 堂規劃中沒有 href、抽樣頁面無連到規劃中 slug；AI 三組；路線 J 66 堂無 ML／DL；6 個演算法實驗＋`/learn/color-contrast` 200、planned 實驗 404；旗標建置 `/world/design`、`/world/web` 404，iPAS／CCAR-F 不連結；旗標建置 `.next` leak-scan 乾淨；3D 只有型別與側欄 `?island=`（可選）變更，無模型／資產變更 | tsc、ESLint 0；Vitest 70 檔 1871 通過、9 skip（Java 與私人題庫條件）；navigation＋player 38 通過（2 個設計上只跑桌機）；旗標建置 regional-world＋trials＋islands 70 通過、trials-history 6 通過；未執行：4 個需私人題庫 fixture 建置的 trials E2E、真機 |
 
+| P6（五區域） | 第五區域 `sys`（分支 `archipelago/p6-sys`）：6 島 89 堂、路線 K／L／M、5 個 T1 活動、實驗領域 `systems-cloud`；側欄與 `/curriculum` 由資料自動帶入；`/world` 清單自動列為規劃中。詳見 [P6_SYSTEMS_CLOUD_REGION](P6_SYSTEMS_CLOUD_REGION.md) | tsc、ESLint 0；Vitest 1872 通過、9 skip；預設與旗標建置；navigation＋player 38、旗標 E2E 76 通過；`.next` leak-scan 乾淨 |
+
 ## 11. 本文件的驗證方式
 
 - 每個現況結論都附檔案與行號，來自兩次唯讀盤點與本輪抽查（`validate.ts:9-120`、`activities.ts:85-157`、`catalog.ts:47-62`、`region-layouts.ts:70-80`、`src/app/world/[region]/page.tsx:17-20`、`scripts/planning-data.mjs:33-44`、`curriculum-blueprint.json` 的欄位、`tests/world*.test.ts` 的寫死數字）。

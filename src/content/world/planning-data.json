@@ -9,7 +9,8 @@
     "cs": "Computer Science Archipelago",
     "ai": "Artificial Intelligence Archipelago",
     "design": "Digital Design Archipelago",
-    "web": "Web and App Development Archipelago"
+    "web": "Web and App Development Archipelago",
+    "sys": "Systems & Cloud Engineering Archipelago"
   },
   "islands": {
     "programming-languages": {
@@ -151,6 +152,48 @@
       "name": "行動應用島",
       "nameEn": "Mobile Apps",
       "description": "設計並實作符合行動情境的介面與觸控互動，做出可安裝、可離線的 PWA，並在模擬器與真機上驗證效能與無障礙。原生 App 開發不在範圍內。"
+    },
+    "linux-systems": {
+      "code": "LNX",
+      "regionId": "sys",
+      "name": "Linux 系統島",
+      "nameEn": "Linux Systems",
+      "description": "在模擬終端機中學會 Linux：發行版、Shell、檔案系統、使用者與權限、行程與 systemd、套件、日誌、SSH 與 Bash Script，最後維護一台伺服器。作業系統原理（排程、記憶體管理）目前沒有對應的島，列為課程缺口；程式語法基礎沿用基礎程式島。"
+    },
+    "docker-containers": {
+      "code": "DKR",
+      "regionId": "sys",
+      "name": "Docker 容器島",
+      "nameEn": "Docker Containers",
+      "description": "從容器與虛擬機的差異出發，學會 Image 與 Container 的生命週期、Dockerfile 與分層快取、Volume、容器網路、Compose、多階段建置、Registry、安全與除錯，最後把一個應用容器化並準備上線。AI 服務的容器化屬 AI 工程島（OPS04），本島是通用的容器基礎。"
+    },
+    "network-servers": {
+      "code": "SRV",
+      "regionId": "sys",
+      "name": "網路與伺服器島",
+      "nameEn": "Networks and Servers",
+      "description": "從伺服器端操作網路：監聽埠、DNS 記錄、用 curl 觀察 HTTP、TLS 憑證實務、Nginx、反向代理、負載平衡、防火牆、SSH 通道、CDN 與網路診斷，最後架設 HTTPS 網站並追蹤一個請求。TCP/IP、DNS、HTTP、TLS 的協定原理屬計算機網路島，本島只引用不重教。"
+    },
+    "cloud-infrastructure": {
+      "code": "CLD",
+      "regionId": "sys",
+      "name": "雲端基礎設施島",
+      "nameEn": "Cloud Infrastructure",
+      "description": "雲端運算的服務模型、區域與帳號、虛擬機、VPC、IAM、物件儲存、託管資料庫、AWS／GCP 服務對照、Infrastructure as Code 與 Terraform、雲端安全、成本與災難復原，最後設計一套雲端架構。管理者視角的雲端服務選擇屬管理資訊系統島（MIS05）。"
+    },
+    "devops-cicd": {
+      "code": "CICD",
+      "regionId": "sys",
+      "name": "DevOps 與 CI/CD 島",
+      "nameEn": "DevOps and CI/CD",
+      "description": "DevOps 的文化與實務：團隊 Git 流程、持續整合、GitHub Actions、自動化測試、建置與部署管線、環境變數與機密、部署策略、監控、日誌、回滾與事故應變，最後打造從 commit 到上線的完整管線。AI 系統特有的評估門檻與再訓練屬 AI 工程島。"
+    },
+    "kubernetes-reliability": {
+      "code": "KUB",
+      "regionId": "sys",
+      "name": "Kubernetes 與可靠性工程島",
+      "nameEn": "Kubernetes and Reliability Engineering",
+      "description": "容器編排與 Kubernetes：架構、Pod、Deployment、Service、ConfigMap／Secret、Ingress 與 Gateway API、Persistent Volume、Helm、自動擴展與滾動更新，再到叢集監控、可觀測性、SLI／SLO／SLA 與 SRE 實務。"
     }
   },
   "plannedLessons": [
@@ -11456,6 +11499,2533 @@
       "activity": "challenge-stages",
       "exerciseType": "code",
       "outcome": "學完後能交付一個在真機上驗證過、可離線使用的 PWA。"
+    },
+    {
+      "lessonId": "LNX01",
+      "islandId": "linux-systems",
+      "slug": "linux-overview-and-distributions",
+      "title": "Linux 概論與發行版",
+      "titleEn": "Linux Overview and Distributions",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "說明核心、Shell 與發行版的關係",
+        "比較 Debian／Ubuntu 與 RHEL 系發行版的取捨",
+        "依用途選擇伺服器的發行版與版本"
+      ],
+      "concepts": [
+        "核心與使用者空間",
+        "GNU／Linux",
+        "發行版",
+        "LTS 版本",
+        "伺服器與桌面"
+      ],
+      "prerequisites": [],
+      "recommended": [
+        "MIS05"
+      ],
+      "activity": "case-study-board",
+      "exerciseType": "analysis",
+      "outcome": "學完後能說明 Linux 是什麼，並為一台伺服器選出合適的發行版。"
+    },
+    {
+      "lessonId": "LNX02",
+      "islandId": "linux-systems",
+      "slug": "terminal-and-shell-basics",
+      "title": "終端機與 Shell 基礎",
+      "titleEn": "The Terminal and Shell Basics",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "分辨終端機、Shell 與指令",
+        "讀懂指令、選項與參數的結構",
+        "用 man 與 --help 查詢指令用法"
+      ],
+      "concepts": [
+        "終端機",
+        "Shell",
+        "指令與參數",
+        "man 與 --help",
+        "提示字元"
+      ],
+      "prerequisites": [
+        "LNX01"
+      ],
+      "recommended": [],
+      "activity": "terminal-sim",
+      "exerciseType": "simulation",
+      "outcome": "學完後能在終端機輸入指令、讀懂輸出，並自己查詢不熟的指令。"
+    },
+    {
+      "lessonId": "LNX03",
+      "islandId": "linux-systems",
+      "slug": "linux-filesystem-hierarchy",
+      "title": "Linux 檔案系統階層",
+      "titleEn": "The Linux Filesystem Hierarchy",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "說明 /etc、/var、/home、/tmp 等目錄的用途",
+        "使用絕對與相對路徑移動",
+        "用 df 與 du 查看空間使用"
+      ],
+      "concepts": [
+        "FHS",
+        "絕對與相對路徑",
+        "pwd、cd、ls",
+        "/etc、/var、/home",
+        "掛載與 df"
+      ],
+      "prerequisites": [
+        "LNX02"
+      ],
+      "recommended": [],
+      "activity": "terminal-sim",
+      "exerciseType": "simulation",
+      "outcome": "學完後能在 Linux 的目錄樹中找到設定檔、日誌與使用者資料。"
+    },
+    {
+      "lessonId": "LNX04",
+      "islandId": "linux-systems",
+      "slug": "files-and-directories",
+      "title": "檔案與目錄操作",
+      "titleEn": "Working with Files and Directories",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "建立、複製、移動與刪除檔案與目錄",
+        "用萬用字元一次處理多個檔案",
+        "說明 rm -r 的風險與防範方法"
+      ],
+      "concepts": [
+        "mkdir、touch",
+        "cp、mv、rm",
+        "萬用字元",
+        "隱藏檔",
+        "連結"
+      ],
+      "prerequisites": [
+        "LNX03"
+      ],
+      "recommended": [],
+      "activity": "terminal-sim",
+      "exerciseType": "simulation",
+      "outcome": "學完後能安全地整理檔案與目錄，不誤刪資料。"
+    },
+    {
+      "lessonId": "LNX05",
+      "islandId": "linux-systems",
+      "slug": "text-processing-and-pipes",
+      "title": "文字處理、管線與重新導向",
+      "titleEn": "Text Processing, Pipes and Redirection",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "用 grep 在檔案中搜尋文字",
+        "以管線組合多個小指令",
+        "把輸出與錯誤導向檔案"
+      ],
+      "concepts": [
+        "cat、less、head、tail",
+        "grep",
+        "sort、uniq、wc",
+        "管線 |",
+        "重新導向 > >> 2>"
+      ],
+      "prerequisites": [
+        "LNX04"
+      ],
+      "recommended": [],
+      "activity": "terminal-sim",
+      "exerciseType": "simulation",
+      "outcome": "學完後能用一行管線從大量文字中找出需要的資訊。"
+    },
+    {
+      "lessonId": "LNX06",
+      "islandId": "linux-systems",
+      "slug": "users-and-groups",
+      "title": "使用者與群組",
+      "titleEn": "Users and Groups",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "說明使用者、群組與 root 的差別",
+        "建立使用者並加入群組",
+        "解釋為什麼服務要用專屬帳號執行"
+      ],
+      "concepts": [
+        "UID 與 GID",
+        "/etc/passwd、/etc/group",
+        "useradd、usermod",
+        "root 與 sudo",
+        "服務帳號"
+      ],
+      "prerequisites": [
+        "LNX04"
+      ],
+      "recommended": [],
+      "activity": "terminal-sim",
+      "exerciseType": "simulation",
+      "outcome": "學完後能為團隊成員與服務建立合適的帳號與群組。"
+    },
+    {
+      "lessonId": "LNX07",
+      "islandId": "linux-systems",
+      "slug": "linux-file-permissions",
+      "title": "Linux 權限與 chmod",
+      "titleEn": "Linux File Permissions and chmod",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "讀懂 ls -l 顯示的權限",
+        "用符號與八進位兩種寫法設定權限",
+        "判斷某個使用者能否讀寫或執行一個檔案"
+      ],
+      "concepts": [
+        "rwx",
+        "擁有者、群組、其他人",
+        "八進位權限",
+        "chmod、chown",
+        "umask"
+      ],
+      "prerequisites": [
+        "LNX06"
+      ],
+      "recommended": [],
+      "activity": "terminal-sim",
+      "exerciseType": "simulation",
+      "outcome": "學完後能為檔案與目錄設定最小必要權限，並解釋 Permission denied 的原因。"
+    },
+    {
+      "lessonId": "LNX08",
+      "islandId": "linux-systems",
+      "slug": "processes-and-signals",
+      "title": "Process 管理與訊號",
+      "titleEn": "Processes and Signals",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "用 ps 與 top 找出耗用資源的行程",
+        "區分 SIGTERM 與 SIGKILL",
+        "讀懂指令的結束碼"
+      ],
+      "concepts": [
+        "行程與 PID",
+        "ps、top",
+        "前景與背景",
+        "kill 與訊號",
+        "結束碼"
+      ],
+      "prerequisites": [
+        "LNX05"
+      ],
+      "recommended": [
+        "PL14"
+      ],
+      "activity": "terminal-sim",
+      "exerciseType": "simulation",
+      "outcome": "學完後能找出卡住或吃滿 CPU 的行程，並安全地結束它。",
+      "gaps": [
+        "作業系統原理（行程、排程、記憶體管理）"
+      ]
+    },
+    {
+      "lessonId": "LNX09",
+      "islandId": "linux-systems",
+      "slug": "package-management",
+      "title": "套件管理",
+      "titleEn": "Package Management",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "用套件管理器安裝、更新與移除軟體",
+        "說明套件庫與相依性的關係",
+        "規劃伺服器的安全更新策略"
+      ],
+      "concepts": [
+        "apt 與 dnf",
+        "套件庫",
+        "相依性",
+        "版本鎖定",
+        "安全更新"
+      ],
+      "prerequisites": [
+        "LNX06"
+      ],
+      "recommended": [],
+      "activity": "terminal-sim",
+      "exerciseType": "simulation",
+      "outcome": "學完後能安裝與更新伺服器軟體，並知道何時該鎖定版本。"
+    },
+    {
+      "lessonId": "LNX10",
+      "islandId": "linux-systems",
+      "slug": "systemd-services",
+      "title": "systemd 與服務管理",
+      "titleEn": "systemd and Service Management",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "用 systemctl 啟動、停止與查看服務狀態",
+        "撰寫一個簡單的 service unit",
+        "設定服務失敗時自動重新啟動"
+      ],
+      "concepts": [
+        "unit 檔",
+        "systemctl",
+        "開機自動啟動",
+        "重新啟動策略",
+        "服務相依"
+      ],
+      "prerequisites": [
+        "LNX08"
+      ],
+      "recommended": [],
+      "activity": "terminal-sim",
+      "exerciseType": "config",
+      "outcome": "學完後能把一支程式變成開機自動啟動、失敗會重啟的系統服務。"
+    },
+    {
+      "lessonId": "LNX11",
+      "islandId": "linux-systems",
+      "slug": "logs-and-journald",
+      "title": "日誌與 journalctl",
+      "titleEn": "Logs and journald",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "用 journalctl 依服務與時間查詢日誌",
+        "讀懂常見的錯誤日誌",
+        "說明日誌輪替避免磁碟被寫滿的原理"
+      ],
+      "concepts": [
+        "journalctl",
+        "/var/log",
+        "日誌等級",
+        "時間範圍過濾",
+        "日誌輪替"
+      ],
+      "prerequisites": [
+        "LNX05",
+        "LNX10"
+      ],
+      "recommended": [],
+      "activity": "terminal-sim",
+      "exerciseType": "simulation",
+      "outcome": "學完後能從日誌中找出服務失敗的原因與時間點。"
+    },
+    {
+      "lessonId": "LNX12",
+      "islandId": "linux-systems",
+      "slug": "ssh-remote-access",
+      "title": "SSH 遠端連線與金鑰",
+      "titleEn": "SSH Remote Access and Keys",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "用金鑰登入遠端主機",
+        "說明主機指紋驗證防止的攻擊",
+        "設定只允許金鑰登入"
+      ],
+      "concepts": [
+        "ssh",
+        "公私鑰",
+        "authorized_keys",
+        "known_hosts",
+        "停用密碼登入"
+      ],
+      "prerequisites": [
+        "LNX07"
+      ],
+      "recommended": [
+        "CN13"
+      ],
+      "activity": "protocol-sequence",
+      "exerciseType": "config",
+      "outcome": "學完後能安全地遠端管理伺服器，不使用密碼登入。"
+    },
+    {
+      "lessonId": "LNX13",
+      "islandId": "linux-systems",
+      "slug": "bash-scripting",
+      "title": "Bash Script 撰寫",
+      "titleEn": "Bash Scripting",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "寫出可執行的 Bash Script",
+        "在 Script 中使用變數、條件、迴圈與函式",
+        "讓 Script 遇到錯誤就停止"
+      ],
+      "concepts": [
+        "shebang",
+        "變數與參數",
+        "條件與迴圈",
+        "函式",
+        "set -euo pipefail"
+      ],
+      "prerequisites": [
+        "LNX05",
+        "LNX07"
+      ],
+      "recommended": [
+        "F05",
+        "F07",
+        "F13"
+      ],
+      "activity": "terminal-sim",
+      "exerciseType": "code",
+      "outcome": "學完後能把重複的維運操作寫成可靠的 Bash Script。"
+    },
+    {
+      "lessonId": "LNX14",
+      "islandId": "linux-systems",
+      "slug": "cron-and-systemd-timers",
+      "title": "排程：cron 與 systemd timer",
+      "titleEn": "Scheduling with cron and systemd Timers",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "讀寫 crontab 的時間欄位",
+        "比較 cron 與 systemd timer 的取捨",
+        "為排程工作留下日誌並避免重疊"
+      ],
+      "concepts": [
+        "crontab 語法",
+        "systemd timer",
+        "時區",
+        "排程輸出與通知",
+        "避免重疊執行"
+      ],
+      "prerequisites": [
+        "LNX10",
+        "LNX13"
+      ],
+      "recommended": [],
+      "activity": "terminal-sim",
+      "exerciseType": "config",
+      "outcome": "學完後能讓備份或清理工作定時、可追蹤地執行。"
+    },
+    {
+      "lessonId": "LNX15",
+      "islandId": "linux-systems",
+      "slug": "linux-systems-capstone",
+      "title": "Linux 系統島綜合專題：維護一台伺服器",
+      "titleEn": "Linux Systems Capstone: Maintain a Server",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "建立帳號、權限與 SSH 存取",
+        "部署一個 systemd 服務並排程備份",
+        "依日誌找出並修復一個故障"
+      ],
+      "concepts": [
+        "帳號與權限規劃",
+        "服務部署",
+        "日誌追查",
+        "排程備份",
+        "更新與檢查清單"
+      ],
+      "prerequisites": [
+        "LNX09",
+        "LNX11",
+        "LNX12",
+        "LNX14"
+      ],
+      "recommended": [],
+      "activity": "challenge-stages",
+      "exerciseType": "simulation",
+      "outcome": "學完後能獨立完成一台 Linux 伺服器的日常維護。"
+    },
+    {
+      "lessonId": "DKR01",
+      "islandId": "docker-containers",
+      "slug": "containers-vs-virtual-machines",
+      "title": "容器概念：與虛擬機的差異",
+      "titleEn": "Containers vs Virtual Machines",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "說明容器解決的「在我電腦可以跑」問題",
+        "比較容器與虛擬機的隔離方式與成本",
+        "說明 namespace 與 cgroup 各自負責什麼"
+      ],
+      "concepts": [
+        "隔離",
+        "namespace 與 cgroup",
+        "Hypervisor",
+        "共用核心",
+        "可重現的環境"
+      ],
+      "prerequisites": [
+        "LNX08"
+      ],
+      "recommended": [],
+      "activity": "architecture-diagram",
+      "exerciseType": "analysis",
+      "outcome": "學完後能判斷一個情境該用容器還是虛擬機。"
+    },
+    {
+      "lessonId": "DKR02",
+      "islandId": "docker-containers",
+      "slug": "docker-architecture",
+      "title": "Docker 架構：Client、Daemon 與 Registry",
+      "titleEn": "Docker Architecture",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "畫出 docker run 時各元件之間的互動",
+        "說明 Image 從哪裡來",
+        "說明 OCI 標準的意義"
+      ],
+      "concepts": [
+        "Docker client",
+        "Docker daemon",
+        "Registry",
+        "OCI 標準",
+        "containerd"
+      ],
+      "prerequisites": [
+        "DKR01"
+      ],
+      "recommended": [],
+      "activity": "architecture-diagram",
+      "exerciseType": "analysis",
+      "outcome": "學完後能說出一個 docker 指令背後經過哪些元件。"
+    },
+    {
+      "lessonId": "DKR03",
+      "islandId": "docker-containers",
+      "slug": "images-and-containers",
+      "title": "Image 與 Container 的生命週期",
+      "titleEn": "Images and the Container Lifecycle",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "分辨 Image 與 Container",
+        "追蹤一個 Container 從建立到刪除的狀態",
+        "說明刪除 Container 時資料為什麼會消失"
+      ],
+      "concepts": [
+        "Image",
+        "Container",
+        "created、running、exited",
+        "可寫層",
+        "刪除與清理"
+      ],
+      "prerequisites": [
+        "DKR02"
+      ],
+      "recommended": [],
+      "activity": "container-playground",
+      "exerciseType": "simulation",
+      "outcome": "學完後能預測每個 Docker 操作會讓 Container 進入哪個狀態。"
+    },
+    {
+      "lessonId": "DKR04",
+      "islandId": "docker-containers",
+      "slug": "docker-cli-essentials",
+      "title": "Docker CLI 常用指令",
+      "titleEn": "Docker CLI Essentials",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "啟動、停止與刪除 Container",
+        "用連接埠對應讓瀏覽器連到 Container",
+        "查看 Container 的日誌與進入其中執行指令"
+      ],
+      "concepts": [
+        "docker run",
+        "docker ps",
+        "docker logs",
+        "docker exec",
+        "連接埠對應"
+      ],
+      "prerequisites": [
+        "DKR03"
+      ],
+      "recommended": [],
+      "activity": "container-playground",
+      "exerciseType": "simulation",
+      "outcome": "學完後能用 Docker CLI 執行並檢查一個網頁服務容器。"
+    },
+    {
+      "lessonId": "DKR05",
+      "islandId": "docker-containers",
+      "slug": "writing-dockerfiles",
+      "title": "撰寫 Dockerfile",
+      "titleEn": "Writing Dockerfiles",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "為一個應用撰寫 Dockerfile",
+        "區分 CMD 與 ENTRYPOINT",
+        "用 .dockerignore 排除不需要的檔案"
+      ],
+      "concepts": [
+        "FROM、RUN、COPY",
+        "WORKDIR、ENV",
+        "CMD 與 ENTRYPOINT",
+        ".dockerignore",
+        "基底 Image 選擇"
+      ],
+      "prerequisites": [
+        "DKR04",
+        "LNX09"
+      ],
+      "recommended": [],
+      "activity": "container-playground",
+      "exerciseType": "config",
+      "outcome": "學完後能把自己的應用打包成 Image。"
+    },
+    {
+      "lessonId": "DKR06",
+      "islandId": "docker-containers",
+      "slug": "image-layers-and-build-cache",
+      "title": "Image 分層與建置快取",
+      "titleEn": "Image Layers and the Build Cache",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "說明每個 Dockerfile 指令如何產生一層",
+        "調整指令順序讓快取更常命中",
+        "找出讓 Image 變大的那一層"
+      ],
+      "concepts": [
+        "分層",
+        "快取命中與失效",
+        "指令順序",
+        "Image 大小",
+        "docker history"
+      ],
+      "prerequisites": [
+        "DKR05"
+      ],
+      "recommended": [],
+      "activity": "container-playground",
+      "exerciseType": "analysis",
+      "outcome": "學完後能寫出建置更快、體積更小的 Dockerfile。"
+    },
+    {
+      "lessonId": "DKR07",
+      "islandId": "docker-containers",
+      "slug": "volumes-and-persistent-data",
+      "title": "Volume 與資料保存",
+      "titleEn": "Volumes and Persistent Data",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "分辨 Volume 與 Bind mount",
+        "讓資料庫容器的資料在重建後保留",
+        "排除掛載目錄的權限錯誤"
+      ],
+      "concepts": [
+        "Volume",
+        "Bind mount",
+        "tmpfs",
+        "資料備份",
+        "權限問題"
+      ],
+      "prerequisites": [
+        "DKR04",
+        "LNX07"
+      ],
+      "recommended": [],
+      "activity": "container-playground",
+      "exerciseType": "simulation",
+      "outcome": "學完後能讓容器化的資料庫重建後資料不遺失。"
+    },
+    {
+      "lessonId": "DKR08",
+      "islandId": "docker-containers",
+      "slug": "container-networking",
+      "title": "容器網路",
+      "titleEn": "Container Networking",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "說明預設 bridge 與自訂網路的差異",
+        "讓兩個容器以名稱互相連線",
+        "判斷哪些連接埠需要對外公開"
+      ],
+      "concepts": [
+        "bridge 網路",
+        "自訂網路與 DNS",
+        "連接埠公開",
+        "host 網路",
+        "容器間通訊"
+      ],
+      "prerequisites": [
+        "DKR04"
+      ],
+      "recommended": [
+        "CN09"
+      ],
+      "activity": "container-playground",
+      "exerciseType": "simulation",
+      "outcome": "學完後能讓應用容器與資料庫容器安全地互相連線。"
+    },
+    {
+      "lessonId": "DKR09",
+      "islandId": "docker-containers",
+      "slug": "docker-compose",
+      "title": "Docker Compose 多容器應用",
+      "titleEn": "Multi-Container Apps with Docker Compose",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "用 Compose 描述應用、資料庫與快取",
+        "設定服務啟動順序與健康檢查",
+        "用一個指令啟動整個開發環境"
+      ],
+      "concepts": [
+        "compose.yaml",
+        "services",
+        "depends_on 與健康檢查",
+        "環境變數",
+        "docker compose up"
+      ],
+      "prerequisites": [
+        "DKR07",
+        "DKR08"
+      ],
+      "recommended": [
+        "DB16"
+      ],
+      "activity": "container-playground",
+      "exerciseType": "config",
+      "outcome": "學完後能用 Compose 一鍵啟動含資料庫的完整應用。"
+    },
+    {
+      "lessonId": "DKR10",
+      "islandId": "docker-containers",
+      "slug": "multi-stage-builds",
+      "title": "多階段建置",
+      "titleEn": "Multi-Stage Builds",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "把編譯工具留在建置階段",
+        "只複製執行所需的產出物",
+        "比較多階段建置前後的 Image 大小"
+      ],
+      "concepts": [
+        "建置階段與執行階段",
+        "COPY --from",
+        "精簡基底 Image",
+        "distroless",
+        "建置參數"
+      ],
+      "prerequisites": [
+        "DKR06"
+      ],
+      "recommended": [],
+      "activity": "container-playground",
+      "exerciseType": "config",
+      "outcome": "學完後能產出只含執行所需檔案的正式 Image。"
+    },
+    {
+      "lessonId": "DKR11",
+      "islandId": "docker-containers",
+      "slug": "container-registries",
+      "title": "Container Registry 與版本標籤",
+      "titleEn": "Container Registries and Image Tags",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "推送與拉取 Image",
+        "說明 latest 標籤的風險",
+        "用 digest 鎖定部署的確切版本"
+      ],
+      "concepts": [
+        "Registry",
+        "tag 與 digest",
+        "push 與 pull",
+        "不可變標籤",
+        "私有 Registry 存取"
+      ],
+      "prerequisites": [
+        "DKR05"
+      ],
+      "recommended": [],
+      "activity": "pipeline-diagram",
+      "exerciseType": "analysis",
+      "outcome": "學完後能為 Image 制定可追溯的版本標籤規則。"
+    },
+    {
+      "lessonId": "DKR12",
+      "islandId": "docker-containers",
+      "slug": "container-security",
+      "title": "容器安全",
+      "titleEn": "Container Security",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "找出 Dockerfile 中的安全問題",
+        "讓容器以非 root 使用者執行",
+        "說明為什麼機密不能寫進 Image"
+      ],
+      "concepts": [
+        "非 root 執行",
+        "最小基底",
+        "弱點掃描",
+        "機密不進 Image",
+        "唯讀檔案系統"
+      ],
+      "prerequisites": [
+        "DKR10",
+        "LNX07"
+      ],
+      "recommended": [
+        "CN18"
+      ],
+      "activity": "case-study-board",
+      "exerciseType": "analysis",
+      "outcome": "學完後能審查一份 Dockerfile 並修正常見的安全問題。"
+    },
+    {
+      "lessonId": "DKR13",
+      "islandId": "docker-containers",
+      "slug": "debugging-containers",
+      "title": "容器除錯",
+      "titleEn": "Debugging Containers",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "依結束碼判斷容器為何停止",
+        "用 logs 與 inspect 找出設定錯誤",
+        "辨認記憶體不足造成的重啟"
+      ],
+      "concepts": [
+        "結束碼",
+        "docker logs",
+        "docker inspect",
+        "重啟迴圈",
+        "OOMKilled"
+      ],
+      "prerequisites": [
+        "DKR09",
+        "LNX11"
+      ],
+      "recommended": [],
+      "activity": "container-playground",
+      "exerciseType": "simulation",
+      "outcome": "學完後能有系統地找出容器啟動失敗或反覆重啟的原因。"
+    },
+    {
+      "lessonId": "DKR14",
+      "islandId": "docker-containers",
+      "slug": "health-checks-limits-and-shutdown",
+      "title": "健康檢查、資源限制與優雅關閉",
+      "titleEn": "Health Checks, Resource Limits and Graceful Shutdown",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "為容器加上健康檢查",
+        "設定合理的 CPU 與記憶體上限",
+        "讓應用收到 SIGTERM 時完成手上的請求再結束"
+      ],
+      "concepts": [
+        "HEALTHCHECK",
+        "CPU 與記憶體限制",
+        "SIGTERM 處理",
+        "重新啟動策略",
+        "十二要素應用"
+      ],
+      "prerequisites": [
+        "DKR13"
+      ],
+      "recommended": [],
+      "activity": "container-playground",
+      "exerciseType": "config",
+      "outcome": "學完後能讓容器在正式環境中可被監控、不搶資源、可安全重啟。"
+    },
+    {
+      "lessonId": "DKR15",
+      "islandId": "docker-containers",
+      "slug": "docker-containers-capstone",
+      "title": "Docker 容器島綜合專題：容器化並準備上線",
+      "titleEn": "Docker Containers Capstone: Containerize and Ship",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "把一個三層式應用容器化",
+        "產出安全、精簡、有版本的 Image",
+        "依上線檢查清單完成驗收"
+      ],
+      "concepts": [
+        "多階段 Dockerfile",
+        "Compose 開發環境",
+        "版本標籤",
+        "安全檢查",
+        "上線檢查清單"
+      ],
+      "prerequisites": [
+        "DKR11",
+        "DKR12",
+        "DKR14"
+      ],
+      "recommended": [],
+      "activity": "challenge-stages",
+      "exerciseType": "design",
+      "outcome": "學完後能把一個應用從原始碼帶到可上線的容器 Image。"
+    },
+    {
+      "lessonId": "SRV01",
+      "islandId": "network-servers",
+      "slug": "server-networking-essentials",
+      "title": "伺服器端的網路基礎：IP、Port 與 Socket",
+      "titleEn": "Server Networking Essentials: IPs, Ports and Sockets",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "查出一台伺服器上有哪些服務在監聽",
+        "說明綁定 127.0.0.1 與 0.0.0.0 的差別",
+        "判斷連線失敗是 IP、埠還是服務的問題"
+      ],
+      "concepts": [
+        "公有與私有 IP",
+        "監聽埠",
+        "0.0.0.0 與 127.0.0.1",
+        "ss 與 lsof",
+        "常見服務埠"
+      ],
+      "prerequisites": [
+        "LNX02"
+      ],
+      "recommended": [
+        "CN05",
+        "CN09",
+        "CN11"
+      ],
+      "activity": "terminal-sim",
+      "exerciseType": "simulation",
+      "outcome": "學完後能確認一個服務是否真的在對外提供連線。"
+    },
+    {
+      "lessonId": "SRV02",
+      "islandId": "network-servers",
+      "slug": "dns-records-and-domains",
+      "title": "網域與 DNS 記錄管理",
+      "titleEn": "Domains and DNS Records",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "為網站設定 A 與 CNAME 記錄",
+        "說明 TTL 對切換時間的影響",
+        "用 dig 驗證 DNS 設定"
+      ],
+      "concepts": [
+        "A／AAAA",
+        "CNAME",
+        "MX 與 TXT",
+        "TTL 與快取",
+        "dig"
+      ],
+      "prerequisites": [
+        "SRV01"
+      ],
+      "recommended": [
+        "CN12"
+      ],
+      "activity": "request-path",
+      "exerciseType": "config",
+      "outcome": "學完後能把網域指向自己的伺服器，並排除 DNS 設定錯誤。"
+    },
+    {
+      "lessonId": "SRV03",
+      "islandId": "network-servers",
+      "slug": "observing-http-with-curl",
+      "title": "用 curl 觀察 HTTP 請求與回應",
+      "titleEn": "Observing HTTP with curl",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "用 curl 送出請求並讀懂完整的往返",
+        "依狀態碼判斷問題在用戶端還是伺服器",
+        "追蹤一連串的重新導向"
+      ],
+      "concepts": [
+        "curl -v",
+        "請求與回應標頭",
+        "狀態碼",
+        "重新導向",
+        "Keep-Alive"
+      ],
+      "prerequisites": [
+        "SRV01"
+      ],
+      "recommended": [
+        "CN12",
+        "CN14"
+      ],
+      "activity": "request-path",
+      "exerciseType": "simulation",
+      "outcome": "學完後能不靠瀏覽器檢查一個網站的 HTTP 行為。"
+    },
+    {
+      "lessonId": "SRV04",
+      "islandId": "network-servers",
+      "slug": "tls-certificates-in-practice",
+      "title": "TLS 憑證實務：申請、安裝與更新",
+      "titleEn": "TLS Certificates in Practice",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "為網域申請並安裝 TLS 憑證",
+        "設定憑證自動更新",
+        "找出憑證鏈不完整或過期的問題"
+      ],
+      "concepts": [
+        "憑證鏈",
+        "ACME 與 Let's Encrypt",
+        "自動更新",
+        "HSTS",
+        "到期監控"
+      ],
+      "prerequisites": [
+        "SRV02",
+        "SRV03"
+      ],
+      "recommended": [
+        "CN13"
+      ],
+      "activity": "request-path",
+      "exerciseType": "config",
+      "outcome": "學完後能讓網站全面使用 HTTPS，且憑證不會無預警過期。"
+    },
+    {
+      "lessonId": "SRV05",
+      "islandId": "network-servers",
+      "slug": "web-server-architecture",
+      "title": "網頁伺服器架構",
+      "titleEn": "Web Server Architecture",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "分辨網頁伺服器與應用伺服器的職責",
+        "比較不同並行模型處理大量連線的方式",
+        "畫出請求從網頁伺服器到應用的路徑"
+      ],
+      "concepts": [
+        "靜態與動態內容",
+        "應用伺服器",
+        "行程、執行緒與事件迴圈模型",
+        "upstream",
+        "連線數與逾時"
+      ],
+      "prerequisites": [
+        "SRV03"
+      ],
+      "recommended": [],
+      "activity": "architecture-diagram",
+      "exerciseType": "analysis",
+      "outcome": "學完後能說明一個網站的請求在伺服器內部如何被處理。"
+    },
+    {
+      "lessonId": "SRV06",
+      "islandId": "network-servers",
+      "slug": "nginx-basics",
+      "title": "Nginx 設定入門",
+      "titleEn": "Nginx Configuration Basics",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "撰寫提供靜態網站的 server 區塊",
+        "說明 location 的比對順序",
+        "在不中斷服務的情況下套用新設定"
+      ],
+      "concepts": [
+        "server 與 location",
+        "靜態檔案",
+        "nginx -t",
+        "reload",
+        "存取與錯誤日誌"
+      ],
+      "prerequisites": [
+        "SRV05",
+        "LNX10"
+      ],
+      "recommended": [],
+      "activity": "request-path",
+      "exerciseType": "config",
+      "outcome": "學完後能用 Nginx 架設一個靜態網站並安全地修改設定。"
+    },
+    {
+      "lessonId": "SRV07",
+      "islandId": "network-servers",
+      "slug": "reverse-proxy",
+      "title": "反向代理",
+      "titleEn": "Reverse Proxies",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "把請求轉送給後端應用",
+        "讓應用拿到使用者的真實 IP",
+        "依路徑把請求分到不同服務"
+      ],
+      "concepts": [
+        "proxy_pass",
+        "轉送標頭 X-Forwarded-For",
+        "路徑路由",
+        "WebSocket 升級",
+        "逾時設定"
+      ],
+      "prerequisites": [
+        "SRV06"
+      ],
+      "recommended": [],
+      "activity": "request-path",
+      "exerciseType": "config",
+      "outcome": "學完後能用反向代理把多個後端服務整合在同一個網域下。"
+    },
+    {
+      "lessonId": "SRV08",
+      "islandId": "network-servers",
+      "slug": "load-balancing",
+      "title": "負載平衡",
+      "titleEn": "Load Balancing",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "比較不同負載平衡演算法的效果",
+        "設定健康檢查自動移除故障節點",
+        "說明黏著連線的代價"
+      ],
+      "concepts": [
+        "輪詢與最少連線",
+        "健康檢查",
+        "黏著連線",
+        "L4 與 L7",
+        "水平擴展"
+      ],
+      "prerequisites": [
+        "SRV07"
+      ],
+      "recommended": [],
+      "activity": "request-path",
+      "exerciseType": "simulation",
+      "outcome": "學完後能把流量分散到多台後端，並在一台故障時繼續服務。"
+    },
+    {
+      "lessonId": "SRV09",
+      "islandId": "network-servers",
+      "slug": "linux-firewalls",
+      "title": "伺服器防火牆：ufw 與 nftables",
+      "titleEn": "Server Firewalls with ufw and nftables",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "以預設拒絕原則設定防火牆",
+        "只對特定來源開放管理埠",
+        "在套用規則前避免切斷自己的 SSH 連線"
+      ],
+      "concepts": [
+        "預設拒絕",
+        "允許規則",
+        "來源限制",
+        "狀態追蹤",
+        "避免把自己鎖在外面"
+      ],
+      "prerequisites": [
+        "SRV01",
+        "LNX07"
+      ],
+      "recommended": [
+        "CN19"
+      ],
+      "activity": "terminal-sim",
+      "exerciseType": "config",
+      "outcome": "學完後能為伺服器設定只開放必要服務的防火牆。"
+    },
+    {
+      "lessonId": "SRV10",
+      "islandId": "network-servers",
+      "slug": "ssh-tunnels-and-bastions",
+      "title": "SSH 通道與跳板機",
+      "titleEn": "SSH Tunnels and Bastion Hosts",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "用 SSH 通道連到只在內網開放的服務",
+        "透過跳板機管理私有網段的主機",
+        "說明跳板機如何縮小攻擊面"
+      ],
+      "concepts": [
+        "本機轉送",
+        "遠端轉送",
+        "ProxyJump",
+        "跳板機",
+        "最小暴露"
+      ],
+      "prerequisites": [
+        "LNX12",
+        "SRV09"
+      ],
+      "recommended": [],
+      "activity": "protocol-sequence",
+      "exerciseType": "config",
+      "outcome": "學完後能在不公開資料庫的情況下安全地遠端存取它。"
+    },
+    {
+      "lessonId": "SRV11",
+      "islandId": "network-servers",
+      "slug": "cdn-and-edge-caching",
+      "title": "CDN 與快取設定",
+      "titleEn": "CDNs and Edge Caching",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "為不同資源設定合適的 Cache-Control",
+        "說明 CDN 如何減少來源伺服器的負載",
+        "用檔名版本化避免使用者拿到舊檔"
+      ],
+      "concepts": [
+        "Cache-Control",
+        "來源伺服器",
+        "快取命中率",
+        "快取清除",
+        "靜態資源版本化"
+      ],
+      "prerequisites": [
+        "SRV07"
+      ],
+      "recommended": [
+        "CN15"
+      ],
+      "activity": "request-path",
+      "exerciseType": "config",
+      "outcome": "學完後能讓網站的靜態資源從 CDN 快速、正確地送達。"
+    },
+    {
+      "lessonId": "SRV12",
+      "islandId": "network-servers",
+      "slug": "network-diagnostics",
+      "title": "網路診斷工具",
+      "titleEn": "Network Diagnostic Tools",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "依問題選擇合適的診斷工具",
+        "由下而上逐層排除連線問題",
+        "讀懂 traceroute 與 dig 的輸出"
+      ],
+      "concepts": [
+        "ping",
+        "traceroute／mtr",
+        "dig",
+        "curl",
+        "ss 與 tcpdump"
+      ],
+      "prerequisites": [
+        "SRV02",
+        "SRV03"
+      ],
+      "recommended": [
+        "CN17"
+      ],
+      "activity": "terminal-sim",
+      "exerciseType": "simulation",
+      "outcome": "學完後能有系統地找出「連不上」發生在哪一層。"
+    },
+    {
+      "lessonId": "SRV13",
+      "islandId": "network-servers",
+      "slug": "server-troubleshooting",
+      "title": "伺服器故障排除方法",
+      "titleEn": "Server Troubleshooting",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "依症狀建立並逐一驗證假設",
+        "分辨 502、504 等錯誤的常見原因",
+        "把日誌、資源使用與時間線對起來"
+      ],
+      "concepts": [
+        "症狀與假設",
+        "502 與 504",
+        "磁碟、記憶體與 CPU",
+        "日誌關聯",
+        "修復後驗證"
+      ],
+      "prerequisites": [
+        "SRV07",
+        "SRV12",
+        "LNX11"
+      ],
+      "recommended": [],
+      "activity": "case-study-board",
+      "exerciseType": "case-study",
+      "outcome": "學完後能用一致的方法處理網站變慢或出錯的事故。"
+    },
+    {
+      "lessonId": "SRV14",
+      "islandId": "network-servers",
+      "slug": "network-servers-capstone",
+      "title": "網路與伺服器島綜合專題：架設 HTTPS 網站並追蹤請求",
+      "titleEn": "Networks and Servers Capstone: Run an HTTPS Site",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "從網域到後端架設一個 HTTPS 網站",
+        "追蹤一個請求經過的每一個環節",
+        "排除一個預先埋入的故障"
+      ],
+      "concepts": [
+        "DNS 與憑證",
+        "反向代理與負載平衡",
+        "防火牆與跳板機",
+        "CDN",
+        "請求追蹤"
+      ],
+      "prerequisites": [
+        "SRV04",
+        "SRV08",
+        "SRV10",
+        "SRV11",
+        "SRV13"
+      ],
+      "recommended": [],
+      "activity": "challenge-stages",
+      "exerciseType": "design",
+      "outcome": "學完後能架設並維運一個完整的 HTTPS 網站。"
+    },
+    {
+      "lessonId": "CLD01",
+      "islandId": "cloud-infrastructure",
+      "slug": "cloud-computing-fundamentals",
+      "title": "雲端運算概論與服務模型",
+      "titleEn": "Cloud Computing Fundamentals",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "說明雲端運算的五個特性",
+        "依控制權與責任比較 IaaS、PaaS、SaaS",
+        "判斷一項工作在共同責任模型中由誰負責"
+      ],
+      "concepts": [
+        "隨需與彈性",
+        "IaaS、PaaS、SaaS",
+        "共同責任模型",
+        "公有、私有與混合雲",
+        "按用量計費"
+      ],
+      "prerequisites": [],
+      "recommended": [
+        "MIS05"
+      ],
+      "activity": "case-study-board",
+      "exerciseType": "analysis",
+      "outcome": "學完後能為一個服務選擇合適的雲端服務模型。"
+    },
+    {
+      "lessonId": "CLD02",
+      "islandId": "cloud-infrastructure",
+      "slug": "regions-zones-and-accounts",
+      "title": "區域、可用區與帳號結構",
+      "titleEn": "Regions, Availability Zones and Accounts",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "說明區域與可用區的差異",
+        "依延遲與法規選擇區域",
+        "用帳號或專案隔離開發與正式環境"
+      ],
+      "concepts": [
+        "區域",
+        "可用區",
+        "延遲與法規",
+        "帳號與專案",
+        "環境隔離"
+      ],
+      "prerequisites": [
+        "CLD01"
+      ],
+      "recommended": [],
+      "activity": "architecture-diagram",
+      "exerciseType": "analysis",
+      "outcome": "學完後能規劃雲端資源放在哪裡、由哪個帳號管理。"
+    },
+    {
+      "lessonId": "CLD03",
+      "islandId": "cloud-infrastructure",
+      "slug": "cloud-virtual-machines",
+      "title": "雲端虛擬機",
+      "titleEn": "Virtual Machines in the Cloud",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "依工作負載選擇機型",
+        "用初始化腳本自動設定新主機",
+        "區分停止與終止對資料與費用的影響"
+      ],
+      "concepts": [
+        "機型",
+        "映像檔",
+        "金鑰對",
+        "初始化腳本",
+        "停止與終止"
+      ],
+      "prerequisites": [
+        "CLD02",
+        "LNX12"
+      ],
+      "recommended": [],
+      "activity": "deployment-simulator",
+      "exerciseType": "config",
+      "outcome": "學完後能在雲端建立並連線到一台設定好的 Linux 主機。"
+    },
+    {
+      "lessonId": "CLD04",
+      "islandId": "cloud-infrastructure",
+      "slug": "vpc-and-cloud-networking",
+      "title": "VPC 與雲端網路",
+      "titleEn": "VPCs and Cloud Networking",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "規劃 VPC 的位址範圍與子網路",
+        "讓私有子網路只能對外而不能被連入",
+        "用安全群組限制服務之間的連線"
+      ],
+      "concepts": [
+        "VPC 與 CIDR",
+        "公有與私有子網路",
+        "路由表",
+        "NAT 閘道",
+        "安全群組"
+      ],
+      "prerequisites": [
+        "CLD02",
+        "SRV01"
+      ],
+      "recommended": [
+        "CN05"
+      ],
+      "activity": "architecture-diagram",
+      "exerciseType": "design",
+      "outcome": "學完後能設計一個公有入口、私有後端的雲端網路。"
+    },
+    {
+      "lessonId": "CLD05",
+      "islandId": "cloud-infrastructure",
+      "slug": "cloud-iam",
+      "title": "IAM 身分與權限",
+      "titleEn": "Cloud Identity and Access Management",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "讀懂一份 IAM 政策允許了什麼",
+        "用角色取代長期存取金鑰",
+        "依最小權限原則縮小過寬的權限"
+      ],
+      "concepts": [
+        "使用者、群組與角色",
+        "政策",
+        "最小權限",
+        "暫時憑證",
+        "MFA"
+      ],
+      "prerequisites": [
+        "CLD02"
+      ],
+      "recommended": [
+        "LNX06"
+      ],
+      "activity": "decision-simulation",
+      "exerciseType": "analysis",
+      "outcome": "學完後能為人與服務設計最小權限的雲端存取。"
+    },
+    {
+      "lessonId": "CLD06",
+      "islandId": "cloud-infrastructure",
+      "slug": "object-storage",
+      "title": "物件儲存",
+      "titleEn": "Object Storage",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "比較物件儲存與檔案系統",
+        "設定生命週期把舊資料移到便宜的儲存類別",
+        "用預簽章網址暫時分享私有檔案"
+      ],
+      "concepts": [
+        "Bucket 與物件",
+        "儲存類別",
+        "生命週期規則",
+        "預簽章網址",
+        "封鎖公開存取"
+      ],
+      "prerequisites": [
+        "CLD05"
+      ],
+      "recommended": [],
+      "activity": "cost-calculator",
+      "exerciseType": "config",
+      "outcome": "學完後能安全、經濟地在雲端存放檔案與備份。"
+    },
+    {
+      "lessonId": "CLD07",
+      "islandId": "cloud-infrastructure",
+      "slug": "managed-databases",
+      "title": "託管資料庫",
+      "titleEn": "Managed Databases",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "比較託管資料庫與自建資料庫的責任分工",
+        "設定備份保留與讀取複本",
+        "讓資料庫只能從私有子網路連線"
+      ],
+      "concepts": [
+        "託管與自建",
+        "自動備份",
+        "讀取複本",
+        "維護時段",
+        "私有連線"
+      ],
+      "prerequisites": [
+        "CLD04"
+      ],
+      "recommended": [
+        "DB14",
+        "DB19"
+      ],
+      "activity": "architecture-diagram",
+      "exerciseType": "analysis",
+      "outcome": "學完後能在雲端建立一個安全、有備份的資料庫。"
+    },
+    {
+      "lessonId": "CLD08",
+      "islandId": "cloud-infrastructure",
+      "slug": "aws-and-gcp-service-map",
+      "title": "AWS 與 GCP 服務對照",
+      "titleEn": "AWS and GCP Service Map",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "對照 AWS 與 GCP 的核心服務",
+        "依需求選出合適的服務類型",
+        "說明選擇特定雲端時的鎖定風險"
+      ],
+      "concepts": [
+        "運算服務",
+        "儲存服務",
+        "資料庫服務",
+        "網路服務",
+        "受管容器服務"
+      ],
+      "prerequisites": [
+        "CLD03",
+        "CLD06",
+        "CLD07"
+      ],
+      "recommended": [],
+      "activity": "case-study-board",
+      "exerciseType": "analysis",
+      "outcome": "學完後能看懂兩大雲端平台的服務清單，並為需求挑選服務。"
+    },
+    {
+      "lessonId": "CLD09",
+      "islandId": "cloud-infrastructure",
+      "slug": "infrastructure-as-code",
+      "title": "基礎設施即程式碼",
+      "titleEn": "Infrastructure as Code",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "說明手動設定雲端資源的風險",
+        "比較宣告式與命令式的做法",
+        "說明組態漂移如何發生與偵測"
+      ],
+      "concepts": [
+        "宣告式設定",
+        "冪等",
+        "組態漂移",
+        "程式碼審查",
+        "可重建的環境"
+      ],
+      "prerequisites": [
+        "CLD04",
+        "CLD05"
+      ],
+      "recommended": [
+        "SA18"
+      ],
+      "activity": "pipeline-diagram",
+      "exerciseType": "analysis",
+      "outcome": "學完後能說明為什麼要用程式碼管理基礎設施。"
+    },
+    {
+      "lessonId": "CLD10",
+      "islandId": "cloud-infrastructure",
+      "slug": "terraform-basics",
+      "title": "Terraform 入門",
+      "titleEn": "Terraform Basics",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "用 Terraform 描述一組雲端資源",
+        "讀懂 plan 的新增、修改與刪除",
+        "以變數區分不同環境"
+      ],
+      "concepts": [
+        "provider",
+        "resource",
+        "plan 與 apply",
+        "variable 與 output",
+        "相依關係"
+      ],
+      "prerequisites": [
+        "CLD09"
+      ],
+      "recommended": [],
+      "activity": "deployment-simulator",
+      "exerciseType": "config",
+      "outcome": "學完後能用 Terraform 建立、修改與刪除雲端資源。"
+    },
+    {
+      "lessonId": "CLD11",
+      "islandId": "cloud-infrastructure",
+      "slug": "terraform-state-and-modules",
+      "title": "Terraform State 與模組",
+      "titleEn": "Terraform State and Modules",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "說明 state 的用途與遺失的後果",
+        "設定多人共用的遠端 state 與鎖定",
+        "把重複的設定抽成模組"
+      ],
+      "concepts": [
+        "state 檔",
+        "遠端 state 與鎖定",
+        "模組",
+        "環境分離",
+        "匯入既有資源"
+      ],
+      "prerequisites": [
+        "CLD10"
+      ],
+      "recommended": [],
+      "activity": "deployment-simulator",
+      "exerciseType": "config",
+      "outcome": "學完後能讓團隊安全地共同管理 Terraform 專案。"
+    },
+    {
+      "lessonId": "CLD12",
+      "islandId": "cloud-infrastructure",
+      "slug": "cloud-security-basics",
+      "title": "雲端安全基礎",
+      "titleEn": "Cloud Security Basics",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "找出常見的雲端錯誤設定",
+        "為資料啟用傳輸中與靜態加密",
+        "用稽核日誌追查是誰改了設定"
+      ],
+      "concepts": [
+        "錯誤設定",
+        "公開的儲存桶",
+        "加密",
+        "稽核日誌",
+        "安全基準"
+      ],
+      "prerequisites": [
+        "CLD04",
+        "CLD05"
+      ],
+      "recommended": [
+        "CN18",
+        "MIS15"
+      ],
+      "activity": "case-study-board",
+      "exerciseType": "case-study",
+      "outcome": "學完後能檢查一個雲端環境的主要安全風險。"
+    },
+    {
+      "lessonId": "CLD13",
+      "islandId": "cloud-infrastructure",
+      "slug": "cloud-cost-management",
+      "title": "雲端成本管理",
+      "titleEn": "Cloud Cost Management",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "估算一個架構的每月成本",
+        "用標籤與預算告警追蹤花費",
+        "找出閒置或過大的資源"
+      ],
+      "concepts": [
+        "計價模型",
+        "預算與告警",
+        "資源標籤",
+        "適當規模",
+        "預留與 Spot"
+      ],
+      "prerequisites": [
+        "CLD08"
+      ],
+      "recommended": [],
+      "activity": "cost-calculator",
+      "exerciseType": "calculation",
+      "outcome": "學完後能估算並控制雲端帳單，不被意外費用嚇到。"
+    },
+    {
+      "lessonId": "CLD14",
+      "islandId": "cloud-infrastructure",
+      "slug": "backup-and-disaster-recovery",
+      "title": "備份與災難復原",
+      "titleEn": "Backup and Disaster Recovery",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "依 RPO 與 RTO 選擇備份與復原方案",
+        "設計跨區域的備份",
+        "規劃並執行還原演練"
+      ],
+      "concepts": [
+        "RPO 與 RTO",
+        "快照",
+        "跨區域複製",
+        "還原演練",
+        "多可用區"
+      ],
+      "prerequisites": [
+        "CLD06",
+        "CLD07"
+      ],
+      "recommended": [
+        "DB19"
+      ],
+      "activity": "decision-simulation",
+      "exerciseType": "design",
+      "outcome": "學完後能為服務設計可驗證的備份與災難復原計畫。"
+    },
+    {
+      "lessonId": "CLD15",
+      "islandId": "cloud-infrastructure",
+      "slug": "cloud-infrastructure-capstone",
+      "title": "雲端基礎設施島綜合專題：設計一套雲端架構",
+      "titleEn": "Cloud Infrastructure Capstone: Design a Cloud Architecture",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "以 Terraform 描述一個三層式架構",
+        "完成安全與成本檢查",
+        "寫出災難復原計畫並說明取捨"
+      ],
+      "concepts": [
+        "網路與權限設計",
+        "Terraform",
+        "安全檢查",
+        "成本估算",
+        "災難復原"
+      ],
+      "prerequisites": [
+        "CLD11",
+        "CLD12",
+        "CLD13",
+        "CLD14"
+      ],
+      "recommended": [],
+      "activity": "challenge-stages",
+      "exerciseType": "design",
+      "outcome": "學完後能設計並以程式碼建立一套可上線的雲端架構。"
+    },
+    {
+      "lessonId": "CICD01",
+      "islandId": "devops-cicd",
+      "slug": "devops-culture-and-practices",
+      "title": "DevOps 概念與文化",
+      "titleEn": "DevOps Culture and Practices",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "說明 DevOps 要解決的問題",
+        "說明小批量交付為什麼降低風險",
+        "用 DORA 指標描述交付表現"
+      ],
+      "concepts": [
+        "開發與維運的隔閡",
+        "小批量與快速回饋",
+        "自動化",
+        "共同責任",
+        "DORA 指標"
+      ],
+      "prerequisites": [],
+      "recommended": [
+        "SA02"
+      ],
+      "activity": "case-study-board",
+      "exerciseType": "analysis",
+      "outcome": "學完後能說明 DevOps 改變了團隊的哪些做法。"
+    },
+    {
+      "lessonId": "CICD02",
+      "islandId": "devops-cicd",
+      "slug": "git-workflows-for-teams",
+      "title": "團隊 Git 工作流程",
+      "titleEn": "Git Workflows for Teams",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "比較 Trunk-based 與 Git Flow 的取捨",
+        "說明 Pull Request 與程式碼審查的流程",
+        "設定保護主分支的規則"
+      ],
+      "concepts": [
+        "分支",
+        "Pull Request",
+        "Trunk-based 與 Git Flow",
+        "merge 與 rebase",
+        "分支保護"
+      ],
+      "prerequisites": [
+        "CICD01"
+      ],
+      "recommended": [
+        "SA18"
+      ],
+      "activity": "decision-simulation",
+      "exerciseType": "analysis",
+      "outcome": "學完後能為團隊選擇並執行一套 Git 工作流程。"
+    },
+    {
+      "lessonId": "CICD03",
+      "islandId": "devops-cicd",
+      "slug": "continuous-integration",
+      "title": "持續整合",
+      "titleEn": "Continuous Integration",
+      "difficulty": "Beginner",
+      "learningObjectives": [
+        "說明持續整合的原則",
+        "描述一次 push 觸發的檢查流程",
+        "說明主分支紅燈時團隊該怎麼做"
+      ],
+      "concepts": [
+        "頻繁整合",
+        "自動建置",
+        "快速回饋",
+        "綠燈主分支",
+        "失敗即修"
+      ],
+      "prerequisites": [
+        "CICD02"
+      ],
+      "recommended": [],
+      "activity": "pipeline-sim",
+      "exerciseType": "simulation",
+      "outcome": "學完後能說明 CI 如何讓團隊更早發現錯誤。"
+    },
+    {
+      "lessonId": "CICD04",
+      "islandId": "devops-cicd",
+      "slug": "github-actions-basics",
+      "title": "GitHub Actions 入門",
+      "titleEn": "GitHub Actions Basics",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "撰寫在 push 與 Pull Request 時執行的 workflow",
+        "分辨 job、step 與 action",
+        "為 workflow 設定最小權限"
+      ],
+      "concepts": [
+        "workflow 與 job",
+        "觸發事件",
+        "step 與 action",
+        "runner",
+        "最小權限 permissions"
+      ],
+      "prerequisites": [
+        "CICD03",
+        "LNX13"
+      ],
+      "recommended": [],
+      "activity": "pipeline-sim",
+      "exerciseType": "config",
+      "outcome": "學完後能為專案建立第一條 GitHub Actions 管線。"
+    },
+    {
+      "lessonId": "CICD05",
+      "islandId": "devops-cicd",
+      "slug": "automated-testing-in-pipelines",
+      "title": "管線中的自動化測試",
+      "titleEn": "Automated Testing in Pipelines",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "依測試金字塔安排管線中的測試",
+        "處理不穩定的測試而不是忽略它",
+        "用平行執行縮短回饋時間"
+      ],
+      "concepts": [
+        "測試金字塔",
+        "單元、整合與端對端測試",
+        "測試報告",
+        "不穩定測試",
+        "平行執行"
+      ],
+      "prerequisites": [
+        "CICD04"
+      ],
+      "recommended": [
+        "SA16",
+        "FE12"
+      ],
+      "activity": "pipeline-sim",
+      "exerciseType": "simulation",
+      "outcome": "學完後能讓測試在管線中可靠、快速地把關。"
+    },
+    {
+      "lessonId": "CICD06",
+      "islandId": "devops-cicd",
+      "slug": "build-pipelines-and-artifacts",
+      "title": "建置管線與產出物",
+      "titleEn": "Build Pipelines and Artifacts",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "讓管線產出可追溯版本的產出物",
+        "在管線中建置並推送容器 Image",
+        "用快取加速建置"
+      ],
+      "concepts": [
+        "可重現建置",
+        "產出物",
+        "快取",
+        "Image 建置與推送",
+        "版本號"
+      ],
+      "prerequisites": [
+        "CICD04",
+        "DKR11"
+      ],
+      "recommended": [],
+      "activity": "pipeline-sim",
+      "exerciseType": "config",
+      "outcome": "學完後能讓每次合併都產出一個可部署、可追溯的版本。"
+    },
+    {
+      "lessonId": "CICD07",
+      "islandId": "devops-cicd",
+      "slug": "environment-variables-and-config",
+      "title": "環境變數與設定管理",
+      "titleEn": "Environment Variables and Configuration",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "把環境相關的設定移出程式碼",
+        "為不同環境提供不同的設定",
+        "在啟動時驗證必要的設定是否存在"
+      ],
+      "concepts": [
+        "設定與程式碼分離",
+        "環境變數",
+        "開發、測試與正式環境",
+        "預設值",
+        "設定驗證"
+      ],
+      "prerequisites": [
+        "CICD04"
+      ],
+      "recommended": [],
+      "activity": "pipeline-sim",
+      "exerciseType": "config",
+      "outcome": "學完後能讓同一份程式碼在不同環境中正確執行。"
+    },
+    {
+      "lessonId": "CICD08",
+      "islandId": "devops-cicd",
+      "slug": "secrets-management",
+      "title": "機密管理",
+      "titleEn": "Secrets Management",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "分辨機密與一般設定",
+        "在管線中安全地使用機密",
+        "說明機密外洩時的處理步驟"
+      ],
+      "concepts": [
+        "機密與一般設定",
+        "機密儲存服務",
+        "輪替",
+        "最小權限",
+        "外洩應變"
+      ],
+      "prerequisites": [
+        "CICD07"
+      ],
+      "recommended": [
+        "CLD05"
+      ],
+      "activity": "case-study-board",
+      "exerciseType": "analysis",
+      "outcome": "學完後能讓 API Key 與密碼不出現在程式碼、日誌與 Image 中。"
+    },
+    {
+      "lessonId": "CICD09",
+      "islandId": "devops-cicd",
+      "slug": "deployment-pipelines",
+      "title": "部署管線",
+      "titleEn": "Deployment Pipelines",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "區分持續交付與持續部署",
+        "設計從測試環境晉升到正式環境的流程",
+        "在部署後自動執行冒煙測試"
+      ],
+      "concepts": [
+        "持續交付與持續部署",
+        "環境晉升",
+        "人工核准",
+        "部署後檢查",
+        "部署紀錄"
+      ],
+      "prerequisites": [
+        "CICD06",
+        "CICD07"
+      ],
+      "recommended": [],
+      "activity": "pipeline-sim",
+      "exerciseType": "simulation",
+      "outcome": "學完後能設計一條有核准與檢查的部署管線。"
+    },
+    {
+      "lessonId": "CICD10",
+      "islandId": "devops-cicd",
+      "slug": "deployment-strategies",
+      "title": "部署策略：滾動、藍綠與金絲雀",
+      "titleEn": "Deployment Strategies: Rolling, Blue-Green and Canary",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "比較三種部署策略的風險與成本",
+        "規劃金絲雀發布的流量比例與判斷條件",
+        "說明資料庫結構變更如何配合部署"
+      ],
+      "concepts": [
+        "滾動更新",
+        "藍綠部署",
+        "金絲雀發布",
+        "流量切換",
+        "資料庫相容性"
+      ],
+      "prerequisites": [
+        "CICD09"
+      ],
+      "recommended": [
+        "OPS06"
+      ],
+      "activity": "deployment-simulator",
+      "exerciseType": "simulation",
+      "outcome": "學完後能為一次發布選擇合適的部署策略。"
+    },
+    {
+      "lessonId": "CICD11",
+      "islandId": "devops-cicd",
+      "slug": "monitoring-and-alerting",
+      "title": "監控與告警",
+      "titleEn": "Monitoring and Alerting",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "選出一個服務該監控的指標",
+        "設定有行動意義的告警",
+        "說明告警太多為什麼危險"
+      ],
+      "concepts": [
+        "指標",
+        "四大黃金訊號",
+        "儀表板",
+        "告警門檻",
+        "告警疲勞"
+      ],
+      "prerequisites": [
+        "CICD09"
+      ],
+      "recommended": [
+        "LNX11"
+      ],
+      "activity": "monitoring-dashboard",
+      "exerciseType": "analysis",
+      "outcome": "學完後能為服務建立有用的監控與告警。"
+    },
+    {
+      "lessonId": "CICD12",
+      "islandId": "devops-cicd",
+      "slug": "centralized-logging",
+      "title": "集中式日誌",
+      "titleEn": "Centralized Logging",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "把應用日誌改為結構化格式",
+        "用關聯 ID 串起一個請求的所有日誌",
+        "避免把個資與機密寫進日誌"
+      ],
+      "concepts": [
+        "結構化日誌",
+        "日誌收集",
+        "關聯 ID",
+        "保留期限",
+        "敏感資料遮蔽"
+      ],
+      "prerequisites": [
+        "CICD11"
+      ],
+      "recommended": [],
+      "activity": "monitoring-dashboard",
+      "exerciseType": "analysis",
+      "outcome": "學完後能在多台機器的日誌中快速找到一個請求的完整紀錄。"
+    },
+    {
+      "lessonId": "CICD13",
+      "islandId": "devops-cicd",
+      "slug": "rollback-and-release-safety",
+      "title": "回滾與發布安全",
+      "titleEn": "Rollback and Release Safety",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "判斷何時回滾、何時向前修復",
+        "用功能旗標把部署與發布分開",
+        "設計可回滾的資料庫遷移"
+      ],
+      "concepts": [
+        "回滾",
+        "功能旗標",
+        "向前修復",
+        "相容的資料庫遷移",
+        "發布檢查清單"
+      ],
+      "prerequisites": [
+        "CICD10",
+        "CICD11"
+      ],
+      "recommended": [],
+      "activity": "pipeline-sim",
+      "exerciseType": "simulation",
+      "outcome": "學完後能讓每次發布都有安全退路。"
+    },
+    {
+      "lessonId": "CICD14",
+      "islandId": "devops-cicd",
+      "slug": "incident-response",
+      "title": "事故應變與事後檢討",
+      "titleEn": "Incident Response and Postmortems",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "依影響範圍判定事故等級",
+        "在事故中分工、止血與溝通",
+        "寫出不究責、有改進行動的事後檢討"
+      ],
+      "concepts": [
+        "嚴重等級",
+        "事故指揮",
+        "對外溝通",
+        "時間線",
+        "不究責的事後檢討"
+      ],
+      "prerequisites": [
+        "CICD12",
+        "CICD13"
+      ],
+      "recommended": [
+        "OPS18"
+      ],
+      "activity": "case-study-board",
+      "exerciseType": "case-study",
+      "outcome": "學完後能參與並主導一次事故處理與檢討。"
+    },
+    {
+      "lessonId": "CICD15",
+      "islandId": "devops-cicd",
+      "slug": "devops-cicd-capstone",
+      "title": "DevOps 與 CI/CD 島綜合專題：從 commit 到上線",
+      "titleEn": "DevOps and CI/CD Capstone: From Commit to Production",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "建立含測試、建置與部署的完整管線",
+        "以金絲雀策略發布並監控",
+        "演練一次回滾與事後檢討"
+      ],
+      "concepts": [
+        "CI 管線",
+        "容器建置",
+        "部署策略",
+        "監控與告警",
+        "回滾演練"
+      ],
+      "prerequisites": [
+        "CICD05",
+        "CICD08",
+        "CICD14"
+      ],
+      "recommended": [],
+      "activity": "challenge-stages",
+      "exerciseType": "design",
+      "outcome": "學完後能為一個應用建立從 commit 到上線、可監控、可回滾的完整流程。"
+    },
+    {
+      "lessonId": "KUB01",
+      "islandId": "kubernetes-reliability",
+      "slug": "container-orchestration",
+      "title": "容器編排概念",
+      "titleEn": "Container Orchestration",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "說明單機 Compose 的極限",
+        "說明期望狀態與調和迴圈",
+        "判斷一個專案是否真的需要 Kubernetes"
+      ],
+      "concepts": [
+        "期望狀態",
+        "排程",
+        "自我修復",
+        "服務發現",
+        "何時不需要編排"
+      ],
+      "prerequisites": [
+        "DKR09"
+      ],
+      "recommended": [],
+      "activity": "cluster-sim",
+      "exerciseType": "analysis",
+      "outcome": "學完後能說明容器編排解決的問題，並避免過早採用。"
+    },
+    {
+      "lessonId": "KUB02",
+      "islandId": "kubernetes-reliability",
+      "slug": "kubernetes-architecture",
+      "title": "Kubernetes 架構",
+      "titleEn": "Kubernetes Architecture",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "畫出控制平面與工作節點的元件",
+        "追蹤 kubectl apply 之後發生的事",
+        "說明 etcd 為什麼重要"
+      ],
+      "concepts": [
+        "控制平面",
+        "API Server 與 etcd",
+        "Scheduler 與 Controller",
+        "Node 與 kubelet",
+        "kubectl"
+      ],
+      "prerequisites": [
+        "KUB01"
+      ],
+      "recommended": [],
+      "activity": "architecture-diagram",
+      "exerciseType": "analysis",
+      "outcome": "學完後能說出 Kubernetes 各元件的職責與互動。"
+    },
+    {
+      "lessonId": "KUB03",
+      "islandId": "kubernetes-reliability",
+      "slug": "kubernetes-pods",
+      "title": "Pod",
+      "titleEn": "Pods",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "撰寫一個 Pod 的 manifest",
+        "說明 Pod 與容器的關係",
+        "用存活與就緒探針判斷 Pod 狀態"
+      ],
+      "concepts": [
+        "Pod",
+        "YAML manifest",
+        "多容器 Pod",
+        "Pod 生命週期",
+        "探針"
+      ],
+      "prerequisites": [
+        "KUB02"
+      ],
+      "recommended": [],
+      "activity": "cluster-sim",
+      "exerciseType": "config",
+      "outcome": "學完後能部署並檢查一個 Pod。"
+    },
+    {
+      "lessonId": "KUB04",
+      "islandId": "kubernetes-reliability",
+      "slug": "deployments-and-replicasets",
+      "title": "Deployment 與 ReplicaSet",
+      "titleEn": "Deployments and ReplicaSets",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "用 Deployment 維持指定數量的 Pod",
+        "說明 Label 與 Selector 如何連起資源",
+        "觀察 Pod 被刪除後如何自動補上"
+      ],
+      "concepts": [
+        "Deployment",
+        "ReplicaSet",
+        "副本數",
+        "Label 與 Selector",
+        "自我修復"
+      ],
+      "prerequisites": [
+        "KUB03"
+      ],
+      "recommended": [],
+      "activity": "cluster-sim",
+      "exerciseType": "simulation",
+      "outcome": "學完後能用 Deployment 讓應用持續保持指定的副本數。"
+    },
+    {
+      "lessonId": "KUB05",
+      "islandId": "kubernetes-reliability",
+      "slug": "services-and-service-discovery",
+      "title": "Service 與服務發現",
+      "titleEn": "Services and Service Discovery",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "比較三種 Service 類型",
+        "讓 Pod 以名稱互相連線",
+        "說明 Service 如何把流量分到變動的 Pod"
+      ],
+      "concepts": [
+        "ClusterIP",
+        "NodePort 與 LoadBalancer",
+        "叢集內 DNS",
+        "Endpoint",
+        "連接埠對應"
+      ],
+      "prerequisites": [
+        "KUB04"
+      ],
+      "recommended": [
+        "SRV08"
+      ],
+      "activity": "cluster-sim",
+      "exerciseType": "simulation",
+      "outcome": "學完後能讓叢集內外的使用者穩定地連到應用。"
+    },
+    {
+      "lessonId": "KUB06",
+      "islandId": "kubernetes-reliability",
+      "slug": "configmaps-and-secrets",
+      "title": "ConfigMap 與 Secret",
+      "titleEn": "ConfigMaps and Secrets",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "把設定與機密從 Image 中移出",
+        "以環境變數或檔案提供設定給 Pod",
+        "說明 Secret 預設只是編碼而不是加密"
+      ],
+      "concepts": [
+        "ConfigMap",
+        "Secret",
+        "環境變數與掛載檔案",
+        "更新設定",
+        "Secret 的限制"
+      ],
+      "prerequisites": [
+        "KUB04",
+        "CICD08"
+      ],
+      "recommended": [],
+      "activity": "cluster-sim",
+      "exerciseType": "config",
+      "outcome": "學完後能在 Kubernetes 中安全地管理設定與機密。"
+    },
+    {
+      "lessonId": "KUB07",
+      "islandId": "kubernetes-reliability",
+      "slug": "ingress-and-gateway-api",
+      "title": "Ingress 與 Gateway API",
+      "titleEn": "Ingress and the Gateway API",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "用 Ingress 依網域與路徑分流",
+        "比較 Ingress 與 Gateway API",
+        "為叢集入口設定 TLS"
+      ],
+      "concepts": [
+        "Ingress",
+        "Ingress Controller",
+        "Gateway API",
+        "主機與路徑路由",
+        "TLS 終止"
+      ],
+      "prerequisites": [
+        "KUB05",
+        "SRV07"
+      ],
+      "recommended": [
+        "SRV04"
+      ],
+      "activity": "request-path",
+      "exerciseType": "config",
+      "outcome": "學完後能讓多個服務透過一個 HTTPS 入口對外提供。"
+    },
+    {
+      "lessonId": "KUB08",
+      "islandId": "kubernetes-reliability",
+      "slug": "persistent-volumes",
+      "title": "Persistent Volume 與有狀態應用",
+      "titleEn": "Persistent Volumes and Stateful Apps",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "為 Pod 申請持久儲存",
+        "說明 StatefulSet 與 Deployment 的差異",
+        "判斷資料庫該放在叢集內還是用託管服務"
+      ],
+      "concepts": [
+        "PersistentVolume",
+        "PersistentVolumeClaim",
+        "StorageClass",
+        "StatefulSet",
+        "資料備份"
+      ],
+      "prerequisites": [
+        "KUB04",
+        "DKR07"
+      ],
+      "recommended": [],
+      "activity": "cluster-sim",
+      "exerciseType": "config",
+      "outcome": "學完後能在 Kubernetes 中執行需要保存資料的應用。"
+    },
+    {
+      "lessonId": "KUB09",
+      "islandId": "kubernetes-reliability",
+      "slug": "helm-charts",
+      "title": "Helm 套件管理",
+      "titleEn": "Helm Charts",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "用 Helm 安裝與升級一個應用",
+        "以 values 為不同環境調整設定",
+        "回滾一次失敗的升級"
+      ],
+      "concepts": [
+        "Chart",
+        "values",
+        "樣板",
+        "release",
+        "升級與回滾"
+      ],
+      "prerequisites": [
+        "KUB06"
+      ],
+      "recommended": [],
+      "activity": "cluster-sim",
+      "exerciseType": "config",
+      "outcome": "學完後能用 Helm 管理 Kubernetes 應用的安裝與版本。"
+    },
+    {
+      "lessonId": "KUB10",
+      "islandId": "kubernetes-reliability",
+      "slug": "kubernetes-autoscaling",
+      "title": "自動擴展",
+      "titleEn": "Autoscaling",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "設定 Pod 的資源請求與上限",
+        "依 CPU 或自訂指標自動調整副本數",
+        "避免副本數忽大忽小"
+      ],
+      "concepts": [
+        "資源請求與上限",
+        "Horizontal Pod Autoscaler",
+        "指標來源",
+        "節點擴展",
+        "擴展抖動"
+      ],
+      "prerequisites": [
+        "KUB04"
+      ],
+      "recommended": [
+        "OPS08"
+      ],
+      "activity": "cluster-sim",
+      "exerciseType": "simulation",
+      "outcome": "學完後能讓應用隨流量自動擴展與縮減。"
+    },
+    {
+      "lessonId": "KUB11",
+      "islandId": "kubernetes-reliability",
+      "slug": "rolling-updates-and-rollbacks",
+      "title": "滾動更新與回滾",
+      "titleEn": "Rolling Updates and Rollbacks",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "設定滾動更新的速度與可用性",
+        "用就緒探針避免把流量送到未就緒的 Pod",
+        "把一次失敗的更新回滾"
+      ],
+      "concepts": [
+        "滾動更新",
+        "maxSurge 與 maxUnavailable",
+        "就緒探針",
+        "rollout history",
+        "rollout undo"
+      ],
+      "prerequisites": [
+        "KUB04",
+        "CICD10"
+      ],
+      "recommended": [],
+      "activity": "cluster-sim",
+      "exerciseType": "simulation",
+      "outcome": "學完後能在不中斷服務的情況下更新與回滾應用。"
+    },
+    {
+      "lessonId": "KUB12",
+      "islandId": "kubernetes-reliability",
+      "slug": "cluster-monitoring",
+      "title": "叢集監控",
+      "titleEn": "Cluster Monitoring",
+      "difficulty": "Intermediate",
+      "learningObjectives": [
+        "監控節點與 Pod 的資源使用",
+        "從事件與重啟次數發現問題",
+        "判斷叢集是否需要擴充容量"
+      ],
+      "concepts": [
+        "節點與 Pod 指標",
+        "Prometheus",
+        "事件",
+        "重啟次數",
+        "容量使用率"
+      ],
+      "prerequisites": [
+        "KUB05",
+        "CICD11"
+      ],
+      "recommended": [],
+      "activity": "monitoring-dashboard",
+      "exerciseType": "analysis",
+      "outcome": "學完後能看出叢集與其中應用的健康狀況。"
+    },
+    {
+      "lessonId": "KUB13",
+      "islandId": "kubernetes-reliability",
+      "slug": "observability-metrics-logs-traces",
+      "title": "可觀測性：指標、日誌與追蹤",
+      "titleEn": "Observability: Metrics, Logs and Traces",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "說明監控與可觀測性的差異",
+        "用分散式追蹤找出一個慢請求的瓶頸",
+        "把指標、日誌與追蹤關聯起來"
+      ],
+      "concepts": [
+        "三大支柱",
+        "分散式追蹤",
+        "OpenTelemetry",
+        "取樣",
+        "高基數"
+      ],
+      "prerequisites": [
+        "KUB12",
+        "CICD12"
+      ],
+      "recommended": [
+        "OPS13"
+      ],
+      "activity": "metric-explorer",
+      "exerciseType": "analysis",
+      "outcome": "學完後能為微服務建立可以回答新問題的可觀測性。"
+    },
+    {
+      "lessonId": "KUB14",
+      "islandId": "kubernetes-reliability",
+      "slug": "sli-slo-sla",
+      "title": "SLI、SLO 與 SLA",
+      "titleEn": "SLIs, SLOs and SLAs",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "為服務選出以使用者為中心的 SLI",
+        "訂出 SLO 並計算錯誤預算",
+        "用錯誤預算決定發布或穩定優先"
+      ],
+      "concepts": [
+        "SLI",
+        "SLO",
+        "SLA",
+        "錯誤預算",
+        "依 SLO 告警"
+      ],
+      "prerequisites": [
+        "KUB13"
+      ],
+      "recommended": [
+        "OPS19"
+      ],
+      "activity": "metric-explorer",
+      "exerciseType": "calculation",
+      "outcome": "學完後能用 SLO 與錯誤預算衡量並管理服務的可靠性。"
+    },
+    {
+      "lessonId": "KUB15",
+      "islandId": "kubernetes-reliability",
+      "slug": "kubernetes-reliability-capstone",
+      "title": "Kubernetes 與可靠性工程島綜合專題：SRE 實務演練",
+      "titleEn": "Kubernetes and Reliability Capstone: SRE in Practice",
+      "difficulty": "Advanced",
+      "learningObjectives": [
+        "部署一個可擴展、可回滾的應用",
+        "訂出 SLO 與錯誤預算政策",
+        "演練一次故障並完成事後檢討"
+      ],
+      "concepts": [
+        "Toil 與自動化",
+        "On-call",
+        "錯誤預算政策",
+        "混沌演練",
+        "事後檢討"
+      ],
+      "prerequisites": [
+        "KUB07",
+        "KUB08",
+        "KUB09",
+        "KUB10",
+        "KUB11",
+        "KUB14",
+        "CICD14"
+      ],
+      "recommended": [],
+      "activity": "challenge-stages",
+      "exerciseType": "design",
+      "outcome": "學完後能以 SRE 的方法維運 Kubernetes 上的服務。"
     }
   ],
   "paths": [
@@ -12489,6 +15059,229 @@
         "OPS17",
         "OPS18",
         "OPS19"
+      ]
+    },
+    {
+      "id": "K-fullstack-deployment",
+      "title": "全端部署",
+      "titleEn": "Full-Stack Deployment",
+      "targets": [
+        "FE10",
+        "DB16",
+        "DKR09",
+        "LNX12",
+        "SRV04",
+        "SRV07",
+        "CICD09",
+        "CLD03"
+      ],
+      "lessons": [
+        "F01",
+        "F02",
+        "F03",
+        "F04",
+        "F05",
+        "F07",
+        "F11",
+        "F13",
+        "F14",
+        "PL01",
+        "PL02",
+        "DB01",
+        "DB02",
+        "DB03",
+        "DB07",
+        "DB16",
+        "WEB01",
+        "WEB02",
+        "WEB08",
+        "WEB09",
+        "FE01",
+        "FE05",
+        "FE06",
+        "FE10",
+        "LNX01",
+        "LNX02",
+        "LNX03",
+        "LNX04",
+        "LNX05",
+        "LNX06",
+        "LNX07",
+        "LNX08",
+        "LNX09",
+        "LNX10",
+        "LNX12",
+        "LNX13",
+        "DKR01",
+        "DKR02",
+        "DKR03",
+        "DKR04",
+        "DKR05",
+        "DKR07",
+        "DKR08",
+        "DKR09",
+        "DKR11",
+        "SRV01",
+        "SRV02",
+        "SRV03",
+        "SRV04",
+        "SRV05",
+        "SRV06",
+        "SRV07",
+        "CLD01",
+        "CLD02",
+        "CLD03",
+        "CICD01",
+        "CICD02",
+        "CICD03",
+        "CICD04",
+        "CICD06",
+        "CICD07",
+        "CICD09"
+      ]
+    },
+    {
+      "id": "L-ai-infrastructure",
+      "title": "AI 基礎設施",
+      "titleEn": "AI Infrastructure",
+      "targets": [
+        "LLM09",
+        "OPS02",
+        "OPS07",
+        "DKR10",
+        "CLD03",
+        "CICD09",
+        "KUB13"
+      ],
+      "lessons": [
+        "F01",
+        "F02",
+        "F03",
+        "F04",
+        "F05",
+        "F07",
+        "F13",
+        "CN01",
+        "CN05",
+        "CN09",
+        "CN12",
+        "CN14",
+        "SA01",
+        "AIF01",
+        "LLM01",
+        "LLM09",
+        "OPS01",
+        "OPS02",
+        "OPS07",
+        "LNX01",
+        "LNX02",
+        "LNX03",
+        "LNX04",
+        "LNX05",
+        "LNX06",
+        "LNX07",
+        "LNX08",
+        "LNX09",
+        "LNX12",
+        "LNX13",
+        "DKR01",
+        "DKR02",
+        "DKR03",
+        "DKR04",
+        "DKR05",
+        "DKR06",
+        "DKR07",
+        "DKR08",
+        "DKR09",
+        "DKR10",
+        "DKR11",
+        "CLD01",
+        "CLD02",
+        "CLD03",
+        "CICD01",
+        "CICD02",
+        "CICD03",
+        "CICD04",
+        "CICD06",
+        "CICD07",
+        "CICD09",
+        "CICD11",
+        "CICD12",
+        "KUB01",
+        "KUB02",
+        "KUB03",
+        "KUB04",
+        "KUB05",
+        "KUB12",
+        "KUB13"
+      ]
+    },
+    {
+      "id": "M-cloud-devops-foundations",
+      "title": "雲端與 DevOps 基礎",
+      "titleEn": "Cloud and DevOps Foundations",
+      "targets": [
+        "CN05",
+        "CN09",
+        "CN12",
+        "LNX10",
+        "LNX13",
+        "SRV12",
+        "DKR09",
+        "CLD04",
+        "CLD10",
+        "CICD09",
+        "KUB11"
+      ],
+      "lessons": [
+        "F01",
+        "CN01",
+        "CN05",
+        "CN09",
+        "CN12",
+        "LNX01",
+        "LNX02",
+        "LNX03",
+        "LNX04",
+        "LNX05",
+        "LNX06",
+        "LNX07",
+        "LNX08",
+        "LNX09",
+        "LNX10",
+        "LNX13",
+        "DKR01",
+        "DKR02",
+        "DKR03",
+        "DKR04",
+        "DKR05",
+        "DKR07",
+        "DKR08",
+        "DKR09",
+        "DKR11",
+        "SRV01",
+        "SRV02",
+        "SRV03",
+        "SRV12",
+        "CLD01",
+        "CLD02",
+        "CLD04",
+        "CLD05",
+        "CLD09",
+        "CLD10",
+        "CICD01",
+        "CICD02",
+        "CICD03",
+        "CICD04",
+        "CICD06",
+        "CICD07",
+        "CICD09",
+        "CICD10",
+        "KUB01",
+        "KUB02",
+        "KUB03",
+        "KUB04",
+        "KUB11"
       ]
     }
   ]

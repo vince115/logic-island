@@ -8,7 +8,7 @@ import { islands, lessons } from '@/content/curriculum';
 import { APCS_LABELS, DIFFICULTY_LABELS } from '@/content/curriculum/registry';
 import { DIFFICULTIES } from '@/content/curriculum/schema';
 import { catalogCounts, lessonsOfIsland } from '@/content/world/catalog';
-import { getIsland, getRegion, orderedRegions } from '@/content/world';
+import { getIsland, getRegion, orderedRegions, regionCountZh } from '@/content/world';
 import { PlannedIslandsOf, PlannedRegion, RegionExams, RegionStrip } from './region-overview';
 import { IslandProgress, ProgressBadge } from './progress';
 import styles from './curriculum.module.css';
@@ -47,7 +47,7 @@ export function CurriculumCatalog() {
         <Link href="/learn">先到互動實驗島試試<ArrowRight size={15} aria-hidden/></Link>
       </div>
     </section>
-    <h2 className={overview.heading}>四大學習群島</h2>
+    <h2 className={overview.heading}>{regionCountZh()}大學習群島</h2>
     <RegionStrip/>
     <dl className={styles.summary}>
       <div><dt>規劃課程</dt><dd>{counts.total} 堂</dd></div>

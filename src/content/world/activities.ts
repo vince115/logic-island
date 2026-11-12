@@ -113,6 +113,11 @@ const PLANNED: Record<string, [ActivityTier, ActivityInput[]]> = {
   'design-token-board': ['T1', ['parameters']], 'flexbox-playground': ['T1', ['parameters']], 'grid-playground': ['T1', ['parameters']],
   'responsive-sim': ['T1', ['parameters']], 'mobile-nav-sim': ['T1', ['parameters']], 'dom-explorer': ['T1', ['preset']],
   'react-state-flow': ['T1', ['preset', 'parameters']],
+  // P6/P7: systems and cloud activities, all simulated in the browser. The terminal runs a virtual file system with a
+  // fixed set of commands, never a real shell; containers, requests, pipelines and clusters are state machines.
+  'terminal-sim': ['T1', ['text']], 'container-playground': ['T1', ['preset', 'parameters']],
+  'request-path': ['T1', ['preset', 'parameters']], 'pipeline-sim': ['T1', ['preset', 'parameters']],
+  'cluster-sim': ['T1', ['preset', 'parameters']],
   'agent-workflow': ['T1', ['preset', 'parameters']], 'tool-call-trace': ['T1', ['preset', 'parameters']],
   'memory-inspector': ['T1', ['preset', 'parameters']], 'multi-agent-board': ['T1', ['preset', 'parameters']], 'guardrail-sim': ['T1', ['preset', 'parameters']],
 };

@@ -17,9 +17,10 @@ describe('course tree', () => {
   const tree = courseTree();
   const islandsOf = (nodes: NavNode[]): NavNode[] => nodes.flatMap(n => isGroup(n) && n.kind === 'island' ? [n] : isGroup(n) ? islandsOf(n.children) : []);
 
-  it('starts at the four regions in their order, with the AI islands under their three groups', () => {
-    expect(tree.map(g => [g.id, g.label])).toEqual([['c:r:cs', '程式與資訊群島'], ['c:r:ai', 'AI 人工智慧群島'], ['c:r:design', '數位設計群島'], ['c:r:web', '網頁與應用開發群島']]);
-    expect(tree.map(g => islandsOf([g]).length)).toEqual([8, 7, 4, 4]);
+  it('starts at the five regions in their order, with the AI islands under their three groups', () => {
+    expect(tree.map(g => [g.id, g.label])).toEqual([['c:r:cs', '程式與資訊群島'], ['c:r:ai', 'AI 人工智慧群島'], ['c:r:design', '數位設計群島'], ['c:r:web', '網頁與應用開發群島'],
+      ['c:r:sys', '系統與雲端工程群島']]);
+    expect(tree.map(g => islandsOf([g]).length)).toEqual([8, 7, 4, 4, 6]);
     const ai = tree[1];
     expect(ai.children.map(n => n.label)).toEqual(['AI 原理與模型', '生成式 AI 與大型語言模型', 'AI 應用與系統工程']);
     expect(islandsOf(ai.children).map(n => n.id)).toEqual(['c:ai-foundations', 'c:machine-learning', 'c:deep-learning', 'c:large-language-models', 'c:generative-ai', 'c:ai-agents', 'c:ai-engineering']);
@@ -64,7 +65,7 @@ describe('content status (multi-archipelago v2)', () => {
 describe('lab tree', () => {
   it('lists every lab by learning domain: the six algorithm labs, the implemented tool labs, planned ones without a link', () => {
     const tree = labTree();
-    expect(tree.map(g => g.label)).toEqual(['資料結構', '演算法', 'UI／UX', '網頁設計', '行動裝置設計', 'AI']);
+    expect(tree.map(g => g.label)).toEqual(['資料結構', '演算法', 'UI／UX', '網頁設計', '行動裝置設計', 'AI', '系統與雲端']);
     expect(hrefs(tree).sort()).toEqual([...courses.map(c => `/learn/${c.slug}`), '/learn/color-contrast'].sort());
     expect(leaves(tree).filter(isDisabled).map(n => n.label)).toContain('Responsive Layout Playground');
   });
