@@ -50,12 +50,12 @@ function useIslandInAddress(ids:string[]){
   return {selectedId,change};
 }
 
-export function IslandsWorldExplorer({islands,layout,islandInAddress=false}:{islands:LearningIsland[];layout?:'card'|'fullscreen';islandInAddress?:boolean}) {
+export function IslandsWorldExplorer({islands,layout,islandInAddress=false,listMore}:{islands:LearningIsland[];layout?:'card'|'fullscreen';islandInAddress?:boolean;listMore?:React.ReactNode}) {
   const lessons=islands.reduce((sum,island)=>sum+island.lessons.length,0);
   const home=islands.some(island=>island.id===LAB_ISLAND_ID);
   const address=useIslandInAddress(islands.map(i=>i.id));
   return <HexWorldExplorer islands={islands} world={(home?islandsHomeWorld:islandsWorld).world} options={home?HOME_OPTIONS:OPTIONS} poiPanel captionAbove controlsBelow layout={layout} modeSwitchTarget={layout==='fullscreen'?HEADER_TOOLS_ID:undefined} copy={home?HOME_COPY:ISLANDS_COPY}
-    {...islandInAddress?{selectedId:address.selectedId,onSelectedChange:address.change}:{}}
+    {...islandInAddress?{selectedId:address.selectedId,onSelectedChange:address.change}:{}} listMore={listMore}
     // The island and lesson counts stay with the inner map page; the full-screen home map leaves them out.
     footer={layout==='fullscreen'?undefined:<span>{islands.length} 座主題島嶼 <b>/</b> {lessons} 份教材入口 <b>/</b> 一步步建立理解</span>}/>;
 }

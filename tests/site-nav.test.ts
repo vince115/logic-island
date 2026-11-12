@@ -21,14 +21,14 @@ describe('course tree', () => {
     expect(tree.map(g => [g.id, g.label])).toEqual([['c:r:cs', '程式與資訊群島'], ['c:r:ai', 'AI 人工智慧群島'], ['c:r:design', '數位設計群島'], ['c:r:web', '網頁與應用開發群島']]);
     expect(tree.map(g => islandsOf([g]).length)).toEqual([8, 7, 4, 4]);
     const ai = tree[1];
-    expect(ai.children.map(n => n.label)).toEqual(['AI 原理與模型', '生成式 AI 與大型語言模型', 'AI 應用與系統工程']);
+    expect(ai.children.filter(isGroup).map(n => n.label)).toEqual(['AI 原理與模型', '生成式 AI 與大型語言模型', 'AI 應用與系統工程']);
     expect(islandsOf(ai.children).map(n => n.id)).toEqual(['c:ai-foundations', 'c:machine-learning', 'c:deep-learning', 'c:large-language-models', 'c:generative-ai', 'c:ai-agents', 'c:ai-engineering']);
     // The written islands keep their group ids, so a learner's remembered open/closed state still applies.
     expect(islandsOf([tree[0]]).map(n => n.id).slice(0, 3)).toEqual(['c:foundations', 'c:structures', 'c:algorithms']);
   });
 
   it('links every published lesson exactly once, by level and in recommended order', () => {
-    expect(hrefs(tree).sort()).toEqual(lessons.map(l => `/curriculum/${l.slug}`).sort());
+    expect(hrefs(tree).filter(h => h.startsWith('/curriculum/')).sort()).toEqual(lessons.map(l => `/curriculum/${l.slug}`).sort());
     for (const island of islandsOf(tree)) for (const level of (island as { children: NavNode[] }).children.filter(isGroup)) {
       const ids = leaves([level]).map(n => (n as { lessonId: string }).lessonId);
       expect(ids).toEqual(lessons.filter(l => ids.includes(l.lessonId)).map(l => l.lessonId));
@@ -38,14 +38,20 @@ describe('course tree', () => {
 
   it('shows every planned lesson as 規劃中 and never links one (no 404 from the sidebar)', () => {
     const all = leaves(tree), planned = catalogLessons.filter(l => l.lessonStatus !== 'complete');
-    expect(all).toHaveLength(catalogLessons.length);
+    // Every lesson once, plus each region's 群島總覽 (R6).
+    expect(all).toHaveLength(catalogLessons.length + tree.length);
     const disabled = all.filter(isDisabled);
     expect(disabled.map(n => n.code).sort()).toEqual(planned.map(l => l.lessonId).sort());
     for (const n of disabled) { expect(n.disabled).toBe('規劃中'); expect(n).not.toHaveProperty('href'); }
   });
 
+  it('opens each region with its overview (R6), the only link of the tree outside the lesson pages', () => {
+    expect(tree.map(g => g.children[0])).toEqual(tree.map(g => ({ id: `${g.id}:overview`, label: '群島總覽', href: `/regions/${g.id.slice(4)}` })));
+    expect(hrefs(tree).filter(h => !h.startsWith('/curriculum/'))).toEqual(['/regions/cs', '/regions/ai', '/regions/design', '/regions/web']);
+  });
+
   it('a lesson knows its region, island and level for the breadcrumb', () => {
-    expect(lessonPlace('F01')).toMatchObject({ region: { id: 'cs', name: '程式與資訊群島' }, regionHref: '/curriculum#region-cs', island: { name: '基礎程式島' }, level: '入門', islandHref: '/curriculum#island-foundations' });
+    expect(lessonPlace('F01')).toMatchObject({ region: { id: 'cs', name: '程式與資訊群島' }, regionHref: '/regions/cs', island: { name: '基礎程式島' }, level: '入門', islandHref: '/curriculum#island-foundations' });
     expect(lessonPlace('X99')).toBeUndefined();
   });
 });

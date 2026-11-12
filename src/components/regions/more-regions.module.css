@@ -1,0 +1,16 @@
+/* R6: the other regions under the home map's island list. */
+.more { margin: 14px 0; }
+.more h2 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: var(--text-sm); font-weight: 700; margin: 0 0 8px; }
+.more h2 small { font: 500 var(--text-xs) ui-monospace, monospace; color: var(--muted); letter-spacing: .5px; }
+.more ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.more a {
+  display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 12px;
+  border: 1px solid var(--border); border-left: 3px solid var(--island-accent); border-radius: 8px;
+  background: color-mix(in srgb, var(--panel) 80%, transparent); color: var(--text);
+}
+.more a:hover { background: var(--soft); }
+.more a > span { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.more strong { font-size: var(--text-sm); }
+.more small { font-size: var(--text-xs); color: var(--muted); }
+.more em { font-style: normal; font-weight: 700; padding: 0 .4em; border: 1px dashed var(--border-strong); border-radius: 4px; }
+.more a > svg { color: var(--muted); flex: none; }

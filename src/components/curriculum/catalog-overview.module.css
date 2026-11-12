@@ -67,3 +67,6 @@
 .outline li { grid-template-columns: 46px minmax(0, 1fr); gap: 2px 8px; padding: 7px 10px; font-size: var(--text-xs); }
 .outline li > :last-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .outline li { position: relative; }
+
+/* R6: each region's way to its overview page (/regions/<id>). */
+.regionLink { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; font-size: var(--text-sm); font-weight: 650; color: var(--accent-ink, var(--accent)); }

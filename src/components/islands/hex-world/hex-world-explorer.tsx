@@ -83,7 +83,7 @@ function useMediaQuery(query:string) {
     ()=>matchMedia(query).matches,()=>false);
 }
 
-export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,captionAbove=false,controlsBelow=false,layout='card',modeSwitchTarget,copy,toolbar,footer,selectedId:selectedFromUrl,onSelectedChange,baseAzimuth}:{
+export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,captionAbove=false,controlsBelow=false,layout='card',modeSwitchTarget,copy,toolbar,footer,listMore,selectedId:selectedFromUrl,onSelectedChange,baseAzimuth}:{
   islands:LearningIsland[];world?:HexWorld;options?:HexSceneOptions;
   /** Show the HTML list of the focused island's places (touch and keyboard equivalent of the 3D targets). */
   poiPanel?:boolean;
@@ -101,6 +101,8 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
    * scene's time of day follows the header's time button (src/lib/site-time.ts). */
   modeSwitchTarget?:string;
   copy?:Partial<ExplorerCopy>;toolbar?:ReactNode;footer?:ReactNode;
+  /** R6: shown in the island list under the islands (the home page's other regions). */
+  listMore?:ReactNode;
   /** M3.1 (regional world): the focused island comes from the page (its URL) and every choice goes back through
    * `onSelectedChange`, so the address and the map never disagree. Without it the explorer keeps its own, as before. */
   selectedId?:string|null;onSelectedChange?:(id:string|null)=>void;
@@ -221,7 +223,7 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
       {poiLayout&&selected&&<HexPoiPanel layout={poiLayout} islandName={selected.name} infoNode={infoNode}
         onInfoChange={setInfoNode} onNavigate={navigate}/>}
       </StageColumn>}
-      {showList&&<LearningNavigation islands={islands} selectedId={selectedId} onSelect={select} listMode={listMode}/>}
+      {showList&&<LearningNavigation islands={islands} selectedId={selectedId} onSelect={select} listMode={listMode} more={listMore}/>}
     </div>
     {footer&&<div className={styles.explorerFooter}>{footer}</div>}
   </section>;
