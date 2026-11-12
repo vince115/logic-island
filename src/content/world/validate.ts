@@ -3,10 +3,13 @@ import { ISLAND_STATUSES, REGION_IDS, type WorldConfig } from './types';
 
 /*
  * Phase F.0 checks on the world configuration, in the style of validateCurriculum: a list of problems, empty when valid.
- * The expected numbers are docs/planning/ISLAND_TAXONOMY.md §1, the single source for them.
+ * Multi-archipelago v2 (P1a): structural rules only. How many regions, islands and lessons there are follows from the
+ * data (each island's lessonCount is its spec, compared with the lessons it holds); the totals are pinned once, on
+ * purpose, by the taxonomy contract in tests/world.test.ts and docs/planning/ISLAND_TAXONOMY.md.
  */
 
-export const EXPECTED = { subjectIslands: 15, toolIslands: 1, perRegion: { cs: 8, ai: 7 }, lessons: 320, lessonsPerRegion: { cs: 160, ai: 160 } } as const;
+/** An architecture rule, not a size: the Interactive Lab Island is the one shared tool island. */
+export const TOOL_ISLANDS = 1;
 const KEBAB = /^[a-z]+(?:-[a-z]+)*$/;
 const SEMVER = /^\d+\.\d+\.\d+$/;
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -24,12 +27,16 @@ export function validateWorld(world: WorldConfig, lessons: readonly WorldLesson[
   };
 
   if (!SEMVER.test(world.version)) fail('world', `version ${world.version} is not semver`);
-  if (world.regions.map(r => r.id).join() !== REGION_IDS.join()) fail('regions', `expected ${REGION_IDS.join(', ')}`);
+  if ([...world.regions.map(r => r.id)].sort().join() !== [...REGION_IDS].sort().join()) fail('regions', `expected one entry per region: ${REGION_IDS.join(', ')}`);
+  unique('region id', world.regions.map(r => r.id));
   unique('region order', world.regions.map(r => String(r.order)));
+  for (const region of world.regions) {
+    if (!Number.isInteger(region.order) || region.order < 1) fail(region.id, 'order must be a positive integer');
+    for (const field of ['name', 'nameEn'] as const) if (!region[field].trim()) fail(region.id, `empty ${field}`);
+  }
 
   const subjects = world.islands.filter(i => i.kind === 'subject'), tools = world.islands.filter(i => i.kind === 'tool');
-  if (subjects.length !== EXPECTED.subjectIslands) fail('islands', `expected ${EXPECTED.subjectIslands} subject islands, got ${subjects.length}`);
-  if (tools.length !== EXPECTED.toolIslands) fail('islands', `expected ${EXPECTED.toolIslands} tool island, got ${tools.length}`);
+  if (tools.length !== TOOL_ISLANDS) fail('islands', `expected ${TOOL_ISLANDS} tool island, got ${tools.length}`);
   unique('island id', world.islands.map(i => i.id));
   unique('island code', world.islands.map(i => i.code));
   unique('lesson prefix', world.islands.map(i => i.lessonPrefix));
@@ -39,11 +46,28 @@ export function validateWorld(world: WorldConfig, lessons: readonly WorldLesson[
 
   for (const region of REGION_IDS) {
     const inRegion = subjects.filter(i => i.regionId === region);
-    if (inRegion.length !== EXPECTED.perRegion[region]) fail(region, `expected ${EXPECTED.perRegion[region]} islands, got ${inRegion.length}`);
+    if (!inRegion.length) fail(region, 'a region holds at least one subject island');
     const orders = inRegion.map(i => i.order).sort((a, b) => (a ?? 0) - (b ?? 0)).join();
     if (orders !== inRegion.map((_, n) => n + 1).join()) fail(region, 'island order must be 1..n without gaps');
-    const total = inRegion.reduce((sum, i) => sum + i.lessonCount, 0);
-    if (total !== EXPECTED.lessonsPerRegion[region]) fail(region, `expected ${EXPECTED.lessonsPerRegion[region]} lessons, got ${total}`);
+  }
+
+  // Navigation groups: whole islands of the same region, each island in at most one group.
+  for (const region of world.regions) {
+    const grouped = new Set<string>();
+    unique(`${region.id} group id`, (region.groups ?? []).map(g => g.id));
+    for (const group of region.groups ?? []) {
+      const at = `${region.id}/${group.id}`;
+      if (!KEBAB.test(group.id)) fail(at, 'group id is not kebab-case');
+      if (!group.label.trim()) fail(at, 'empty label');
+      if (!group.islandIds.length) fail(at, 'a group holds at least one island');
+      for (const id of group.islandIds) {
+        const island = subjects.find(i => i.id === id);
+        if (!island) fail(at, `unknown subject island ${id}`);
+        else if (island.regionId !== region.id) fail(at, `${id} belongs to ${island.regionId}, not ${region.id}`);
+        if (grouped.has(id)) fail(at, `${id} is in more than one group`);
+        grouped.add(id);
+      }
+    }
   }
 
   for (const island of world.islands) {
@@ -74,7 +98,9 @@ export function validateWorld(world: WorldConfig, lessons: readonly WorldLesson[
     if (island?.id !== lesson.islandId) fail(lesson.lessonId, `prefix ${parsed.prefix} belongs to ${island?.id}, not ${lesson.islandId}`);
   }
   unique('lessonId', lessons.map(l => l.lessonId));
-  if (lessons.length !== EXPECTED.lessons) fail('lessons', `expected ${EXPECTED.lessons}, got ${lessons.length}`);
+  // The data is its own spec: the lessons are exactly what the islands' lesson counts declare.
+  const declared = subjects.reduce((sum, i) => sum + i.lessonCount, 0);
+  if (lessons.length !== declared) fail('lessons', `the islands declare ${declared} lessons, the catalog holds ${lessons.length}`);
   for (const island of subjects) {
     const own = lessons.filter(l => l.islandId === island.id);
     const expected = Array.from({ length: island.lessonCount }, (_, n) => formatLessonId(island.lessonPrefix!, n + 1));

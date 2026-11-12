@@ -6,7 +6,7 @@ import { validateWorld } from '../src/content/world/validate';
 import { BACKUP_KEY, PROGRESS_VERSION, STORAGE_KEY, parse } from '../src/lib/progress';
 import { BLUEPRINT, readJson } from '../scripts/planning-data.mjs';
 
-// Phase F.0: the 320-lesson catalog (src/content/world/catalog.ts): 60 complete lessons from the curriculum, 260 planned
+// Phase F.0: the lesson catalog (src/content/world/catalog.ts): 60 complete lessons from the curriculum, 260 planned
 // ones as metadata only, and nothing about the existing lessons, pages or progress changed.
 const mutate = (id: string, change: Partial<CatalogLesson>) => catalogLessons.map(l => l.lessonId === id ? { ...l, ...change } : l);
 
@@ -16,8 +16,9 @@ describe('lesson catalog (F.0)', () => {
     expect(validateWorld(world, catalogLessons)).toEqual([]);
   });
 
-  it('knows 320 lessons: every curriculum lesson complete (60 + the written database lessons), the rest planned', () => {
-    expect(catalogCounts()).toEqual({ total: 320, complete: lessons.length, planned: 320 - lessons.length });
+  it('knows every lesson of the plan: every curriculum lesson complete (60 + the written database lessons), the rest planned', () => {
+    const declared = world.islands.reduce((n, i) => n + i.lessonCount, 0);
+    expect(catalogCounts()).toEqual({ total: declared, complete: lessons.length, planned: declared - lessons.length });
     expect(lessonsOfIsland('databases').filter(l => l.lessonStatus === 'complete').map(l => l.lessonId)).toEqual(lessons.filter(l => l.islandId === 'databases').map(l => l.lessonId));
     expect(catalogLessons.slice(0, 3).map(l => l.lessonId)).toEqual(['F01', 'F02', 'F03']);
     expect(catalogLessons.at(-1)?.lessonId).toBe('OPS20');

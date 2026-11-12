@@ -6,10 +6,9 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { Canvas, useThree } from '@react-three/fiber';
 import { hexEdgeMidpoint, hexToWorld, type Axial } from '@/lib/islands/hex';
 import { portPoint, worldCenter, type HexWorld } from '@/lib/islands/hex-world';
-import { REGION_LAYOUTS } from '@/lib/islands/regions/region-layouts';
+import { MAPPED_REGION_IDS, REGION_LAYOUTS, type MappedRegionId } from '@/lib/islands/regions/region-layouts';
 import { islandsHomeWorld, LAB_ISLAND_ID } from '@/lib/islands/islands-world';
 import { VIEW } from '../islands/hex-world/hex-camera';
-import type { RegionId } from '@/content/world/types';
 import styles from './world.module.css';
 
 /*
@@ -23,11 +22,11 @@ const REGION_WIDTH = 22, HUB_SCALE = .45;
  * Where each part sits on the sea: side by side on wide screens; on phones (portrait) one above the other, along the
  * view's screen-up direction (from the south-east, screen up is north-west on the map).
  */
-const ANCHORS: Record<'wide' | 'tall', Record<RegionId | 'hub', [number, number]>> = {
+const ANCHORS: Record<'wide' | 'tall', Record<MappedRegionId | 'hub', [number, number]>> = {
   wide: { cs: [-24, 0], hub: [0, 2], ai: [24, 0] },
   tall: { cs: [-13, -20], hub: [0, 0], ai: [13, 20] },
 };
-const COLORS: Record<RegionId, { open: string; planned: string; bridge: string }> = {
+const COLORS: Record<MappedRegionId, { open: string; planned: string; bridge: string }> = {
   // Computer science: the warm lawn and wood of the home map. Artificial intelligence: cool mineral greys.
   cs: { open: '#9cc98a', planned: '#e4dfcf', bridge: '#a77b52' },
   ai: { open: '#8fb3c9', planned: '#cdd6e1', bridge: '#7d8a99' },
@@ -73,7 +72,7 @@ function segments(list: [[number, number], [number, number]][], width: number, h
 /** Everything the overview draws, in overview units on the sea plane. */
 function useOverview(shape: 'wide' | 'tall') {
   return useMemo(() => {
-    const regions = (['cs', 'ai'] as const).map(id => {
+    const regions = MAPPED_REGION_IDS.map(id => {
       const { layout, docks } = REGION_LAYOUTS[id], world = layout.world, placed = placing(world, ANCHORS[shape][id], REGION_WIDTH);
       const open = world.settlements.filter(s => !s.planned).flatMap(s => s.tiles), planned = world.settlements.filter(s => s.planned).flatMap(s => s.tiles);
       const bridges = world.bridges.map(b => [placed.point(...portPoint(world, b.from)), placed.point(...portPoint(world, b.to))] as [[number, number], [number, number]]);
@@ -95,7 +94,7 @@ function useOverview(shape: 'wide' | 'tall') {
       for (const g of list) if (g) { g.computeBoundingBox(); out.union(g.boundingBox!); }
       return out;
     };
-    const extents: Record<RegionId | 'hub', Box3> = { cs: box(regions[0].open, regions[0].planned), ai: box(regions[1].open, regions[1].planned), hub: box(hub) };
+    const extents: Record<MappedRegionId | 'hub', Box3> = { cs: box(regions[0].open, regions[0].planned), ai: box(regions[1].open, regions[1].planned), hub: box(hub) };
     return { regions, hub, ferries, extents };
   }, [shape]);
 }
@@ -126,7 +125,7 @@ function Framing({ points, labels, insetRight, onLabels }: { points: Vector3[]; 
   return null;
 }
 
-export interface OverviewTarget { id: RegionId | 'hub'; label: string; detail: string; accent: string; onOpen: () => void }
+export interface OverviewTarget { id: MappedRegionId | 'hub'; label: string; detail: string; accent: string; onOpen: () => void }
 
 export default function WorldOverviewScene({ targets, insetRight, label, onReady, onUnavailable, shape }: {
   targets: OverviewTarget[]; insetRight: number; label: string; onReady: () => void; onUnavailable: () => void;

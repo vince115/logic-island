@@ -1,4 +1,4 @@
-import type { RegionId } from '@/content/world/types';
+import { REGION_IDS, type RegionId } from '@/content/world/types';
 import { A, assembleLayout, plannedSettlement, shape, type WorldLayout } from '../hex-layout';
 import { DATABASES_SPEC, ISLANDS_LAYOUT } from '../islands-world';
 import type { HexBridge } from '../hex-world';
@@ -21,7 +21,7 @@ const planned = (islandId: string, center: ReturnType<typeof A>, spurs?: Paramet
   ({ islandId, center, shape: PLANNED_SHAPE, ...(spurs ? { spurs } : {}) });
 
 export interface RegionLayout {
-  regionId: RegionId;
+  regionId: MappedRegionId;
   layout: WorldLayout;
   /**
    * Degrees added to the default camera azimuth (option C), per device: the turn that gives the smallest island the
@@ -74,7 +74,17 @@ const ai: WorldLayout = {
   glb: [], forests: [], zones: { plaza: 0, buildings: 0, forest: 0, hills: 0, shore: 0, open: 0 },
 };
 
-export const REGION_LAYOUTS: Record<RegionId, RegionLayout> = {
+/**
+ * Multi-archipelago v2: the regions that have a 3D map. A region without one (design, web) has no /world page and no
+ * place on the overview; it is described in lists only, marked 規劃中, until a layout is approved and added here.
+ */
+export const MAPPED_REGION_IDS = ['cs', 'ai'] as const satisfies readonly RegionId[];
+export type MappedRegionId = typeof MAPPED_REGION_IDS[number];
+export const isMappedRegion = (id: string): id is MappedRegionId => (MAPPED_REGION_IDS as readonly string[]).includes(id);
+// Every mapped region is a region of the world registry (checked when the registry changes).
+if (!MAPPED_REGION_IDS.every(id => (REGION_IDS as readonly string[]).includes(id))) throw new Error('A mapped region is not in REGION_IDS');
+
+export const REGION_LAYOUTS: Record<MappedRegionId, RegionLayout> = {
   cs: { regionId: 'cs', layout: cs, azimuth: { desktop: 295, phone: 105 }, docks: [{ islandId: 'foundations', spurId: 'foundations-dock' }] },
   ai: { regionId: 'ai', layout: ai, azimuth: { desktop: 0, phone: 0 }, docks: [{ islandId: 'ai-foundations', spurId: 'ai-foundations-dock' }, { islandId: 'ai-engineering', spurId: 'ai-engineering-dock' }] },
 };

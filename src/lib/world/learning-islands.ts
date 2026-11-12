@@ -2,9 +2,10 @@ import { getCourse } from '@/content/courses';
 import { getLessonById } from '@/content/curriculum';
 import type { IslandId } from '@/content/curriculum/schema';
 import { UNITS } from '@/content/curriculum/units';
-import { getIsland, islandsInRegion, labIslandConfig, regions } from '@/content/world';
+import { getIsland, islandsInRegion, labIslandConfig, orderedRegions } from '@/content/world';
 import { lessonsOfIsland } from '@/content/world/catalog';
 import type { RegionId } from '@/content/world/types';
+import { isMappedRegion, type MappedRegionId } from '@/lib/islands/regions/region-layouts';
 import { databaseIsland, islands, labIsland } from '@/lib/islands/data';
 import type { IslandDefinition, LearningIsland } from '@/lib/islands/types';
 
@@ -48,7 +49,7 @@ function plannedIsland(id: string): LearningIsland {
 }
 
 /** A region's islands in registry order: written ones as on the home page, planned ones as planned. */
-export function regionIslands(region: RegionId): LearningIsland[] {
+export function regionIslands(region: MappedRegionId): LearningIsland[] {
   return islandsInRegion(region).map(record => {
     if (record.status === 'planned') return plannedIsland(record.id);
     const definition = MAP_ISLANDS.find(d => d.id === record.id);
@@ -57,15 +58,23 @@ export function regionIslands(region: RegionId): LearningIsland[] {
   });
 }
 
-export interface RegionSummary { id: RegionId; name: string; nameEn: string; islands: number; open: number; planned: number; href: `/world/${RegionId}` }
-/** The world overview's regions: how many subject islands each holds and how many of them have lessons to open. */
+export interface RegionSummary { id: MappedRegionId; name: string; nameEn: string; islands: number; open: number; planned: number; href: `/world/${MappedRegionId}` }
+export interface UnmappedRegionSummary { id: RegionId; name: string; nameEn: string; islands: number; lessons: number }
+/**
+ * The world overview's regions with a 3D map: how many subject islands each holds and how many of them have lessons
+ * to open. Multi-archipelago v2: regions without a map are listed by unmappedRegions(), never linked to /world.
+ */
 export function regionSummaries(): RegionSummary[] {
-  return regions.map(region => {
+  return orderedRegions.flatMap(region => {
+    if (!isMappedRegion(region.id)) return [];
     const list = islandsInRegion(region.id);
-    return { id: region.id, name: region.name, nameEn: region.nameEn, islands: list.length, open: list.filter(i => i.status !== 'planned').length,
-      planned: list.filter(i => i.status === 'planned').length, href: `/world/${region.id}` as const };
+    return [{ id: region.id, name: region.name, nameEn: region.nameEn, islands: list.length, open: list.filter(i => i.status !== 'planned').length,
+      planned: list.filter(i => i.status === 'planned').length, href: `/world/${region.id}` as const }];
   });
 }
+/** Regions in the registry that have no 3D map yet (shown as 規劃中, without a map link). */
+export const unmappedRegions = (): UnmappedRegionSummary[] => orderedRegions.filter(r => !isMappedRegion(r.id)).map(r => ({
+  id: r.id, name: r.name, nameEn: r.nameEn, islands: islandsInRegion(r.id).length, lessons: islandsInRegion(r.id).reduce((n, i) => n + i.lessonCount, 0) }));
 
 /** The hub of the overview: 互動實驗島 (its labs at /learn) and the central challenge island, which is only planned. */
 export const hubSummary = () => ({ lab: { name: labIslandConfig.name, description: labIslandConfig.description, href: '/learn' as const, accent: labIsland.accent } });

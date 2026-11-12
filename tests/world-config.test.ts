@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { islandsHomeWorld } from '../src/lib/islands/islands-world';
 import { world } from '../src/content/world';
+import { catalogLessons } from '../src/content/world/catalog';
 import { getIslandRecord, isUnlocked, islandRecords, meetsCondition, worldPages, type ProgressView } from '../src/content/world/records';
 import { validateIslandLinks } from '../src/content/world/validate';
 import type { WorldConfig } from '../src/content/world/types';
@@ -44,7 +45,7 @@ describe('island configuration (F.0)', () => {
     expect(getIslandRecord('ai-agents')?.prerequisites).not.toContain('machine-learning');
     expect(getIslandRecord('ai-agents')?.prerequisites).not.toContain('deep-learning');
     expect(getIslandRecord('labs')).toMatchObject({ counts: { lessons: 0, complete: 0, planned: 0 }, prerequisites: [] });
-    expect(islandRecords.reduce((n, r) => n + r.counts.lessons, 0)).toBe(320);
+    expect(islandRecords.reduce((n, r) => n + r.counts.lessons, 0)).toBe(catalogLessons.length);
   });
 
   it('evaluates unlock rules against progress it is given, and never locks a subject island', () => {

@@ -1,11 +1,11 @@
 import { lessons } from '@/content/curriculum/lessons';
 import { DIFFICULTIES, type Difficulty, type LessonStatus } from '@/content/curriculum/schema';
 import { parseLessonId, type AnyLessonId } from './lesson-id';
-import { subjectIslands } from './index';
+import { orderedRegions, subjectIslands } from './index';
 import planning from './planning-data.json';
 
 /*
- * Phase F.0 lesson catalog: all 320 lessons of the plan in one list, for lookups and future overviews. Data flow:
+ * Phase F.0 lesson catalog: every lesson of the plan in one list, for lookups and future overviews. Data flow:
  * docs/planning/data (planning) → scripts/planning-data.mjs → planning-data.json (validated metadata) → this catalog →
  * pages. Every lesson the curriculum has (src/content/curriculum: the 60 of F, D, A and, from Phase F.1a, the written
  * database lessons) comes from there with its content untouched; every other lesson of the plan is metadata only: no
@@ -57,7 +57,9 @@ const plannedLessons: CatalogLesson[] = planning.plannedLessons.filter(l => !inC
 }));
 
 /** Region by region, island by island in subject order, lessons by number. */
-const islandRank = new Map(subjectIslands.map(i => [i.id, (i.regionId === 'cs' ? 0 : 100) + i.order!]));
+// Multi-archipelago v2: regions in their declared order (Region.order), then islands in subject order.
+const regionRank = new Map(orderedRegions.map((r, n) => [r.id, n]));
+const islandRank = new Map(subjectIslands.map(i => [i.id, regionRank.get(i.regionId!)! * 100 + i.order!]));
 export const catalogLessons: CatalogLesson[] = [...complete, ...plannedLessons].sort((a, b) =>
   islandRank.get(a.islandId)! - islandRank.get(b.islandId)! || parseLessonId(a.lessonId)!.number - parseLessonId(b.lessonId)!.number);
 
@@ -78,7 +80,7 @@ export const catalogCounts = () => ({
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /**
- * The catalog's own rules: unique slugs across all 320 (one /curriculum/[slug] namespace), prerequisites and
+ * The catalog's own rules: unique slugs across the whole plan (one /curriculum/[slug] namespace), prerequisites and
  * recommendations that exist and do not overlap, no cycle through either kind, and a page only for complete lessons.
  */
 export function validateCatalog(list: readonly CatalogLesson[]): string[] {

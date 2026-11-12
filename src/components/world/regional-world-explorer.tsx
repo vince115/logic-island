@@ -5,8 +5,7 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type R
 import { createPortal } from 'react-dom';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
-import type { RegionId } from '@/content/world/types';
-import { REGION_LAYOUTS } from '@/lib/islands/regions/region-layouts';
+import { REGION_LAYOUTS, type MappedRegionId } from '@/lib/islands/regions/region-layouts';
 import type { LearningIsland } from '@/lib/islands/types';
 import type { HexGlbSettlement } from '@/lib/islands/hex-buildings';
 import { HexWorldExplorer } from '../islands/hex-world/hex-world-explorer';
@@ -19,7 +18,7 @@ import styles from './world.module.css';
  * a flag-gated prototype whose island widths on screen are part of its acceptance. Captions get more room than on the
  * home map, which is framed at about twice the zoom.
  */
-const options = (region: RegionId, labelReach?: number) => ({ ...sceneOptions(REGION_LAYOUTS[region].layout, SCENE_PRESETS.lab), labelReach, largeTargets: true });
+const options = (region: MappedRegionId, labelReach?: number) => ({ ...sceneOptions(REGION_LAYOUTS[region].layout, SCENE_PRESETS.lab), labelReach, largeTargets: true });
 // Desktop names hang sideways about 150 px; phone labels are pins, which the home map's room already fits.
 const OPTIONS = { cs: { desktop: options('cs', 8.5), phone: options('cs') }, ai: { desktop: options('ai', 8.5), phone: options('ai') } };
 
@@ -28,7 +27,7 @@ const OPTIONS = { cs: { desktop: options('cs', 8.5), phone: options('cs') }, ai:
  * of v2.1's lighthouse and workshop, loaded read-only from the same file, to measure what a region of GLB islands
  * costs before any is made. A load test, never art: the map's accessible name says「效能測試替身」while it is on.
  */
-function stressLayouts(region: RegionId): HexGlbSettlement[] {
+function stressLayouts(region: MappedRegionId): HexGlbSettlement[] {
   const { layout } = REGION_LAYOUTS[region];
   return layout.world.settlements.filter(s => !layout.glb.some(g => g.islandId === s.islandId)).map(s => ({
     islandId: s.islandId, asset: 'basics-island-v2.1' as const,
@@ -52,7 +51,7 @@ function BackToWorld() {
  * component owns the address. The focused island is `?island=<id>`: choosing one pushes it, back and forward restore
  * it, an unknown id is dropped from the address, and Escape goes one level up (island → region → overview).
  */
-export function RegionalWorldExplorer({ regionId, regionName, regionNameEn, islands, footer }: { regionId: RegionId; regionName: string; regionNameEn: string; islands: LearningIsland[]; footer?: ReactNode }) {
+export function RegionalWorldExplorer({ regionId, regionName, regionNameEn, islands, footer }: { regionId: MappedRegionId; regionName: string; regionNameEn: string; islands: LearningIsland[]; footer?: ReactNode }) {
   const router = useRouter(), path = usePathname(), params = useSearchParams();
   const requested = params.get('island');
   const selectedId = requested && islands.some(i => i.id === requested) ? requested : null;

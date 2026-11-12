@@ -89,13 +89,15 @@ describe('activity registry (F.0)', () => {
     expect(validateActivities(activities, islandIds)).toEqual([]);
   });
 
-  it('holds the 20 visualizations and 6 labs as implemented, and the 61 new activities as planned', () => {
+  it('holds the 20 visualizations and 6 labs as implemented, and every other activity of the plan as an activity', () => {
     const of = (type: ActivityMeta['type']) => activities.filter(a => a.type === type);
     expect(of('visualization').map(a => a.id)).toEqual(Object.keys(visualizations).filter(k => k !== 'none'));
     expect(of('visualization').every(a => a.tier === 'T0' && a.availability === 'implemented')).toBe(true);
     expect(of('lab').map(a => a.id)).toEqual(courses.map(c => `lab:${c.slug}`));
     expect(of('lab').every(a => a.availability === 'implemented' && a.subjects[0] === 'labs')).toBe(true);
-    expect(of('activity')).toHaveLength(61);
+    // One entry per activity the lessons name that is not an existing visualization (61 for the CS and AI plan).
+    const named = new Set(catalogLessons.map(l => l.activity).filter(id => id !== 'none' && !(id in visualizations)));
+    expect(of('activity').map(a => a.id).sort()).toEqual([...named].sort());
     // Phase F.1a: the SQL playground is implemented (the written database lessons use it); F.1b adds the ER builder and
     // the normalization steps once a written lesson uses them; the rest stay planned.
     const used = new Set(lessons.filter(l => l.lessonStatus === 'complete' && l.activity).map(l => l.activity!));

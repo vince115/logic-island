@@ -3,7 +3,7 @@ import { lessons } from '../src/content/curriculum';
 import { catalogLessons } from '../src/content/world/catalog';
 import { islands as curriculumIslands } from '../src/content/curriculum/registry';
 import { databaseIsland, islands as mapIslands, labIsland } from '../src/lib/islands/data';
-import { getIsland, islandOfLesson, islandsInRegion, labIslandConfig, subjectIslands, world } from '../src/content/world';
+import { getIsland, islandOfLesson, islandsInRegion, labIslandConfig, orderedRegions, regionStatus, subjectIslands, taxonomy, world } from '../src/content/world';
 import { LESSON_PREFIXES, formatLessonId, isLessonId, parseLessonId } from '../src/content/world/lesson-id';
 import planning from '../src/content/world/planning-data.json';
 import { validateWorld, type WorldLesson } from '../src/content/world/validate';
@@ -11,6 +11,7 @@ import type { WorldConfig } from '../src/content/world/types';
 
 // Phase F.0: regions, islands and lesson IDs of the whole plan (src/content/world), with the 60 lessons unchanged.
 const ALL: WorldLesson[] = catalogLessons;
+const DECLARED = subjectIslands.reduce((n, i) => n + i.lessonCount, 0);
 const DB_OPEN = lessons.filter(l => l.islandId === 'databases').length;
 const clone = (): WorldConfig => structuredClone(world);
 
@@ -38,9 +39,9 @@ describe('lesson IDs (F.0)', () => {
     expect(formatLessonId('LLM', 7)).toBe('LLM07');
   });
 
-  it('resolves all 320 IDs of the plan to their own island', () => {
-    expect(ALL).toHaveLength(320);
-    expect(new Set(ALL.map(l => l.lessonId)).size).toBe(320);
+  it('resolves every ID of the plan to its own island', () => {
+    expect(ALL).toHaveLength(DECLARED);
+    expect(new Set(ALL.map(l => l.lessonId)).size).toBe(DECLARED);
     for (const lesson of ALL) expect(islandOfLesson(lesson.lessonId)?.id, lesson.lessonId).toBe(lesson.islandId);
   });
 });
@@ -50,13 +51,23 @@ describe('world registry (F.0)', () => {
     expect(validateWorld(world, ALL)).toEqual([]);
   });
 
-  it('has 2 regions, 15 subject islands (8 + 7, 160 + 160 lessons) and 1 shared lab island', () => {
-    expect(world.regions.map(r => r.id)).toEqual(['cs', 'ai']);
-    expect(subjectIslands).toHaveLength(15);
+  /*
+   * Multi-archipelago v2 (P1a): the taxonomy contract. The validator no longer knows any total; this is the one place
+   * that pins them, together with docs/planning/ISLAND_TAXONOMY.md §1. Change both on purpose, with the approval that
+   * changed the plan named in the commit.
+   */
+  it('pins the approved taxonomy: regions in order, their islands and planned lessons', () => {
+    expect(taxonomy()).toEqual([
+      { region: 'cs', islands: 8, lessons: 160 },
+      { region: 'ai', islands: 7, lessons: 160 },
+    ]);
+  });
+
+  it('keeps the CS and AI islands, their codes and lesson counts, and 1 shared lab island', () => {
+    expect(orderedRegions.map(r => r.id).slice(0, 2)).toEqual(['cs', 'ai']);
     expect(islandsInRegion('cs').map(i => i.code)).toEqual(['F', 'DS', 'AL', 'PL', 'DB', 'CN', 'SA', 'MIS']);
     expect(islandsInRegion('ai').map(i => i.code)).toEqual(['AIF', 'ML', 'DL', 'LLM', 'GEN', 'AG', 'OPS']);
     expect(islandsInRegion('ai').map(i => i.lessonCount)).toEqual([20, 25, 25, 25, 20, 25, 20]);
-    expect(subjectIslands.reduce((n, i) => n + i.lessonCount, 0)).toBe(320);
     expect(subjectIslands.map(i => i.lessonPrefix).sort()).toEqual([...LESSON_PREFIXES].sort());
     expect(labIslandConfig).toMatchObject({ kind: 'tool', lessonCount: 0, status: 'available', code: 'LAB' });
     expect(labIslandConfig.regionId).toBeUndefined();
@@ -101,7 +112,8 @@ describe('world registry (F.0)', () => {
 
   it('catches wrong counts, duplicate codes, a numbered lab island and a status its lessons contradict', () => {
     const fewer = clone(); fewer.islands = fewer.islands.filter(i => i.id !== 'ai-agents');
-    expect(validateWorld(fewer, ALL).join('\n')).toMatch(/expected 15 subject islands/);
+    expect(validateWorld(fewer, ALL).join('\n')).toMatch(/subject islands must use each lesson prefix once/);
+    expect(validateWorld(fewer, ALL).join('\n')).toMatch(/AG01: prefix AG belongs to undefined, not ai-agents/);
     const dup = clone(); dup.islands.find(i => i.id === 'databases')!.code = 'DS';
     expect(validateWorld(dup, ALL).join('\n')).toMatch(/island code: duplicate DS/);
     const numbered = clone(); numbered.islands.find(i => i.kind === 'tool')!.order = 9;
@@ -111,6 +123,38 @@ describe('world registry (F.0)', () => {
     const db = clone(); db.islands.find(i => i.id === 'databases')!.status = 'available';
     expect(validateWorld(db, ALL).join('\n')).toMatch(/databases: status is available but its lessons make it complete/);
     const count = clone(); count.islands.find(i => i.id === 'machine-learning')!.lessonCount = 20;
-    expect(validateWorld(count, ALL).join('\n')).toMatch(/ai: expected 160 lessons, got 155/);
+    expect(validateWorld(count, ALL).join('\n')).toMatch(/machine-learning: lessons must be ML01..ML20 in order/);
+    expect(validateWorld(count, ALL).join('\n')).toMatch(new RegExp(`the islands declare ${DECLARED - 5} lessons, the catalog holds ${DECLARED}`));
+  });
+
+  it('orders regions by their declared order, never by their ID (multi-archipelago v2)', () => {
+    expect(orderedRegions.map(r => r.order)).toEqual([...orderedRegions.map(r => r.order)].sort((a, b) => a - b));
+    expect(catalogLessons[0].lessonId).toBe('F01');
+    const swapped = clone(); swapped.regions.find(r => r.id === 'ai')!.order = 1;
+    expect(validateWorld(swapped, ALL).join('\n')).toMatch(/region order: duplicate 1/);
+    const zero = clone(); zero.regions[0].order = 0;
+    expect(validateWorld(zero, ALL).join('\n')).toMatch(/cs: order must be a positive integer/);
+    const missing = clone(); missing.regions = missing.regions.filter(r => r.id !== 'ai');
+    expect(validateWorld(missing, ALL).join('\n')).toMatch(/expected one entry per region/);
+  });
+
+  it('derives a region\'s status from its islands', () => {
+    expect(regionStatus('cs')).toBe('available');
+    expect(regionStatus('ai')).toBe('planned');
+  });
+
+  it('checks navigation groups: whole islands of their own region, each in one group at most', () => {
+    const ok = clone(); ok.regions.find(r => r.id === 'ai')!.groups = [{ id: 'core', label: '原理', islandIds: ['ai-foundations', 'machine-learning'] }];
+    expect(validateWorld(ok, ALL)).toEqual([]);
+    const cross = clone(); cross.regions.find(r => r.id === 'ai')!.groups = [{ id: 'core', label: '原理', islandIds: ['foundations'] }];
+    expect(validateWorld(cross, ALL).join('\n')).toMatch(/ai\/core: foundations belongs to cs, not ai/);
+    const twice = clone(); twice.regions.find(r => r.id === 'ai')!.groups = [
+      { id: 'a', label: 'A', islandIds: ['ai-agents'] }, { id: 'b', label: 'B', islandIds: ['ai-agents'] }];
+    expect(validateWorld(twice, ALL).join('\n')).toMatch(/ai\/b: ai-agents is in more than one group/);
+    const unknown = clone(); unknown.regions.find(r => r.id === 'ai')!.groups = [{ id: 'Bad Id', label: '', islandIds: ['nowhere'] }];
+    const problems = validateWorld(unknown, ALL).join('\n');
+    expect(problems).toMatch(/group id is not kebab-case/);
+    expect(problems).toMatch(/empty label/);
+    expect(problems).toMatch(/unknown subject island nowhere/);
   });
 });
