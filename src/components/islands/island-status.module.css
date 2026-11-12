@@ -27,6 +27,19 @@
   font-size: var(--text-sm);
   color: var(--muted);
 }
+/* P8.2 (D4): a planned island's one link, to its outline on the region's 2D overview. A 44 px target. */
+.plannedOutline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  margin-top: .35rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 
 /* M3.1 map labels of planned islands: the name with its tag underneath (narrower than side by side), and on phones,
    where labels are colored pins, a hollow pin instead of a filled one. */

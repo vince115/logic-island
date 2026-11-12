@@ -208,7 +208,8 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
             <HexWorldScene world={world} islands={islands} selectedId={selectedId} onSelect={select} onNavigate={navigate}
               reducedMotion={Boolean(reducedMotion)} onReady={markReady} onUnavailable={unavailable} options={options} label={text.canvas}
               infoNode={poiPanel?infoNode:undefined} onInfoChange={poiPanel?setInfoNode:undefined}
-              resetKey={resetKey} onViewChange={setViewChanged} orbit={orbiting} onOrbitStop={stopOrbit} environmentId={environmentId} insetRight={insetRight} baseAzimuth={baseAzimuth}/>
+              resetKey={resetKey} onViewChange={setViewChanged} orbit={orbiting} onOrbitStop={stopOrbit} environmentId={environmentId} insetRight={insetRight} baseAzimuth={baseAzimuth}
+              onResetRequest={options?.mapControls?overview:undefined}/>
           </LoadingCopy.Provider>
         </SceneBoundary>
         {!controlsBelow&&bottom}

@@ -59,7 +59,8 @@
   }
 }
 @media (max-width: 780px) {
-  .stage { min-height: 56dvh; }
+  /* P8.2: the overview holds every region around the hub, so the phone stage is taller than the M3.1 one (56dvh). */
+  .stage { min-height: clamp(430px, 66dvh, 560px); }
   .overview { min-height: 0; }
 }
 .guideHeading {
@@ -107,11 +108,12 @@
   color: var(--muted);
 }
 
-/* The overview's region labels: a large, easy target under each outline. */
+/* The overview's labels: a large, easy target hanging off its outline on the side the world map names (data-side).
+   The scene gives each one the point it hangs from; the transform puts the label on the far side of that point. */
 .overviewLabel {
   position: absolute;
   z-index: 2;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, 0);
   display: grid;
   gap: 2px;
   min-width: 44px;
@@ -126,14 +128,50 @@
   white-space: nowrap;
   box-shadow: 0 6px 18px #13233d24;
 }
+.overviewLabel[data-side='above'] { transform: translate(-50%, -100%); }
+.overviewLabel[data-side='left'] { transform: translate(-100%, -50%); }
+.overviewLabel[data-side='right'] { transform: translate(0, -50%); }
 .overviewLabel strong { font-size: var(--text-md); }
 .overviewLabel small { font-size: var(--text-xs); color: var(--muted); }
+.overviewBrief { display: none; }
 .overviewLabel[data-hovered='true'],
-.overviewLabel:hover { border-color: var(--region-accent); }
+.overviewLabel:hover,
+.overviewLabel:focus-visible { border-color: var(--region-accent); }
+.overviewLabel:focus-visible { outline: 3px solid var(--region-accent); outline-offset: 2px; }
+/* Phones: one short line (the name and how many islands); the full counts are in the guide below the map. The label
+   stays a 44 px touch target: its box is shorter, and the area around it (::before) makes up the rest. */
 @media (max-width: 780px) {
-  .overviewLabel { padding: 6px 10px; }
-  .overviewLabel strong { font-size: var(--text-sm); }
+  .overviewLabel {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 28px;
+    padding: 3px 8px;
+    border-radius: 8px;
+  }
+  .overviewLabel::before {
+    content: '';
+    position: absolute;
+    inset: 50% 0 auto;
+    height: 44px;
+    transform: translateY(-50%);
+  }
+  .overviewLabel strong { font-size: var(--text-xs); }
+  .overviewDetail { display: none; }
+  .overviewBrief { display: inline; font-size: 11px; }
 }
+/* The guide's second way into a region: its 2D overview, which needs no WebGL. */
+.guideAlt {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 4px;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.guideAlt:hover { color: var(--text); }
 
 /* Region maps: back to the overview, in the site header's tool slot, in one row with the explorer's 清單 button. The
    slot is the site header's (globals.css); only pages that put this link in it get the row. */
@@ -174,3 +212,38 @@
     white-space: nowrap;
   }
 }
+
+/* P8.2: below a region's island list: the shared lab island (the hub), the region's 2D overview. */
+.regionMore {
+  display: grid;
+  gap: 8px;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--border);
+}
+.regionMore p {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+.regionMore ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.regionMore a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.regionMore a:hover { border-color: var(--accent); }
+.regionMore a > span { display: grid; gap: 1px; flex: 1; min-width: 0; }
+.regionMore small { font: var(--text-xs) ui-monospace, monospace; color: var(--muted); }
+.regionMore strong { font-size: var(--text-sm); }
+.regionMore em { font-style: normal; font-size: var(--text-xs); color: var(--muted); }

@@ -3,31 +3,37 @@
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { ArrowRight, Compass } from 'lucide-react';
 import type { RegionTrialEntry } from '@/content/trials';
-import type { RegionSummary, UnmappedRegionSummary } from '@/lib/world/learning-islands';
+import type { RegionId } from '@/content/world/types';
+import { HUB_THEME, REGION_THEMES } from '@/lib/islands/regions/region-themes';
+import type { HubSummary, RegionSummary, UnmappedRegionSummary } from '@/lib/world/learning-islands';
 import { RegionTrials } from '../trials/region-trials';
 import { SceneBoundary } from '../islands/hex-world/scene-boundary';
 import status from '../islands/island-status.module.css';
+import { WORLD_RETURN_KEY } from './regional-world-explorer';
 import type { OverviewTarget } from './world-overview-scene';
 import styles from './world.module.css';
 
 const Scene = dynamic(() => import('./world-overview-scene'), { ssr: false, loading: () => <div className={styles.loading} role="status">正在準備世界總覽…</div> });
 const WIDE = '(min-width: 781px)';
 const subscribe = (onChange: () => void) => { const list = matchMedia(WIDE); list.addEventListener('change', onChange); return () => list.removeEventListener('change', onChange); };
-const ACCENT = { cs: '#4285f4', ai: '#3949ab' } as const;
-const HUB_ACCENT = '#8a4fd1';
 
+// The trial pages type their regions themselves (src/content/trials); the world only passes its own id through.
+type TrialRegion = React.ComponentProps<typeof RegionTrials>['regionId'];
 const regionDetail = (r: RegionSummary) => r.open ? `${r.islands} 座學科島 · ${r.open} 座已開放 · ${r.planned} 座規劃中` : `${r.islands} 座學科島 · 全部規劃中`;
+/** The map label's short name: the region without its 「群島」, which every region shares. */
+const shortName = (name: string) => name.replace(/群島$/, '');
 
 /**
- * M3.1 world overview (/world): the two regions and the hub. The 3D outlines are one way in; the guide beside them
- * (below on phones) is the other and the only one without WebGL, and every entry of one is in the other.
- * Multi-archipelago v2 (P3): regions without a 3D layout (design, web) are listed in the guide only, marked 規劃中, and
- * lead to their outline on /curriculum; no model, map or empty page stands in for them.
+ * World overview (/world): every region with a 3D map around the hub. The 3D outlines are one way in; the guide beside
+ * them (below on phones) is the other and the only one without WebGL, and every entry of one is in the other.
+ * P8.2: the regions, their order and their counts come from the world registry through `regions`; this component and
+ * its scene name no region. A region without a 3D layout (`unmapped`) is listed in the guide only, marked 規劃中, and
+ * leads to its 2D overview. Each mapped region's guide entry also offers that 2D overview, the way in without WebGL.
  */
-export function WorldOverview({ regions, unmapped = [], hub, trials }: { regions: RegionSummary[]; unmapped?: UnmappedRegionSummary[]; hub: { lab: { name: string; description: string; href: '/learn'; accent: string } }; trials?: Record<'cs' | 'ai', RegionTrialEntry[]> }) {
+export function WorldOverview({ regions, unmapped = [], hub, trials }: { regions: RegionSummary[]; unmapped?: UnmappedRegionSummary[]; hub: HubSummary; trials?: Partial<Record<RegionId, RegionTrialEntry[]>> }) {
   const router = useRouter();
   const [available, setAvailable] = useState(true);
   const unavailable = useCallback(() => setAvailable(false), []);
@@ -35,35 +41,46 @@ export function WorldOverview({ regions, unmapped = [], hub, trials }: { regions
   const wide = useSyncExternalStore(subscribe, () => matchMedia(WIDE).matches, () => false);
   // Stable, so the scene places its labels once per framing.
   const targets: OverviewTarget[] = useMemo(() => [
-    ...regions.map(r => ({ id: r.id, label: `進入${r.name}`, detail: regionDetail(r), accent: ACCENT[r.id], onOpen: () => router.push(r.href) })),
-    { id: 'hub' as const, label: '前往中央樞紐：互動實驗島', detail: '跨學科共用的工具島', accent: HUB_ACCENT, onOpen: () => router.push(hub.lab.href) },
-  ], [regions, hub.lab.href, router]);
+    ...regions.map(r => ({ id: r.id, name: shortName(r.name), label: `進入${r.name}`, detail: regionDetail(r), brief: `${r.islands} 島`, accent: REGION_THEMES[r.id].accent, onOpen: () => router.push(r.href) })),
+    // Phones: the island's own name is enough beside「共用」; the guide below the map says it is the hub.
+    { id: 'hub' as const, name: wide ? `中央樞紐 · ${hub.lab.name}` : hub.lab.name, label: `前往中央樞紐：${hub.lab.name}`, detail: '跨群島共用的工具島', brief: '共用', accent: HUB_THEME.accent, onOpen: () => router.push(hub.lab.href) },
+  ], [regions, hub.lab.href, hub.lab.name, router, wide]);
+  const names = regions.map(r => r.name).join('、');
+  // P8.2 focus management: reached from a region (Escape or its 世界總覽 link), the keyboard focus goes to that region's
+  // entry in the guide, so the three levels can be walked up and down without losing the place.
+  useEffect(() => {
+    let from: string | null = null;
+    try { from = sessionStorage.getItem(WORLD_RETURN_KEY); sessionStorage.removeItem(WORLD_RETURN_KEY); } catch { /* no storage */ }
+    if (from) document.querySelector<HTMLElement>(`[data-region-entry="${from}"]`)?.focus({ preventScroll: true });
+  }, []);
   return <section className={styles.overview} aria-label="世界總覽">
     <div className={styles.stage}>
       {available ? <SceneBoundary onUnavailable={unavailable}>
-        <Scene targets={targets} insetRight={wide ? 360 : 0} shape={wide ? 'wide' : 'tall'} label="Logic Island 世界總覽：程式與資訊群島、中央樞紐與 AI 人工智慧群島，亦可使用清單導航" onReady={ready} onUnavailable={unavailable}/>
+        <Scene targets={targets} insetRight={wide ? 360 : 0} shape={wide ? 'wide' : 'tall'} label={`Logic Island 世界總覽：中央樞紐與 ${regions.length} 個群島（${names}），亦可使用清單導航`} onReady={ready} onUnavailable={unavailable}/>
       </SceneBoundary> : <p className={styles.fallbackNotice} role="status">此裝置的 3D 場景無法使用，已切換至清單導航。所有區域與教材仍可開啟。</p>}
     </div>
     <nav className={styles.guide} aria-label="世界導覽">
-      <div className={styles.guideHeading}><Compass size={17}/><span>世界總覽</span><small>REGIONAL WORLD · PROTOTYPE</small></div>
+      <div className={styles.guideHeading}><Compass size={17}/><span>世界總覽</span><small>{String(regions.length + unmapped.length).padStart(2, '0')} REGIONS · PROTOTYPE</small></div>
       <ol className={styles.guideList}>
-        {regions.map(r => <li key={r.id} className={styles.guideRegion}><Link href={r.href} className={styles.guideEntry} style={{ '--region-accent': ACCENT[r.id] } as React.CSSProperties}>
+        {regions.map(r => <li key={r.id} className={styles.guideRegion}><Link href={r.href} className={styles.guideEntry} data-region-entry={r.id} style={{ '--region-accent': REGION_THEMES[r.id].accent } as React.CSSProperties}>
           <span><small>{r.nameEn}</small><strong>{r.name}</strong><em>{regionDetail(r)}</em></span><ArrowRight size={16}/>
-        </Link>{trials && <RegionTrials regionId={r.id} regionName={r.name} entries={trials[r.id]}/>}</li>)}
+        </Link>
+        <Link href={`/regions/${r.id}`} className={styles.guideAlt}>{r.name}的清單總覽（不需 3D）</Link>
+        {trials?.[r.id] && <RegionTrials regionId={r.id as TrialRegion} regionName={r.name} entries={trials[r.id]!}/>}</li>)}
         {unmapped.map(r => <li key={r.id} className={styles.guideRegion}>
           <Link href={`/regions/${r.id}`} className={styles.guideEntry} style={{ '--region-accent': 'var(--muted)' } as React.CSSProperties}>
             <span><small>{r.nameEn}</small><strong>{r.name}</strong><em><span className={status.plannedTag}>規劃中</span> {r.islands} 座主題島 · {r.lessons} 堂大綱 · 尚無 3D 地圖</em></span><ArrowRight size={16}/>
           </Link>
         </li>)}
         <li className={styles.guideHub}>
-          <Link href={hub.lab.href} className={styles.guideEntry} style={{ '--region-accent': HUB_ACCENT } as React.CSSProperties}>
-            <span><small>CENTRAL HUB</small><strong>中央樞紐 · {hub.lab.name}</strong><em>{hub.lab.description}</em></span><ArrowRight size={16}/>
+          <Link href={hub.lab.href} className={styles.guideEntry} style={{ '--region-accent': HUB_THEME.accent } as React.CSSProperties}>
+            <span><small>CENTRAL HUB · SHARED</small><strong>中央樞紐 · {hub.lab.name}</strong><em>{hub.lab.description}</em></span><ArrowRight size={16}/>
           </Link>
           {/* Phase F.6 plans it; no route exists, so it is named and nothing more. */}
           <p className={styles.guidePlanned}><em className={status.plannedTag}>規劃中</em>中央挑戰島（APCS Trial、AI Capstone）尚未開放</p>
         </li>
       </ol>
-      <p className={styles.guideNote}>選一個群島進入區域地圖；每座島的教材狀態以課綱為準，「規劃中」的島還沒有可開啟的課程。</p>
+      <p className={styles.guideNote}>選一個群島進入區域地圖；每座島的教材狀態以課綱為準，「規劃中」的島還沒有可開啟的課程。互動實驗島是各群島共用的工具島，不屬於任何一個群島。</p>
     </nav>
   </section>;
 }

@@ -4,10 +4,14 @@ import { settlementRoads, type HexWorld } from '@/lib/islands/hex-world';
 import { islandsHomeWorld } from '@/lib/islands/islands-world';
 import { DATABASES_SPEC } from '@/lib/islands/islands-world';
 import { DATABASE_LANDMARKS } from '@/lib/islands/database-island';
-import { REGION_LAYOUTS } from '@/lib/islands/regions/region-layouts';
+import { MAPPED_REGION_IDS, REGION_LAYOUTS, isMappedRegion, regionLayout } from '@/lib/islands/regions/region-layouts';
+import { LATTICE_SPACING, latticeLayout } from '@/lib/islands/regions/lattice-layout';
+import { REGION_THEMES } from '@/lib/islands/regions/region-themes';
+import { WORLD_MAP, validateWorldMap, worldMapRegionIds } from '@/lib/islands/regions/world-map';
+import { REGION_ACCENT } from '@/lib/world/region-accents';
 import { validateRegion } from '@/lib/islands/regions/validate-region';
 import { placeholderLandmarkTiles } from '@/components/islands/hex-world/hex-landmarks';
-import { getIsland, islandsInRegion } from '@/content/world';
+import { getIsland, islandsInRegion, labIslandConfig, orderedRegions, subjectIslands } from '@/content/world';
 import type { RegionId } from '@/content/world/types';
 
 /*
@@ -17,7 +21,7 @@ import type { RegionId } from '@/content/world/types';
  */
 const home = islandsHomeWorld.world;
 const add = (a: Axial, b: Axial) => ({ q: a.q + b.q, r: a.r + b.r });
-function reserved(world: HexWorld, glb = REGION_LAYOUTS.cs.layout.glb): Record<string, Axial[]> {
+function reserved(world: HexWorld, glb = regionLayout('cs').layout.glb): Record<string, Axial[]> {
   const out: Record<string, Axial[]> = {};
   for (const s of world.settlements) {
     if (s.islandId === 'databases') out[s.islandId] = [...DATABASE_LANDMARKS.map(l => add(s.center, l.at)), ...DATABASES_SPEC.terrace.map(t => add(s.center, t))];
@@ -31,20 +35,20 @@ function reserved(world: HexWorld, glb = REGION_LAYOUTS.cs.layout.glb): Record<s
 const regionIds = (region: RegionId) => islandsInRegion(region).map(i => i.id);
 const accepted = home.bridges.map(b => b.id);
 
-describe('regional world layouts (M3.1)', () => {
-  for (const region of ['cs', 'ai'] as const) {
+describe('regional world layouts (M3.1; P8.2: every mapped region)', () => {
+  for (const region of MAPPED_REGION_IDS) {
     it(`${region}: the registry's islands, valid, docks for the ferry`, () => {
-      const layout = REGION_LAYOUTS[region];
+      const layout = regionLayout(region);
       expect(validateRegion(layout, regionIds(region), reserved(layout.layout.world), accepted)).toEqual([]);
       expect(layout.layout.world.settlements.map(s => s.islandId).sort()).toEqual(regionIds(region).sort());
     });
     it(`${region}: planned islands are exactly the registry's planned ones`, () => {
-      for (const s of REGION_LAYOUTS[region].layout.world.settlements) expect(Boolean(s.planned), s.islandId).toBe(getIsland(s.islandId)!.status === 'planned');
+      for (const s of regionLayout(region).layout.world.settlements) expect(Boolean(s.planned), s.islandId).toBe(getIsland(s.islandId)!.status === 'planned');
     });
   }
 
   it('the validator catches what the drafts got wrong: a port on the main tower terrace, a road over a landmark, too little water', () => {
-    const cs = REGION_LAYOUTS.cs;
+    const cs = regionLayout('cs');
     const terracePort = { ...cs, layout: { ...cs.layout, world: { ...cs.layout.world, bridges: cs.layout.world.bridges.map(b => b.id !== 'databases-systems-analysis' ? b
       : { ...b, from: { islandId: 'databases', tile: { q: 2, r: -11 }, edge: 1 as const }, to: { islandId: 'systems-analysis', tile: { q: 6, r: -15 }, edge: 4 as const } }) } } };
     const problems = validateRegion(terracePort, regionIds('cs'), reserved(terracePort.layout.world), accepted);
@@ -56,18 +60,18 @@ describe('regional world layouts (M3.1)', () => {
   });
 
   it('the database island port moved off the terrace to its north-east shore', () => {
-    const bridge = REGION_LAYOUTS.cs.layout.world.bridges.find(b => b.id === 'databases-systems-analysis')!;
+    const bridge = regionLayout('cs').layout.world.bridges.find(b => b.id === 'databases-systems-analysis')!;
     expect(hexKey(bridge.from.tile)).toBe('4,-10');
     const terrace = DATABASES_SPEC.terrace.map(t => hexKey(add(DATABASES_SPEC.center, t)));
     expect(terrace).not.toContain(hexKey(bridge.from.tile));
     // Its road leaves the plaza east, past the replica towers' tile, not across it.
-    const road = settlementRoads(REGION_LAYOUTS.cs.layout.world).find(r => r.bridgeId === bridge.id && r.islandId === 'databases')!;
+    const road = settlementRoads(regionLayout('cs').layout.world).find(r => r.bridgeId === bridge.id && r.islandId === 'databases')!;
     expect(road.tiles.map(hexKey)).toEqual(['2,-9', '3,-9', '4,-10']);
   });
 });
 
 describe('CS region keeps the home page islands (M3.1)', () => {
-  const cs = REGION_LAYOUTS.cs.layout;
+  const cs = regionLayout('cs').layout;
   const ids = ['foundations', 'structures', 'algorithms', 'databases'];
   it('same tiles, spurs and coast as on the home page', () => {
     for (const id of ids) expect(cs.world.settlements.find(s => s.islandId === id), id).toEqual(home.settlements.find(s => s.islandId === id));
@@ -103,6 +107,8 @@ describe('regional world panel data and flag (M3.1)', () => {
     for (const island of ai) {
       expect(island.planned, island.id).toEqual({ lessonCount: getIsland(island.id)!.lessonCount });
       expect([island.lessons, island.units, island.published, island.curriculumHref], island.id).toEqual([[], undefined, undefined, undefined]);
+      // P8.2 (D4): its one link is its outline on the region's 2D overview, never a lesson page.
+      expect(island.outlineHref, island.id).toBe(`/regions/ai#island-${island.id}`);
     }
     const cs = regionIslands('cs');
     expect(cs.filter(i => i.planned).map(i => i.id)).toEqual(['programming-languages', 'networks', 'systems-analysis', 'information-systems']);
@@ -129,19 +135,103 @@ describe('regional world panel data and flag (M3.1)', () => {
   });
 });
 
-// Multi-archipelago v2 (P3): only regions with a 3D layout reach the map; the others are listed, planned, without one.
-describe('regions without a 3D layout (multi-archipelago v2)', async () => {
-  const { regionSummaries, unmappedRegions } = await import('@/lib/world/learning-islands');
-  const { MAPPED_REGION_IDS, isMappedRegion } = await import('@/lib/islands/regions/region-layouts');
-  it('maps cs and ai only, and lists design, web and sys as planned regions with no /world link', () => {
-    expect(regionSummaries().map(r => [r.id, r.href])).toEqual([['cs', '/world/cs'], ['ai', '/world/ai']]);
-    expect(unmappedRegions()).toEqual([
-      { id: 'design', name: '數位設計群島', nameEn: 'Digital Design Archipelago', islands: 4, lessons: 56 },
-      { id: 'web', name: '網頁與應用開發群島', nameEn: 'Web and App Development Archipelago', islands: 4, lessons: 55 },
-      { id: 'sys', name: '系統與雲端工程群島', nameEn: 'Systems & Cloud Engineering Archipelago', islands: 6, lessons: 89 },
-    ]);
-    expect(MAPPED_REGION_IDS).toEqual(['cs', 'ai']);
-    expect(isMappedRegion('design')).toBe(false);
-    expect(isMappedRegion('sys')).toBe(false);
+// P8.2: the multi-region world as data. Which regions and islands exist is the registry's; the 3D layer only places them.
+describe('multi-region world data model (P8.2)', async () => {
+  const { regionSummaries, unmappedRegions, regionIslands, islandVisual, hubSummary } = await import('@/lib/world/learning-islands');
+  const registryRegions = orderedRegions.map(r => r.id);
+
+  it('every registry region has a 3D map, a place on the overview and a theme; no list of regions is kept by hand', () => {
+    expect([...MAPPED_REGION_IDS].sort()).toEqual([...registryRegions].sort());
+    expect(unmappedRegions()).toEqual([]);
+    expect(worldMapRegionIds().sort()).toEqual([...registryRegions].sort());
+    for (const id of registryRegions) {
+      expect(isMappedRegion(id), id).toBe(true);
+      expect(REGION_THEMES[id].accent, id).toBe(REGION_ACCENT[id]);
+      expect(regionLayout(id).regionId, id).toBe(id);
+    }
+    expect(isMappedRegion('xx')).toBe(false);
+    expect(() => regionLayout('xx' as never)).toThrow('has no 3D layout');
+  });
+
+  it('the overview summaries follow the registry: order, island and lesson counts, open and planned islands', () => {
+    expect(regionSummaries().map(r => r.id)).toEqual(registryRegions);
+    for (const r of regionSummaries()) {
+      const list = islandsInRegion(r.id);
+      expect([r.islands, r.lessons, r.open + r.planned, r.href], r.id).toEqual([list.length, list.reduce((n, i) => n + i.lessonCount, 0), list.length, `/world/${r.id}`]);
+      expect(r.planned, r.id).toBe(list.filter(i => i.status === 'planned').length);
+    }
+  });
+
+  it('all 29 subject islands stand on exactly one region map, their own region\'s; the lab island on none', () => {
+    const placed = MAPPED_REGION_IDS.flatMap(region => regionLayout(region).layout.world.settlements.map(s => ({ region, id: s.islandId })));
+    expect(placed.map(p => p.id).sort()).toEqual(subjectIslands.map(i => i.id).sort());
+    for (const p of placed) expect(getIsland(p.id)!.regionId, p.id).toBe(p.region);
+    expect(placed.some(p => p.id === labIslandConfig.id)).toBe(false);
+  });
+
+  it('the layout layer holds no curriculum data: a region layout is its id, hex world, camera, docks and source', () => {
+    for (const id of MAPPED_REGION_IDS) expect(Object.keys(REGION_LAYOUTS[id]!).sort(), id).toEqual(['camera', 'docks', 'layout', 'regionId', 'source']);
+    expect(JSON.stringify(WORLD_MAP)).not.toMatch(/lesson|堂|島/);
+  });
+
+  it('CS: eight subject islands, four with lessons and four planned, each with its registry record; the lab island is the shared hub', () => {
+    const cs = regionIslands('cs');
+    expect(cs.map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'systems-analysis', 'information-systems']);
+    expect(cs.filter(i => !i.planned).map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'databases']);
+    for (const island of cs) expect(getIsland(island.id)!.regionId, island.id).toBe('cs');
+    expect(labIslandConfig.kind).toBe('tool');
+    expect(labIslandConfig.regionId).toBeUndefined();
+    expect(WORLD_MAP.hub.islandId).toBe(labIslandConfig.id);
+    expect(hubSummary().lab).toMatchObject({ id: 'labs', href: '/learn', labs: labIslandConfig.labs!.length });
+  });
+
+  it('island visual status is derived: GLB model, authored landmarks or the shared planned outline', () => {
+    expect(islandVisual('foundations')).toEqual({ state: 'open', tier: 'glb' });
+    expect(islandVisual('databases')).toEqual({ state: 'open', tier: 'landmark' });
+    expect(islandVisual('networks')).toEqual({ state: 'planned', tier: 'outline' });
+    expect(islandVisual('linux-systems')).toEqual({ state: 'planned', tier: 'outline' });
+    expect(() => islandVisual('labs')).toThrow('not on a region map');
+  });
+
+  it('planned islands of every region offer their outline and no lesson', () => {
+    for (const region of MAPPED_REGION_IDS) for (const island of regionIslands(region).filter(i => i.planned)) {
+      expect(island.outlineHref, island.id).toBe(`/regions/${region}#island-${island.id}`);
+      expect(island.lessons, island.id).toEqual([]);
+    }
+  });
+
+  it('the overview composition: nothing overlaps, in the wide and in the tall shape', () => {
+    expect(validateWorldMap(WORLD_MAP, 'wide')).toEqual([]);
+    expect(validateWorldMap(WORLD_MAP, 'tall')).toEqual([]);
+    const crowded = { ...WORLD_MAP, regions: { ...WORLD_MAP.regions, ai: { ...WORLD_MAP.regions.ai!, wide: { ...WORLD_MAP.regions.ai!.wide, at: [2, 3] as const } } } };
+    expect(validateWorldMap(crowded, 'wide').some(p => p.startsWith('hub and ai overlap'))).toBe(true);
+  });
+});
+
+describe('lattice region maps (P8.2)', () => {
+  const zones = { plaza: 0, buildings: 0, forest: 0, hills: 0, shore: 0, open: 0 };
+  it('design, web and sys are lattice maps with different outlines; cs and ai stay authored', () => {
+    expect(MAPPED_REGION_IDS.map(id => [id, regionLayout(id).source])).toEqual([['cs', 'authored'], ['ai', 'authored'], ['design', 'lattice'], ['web', 'lattice'], ['sys', 'lattice']]);
+    // The outline of a lattice map is its cells: no two regions share one (as a set of cell offsets from the first cell).
+    const outline = (id: 'design' | 'web' | 'sys') => { const c = regionLayout(id).layout.world.settlements.map(s => s.center); return c.map(x => `${(x.q - c[0].q) / LATTICE_SPACING},${(x.r - c[0].r) / LATTICE_SPACING}`).sort().join(' '); };
+    expect(new Set([outline('design'), outline('web'), outline('sys')]).size).toBe(3);
+  });
+  it('builds a valid region from placements alone, at any size', () => {
+    for (const n of [1, 4, 12, 30]) {
+      // A row of cells, each bridged to the one before; the first carries the dock.
+      const ids = Array.from({ length: n }, (_, i) => `island-${i}`);
+      const built = latticeLayout({ bridge: 'stone', placements: ids.map((islandId, i) => ({ islandId, cell: [i, 0] as const, ...(i ? {} : { dock: 4 as const }) })), links: ids.slice(1).map((id, i) => [ids[i], id] as const) });
+      expect(built.layout.zones).toEqual(zones);
+      expect(validateRegion({ regionId: 'cs', ...built, camera: { azimuth: { desktop: 0, phone: 0 } }, source: 'lattice' }, ids, {}), `${n} islands`).toEqual([]);
+    }
+  });
+  it('refuses a spec it cannot build instead of drawing a broken map', () => {
+    const one = { islandId: 'a', cell: [0, 0] as const, dock: 4 as const };
+    expect(() => latticeLayout({ bridge: 'wood', placements: [one, { islandId: 'b', cell: [2, 0] }], links: [['a', 'b']] })).toThrow('not neighbouring cells');
+    expect(() => latticeLayout({ bridge: 'wood', placements: [one, { islandId: 'b', cell: [1, 0] }], links: [] })).toThrow('not joined by bridges');
+    expect(() => latticeLayout({ bridge: 'wood', placements: [{ ...one, dock: 0 }, { islandId: 'b', cell: [1, 0] }], links: [['a', 'b']] })).toThrow('next to a bridge port');
+    expect(() => latticeLayout({ bridge: 'wood', placements: [{ ...one, trim: [4] }], links: [] })).toThrow('trimmed tile');
+    expect(() => latticeLayout({ bridge: 'wood', placements: [{ islandId: 'a', cell: [0, 0] }], links: [] })).toThrow('no dock');
+    expect(() => latticeLayout({ bridge: 'wood', placements: [one, { islandId: 'b', cell: [0, 0] }], links: [] })).toThrow('share a cell');
   });
 });

@@ -124,7 +124,7 @@ export function placeholderLandmarkTiles(settlement: HexSettlement): Axial[] {
  * M3.1: a planned island in mist (no landmarks, nothing to suggest a building exists): a pale veil over its tiles and a
  * low survey marker on the center tile. Two draw calls per island, one merged mesh each.
  */
-function PlannedMist({world,settlement}:{world:HexWorld;settlement:HexSettlement}) {
+function PlannedMist({world,settlement,markerAccent}:{world:HexWorld;settlement:HexSettlement;markerAccent?:string}) {
   const geometry=useMemo(()=>{
     const parts=settlement.tiles.map(tile=>{
       const [x,z]=hexToWorld(tile,world.size);
@@ -140,12 +140,20 @@ function PlannedMist({world,settlement}:{world:HexWorld;settlement:HexSettlement
     {geometry&&<mesh geometry={geometry} raycast={()=>undefined}><meshStandardMaterial color="#f4f6f8" transparent opacity={.55} depthWrite={false} flatShading/></mesh>}
     <group position={[cx,BASE_TOP+tileHeight(settlement.tiles.find(t=>t.q===settlement.center.q&&t.r===settlement.center.r)!),cz]}>
       <mesh position-y={.32} castShadow raycast={()=>undefined}><cylinderGeometry args={[.07,.12,.64,6]}/>{m('#b9b2a4')}</mesh>
+      {/* P8.2 (D4): a taller pole with a pennant in the island's accent, so each planned island is told apart on the
+          map itself. A survey flag, still nothing that suggests a building. Only where the scene asks for it. */}
+      {markerAccent&&<>
+        <mesh position-y={1.1} castShadow raycast={()=>undefined}><cylinderGeometry args={[.035,.035,1.5,6]}/>{m('#8d8778')}</mesh>
+        <mesh position={[.3,1.6,0]} castShadow raycast={()=>undefined}><boxGeometry args={[.56,.34,.04]}/>{m(markerAccent)}</mesh>
+      </>}
     </group>
   </group>;
 }
 
-export function HexLandmarks({world,settlement}:{world:HexWorld;settlement:HexSettlement}) {
-  if (settlement.planned) return <PlannedMist world={world} settlement={settlement}/>;
+export function HexLandmarks({world,settlement,markerAccent}:{world:HexWorld;settlement:HexSettlement;
+  /** P8.2: a planned island's accent pennant (see PlannedMist); undefined keeps the M3.1 marker. */
+  markerAccent?:string}) {
+  if (settlement.planned) return <PlannedMist world={world} settlement={settlement} markerAccent={markerAccent}/>;
   // Phase F.2 (home page): 資料庫應用島's Transitional Art is one merged mesh (hex-database-landmarks.tsx).
   if (settlement.islandId === 'databases') return <DatabaseLandmarks world={world} settlement={settlement}/>;
   const base = D2A_CENTERS[settlement.islandId] ?? settlement.center;

@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { getRegion } from '@/content/world';
 import { RegionalWorldExplorer } from '@/components/world/regional-world-explorer';
 import { regionalWorldEnabled } from '@/lib/world/flag';
-import { regionIslands } from '@/lib/world/learning-islands';
+import { hubSummary, regionIslands } from '@/lib/world/learning-islands';
 import { MAPPED_REGION_IDS, isMappedRegion } from '@/lib/islands/regions/region-layouts';
 import { regionTrialEntries } from '@/content/trials';
 import { RegionTrials } from '@/components/trials/region-trials';
@@ -13,8 +13,11 @@ import { trialsEnabled } from '@/lib/trials/flag';
 /*
  * M3.1 regional world prototype: a region's map, /world/cs and /world/ai, with the focused island in `?island=`.
  * Without LOGIC_ISLAND_REGIONAL_WORLD=1 at build time no region page is generated and any other segment is a 404.
- * Multi-archipelago v2: only regions with a 3D layout get a page; a region without one (design, web) is a 404 here.
+ * Multi-archipelago v2: only regions with a 3D layout get a page; a region without one is a 404 here. P8.2: which
+ * regions have one is data (REGION_LAYOUTS), today all five; /regions/<id> stays the entry that needs no WebGL.
  */
+// The trial pages type their regions themselves; a region with no related exam gets an empty list and no block.
+type TrialRegion = Parameters<typeof regionTrialEntries>[0];
 export const dynamicParams = false;
 export function generateStaticParams() {
   return regionalWorldEnabled() ? MAPPED_REGION_IDS.map(region => ({ region })) : [];
@@ -32,6 +35,7 @@ export default async function RegionPage({ params }: { params: Promise<{ region:
     {/* The focused island lives in the URL (?island=), read on the client; the map and list render around it. */}
     {/* T.1: the archipelago's trial entries go below the map, only in a build that also has LOGIC_ISLAND_TRIALS=1. */}
     <div className="home-world"><Suspense><RegionalWorldExplorer regionId={record.id} regionName={record.name} regionNameEn={record.nameEn} islands={regionIslands(record.id)}
-      footer={trialsEnabled() ? <RegionTrials regionId={record.id} regionName={record.name} entries={regionTrialEntries(record.id)}/> : undefined}/></Suspense></div>
+      hub={hubSummary().lab}
+      footer={trialsEnabled() ? <RegionTrials regionId={record.id as TrialRegion} regionName={record.name} entries={regionTrialEntries(record.id as TrialRegion)}/> : undefined}/></Suspense></div>
   </main>;
 }

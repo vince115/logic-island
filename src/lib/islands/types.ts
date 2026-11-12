@@ -60,4 +60,6 @@ export interface LearningIsland extends IslandDefinition {
    * learner's own progress; and where its full syllabus is. Islands without them keep「查看完整課綱」→ /curriculum.
    */
   published?: { open: number; total: number }; curriculumHref?: `/curriculum#${string}`;
+  /** P8.2 (D4): a planned island's outline on its region's 2D overview (topics only; no lesson page exists yet). */
+  outlineHref?: `/regions/${string}`;
 }

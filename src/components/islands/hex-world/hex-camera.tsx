@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { CameraControls, CameraControlsImpl } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Spherical, Vector3 } from 'three';
+import { Box3, Spherical, Vector3 } from 'three';
 import { getFocusBounds, getWorldBounds } from '@/lib/islands/data';
 import { WATER_LEVEL } from '@/lib/islands/hex-world';
 import type { IslandDefinition } from '@/lib/islands/types';
@@ -23,6 +23,11 @@ const DEGREE=Math.PI/180;
  * D.3-5b: Auto Orbit turns the overview at `orbit` degrees a second.
  */
 export const FREE_CAMERA={elevation:[28,60],zoomOut:.85,zoomIn:2,maxZoom:150,orbit:6} as const;
+/**
+ * P8.2 map controls (region maps only, `pan`): how far an arrow key moves the map (px), how much + and − zoom, how far
+ * [ and ] turn it (degrees), and how far beyond the islands the view's center may travel (map units).
+ */
+export const MAP_CONTROLS={step:72,zoom:1.25,turn:15,margin:3} as const;
 
 /** What the free camera reports once it settles: its angles in radians (null while it looks along VIEW), and whether
  * the view differs from the default overview, which「返回全景」restores. */
@@ -68,7 +73,7 @@ function frame(points:Vector3[],view:Vector3,width:number,height:number,focused:
  * `orbit` (D.3-5b) turns the overview on its own, keeping tilt and zoom; any drag, pinch or wheel on the map calls
  * `onOrbitStop`, and the explorer decides everything else (focus, list mode, hidden page,「返回全景」).
  */
-export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetKey=0,onViewChange,orbit=false,onOrbitStop,insetRight=0,view:base=VIEW}:{frames:IslandDefinition[];selectedId:string|null;reducedMotion:boolean;
+export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetKey=0,onViewChange,orbit=false,onOrbitStop,insetRight=0,view:base=VIEW,pan=false,onResetRequest}:{frames:IslandDefinition[];selectedId:string|null;reducedMotion:boolean;
   /** Content points (scene space) to frame instead of the bounding boxes: all of them, and per island. */
   fit?:{all:Vector3[];byId:Record<string,Vector3[]>};
   free?:boolean;resetKey?:number;onViewChange?:(view:CameraView)=>void;
@@ -77,6 +82,12 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
   insetRight?:number;
   /** M3.1 (regional world): the default view in place of VIEW, e.g. a region turned on phones; a new one goes back to it. */
   view?:Vector3;
+  /**
+   * P8.2 (region maps, free camera only): the map can also be moved. Right drag or two fingers pan it, and with the
+   * map focused the arrow keys pan, + and − zoom, [ and ] turn, 0 or Home asks for the overview (`onResetRequest`).
+   * The view's center stays within the islands' bounds. Off (the default), nothing here applies.
+   */
+  pan?:boolean;onResetRequest?:()=>void;
 }) {
   const baseAzimuth=Math.atan2(base.x,base.z),basePolar=Math.acos(base.y);
   const controls=useRef<CameraControlsImpl>(null);
@@ -101,7 +112,15 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
     const closest=Math.max(...frames.map(island=>frame(pointsFor(island),base,width,height,true,insetRight).zoom));
     return {min:out*FREE_CAMERA.zoomOut,max:Math.min(FREE_CAMERA.maxZoom,closest*FREE_CAMERA.zoomIn)};
   },[free,width,height,pointsFor,frames,insetRight,base]);
-  const framed=useRef<{points:Vector3[];reset:number;base:Vector3;zoom:number|null}|null>(null);
+  const framed=useRef<{points:Vector3[];reset:number;base:Vector3;zoom:number|null;target:Vector3}|null>(null);
+  const mapControls=free&&pan;
+  // Camera bounds: the view's center never leaves the box around all the islands (plus a margin), at any height.
+  const boundary=useMemo(()=>{
+    if(!mapControls) return null;
+    const box=new Box3().setFromPoints(pointsFor(undefined));
+    box.min.set(box.min.x-MAP_CONTROLS.margin,-200,box.min.z-MAP_CONTROLS.margin);box.max.set(box.max.x+MAP_CONTROLS.margin,200,box.max.z+MAP_CONTROLS.margin);
+    return box;
+  },[mapControls,pointsFor]);
   // Only the free camera listens to「返回全景」in the overview; the fixed one reframes on selection alone, as before.
   const reset=free?resetKey:0;
   useEffect(()=>{
@@ -129,14 +148,15 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
     const {center,zoom,shift,side}=frame(points,view,width,height,Boolean(selected),insetRight);
     const eye=center.clone().addScaledVector(view,DISTANCE);
     const animate=initialized.current&&!reducedMotion;
+    if(boundary){controller.verticalDragToForward=true;controller.setBoundary(boundary.clone().expandByPoint(center));}
     void controller.setLookAt(eye.x,eye.y,eye.z,center.x,center.y,center.z,animate);
     // The azimuth adds up full turns; take the short way to the new one.
     controller.normalizeRotations();
     void controller.setFocalOffset(side,-shift,0,animate);
     void controller.zoomTo(zoom,animate);
-    framed.current={points,reset,base,zoom:!selected&&view===base?zoom:null};
+    framed.current={points,reset,base,zoom:!selected&&view===base?zoom:null,target:center};
     initialized.current=true;
-  },[points,width,height,reducedMotion,selected,free,reset,insetRight,base,baseAzimuth,basePolar]);
+  },[points,width,height,reducedMotion,selected,free,reset,insetRight,base,baseAzimuth,basePolar,boundary]);
   // camera-controls sets `touch-action: none` on the element it listens on (R3F's wrapper, which also holds the
   // labels) when it connects; free touch only turns sideways, so the page keeps its vertical scroll. Touch keeps the tilt.
   // The wheel zooms without camera-controls' `controlstart`, so it stops Auto Orbit here.
@@ -149,6 +169,35 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
     connected.addEventListener('wheel',wheel,{capture:true,passive:true});
     return ()=>{connected.removeEventListener('pointerdown',down,{capture:true});connected.removeEventListener('wheel',wheel,{capture:true});};
   },[free,connected,onOrbitStop]);
+  // P8.2 keyboard map controls: on the element that holds the canvas and its labels, focusable only with `pan`.
+  useEffect(()=>{
+    if(!mapControls||!connected) return;
+    connected.tabIndex=0;
+    connected.setAttribute('role','group');
+    connected.setAttribute('aria-label','地圖鍵盤操作：方向鍵平移，加號與減號縮放，左右方括號旋轉，0 回到全景');
+    const key=(event:KeyboardEvent)=>{
+      const controller=controls.current;
+      if(!controller||event.defaultPrevented||event.ctrlKey||event.metaKey||event.altKey) return;
+      const smooth=!reducedMotion,unit=MAP_CONTROLS.step/controller.camera.zoom;
+      const moves:Record<string,()=>void>={
+        ArrowLeft:()=>void controller.truck(-unit,0,smooth),ArrowRight:()=>void controller.truck(unit,0,smooth),
+        ArrowUp:()=>void controller.truck(0,-unit,smooth),ArrowDown:()=>void controller.truck(0,unit,smooth),
+        '+':()=>void controller.zoomTo(Math.min(controller.maxZoom,controller.camera.zoom*MAP_CONTROLS.zoom),smooth),
+        '=':()=>void controller.zoomTo(Math.min(controller.maxZoom,controller.camera.zoom*MAP_CONTROLS.zoom),smooth),
+        '-':()=>void controller.zoomTo(Math.max(controller.minZoom,controller.camera.zoom/MAP_CONTROLS.zoom),smooth),
+        '[':()=>void controller.rotate(-MAP_CONTROLS.turn*DEGREE,0,smooth),']':()=>void controller.rotate(MAP_CONTROLS.turn*DEGREE,0,smooth),
+        '0':()=>onResetRequest?.(),Home:()=>onResetRequest?.(),
+      };
+      const move=moves[event.key];
+      if(!move) return;
+      event.preventDefault();
+      onOrbitStop?.();
+      move();
+      invalidate();
+    };
+    connected.addEventListener('keydown',key);
+    return ()=>{connected.removeEventListener('keydown',key);connected.removeAttribute('tabindex');connected.removeAttribute('role');connected.removeAttribute('aria-label');};
+  },[mapControls,connected,reducedMotion,onResetRequest,onOrbitStop,invalidate]);
   // The bottom edge of the near plane has to stay above the sea, or a low, zoomed-out view shows the background along
   // the bottom of the stage. An orthographic camera draws the same picture from any distance along its view, so such a
   // view moves the camera further back; the default view stays at DISTANCE. Runs before camera-controls updates.
@@ -171,8 +220,10 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
     const {theta,phi}=controller.getSpherical(new Spherical()),zoom=framed.current?.zoom;
     const turned=Math.abs(turn(theta,baseAzimuth))>1e-4||Math.abs(phi-basePolar)>1e-4;
     const zoomed=zoom==null||Math.abs(controller.camera.zoom/zoom-1)>.01;
-    onViewChange({azimuth:turned?turn(theta,0):null,polar:turned?phi:null,changed:turned||zoomed});
-  },[onViewChange,baseAzimuth,basePolar]);
+    // P8.2: a panned map has left the overview too (only with `pan`; without it the center never moves on its own).
+    const moved=mapControls&&framed.current!==null&&controller.getTarget(new Vector3()).distanceTo(framed.current.target)>.05;
+    onViewChange({azimuth:turned?turn(theta,0):null,polar:turned?phi:null,changed:turned||zoomed||moved});
+  },[onViewChange,baseAzimuth,basePolar,mapControls]);
   const start=useCallback(()=>{holding.current=true;onOrbitStop?.();},[onOrbitStop]);
   const end=useCallback(()=>{holding.current=false;report();},[report]);
   const rest=useCallback(()=>{if(!holding.current) report();},[report]);
@@ -205,7 +256,7 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
   return <CameraControls ref={controls} makeDefault smoothTime={.65}
     minZoom={zoomRange.min} maxZoom={zoomRange.max}
     minPolarAngle={(90-FREE_CAMERA.elevation[1])*DEGREE} maxPolarAngle={(90-FREE_CAMERA.elevation[0])*DEGREE}
-    mouseButtons={{left:ACTION.ROTATE,middle:ACTION.NONE,right:ACTION.NONE,wheel:ACTION.ZOOM}}
-    touches={{one:ACTION.TOUCH_ROTATE,two:ACTION.TOUCH_ZOOM,three:ACTION.NONE}}
+    mouseButtons={{left:ACTION.ROTATE,middle:ACTION.NONE,right:mapControls?ACTION.TRUCK:ACTION.NONE,wheel:ACTION.ZOOM}}
+    touches={{one:ACTION.TOUCH_ROTATE,two:mapControls?ACTION.TOUCH_ZOOM_TRUCK:ACTION.TOUCH_ZOOM,three:ACTION.NONE}}
     onControlStart={start} onControlEnd={end} onRest={rest} onSleep={rest}/>;
 }
