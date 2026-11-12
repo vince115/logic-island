@@ -56,6 +56,13 @@ const h2x = commit(dir, 'h2 rewritten');
 git(dir, 'checkout', '-q', '--orphan', 'orphan');
 git(dir, 'rm', '-rq', '--cached', '.');
 const orphan = commit(dir, 'orphan');
+// R5 (2026-11-12): main once the declared pull request is merged (a merge commit on m0), and one more commit after it.
+git(dir, 'checkout', '-q', '--detach', m0);
+git(dir, 'merge', '-q', '--no-ff', '-m', 'land trials/mvp', h2);
+const landed = git(dir, 'rev-parse', 'HEAD');
+const m2 = commit(dir, 'after landing');
+/** main merged with `tip` from `from` (detached): what a push to main would carry. */
+function landOn(from: string, tip: string) { git(dir, 'checkout', '-q', '--detach', from); git(dir, 'merge', '-q', '--no-ff', '-m', 'land', tip); return git(dir, 'rev-parse', 'HEAD'); }
 
 /** Checks out `at` and decides; `origin` moves the remote default branch for the case, then puts it back. */
 function decide(at: string, name: string, payload: CiEvent['payload'] | undefined, o: { origin?: string | null; d?: unknown; in?: string } = {}) {
@@ -69,6 +76,7 @@ function decide(at: string, name: string, payload: CiEvent['payload'] | undefine
   } finally { git(dir, 'update-ref', 'refs/remotes/origin/main', m0); }
 }
 const push = (before: string, after: string, extra: Partial<CiEvent['payload']> = {}) => ({ before, after, ref: 'refs/heads/trials/mvp', repository: repo, ...extra });
+const toMain = (before: string, after: string, extra: Partial<CiEvent['payload']> = {}) => push(before, after, { ref: 'refs/heads/main', ...extra });
 const pr = (sha: string, head = 'trials/mvp', extra: Partial<CiEvent['payload']> = {}, from = repo.full_name) => ({ pull_request: { base: { sha, ref: 'main' }, head: { ref: head, repo: { full_name: from } } }, repository: repo, ...extra });
 
 describe('the CI event matrix (local fixtures)', () => {
@@ -90,6 +98,25 @@ describe('the CI event matrix (local fixtures)', () => {
       git(dir, 'checkout', '-q', '-b', 'changed', h2);
       const c = commit(dir, 'changed', { [BOOTSTRAP_FILES.ledger]: '{"synthetic":"changed"}\n' });
       return decide(c, 'push', push(ZERO, c, { created: true }));
+    }, { mode: 'fail', reason: expect.stringContaining('head-files') }],
+    // R5: the push GitHub sends when the declared pull request is merged. Once, from the declared base; never forced.
+    ['push that lands the declared branch on main (merge commit)', () => decide(landed, 'push', toMain(m0, landed)), { mode: 'bootstrap', base: m0 }],
+    ['push that lands the declared branch on main (fast-forward)', () => decide(h2, 'push', toMain(m0, h2)), { mode: 'bootstrap', base: m0 }],
+    ['the next push to main compares with the landed tip', () => decide(m2, 'push', toMain(landed, m2)), { mode: 'compare', base: landed }],
+    ['force-push onto main from the declared base', () => decide(landed, 'push', toMain(m0, landed, { forced: true })), { mode: 'fail', reason: expect.stringContaining('event:') }],
+    ['push from the declared base to a branch that is not main', () => decide(landed, 'push', push(m0, landed, { ref: 'refs/heads/release' })), { mode: 'fail', reason: expect.stringContaining('event:') }],
+    ['push to main from another repository', () => decide(landed, 'push', toMain(m0, landed, { repository: { default_branch: 'main', full_name: 'someone/logic-island' } })), { mode: 'fail', reason: expect.stringContaining('event:') }],
+    ['push to main whose previous tip is not the declared base', () => {
+      git(dir, 'checkout', '-q', '--detach', m0);
+      const m1 = commit(dir, 'main moved on');
+      const tip = landOn(m1, h2);
+      return decide(tip, 'push', toMain(m1, tip));
+    }, { mode: 'fail', reason: expect.stringMatching(/event:.*base:/) }],
+    ['push that lands changed release files on main', () => {
+      git(dir, 'checkout', '-q', '--detach', h2);
+      const c = commit(dir, 'changed before landing', { [BOOTSTRAP_FILES.ledger]: '{"synthetic":"changed again"}\n' });
+      const tip = landOn(m0, c);
+      return decide(tip, 'push', toMain(m0, tip));
     }, { mode: 'fail', reason: expect.stringContaining('head-files') }],
     ['manual dispatch on a branch whose merge-base holds no release file', () => decide(h2, 'workflow_dispatch', { repository: repo }), { mode: 'fail', reason: expect.stringContaining('event:') }],
     ['manual dispatch after main holds the release files', () => decide(h2, 'workflow_dispatch', { repository: repo }, { origin: h1 }), { mode: 'compare', base: h1 }],
