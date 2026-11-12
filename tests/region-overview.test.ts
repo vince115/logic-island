@@ -39,6 +39,9 @@ describe('region overview', () => {
     expect(j).toMatchObject({ title: 'AI 架構', lessonCount: 66, publishedLessons: 11, learnable: false });
     expect(getLearningPath('J-ai-architecture')!.lessons.filter(l => getCatalogLesson(l)?.lessonStatus === 'complete').every(l => islandOfLesson(l)?.regionId === 'cs')).toBe(true);
     expect(pathRegion(['F01', 'DS01', 'LLM01'])).toBe('cs');
+    // R7: the design and web regions each have their own path.
+    expect(regionOverview('design').paths.map(p => p.id)).toEqual(['H-product-design']);
+    expect(regionOverview('web').paths.map(p => [p.id, p.lessonCount, p.publishedLessons])).toEqual([['G-frontend-engineering', 62, 7]]);
     expect(pathRegion([])).toBeUndefined();
   });
 
