@@ -135,6 +135,9 @@ T.3I 改成：
 | 同一段歷史上其他分支的第一次 push | 失敗（event） |
 | 一般 push | compare（前一個 tip） |
 | 從宣告分支發 PR，main 還沒有發布檔案 | bootstrap |
+| 合併宣告的 PR 後 main 的 push（merge commit 或 fast-forward；前一個 tip 正是宣告的 base；R5 2026-11-12 補上） | bootstrap |
+| 上述之後 main 的下一次 push | compare（前一個 tip，已有發布檔案） |
+| force-push 到 main、前一個 tip 不是宣告的 base、其他 repository、發布檔案已改動 | 失敗 |
 | main 已有發布檔案後的 PR（merge-base） | compare |
 | 其他分支發 PR 到沒有發布檔案的 main | 失敗 |
 | force-push | compare（前一個 tip） |
@@ -308,3 +311,10 @@ T.3I 改成：
 3. 依 `HUMAN_REVIEW_WORKFLOW.md`，從 B35 開始第一輪人工審核。
 4. 做一次小規模的真實發布演練：1–3 題，完整走過 release-gate 的 11 道關卡；接著撤回、重新核准、重新發布。
 5. 決定 MOEX 原卷與改編卷的政策；評估帳本事件簽章；是否用 Dependabot 提醒 Action 更新。
+
+## R5 補充（2026-11-12）：合併到 main 的那一次 push
+
+- **問題**：宣告只涵蓋「`trials/mvp` 第一次 push」與「從它到 `main` 的 PR」。PR 合併時 GitHub 會送出 `main` 的 push，前一個 tip 是宣告的 base `f45c867`（沒有發布檔案），事件又不在宣告中，`ci-base` 依設計 fail closed：`main` 第一次 CI 必定紅燈。
+- **修正**（`src/lib/trials/ci-bootstrap.ts` `bootstrapEligibility`）：事件多一種「landing」：`push` 到 `refs/heads/<defaultBranch>`、非 force、`before` **等於**宣告的 base、`ci-base` 策略為 `push-before`。其餘條件不變：解析出的 base 必須是宣告的 base 且沒有任何發布檔案、anchor 在 head 的歷史中、anchor 與 head 的發布檔案與宣告逐位元組相同；bootstrap 模式照樣執行 `trials:ci-bootstrap` 的題庫驗證、資料檢查與歷史重播，之後的 integrity、ledger、quality、build、preflight 都照跑。
+- **為何不會讓之後的 push 繞過**：合併後 `main` 有發布檔案，之後每次 push 的 base 都持有全部發布檔案 → compare；`before` 必須正好是 `f45c867`，force-push 不算；發布檔案只要跟宣告不同就失敗（head-files）。
+- **回歸測試**：`tests/trials-ci-event-matrix.test.ts` 新增 8 列（merge commit 與 fast-forward 兩種 landing 為 bootstrap；下一次 push 為 compare；force-push、非 main、其他 repository、前一個 tip 不是宣告的 base、發布檔案已改動皆失敗）。拿掉修正時兩列 landing 失敗，其餘不變。
