@@ -61,20 +61,24 @@ main f45c867 ─(6)→ trials/mvp 4cbe587 ─(11)→ archipelago/v2 034e9c6
 - T.3J `leak-scan --history origin/main..origin/archipelago/v2`（在含私人題庫的 `logic-island-t3j` 唯讀執行；350 題、18,220 片段；含 commit 訊息）：**乾淨**。旗標建置的 `.next`：**乾淨**。
 - 附帶發現：遠端舊分支 `phase-d/basics-glb`（`c316fe0`，2026-11-01）有 41 個 commit 在 private-history 清單上——清單收的是整條原始歷史，這段早於考試系統，tree 中沒有任何 trials 路徑，leak-scan 乾淨。不是外洩；它不在合併路徑上。
 
-## 5. CI 的已知限制（需決定，未修改）
+## 5. CI：合併到 main 的那一次 push（已修正）
 
-依 `src/lib/trials/ci-bootstrap.ts`：沒有發布檔案的 base 只在「`trials/mvp` 第一次 push」或「從 `trials/mvp` 到 `main` 的 PR」可走 bootstrap。
+依原本的 `src/lib/trials/ci-bootstrap.ts`，沒有發布檔案的 base 只在「`trials/mvp` 第一次 push」或「從 `trials/mvp` 到 `main` 的 PR」可走 bootstrap；PR 合併後 `main` 的 push（前一個 tip 是 `f45c867`）不在其中，會 fail closed。
 
-- PR `trials/mvp` → `main`：bootstrap，可以通過。
-- **合併後 `main` 的 push 事件**：前一個 tip 是 `f45c867`（沒有發布檔案），又不是宣告的事件 → `ci-base` **fail closed，這一次 `main` 的 CI 會是紅的**。之後的 push 就有發布檔案，恢復 compare。
-- 處理方式（擇一，需使用者決定，屬 CI 治理變更）：(a) 接受這一次紅燈並在 handoff 記錄；(b) 在合併前更新 `ci-bootstrap.json`／`ci-bootstrap.ts`，把「含 anchor 的第一次 `main` push」列入宣告事件（要經 T.3I 的審查）。
+使用者選擇修正宣告規則（不接受一次紅燈）。`trials/mvp` 的 `c721e52`：
+
+- 事件新增 landing：push 到 `refs/heads/main`、非 force、`before` 正好是宣告的 base、策略 `push-before`。其餘條件（base 為宣告值且沒有發布檔案、anchor 在歷史中、anchor 與 head 的發布檔案與宣告逐位元組相同）不變，bootstrap 檢查與之後所有 gate 照跑。
+- 只能命中一次：之後 `main` 有發布檔案，每次 push 都是 compare。
+- 回歸測試：event matrix 新增 8 列；拿掉修正時兩列 landing 失敗。含私人題庫的完整 Vitest 87 檔 2150 通過。
+- 端到端預演（暫存 clone，本機把 `trials/mvp` merge commit 到 `main`）：`ci-base` 得到 `push-before`／base `f45c867`／bootstrap；`ci-bootstrap` 11 項全部 PASS；同一個 push 標成 forced 時被拒絕。說明見 `docs/exam-system/33` 末節。
+- `archipelago/v2` 以 merge commit 併入（`b7e3127`），未 rebase。
 
 ## 6. 兩階段合併計畫（R5d）
 
 前置：PR #1 CI 全綠（不把 pending／skipped 當通過）；§2 的 Vercel scope 確認。
 
 1. **階段一**：開 PR `trials/mvp` → `main`（CI 為宣告的 bootstrap）。用 **Create a merge commit**（或本機 `git merge --ff-only` 後一般 push）。**不要 squash、不要 rebase**：兩者都會產生新 SHA，`archipelago/v2` 就不再是 `main` 的後代，PR #1 會出現重複變更，T.3J 的 anchor 驗證與 leak-scan 範圍也要重做。
-2. 合併後 `main` 的 push CI 依 §5 處理。
+2. 合併後 `main` 的 push CI 走 §5 的 landing bootstrap，必須全綠。
 3. **階段二**：把 PR #1 的 base 從 `trials/mvp` 改成 `main`（`gh pr edit 1 --base main`）。因為 `trials/mvp` 已在 `main` 裡，PR 只剩 11 個 commit，不需要 rebase 或 force push；CI 以 `main` 為 base（有發布檔案）走 compare。轉為 ready、CI 綠燈後同樣用 merge commit 合併。
 4. 兩個階段都不需要 force push；`archipelago/v2`、`trials/mvp` 合併後保留（repository 未開啟自動刪分支）。
 
