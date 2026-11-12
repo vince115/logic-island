@@ -97,6 +97,12 @@ exports[`route contract (multi-archipelago v2) > generates the same pages in the
     "queue",
     "stack",
   ],
+  "regions/[region]": [
+    "ai",
+    "cs",
+    "design",
+    "web",
+  ],
   "trials/[exam]": [],
   "trials/[exam]/[paper]": [],
   "trials/[exam]/[paper]/result": [],
@@ -200,6 +206,12 @@ exports[`route contract (multi-archipelago v2) > generates the same pages with b
     "color-contrast",
     "queue",
     "stack",
+  ],
+  "regions/[region]": [
+    "ai",
+    "cs",
+    "design",
+    "web",
   ],
   "trials/[exam]": [
     "apcs",

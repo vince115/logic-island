@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { DIFFICULTY_LABELS } from '@/content/curriculum/registry';
 import { islandsInRegion, orderedRegions, regionStatus } from '@/content/world';
@@ -15,7 +16,7 @@ import styles from './curriculum.module.css';
  * links to a lesson page: planned lessons have none, so they are text marked 規劃中 (CONTENT_STATUS_LABELS).
  */
 
-const REGION_ACCENT: Record<RegionId, string> = { cs: '#4285f4', ai: '#3949ab', design: '#d81b60', web: '#e65100' };
+export const REGION_ACCENT: Record<RegionId, string> = { cs: '#4285f4', ai: '#3949ab', design: '#d81b60', web: '#e65100' };
 
 /** The four regions, in order, each a link to its section on this page. */
 export function RegionStrip() {
@@ -33,7 +34,7 @@ export function RegionStrip() {
 }
 
 /** A planned island: what it will teach, how many lessons, and its outline folded away, every lesson 規劃中. */
-function PlannedIsland({ island }: { island: IslandConfig }) {
+export function PlannedIsland({ island }: { island: IslandConfig }) {
   const outline = lessonsOfIsland(island.id);
   return <article id={`island-${island.id}`} className={overview.planned} style={{ '--island-accent': island.theme.accent } as CSSProperties} aria-labelledby={`planned-${island.id}`}>
     <div className={overview.plannedHead}>
@@ -89,6 +90,7 @@ export function PlannedRegion({ region }: { region: Region }) {
   return <section id={`region-${region.id}`} className={overview.regionSection} style={{ '--island-accent': REGION_ACCENT[region.id] } as CSSProperties} aria-labelledby={`region-${region.id}-title`}>
     <h2 id={`region-${region.id}-title`}>{region.name}<span>{region.nameEn}</span></h2>
     <p className={styles.islandOpen}>{islandsInRegion(region.id).length} 座主題島、{regionHint(region.id)}：只有課程大綱，教材尚未開放，不能點選。</p>
+    <Link href={`/regions/${region.id}`} className={overview.regionLink}>{region.name}總覽<ArrowRight size={13} aria-hidden/></Link>
     <RegionExams region={region.id}/>
     {groups.map(g => <div key={g.id} className={overview.group}>
       <h3>{g.label}<span>{g.islandIds.length} 座島</span></h3>
