@@ -10,6 +10,10 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## P8.2 Multi-Region World（2026-11-12，分支 `p8/multi-region-world`）
+
+`/world/<region>` 現在有五個區域（`cs`、`ai`、`design`、`web`、`sys`），仍只在 `LOGIC_ISLAND_REGIONAL_WORLD=1` 的 build 存在；E2E 的兩種 build 執行方式與下方 M3.1 一節相同。`e2e/regional-world.spec.ts` 的區域與島嶼清單讀自 registry 與 `MAPPED_REGION_IDS`，新增區域或島嶼不需要改 spec。結果、效能數字、逐像素比對與 10 項 E2E 失敗的歸因（8 項既有、2 項負載下不穩）見 [P8_2_MULTI_REGION_WORLD_FOUNDATION](../planning/P8_2_MULTI_REGION_WORLD_FOUNDATION.md) §6–§7。
+
 ## 統一導覽系統與側欄（2026-11-12）
 
 隔離副本執行。TypeScript、ESLint 通過；Vitest 全套 2167／2169 通過，失敗 2 項為 trials CLI 子行程 5 秒逾時（機器負載下，重跑全部通過，與本次變更無關）；新增 `tests/site-nav.test.ts` 7 項。Production build（預設與 `LOGIC_ISLAND_TRIALS=1`）通過。E2E：navigation／curriculum／home-databases／hex-world／islands-acceptance／db-activities／sql 共 165 passed、11 skipped；trials 旗標建置下 navigation 13／13、ccarf／ipas／history 通過。既有失敗（HEAD `git archive` 基準同樣失敗，非本次造成）：`player.spec.ts` 3 項（`.lab-panel` 不在視窗內、假時鐘下 selectOption 逾時）；`trials.spec.ts:42` 仍預期 iPAS／CCAR-F 無試卷（`f241639` 已開放，測試過時）。瀏覽器實測 1440／1024／390／375：無水平溢出、抽屜焦點與 Escape 正常、專注模式啟動。修正過程發現：根 layout 的 Header 若匯入與區域共用的 CSS module，會把區域 CSS 排到 `globals.css` 之前（測驗單選鈕被撐滿寬度），故 Header 改用獨立 `header-focus.module.css`。

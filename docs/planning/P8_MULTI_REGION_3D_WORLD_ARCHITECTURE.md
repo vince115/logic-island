@@ -3,6 +3,7 @@
 > 2026-11-12，Asia/Taipei。分支 `p8/multi-region-world`（worktree `../logic-island-p8`，基於 `origin/main` @ `aaf1d0a`）。
 > **本階段只有文件與證據截圖**：沒有修改 `src/`、3D 模型、GLB、場景座標、路由或功能旗標；沒有 merge、push、部署。
 > 原型驗證在 repo 之外的隔離副本進行（§8），其程式碼沒有進入任何分支。
+> **後續**：D1–D6 已於 2026-11-12 批准方向；P8.2 的實作、量測與驗證見 [P8_2_MULTI_REGION_WORLD_FOUNDATION](P8_2_MULTI_REGION_WORLD_FOUNDATION.md)。本文件 §3 提議的 `src/lib/world3d/` 最後放在既有的 `src/lib/islands/regions/`。
 > 上層文件：[M3_1_REGIONAL_WORLD_ARCHITECTURE](M3_1_REGIONAL_WORLD_ARCHITECTURE.md)、[P3_FOUR_REGION_WORLD_FEASIBILITY](P3_FOUR_REGION_WORLD_FEASIBILITY.md)、[MULTI_ARCHIPELAGO_IA_V2](MULTI_ARCHIPELAGO_IA_V2.md)、[ISLAND_TAXONOMY](ISLAND_TAXONOMY.md)；SYS 區見分支 `archipelago/p6-sys` 的 `docs/planning/P6_SYSTEMS_CLOUD_REGION.md`。
 
 ## 0. 結論先行
