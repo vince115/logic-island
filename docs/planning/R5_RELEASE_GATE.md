@@ -24,6 +24,8 @@ main f45c867 ─(6)→ trials/mvp 4cbe587 ─(11)→ archipelago/v2 034e9c6
 | GitHub Actions | `trials-ci` 只讀（`permissions: contents: read`），不部署 | `.github/workflows/trials-ci.yml` |
 | Vercel 帳號 | CLI 登入的 scope（另一個帳號）沒有 logic-island 專案；`vince115s-projects` scope 未授權讀取，**尚未確認** | `vercel project list`；MCP 403 |
 
+**補充證據（2026-11-12 R5 後段）**：每個 commit（含 `main` 的 `f45c867`、`trials/mvp`、PR #1）都有 `vercel`、`travis-ci`、`claude` 三個 GitHub App 的 check suite，代表 **Vercel GitHub App 已安裝且有權存取本 repository**；但 `vercel` suite 一律 `queued`、0 個 check run，repository 從未有 deployment 或 commit status（Travis 沒有 `.travis.yml`）。這與「App 已安裝、但沒有 Vercel 專案連到本 repo」一致，**也與**「有專案連結但關閉 Git 部署或以 Ignored Build Step 略過」一致，所以仍不足以排除正式部署。缺少的唯一證據：`vince115s-projects` 中是否有專案的 Git repository 是 `vince115/logic-island`，以及其 Production Branch 與 Git 部署設定。
+
 **結論**：沒有任何證據顯示這個 repository 接了 Git 自動部署（Vercel 的 Git 整合會在每次 push 產生 GitHub deployment 與 status，這裡一次都沒有）。但 `vince115s-projects` 的 Vercel 設定**尚未確認**，因此不能斷言合併 `main` 不會更新正式網站。合併前請確認該 scope 沒有連到 `vince115/logic-island` 的專案（或其 Production Branch 不是 `main`）。
 
 ## 3. 兩段 diff 的內容與風險（R5c）
@@ -99,3 +101,13 @@ main f45c867 ─(6)→ trials/mvp 4cbe587 ─(11)→ archipelago/v2 034e9c6
 - **使用者資料**：反轉不會刪除瀏覽器裡的 `logic-island.*` key；`main` 原本只讀 `logiclab-theme`，舊程式忽略新 key，不會出錯。
 - **部署**（若 §2 確認有）：用平台的 rollback／promote 回前一個 production deployment，比重新建置快；之後再提交 revert。
 - **題庫**：兩段都沒有改發布帳本與 manifest，rollback 不涉及題目撤回。
+
+## 9. 閘門狀態（2026-11-12 08:00 UTC）
+
+| 條件 | 狀態 |
+|---|---|
+| CI：`trials/mvp` `c721e52`、PR #1 `1df9d30` | 執行中（`034e9c6`、`ea2e28f` 的 PR CI 全綠） |
+| 洩漏掃描 `origin/main..origin/archipelago/v2`（673 段文字＋commit 訊息） | 乾淨；私人歷史 commit 0 |
+| PR #1 差異 | 14 個 commit＝原 11 個＋R5 的 2 個文件與 1 個 `trials/mvp` merge commit |
+| 本機 smoke（`1df9d30` 預設建置，即兩次合併後 `main` 的樹） | build 通過；`/`、`/curriculum`、`/learn`、7 個實驗、`/islands`、課程頁 200；`/trials`、`/world`、規劃中實驗 404；`/visualize*` 308；navigation＋player E2E 38 通過 |
+| 部署影響 | **未確認**（§2）：合併暫停 |
