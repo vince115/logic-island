@@ -50,6 +50,9 @@
 
 ## P2：可延後但需有記錄
 
+- （2026-11-12，多群島 v2 P4 量測）全站 `--muted` 文字色在淺色主題的白色面板上對比只有 **4.19：1**（`#6d7d94` on `#ffffff`），一般文字未達 WCAG AA 4.5；深色主題 `#9aaec9` on `#172131` 為 7.14。以 `src/lib/contrast.ts` 計算。未修改（屬全站樣式，需另案）；色彩與無障礙實驗室自己的通過／未通過色已另設並通過 AA。
+- （2026-11-12，多群島 v2）`archipelago/v2` 以公開線 `origin/trials/mvp` 為基底，cherry-pick 本機側欄 commit；本機 `trials/mvp` 上的 `f241639`（350 題以結構檢查發布、自由練習卷）**不在**此分支，公開題庫的 iPAS／CCAR-F 仍無試卷。是否與如何公開這些題目屬發布政策決定，見 `docs/planning/P5_EXAM_ENGINE_INTEGRATION.md` §4。
+
 - （2026-11-03，M3.1 Regional World prototype，**正式上線前必須解決**）手機區域總覽的最小島寬：CS 73 px、AI 85 px，目標 88 px（iPhone 13 的地圖舞台只有 390×434）。
   - 使用者暫時接受 44 px 觸控區、清單導覽與島嶼聚焦作為 prototype 的替代方案，**不算通過**。
   - 沒有為了達標而壓縮島距或破壞橋。

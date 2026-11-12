@@ -588,6 +588,7 @@ P2-A（§3.2，AI 可見性）可以在 P1 之前或之後獨立做；P2（側�
 | P2 | 側欄：區域 → （AI 分組）→ 島 → 難度 → 課；規劃中的課為停用列（不可聚焦、無連結）；上段為世界地圖／學習群島／學習工具；預覽卡標示層級（世界、島嶼、共用工具）；麵包屑加區域；`/curriculum` 加四大群島與各區規劃中的島（大綱預設收合、無連結），AI 群島最小曝光（§3.2）一併完成；內容狀態 `ContentStatus`（已開放／製作中／規劃中）與個人進度分開 | tsc、ESLint、Vitest 1859 通過；瀏覽器實測（1280 桌機、375 手機）：只展開目前區域與島、`aria-current`、抽屜 dialog／Esc／焦點返回、無水平捲動、無 console 錯誤；`e2e/navigation.spec.ts` 14 通過（含所有開放頁面的站內連結檢查）；路由契約不變 |
 | P3 | 盤點與可行性：[P3_FOUR_REGION_WORLD_FEASIBILITY](P3_FOUR_REGION_WORLD_FEASIBILITY.md)；`/world` 導覽清單加入 design、web（規劃中、尚無 3D 地圖、連到課綱大綱）；3D 場景、GLB、座標與旗標都不變；建議維持方案 A，方案 B（程式生成的規劃中區域）需重新批准總覽構圖 | 旗標建置（兩旗標）瀏覽器確認：清單 4 區、`/world/design` 404、iPAS／CCAR-F 在公開題庫無試卷時不連結；`regional-world.test.ts` 13 通過 |
 | P4 | 實驗島 Lab Registry（`src/content/world/labs.ts`）：6 個學習領域、演算法實驗（讀取 `courses.ts`，引擎不變）與工具實驗、課程關聯由資料推導（多對多）、Understand → Experiment → Build／Think → Visualize → Code；活動 registry 加 `lab` 欄位；第一個工具實驗「色彩與無障礙實驗室」`/learn/color-contrast`（WCAG 2.x 公式、一般／大型文字門檻、非文字元件、最接近的合格色與 CSS）；Responsive Layout Playground、Mobile UX Simulator 等為 planned（無路由） | `tests/contrast.test.ts`（參考值 #767676＝4.54 通過、#777777＝4.48 未通過）、`tests/labs.test.ts`；Vitest 70 檔 1871 通過；路由契約**刻意**新增 `/learn/color-contrast`；瀏覽器（1280／375）輸入、套用、交換、錯誤輸入；`navigation.spec` 16 通過；`player.spec` 19 通過、3 項為既有 P1-11 |
+| P5 | 考試整合盤點：[P5_EXAM_ENGINE_INTEGRATION](P5_EXAM_ENGINE_INTEGRATION.md)；題庫、引擎、CI 與公開基線逐檔相同；課程頁不會自動公開考試；缺口（私人題目公開流程、CCAR-F 無 links、iPAS 只有 plannedIslands）列為待決策 | `git diff` 空；路由契約預設建置無 `/trials/*` |
 
 ## 11. 本文件的驗證方式
 
