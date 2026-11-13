@@ -61,9 +61,10 @@ function segments(list: [SeaPoint, SeaPoint][], width: number, height: number, d
 }
 
 /** Everything the overview draws, in overview units on the sea plane. */
-function useOverview(shape: OverviewShape) {
+function useOverview(shape: OverviewShape, without: string) {
   return useMemo(() => {
-    const outlines = overviewOutlines(WORLD_MAP, REGION_LAYOUTS, shape), links = overviewLinks(WORLD_MAP, outlines);
+    const hidden = without.split(',');
+    const outlines = overviewOutlines(WORLD_MAP, REGION_LAYOUTS, shape), links = overviewLinks(WORLD_MAP, outlines).filter(l => !hidden.includes(l.id));
     const regions = outlines.filter(o => o.id !== 'hub').map(o => {
       const { world, placed } = o, id = o.id as RegionId;
       const open = world.settlements.filter(s => !s.planned).flatMap(s => s.tiles), planned = world.settlements.filter(s => s.planned).flatMap(s => s.tiles);
@@ -75,7 +76,7 @@ function useOverview(shape: OverviewShape) {
     const ends = (kind: 'hub' | 'relation') => links.filter(l => l.kind === kind).map(l => [l.a, l.b] as [SeaPoint, SeaPoint]);
     const hubLinks = segments(ends('hub'), LINK_WIDTH[shape].hub, LINK_TOP), relationLinks = segments(ends('relation'), LINK_WIDTH[shape].relation, LINK_TOP, shape === 'wide' ? .8 : .55);
     return { regions, hub, hubLinks, relationLinks, links, outlines };
-  }, [shape]);
+  }, [shape, without]);
 }
 
 /** What the framing reports, on the stage (px): every outline's extent and land, and where each link runs. */
@@ -126,12 +127,14 @@ function useLabelSpots(framed: Framed | null, sides: LabelSide[], refs: React.Re
   return spots?.length === sides.length ? spots : null;
 }
 
-export default function WorldOverviewScene({ targets, insetRight, label, onReady, onUnavailable, shape }: {
+export default function WorldOverviewScene({ targets, insetRight, label, onReady, onUnavailable, shape, without = '' }: {
   targets: OverviewTarget[]; insetRight: number; label: string; onReady: () => void; onUnavailable: () => void;
+  /** P8.4 visual review only (`/world?without=<link ids>`): links left undrawn, to compare the map with and without a bridge. */
+  without?: string;
   /** `tall` on phones: the regions in two columns around the hub. */
   shape: OverviewShape;
 }) {
-  const { regions, hub, hubLinks, relationLinks, links, outlines } = useOverview(shape);
+  const { regions, hub, hubLinks, relationLinks, links, outlines } = useOverview(shape, without);
   const [hovered, setHovered] = useState<string | null>(null);
   // Only what the world map places is drawn and labelled; a target without a place stays in the guide alone.
   const shown = useMemo(() => targets.filter(t => outlines.some(o => o.id === t.id)), [targets, outlines]);

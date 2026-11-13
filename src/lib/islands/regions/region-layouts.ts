@@ -170,7 +170,8 @@ export const REGION_LAYOUTS: Partial<Record<RegionId, RegionLayout>> = {
   cs: { regionId: 'cs', layout: cs, camera: { azimuth: { desktop: 295, phone: 105 }, labelReach: 8.5 }, docks: [{ islandId: 'foundations', spurId: 'foundations-dock' }], source: 'authored' },
   // To go back to the M3.1 loop: `ai: AI_BASELINE_LAYOUT`.
   // Turned 30 degrees: a hexagonal ring is narrowest across its flats, so every island is drawn larger.
-  ai: lattice('ai', AI_PINWHEEL, { markers: false, azimuth: 30, labelReach: 6 }),
+  // P8.4: captions get 6.6 tile sizes of room (was 6): at 1280 px the widest one reached 3 px under the island list.
+  ai: lattice('ai', AI_PINWHEEL, { markers: false, azimuth: 30, labelReach: 6.6 }),
   design: lattice('design', DESIGN),
   web: lattice('web', WEB),
   sys: lattice('sys', SYS, { labelReach: 16 }),

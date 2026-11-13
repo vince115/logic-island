@@ -83,6 +83,19 @@ export interface HexSceneOptions {
    * explorer that does not set this keep the camera's own allowances.
    */
   phoneRoom?: { top: number; bottom: number };
+  /**
+   * P8.4 (regional world): the overview labels are pins (a colored dot; the name stays as the accessible name, a
+   * tooltip and in the list) on any screen, not only on phones. A region map sets it when its stage is too narrow for
+   * captions beside the islands: a caption is a fixed size in px while the map shrinks with the stage, so on a tablet
+   * or a small laptop the captions ended up under the island list, outside the map or over each other.
+   */
+  pins?: boolean;
+  /**
+   * P8.4 (regional world): the map is its own stacking context, so what the scene hangs over the canvas (pins, place
+   * names) stays below anything the explorer lays over the map (the subjects sheet, the island list). Without it a pin
+   * of another island was drawn on top of the focused island's sheet.
+   */
+  ownLayer?: boolean;
 }
 type CaptionSide='left'|'right'|'above'|'below';
 /**
@@ -203,7 +216,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
     onViewChange?.(changed);
   },[onViewChange,base]);
   const press=useRef<[number,number]|null>(null);
-  return <div className={styles.canvasWrap} style={pointer?{cursor:'pointer'}:undefined} data-camera={free?'free':undefined}>
+  return <div className={styles.canvasWrap} style={pointer||options.ownLayer?{cursor:pointer?'pointer':undefined,isolation:options.ownLayer?'isolate':undefined}:undefined} data-camera={free?'free':undefined}>
     <Canvas orthographic frameloop="demand" dpr={[1,1.5]} shadows={options.shadows==='static'?STATIC_SHADOW_MAP:'soft'}
       camera={{position:[20,19,24],zoom:27,near:.1,far:400}}
       gl={{antialias:true,alpha:false,powerPreference:'low-power'}}
@@ -239,8 +252,8 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
               onSourceChange={sourceSetters[layout.islandId]} onNavigate={onNavigate} anchorStyle={options.anchorStyle} targets={targets}/>:placeholders}
             {/* A focused settlement hands its space to the anchor labels; the toolbar still names it. */}
             {island&&!selected&&<group position={[x,0,z]}><Html position={[0,compact?WATER_LEVEL:layout?.label?.height??3.4,0]} center zIndexRange={[15,0]}>
-              <button type="button" className={`${styles.islandLabel} ${styles.hexLabel}${compact?` ${styles.hexLabelCompact}`:''}${island.planned?` ${status.plannedLabel}`:''}${options.largeTargets?` ${status.largeTarget}`:''}`}
-                style={{'--island-accent':island.accent} as React.CSSProperties}
+              <button type="button" className={`${styles.islandLabel} ${styles.hexLabel}${compact?` ${styles.hexLabelCompact}`:''}${island.planned?` ${status.plannedLabel}`:''}${options.largeTargets?` ${status.largeTarget}`:''}${options.pins?` ${styles.hexLabelPin} ${status.pinLabel}`:''}`}
+                style={{'--island-accent':island.accent} as React.CSSProperties} title={options.pins?island.name:undefined}
                 aria-pressed={false} aria-label={`聚焦${island.name}${island.planned?'（規劃中）':''}`} data-model-source={layout?sources[island.id]??'loading':'geometry'} data-side={caption?.side}
                 data-hovered={lit===island.id?'true':undefined}
                 onPointerDown={free?event=>{press.current=[event.clientX,event.clientY];}:undefined}

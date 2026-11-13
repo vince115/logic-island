@@ -93,3 +93,28 @@
     transform: translate(-50%, -50%);
   }
 }
+
+/* P8.4 (`pins`, region maps): the phone rules above for a planned island's pin and its touch area, on any screen. */
+.pinLabel .plannedMapTag {
+  display: none;
+}
+.pinLabel.plannedLabel.plannedLabel > .plannedName {
+  width: 1px;
+  height: 1px;
+}
+.pinLabel.plannedLabel.plannedLabel > span:first-child {
+  background: var(--panel);
+  box-shadow: inset 0 0 0 3px var(--island-accent);
+}
+.pinLabel.largeTarget {
+  position: relative;
+}
+.pinLabel.largeTarget::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}

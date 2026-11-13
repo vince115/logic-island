@@ -307,3 +307,95 @@ test.describe('P8.3 phone acceptance of the region maps', () => {
     await expect(page.getByRole('group', { name: '選擇學習島嶼' })).toBeVisible();
   });
 });
+
+/* ------------------------------------------------------------------ P8.4 responsive world */
+
+test.describe('P8.4 responsive world', () => {
+  test.skip(!ON, 'built without LOGIC_ISLAND_REGIONAL_WORLD=1');
+
+  test('region maps from 834 to 1440 px: every label on the map, apart and clear of the island list; pins where the stage is too narrow for captions', async ({ page }) => {
+    test.skip(phone(), '桌機與平板寬度；手機在上方的驗收測試');
+    test.setTimeout(240_000);
+    for (const [width, height] of [[1440, 1000], [1280, 800], [1024, 768], [834, 1112]]) {
+      await page.setViewportSize({ width, height });
+      for (const region of MAPPED_REGION_IDS) {
+        await openRegion(page, `/world/${region}`);
+        const labels = page.locator('button[aria-label^="聚焦"]');
+        await expect(labels).toHaveCount(islandsInRegion(region).length);
+        await expect.poll(async () => Object.values(await islandBoxes(page, region)).every(b => b.width > 40), { timeout: 15_000 }).toBe(true);
+        await expectLabelsClear(page);
+        const sizes = await labels.evaluateAll(list => list.map(b => { const r = b.getBoundingClientRect(), area = getComputedStyle(b, '::before'); return { width: r.width, touch: parseFloat(area.width) || 0, title: b.getAttribute('title') }; }));
+        // Under 1240 px the labels are pins with a 44 px area and the name as a tooltip; from there up, captions.
+        for (const label of sizes) {
+          if (width < 1240) { expect(label.width, `${width} ${region}`).toBeLessThanOrEqual(30); expect(label.touch, `${width} ${region}`).toBe(44); expect(label.title, `${width} ${region}`).toBeTruthy(); }
+          else expect(label.width, `${width} ${region}`).toBeGreaterThan(60);
+        }
+        expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), `${width} ${region}`).toBeLessThanOrEqual(0);
+      }
+    }
+  });
+
+  test('a focused island\'s subjects sheet is above the map\'s pins', async ({ page }) => {
+    for (const [width, height] of phone() ? [[375, 812], [320, 568]] : [[1440, 1000]]) {
+      await page.setViewportSize({ width, height });
+      await openRegion(page, '/world/cs?island=databases');
+      const sheet = page.locator('aside[class*="subjectsFloating"]');
+      await expect(sheet).toBeVisible();
+      await expect.poll(async () => (await islandBoxes(page, 'cs')).databases.width, { timeout: 15_000 }).toBeGreaterThanOrEqual(FOCUSED);
+      // Of a grid of points on the sheet, none shows anything but the sheet: no pin or place name of the map over it.
+      const through = await sheet.evaluate(element => {
+        const r = element.getBoundingClientRect(), out: string[] = [];
+        for (let i = 1; i < 10; i++) for (let j = 1; j < 10; j++) {
+          const x = r.x + r.width * i / 10, y = r.y + r.height * j / 10;
+          if (y < 0 || y > innerHeight) continue;
+          const top = document.elementFromPoint(x, y);
+          if (top && !element.contains(top)) out.push(top.getAttribute('aria-label') ?? top.tagName);
+        }
+        return out;
+      });
+      expect(through, `${width}`).toEqual([]);
+      // The other islands' pins are still there to switch to, wherever the sheet does not cover them.
+      expect(await page.locator('button[aria-label^="聚焦"]').count(), `${width}`).toBeGreaterThan(0);
+    }
+  });
+
+  test('320 px: the header of the world pages keeps its menu on one line, its height, and 44 px touch areas that do not overlap; other pages are untouched', async ({ page }) => {
+    test.skip(!phone(), '只在手機');
+    await page.setViewportSize({ width: 320, height: 568 });
+    const header = () => page.evaluate(() => {
+      const head = document.querySelector('header.site-header')!, rect = (e: Element) => e.getBoundingClientRect();
+      const area = (e: Element, from: 'top' | 'bottom') => { const r = rect(e), s = getComputedStyle(e, '::before'), w = Math.max(r.width, parseFloat(s.width) || 0), h = Math.max(r.height, parseFloat(s.height) || 0);
+        const cx = r.x + r.width / 2; return { name: (e.getAttribute('aria-label') ?? e.textContent ?? '').trim().slice(0, 12), x0: cx - w / 2, x1: cx + w / 2, y0: from === 'top' ? r.top : r.bottom - h, y1: from === 'top' ? r.top + h : r.bottom, w, h }; };
+      const menu = [...head.querySelectorAll('nav a')], upper = [...head.querySelectorAll('.brand, .header-tools a, .header-tools button, .header-actions > button')];
+      return { height: rect(head).height, lines: menu.map(a => a.getClientRects().length), menuRight: Math.max(...menu.map(a => rect(a).right)), width: innerWidth,
+        menu: menu.map(a => area(a, 'top')), upper: upper.map(e => area(e, 'bottom')), pseudo: menu.map(a => getComputedStyle(a, '::before').content) };
+    });
+    for (const path of ['/world', '/world/cs']) {
+      await page.goto(path);
+      await expect(page.locator('canvas')).toBeVisible({ timeout: 30_000 });
+      const h = await header();
+      expect(h.height, path).toBe(88);
+      expect(h.lines, `${path} 主選單每一項一行`).toEqual(h.lines.map(() => 1));
+      expect(h.menuRight, `${path} 主選單不超出畫面`).toBeLessThanOrEqual(h.width);
+      for (const target of [...h.menu, ...h.upper]) { expect(target.w, `${path} ${target.name}`).toBeGreaterThanOrEqual(TOUCH); expect(target.h, `${path} ${target.name}`).toBeGreaterThanOrEqual(TOUCH); }
+      // The upper row's areas reach up and the menu's reach down: none of the one overlaps any of the other.
+      for (const a of h.upper) for (const b of h.menu) expect(a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 - .5 && b.y0 < a.y1 - .5, `${path} ${a.name}／${b.name}`).toBe(false);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), path).toBeLessThanOrEqual(0);
+    }
+    // The links under a region's guide entry (its list overview, the trial entries) are 44 px tall on the overview.
+    await page.goto('/world');
+    await expect(page.locator('canvas')).toBeVisible({ timeout: 30_000 });
+    for (const height of await page.locator('nav[aria-label="世界導覽"] li a').evaluateAll(list => list.map(a => a.getBoundingClientRect().height))) expect(height).toBeGreaterThanOrEqual(TOUCH);
+    // Another page of the site: its header is as it was (no added touch areas, so nothing here changed it).
+    await page.goto('/curriculum');
+    expect((await header()).pseudo.every(content => content === 'none')).toBe(true);
+  });
+
+  test('visual review: /world?without=<link> draws the overview without that link and changes nothing else', async ({ page }) => {
+    await page.goto('/world?without=web-sys');
+    await expect(page.locator('[data-links]')).toBeVisible({ timeout: 30_000 });
+    await expect.poll(() => page.evaluate(() => (JSON.parse(document.querySelector<HTMLElement>('[data-links]')!.dataset.links!) as { id: string }[]).map(l => l.id))).toEqual(worldLinks(WORLD_MAP).map(l => l.id).filter(id => id !== 'web-sys'));
+    // The guide still states the world map's data.
+    await expect(page.getByRole('region', { name: '世界橋樑' })).toContainText(`${short(regionName('web'))} ↔ ${short(regionName('sys'))}`);
+  });
+});

@@ -49,6 +49,11 @@ export function WorldOverview({ regions, unmapped = [], hub, trials }: { regions
     // (phones: the name alone). The guide says the rest: a tool island every region shares.
     { id: 'hub' as const, name: '中央樞紐', label: `前往中央樞紐：${hub.lab.name}`, detail: hub.lab.name, accent: HUB_THEME.accent, onOpen: () => router.push(hub.lab.href) },
   ], [regions, hub.lab.href, hub.lab.name, router]);
+  // P8.4 visual review (this prototype only): `/world?without=web-sys` draws the map without the named links; the
+  // guide and the world map's data do not change.
+  const [without, setWithout] = useState('');
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- the address is only known in the browser, and the page is prerendered
+  useEffect(() => { setWithout(new URLSearchParams(location.search).get('without') ?? ''); }, []);
   const names = regions.map(r => r.name).join('、');
   // The relation bridges between regions that are on the map, by name.
   const bridges = WORLD_MAP.bridges.flatMap(b => { const [a, z] = b.between.map(id => regions.find(r => r.id === id)); return a && z ? [{ id: b.id, a, z }] : []; });
@@ -62,7 +67,7 @@ export function WorldOverview({ regions, unmapped = [], hub, trials }: { regions
   return <section className={styles.overview} aria-label="世界總覽">
     <div className={styles.stage}>
       {available ? <SceneBoundary onUnavailable={unavailable}>
-        <Scene targets={targets} insetRight={wide ? 360 : 0} shape={wide ? 'wide' : 'tall'} label={`Logic Island 世界總覽：中央樞紐以樞紐橋連接 ${regions.length} 個群島（${names}），相鄰群島之間有 ${bridges.length} 座關聯橋，亦可使用清單導航`} onReady={ready} onUnavailable={unavailable}/>
+        <Scene targets={targets} insetRight={wide ? 360 : 0} shape={wide ? 'wide' : 'tall'} label={`Logic Island 世界總覽：中央樞紐以樞紐橋連接 ${regions.length} 個群島（${names}），相鄰群島之間有 ${bridges.length} 座關聯橋，亦可使用清單導航`} onReady={ready} onUnavailable={unavailable} without={without}/>
       </SceneBoundary> : <p className={styles.fallbackNotice} role="status">此裝置的 3D 場景無法使用，已切換至清單導航。所有區域與教材仍可開啟。</p>}
     </div>
     <nav className={styles.guide} aria-label="世界導覽">

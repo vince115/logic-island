@@ -29,9 +29,9 @@ export const WORLD_RETURN_KEY = 'logic-island:world-return';
  * and driven from the keyboard (`mapControls`), and a region may mark each planned island with its accent.
  * P8.3: on phones the camera gets the room a region map really needs (PHONE_ROOM, PHONE_PIN_REACH below).
  */
-function regionSceneOptions(region: RegionId, phone: boolean) {
+function regionSceneOptions(region: RegionId, pins: boolean) {
   const { layout, camera, plannedMarkers } = regionLayout(region);
-  return { ...sceneOptions(layout, SCENE_PRESETS.lab), labelReach: phone ? PHONE_PIN_REACH : camera.labelReach, largeTargets: true, mapControls: true, plannedMarkers, phoneRoom: PHONE_ROOM };
+  return { ...sceneOptions(layout, SCENE_PRESETS.lab), labelReach: pins ? PHONE_PIN_REACH : camera.labelReach, largeTargets: true, mapControls: true, plannedMarkers, phoneRoom: PHONE_ROOM, pins, ownLayer: true };
 }
 
 /*
@@ -56,7 +56,14 @@ function stressLayouts(region: RegionId): HexGlbSettlement[] {
 }
 /** Phones: the camera's own phone breakpoint (hex-camera.tsx frames a stage under 700 px as a phone). */
 const PHONE = '(max-width: 699px)';
-const subscribe = (onChange: () => void) => { const list = matchMedia(PHONE); list.addEventListener('change', onChange); return () => list.removeEventListener('change', onChange); };
+/**
+ * P8.4: under this width a region map's labels are pins. The island list covers 300 to 340 px of the stage's right
+ * from 781 px up, and a caption beside an island is 130 to 190 px wide whatever the map's zoom; below about 900 px of
+ * free stage there is no room for a caption on each side and islands of a useful size between them.
+ */
+const PINS = '(max-width: 1239px)';
+const watch = (query: string) => (onChange: () => void) => { const list = matchMedia(query); list.addEventListener('change', onChange); return () => list.removeEventListener('change', onChange); };
+const subscribe = watch(PHONE), subscribePins = watch(PINS);
 
 /** The breadcrumb back to the overview, in the site header's tool slot beside the explorer's 清單 button. */
 function BackToWorld({ onLeave }: { onLeave: () => void }) {
@@ -138,13 +145,14 @@ export function RegionalWorldExplorer({ regionId, regionName, regionNameEn, isla
   const phone = useSyncExternalStore(subscribe, () => matchMedia(PHONE).matches, () => false);
   const stress = params.get('stress') === 'glb';
   const { layout, camera } = regionLayout(regionId);
-  const base = useMemo(() => regionSceneOptions(regionId, phone), [regionId, phone]);
+  const pins = useSyncExternalStore(subscribePins, () => matchMedia(PINS).matches, () => false);
+  const base = useMemo(() => regionSceneOptions(regionId, pins), [regionId, pins]);
   const sceneOptions = useMemo(() => stress ? { ...base, glbLayouts: [...(base.glbLayouts ?? []), ...stressLayouts(regionId)] } : base, [stress, base, regionId]);
   const open = islands.filter(i => !i.planned).length, planned = islands.length - open;
   return <>
     <BackToWorld onLeave={leave}/>
     <HexWorldExplorer islands={islands} world={layout.world} options={sceneOptions} poiPanel captionAbove controlsBelow
-      layout="fullscreen" modeSwitchTarget={HEADER_TOOLS_ID} selectedId={selectedId} onSelectedChange={change} footer={footer}
+      layout="fullscreen" modeSwitchTarget={HEADER_TOOLS_ID} selectedId={selectedId} onSelectedChange={change} footer={footer ? <div className={styles.regionFooter}>{footer}</div> : undefined}
       baseAzimuth={camera.azimuth[phone ? 'phone' : 'desktop']}
       listMore={<RegionMore regionId={regionId} regionName={regionName} islandCount={islands.length} hub={hub} neighbours={neighbours} onLeave={leave}/>}
       copy={{
@@ -152,7 +160,7 @@ export function RegionalWorldExplorer({ regionId, regionName, regionNameEn, isla
         eyebrow: `WORLD · ${regionNameEn.toUpperCase()}`,
         // A <small>: the caption styles every <span> as its eyebrow line.
         title: <>{regionName}<small className={styles.captionStats}>{open ? `${open} 座已開放 · ${planned} 座規劃中` : `${planned} 座學科島 · 全部規劃中`}</small></>,
-        hint: phone ? '單指左右旋轉 · 雙指縮放與平移 · 點選島嶼探索' : '拖曳旋轉 · 右鍵拖曳或方向鍵平移 · 滾輪縮放 · 點擊島嶼或名牌探索 · Esc 返回上一層',
+        hint: phone ? '單指左右旋轉 · 雙指縮放與平移 · 點選島嶼探索' : pins ? '拖曳旋轉 · 滾輪縮放 · 點擊島嶼或圖釘探索 · Esc 返回上一層' : '拖曳旋轉 · 右鍵拖曳或方向鍵平移 · 滾輪縮放 · 點擊島嶼或名牌探索 · Esc 返回上一層',
         canvas: `${regionName}：${islands.length} 座學科島（${open} 座已開放、${planned} 座規劃中），亦可使用場景外的清單導航`,
         loading: { title: `正在準備${regionName}…`, note: '也可以先使用清單選擇島嶼。' },
       }}/>

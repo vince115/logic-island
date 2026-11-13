@@ -257,11 +257,12 @@
   :global(.header-tools):has(.backToWorld) button::before {
     content: '';
     position: absolute;
-    top: 50%;
+    /* Upward from the tool's bottom edge, like the brand and the theme button (P8.4), clear of the menu row's areas. */
+    bottom: 0;
     left: 50%;
     width: max(100%, 44px);
     height: 44px;
-    transform: translate(-50%, -50%);
+    transform: translateX(-50%);
   }
   .backToWorld span {
     position: absolute;
@@ -307,3 +308,56 @@
 .regionMore small { font: var(--text-xs) ui-monospace, monospace; color: var(--muted); }
 .regionMore strong { font-size: var(--text-sm); }
 .regionMore em { font-style: normal; font-size: var(--text-xs); color: var(--muted); }
+
+/* P8.4: the site header on the world pages (this prototype) only, chosen by what these pages put on the screen: the
+   overview section, or a region map's back link in the header's tool slot. No other page's header changes.
+   320 px: the main menu's four entries stay on one line (they wrapped inside each link, character by character). */
+@media (max-width: 360px) {
+  :global(body):has(.overview) :global(.site-header) nav,
+  :global(.site-header):has(.backToWorld) nav {
+    gap: 12px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+}
+/* Phones: every entry of the header is a 44 px touch target through an invisible area, as the map's pins are. The
+   brand and the theme button reach upward, the menu entries downward, so the two rows' areas do not overlap; what the
+   header looks like and its height stay. */
+@media (max-width: 780px) {
+  :global(body):has(.overview) :global(.site-header) nav a,
+  :global(.site-header):has(.backToWorld) nav a,
+  :global(body):has(.overview) :global(.site-header) :global(.brand),
+  :global(.site-header):has(.backToWorld) :global(.brand),
+  :global(body):has(.overview) :global(.header-actions) > button,
+  :global(.site-header):has(.backToWorld) :global(.header-actions) > button { position: relative; }
+  :global(body):has(.overview) :global(.site-header) nav a::before,
+  :global(.site-header):has(.backToWorld) nav a::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: max(100%, 44px);
+    height: 44px;
+    transform: translateX(-50%);
+  }
+  :global(body):has(.overview) :global(.site-header) :global(.brand)::before,
+  :global(.site-header):has(.backToWorld) :global(.brand)::before,
+  :global(body):has(.overview) :global(.header-actions) > button::before,
+  :global(.site-header):has(.backToWorld) :global(.header-actions) > button::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: max(100%, 44px);
+    height: 44px;
+    transform: translateX(-50%);
+  }
+  /* The links below a region's entry and below a region map (its list overview, the trial entries): 44 px tall. */
+  /* (The class twice: the trial entries' own rule has the same weight and loads later.) */
+  .guideRegion.guideRegion a,
+  .regionFooter.regionFooter a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
