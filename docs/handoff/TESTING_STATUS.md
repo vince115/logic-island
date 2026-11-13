@@ -10,6 +10,10 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## P8.4 Responsive World UX（2026-11-13，分支 `p8/multi-region-world`）
+
+全套 E2E（旗標開啟）由 10 項失敗降到 1 項：481 通過／92 略過／1 失敗。`curriculum.spec.ts` 的三個測試改為由 registry 推導期望（課綱頁列出五個 Region、實驗島有工具實驗）；`db-activities-f1c.spec.ts:140` 抓到的是產品問題（側欄把整份課綱打包進每一頁），已修並有單元測試（`tests/site-nav.test.ts`）。剩下的 1 項是 `islands.spec.ts` 的 3D 點擊測試：單獨執行穩定，依全套順序跑桌機的 `candidate-integration` 到 `islands.spec.ts` 可以重現，原因未定。`e2e/world-topology.spec.ts` 新增 834／1024／1280／1440 px 的區域地圖名牌檢查、面板與圖釘的層級、320 px 標頭。分類、根因與量測見 [P8_4_RESPONSIVE_WORLD_UX_AND_VISUAL_REVIEW](../planning/P8_4_RESPONSIVE_WORLD_UX_AND_VISUAL_REVIEW.md) §2–§5。
+
 ## P8.3 World Topology & Navigation（2026-11-13，分支 `p8/multi-region-world`）
 
 新增 `e2e/world-topology.spec.ts`（世界總覽的樞紐橋與關聯橋、六種寬度的標籤檢查、Region 選取與導航、320／375／390 px 的手機驗收），與 `e2e/regional-world.spec.ts` 共用 `e2e/world-helpers.ts`；兩者都只在 `LOGIC_ISLAND_REGIONAL_WORLD=1` 的 build 執行。手機的區域地圖不再以總覽島寬為門檻：總覽看整體輪廓、圖釘與觸控目標，聚焦後 29 座島逐一檢查 ≥ 88 px。結果、量測與逐像素比對見 [P8_3_WORLD_TOPOLOGY_AND_NAVIGATION](../planning/P8_3_WORLD_TOPOLOGY_AND_NAVIGATION.md) §6、§8、§9；全套 E2E 的 10 項失敗仍是 8 項既有、2 項負載下不穩（單獨重跑通過）。
