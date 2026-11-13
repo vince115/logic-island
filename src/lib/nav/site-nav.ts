@@ -10,7 +10,8 @@ import { databaseIsland, islands as mapIslands, labIsland } from '@/lib/islands/
 /*
  * 2026-11-12 unified navigation: the sidebar trees, island previews and breadcrumbs are built here from the existing
  * sources (the world registry and catalog, the curriculum lessons, the six labs, the trial bank) and never kept as a
- * second list. Server only: the pages pass the plain result to the client sidebar. The exam tree lives in exam-nav.ts
+ * second list. Server only: the pages pass the plain result to the client sidebar, which imports nothing from this
+ * module (its types and helpers are in nav-model.ts; a unit test checks it). The exam tree lives in exam-nav.ts
  * so a build without the trial system never loads the bank.
  *
  * Multi-archipelago v2 (P2): World → Region → Island → Lesson. The curriculum tree starts at the four regions; the AI
@@ -18,34 +19,9 @@ import { databaseIsland, islands as mapIslands, labIsland } from '@/lib/islands/
  * its outline as entries that are shown and never linked (規劃中), so no planned lesson leads to a 404.
  */
 
-/** The three areas of the sidebar, also the header's 2D sections. */
-export type NavArea = 'curriculum' | 'labs' | 'trials';
-
-export interface NavLeaf { id: string; label: string; href: string; code?: string; lessonId?: string }
-export interface NavGroup { id: string; label: string; hint?: string; children: NavNode[]; kind?: 'region' | 'group' | 'island' | 'level' }
-export type NavNode = NavLeaf | NavGroup | NavDisabled;
-/** An entry that exists in the data but has no page yet (a planned lesson or exam): shown, never linked. */
-export interface NavDisabled { id: string; label: string; disabled: string; code?: string }
-export const isGroup = (n: NavNode): n is NavGroup => 'children' in n;
-export const isDisabled = (n: NavNode): n is NavDisabled => 'disabled' in n;
-
-/**
- * What a preview card stands for, shown on the card so one picture is never read as another level: the whole world,
- * one island, or the shared lab tool (which belongs to no region).
- */
-export type PreviewLevel = 'world' | 'island' | 'tool';
-export const PREVIEW_LEVEL_LABELS: Record<PreviewLevel, string> = { world: '世界', island: '島嶼', tool: '共用工具' };
-
-/** An island preview: the screenshot taken from the 3D map, and the address that opens the map on that island. */
-export interface IslandPreview {
-  id: string; name: string; nameEn: string; image: string; accent: string; level: PreviewLevel;
-  /** The region the island belongs to (islands only). */
-  region?: string;
-  /** The home map, focused on this island (`/?island=`), or the whole archipelago. */
-  mapHref: string;
-  /** This island's lessons with a page, for the learner's progress; none for the lab island (it keeps no record). */
-  lessonIds?: string[];
-}
+// The data's shapes and the client-safe helpers are in nav-model.ts (which imports nothing); re-exported for server code.
+export * from './nav-model';
+import type { IslandPreview, NavGroup, NavLeaf, NavNode, PreviewLevel } from './nav-model';
 
 const mapIsland = (id: string) => [...mapIslands, labIsland, databaseIsland].find(i => i.id === id);
 const regionName = (id: string) => orderedRegions.find(r => r.id === getIsland(id)?.regionId)?.name;

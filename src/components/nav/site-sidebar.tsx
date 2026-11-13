@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type Ref } from 'react';
 import { BookOpen, CheckCircle2, ChevronRight, Circle, CircleDot, ClipboardCheck, FlaskConical, Globe2, Map as MapIcon, Menu, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
 import { statusOf } from '@/lib/progress';
-import { isDisabled, isGroup, PREVIEW_LEVEL_LABELS, type IslandPreview, type NavArea, type NavGroup, type NavNode } from '@/lib/nav/site-nav';
+import { isDisabled, isGroup, PREVIEW_LEVEL_LABELS, type IslandPreview, type NavArea, type NavGroup, type NavNode } from '@/lib/nav/nav-model';
 import { useProgress } from '@/components/curriculum/use-progress';
 import { isOpen, reopenPath, setCollapsed, toggleGroup, useNavState } from './nav-store';
 import styles from './nav.module.css';
