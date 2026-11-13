@@ -1,6 +1,7 @@
 import { test as base, expect, type Page } from '@playwright/test';
 import { lessons } from '@/content/curriculum';
-import { lessonsOfIsland } from '@/content/world/catalog';
+import { catalogLessons, lessonsOfIsland } from '@/content/world/catalog';
+import { labRegistry } from '@/content/world/labs';
 
 /*
  * Phase E.1 curriculum: the /curriculum directory, the five complete lessons (F01..F05) and the planned outlines, on
@@ -24,6 +25,10 @@ const STRUCTURE_PAGES = lessons.filter(l => l.islandId === 'structures' && l.les
 
 // Phase F.1a: the database island's planned lessons are listed (規劃中, no link) next to its written ones.
 const DB_PLANNED = lessonsOfIsland('databases').filter(l => l.lessonStatus === 'planned').length;
+// Multi-archipelago v2: /curriculum lists every region. A planned lesson (of any region) is a list entry marked 規劃中
+// with no link; planned islands and regions carry the same word outside the lesson lists, so the count is scoped to them.
+const PLANNED = catalogLessons.filter(l => l.lessonStatus === 'planned').length;
+const plannedEntries = (page: Page) => page.locator('main ol').getByText('規劃中', { exact: true });
 
 test('課綱目錄：四座島，F／D／A 各 20 堂，資料庫應用島 20 堂中已開放的可點、其餘標示規劃中', async ({ page }) => {
   await page.goto('/curriculum');
@@ -34,7 +39,8 @@ test('課綱目錄：四座島，F／D／A 各 20 堂，資料庫應用島 20 �
   }
   const complete = lessons.filter(l => l.lessonStatus === 'complete').length;
   await expect(page.getByText('完整教材', { exact: true })).toHaveCount(complete);
-  await expect(page.getByText('規劃中', { exact: true })).toHaveCount(lessons.length - complete + DB_PLANNED);
+  expect(lessons.length - complete + DB_PLANNED, 'every lesson of the four written islands has its page').toBe(0);
+  await expect(plannedEntries(page)).toHaveCount(PLANNED);
   // Listed once in the catalog (Phase E.5: the header's 開始學習 and the intro also link F01).
   for (const slug of COMPLETE) await expect(page.locator(`main ol a[href="/curriculum/${slug}"]`)).toHaveCount(1);
   // Every listed link opens a lesson page; planned database lessons are not links.
@@ -161,7 +167,7 @@ test('規劃中課程只有大綱（全部完成後目錄不再有規劃中）�
   } else {
     // Every lesson with a page is complete; only the database island's planned lessons (no page) say 規劃中.
     await page.goto('/curriculum');
-    await expect(page.getByText('規劃中', { exact: true })).toHaveCount(DB_PLANNED);
+    await expect(plannedEntries(page)).toHaveCount(PLANNED + DB_PLANNED);
     await expect(page.getByText('完整教材', { exact: true })).toHaveCount(lessons.length);
   }
   // Lessons with an existing lab link to it (the six labs are not rebuilt).
@@ -228,7 +234,11 @@ test('無障礙：每個按鈕、連結與輸入都有名稱；標題只有一�
 
 test('既有教材不變：/learn（互動實驗島）仍是六份互動教材，並連到課綱', async ({ page }) => {
   await page.goto('/learn');
-  await expect(page.locator('a.course-card')).toHaveCount(6);
+  // The six algorithm labs keep their cards; the tool labs added since (multi-archipelago P4) have their own, and a
+  // planned lab is a card without a link.
+  await expect(page.locator('a.course-card:not([data-kind="tool"])')).toHaveCount(6);
+  await expect(page.locator('a.course-card')).toHaveCount(labRegistry.filter(l => l.status === 'implemented').length);
+  await expect(page.locator('.course-card[data-status="planned"]')).toHaveCount(labRegistry.filter(l => l.status === 'planned').length);
   await page.getByRole('link', { name: new RegExp(`查看 ${lessons.length} 堂完整課綱`) }).click();
   await expect(page).toHaveURL(/\/curriculum$/);
   await page.goto('/learn/array');
