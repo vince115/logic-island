@@ -61,4 +61,4 @@
 
 ## 6. 修正後
 
-見 [P8.6](../../P8_6_HOTFIX_AND_P8_INTEGRATION.md) §5。
+見 [P8.6](../../P8_6_HOTFIX_AND_P8_INTEGRATION.md) §5。合併 PR #10 之前再確認兩次，都是 6 個平行 worker、120 次 0 失敗：一次在 `affc8d0` 的旗標建置（負載約 31），一次在加入 Escape 焦點修正後的 `fcaae2e` 旗標建置（負載約 24）。兩次全套 E2E（旗標開啟）裡 V3 也都通過。

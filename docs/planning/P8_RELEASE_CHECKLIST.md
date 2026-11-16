@@ -1,14 +1,14 @@
 # P8 Release Checklist——五區域 3D 世界公開發布前的待辦
 
 > 2026-11-16，Asia/Taipei。本文件只盤點，**沒有執行其中任何一項**。
-> 前提：P8 以 Flag-off 併入 `main`（PR #10；撰寫時檢查已全部通過、**尚未合併**，整合紀錄見 [P8.6](P8_6_HOTFIX_AND_P8_INTEGRATION.md)）。正式站沒有 `/world`，首頁仍是 CS 五島場景。
+> 前提：P8 以 Flag-off 併入 `main`（PR #10；已獲授權，合併前檢查見 [P8.6](P8_6_HOTFIX_AND_P8_INTEGRATION.md) §3）。正式站沒有 `/world`，首頁仍是 CS 五島場景。
 > 獨立決策（不得由 Agent 自行執行）：正式首頁切換、公開開啟 `LOGIC_ISLAND_REGIONAL_WORLD`、破壞性資料操作、任何涉及私有題庫的風險。
 
 ## 0. 建議順序
 
 | 階段 | 內容 | 需要的批准 | 可回退方式 |
 |---|---|---|---|
-| S0 | PR #10 合併到 `main`（Flag-off） | 需要你裁決（P8.6 §3） | `git revert` 合併 commit |
+| S0 | PR #10 合併到 `main`（Flag-off） | **已批准**（P8.6 §3.2）；不含啟用旗標與切換首頁 | `git revert` 合併 commit |
 | S1 | 真機驗收（§3）；V3 測試修正後的全套確認（§6） | 不需要（不改正式站） | 不適用 |
 | S2 | 待審項目 R1–R5、R7、R9、R10 定案（§5） | 逐項決定 | 改資料檔的數字即可還原 |
 | S3 | 旗標在 Preview 開啟，完整驗收（§2.2） | 需要（Vercel 設定是你的操作） | 移除 Preview 環境變數 |
@@ -127,7 +127,7 @@ S4 與 S5 分開的理由：旗標開啟只會**新增** `/world` 路由，不�
 
 還要做的：
 
-- [ ] 下一次全套 E2E（旗標開啟）確認 V3 在真實的全套負載下也穩定；本階段修正後只重跑了 world 相關的 spec。
+- [x] 全套 E2E（旗標開啟）確認 V3 在全套執行下也穩定：合併前重跑兩次，V3 都通過；另有兩次 120 次加壓 0 失敗（P8.6 §3）。
 - [ ] 隔離用的 Playwright 設定改為與 repo 的 `playwright.config.ts` 相同：`trace: 'retain-on-failure'`、`screenshot: 'only-on-failure'`。P8.5 那次失敗沒有留下任何資料，就是因為隔離設定是 `trace: 'off'`；這次是在命令列加 `--trace retain-on-failure` 才取得 trace。
 - [ ] Trace 保存：輸出目錄以 commit 與時間命名，保留到下一次全套通過。Trace 會記錄頁面內容，旗標建置含 `/trials`，所以**不放進 repo**，只把摘要（讀到的數值、時間、截圖）寫進 `docs/planning/evidence/`。
 - [ ] 同一類問題的檢查：其他在 `setViewportSize` 之後檢查 3D 版面的測試，等待條件是否也可能在舊版面下成立。P8.4 的響應式測試是每個尺寸重新載入頁面，不受影響；之後新增「不重新載入就改尺寸」的測試時，沿用 `reframed()`。
@@ -140,4 +140,7 @@ S4 與 S5 分開的理由：旗標開啟只會**新增** `/world` 路由，不�
 - [ ] `docs/handoff/` 的 IMPLEMENTATION_STATUS、TESTING_STATUS、KNOWN_ISSUES 與本清單同步。
 - [ ] P1-35（首頁導覽 E2E 偶發失敗）在 PR #8 合併後重測並更新狀態。
 - [ ] 舊版 `/islands` 的名牌在選島後有 1–2 幀停在全景位置（P8.5 §3.5，既有行為，未處理）。
+- [ ] P1-36：`islands-candidate.spec.ts:129`（手機，3D 點工坊進入 `/learn`）在一次全套執行中失敗，580 次加壓（P8 與 `main` 各 290 次）無法重現。之後的全套 E2E 都保留 trace；再出現時先看 `settled()` 回傳的位置是不是相機移動前的位置（P8.6 §7）。
+- [ ] Escape 的焦點回復（P8.6 §6，已修正）目前只有 headless 的證據；真機與螢幕閱讀器下的焦點順序併入 §3 的 D-09、D-13。
+- [ ] 隔離測試的暫存目錄會在午夜被清理（P8.6 §3.4）：跨夜的驗收先重建副本，或把副本放在不會被清理的位置。
 - [ ] 總覽 → 區域的轉場目前是換頁（兩個 Canvas），沒有連續飛行（架構文件 §4.3）。

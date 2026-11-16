@@ -2,7 +2,8 @@
 
 > 2026-11-16，Asia/Taipei。上層文件：[P8.5](P8_5_VISUAL_FINALIZATION_AND_PERFORMANCE_HOTFIX.md)。下一階段的待辦：[P8 Release Checklist](P8_RELEASE_CHECKLIST.md)。
 > 授權範圍（Continuous Delivery）：程式修改、測試、commit、push、PR，以及通過驗證的 Flag-off merge。
-> **沒有做**：合併 P8 到 `main`（§3）、開啟 `LOGIC_ISLAND_REGIONAL_WORLD`、切換正式首頁、修改 Exam Engine 或私有題庫、改變已發布課程狀態、修改 GLB、force push、squash、改寫歷史。
+> P8 → `main` 的合併（PR #10，Flag-off）另有明確授權，見 §3。
+> **沒有做**：開啟 `LOGIC_ISLAND_REGIONAL_WORLD`、修改 Vercel 環境變數、切換正式首頁、移除既有五島入口、修改 Exam Engine 或私有題庫、改變已發布課程狀態、修改 GLB、force push、squash、改寫歷史。
 > 量測在隔離副本與 headless Chromium 進行；手機是視窗尺寸模擬，不是真機。
 
 ## 0. 結論
@@ -12,8 +13,9 @@
 3. **P8 分支合入最新的 `main`，無衝突**；P8.5 的三個 commit 都在，測試全部重跑（§2）。
 4. **P8 → `main` 的 PR #10 是 Flag-off**：預設建置下 `/world` 是 404，首頁仍是 CS 五島場景，與 `main` 逐像素相同（§2.4）。
 5. **V3 測試的偶發失敗已找到根因並修正**（測試同步競態；產品沒有問題，§5）。
-6. **PR #10 尚未合併**：檢查全部通過，但合併與否收到兩份互相衝突的指示，等你裁決（§3）。
-7. 公開發布還缺的條件列在 [Release Checklist](P8_RELEASE_CHECKLIST.md)。
+6. **PR #10 獲准在旗標關閉的條件下合併**：先前兩份指示對「是否合併 `main`」互相衝突，所以曾暫停；之後收到明確授權，八項合併前檢查全部通過（§3）。這項授權**不包含**啟用 Regional World，也不包含切換正式首頁。
+7. **合併前重跑全套驗收時找到並修正一個產品的時序問題**：Escape 離開一座島後，焦點偶爾落在清單而不是地圖名牌（只在旗標建置的 `/world/<region>`；§6）。另有一次 `/islands/candidate` 3D 點擊測試的失敗無法重現，記為 P1-36（§7）。
+8. 公開發布還缺的條件列在 [Release Checklist](P8_RELEASE_CHECKLIST.md)。
 
 ## 1. Phase 1——Hotfix PR #8
 
@@ -141,18 +143,57 @@ Production（`https://logic-island-psi.vercel.app`）實測，合併前（`6ad79
 
 P8 動到的共用元件（`hex-camera.tsx`、`hex-world-scene.tsx`、`hex-world-explorer.tsx`、`camera-controller.tsx`）也被首頁與 `/islands` 使用，所以這項比對是必要的，不能只靠「旗標關閉」推論。
 
-## 3. Phase 3——Merge P8（Flag-off）：**暫停，等待裁決**
+## 3. Phase 3——Merge P8（Flag-off）：授權與合併前檢查
 
-所有必要檢查都已通過（§2），PR #10 可合併。**沒有合併**，原因是收到兩份互相衝突的指示：
+### 3.1 曾經暫停的原因
+
+所有必要檢查通過後（§2），PR #10 一度**沒有合併**，因為收到兩份互相衝突的指示：
 
 | 來源 | 對 P8 → `main` 的指示 |
 |---|---|
 | 本 Session 收到的簡報「Hotfix PR #8 與 P8 Integration Release」 | 所有必要檢查通過後，以 Merge Commit 合併，旗標維持關閉 |
 | 另一個 Session（「Logic Island 五區域架構擴展」）之後轉來的簡報「P8 Release Candidate Handoff」 | 建立 Draft PR，「不要自行合併 main、部署 Production 或切換正式首頁」 |
 
-合併到 `main` 會觸發 Production 部署，屬於對外且不易收回的動作；兩份指示誰先誰後無法從 Session 內判斷，所以保持在「PR 已開、CI 通過、未合併」，由你決定。PR #8 是依本 Session 的明確指示合併的，在第二份簡報送達之前已完成。
+合併到 `main` 會觸發 Production 部署；兩份指示誰先誰後無法從 Session 內判斷，所以當時停在「PR 已開、CI 通過、未合併」。PR #8 是依本 Session 的明確指示合併的，在第二份簡報送達之前已完成。
 
-第二份簡報額外要求的 V3 診斷已完成（§5）；它在第一份簡報中列為「盤點但暫不執行」。診斷只跑測試與收集 trace，找到可重現的根因後只改了測試的等待條件，沒有改產品程式。
+### 3.2 授權
+
+之後收到「P8 PR #10 Merge Authorization」（由同一個 Session 逐字轉來）：**批准 PR #10 在功能旗標關閉的條件下合併至 `main`**；不代表批准啟用 Regional World，也不代表批准切換正式首頁。合併時不使用 force push、不重寫歷史、不修改 Vercel Production 環境變數、不啟用 `LOGIC_ISLAND_REGIONAL_WORLD`、不切換首頁、不移除既有五島入口；任何關鍵檢查失敗就暫停並回報。
+
+執行的依據是本 Session 簡報的 Phase 3；當初擋下合併的唯一理由（第二份簡報）已由這份授權解除。
+
+### 3.3 八項合併前檢查
+
+| # | 檢查 | 結果 |
+|---|---|---|
+| 1 | P8.6 文件與 Release Checklist | 本文件與 [Release Checklist](P8_RELEASE_CHECKLIST.md) 已更新到合併前的最後狀態 |
+| 2 | PR HEAD 與遠端一致 | 一致（`git fetch` 後本機與 `origin/p8/multi-region-world` 相同；工作樹乾淨） |
+| 3 | `main` 沒有新提交 | `origin/main` 仍是 `9718f89`，是 P8 HEAD 的祖先 |
+| 4 | PR #10 最新 CI | 以 PR 頁面為準：合併只在最新 HEAD 的 `gates`、Vercel 檢查全綠之後進行 |
+| 5 | V3 Resize 120-run | **120 次 0 失敗**（6 個平行 worker，負載約 31；`affc8d0` 的建置）；加入 §6 的修正後在最後的建置上再跑一次：**120 次 0 失敗**（負載約 24） |
+| 6 | 最後一次 private question leak scan | 追蹤檔案（647 份）、分支歷史 `origin/main..HEAD`（115 份）、預設建置（2,134 份）、旗標建置（1,472 份）：皆 clean（18,220 個片段、350 題） |
+| 7 | 預設建置的 `/world` 仍受旗標保護 | `/world`、五個 `/world/<region>`、`/trials` 全部 404 |
+| 8 | 正式首頁 `/` 的預設行為沒有改變 | PR 沒有修改 `src/app/page.tsx`；P8 預設建置對 `main`（`9718f89`）預設建置：`/`、`/?island=basics`、`/?island=databases`、`/islands`、`/islands/legacy`、`/islands/candidate` × 桌機與手機 12 組整個視窗逐像素比對，差異 0；課綱、課程、`/learn` 與實驗、`/regions/*` 30 組的文字、連結、導覽、整頁截圖全部相同；`/` 腳本量 671 → 672 KB（gzip 同為 213 KB） |
+
+### 3.4 檢查清單以外：合併前重跑全套驗收的結果
+
+§5 的 V3 修正之後全套 E2E 沒有重跑過（上一版 Release Checklist §6 的待辦），所以合併前補跑。這一輪找到一個產品的時序問題並修正（§6），另有一次無法重現的失敗（§7）。最後的 HEAD（`fcaae2e`＝§6 的修正；之後只有文件 commit）：
+
+| 檢查 | 結果 |
+|---|---|
+| Typecheck／ESLint | exit 0／exit 0 |
+| Vitest | 1963 通過／9 略過／0 失敗（76 個檔案） |
+| Flagged build、Default build | 皆成功 |
+| 全套 E2E，旗標開啟（590 個） | **495 通過／95 略過／0 失敗** |
+| 全套 E2E，預設建置 | 第一次 424 通過／165 略過／**1 失敗**（§7）；第二次 **425 通過／165 略過／0 失敗** |
+| Flag-off 比對、洩漏掃描 | §3.3 的第 6–8 項（在這個 HEAD 上執行） |
+| 加壓（6 個平行 worker，各 120 次） | V3：0 失敗；鍵盤控制（§6）：0 失敗 |
+
+執行環境的事故（不是產品問題）：驗收跨過午夜時，暫存目錄的清理程序刪掉了隔離副本裡較舊的檔案（`node_modules` 的頂層連結、隔離用的 Playwright 設定、像素比對腳本），Flag-off 比對與兩個加壓因此沒有執行。之後以 HEAD 的 `git archive`、`main` 副本的 `node_modules`（lockfile 相同）重建副本，像素比對腳本重寫（比對整個視窗；以兩個不同頁面做過反向確認，確實會回報差異），再補跑。上表是補跑後的結果；在事故之前完成的 Typecheck、ESLint、兩種建置、旗標全套 E2E、Vitest 與洩漏掃描不受影響。
+
+### 3.5 合併
+
+合併本身的結果（Merge Commit、`main` 的 CI、Production 部署、Smoke Test、旗標狀態）無法寫進被合併的 commit，由合併後的後續文件 commit 補在本文件 §8；下一階段的 P8 Regional World Activation 計畫也在那個 commit 建立。
 
 ## 4. Commit、CI 與部署狀態
 
@@ -162,11 +203,11 @@ P8 動到的共用元件（`hex-camera.tsx`、`hex-world-scene.tsx`、`hex-world
 | `main` 的 GitHub Actions | `gates`：success（`9718f89`） |
 | Vercel Production | success（`9718f89`）；Production 實測見 §1.4、§1.5 |
 | `hotfix/nav-client-bundle` | `c2b39c6`（修正）、`1de2e33`（合入 `main`：PR #6）、`c910d92`（合入 `main`：R8）；已合併，分支保留未刪 |
-| `p8/multi-region-world` | `be7671c`（合入 `main`）、V3 測試等待條件的 commit、本文件與 Release Checklist 及交接文件的 commit；已 push |
-| PR #10 | Open，未合併；`be7671c` 的 CI 3／3 通過。之後的兩個 commit 只有一個 E2E 檔案與文件；CI 結果以 PR 頁面為準 |
+| `p8/multi-region-world` | `be7671c`（合入 `main`）、`bb1c742`（V3 測試等待條件）、`affc8d0`（文件）、`fcaae2e`（§6：Escape 焦點修正）、合併前檢查的文件 commit；已 push |
+| PR #10 | 獲准 Flag-off 合併（§3.2）；合併前檢查見 §3.3、§3.4；合併結果記在合併後的文件 |
 | PR #7（P6 發布紀錄，文件） | Open，對 `main` 已是 `CONFLICTING`（與本階段無關）；它修改 `docs/handoff/IMPLEMENTATION_STATUS.md`，所以本階段沒有改那個檔案，P8 的狀態記在 TESTING_STATUS 與本文件 |
 
-已知問題的變化：P1-35（首頁導覽 E2E 偶發失敗）在 PR #8 合併後重測 10 輪未再出現（[KNOWN_ISSUES](../handoff/KNOWN_ISSUES.md)）。
+已知問題的變化：P1-35（首頁導覽 E2E 偶發失敗）在 PR #8 合併後重測 10 輪未再出現；新增 P1-36（§7）（[KNOWN_ISSUES](../handoff/KNOWN_ISSUES.md)）。
 
 ## 5. V3 Resize 測試的偶發失敗：根因與修正
 
@@ -183,6 +224,36 @@ P8.5 留下的問題：V3（圖釘與名牌隨視窗寬度切換）55 次裡失�
 | 修正 | 只改 `e2e/world-topology.spec.ts` 的 `reframed()`：視窗是測試設定的尺寸、canvas 等於舞台尺寸、canvas 與所有名牌連續兩個 animation frame 不動、沒有名牌在清單下。沒有固定等待，沒有改斷言，沒有 skip，沒有 retries |
 | 修正後 | 同樣的加壓（6 個平行 worker，負載約 32）**600 次 0 失敗**；`world-topology`＋`regional-world` 桌機與手機 58 通過／16 略過／0 失敗；Typecheck、ESLint exit 0 |
 
-修正前 3.3% 的失敗率下，600 次全部通過的機率約為十億分之二，所以這不是運氣。仍然要說明的是：加壓是用平行 worker 模擬的，不是真實的全套執行；修正後的全套 E2E 沒有重跑（改動只有這一個測試的等待條件）。
+修正前 3.3% 的失敗率下，600 次全部通過的機率約為十億分之二，所以這不是運氣。加壓是用平行 worker 模擬的，不是真實的全套執行；合併前另外重跑了全套 E2E（旗標開啟兩次，V3 都通過）與兩次 120 次加壓（皆 0 失敗），見 §3.3、§3.4。
 
 `reframed()` 以外，V3 裡視窗尺寸改變後的其他等待（`expect.poll(widthOf)`、島寬的輪詢）等的是只有在新版面才成立的狀態，沒有這個問題。
+
+## 6. Escape 之後焦點落在清單而不是地圖名牌：產品的時序競態與修正
+
+合併前重跑全套 E2E（旗標開啟，`affc8d0`）：494 通過／95 略過／**1 失敗**——`regional-world.spec.ts`「P8.2 keyboard map controls」，Escape 離開一座島之後，焦點應該回到那座島的地圖名牌，實際在清單項目上。完整摘要在 [evidence/p8-6/escape-focus-race.md](evidence/p8-6/escape-focus-race.md)。
+
+| 步驟 | 結果 |
+|---|---|
+| 重現 | 只跑這個測試，6 個平行 worker：**120 次失敗 45 次**，全部在同一行 |
+| 每一幀的狀態（探針 60 次） | 58 次名牌與島的釋放在同一幀出現，焦點到名牌；2 次名牌晚 3 幀才出現，焦點到了清單項目，之後沒有再移動 |
+| 根因 | **產品的時序競態**（不是測試）：`regional-world-explorer.tsx` 只等一個 animation frame 就找名牌，找不到就退回清單項目；名牌由場景自己的 React root 畫出，機器忙時會晚幾幀 |
+| 影響 | 只在旗標建置的 `/world/<region>`。焦點沒有遺失，仍在同一座島的入口上，但從地圖跳到清單 |
+| 修正（`fcaae2e`） | 有地圖時名牌最多有 30 個 frame 可以出現；沒有地圖時立刻用清單項目，與原本相同。「without WebGL」測試補上沒有地圖時焦點在清單項目的斷言。沒有放寬任何斷言，沒有固定等待、skip、retries |
+| 修正後 | 同樣加壓 **120 次 0 失敗**（兩次，負載約 41 與 42）；全套 E2E 旗標開啟 495／95／0 |
+
+這個問題在 P8.2 就存在，之前的全套執行沒有撞到。它不影響正式站（預設建置沒有這個路由），但會在旗標開啟後影響鍵盤使用者，所以在合併前修正而不是記為已知問題。
+
+## 7. `/islands/candidate` 手機版 3D 點擊測試：一次無法重現的失敗
+
+`fcaae2e` 的預設建置全套 E2E 第一次執行：424 通過／165 略過／**1 失敗**——`islands-candidate.spec.ts:129`（手機）最後一步，在 3D 場景點工坊之後網址沒有變成 `/learn`。失敗截圖是正確的聚焦畫面。這一頁正式站也有，所以先確認是不是 P8 造成的：
+
+| 檢查 | 結果 |
+|---|---|
+| 同一個測試在之前四次全套（P8 的兩種建置） | 桌機與手機共 8 次，全部通過 |
+| 加壓重現：P8 預設建置 | 6 個 worker 90 次＋12 個 worker 200 次（負載到 49）：**290 次 0 失敗** |
+| 加壓重現：`main`（`9718f89`）預設建置 | 同樣條件（負載到 52）：**290 次 0 失敗** |
+| 預設建置全套 E2E 重跑 | **425 通過／165 略過／0 失敗** |
+| P8 對這一頁的程式改動 | 共用相機（`hex-camera.tsx`）在移動後多呼叫一次 `invalidate()`，讓 `frameloop="demand"` 下的移動一定會被畫出來；點擊與取景的邏輯沒有改。這一頁對 `main` 的整個視窗逐像素比對差異 0 |
+
+判斷：無法重現，沒有證據指向 P8 的改動；依「能重現才修」沒有修改測試或產品。可能的原因是測試的 `settled()` 只確認標記相隔 100 ms 兩次位置相同，場景晚一拍重繪時會在舊位置點擊（與 P1-19 同類），但**這是推測，沒有 trace 佐證**——那次失敗的執行沒有開 trace。記為 P1-36；之後的全套 E2E 一律加 `--trace retain-on-failure`。
+
