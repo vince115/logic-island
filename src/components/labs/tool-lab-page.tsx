@@ -5,6 +5,9 @@ import { APPROACH_STEPS, LAB_DOMAIN_LABELS, lessonsUsingLab, type LabEntry } fro
 import { ContrastLab } from './contrast-lab';
 import { TerminalLab } from './terminal-lab';
 import { FlexboxLab } from './flexbox-lab';
+import { GridLab } from './grid-lab';
+import { ResponsiveLab } from './responsive-lab';
+import { MobileNavLab } from './mobile-nav-lab';
 import styles from './tool-lab.module.css';
 
 /*
@@ -43,9 +46,38 @@ const UNDERSTAND: Record<string, React.ReactNode> = {
     </ul>
     <p>這是瀏覽器內的模擬：檔案只存在這個頁面的記憶體裡，只支援固定的指令，不會執行真實的 Shell、不會讀寫你的電腦，重新整理或按「重設環境」就回到最初的樣子。你的身分是一般使用者 <code>learner</code>，所以 <code>/etc/shadow</code> 讀不到、<code>/etc</code> 裡也不能建立檔案，這正是權限在保護系統。</p>
   </>,
+  'css-grid-playground': <>
+    <p>CSS Grid 同時排<strong>欄</strong>與<strong>列</strong>：先用軌道畫出格線，再把項目放進格子。Flexbox 處理一條線；Grid 處理整個平面。</p>
+    <ul>
+      <li><code>grid-template-columns</code>／<code>grid-template-rows</code> 定義軌道。<code>fr</code> 是剩餘空間的份數，<code>repeat(3, 1fr)</code> 是三等份，<code>minmax(120px, 1fr)</code> 是「至少 120px，最多分到一份」。</li>
+      <li><code>gap</code> 是格線之間的間距；也可以用 <code>row-gap</code>、<code>column-gap</code> 分開設定。</li>
+      <li><code>justify-items</code>（水平）與 <code>align-items</code>（垂直）決定項目在自己格子裡的位置；預設 stretch 會填滿格子。</li>
+      <li>格線有編號：3 欄有 4 條直線（1 到 4，<code>-1</code> 是最後一條）。<code>grid-column: 1 / 3</code> 從第 1 條線到第 3 條線，<code>span 2</code> 是跨兩格。</li>
+    </ul>
+    <p><code>repeat(auto-fill, minmax(…))</code> 讓欄數隨寬度改變，不用寫媒體查詢：Gallery 範例就是這樣做的。</p>
+  </>,
+  'responsive-layout': <>
+    <p>響應式設計讓同一份 HTML 依<strong>視窗寬度</strong>改變版面。做法是<strong>媒體查詢</strong>：<code>@media (min-width: 768px) {'{ … }'}</code> 裡的規則，只在視窗至少 768px 寬時套用。</p>
+    <ul>
+      <li><strong>Mobile-first</strong>：先寫最窄螢幕的基本樣式（一欄、不需要媒體查詢），再用 <code>min-width</code> 逐步為較寬的螢幕加上規則。窄的裝置下載與套用的規則最少。</li>
+      <li><strong>斷點</strong>是版面開始改變的寬度。依內容需要決定，不必對準某一款手機；<code>min-width</code> 包含剛好等於的寬度。</li>
+      <li><code>{'<meta name="viewport" content="width=device-width">'}</code> 讓手機用實際寬度排版，否則手機會假裝自己有 980px 寬再縮小。</li>
+    </ul>
+    <p>這個模擬器的預覽框真的有那麼寬：媒體查詢由瀏覽器判斷，不是把畫面縮小。</p>
+  </>,
+  'mobile-ux': <>
+    <p>手機畫面小、用手指操作，導覽要在<strong>好找</strong>與<strong>不佔空間</strong>之間取捨。常見四種模式：</p>
+    <ul>
+      <li><strong>Bottom Navigation</strong>：3–5 個最常用的頁面固定在下緣，拇指最容易碰到。</li>
+      <li><strong>Navigation Drawer</strong>：從側邊滑出的面板，能放很多項目；打開時是對話框，焦點要留在裡面。</li>
+      <li><strong>Tabs</strong>：同一主題下的平行檢視；用方向鍵在分頁間移動。</li>
+      <li><strong>Hamburger Menu</strong>：把次要連結收進一個按鈕；按鈕要有文字或可讀的名稱。</li>
+    </ul>
+    <p>每種模式都要能用鍵盤與螢幕報讀器操作，觸控目標至少 48×48 CSS px（WCAG 2.5.8 的最低要求是 24×24）。</p>
+  </>,
 };
 
-const LABS: Record<string, () => React.ReactNode> = { 'color-contrast': () => <ContrastLab/>, 'flexbox-playground': () => <FlexboxLab/>, 'linux-terminal': () => <TerminalLab/> };
+const LABS: Record<string, () => React.ReactNode> = { 'color-contrast': () => <ContrastLab/>, 'flexbox-playground': () => <FlexboxLab/>, 'css-grid-playground': () => <GridLab/>, 'responsive-layout': () => <ResponsiveLab/>, 'mobile-ux': () => <MobileNavLab/>, 'linux-terminal': () => <TerminalLab/> };
 export const hasToolLabComponent = (id: string) => id in LABS;
 
 export function ToolLabPage({ lab }: { lab: LabEntry }) {

@@ -19,11 +19,16 @@ describe('lab registry', () => {
 
   it('has the color contrast, Flexbox and Linux terminal labs implemented and the others planned', () => {
     // R7: Flexbox Playground is the second tool lab; the web layout labs are one per activity. P7: Linux Terminal Simulator.
-    expect(implementedToolLabs().map(l => l.id)).toEqual(['color-contrast', 'flexbox-playground', 'linux-terminal']);
+    expect(implementedToolLabs().map(l => l.id)).toEqual(['color-contrast', 'flexbox-playground', 'css-grid-playground', 'responsive-layout', 'mobile-ux', 'linux-terminal']);
+    expect(getLab('mobile-ux')).toMatchObject({ domain: 'mobile', title: 'Mobile Navigation Simulator', status: 'implemented', activities: ['mobile-nav-sim'] });
+    expect(getLab('responsive-layout')).toMatchObject({ domain: 'web-design', status: 'implemented', activities: ['responsive-sim'] });
+    // R8.1: CSS Grid Playground, routed as /learn/css-grid-playground; its activity id stays grid-playground.
+    expect(getLab('css-grid-playground')).toMatchObject({ domain: 'web-design', approach: 'design', status: 'implemented', activities: ['grid-playground'] });
+    expect(getLab('grid-playground')).toBeUndefined();
     expect(getLab('flexbox-playground')).toMatchObject({ domain: 'web-design', approach: 'design', activities: ['flexbox-playground'] });
     expect(getLab('linux-terminal')).toMatchObject({ domain: 'systems-cloud', approach: 'code', activities: ['terminal-sim'] });
     expect(getLab('color-contrast')).toMatchObject({ domain: 'ui-ux', approach: 'design', activities: ['color-contrast'] });
-    expect(labRegistry.filter(l => l.status === 'planned').map(l => l.domain)).toEqual(['web-design', 'web-design', 'mobile', 'ui-ux', 'ai', 'ai', 'ai',
+    expect(labRegistry.filter(l => l.status === 'planned').map(l => l.domain)).toEqual(['ui-ux', 'ai', 'ai', 'ai',
       'systems-cloud', 'systems-cloud', 'systems-cloud']);
     for (const d of LAB_DOMAINS) expect(labRegistry.some(l => l.domain === d), d).toBe(true);
   });
@@ -34,7 +39,7 @@ describe('lab registry', () => {
     expect(lessonsUsingLab(getLab('array')!).map(l => l.lessonId)).toEqual(['F11', 'D02']);
     // One lab, several islands: the grid playground serves UI and RWD lessons, the responsive simulator RWD and MOB.
     const islandsOf = (id: string) => [...new Set(lessonsUsingLab(getLab(id)!).map(l => l.lessonId.replace(/\d+$/, '')))].sort();
-    expect(islandsOf('grid-playground')).toEqual(['RWD', 'UI']);
+    expect(islandsOf('css-grid-playground')).toEqual(['RWD', 'UI']);
     expect(islandsOf('responsive-layout')).toEqual(['MOB', 'RWD']);
     expect(lessonsUsingLab(getLab('flexbox-playground')!).map(l => [l.lessonId, l.status])).toEqual([['RWD03', 'planned'], ['RWD04', 'planned']]);
   });
