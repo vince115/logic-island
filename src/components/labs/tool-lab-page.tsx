@@ -60,7 +60,7 @@ const UNDERSTAND: Record<string, React.ReactNode> = {
     <ul>
       <li><strong>Mobile-first</strong>：先寫最窄螢幕的基本樣式（一欄、不需要媒體查詢），再用 <code>min-width</code> 逐步為較寬的螢幕加上規則。窄的裝置下載與套用的規則最少。</li>
       <li><strong>斷點</strong>是版面開始改變的寬度。依內容需要決定，不必對準某一款手機；<code>min-width</code> 包含剛好等於的寬度。</li>
-      <li><code>&lt;meta name="viewport" content="width=device-width"&gt;</code> 讓手機用實際寬度排版，否則手機會假裝自己有 980px 寬再縮小。</li>
+      <li><code>{'<meta name="viewport" content="width=device-width">'}</code> 讓手機用實際寬度排版，否則手機會假裝自己有 980px 寬再縮小。</li>
     </ul>
     <p>這個模擬器的預覽框真的有那麼寬：媒體查詢由瀏覽器判斷，不是把畫面縮小。</p>
   </>,
