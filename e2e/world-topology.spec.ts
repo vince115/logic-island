@@ -458,12 +458,28 @@ test.describe('P8.5 visual decisions', () => {
     test.setTimeout(120_000);
     const labels = page.locator('button[aria-label^="聚焦"]');
     const widthOf = () => labels.first().evaluate(b => b.getBoundingClientRect().width);
-    // After the window or the list changes, the camera frames the islands again over the next frames: wait for the
-    // state the rules are about (no label left under the list), then check all of them.
-    const reframed = () => expect.poll(() => page.evaluate(() => {
-      const list = document.querySelector('[aria-label="選擇學習島嶼"]')!.closest('div[class*="sideNavigation"]')!.getBoundingClientRect();
-      return [...document.querySelectorAll('button[aria-label^="聚焦"]')].filter(b => { const r = b.getBoundingClientRect(); return r.right > list.x && r.x < list.right && r.bottom > list.y && r.y < list.bottom; }).length;
-    }), { timeout: 15_000 }).toBe(0);
+    // After the window or the list changes, the scene takes its stage's new size and the camera frames the islands again
+    // over the next frames. Wait for that, not for a state that also holds before it. P8.6: "no label under the list"
+    // alone was true by accident while the canvas was still 1024×768 in a 1440 px window (a loaded machine, trace in
+    // docs/planning/P8_6_HOTFIX_AND_P8_INTEGRATION.md §5), so the checks that follow read the layout of the old size.
+    // Of the ten failures in 300 loaded runs, seven read that canvas and three one of 1440×768 (the width arrived first).
+    // Reframed: the window has the size the test set, the canvas has its stage's size, it and every label stayed put
+    // over two animation frames, and no label is left under the list.
+    const reframed = () => expect.poll(() => page.evaluate(async want => {
+      const read = () => {
+        const canvas = document.querySelector('canvas')!, at = canvas.getBoundingClientRect(), stage = canvas.parentElement!.getBoundingClientRect();
+        const list = document.querySelector('[aria-label="選擇學習島嶼"]')!.closest('div[class*="sideNavigation"]')!.getBoundingClientRect();
+        const labels = [...document.querySelectorAll('button[aria-label^="聚焦"]')].map(b => b.getBoundingClientRect());
+        return { sized: innerWidth === want.width && innerHeight === want.height && Math.abs(at.width - stage.width) <= 1 && Math.abs(at.height - stage.height) <= 1,
+          under: labels.filter(r => r.right > list.x && r.x < list.right && r.bottom > list.y && r.y < list.bottom).length,
+          places: [at, ...labels].map(r => [r.x, r.y, r.width, r.height].map(Math.round).join()).join(';') };
+      };
+      const frames = (n: number) => new Promise<void>(done => { const step = () => { if (n-- > 0) requestAnimationFrame(step); else done(); }; step(); });
+      const before = read();
+      await frames(2);
+      const after = read();
+      return after.sized && after.under === 0 && before.places === after.places;
+    }, page.viewportSize()!), { timeout: 15_000 }).toBe(true);
     await page.setViewportSize({ width: 1440, height: 1000 });
     await openRegion(page, '/world/sys');
     expect(await widthOf()).toBeGreaterThan(60);
