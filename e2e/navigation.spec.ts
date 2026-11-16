@@ -9,7 +9,7 @@ import { lessons } from '../src/content/curriculum/lessons';
  */
 const F01 = lessons.find(l => l.lessonId === 'F01')!;
 // The tool labs with a page, in registry order (P4, R7, R8, P7).
-const TOOL_LABS = ['/learn/color-contrast', '/learn/flexbox-playground', '/learn/css-grid-playground', '/learn/linux-terminal'];
+const TOOL_LABS = ['/learn/color-contrast', '/learn/flexbox-playground', '/learn/css-grid-playground', '/learn/responsive-layout', '/learn/linux-terminal'];
 
 test('/visualize 與 /visualize/<slug> 永久轉址到 /learn，保留 slug 與查詢參數', async ({ request }) => {
   for (const [from, to] of [['/visualize', '/learn'], ['/visualize/array', '/learn/array'], ['/visualize/bfs?ref=bookmark&x=1', '/learn/bfs?ref=bookmark&x=1']]) {
@@ -322,4 +322,41 @@ test('CSS Grid Playground：輸入軌道與位置即時套用到真實格線，�
   await expect(lessons.getByText('RWD05')).toBeVisible();
   await expect(lessons.locator('a')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+// R8.2: Responsive Layout Simulator — the frame is really that wide, so the browser applies the media queries.
+test('Responsive Layout Simulator：預覽框以真實寬度套用媒體查詢，斷點可調，頁面不水平溢出', async ({ page }) => {
+  await page.goto('/learn/responsive-layout');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Responsive Layout Simulator');
+  const frame = page.frameLocator('[data-testid="rwd-frame"]'), queries = page.getByRole('list', { name: '媒體查詢' }).getByRole('listitem');
+  const columns = async () => (await frame.locator('.cards').evaluate(e => getComputedStyle(e).gridTemplateColumns)).split(' ').length;
+  // Mobile: base rules only, one column.
+  await expect(page.getByTestId('rwd-frame')).toHaveAttribute('title', /寬 375px/);
+  expect(await frame.locator('.page').evaluate(e => getComputedStyle(e).gridTemplateColumns.split(' ').length)).toBe(1);
+  expect(await columns()).toBe(1);
+  await expect(queries).toHaveText([/768px.*未套用/, /1024px.*未套用/]);
+  // Tablet: min-width 768 applies (inclusive), two columns.
+  await page.getByRole('button', { name: /^Tablet/ }).click();
+  await expect(page.getByRole('button', { name: /^Tablet/ })).toHaveAttribute('aria-pressed', 'true');
+  // The frame's viewport is exactly the width shown (a border once made it 2px narrower, just under the breakpoint).
+  await expect.poll(() => frame.locator('html').evaluate(() => innerWidth)).toBe(768);
+  await expect.poll(columns).toBe(2);
+  await expect(queries).toHaveText([/768px.*套用中/, /1024px.*未套用/]);
+  // Desktop: the page has three columns and the cards three.
+  await page.getByRole('button', { name: /^Desktop/ }).click();
+  await expect.poll(() => frame.locator('.page').evaluate(e => getComputedStyle(e).gridTemplateColumns.split(' ').length)).toBe(3);
+  // A custom width just under a moved breakpoint falls back to the tier below.
+  await page.getByRole('slider', { name: /平板斷點/ }).fill('800');
+  await page.getByLabel('自訂寬度（px）').fill('799');
+  await expect.poll(columns).toBe(1);
+  await expect(page.locator('pre code')).toContainText('@media (min-width: 800px)');
+  await expect(page.locator('ul[aria-live="polite"]')).toContainText('視窗寬度 799px：手機');
+  // Card layout at 1280: four columns.
+  await page.getByRole('button', { name: '卡片列表' }).click();
+  await page.getByRole('button', { name: /^Desktop/ }).click();
+  await expect.poll(columns).toBe(4);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const lessons = page.getByRole('region', { name: '使用這個實驗的課程' });
+  await expect(lessons.getByText('RWD01')).toBeVisible();
+  await expect(lessons.locator('a')).toHaveCount(0);
 });

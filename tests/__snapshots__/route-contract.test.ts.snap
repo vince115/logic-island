@@ -98,6 +98,7 @@ exports[`route contract (multi-archipelago v2) > generates the same pages in the
     "flexbox-playground",
     "linux-terminal",
     "queue",
+    "responsive-layout",
     "stack",
   ],
   "regions/[region]": [
@@ -212,6 +213,7 @@ exports[`route contract (multi-archipelago v2) > generates the same pages with b
     "flexbox-playground",
     "linux-terminal",
     "queue",
+    "responsive-layout",
     "stack",
   ],
   "regions/[region]": [

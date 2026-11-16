@@ -6,6 +6,7 @@ import { ContrastLab } from './contrast-lab';
 import { TerminalLab } from './terminal-lab';
 import { FlexboxLab } from './flexbox-lab';
 import { GridLab } from './grid-lab';
+import { ResponsiveLab } from './responsive-lab';
 import styles from './tool-lab.module.css';
 
 /*
@@ -54,9 +55,18 @@ const UNDERSTAND: Record<string, React.ReactNode> = {
     </ul>
     <p><code>repeat(auto-fill, minmax(…))</code> 讓欄數隨寬度改變，不用寫媒體查詢：Gallery 範例就是這樣做的。</p>
   </>,
+  'responsive-layout': <>
+    <p>響應式設計讓同一份 HTML 依<strong>視窗寬度</strong>改變版面。做法是<strong>媒體查詢</strong>：<code>@media (min-width: 768px) {'{ … }'}</code> 裡的規則，只在視窗至少 768px 寬時套用。</p>
+    <ul>
+      <li><strong>Mobile-first</strong>：先寫最窄螢幕的基本樣式（一欄、不需要媒體查詢），再用 <code>min-width</code> 逐步為較寬的螢幕加上規則。窄的裝置下載與套用的規則最少。</li>
+      <li><strong>斷點</strong>是版面開始改變的寬度。依內容需要決定，不必對準某一款手機；<code>min-width</code> 包含剛好等於的寬度。</li>
+      <li><code>&lt;meta name="viewport" content="width=device-width"&gt;</code> 讓手機用實際寬度排版，否則手機會假裝自己有 980px 寬再縮小。</li>
+    </ul>
+    <p>這個模擬器的預覽框真的有那麼寬：媒體查詢由瀏覽器判斷，不是把畫面縮小。</p>
+  </>,
 };
 
-const LABS: Record<string, () => React.ReactNode> = { 'color-contrast': () => <ContrastLab/>, 'flexbox-playground': () => <FlexboxLab/>, 'css-grid-playground': () => <GridLab/>, 'linux-terminal': () => <TerminalLab/> };
+const LABS: Record<string, () => React.ReactNode> = { 'color-contrast': () => <ContrastLab/>, 'flexbox-playground': () => <FlexboxLab/>, 'css-grid-playground': () => <GridLab/>, 'responsive-layout': () => <ResponsiveLab/>, 'linux-terminal': () => <TerminalLab/> };
 export const hasToolLabComponent = (id: string) => id in LABS;
 
 export function ToolLabPage({ lab }: { lab: LabEntry }) {

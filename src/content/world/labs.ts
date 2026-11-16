@@ -61,8 +61,10 @@ const toolLabs: LabEntry[] = [
   { id: 'css-grid-playground', kind: 'tool', domain: 'web-design', title: 'CSS Grid Playground', approach: 'design', status: 'implemented',
     activities: ['grid-playground'], summary: '設定欄與列的軌道、fr 單位、gap 與對齊，把項目放到指定的格線上，預覽二維版面並複製對應的 CSS。',
     objectives: ['用 grid-template-columns／rows 定義軌道，分辨 fr、px 與 minmax()', '用 gap、justify-items、align-items 控制間距與格內對齊', '用 grid-column／grid-row 的線號與 span 放置項目'] },
-  { id: 'responsive-layout', kind: 'tool', domain: 'web-design', title: 'Responsive Layout Simulator', approach: 'design', status: 'planned',
-    activities: ['responsive-sim'], summary: '拖動視窗寬度與斷點，比較 mobile-first 版面在手機、平板、桌機的變化與對應的媒體查詢。' },
+  // R8.2 (2026-11-16): implemented, /learn/responsive-layout.
+  { id: 'responsive-layout', kind: 'tool', domain: 'web-design', title: 'Responsive Layout Simulator', approach: 'design', status: 'implemented',
+    activities: ['responsive-sim'], summary: '在真實寬度的預覽框裡切換手機、平板、桌機或自訂寬度，調整斷點，看 mobile-first 媒體查詢何時生效、版面如何改變。',
+    objectives: ['說明 mobile-first：先寫基本樣式，再用 min-width 逐步加上規則', '判斷某個寬度套用了哪些媒體查詢（min-width 含等於）', '為一個版面選擇斷點並寫出對應的 CSS'] },
   { id: 'mobile-ux', kind: 'tool', domain: 'mobile', title: 'Mobile Navigation Simulator', approach: 'design', status: 'planned',
     activities: ['mobile-nav-sim'], summary: '在不同裝置尺寸比較 Tab bar、Drawer、Bottom sheet，檢查觸控目標與安全區域。' },
   { id: 'accessibility-checker', kind: 'tool', domain: 'ui-ux', title: 'Accessibility Checker', approach: 'design', status: 'planned',

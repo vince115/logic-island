@@ -51,3 +51,21 @@
 .check { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: var(--text-sm); font-weight: 650; align-self: end; }
 .check input[type='checkbox'] { width: 18px; height: 18px; padding: 0; }
 .item[data-selected] { outline: 3px solid var(--text); outline-offset: 2px; }
+
+/* R8.2: Responsive Layout Simulator. */
+.presets button[aria-pressed='true'] { border-color: var(--accent-ink, var(--accent)); color: var(--accent-ink, var(--accent)); background: color-mix(in srgb, var(--accent) 10%, var(--bg)); }
+.field input[type='number'] { height: 44px; width: 100%; padding: 0 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font: var(--text-sm) ui-monospace, monospace; }
+.ruler { position: relative; height: 54px; margin: 16px 0 6px; }
+.tierBand { position: absolute; top: 0; height: 26px; display: grid; place-items: center; font-size: var(--text-xs); font-weight: 700; color: var(--text); border-block: 1px solid var(--border); overflow: hidden; white-space: nowrap; }
+.tierBand[data-tier='base'] { background: color-mix(in srgb, #2f5fb3 14%, var(--bg)); border-left: 1px solid var(--border); border-radius: 6px 0 0 6px; }
+.tierBand[data-tier='md'] { background: color-mix(in srgb, #1b7f4b 14%, var(--bg)); }
+.tierBand[data-tier='lg'] { background: color-mix(in srgb, #8a4fbf 14%, var(--bg)); border-right: 1px solid var(--border); border-radius: 0 6px 6px 0; }
+.tick { position: absolute; top: 26px; padding: 4px 0 0 3px; font: var(--text-xs) ui-monospace, monospace; color: var(--muted); border-left: 2px solid var(--text); height: 22px; line-height: 1.6; }
+.marker { position: absolute; top: -4px; width: 4px; height: 34px; margin-left: -2px; border-radius: 2px; background: var(--accent-ink, var(--accent)); box-shadow: 0 0 0 2px var(--bg); }
+.frameStage { margin-top: 10px; padding: 10px; border-radius: 10px; background: var(--soft); overflow: hidden; }
+/* The edge is an outline, not a border: with the site's border-box sizing a border would eat into the frame, and its
+   viewport (what the media queries measure) would be 2px narrower than the width shown. */
+.frame { display: block; border: 0; outline: 1px solid var(--border-strong); border-radius: 6px; background: #fff; transform-origin: 0 0; }
+.queries { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 6px; }
+.queries li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border: 1px dashed var(--border-strong); border-radius: 8px; font-size: var(--text-sm); color: var(--muted); }
+.queries li[data-active] { border-style: solid; border-color: var(--accent-ink, var(--accent)); color: var(--text); font-weight: 650; }
