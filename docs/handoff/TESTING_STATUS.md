@@ -10,6 +10,10 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## P8.5 Visual Finalization & Performance Hotfix（2026-11-16）
+
+全套 E2E（旗標開啟）第一次 0 失敗：489 通過／95 略過。`islands.spec.ts` 的 3D 點擊不穩定（P1-19）有兩個原因並都已修：舊版 `/islands` 相機聚焦後沒有要求重繪（`camera-controller.tsx`），以及 `clickNear` 的「等標籤停止移動」實際沒有等；逐幀量測見 `docs/planning/evidence/p8-5/islands-focus-timeline.md`。`e2e/world-topology.spec.ts` 新增「P8.5 visual decisions」（V1 無 WEB—SYS 橋、V3 圖釘／名牌切換、V4 樞紐橋對比）與 320／375／390 px 的標頭測試。導覽打包修正另以 `hotfix/nav-client-bundle` 送到 `main`（PR #8）。詳見 [P8_5_VISUAL_FINALIZATION_AND_PERFORMANCE_HOTFIX](../planning/P8_5_VISUAL_FINALIZATION_AND_PERFORMANCE_HOTFIX.md)。
+
 ## P8.4 Responsive World UX（2026-11-13，分支 `p8/multi-region-world`）
 
 全套 E2E（旗標開啟）由 10 項失敗降到 1 項：481 通過／92 略過／1 失敗。`curriculum.spec.ts` 的三個測試改為由 registry 推導期望（課綱頁列出五個 Region、實驗島有工具實驗）；`db-activities-f1c.spec.ts:140` 抓到的是產品問題（側欄把整份課綱打包進每一頁），已修並有單元測試（`tests/site-nav.test.ts`）。剩下的 1 項是 `islands.spec.ts` 的 3D 點擊測試：單獨執行穩定，依全套順序跑桌機的 `candidate-integration` 到 `islands.spec.ts` 可以重現，原因未定。`e2e/world-topology.spec.ts` 新增 834／1024／1280／1440 px 的區域地圖名牌檢查、面板與圖釘的層級、320 px 標頭。分類、根因與量測見 [P8_4_RESPONSIVE_WORLD_UX_AND_VISUAL_REVIEW](../planning/P8_4_RESPONSIVE_WORLD_UX_AND_VISUAL_REVIEW.md) §2–§5。
