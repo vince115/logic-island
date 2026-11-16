@@ -33,6 +33,7 @@ export function validateWorld(world: WorldConfig, lessons: readonly WorldLesson[
   for (const region of world.regions) {
     if (!Number.isInteger(region.order) || region.order < 1) fail(region.id, 'order must be a positive integer');
     for (const field of ['name', 'nameEn'] as const) if (!region[field].trim()) fail(region.id, `empty ${field}`);
+    if (region.summary !== undefined && !region.summary.trim()) fail(region.id, 'empty summary');
   }
 
   const subjects = world.islands.filter(i => i.kind === 'subject'), tools = world.islands.filter(i => i.kind === 'tool');

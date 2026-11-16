@@ -28,6 +28,9 @@ export function regionStatus(region: RegionId): IslandStatus {
   return list.some(i => i.status !== 'planned') ? 'available' : 'planned';
 }
 
+/** P6: the number of regions in Chinese (五 for five regions), so headings follow the data instead of a fixed 「四大」. */
+export const regionCountZh = () => '零一二三四五六七八九十'[orderedRegions.length] ?? String(orderedRegions.length);
+
 /** Multi-archipelago v2: how many subject islands and planned-or-written lessons each region holds, in region order. */
 export const taxonomy = () => orderedRegions.map(r => ({ region: r.id, islands: islandsInRegion(r.id).length,
   lessons: islandsInRegion(r.id).reduce((n, i) => n + i.lessonCount, 0) }));

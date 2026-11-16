@@ -6,7 +6,7 @@ import type { IslandConfig, IslandLink, Region, RegionId } from './types';
 
 /*
  * Phase F.0: the regions and islands of the plan, and the shared Interactive Lab Island. Multi-archipelago v2 (P1b):
- * four regions, 23 subject islands; counts and codes follow docs/planning/ISLAND_TAXONOMY.md, and the totals are
+ * five regions (P6 adds sys), 29 subject islands; counts and codes follow docs/planning/ISLAND_TAXONOMY.md, and the totals are
  * pinned only by the taxonomy contract in tests/world.test.ts. Planned islands take their names and
  * description from the planning data (scripts/planning-data.mjs); the existing three keep the curriculum's text, and
  * src/content/curriculum/registry.ts now reads them from here.
@@ -24,6 +24,9 @@ export const regions: Region[] = [
   ] },
   { id: 'design', name: '數位設計群島', nameEn: planning.regions.design, order: 3 },
   { id: 'web', name: '網頁與應用開發群島', nameEn: planning.regions.web, order: 4 },
+  // P6 (2026-11-12): the fifth region; six planned islands, no lesson written, no 3D map.
+  { id: 'sys', name: '系統與雲端工程群島', nameEn: planning.regions.sys, order: 5,
+    summary: '把程式放上真實的伺服器與雲端：Linux、Docker 容器、網路與伺服器、雲端基礎設施、DevOps 與 CI/CD、Kubernetes 與可靠性工程。協定原理沿用計算機網路島，AI 服務的部署細節沿用 AI 工程島。' },
 ];
 
 const curriculumAnchor = (id: string) => ({ id: 'curriculum', label: '完整課綱', target: `/curriculum#island-${id}` });
@@ -90,6 +93,13 @@ export const worldIslands: IslandConfig[] = [
   fromPlan('frontend', 'FE', 2, 15, '#0277bd'),
   fromPlan('responsive-design', 'RWD', 3, 12, '#558b2f'),
   fromPlan('mobile-apps', 'MOB', 4, 13, '#ad1457'),
+  // P6: planned islands of the systems and cloud engineering region (docs/planning/P6_SYSTEMS_CLOUD_REGION.md).
+  fromPlan('linux-systems', 'LNX', 1, 15, '#2e7d32'),
+  fromPlan('docker-containers', 'DKR', 2, 15, '#1565c0'),
+  fromPlan('network-servers', 'SRV', 3, 14, '#00838f'),
+  fromPlan('cloud-infrastructure', 'CLD', 4, 15, '#5e35b1'),
+  fromPlan('devops-cicd', 'CICD', 5, 15, '#ef6c00'),
+  fromPlan('kubernetes-reliability', 'KUB', 6, 15, '#283593'),
   {
     id: LAB_ISLAND_ID, kind: 'tool', code: 'LAB', name: '互動實驗島', nameEn: 'Interactive Lab Island',
     description: '跨學科共用的工具島：自己輸入資料，逐步播放陣列、堆疊、佇列、搜尋、排序與圖的走訪；不是學科、沒有課程編號。',

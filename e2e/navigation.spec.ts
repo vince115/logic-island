@@ -43,9 +43,9 @@ test('互動實驗島列出六個實驗；實驗頁沒有模式切換，麵包�
   await expect(page).toHaveTitle(/^互動實驗島 \| Logic Island$/);
   // Multi-archipelago v2 (P4): the six algorithm labs, plus the tool labs that are open; planned ones are not links.
   await expect(page.locator('a.course-card:not([data-kind])')).toHaveCount(6);
-  // R7: two open tool labs; the planned ones are cards without a link.
-  await expect(page.locator('a.course-card[data-kind="tool"]')).toHaveCount(2);
-  expect(await page.locator('a.course-card[data-kind="tool"]').evaluateAll(as => as.map(a => a.getAttribute('href')))).toEqual(['/learn/color-contrast', '/learn/flexbox-playground']);
+  // R7: open tool labs are links, the planned ones cards without a link; P7 adds the Linux Terminal Simulator.
+  await expect(page.locator('a.course-card[data-kind="tool"]')).toHaveCount(3);
+  expect(await page.locator('a.course-card[data-kind="tool"]').evaluateAll(as => as.map(a => a.getAttribute('href')))).toEqual(['/learn/color-contrast', '/learn/flexbox-playground', '/learn/linux-terminal']);
   await expect(page.locator('.course-card[data-status="planned"]').first()).toBeVisible();
   await expect(page.locator('a.course-card[data-status="planned"]')).toHaveCount(0);
   await page.goto('/learn/array');
@@ -78,10 +78,10 @@ test('404 頁指向完整課綱與互動實驗島', async ({ page }) => {
 test('六個實驗與所有課綱頁（含資料庫應用島已開放的課）都能開啟，頁面內的站內連結沒有失效', async ({ page, request }, info) => {
   test.skip(!info.project.name.startsWith('desktop'), 'Same pages on both projects; one pass is enough.');
   test.setTimeout(240_000);
-  // P4, R7: the open tool labs are crawled too (/learn/color-contrast, /learn/flexbox-playground).
-  // R6: and the four region overviews.
-  const pages = ['/', '/learn', '/curriculum', ...['cs', 'ai', 'design', 'web'].map(r => `/regions/${r}`), ...courses.map(c => `/learn/${c.slug}`), '/learn/color-contrast', '/learn/flexbox-playground', ...lessons.map(l => `/curriculum/${l.slug}`)];
-  expect(pages).toHaveLength(3 + 4 + 8 + lessons.length);
+  // P4, R7: the open tool labs are crawled too (/learn/color-contrast, /learn/flexbox-playground); P7 adds /learn/linux-terminal.
+  // R6: and the region overviews (P6 adds sys).
+  const pages = ['/', '/learn', '/curriculum', ...['cs', 'ai', 'design', 'web', 'sys'].map(r => `/regions/${r}`), ...courses.map(c => `/learn/${c.slug}`), '/learn/color-contrast', '/learn/flexbox-playground', '/learn/linux-terminal', ...lessons.map(l => `/curriculum/${l.slug}`)];
+  expect(pages).toHaveLength(3 + 5 + 9 + lessons.length);
   const links = new Set<string>();
   for (const path of pages) {
     const res = await page.goto(path);
@@ -138,7 +138,7 @@ test('側欄：目前課程所在的島與難度自動展開並標示，島嶼�
 test('規劃中的群島與課程看得到但不能點：側欄停用列與完整課綱的大綱都沒有連結', async ({ page }, info) => {
   test.skip(!info.project.name.startsWith('desktop'), 'Same data on both projects.');
   await page.goto('/curriculum');
-  await expect(page.getByRole('navigation', { name: '四大群島' }).getByRole('link')).toHaveCount(4);
+  await expect(page.getByRole('navigation', { name: '五大群島' }).getByRole('link')).toHaveCount(5);
   const ai = page.locator('#region-ai');
   await expect(ai.getByRole('heading', { level: 2 })).toContainText('AI 人工智慧群島');
   await expect(ai.locator('article')).toHaveCount(7);
@@ -178,6 +178,44 @@ test('色彩與無障礙實驗室：輸入顏色即時判定 AA／AAA，套用�
   await expect(lessons.getByRole('link')).toHaveCount(0);
 });
 
+// P7: Linux Terminal Simulator. Commands run on a virtual file system in the page; a task completes from the result,
+// permissions are enforced for the non-root learner, and a reset restores the starting machine.
+test('Linux Terminal Simulator：指令改變虛擬檔案系統、任務依結果完成、權限有效、可重設', async ({ page }) => {
+  await page.goto('/learn/linux-terminal');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Linux Terminal Simulator');
+  const input = page.getByRole('textbox', { name: /^輸入指令/ });
+  const screen = page.getByRole('log', { name: '終端機輸出' });
+  const tasks = page.getByRole('region', { name: /完成 \d+／7/ });
+  await expect(tasks.getByRole('heading', { level: 2 })).toContainText('完成 0／7');
+  await input.fill('mkdir projects');
+  await input.press('Enter');
+  await input.fill('cd projects');
+  await input.press('Enter');
+  await expect(input).toHaveAccessibleName('輸入指令（目前位置 ~/projects）');
+  await input.fill('echo "hello" > notes.txt');
+  await input.press('Enter');
+  await input.fill('cat notes.txt');
+  await input.press('Enter');
+  await expect(screen).toContainText('hello');
+  await expect(tasks.getByRole('heading', { level: 2 })).toContainText('完成 2／7');
+  await input.fill('cat /etc/shadow');
+  await input.press('Enter');
+  await expect(screen).toContainText('cat: /etc/shadow: Permission denied');
+  await input.fill('ls | grep a');
+  await input.press('Enter');
+  await expect(screen).toContainText('不支援');
+  // History: ↑ brings the last command back.
+  await input.press('ArrowUp');
+  await expect(input).toHaveValue('ls | grep a');
+  await page.getByRole('button', { name: '重設環境' }).click();
+  await expect(tasks.getByRole('heading', { level: 2 })).toContainText('完成 0／7');
+  await expect(page.getByLabel('家目錄的檔案樹，含權限與目前位置')).not.toContainText('projects');
+  // The lessons that will use it are listed as planned, never linked.
+  const lessons = page.getByRole('region', { name: '使用這個實驗的課程' });
+  await expect(lessons.getByText('LNX02')).toBeVisible();
+  await expect(lessons.getByRole('link')).toHaveCount(0);
+});
+
 // R6: AI 人工智慧群島 has a way in from the home map, /curriculum and the sidebar; its overview shows the seven islands
 // under their three groups, every one 規劃中, and links to no lesson.
 test('AI 群島入口：首頁「更多學習群島」→ 群島總覽，七座島三個主題都是規劃中且沒有課程連結；側欄標示目前群島', async ({ page }, info) => {
@@ -185,7 +223,7 @@ test('AI 群島入口：首頁「更多學習群島」→ 群島總覽，七座�
   await page.goto('/');
   const more = page.getByRole('navigation', { name: '更多學習群島' });
   if (!await more.isVisible()) await page.getByRole('button', { name: /清單/ }).first().click();
-  await expect(more.getByRole('link')).toHaveCount(3);
+  await expect(more.getByRole('link')).toHaveCount(4); // ai, design, web and (P6) sys
   await expect(more.getByRole('link', { name: /AI 人工智慧群島/ })).toContainText('規劃中');
   await more.getByRole('link', { name: /AI 人工智慧群島/ }).click();
   await expect(page).toHaveURL('/regions/ai');
@@ -205,7 +243,7 @@ test('AI 群島入口：首頁「更多學習群島」→ 群島總覽，七座�
   await page.goto('/regions/web');
   await expect(page.locator('section[aria-labelledby="region-paths"] li')).toHaveText([/前端工程.*路線共 62 堂 · 已開放 7 堂 · 其餘 55 堂規劃中/]);
   await page.goto('/regions/ai');
-  await expect(page.getByRole('navigation', { name: '麵包屑' })).toHaveText(/探索群島.*四大群島.*AI 人工智慧群島/);
+  await expect(page.getByRole('navigation', { name: '麵包屑' })).toHaveText(/探索群島.*五大群島.*AI 人工智慧群島/);
   const sidebar = page.locator('#site-sidebar');
   if (phone) { await page.getByRole('button', { name: '選單' }).click(); await expect(sidebar).toBeVisible(); }
   const tree = sidebar.getByRole('navigation', { name: '學習群島目錄' });
