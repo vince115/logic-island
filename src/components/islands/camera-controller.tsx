@@ -11,6 +11,7 @@ export function CameraController({islands,selectedId,reducedMotion}:{islands:Isl
   const controls=useRef<CameraControlsImpl>(null);
   const initialized=useRef(false);
   const {width,height}=useThree(state=>state.size);
+  const invalidate=useThree(state=>state.invalidate);
   const selected=islands.find(i=>i.id===selectedId);
   const bounds=useMemo(()=>selected?getFocusBounds(selected):getWorldBounds(islands),[selected,islands]);
   useEffect(()=>{
@@ -27,7 +28,12 @@ export function CameraController({islands,selectedId,reducedMotion}:{islands:Isl
       paddingLeft:width<700?.7:1.5,paddingRight:width<700?.7:1.5,
     });
     initialized.current=true;
-  },[bounds,width,height,reducedMotion]);
+    // P8.5: the move is applied in the next frame, and with `frameloop="demand"` nothing else may ask for one. The
+    // frame a new focus draws can come before this effect runs; the map then stayed on the overview, with the focused
+    // island's place labels shown where the overview has them, until something else redrew it (measured: 6 of 12
+    // focuses at 6x CPU throttle never drew the move within 1.5 s). Same race as hex-camera.tsx (P8.3).
+    invalidate();
+  },[bounds,width,height,reducedMotion,invalidate]);
   return <CameraControls ref={controls} makeDefault smoothTime={.65}
     minZoom={4} maxZoom={150}
     mouseButtons={{left:CameraControlsImpl.ACTION.NONE,middle:CameraControlsImpl.ACTION.NONE,right:CameraControlsImpl.ACTION.NONE,wheel:CameraControlsImpl.ACTION.NONE}}
