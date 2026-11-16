@@ -21,5 +21,8 @@ export const HUB_THEME = { accent: '#8a4fd1', land: '#c8b6e8' } as const;
 /**
  * P8.3 the world's links on the overview: the hub's causeways in pale stone, the relation bridges in warm wood. Told
  * apart by more than color: a causeway is one unbroken deck, a relation bridge is planks.
+ * P8.5 (V4, approved): the causeways carry less weight. They were near white (#f1f4f7), the brightest thing on the
+ * map; now a sea-washed stone, darker and less saturated than the sea is bright, and a little narrower
+ * (world-overview-geometry.ts). Still clearly lighter than the sea: an E2E test measures the drawn contrast.
  */
-export const LINK_THEME = { hub: '#f1f4f7', relation: '#c98f52' } as const;
+export const LINK_THEME = { hub: '#d3e3ea', relation: '#c98f52' } as const;

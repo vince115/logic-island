@@ -49,7 +49,7 @@ export function WorldOverview({ regions, unmapped = [], hub, trials }: { regions
     // (phones: the name alone). The guide says the rest: a tool island every region shares.
     { id: 'hub' as const, name: '中央樞紐', label: `前往中央樞紐：${hub.lab.name}`, detail: hub.lab.name, accent: HUB_THEME.accent, onOpen: () => router.push(hub.lab.href) },
   ], [regions, hub.lab.href, hub.lab.name, router]);
-  // P8.4 visual review (this prototype only): `/world?without=web-sys` draws the map without the named links; the
+  // P8.4 visual review (this prototype only): `/world?without=sys-cs` draws the map without the named links; the
   // guide and the world map's data do not change.
   const [without, setWithout] = useState('');
   // eslint-disable-next-line react-hooks/set-state-in-effect -- the address is only known in the browser, and the page is prerendered

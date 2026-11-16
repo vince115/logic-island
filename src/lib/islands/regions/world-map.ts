@@ -9,8 +9,10 @@ import type { OverviewPlacement, OverviewShape, WorldLink, WorldMapSpec } from '
  * nothing here changes a region's own map.
  *
  * P8.3 (D7, approved 2026-11-12): the world's topology is the hub joined to every region, and relation bridges between
- * regions that are neighbours on the ring. The four bridges below are the neighbouring pairs whose lessons build on
- * each other (CS–AI, design–web, web–sys, sys–CS, at the time of review); AI and design are neighbours without one.
+ * regions that are neighbours on the ring: CS–AI, design–web and sys–CS. AI and design are neighbours without one.
+ * P8.5 (V1, approved 2026-11-16): the web–sys bridge is taken off the overview. It was the longest relation bridge on
+ * the weakest ground (one lesson link between the two regions) and ran along the phone's left edge. The two regions'
+ * lessons stay related in the curriculum, and each is still one causeway from the hub; no region moved.
  * This is stored, reviewed data: nothing here reads the curriculum, so adding lessons or prerequisites never moves a
  * region or a bridge. A bridge is added or removed by editing this list.
  */
@@ -31,7 +33,6 @@ export const WORLD_MAP: WorldMapSpec = {
   bridges: [
     { id: 'cs-ai', between: ['cs', 'ai'] },
     { id: 'design-web', between: ['design', 'web'] },
-    { id: 'web-sys', between: ['web', 'sys'] },
     { id: 'sys-cs', between: ['sys', 'cs'] },
   ],
 };

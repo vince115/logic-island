@@ -359,9 +359,9 @@ test.describe('P8.4 responsive world', () => {
     }
   });
 
-  test('320 px: the header of the world pages keeps its menu on one line, its height, and 44 px touch areas that do not overlap; other pages are untouched', async ({ page }) => {
+  for (const [width, height] of PHONES) test(`${width} px: the header of the world pages keeps its menu on one line, its height, and 44 px touch areas that do not overlap; other pages are untouched`, async ({ page }) => {
     test.skip(!phone(), '只在手機');
-    await page.setViewportSize({ width: 320, height: 568 });
+    await page.setViewportSize({ width, height });
     const header = () => page.evaluate(() => {
       const head = document.querySelector('header.site-header')!, rect = (e: Element) => e.getBoundingClientRect();
       const area = (e: Element, from: 'top' | 'bottom') => { const r = rect(e), s = getComputedStyle(e, '::before'), w = Math.max(r.width, parseFloat(s.width) || 0), h = Math.max(r.height, parseFloat(s.height) || 0);
@@ -392,10 +392,116 @@ test.describe('P8.4 responsive world', () => {
   });
 
   test('visual review: /world?without=<link> draws the overview without that link and changes nothing else', async ({ page }) => {
-    await page.goto('/world?without=web-sys');
+    await page.goto('/world?without=sys-cs');
     await expect(page.locator('[data-links]')).toBeVisible({ timeout: 30_000 });
-    await expect.poll(() => page.evaluate(() => (JSON.parse(document.querySelector<HTMLElement>('[data-links]')!.dataset.links!) as { id: string }[]).map(l => l.id))).toEqual(worldLinks(WORLD_MAP).map(l => l.id).filter(id => id !== 'web-sys'));
+    await expect.poll(() => page.evaluate(() => (JSON.parse(document.querySelector<HTMLElement>('[data-links]')!.dataset.links!) as { id: string }[]).map(l => l.id))).toEqual(worldLinks(WORLD_MAP).map(l => l.id).filter(id => id !== 'sys-cs'));
     // The guide still states the world map's data.
-    await expect(page.getByRole('region', { name: '世界橋樑' })).toContainText(`${short(regionName('web'))} ↔ ${short(regionName('sys'))}`);
+    await expect(page.getByRole('region', { name: '世界橋樑' })).toContainText(`${short(regionName('sys'))} ↔ ${short(regionName('cs'))}`);
+  });
+});
+
+/* ------------------------------------------------------------------ P8.5 visual decisions */
+
+test.describe('P8.5 visual decisions', () => {
+  test.skip(!ON, 'built without LOGIC_ISLAND_REGIONAL_WORLD=1');
+
+  test('V1: no bridge between web and sys on the overview; both keep their causeway to the hub and are reached through the world overview', async ({ page }) => {
+    await page.goto('/world');
+    const stage = await expectOverviewClear(page, 'default');
+    expect(stage.lines.map(l => l.id)).not.toContain('web-sys');
+    expect(stage.lines.filter(l => l.kind === 'relation').map(l => l.id)).toEqual(['cs-ai', 'design-web', 'sys-cs']);
+    for (const id of ['hub-web', 'hub-sys']) expect(stage.lines.map(l => l.id)).toContain(id);
+    await expect(page.getByRole('region', { name: '世界橋樑' })).not.toContainText(`${short(regionName('web'))} ↔ ${short(regionName('sys'))}`);
+    // On the two region maps: no direct link to the other, the world overview instead.
+    for (const [from, to] of [['web', 'sys'], ['sys', 'web']] as const) {
+      await openRegion(page, `/world/${from}`);
+      const more = page.getByRole('navigation', { name: `${regionName(from)}以外` });
+      await expect(more.locator(`a[href="/world/${to}"]`)).toHaveCount(0);
+      await expect(more.locator('a[href="/world"]')).toContainText('樞紐橋 · 其他群島');
+    }
+  });
+
+  test('V4: the hub causeways are quieter than before and still stand out from the sea; relation bridges stand out more', async ({ page }) => {
+    await page.goto('/world');
+    const stage = await expectOverviewClear(page, 'default');
+    const wrap = (await page.locator('[data-links]').boundingBox())!;
+    const shot = (await page.screenshot({ clip: wrap, style: 'button[data-target], nav, header {visibility:hidden!important}' })).toString('base64');
+    // Each link's color where it is drawn (its middle), and the sea beside it (a few deck widths off, across the link).
+    const colors = await page.evaluate(async ([png, lines, scale]) => {
+      const image = await new Promise<HTMLImageElement>(resolve => { const i = new Image(); i.onload = () => resolve(i); i.src = 'data:image/png;base64,' + png; });
+      const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
+      const g = canvas.getContext('2d')!; g.drawImage(image, 0, 0);
+      const k = image.width / (scale as number);
+      const at = (x: number, y: number) => { const d = g.getImageData(Math.round(x * k), Math.round(y * k), 1, 1).data; return [d[0], d[1], d[2]]; };
+      const luminance = ([r, gg, b]: number[]) => { const f = (v: number) => { const s = v / 255; return s <= .03928 ? s / 12.92 : ((s + .055) / 1.055) ** 2.4; }; return .2126 * f(r) + .7152 * f(gg) + .0722 * f(b); };
+      return (lines as { id: string; kind: string; x0: number; y0: number; x1: number; y1: number; width: number }[]).map(l => {
+        const mx = (l.x0 + l.x1) / 2, my = (l.y0 + l.y1) / 2, len = Math.hypot(l.x1 - l.x0, l.y1 - l.y0), nx = -(l.y1 - l.y0) / len, ny = (l.x1 - l.x0) / len, off = l.width * 3 + 6;
+        // A plank bridge has gaps: take the lightest-against-the-sea of a few points along its middle.
+        const sea = at(mx + nx * off, my + ny * off), ls = luminance(sea);
+        const contrast = Math.max(...[-.1, -.05, 0, .05, .1].map(t => { const ld = luminance(at(mx + (l.x1 - l.x0) * t, my + (l.y1 - l.y0) * t)); return (Math.max(ld, ls) + .05) / (Math.min(ld, ls) + .05); }));
+        return { id: l.id, kind: l.kind, contrast };
+      });
+    }, [shot, stage.lines, wrap.width] as const);
+    const hub = colors.filter(c => c.kind === 'hub'), relation = colors.filter(c => c.kind === 'relation');
+    test.info().annotations.push({ type: 'link contrast', description: colors.map(c => `${c.id} ${c.contrast.toFixed(2)}`).join(', ') });
+    // Readable: every causeway is at least 1.25:1 against the sea beside it. Quieter: none reaches the 1.8:1 the
+    // near-white decks of P8.3 had, and the relation bridges contrast more than the causeways do.
+    for (const c of hub) { expect(c.contrast, c.id).toBeGreaterThanOrEqual(1.25); expect(c.contrast, c.id).toBeLessThan(1.8); }
+    expect(Math.min(...relation.map(c => c.contrast))).toBeGreaterThan(Math.max(...hub.map(c => c.contrast)));
+    // Still the wider of the two kinds of deck, and all five are there.
+    expect(hub).toHaveLength(orderedRegions.length);
+    expect(Math.min(...stage.lines.filter(l => l.kind === 'hub').map(l => l.width))).toBeGreaterThan(Math.max(...stage.lines.filter(l => l.kind === 'relation').map(l => l.width)));
+  });
+
+  test('V3: pins and captions swap with the window\'s width without losing the focused island, the address or the list', async ({ page }) => {
+    test.skip(phone(), '視窗寬度切換在桌機專案驗證');
+    test.setTimeout(120_000);
+    const labels = page.locator('button[aria-label^="聚焦"]');
+    const widthOf = () => labels.first().evaluate(b => b.getBoundingClientRect().width);
+    // After the window or the list changes, the camera frames the islands again over the next frames: wait for the
+    // state the rules are about (no label left under the list), then check all of them.
+    const reframed = () => expect.poll(() => page.evaluate(() => {
+      const list = document.querySelector('[aria-label="選擇學習島嶼"]')!.closest('div[class*="sideNavigation"]')!.getBoundingClientRect();
+      return [...document.querySelectorAll('button[aria-label^="聚焦"]')].filter(b => { const r = b.getBoundingClientRect(); return r.right > list.x && r.x < list.right && r.bottom > list.y && r.y < list.bottom; }).length;
+    }), { timeout: 15_000 }).toBe(0);
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await openRegion(page, '/world/sys');
+    expect(await widthOf()).toBeGreaterThan(60);
+    // Captions to pins: every island keeps its label and its list entry.
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await expect.poll(widthOf).toBeLessThanOrEqual(30);
+    await expect(labels).toHaveCount(islandsInRegion('sys').length);
+    await reframed();
+    await expectLabelsClear(page);
+    // A pin focuses its island; the address follows.
+    await page.getByRole('button', { name: '聚焦Docker 容器島（規劃中）', exact: true }).click();
+    await expect(page).toHaveURL(/\/world\/sys\?island=docker-containers$/);
+    await expect(page.getByRole('region', { name: 'Docker 容器島教材入口' })).toBeVisible();
+    // Back to captions while focused: the same island is still focused, the address has not changed.
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await expect(page).toHaveURL(/\/world\/sys\?island=docker-containers$/);
+    await expect(page.getByRole('region', { name: 'Docker 容器島教材入口' })).toBeVisible();
+    await expect.poll(async () => (await islandBoxes(page, 'sys'))['docker-containers'].width, { timeout: 15_000 }).toBeGreaterThanOrEqual(180);
+    await expect.poll(widthOf).toBeGreaterThan(60);
+    // Down to a phone's width and back: still the same island; then the list picks another one.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.getByRole('region', { name: 'Docker 容器島教材入口' })).toBeVisible();
+    await expect.poll(async () => (await islandBoxes(page, 'sys'))['docker-containers'].width, { timeout: 15_000 }).toBeGreaterThanOrEqual(FOCUSED);
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await page.getByRole('group', { name: '選擇學習島嶼' }).getByRole('button', { name: /Linux 系統島/ }).click();
+    await expect(page).toHaveURL(/island=linux-systems$/);
+    // Escape returns to the overview with pins for every island again, and the header's 清單 button still works.
+    await page.keyboard.press('Escape');
+    await expect(page).toHaveURL(/\/world\/sys$/);
+    await expect(labels).toHaveCount(islandsInRegion('sys').length);
+    await page.locator('.header-tools button').click();
+    await expect(page.getByRole('group', { name: '選擇學習島嶼' })).toHaveCount(0);
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await expect(page.getByRole('group', { name: '選擇學習島嶼' })).toHaveCount(0);
+    await page.locator('.header-tools button').click();
+    await expect(page.getByRole('group', { name: '選擇學習島嶼' })).toBeVisible();
+    // The list is back over the map's right: the camera frames the islands left of it again, and no caption stays under it.
+    await reframed();
+    await expectLabelsClear(page);
   });
 });

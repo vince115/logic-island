@@ -363,15 +363,17 @@ describe('world topology (P8.3, D7)', () => {
     expect(worldLinks(more).filter(l => l.kind === 'hub')).toHaveLength(WORLD_MAP.ring.length + 1);
   });
   it('rules 2 to 4: relation bridges join neighbours on the ring only, not every neighbouring pair has one, and the rest go through the hub', () => {
-    expect(WORLD_MAP.bridges.map(b => b.id)).toEqual(['cs-ai', 'design-web', 'web-sys', 'sys-cs']);
+    // P8.5 (V1): web and sys are neighbours too, and no longer bridged.
+    expect(WORLD_MAP.bridges.map(b => b.id)).toEqual(['cs-ai', 'design-web', 'sys-cs']);
+    expect(ringNeighbours(WORLD_MAP, 'web', 'sys')).toBe(true);
     for (const bridge of WORLD_MAP.bridges) expect(ringNeighbours(WORLD_MAP, ...bridge.between), bridge.id).toBe(true);
     // AI and design are neighbours without a bridge.
     expect(ringNeighbours(WORLD_MAP, 'ai', 'design')).toBe(true);
     expect(bridgedRegions(WORLD_MAP, 'ai')).toEqual(['cs']);
     expect(bridgedRegions(WORLD_MAP, 'cs')).toEqual(['ai', 'sys']);
     expect(bridgedRegions(WORLD_MAP, 'design')).toEqual(['web']);
-    expect(bridgedRegions(WORLD_MAP, 'web')).toEqual(['design', 'sys']);
-    expect(bridgedRegions(WORLD_MAP, 'sys')).toEqual(['cs', 'web']);
+    expect(bridgedRegions(WORLD_MAP, 'web')).toEqual(['design']);
+    expect(bridgedRegions(WORLD_MAP, 'sys')).toEqual(['cs']);
     // Every region is one hub link away from the hub, so any two are two links apart at most.
     for (const id of WORLD_MAP.ring) expect(worldLinks(WORLD_MAP).some(l => l.kind === 'hub' && l.to === id), id).toBe(true);
     expect(ringNeighbours(WORLD_MAP, 'cs', 'design')).toBe(false);

@@ -60,7 +60,7 @@ export interface OverviewLink extends WorldLink { a: SeaPoint; b: SeaPoint; ends
  * How wide a link's deck is drawn (overview units) in each composition; the phone's outlines are smaller, and so are
  * its decks. A hub causeway is wider than a relation bridge.
  */
-export const LINK_WIDTH: Record<OverviewShape, Record<WorldLink['kind'], number>> = { wide: { hub: .55, relation: .42 }, tall: { hub: .36, relation: .28 } };
+export const LINK_WIDTH: Record<OverviewShape, Record<WorldLink['kind'], number>> = { wide: { hub: .46, relation: .42 }, tall: { hub: .31, relation: .28 } };
 /** How far into the tile it lands on a deck reaches (of the tile's radius). */
 const REACH = .72;
 
