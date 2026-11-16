@@ -6,6 +6,7 @@ import { islandsInRegion, orderedRegions, regionCountZh, regionStatus } from '@/
 import { CONTENT_STATUS_LABELS, contentStatusOf, lessonsOfIsland } from '@/content/world/catalog';
 import type { IslandConfig, Region, RegionId } from '@/content/world/types';
 import { regionHint } from '@/lib/nav/site-nav';
+import { REGION_ACCENT } from '@/lib/world/region-accents';
 import { trialsEnabled } from '@/lib/trials/flag';
 import overview from './catalog-overview.module.css';
 import styles from './curriculum.module.css';
@@ -16,7 +17,8 @@ import styles from './curriculum.module.css';
  * links to a lesson page: planned lessons have none, so they are text marked 規劃中 (CONTENT_STATUS_LABELS).
  */
 
-export const REGION_ACCENT: Record<RegionId, string> = { cs: '#4285f4', ai: '#3949ab', design: '#d81b60', web: '#e65100', sys: '#0097a7' };
+// P8.2: one source for the 2D pages and the 3D world (src/lib/world/region-accents.ts); re-exported for its users here.
+export { REGION_ACCENT };
 
 /** The regions, in order, each a link to its section on this page. */
 export function RegionStrip() {

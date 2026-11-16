@@ -4,7 +4,7 @@ import { parseGlb } from '../scripts/assets/derive-runtime-glb.mjs';
 import { assetRegistry, glbAssets } from '@/lib/islands/asset-registry';
 import { DATABASE_LANDMARKS } from '@/lib/islands/database-island';
 import { GLB_CONTRACT, PLANNED_GLB_ASSETS, registryProblems, validateGlbEntry, validateNodeBounds } from '@/lib/islands/glb-island-contract';
-import { REGION_LAYOUTS } from '@/lib/islands/regions/region-layouts';
+import { REGION_LAYOUTS, regionLayout } from '@/lib/islands/regions/region-layouts';
 import { islandsInRegion } from '@/content/world';
 
 /*
@@ -75,7 +75,7 @@ describe('island GLB contract (M3.1)', () => {
       expect(validateGlbEntry(id, asset), id).toEqual([]);
       expect(id in glbAssets, `${id} has no runtime GLB yet`).toBe(false);
       const region = islandsInRegion('cs').some(i => i.id === asset.islandId) ? 'cs' : 'ai';
-      expect(REGION_LAYOUTS[region].layout.world.settlements.some(s => s.islandId === asset.islandId), asset.islandId).toBe(true);
+      expect(regionLayout(region).layout.world.settlements.some(s => s.islandId === asset.islandId), asset.islandId).toBe(true);
     }
     // DB keeps the node names its Transitional Art already uses (the fallback while the GLB loads or fails).
     expect(PLANNED_GLB_ASSETS['databases-island'].nodes.filter(n => n.kind === 'target').map(n => n.node)).toEqual(DATABASE_LANDMARKS.map(l => l.node));

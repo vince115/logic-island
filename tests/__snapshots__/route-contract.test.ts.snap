@@ -243,6 +243,9 @@ exports[`route contract (multi-archipelago v2) > generates the same pages with b
   "world/[region]": [
     "ai",
     "cs",
+    "design",
+    "sys",
+    "web",
   ],
 }
 `;
