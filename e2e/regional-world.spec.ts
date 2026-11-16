@@ -269,5 +269,9 @@ test.describe('regional world: flag on', () => {
     await expect(page.getByRole('region', { name: '程式語言島教材入口' }).locator('a[href^="/curriculum/"]')).toHaveCount(0);
     await chooseIsland(page, '資料庫應用島').click();
     await expect(page).toHaveURL(/island=databases$/);
+    // With no map there is no label to wait for: Escape puts the focus on the island's list entry.
+    await page.keyboard.press('Escape');
+    await expect(page).toHaveURL(/\/world\/cs$/);
+    await expect(chooseIsland(page, '資料庫應用島')).toBeFocused();
   });
 });

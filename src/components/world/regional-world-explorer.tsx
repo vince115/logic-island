@@ -135,11 +135,16 @@ export function RegionalWorldExplorer({ regionId, regionName, regionNameEn, isla
     if (selectedId || !id) return;
     returnTo.current = null;
     const name = islands.find(i => i.id === id)?.name;
-    // The map label appears a frame after the island is released; the list entry is always there.
-    const frame = requestAnimationFrame(() => {
-      const target = document.querySelector<HTMLElement>(`button[aria-label^="聚焦${name}"]`) ?? document.querySelector<HTMLElement>(`[data-island-choice="${id}"]`);
-      target?.focus({ preventScroll: true });
-    });
+    // The scene draws the map label a few frames after the island is released (more on a busy machine), so the label
+    // gets half a second of frames to appear. The list entry is always there: it takes the focus at once when there is
+    // no map, and after those frames otherwise.
+    let frames = 30;
+    const seek = () => {
+      const label = document.querySelector<HTMLElement>(`button[aria-label^="聚焦${name}"]`);
+      if (!label && --frames > 0 && document.querySelector('canvas')) { frame = requestAnimationFrame(seek); return; }
+      (label ?? document.querySelector<HTMLElement>(`[data-island-choice="${id}"]`))?.focus({ preventScroll: true });
+    };
+    let frame = requestAnimationFrame(seek);
     return () => cancelAnimationFrame(frame);
   }, [selectedId, islands]);
   const phone = useSyncExternalStore(subscribe, () => matchMedia(PHONE).matches, () => false);
