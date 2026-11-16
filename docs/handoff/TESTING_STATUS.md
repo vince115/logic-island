@@ -10,6 +10,10 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## P8.6 Hotfix PR #8 與 P8 整合（2026-11-16）
+
+PR #8（導覽打包修正）以 Merge Commit 併入 `main`（`9718f89`）；合併前先把 R8 之後的 `main` 合進 hotfix 分支重驗（Vitest 1926／9／0、E2E 64／2／0、22 組頁面與 `main` 相同）。Production 實測有側欄的頁面腳本量由約 2.2 MB 降到 0.63–0.85 MB；Smoke 34 次載入 0 錯誤；下載的 316 份回應洩漏掃描 clean。P8 分支合入最新 `main`（`be7671c`，無衝突）後重跑全部驗收：Typecheck／ESLint exit 0；Vitest 1963 通過／9 略過／0 失敗；全套 E2E 旗標開啟 495 通過／95 略過／0 失敗、預設建置 425 通過／165 略過／0 失敗；洩漏掃描（追蹤檔案、分支歷史、兩種建置）皆 clean。Flag-off 證明：P8 預設建置的 `/world/**` 全為 404，`/`、`/islands`、`/islands/legacy`、`/islands/candidate` 桌機與手機逐像素 0 差異，其餘 30 組頁面與 `main` 相同。Vitest 要把 IntelliJ 內建 JDK 放進 PATH，否則 279 個 Java 範例測試會被略過而不是失敗（本階段第一次執行就漏了，數字不採計）。V3（圖釘／名牌隨視窗寬度切換）的偶發失敗已找到根因並修正：測試的 `reframed()` 等的條件在「視窗已改、場景還沒跟上」時也成立；6 個平行 worker 加壓下修正前 300 次失敗 10 次、修正後 600 次 0 失敗，產品沒有修改（`docs/planning/evidence/p8-6/v3-resize-race.md`）。重現偶發的 3D 測試失敗時，在命令列加 `--trace retain-on-failure --workers 4`～`6 --repeat-each N`（隔離設定預設 `trace: off`，P8.5 那次失敗因此沒有留下資料）。全部為 headless Chromium；**沒有真機**。完整紀錄：`docs/planning/P8_6_HOTFIX_AND_P8_INTEGRATION.md`；公開發布前的待辦：`docs/planning/P8_RELEASE_CHECKLIST.md`。
+
 ## P8.5 Visual Finalization & Performance Hotfix（2026-11-16）
 
 全套 E2E（旗標開啟）第一次 0 失敗：489 通過／95 略過。`islands.spec.ts` 的 3D 點擊不穩定（P1-19）有兩個原因並都已修：舊版 `/islands` 相機聚焦後沒有要求重繪（`camera-controller.tsx`），以及 `clickNear` 的「等標籤停止移動」實際沒有等；逐幀量測見 `docs/planning/evidence/p8-5/islands-focus-timeline.md`。`e2e/world-topology.spec.ts` 新增「P8.5 visual decisions」（V1 無 WEB—SYS 橋、V3 圖釘／名牌切換、V4 樞紐橋對比）與 320／375／390 px 的標頭測試。導覽打包修正另以 `hotfix/nav-client-bundle` 送到 `main`（PR #8）。詳見 [P8_5_VISUAL_FINALIZATION_AND_PERFORMANCE_HOTFIX](../planning/P8_5_VISUAL_FINALIZATION_AND_PERFORMANCE_HOTFIX.md)。
