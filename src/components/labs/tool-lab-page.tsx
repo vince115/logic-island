@@ -7,6 +7,7 @@ import { TerminalLab } from './terminal-lab';
 import { FlexboxLab } from './flexbox-lab';
 import { GridLab } from './grid-lab';
 import { ResponsiveLab } from './responsive-lab';
+import { MobileNavLab } from './mobile-nav-lab';
 import styles from './tool-lab.module.css';
 
 /*
@@ -64,9 +65,19 @@ const UNDERSTAND: Record<string, React.ReactNode> = {
     </ul>
     <p>這個模擬器的預覽框真的有那麼寬：媒體查詢由瀏覽器判斷，不是把畫面縮小。</p>
   </>,
+  'mobile-ux': <>
+    <p>手機畫面小、用手指操作，導覽要在<strong>好找</strong>與<strong>不佔空間</strong>之間取捨。常見四種模式：</p>
+    <ul>
+      <li><strong>Bottom Navigation</strong>：3–5 個最常用的頁面固定在下緣，拇指最容易碰到。</li>
+      <li><strong>Navigation Drawer</strong>：從側邊滑出的面板，能放很多項目；打開時是對話框，焦點要留在裡面。</li>
+      <li><strong>Tabs</strong>：同一主題下的平行檢視；用方向鍵在分頁間移動。</li>
+      <li><strong>Hamburger Menu</strong>：把次要連結收進一個按鈕；按鈕要有文字或可讀的名稱。</li>
+    </ul>
+    <p>每種模式都要能用鍵盤與螢幕報讀器操作，觸控目標至少 48×48 CSS px（WCAG 2.5.8 的最低要求是 24×24）。</p>
+  </>,
 };
 
-const LABS: Record<string, () => React.ReactNode> = { 'color-contrast': () => <ContrastLab/>, 'flexbox-playground': () => <FlexboxLab/>, 'css-grid-playground': () => <GridLab/>, 'responsive-layout': () => <ResponsiveLab/>, 'linux-terminal': () => <TerminalLab/> };
+const LABS: Record<string, () => React.ReactNode> = { 'color-contrast': () => <ContrastLab/>, 'flexbox-playground': () => <FlexboxLab/>, 'css-grid-playground': () => <GridLab/>, 'responsive-layout': () => <ResponsiveLab/>, 'mobile-ux': () => <MobileNavLab/>, 'linux-terminal': () => <TerminalLab/> };
 export const hasToolLabComponent = (id: string) => id in LABS;
 
 export function ToolLabPage({ lab }: { lab: LabEntry }) {

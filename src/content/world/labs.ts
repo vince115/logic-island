@@ -65,8 +65,10 @@ const toolLabs: LabEntry[] = [
   { id: 'responsive-layout', kind: 'tool', domain: 'web-design', title: 'Responsive Layout Simulator', approach: 'design', status: 'implemented',
     activities: ['responsive-sim'], summary: '在真實寬度的預覽框裡切換手機、平板、桌機或自訂寬度，調整斷點，看 mobile-first 媒體查詢何時生效、版面如何改變。',
     objectives: ['說明 mobile-first：先寫基本樣式，再用 min-width 逐步加上規則', '判斷某個寬度套用了哪些媒體查詢（min-width 含等於）', '為一個版面選擇斷點並寫出對應的 CSS'] },
-  { id: 'mobile-ux', kind: 'tool', domain: 'mobile', title: 'Mobile Navigation Simulator', approach: 'design', status: 'planned',
-    activities: ['mobile-nav-sim'], summary: '在不同裝置尺寸比較 Tab bar、Drawer、Bottom sheet，檢查觸控目標與安全區域。' },
+  // R8.3 (2026-11-16): implemented, /learn/mobile-ux.
+  { id: 'mobile-ux', kind: 'tool', domain: 'mobile', title: 'Mobile Navigation Simulator', approach: 'design', status: 'implemented',
+    activities: ['mobile-nav-sim'], summary: '在模擬手機上實際操作 Bottom Navigation、Navigation Drawer、Tabs 與 Hamburger Menu，比較適用情境，並檢查鍵盤操作、焦點與觸控目標。',
+    objectives: ['依目的地的數量與重要性選擇導覽模式', '說明每種模式的鍵盤操作與焦點管理（aria-current、焦點陷阱、roving tabindex、disclosure）', '確認觸控目標至少 48×48 CSS px'] },
   { id: 'accessibility-checker', kind: 'tool', domain: 'ui-ux', title: 'Accessibility Checker', approach: 'design', status: 'planned',
     activities: ['a11y-checker'], summary: '用預備的介面片段練習找出缺少名稱、焦點順序錯誤與只靠顏色傳達的問題。' },
   { id: 'embedding-similarity', kind: 'tool', domain: 'ai', title: 'Embedding Similarity Explorer', approach: 'design', status: 'planned',

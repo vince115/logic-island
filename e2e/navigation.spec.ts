@@ -9,7 +9,7 @@ import { lessons } from '../src/content/curriculum/lessons';
  */
 const F01 = lessons.find(l => l.lessonId === 'F01')!;
 // The tool labs with a page, in registry order (P4, R7, R8, P7).
-const TOOL_LABS = ['/learn/color-contrast', '/learn/flexbox-playground', '/learn/css-grid-playground', '/learn/responsive-layout', '/learn/linux-terminal'];
+const TOOL_LABS = ['/learn/color-contrast', '/learn/flexbox-playground', '/learn/css-grid-playground', '/learn/responsive-layout', '/learn/mobile-ux', '/learn/linux-terminal'];
 
 test('/visualize 與 /visualize/<slug> 永久轉址到 /learn，保留 slug 與查詢參數', async ({ request }) => {
   for (const [from, to] of [['/visualize', '/learn'], ['/visualize/array', '/learn/array'], ['/visualize/bfs?ref=bookmark&x=1', '/learn/bfs?ref=bookmark&x=1']]) {
@@ -358,5 +358,66 @@ test('Responsive Layout Simulator：預覽框以真實寬度套用媒體查詢�
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const lessons = page.getByRole('region', { name: '使用這個實驗的課程' });
   await expect(lessons.getByText('RWD01')).toBeVisible();
+  await expect(lessons.locator('a')).toHaveCount(0);
+});
+
+// R8.3: Mobile Navigation Simulator — four working patterns, operated by keyboard, with measured touch targets.
+test('Mobile Navigation Simulator：四種模式可切換操作，鍵盤、焦點與 ARIA 正確，觸控目標實測至少 48px', async ({ page }) => {
+  await page.goto('/learn/mobile-ux');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Mobile Navigation Simulator');
+  const phone = page.getByTestId('phone'), touch = page.getByText(/^觸控目標：/);
+  // Bottom navigation: the current page is aria-current, not only a colour.
+  const bottom = phone.getByRole('navigation', { name: '主要導覽' });
+  await bottom.getByRole('button', { name: '課程' }).click();
+  await expect(bottom.getByRole('button', { name: '課程' })).toHaveAttribute('aria-current', 'page');
+  await expect(phone.getByRole('heading', { level: 3 })).toHaveText('課程');
+  await expect(touch).toContainText('達到建議的 48×48');
+  // Drawer: a modal that takes focus, keeps Tab inside, closes on Escape and gives focus back.
+  await page.getByRole('button', { name: 'Navigation Drawer' }).click();
+  const opener = phone.getByRole('button', { name: '導覽', exact: true });
+  await opener.focus();
+  await page.keyboard.press('Enter');
+  await expect(opener).toHaveAttribute('aria-expanded', 'true');
+  const dialog = phone.getByRole('dialog', { name: '導覽', exact: true });
+  await expect(dialog.getByRole('button', { name: '關閉導覽' })).toBeFocused();
+  for (let i = 0; i < 5; i++) await page.keyboard.press('Tab');
+  await expect(dialog.getByRole('button', { name: '關閉導覽' })).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(dialog.getByRole('button', { name: '我的' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(opener).toBeFocused();
+  await expect(opener).toHaveAttribute('aria-expanded', 'false');
+  await opener.click();
+  await phone.getByRole('dialog').getByRole('button', { name: '搜尋' }).click();
+  await expect(phone.getByRole('heading', { level: 3 })).toHaveText('搜尋');
+  await expect(opener).toBeFocused();
+  // Tabs: roving tabindex — arrows move selection and focus, Home and End jump.
+  await page.getByRole('button', { name: 'Tabs', exact: true }).click();
+  const tablist = phone.getByRole('tablist', { name: '課程分頁' });
+  await tablist.getByRole('tab', { name: '課程內容' }).focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(tablist.getByRole('tab', { name: '討論' })).toBeFocused();
+  await expect(tablist.getByRole('tab', { name: '討論' })).toHaveAttribute('aria-selected', 'true');
+  await expect(phone.getByRole('tabpanel')).toHaveAccessibleName('討論');
+  await page.keyboard.press('End');
+  await expect(tablist.getByRole('tab', { name: '作業' })).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(tablist.getByRole('tab', { name: '課程內容' })).toHaveAttribute('aria-selected', 'true');
+  await expect(tablist.locator('[tabindex="0"]')).toHaveCount(1);
+  // Hamburger: a disclosure that Escape collapses, returning focus to its button.
+  await page.getByRole('button', { name: 'Hamburger Menu' }).click();
+  const menuButton = phone.getByRole('button', { name: '選單' });
+  await menuButton.click();
+  await expect(menuButton).toHaveAttribute('aria-expanded', 'true');
+  await phone.getByRole('navigation', { name: '網站選單' }).getByRole('button', { name: '我的' }).focus();
+  await page.keyboard.press('Escape');
+  await expect(phone.getByRole('navigation', { name: '網站選單' })).toHaveCount(0);
+  await expect(menuButton).toBeFocused();
+  await expect(touch).toContainText('達到建議的 48×48');
+  await expect(page.getByRole('heading', { name: /Hamburger Menu：什麼時候用/ })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const lessons = page.getByRole('region', { name: '使用這個實驗的課程' });
+  await expect(lessons.getByText('MOB02')).toBeVisible();
   await expect(lessons.locator('a')).toHaveCount(0);
 });

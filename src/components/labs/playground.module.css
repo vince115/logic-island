@@ -69,3 +69,39 @@
 .queries { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 6px; }
 .queries li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border: 1px dashed var(--border-strong); border-radius: 8px; font-size: var(--text-sm); color: var(--muted); }
 .queries li[data-active] { border-style: solid; border-color: var(--accent-ink, var(--accent)); color: var(--text); font-weight: 650; }
+
+/* R8.3: Mobile Navigation Simulator. The phone is drawn in fixed light colours so every pattern reads the same in
+   either site theme; its controls are at least 48 × 48 CSS px. */
+.phoneStage { margin-top: 14px; padding: 16px; border-radius: 10px; background: var(--soft); display: grid; place-items: center; }
+.phone { position: relative; width: min(360px, 100%); height: 560px; display: flex; flex-direction: column; overflow: hidden;
+  border: 10px solid #1d2b42; border-radius: 28px; background: #f8faff; color: #1d2b42; }
+.appBar { display: flex; align-items: center; gap: 8px; min-height: 56px; padding: 4px 12px; background: #2f5fb3; color: #fff; flex: none; }
+.appBar strong { font-size: 17px; }
+.menuButton { display: inline-flex; align-items: center; gap: 6px; min-width: 48px; min-height: 48px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: #fff; font-size: 15px; font-weight: 700; }
+.menuButton:hover, .menuButton[aria-expanded='true'] { background: #ffffff26; }
+.screen { flex: 1; min-height: 0; overflow: auto; }
+.panelBody { padding: 16px; }
+.panelBody h3 { font-size: 20px; margin-bottom: 6px; }
+.panelBody p { font-size: 15px; line-height: 1.6; color: #45556c; }
+.bottomNav { flex: none; border-top: 1px solid #d5deeb; background: #fff; }
+.bottomNav ul { list-style: none; margin: 0; padding: 0 0 6px; display: grid; grid-template-columns: repeat(4, 1fr); }
+.bottomItem, .menuItem { width: 100%; min-height: 56px; border: 0; background: transparent; color: #45556c; font-size: 14px; font-weight: 600; }
+.bottomItem[aria-current='page'] { color: #1d4ea3; font-weight: 800; box-shadow: inset 0 3px #1d4ea3; }
+.menuList { list-style: none; margin: 0; padding: 4px 0; background: #fff; }
+.menuItem { text-align: left; padding: 0 20px; font-size: 16px; border-bottom: 1px solid #edf1f7; }
+.menuItem[aria-current='page'] { color: #1d4ea3; font-weight: 800; box-shadow: inset 4px 0 #1d4ea3; }
+.phone > nav .menuList { box-shadow: 0 6px 16px #1d2b4226; }
+.scrim { position: absolute; inset: 0; background: #0b142280; }
+.drawer { position: absolute; top: 0; bottom: 0; left: 0; width: 78%; background: #fff; box-shadow: 4px 0 20px #0b142240; display: flex; flex-direction: column; }
+.drawerHead { display: flex; align-items: center; justify-content: space-between; min-height: 56px; padding: 4px 4px 4px 20px; border-bottom: 1px solid #edf1f7; font-size: 17px; }
+.iconButton { display: grid; place-items: center; width: 48px; height: 48px; border: 0; border-radius: 8px; background: transparent; color: #1d2b42; }
+.tabList { display: flex; border-bottom: 1px solid #d5deeb; background: #fff; }
+.tab { flex: 1; min-height: 48px; border: 0; background: transparent; color: #45556c; font-size: 15px; font-weight: 600; }
+.tab[aria-selected='true'] { color: #1d4ea3; font-weight: 800; box-shadow: inset 0 -3px #1d4ea3; }
+.phone button:focus-visible { outline: 3px solid #d97706; outline-offset: -3px; }
+.touch { margin: 10px 0 0; font-size: var(--text-sm); font-weight: 650; }
+.touch[data-level='fail'] { color: #b3261e; }
+.when { font-size: var(--text-sm); line-height: 1.7; margin: 0 0 12px; }
+.compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+.compare h3 { font-size: var(--text-sm); margin-bottom: 6px; }
+.compare ul { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; font-size: var(--text-sm); line-height: 1.6; }
