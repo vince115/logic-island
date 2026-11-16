@@ -64,3 +64,21 @@
 | 洩漏掃描 | 正式站回應（296 份 HTML／JS）、提交範圍與 `.next` 皆乾淨 |
 | 後續修正 | 路線卡原寫「62 堂 · 已開放 7 堂 · 規劃中」，總數可能被讀成已完成教材數；改為「路線共 62 堂 · 已開放 7 堂 · 其餘 55 堂規劃中」並加 E2E 斷言（本記錄所在的 PR） |
 
+## 6. R8：Web／UI 互動實驗擴充（2026-11-16）
+
+分支 `r8/web-labs`，自 `main` `3605922`（已含 P6／P7 的 sys 區域與 Linux Terminal Simulator）。三個實驗沿用 R7 的 Tool Lab Registry、Understand → Experiment → Build 與 Flexbox 的控制面板；樣式合併為 `src/components/labs/playground.module.css`，並新增共用的「複製 CSS」按鈕（`copy-css.tsx`，Flexbox 也使用）。
+
+| 實驗 | 路由 | 活動 id → 課程（皆仍為規劃中） | 模型與重點 |
+|---|---|---|---|
+| CSS Grid Playground | `/learn/css-grid-playground`（registry id 由 `grid-playground` 改為 `css-grid-playground`，活動 id 不變） | `grid-playground` → UI05、RWD05、RWD06 | `src/lib/grid.ts`：軌道與位置用小型文法檢查，錯誤值標示 `aria-invalid` 且不套用；gap／row-gap／column-gap、justify／align-items、grid-column／row；2 Columns、3 Columns、Dashboard、Gallery |
+| Responsive Layout Simulator | `/learn/responsive-layout` | `responsive-sim` → RWD01、RWD02、RWD07–RWD10、MOB06 | `src/lib/responsive.ts`：示範頁放在**真實寬度**的 sandbox iframe，媒體查詢由瀏覽器判斷（不是縮放截圖）；超出時只用 transform 縮小顯示。Mobile／Tablet／Desktop、自訂寬度、兩個可調斷點、尺規、套用中的查詢、mobile-first CSS（與框內 CSS 同一字串） |
+| Mobile Navigation Simulator | `/learn/mobile-ux` | `mobile-nav-sim` → IXD07、RWD11、MOB02、MOB03 | `src/lib/mobile-nav.ts`：Bottom Navigation（`aria-current`）、Navigation Drawer（modal、焦點陷阱、Esc／遮罩關閉並還原焦點）、Tabs（roving tabindex、方向鍵、Home／End）、Hamburger（disclosure、Esc）；觸控目標由實際渲染量測（≥ 48px） |
+
+**測試抓到的兩個真實問題（已修正）**
+- Responsive：全站 `box-sizing: border-box` 讓 iframe 的 1px 邊框吃掉寬度，768 的預覽實際 viewport 只有 766，剛好低於斷點。改用 outline，E2E 檢查框內 `innerWidth`。
+- Mobile Nav：抽屜開啟時 app bar 設為 `inert`，關閉時在同一輪把焦點還給開關按鈕會失敗（inert 元素不能取得焦點）。改為關閉渲染完成後再還原焦點。
+
+**未改**：80 堂正式課程與所有規劃中課程的狀態、Color Contrast、Flexbox（只多了複製按鈕）、Linux Terminal、3D 與 GLB、Region Overview、Sidebar、考試引擎與題庫、旗標。
+
+**驗證**：tsc、ESLint 0；Vitest 76 檔 1923 通過、9 skip（新增 `grid`、`responsive`、`mobile-nav` 三個模型測試）；路由契約刻意新增三個路由；navigation＋player E2E 50 通過（新增三個實驗的互動案例；爬蟲含全部工具實驗頁）；1440 桌機、深色、iPhone 13 截圖，無水平溢出；提交範圍與 `.next` leak-scan 乾淨。已知：`player.spec`「首頁與主選單導航」在與 navigation 一起跑時偶發逾時，見 KNOWN_ISSUES P1-35。
+
