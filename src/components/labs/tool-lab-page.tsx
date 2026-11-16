@@ -5,6 +5,7 @@ import { APPROACH_STEPS, LAB_DOMAIN_LABELS, lessonsUsingLab, type LabEntry } fro
 import { ContrastLab } from './contrast-lab';
 import { TerminalLab } from './terminal-lab';
 import { FlexboxLab } from './flexbox-lab';
+import { GridLab } from './grid-lab';
 import styles from './tool-lab.module.css';
 
 /*
@@ -43,9 +44,19 @@ const UNDERSTAND: Record<string, React.ReactNode> = {
     </ul>
     <p>這是瀏覽器內的模擬：檔案只存在這個頁面的記憶體裡，只支援固定的指令，不會執行真實的 Shell、不會讀寫你的電腦，重新整理或按「重設環境」就回到最初的樣子。你的身分是一般使用者 <code>learner</code>，所以 <code>/etc/shadow</code> 讀不到、<code>/etc</code> 裡也不能建立檔案，這正是權限在保護系統。</p>
   </>,
+  'css-grid-playground': <>
+    <p>CSS Grid 同時排<strong>欄</strong>與<strong>列</strong>：先用軌道畫出格線，再把項目放進格子。Flexbox 處理一條線；Grid 處理整個平面。</p>
+    <ul>
+      <li><code>grid-template-columns</code>／<code>grid-template-rows</code> 定義軌道。<code>fr</code> 是剩餘空間的份數，<code>repeat(3, 1fr)</code> 是三等份，<code>minmax(120px, 1fr)</code> 是「至少 120px，最多分到一份」。</li>
+      <li><code>gap</code> 是格線之間的間距；也可以用 <code>row-gap</code>、<code>column-gap</code> 分開設定。</li>
+      <li><code>justify-items</code>（水平）與 <code>align-items</code>（垂直）決定項目在自己格子裡的位置；預設 stretch 會填滿格子。</li>
+      <li>格線有編號：3 欄有 4 條直線（1 到 4，<code>-1</code> 是最後一條）。<code>grid-column: 1 / 3</code> 從第 1 條線到第 3 條線，<code>span 2</code> 是跨兩格。</li>
+    </ul>
+    <p><code>repeat(auto-fill, minmax(…))</code> 讓欄數隨寬度改變，不用寫媒體查詢：Gallery 範例就是這樣做的。</p>
+  </>,
 };
 
-const LABS: Record<string, () => React.ReactNode> = { 'color-contrast': () => <ContrastLab/>, 'flexbox-playground': () => <FlexboxLab/>, 'linux-terminal': () => <TerminalLab/> };
+const LABS: Record<string, () => React.ReactNode> = { 'color-contrast': () => <ContrastLab/>, 'flexbox-playground': () => <FlexboxLab/>, 'css-grid-playground': () => <GridLab/>, 'linux-terminal': () => <TerminalLab/> };
 export const hasToolLabComponent = (id: string) => id in LABS;
 
 export function ToolLabPage({ lab }: { lab: LabEntry }) {

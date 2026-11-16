@@ -57,8 +57,10 @@ const toolLabs: LabEntry[] = [
   { id: 'flexbox-playground', kind: 'tool', domain: 'web-design', title: 'Flexbox Playground', approach: 'design', status: 'implemented', activities: ['flexbox-playground'],
     summary: '調整 flex-direction、justify-content、align-items、flex-wrap 與 gap，看真實的 Flexbox 容器如何排列，並取得對應的 CSS。',
     objectives: ['分辨主軸與交錯軸，以及 flex-direction 如何改變它們', '用 justify-content 與 align-items 對齊項目', '用 flex-wrap、gap 與 flex-grow 處理空間不足與剩餘空間'] },
-  { id: 'grid-playground', kind: 'tool', domain: 'web-design', title: 'CSS Grid Playground', approach: 'design', status: 'planned',
-    activities: ['grid-playground'], summary: '設定欄與列、fr 單位、gap 與 grid-template-areas，預覽二維版面並顯示對應的 CSS。' },
+  // R8.1 (2026-11-16): implemented; its route is /learn/css-grid-playground (the activity id stays grid-playground).
+  { id: 'css-grid-playground', kind: 'tool', domain: 'web-design', title: 'CSS Grid Playground', approach: 'design', status: 'implemented',
+    activities: ['grid-playground'], summary: '設定欄與列的軌道、fr 單位、gap 與對齊，把項目放到指定的格線上，預覽二維版面並複製對應的 CSS。',
+    objectives: ['用 grid-template-columns／rows 定義軌道，分辨 fr、px 與 minmax()', '用 gap、justify-items、align-items 控制間距與格內對齊', '用 grid-column／grid-row 的線號與 span 放置項目'] },
   { id: 'responsive-layout', kind: 'tool', domain: 'web-design', title: 'Responsive Layout Simulator', approach: 'design', status: 'planned',
     activities: ['responsive-sim'], summary: '拖動視窗寬度與斷點，比較 mobile-first 版面在手機、平板、桌機的變化與對應的媒體查詢。' },
   { id: 'mobile-ux', kind: 'tool', domain: 'mobile', title: 'Mobile Navigation Simulator', approach: 'design', status: 'planned',

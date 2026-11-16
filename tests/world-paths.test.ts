@@ -132,8 +132,9 @@ describe('activity registry (F.0)', () => {
     const used = new Set(lessons.filter(l => l.lessonStatus === 'complete' && l.activity).map(l => l.activity!));
     // Multi-archipelago v2 (P4): color-contrast is implemented by its standalone lab (/learn/color-contrast).
     // P7: terminal-sim likewise, by /learn/linux-terminal (R7: flexbox-playground by its own page).
-    const standalone = new Set(['color-contrast', 'flexbox-playground', 'terminal-sim']);
-    expect(of('activity').filter(a => a.availability === 'implemented').map(a => a.id)).toEqual(['architecture-diagram', 'color-contrast', 'erd-builder', 'flexbox-playground', 'normalization-steps', 'protocol-sequence', 'query-plan', 'sql-playground', 'terminal-sim', 'transaction-timeline'].filter(id => standalone.has(id) || used.has(id as 'sql-playground')));
+    // R8.1: grid-playground by /learn/css-grid-playground.
+    const standalone = new Set(['color-contrast', 'flexbox-playground', 'grid-playground', 'terminal-sim']);
+    expect(of('activity').filter(a => a.availability === 'implemented').map(a => a.id)).toEqual(['architecture-diagram', 'color-contrast', 'erd-builder', 'flexbox-playground', 'grid-playground', 'normalization-steps', 'protocol-sequence', 'query-plan', 'sql-playground', 'terminal-sim', 'transaction-timeline'].filter(id => standalone.has(id) || used.has(id as 'sql-playground')));
     expect(getActivity('color-contrast')).toMatchObject({ lab: 'color-contrast', version: '1.0.0', subjects: ['labs', 'ui-design'] });
     expect(getActivity('terminal-sim')).toMatchObject({ lab: 'linux-terminal', version: '1.0.0', availability: 'implemented' });
     expect(getActivity('terminal-sim')!.subjects).toEqual(['labs', 'linux-systems', 'network-servers']);

@@ -8,6 +8,8 @@ import { lessons } from '../src/content/curriculum/lessons';
  * no internal link points at a page that is gone.
  */
 const F01 = lessons.find(l => l.lessonId === 'F01')!;
+// The tool labs with a page, in registry order (P4, R7, R8, P7).
+const TOOL_LABS = ['/learn/color-contrast', '/learn/flexbox-playground', '/learn/css-grid-playground', '/learn/linux-terminal'];
 
 test('/visualize 與 /visualize/<slug> 永久轉址到 /learn，保留 slug 與查詢參數', async ({ request }) => {
   for (const [from, to] of [['/visualize', '/learn'], ['/visualize/array', '/learn/array'], ['/visualize/bfs?ref=bookmark&x=1', '/learn/bfs?ref=bookmark&x=1']]) {
@@ -44,8 +46,8 @@ test('互動實驗島列出六個實驗；實驗頁沒有模式切換，麵包�
   // Multi-archipelago v2 (P4): the six algorithm labs, plus the tool labs that are open; planned ones are not links.
   await expect(page.locator('a.course-card:not([data-kind])')).toHaveCount(6);
   // R7: open tool labs are links, the planned ones cards without a link; P7 adds the Linux Terminal Simulator.
-  await expect(page.locator('a.course-card[data-kind="tool"]')).toHaveCount(3);
-  expect(await page.locator('a.course-card[data-kind="tool"]').evaluateAll(as => as.map(a => a.getAttribute('href')))).toEqual(['/learn/color-contrast', '/learn/flexbox-playground', '/learn/linux-terminal']);
+  // R8: the open tool labs, in registry order (CSS Grid from R8.1).
+  expect(await page.locator('a.course-card[data-kind="tool"]').evaluateAll(as => as.map(a => a.getAttribute('href')))).toEqual(TOOL_LABS);
   await expect(page.locator('.course-card[data-status="planned"]').first()).toBeVisible();
   await expect(page.locator('a.course-card[data-status="planned"]')).toHaveCount(0);
   await page.goto('/learn/array');
@@ -80,8 +82,8 @@ test('六個實驗與所有課綱頁（含資料庫應用島已開放的課）�
   test.setTimeout(240_000);
   // P4, R7: the open tool labs are crawled too (/learn/color-contrast, /learn/flexbox-playground); P7 adds /learn/linux-terminal.
   // R6: and the region overviews (P6 adds sys).
-  const pages = ['/', '/learn', '/curriculum', ...['cs', 'ai', 'design', 'web', 'sys'].map(r => `/regions/${r}`), ...courses.map(c => `/learn/${c.slug}`), '/learn/color-contrast', '/learn/flexbox-playground', '/learn/linux-terminal', ...lessons.map(l => `/curriculum/${l.slug}`)];
-  expect(pages).toHaveLength(3 + 5 + 9 + lessons.length);
+  const pages = ['/', '/learn', '/curriculum', ...['cs', 'ai', 'design', 'web', 'sys'].map(r => `/regions/${r}`), ...courses.map(c => `/learn/${c.slug}`), ...TOOL_LABS, ...lessons.map(l => `/curriculum/${l.slug}`)];
+  expect(pages).toHaveLength(3 + 5 + courses.length + TOOL_LABS.length + lessons.length);
   const links = new Set<string>();
   for (const path of pages) {
     const res = await page.goto(path);
@@ -268,10 +270,11 @@ test('Flexbox Playground：調整屬性後預覽與 CSS 同步，預設版面可
   await expect(preview).toHaveCSS('justify-content', 'space-between');
   await expect(css).toContainText('justify-content: space-between;');
   await expect(css).toContainText('align-items: center;');
-  await expect(page.locator('[aria-live="polite"]')).toContainText('頭尾貼齊');
+  // The reading list (the copy button has its own status region, R8).
+  await expect(page.locator('ul[aria-live="polite"]')).toContainText('頭尾貼齊');
   await page.getByLabel('flex-direction').selectOption('column');
   await expect(preview).toHaveCSS('flex-direction', 'column');
-  await expect(page.locator('[aria-live="polite"]')).toContainText('主軸是垂直方向');
+  await expect(page.locator('ul[aria-live="polite"]')).toContainText('主軸是垂直方向');
   await page.getByRole('button', { name: '卡片換行' }).click();
   await expect(preview.locator('> div')).toHaveCount(7);
   await expect(css).toContainText('flex-wrap: wrap;');
@@ -280,6 +283,43 @@ test('Flexbox Playground：調整屬性後預覽與 CSS 同步，預設版面可
   await expect(css).toContainText('.item:nth-child(2)');
   const lessons = page.getByRole('region', { name: '使用這個實驗的課程' });
   await expect(lessons.getByText('RWD03')).toBeVisible();
+  await expect(lessons.locator('a')).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+// R8.1: CSS Grid Playground — typed tracks reach the real grid only when valid; placements and presets follow.
+test('CSS Grid Playground：輸入軌道與位置即時套用到真實格線，錯誤值標示且不套用，預設版面與 CSS 同步', async ({ page }) => {
+  await page.goto('/learn/css-grid-playground');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('CSS Grid Playground');
+  const preview = page.getByTestId('grid-preview'), css = page.locator('pre code'), cols = page.getByLabel('grid-template-columns');
+  await expect(preview.locator('> div')).toHaveCount(6);
+  await cols.fill('200px 1fr');
+  await expect(preview).toHaveCSS('grid-template-columns', /^200px \d+(\.\d+)?px$/);
+  await expect(css).toContainText('grid-template-columns: 200px 1fr;');
+  // A half-typed value is flagged and the last valid one stays applied.
+  await cols.fill('200px 1f');
+  await expect(cols).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.getByText('看不懂這個值')).toBeVisible();
+  await expect(css).toContainText('grid-template-columns: 200px 1fr;');
+  await cols.fill('repeat(3, 1fr)');
+  await expect(cols).toHaveAttribute('aria-invalid', 'false');
+  await page.getByLabel('grid-column').fill('span 2');
+  await expect(preview.locator('> div').first()).toHaveCSS('grid-column-start', 'span 2');
+  await expect(css).toContainText('.item:nth-child(1) {\n  grid-column: span 2;');
+  await page.getByRole('button', { name: 'Dashboard' }).click();
+  await expect(css).toContainText('grid-template-rows: auto 1fr 1fr;');
+  await expect(preview.locator('> div').first()).toHaveCSS('grid-column-end', '-1');
+  await expect(page.locator('ul[aria-live="polite"]')).toContainText('第 2 個項目：列從第 2 條線到第 4 條線');
+  await page.getByRole('checkbox', { name: '列與欄分開設定間距' }).check();
+  await page.getByRole('slider').nth(1).fill('24');
+  await expect(css).toContainText('column-gap: 24px;');
+  // 複製 CSS puts exactly the shown code on the clipboard, and says so.
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.getByRole('button', { name: '複製 CSS' }).click();
+  await expect(page.getByRole('status')).toHaveText('已複製到剪貼簿。');
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(await css.textContent());
+  const lessons = page.getByRole('region', { name: '使用這個實驗的課程' });
+  await expect(lessons.getByText('RWD05')).toBeVisible();
   await expect(lessons.locator('a')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

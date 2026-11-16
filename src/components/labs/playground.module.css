@@ -1,4 +1,4 @@
-/* R7: Flexbox Playground. Site tokens only (light and dark); item colours come from the accent. */
+/* R7, R8: the web layout playgrounds (Flexbox, CSS Grid, Responsive, Mobile Navigation). Site tokens only (light and dark). */
 .lab { display: grid; gap: 18px; margin-top: 18px; }
 .panel { border: 1px solid var(--border); border-radius: 12px; background: var(--panel); padding: 16px 18px; min-width: 0; }
 .panel h2 { display: flex; flex-direction: column; gap: 2px; font-size: var(--text-lg); margin-bottom: 12px; }
@@ -29,3 +29,25 @@
 .code { margin: 0; padding: 12px 14px; border-radius: 8px; background: var(--soft); font: var(--text-sm) / 1.6 ui-monospace, monospace; white-space: pre-wrap; }
 
 @media (prefers-reduced-motion: reduce) { .container { transition: none; } }
+
+/* R8: copy the CSS. */
+.codeHead { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.codeHead .note { margin: 0; }
+.copy { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: var(--text-sm); font-weight: 650; flex: none; }
+.copy:hover { background: var(--soft); }
+.copyWrap { display: grid; justify-items: end; gap: 2px; flex: none; }
+.copyStatus { font-size: var(--text-xs); color: var(--muted); min-height: 1.2em; margin: 0; max-width: 260px; text-align: right; }
+
+/* R8.1: CSS Grid. */
+.field input[type='text'] { height: 44px; width: 100%; padding: 0 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font: var(--text-sm) ui-monospace, monospace; }
+.field input[aria-invalid='true'] { border-color: #b3261e; }
+:global([data-theme='dark']) .field input[aria-invalid='true'] { border-color: #f2b8b5; }
+.error { font: 500 var(--text-xs) Arial, sans-serif; color: #b3261e; }
+:global([data-theme='dark']) .error { color: #f2b8b5; }
+.wide { grid-column: 1 / -1; }
+.gridContainer { display: grid; padding: 10px; border: 2px dashed var(--border-strong); border-radius: 8px; background: var(--bg); min-height: 220px; }
+.placement { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px 14px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+.placement legend { font-size: var(--text-sm); font-weight: 700; margin-bottom: 4px; }
+.check { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: var(--text-sm); font-weight: 650; align-self: end; }
+.check input[type='checkbox'] { width: 18px; height: 18px; padding: 0; }
+.item[data-selected] { outline: 3px solid var(--text); outline-offset: 2px; }
