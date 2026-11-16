@@ -193,18 +193,18 @@ P8 動到的共用元件（`hex-camera.tsx`、`hex-world-scene.tsx`、`hex-world
 
 ### 3.5 合併
 
-合併本身的結果（Merge Commit、`main` 的 CI、Production 部署、Smoke Test、旗標狀態）無法寫進被合併的 commit，由合併後的後續文件 commit 補在本文件 §8；下一階段的 P8 Regional World Activation 計畫也在那個 commit 建立。
+合併本身的結果記在 §8（合併後補記）；下一階段是 [P8 Regional World Activation 計畫](P8_REGIONAL_WORLD_ACTIVATION_PLAN.md)。
 
 ## 4. Commit、CI 與部署狀態
 
 | 項目 | 狀態 |
 |---|---|
-| `main` | `9718f89`（Merge pull request #8） |
+| `main` | `9718f89`（Merge pull request #8）→ `929d638`（Merge pull request #10） |
 | `main` 的 GitHub Actions | `gates`：success（`9718f89`） |
 | Vercel Production | success（`9718f89`）；Production 實測見 §1.4、§1.5 |
 | `hotfix/nav-client-bundle` | `c2b39c6`（修正）、`1de2e33`（合入 `main`：PR #6）、`c910d92`（合入 `main`：R8）；已合併，分支保留未刪 |
 | `p8/multi-region-world` | `be7671c`（合入 `main`）、`bb1c742`（V3 測試等待條件）、`affc8d0`（文件）、`fcaae2e`（§6：Escape 焦點修正）、合併前檢查的文件 commit；已 push |
-| PR #10 | 獲准 Flag-off 合併（§3.2）；合併前檢查見 §3.3、§3.4；合併結果記在合併後的文件 |
+| PR #10 | **已合併**（Merge Commit `929d638`，Flag-off）；合併前檢查見 §3.3、§3.4，合併後驗證見 §8 |
 | PR #7（P6 發布紀錄，文件） | Open，對 `main` 已是 `CONFLICTING`（與本階段無關）；它修改 `docs/handoff/IMPLEMENTATION_STATUS.md`，所以本階段沒有改那個檔案，P8 的狀態記在 TESTING_STATUS 與本文件 |
 
 已知問題的變化：P1-35（首頁導覽 E2E 偶發失敗）在 PR #8 合併後重測 10 輪未再出現；新增 P1-36（§7）（[KNOWN_ISSUES](../handoff/KNOWN_ISSUES.md)）。
@@ -257,3 +257,64 @@ P8.5 留下的問題：V3（圖釘與名牌隨視窗寬度切換）55 次裡失�
 
 判斷：無法重現，沒有證據指向 P8 的改動；依「能重現才修」沒有修改測試或產品。可能的原因是測試的 `settled()` 只確認標記相隔 100 ms 兩次位置相同，場景晚一拍重繪時會在舊位置點擊（與 P1-19 同類），但**這是推測，沒有 trace 佐證**——那次失敗的執行沒有開 trace。記為 P1-36；之後的全套 E2E 一律加 `--trace retain-on-failure`。
 
+## 8. PR #10 的合併與合併後驗證（2026-11-17 補記）
+
+### 8.1 Merge Commit
+
+| 項目 | 內容 |
+|---|---|
+| 合併前最後確認 | `git fetch` 後：PR HEAD `adc66f9` 與遠端相同；`origin/main` 仍是 `9718f89`；PR 的 `gates`、Vercel、Vercel Preview Comments 3／3 通過；`mergeStateStatus: CLEAN`。`adc66f9` 的追蹤檔案（648 份）與分支歷史（122 份）洩漏掃描 clean |
+| 合併方式 | `gh pr merge 10 --merge --match-head-commit adc66f9…`：**Merge Commit**，沒有 squash、沒有 force push、沒有改寫歷史 |
+| Merge Commit | **`929d6380cddd8852540795fd44c9f4af653998d0`**（2026-11-16T16:54:07Z），parents `9718f89`（`main`）與 `adc66f9`（P8） |
+| tree | `main` 的 tree `d0003cf` 與 `adc66f9` 的 tree 相同：合併後的內容就是驗收過的內容（`fcaae2e` 之後只有文件） |
+| 沒有做 | 沒有修改 Vercel 環境變數、沒有啟用 `LOGIC_ISLAND_REGIONAL_WORLD`、沒有切換首頁、沒有移除五島入口、沒有動 Exam Engine、題庫、課程狀態與 GLB |
+
+### 8.2 Production Deployment Status
+
+| 項目 | 狀態 |
+|---|---|
+| `main` 的 GitHub Actions | `trials-ci`／`gates`：success（`929d638`） |
+| Vercel Production | commit status `Vercel`：success，「Deployment has completed」（`929d638`） |
+| 正式站已換成新的建置 | 是：`https://logic-island-psi.vercel.app` 的共用腳本檔名已改變，`/` 的腳本量是新建置的 672 KB（合併前 671 KB） |
+
+Vercel connector 與 CLI 仍沒有這個專案 scope 的授權，所以部署狀態的證據是 GitHub 的 commit status 與正式站的實測，不是 Vercel 的部署紀錄。
+
+### 8.3 Smoke Test（正式站，`929d638`）
+
+| 檢查 | 結果 |
+|---|---|
+| `/`、`/islands`、`/curriculum`、`/learn`、七個實驗頁、五個 `/regions/<region>` 等 17 頁 × 桌機與手機 | 34 次載入全部 200，console 與網路錯誤 0，無水平溢出 |
+| 導覽 | 首頁主選單「完整課綱」到 `/curriculum`、側欄課程連結：桌機與手機皆正常 |
+| 80 堂已發布課程 | `/curriculum` 與五個 Region 頁列出的課程連結共 **80 個，全部 200** 且有標題 |
+| Linux Terminal Simulator（`/learn/linux-terminal`） | 以實際的 Enter 鍵送出 `pwd`、`ls`、`mkdir`、`ls`：輸出正確，檔案樹同步出現新目錄，console 錯誤 0 |
+| 腳本量 | `/` 672／213 KB（gzip）；`/curriculum` 640／201；課程頁 724／230；`/learn` 635／199；實驗頁 850／272；`/regions/*` 635／199；`/islands` 632／198——與合併前相同（`/` 多 1 KB） |
+| 與合併前的 `main` 建置比較 | 課綱、課程、`/learn` 與實驗、`/regions/*` × 2 裝置共 30 組：文字、連結、導覽、整頁截圖全部相同 |
+| 3D 頁面與合併前的 `main` 建置比較 | `/`、`/?island=basics`、`/?island=databases`、`/islands`、`/islands/legacy`、`/islands/candidate` × 2 裝置共 12 組：整個視窗逐像素差異 0 |
+| Production 頁面沒有私人題庫內容 | Smoke 下載的 316 份回應與 80 份課程頁：洩漏掃描皆 clean（18,220 個片段、350 題） |
+
+### 8.4 P8 Feature Flag Status
+
+| 項目 | 狀態 |
+|---|---|
+| `LOGIC_ISLAND_REGIONAL_WORLD` | **關閉**（Production 沒有設定；本階段沒有修改任何環境變數） |
+| `/world`、`/world/cs`、`/world/ai`、`/world/design`、`/world/web`、`/world/sys`、`/world/cs?island=basics` | 全部 **404** |
+| 指向 `/world` 的連結 | `/`、`/curriculum`、`/learn`、`/regions/cs`、`/islands` 的 HTML 中沒有 |
+| `/trials` | 404（`LOGIC_ISLAND_TRIALS` 也沒有設定） |
+| 正式首頁 `/` | 仍是 CS 五島場景，與合併前逐像素相同 |
+
+### 8.5 Remaining Known Issues
+
+| # | 事項 | 影響 |
+|---|---|---|
+| 1 | **沒有真機驗收**：全部是 headless Chromium 的視窗尺寸模擬 | 啟用前必須完成（Activation 計畫 A2） |
+| 2 | **Vercel Preview 沒有驗收過**：受 Vercel Authentication 保護；Preview 是否帶旗標無法從外部確認 | 啟用前必須完成（A0、A1） |
+| 3 | P1-36：`islands-candidate.spec.ts:129`（手機，3D 點擊）一次無法重現的失敗（§7） | 測試穩定性；沒有證據指向產品。之後的全套 E2E 保留 trace |
+| 4 | Escape 焦點回復的修正（§6）只有 headless 證據 | 旗標開啟才有的路徑；併入真機驗收 |
+| 5 | AI／DESIGN／WEB／SYS 的區域地圖仍是共用的規劃中地形 | 啟用後的觀感；是否為啟用前提待決定（A1） |
+| 6 | 待審項目 R1–R5、R7、R9、R10 未定案 | [Release Checklist](P8_RELEASE_CHECKLIST.md) §5 |
+| 7 | 總覽 → 區域是換頁，沒有連續飛行；舊版 `/islands` 名牌在選島後 1–2 幀停在全景位置 | 既有行為，未處理 |
+| 8 | GitHub Actions 不跑 E2E | E2E 仍靠本機隔離副本；暫存目錄會在午夜被清理（§3.4） |
+| 9 | PR #7（P6 發布紀錄）仍開著且與 `main` 衝突（`docs/handoff/IMPLEMENTATION_STATUS.md`） | 與本階段無關；本階段沒有修改那個檔案，所以 IMPLEMENTATION_STATUS 尚未記載 P8 的合併 |
+| 10 | 分支 `hotfix/nav-client-bundle`、`p8/multi-region-world` 已合併，保留未刪 | 無 |
+
+下一階段：[P8 Regional World Activation 計畫](P8_REGIONAL_WORLD_ACTIVATION_PLAN.md)。**未經另外批准，不得啟用正式 3D 世界或取代首頁。**
