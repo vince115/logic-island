@@ -15,7 +15,8 @@ import styles from './nav.module.css';
  * 2026-11-12 unified sidebar: the island the page belongs to (its screenshot from the 3D map, progress, the way back to
  * it), the three 2D areas, and the current area's tree. Desktop: beside the page, collapsible to a rail of icons.
  * Below 1024px: a drawer from the 選單 button. Hidden while a timed mock exam is in progress (focus mode, html[data-focus]).
- * Multi-archipelago v2 (P2): the top reads 世界地圖, then 學習群島 (the curriculum of the four regions) and 學習工具
+ * Multi-archipelago v2 (P2): the top reads 世界地圖, then 學習群島 (the curriculum of the regions, five since P6; the
+ * client keeps 「五大群島」 as text, tests/world.test.ts pins the count) and 學習工具
  * (互動實驗島, 模擬考試); the card says which level its picture stands for (世界, 島嶼, 共用工具).
  */
 export interface SidebarProps {
@@ -124,7 +125,7 @@ export function SiteSidebar({ area, tree, previews, overview, trials, children }
             {(['learn', 'tools'] as const).map(section => <div key={section} role="group" aria-labelledby={`areas-${section}`} className={styles.areaGroup}>
               <span id={`areas-${section}`} className={styles.areaHeading}>{section === 'learn' ? '學習群島' : '學習工具'}</span>
               {areas.filter(a => a.section === section).map(({ id, label, href, Icon }) => <Link key={id} href={href} className={styles.area} aria-current={id === area ? 'true' : undefined}>
-                <Icon size={16} aria-hidden/>{id === 'curriculum' ? '四大群島 · 完整課綱' : label}</Link>)}
+                <Icon size={16} aria-hidden/>{id === 'curriculum' ? '五大群島 · 完整課綱' : label}</Link>)}
             </div>)}
           </nav>
           <nav aria-label={`${AREAS.find(a => a.id === area)!.label}目錄`} className={styles.tree}>

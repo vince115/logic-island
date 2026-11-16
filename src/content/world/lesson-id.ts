@@ -7,7 +7,9 @@
 /** Every lesson prefix, one per subject island; the first three are the existing islands' (unchanged). */
 export const LESSON_PREFIXES = ['F', 'D', 'A', 'PL', 'DB', 'CN', 'SA', 'MIS', 'AIF', 'ML', 'DL', 'LLM', 'GEN', 'AG', 'OPS',
   // Multi-archipelago v2 (P1b): the design and web regions.
-  'UI', 'UX', 'IXD', 'DSY', 'WEB', 'FE', 'RWD', 'MOB'] as const;
+  'UI', 'UX', 'IXD', 'DSY', 'WEB', 'FE', 'RWD', 'MOB',
+  // P6: the systems and cloud engineering region.
+  'LNX', 'DKR', 'SRV', 'CLD', 'CICD', 'KUB'] as const;
 export type LessonPrefix = typeof LESSON_PREFIXES[number];
 
 type Digit = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;

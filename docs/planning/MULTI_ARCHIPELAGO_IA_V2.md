@@ -597,6 +597,9 @@ P2-A（§3.2，AI 可見性）可以在 P1 之前或之後獨立做；P2（側�
 | R7 | Design／Web 群島：區域、8 座島與 111 堂大綱沿用 P1b（未改）；寫入路線 G 前端工程（62 堂，含 F 島 7 堂必要先修）與 H 產品設計（56 堂），分別出現在 `/regions/web`、`/regions/design`；實驗 registry 把 `responsive-layout` 拆成一活動一實驗（Grid、Responsive Simulator、Mobile Navigation 為 planned），並實作 **Flexbox Playground** `/learn/flexbox-playground`（`src/lib/flexbox.ts` 純模型）。見 [R7_DESIGN_WEB_PLAN](R7_DESIGN_WEB_PLAN.md) | tsc、ESLint 0；Vitest 72 檔 1891 通過（新增 `tests/flexbox.test.ts`、路線 G／H 與 design／web 路線歸屬、實驗拆分）；路由契約刻意新增 `/learn/flexbox-playground`；navigation＋player E2E 42 通過（新增 Flexbox 互動案例，爬蟲含新實驗頁）；1440 桌機、深色、iPhone 13 截圖檢查，無水平捲動；項目文字對比 4.92–6.16 |
 | R7 發布 | PR #4 合併為 `main` `aaf1d0a`，Vercel 正式部署成功，正式站 smoke 與洩漏掃描通過（[R7_DESIGN_WEB_PLAN](R7_DESIGN_WEB_PLAN.md) §5）；路線卡改寫為「路線共 N 堂 · 已開放 X 堂 · 其餘 Y 堂規劃中」，避免把路線長度讀成已完成教材數 | navigation E2E 新增路線文字斷言 |
 
+| P6（五區域） | 第五區域 `sys`（分支 `archipelago/p6-sys`）：6 島 89 堂、路線 K／L／M、5 個 T1 活動、實驗領域 `systems-cloud`；側欄與 `/curriculum` 由資料自動帶入；`/world` 清單自動列為規劃中。詳見 [P6_SYSTEMS_CLOUD_REGION](P6_SYSTEMS_CLOUD_REGION.md) | tsc、ESLint 0；Vitest 1872 通過、9 skip；預設與旗標建置；navigation＋player 38、旗標 E2E 76 通過；`.next` leak-scan 乾淨 |
+| P7 | Linux Terminal Simulator MVP（`/learn/linux-terminal`）：瀏覽器內虛擬檔案系統、14 個指令、7 個任務、一般使用者權限；路由契約**刻意**新增一筆。Docker／Network／CI/CD 實驗仍為規劃中。詳見 [P7_SYSTEMS_LABS](P7_SYSTEMS_LABS.md) | `terminal.test.ts` 15 通過；navigation＋player 40 通過、2 skip |
+
 ## 11. 本文件的驗證方式
 
 - 每個現況結論都附檔案與行號，來自兩次唯讀盤點與本輪抽查（`validate.ts:9-120`、`activities.ts:85-157`、`catalog.ts:47-62`、`region-layouts.ts:70-80`、`src/app/world/[region]/page.tsx:17-20`、`scripts/planning-data.mjs:33-44`、`curriculum-blueprint.json` 的欄位、`tests/world*.test.ts` 的寫死數字）。
