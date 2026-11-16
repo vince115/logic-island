@@ -8,6 +8,8 @@ import { lessons } from '../src/content/curriculum/lessons';
  * no internal link points at a page that is gone.
  */
 const F01 = lessons.find(l => l.lessonId === 'F01')!;
+// The tool labs with a page, in registry order (P4, R7, R8, P7).
+const TOOL_LABS = ['/learn/color-contrast', '/learn/flexbox-playground', '/learn/css-grid-playground', '/learn/responsive-layout', '/learn/mobile-ux', '/learn/linux-terminal'];
 
 test('/visualize 與 /visualize/<slug> 永久轉址到 /learn，保留 slug 與查詢參數', async ({ request }) => {
   for (const [from, to] of [['/visualize', '/learn'], ['/visualize/array', '/learn/array'], ['/visualize/bfs?ref=bookmark&x=1', '/learn/bfs?ref=bookmark&x=1']]) {
@@ -44,8 +46,8 @@ test('互動實驗島列出六個實驗；實驗頁沒有模式切換，麵包�
   // Multi-archipelago v2 (P4): the six algorithm labs, plus the tool labs that are open; planned ones are not links.
   await expect(page.locator('a.course-card:not([data-kind])')).toHaveCount(6);
   // R7: open tool labs are links, the planned ones cards without a link; P7 adds the Linux Terminal Simulator.
-  await expect(page.locator('a.course-card[data-kind="tool"]')).toHaveCount(3);
-  expect(await page.locator('a.course-card[data-kind="tool"]').evaluateAll(as => as.map(a => a.getAttribute('href')))).toEqual(['/learn/color-contrast', '/learn/flexbox-playground', '/learn/linux-terminal']);
+  // R8: the open tool labs, in registry order (CSS Grid from R8.1).
+  expect(await page.locator('a.course-card[data-kind="tool"]').evaluateAll(as => as.map(a => a.getAttribute('href')))).toEqual(TOOL_LABS);
   await expect(page.locator('.course-card[data-status="planned"]').first()).toBeVisible();
   await expect(page.locator('a.course-card[data-status="planned"]')).toHaveCount(0);
   await page.goto('/learn/array');
@@ -80,8 +82,8 @@ test('六個實驗與所有課綱頁（含資料庫應用島已開放的課）�
   test.setTimeout(240_000);
   // P4, R7: the open tool labs are crawled too (/learn/color-contrast, /learn/flexbox-playground); P7 adds /learn/linux-terminal.
   // R6: and the region overviews (P6 adds sys).
-  const pages = ['/', '/learn', '/curriculum', ...['cs', 'ai', 'design', 'web', 'sys'].map(r => `/regions/${r}`), ...courses.map(c => `/learn/${c.slug}`), '/learn/color-contrast', '/learn/flexbox-playground', '/learn/linux-terminal', ...lessons.map(l => `/curriculum/${l.slug}`)];
-  expect(pages).toHaveLength(3 + 5 + 9 + lessons.length);
+  const pages = ['/', '/learn', '/curriculum', ...['cs', 'ai', 'design', 'web', 'sys'].map(r => `/regions/${r}`), ...courses.map(c => `/learn/${c.slug}`), ...TOOL_LABS, ...lessons.map(l => `/curriculum/${l.slug}`)];
+  expect(pages).toHaveLength(3 + 5 + courses.length + TOOL_LABS.length + lessons.length);
   const links = new Set<string>();
   for (const path of pages) {
     const res = await page.goto(path);
@@ -268,10 +270,11 @@ test('Flexbox Playground：調整屬性後預覽與 CSS 同步，預設版面可
   await expect(preview).toHaveCSS('justify-content', 'space-between');
   await expect(css).toContainText('justify-content: space-between;');
   await expect(css).toContainText('align-items: center;');
-  await expect(page.locator('[aria-live="polite"]')).toContainText('頭尾貼齊');
+  // The reading list (the copy button has its own status region, R8).
+  await expect(page.locator('ul[aria-live="polite"]')).toContainText('頭尾貼齊');
   await page.getByLabel('flex-direction').selectOption('column');
   await expect(preview).toHaveCSS('flex-direction', 'column');
-  await expect(page.locator('[aria-live="polite"]')).toContainText('主軸是垂直方向');
+  await expect(page.locator('ul[aria-live="polite"]')).toContainText('主軸是垂直方向');
   await page.getByRole('button', { name: '卡片換行' }).click();
   await expect(preview.locator('> div')).toHaveCount(7);
   await expect(css).toContainText('flex-wrap: wrap;');
@@ -282,4 +285,139 @@ test('Flexbox Playground：調整屬性後預覽與 CSS 同步，預設版面可
   await expect(lessons.getByText('RWD03')).toBeVisible();
   await expect(lessons.locator('a')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+// R8.1: CSS Grid Playground — typed tracks reach the real grid only when valid; placements and presets follow.
+test('CSS Grid Playground：輸入軌道與位置即時套用到真實格線，錯誤值標示且不套用，預設版面與 CSS 同步', async ({ page }) => {
+  await page.goto('/learn/css-grid-playground');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('CSS Grid Playground');
+  const preview = page.getByTestId('grid-preview'), css = page.locator('pre code'), cols = page.getByLabel('grid-template-columns');
+  await expect(preview.locator('> div')).toHaveCount(6);
+  await cols.fill('200px 1fr');
+  await expect(preview).toHaveCSS('grid-template-columns', /^200px \d+(\.\d+)?px$/);
+  await expect(css).toContainText('grid-template-columns: 200px 1fr;');
+  // A half-typed value is flagged and the last valid one stays applied.
+  await cols.fill('200px 1f');
+  await expect(cols).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.getByText('看不懂這個值')).toBeVisible();
+  await expect(css).toContainText('grid-template-columns: 200px 1fr;');
+  await cols.fill('repeat(3, 1fr)');
+  await expect(cols).toHaveAttribute('aria-invalid', 'false');
+  await page.getByLabel('grid-column').fill('span 2');
+  await expect(preview.locator('> div').first()).toHaveCSS('grid-column-start', 'span 2');
+  await expect(css).toContainText('.item:nth-child(1) {\n  grid-column: span 2;');
+  await page.getByRole('button', { name: 'Dashboard' }).click();
+  await expect(css).toContainText('grid-template-rows: auto 1fr 1fr;');
+  await expect(preview.locator('> div').first()).toHaveCSS('grid-column-end', '-1');
+  await expect(page.locator('ul[aria-live="polite"]')).toContainText('第 2 個項目：列從第 2 條線到第 4 條線');
+  await page.getByRole('checkbox', { name: '列與欄分開設定間距' }).check();
+  await page.getByRole('slider').nth(1).fill('24');
+  await expect(css).toContainText('column-gap: 24px;');
+  // 複製 CSS puts exactly the shown code on the clipboard, and says so.
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.getByRole('button', { name: '複製 CSS' }).click();
+  await expect(page.getByRole('status')).toHaveText('已複製到剪貼簿。');
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(await css.textContent());
+  const lessons = page.getByRole('region', { name: '使用這個實驗的課程' });
+  await expect(lessons.getByText('RWD05')).toBeVisible();
+  await expect(lessons.locator('a')).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+// R8.2: Responsive Layout Simulator — the frame is really that wide, so the browser applies the media queries.
+test('Responsive Layout Simulator：預覽框以真實寬度套用媒體查詢，斷點可調，頁面不水平溢出', async ({ page }) => {
+  await page.goto('/learn/responsive-layout');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Responsive Layout Simulator');
+  const frame = page.frameLocator('[data-testid="rwd-frame"]'), queries = page.getByRole('list', { name: '媒體查詢' }).getByRole('listitem');
+  const columns = async () => (await frame.locator('.cards').evaluate(e => getComputedStyle(e).gridTemplateColumns)).split(' ').length;
+  // Mobile: base rules only, one column.
+  await expect(page.getByTestId('rwd-frame')).toHaveAttribute('title', /寬 375px/);
+  expect(await frame.locator('.page').evaluate(e => getComputedStyle(e).gridTemplateColumns.split(' ').length)).toBe(1);
+  expect(await columns()).toBe(1);
+  await expect(queries).toHaveText([/768px.*未套用/, /1024px.*未套用/]);
+  // Tablet: min-width 768 applies (inclusive), two columns.
+  await page.getByRole('button', { name: /^Tablet/ }).click();
+  await expect(page.getByRole('button', { name: /^Tablet/ })).toHaveAttribute('aria-pressed', 'true');
+  // The frame's viewport is exactly the width shown (a border once made it 2px narrower, just under the breakpoint).
+  await expect.poll(() => frame.locator('html').evaluate(() => innerWidth)).toBe(768);
+  await expect.poll(columns).toBe(2);
+  await expect(queries).toHaveText([/768px.*套用中/, /1024px.*未套用/]);
+  // Desktop: the page has three columns and the cards three.
+  await page.getByRole('button', { name: /^Desktop/ }).click();
+  await expect.poll(() => frame.locator('.page').evaluate(e => getComputedStyle(e).gridTemplateColumns.split(' ').length)).toBe(3);
+  // A custom width just under a moved breakpoint falls back to the tier below.
+  await page.getByRole('slider', { name: /平板斷點/ }).fill('800');
+  await page.getByLabel('自訂寬度（px）').fill('799');
+  await expect.poll(columns).toBe(1);
+  await expect(page.locator('pre code')).toContainText('@media (min-width: 800px)');
+  await expect(page.locator('ul[aria-live="polite"]')).toContainText('視窗寬度 799px：手機');
+  // Card layout at 1280: four columns.
+  await page.getByRole('button', { name: '卡片列表' }).click();
+  await page.getByRole('button', { name: /^Desktop/ }).click();
+  await expect.poll(columns).toBe(4);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const lessons = page.getByRole('region', { name: '使用這個實驗的課程' });
+  await expect(lessons.getByText('RWD01')).toBeVisible();
+  await expect(lessons.locator('a')).toHaveCount(0);
+});
+
+// R8.3: Mobile Navigation Simulator — four working patterns, operated by keyboard, with measured touch targets.
+test('Mobile Navigation Simulator：四種模式可切換操作，鍵盤、焦點與 ARIA 正確，觸控目標實測至少 48px', async ({ page }) => {
+  await page.goto('/learn/mobile-ux');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Mobile Navigation Simulator');
+  const phone = page.getByTestId('phone'), touch = page.getByText(/^觸控目標：/);
+  // Bottom navigation: the current page is aria-current, not only a colour.
+  const bottom = phone.getByRole('navigation', { name: '主要導覽' });
+  await bottom.getByRole('button', { name: '課程' }).click();
+  await expect(bottom.getByRole('button', { name: '課程' })).toHaveAttribute('aria-current', 'page');
+  await expect(phone.getByRole('heading', { level: 3 })).toHaveText('課程');
+  await expect(touch).toContainText('達到建議的 48×48');
+  // Drawer: a modal that takes focus, keeps Tab inside, closes on Escape and gives focus back.
+  await page.getByRole('button', { name: 'Navigation Drawer' }).click();
+  const opener = phone.getByRole('button', { name: '導覽', exact: true });
+  await opener.focus();
+  await page.keyboard.press('Enter');
+  await expect(opener).toHaveAttribute('aria-expanded', 'true');
+  const dialog = phone.getByRole('dialog', { name: '導覽', exact: true });
+  await expect(dialog.getByRole('button', { name: '關閉導覽' })).toBeFocused();
+  for (let i = 0; i < 5; i++) await page.keyboard.press('Tab');
+  await expect(dialog.getByRole('button', { name: '關閉導覽' })).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(dialog.getByRole('button', { name: '我的' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(opener).toBeFocused();
+  await expect(opener).toHaveAttribute('aria-expanded', 'false');
+  await opener.click();
+  await phone.getByRole('dialog').getByRole('button', { name: '搜尋' }).click();
+  await expect(phone.getByRole('heading', { level: 3 })).toHaveText('搜尋');
+  await expect(opener).toBeFocused();
+  // Tabs: roving tabindex — arrows move selection and focus, Home and End jump.
+  await page.getByRole('button', { name: 'Tabs', exact: true }).click();
+  const tablist = phone.getByRole('tablist', { name: '課程分頁' });
+  await tablist.getByRole('tab', { name: '課程內容' }).focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(tablist.getByRole('tab', { name: '討論' })).toBeFocused();
+  await expect(tablist.getByRole('tab', { name: '討論' })).toHaveAttribute('aria-selected', 'true');
+  await expect(phone.getByRole('tabpanel')).toHaveAccessibleName('討論');
+  await page.keyboard.press('End');
+  await expect(tablist.getByRole('tab', { name: '作業' })).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(tablist.getByRole('tab', { name: '課程內容' })).toHaveAttribute('aria-selected', 'true');
+  await expect(tablist.locator('[tabindex="0"]')).toHaveCount(1);
+  // Hamburger: a disclosure that Escape collapses, returning focus to its button.
+  await page.getByRole('button', { name: 'Hamburger Menu' }).click();
+  const menuButton = phone.getByRole('button', { name: '選單' });
+  await menuButton.click();
+  await expect(menuButton).toHaveAttribute('aria-expanded', 'true');
+  await phone.getByRole('navigation', { name: '網站選單' }).getByRole('button', { name: '我的' }).focus();
+  await page.keyboard.press('Escape');
+  await expect(phone.getByRole('navigation', { name: '網站選單' })).toHaveCount(0);
+  await expect(menuButton).toBeFocused();
+  await expect(touch).toContainText('達到建議的 48×48');
+  await expect(page.getByRole('heading', { name: /Hamburger Menu：什麼時候用/ })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const lessons = page.getByRole('region', { name: '使用這個實驗的課程' });
+  await expect(lessons.getByText('MOB02')).toBeVisible();
+  await expect(lessons.locator('a')).toHaveCount(0);
 });
