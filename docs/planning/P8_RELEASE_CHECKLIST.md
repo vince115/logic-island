@@ -1,14 +1,15 @@
 # P8 Release Checklist——五區域 3D 世界公開發布前的待辦
 
 > 2026-11-16，Asia/Taipei。本文件只盤點，**沒有執行其中任何一項**。
-> 前提：P8 以 Flag-off 併入 `main`（PR #10；已獲授權，合併前檢查見 [P8.6](P8_6_HOTFIX_AND_P8_INTEGRATION.md) §3）。正式站沒有 `/world`，首頁仍是 CS 五島場景。
+> 前提：P8 已以 Flag-off 併入 `main`（PR #10，Merge Commit `929d638`；[P8.6](P8_6_HOTFIX_AND_P8_INTEGRATION.md) §8）。正式站沒有 `/world`，首頁仍是 CS 五島場景。
+> 啟用的關卡、順序與批准點見 [P8 Regional World Activation 計畫](P8_REGIONAL_WORLD_ACTIVATION_PLAN.md)；本文件是它引用的細項清單。
 > 獨立決策（不得由 Agent 自行執行）：正式首頁切換、公開開啟 `LOGIC_ISLAND_REGIONAL_WORLD`、破壞性資料操作、任何涉及私有題庫的風險。
 
 ## 0. 建議順序
 
 | 階段 | 內容 | 需要的批准 | 可回退方式 |
 |---|---|---|---|
-| S0 | PR #10 合併到 `main`（Flag-off） | **已批准**（P8.6 §3.2）；不含啟用旗標與切換首頁 | `git revert` 合併 commit |
+| S0 | PR #10 合併到 `main`（Flag-off） | **已完成**（2026-11-17，`929d638`；P8.6 §8）；不含啟用旗標與切換首頁 | `git revert -m 1 929d638` |
 | S1 | 真機驗收（§3）；V3 測試修正後的全套確認（§6） | 不需要（不改正式站） | 不適用 |
 | S2 | 待審項目 R1–R5、R7、R9、R10 定案（§5） | 逐項決定 | 改資料檔的數字即可還原 |
 | S3 | 旗標在 Preview 開啟，完整驗收（§2.2） | 需要（Vercel 設定是你的操作） | 移除 Preview 環境變數 |
