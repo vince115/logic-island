@@ -5,7 +5,7 @@ import { boxCoversLand, boxesOverlap, lineHitsBox, type Box, type StageLine } fr
 import { MAPPED_REGION_IDS, REGION_LAYOUTS } from '../src/lib/islands/regions/region-layouts';
 import { WORLD_MAP, bridgedRegions, worldLinks } from '../src/lib/islands/regions/world-map';
 import { frameOverview, overviewLinks, overviewOutlines, stageLands, stageLines } from '../src/lib/islands/regions/world-overview-geometry';
-import { ON, expectLabelsClear, islandBoxes, openRegion, phone, test } from './world-helpers';
+import { ON, REVIEW, expectLabelsClear, islandBoxes, openRegion, phone, test } from './world-helpers';
 
 /*
  * P8.3 (docs/planning/P8_3_WORLD_TOPOLOGY_AND_NAVIGATION.md): the world's topology on the overview (the hub joined to
@@ -391,12 +391,32 @@ test.describe('P8.4 responsive world', () => {
     expect((await header()).pseudo.every(content => content === 'none')).toBe(true);
   });
 
-  test('visual review: /world?without=<link> draws the overview without that link and changes nothing else', async ({ page }) => {
+  const drawnLinks = (page: Page) => page.evaluate(() => (JSON.parse(document.querySelector<HTMLElement>('[data-links]')!.dataset.links!) as { id: string }[]).map(l => l.id));
+
+  test('visual review (review build only): /world?without=<link> draws the overview without that link and changes nothing else', async ({ page }) => {
+    test.skip(!REVIEW, 'built without LOGIC_ISLAND_WORLD_REVIEW=1');
     await page.goto('/world?without=sys-cs');
     await expect(page.locator('[data-links]')).toBeVisible({ timeout: 30_000 });
-    await expect.poll(() => page.evaluate(() => (JSON.parse(document.querySelector<HTMLElement>('[data-links]')!.dataset.links!) as { id: string }[]).map(l => l.id))).toEqual(worldLinks(WORLD_MAP).map(l => l.id).filter(id => id !== 'sys-cs'));
+    await expect.poll(() => drawnLinks(page)).toEqual(worldLinks(WORLD_MAP).map(l => l.id).filter(id => id !== 'sys-cs'));
     // The guide still states the world map's data.
     await expect(page.getByRole('region', { name: '世界橋樑' })).toContainText(`${short(regionName('sys'))} ↔ ${short(regionName('cs'))}`);
+  });
+
+  // P1-37: the release build. The parameter is not read, so no address draws a different map than the world map's data.
+  test('release build: /world?without=<links> cannot remove a bridge; the map and the guide are those of /world', async ({ page }) => {
+    test.skip(REVIEW, 'a review build (LOGIC_ISLAND_WORLD_REVIEW=1) reads the parameter on purpose');
+    const all = worldLinks(WORLD_MAP).map(l => l.id);
+    await page.goto('/world');
+    const plain = await expectOverviewClear(page, 'default');
+    const guide = await page.getByRole('navigation', { name: '世界導覽' }).innerText();
+    for (const query of ['?without=sys-cs', `?without=${all.join(',')}`, '?without=sys-cs&without=cs-ai', '?WITHOUT=sys-cs&review=1&without=hub-cs']) {
+      await page.goto(`/world${query}`);
+      const stage = await expectOverviewClear(page, `default ${query}`);
+      expect(stage.lines.map(l => l.id), query).toEqual(all);
+      // Same bridges in the same places, so the same picture: the link geometry on the stage has not moved.
+      expect(stage.lines, query).toEqual(plain.lines);
+      expect(await page.getByRole('navigation', { name: '世界導覽' }).innerText(), query).toBe(guide);
+    }
   });
 });
 

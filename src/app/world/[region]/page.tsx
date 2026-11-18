@@ -3,7 +3,7 @@ import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { getRegion } from '@/content/world';
 import { RegionalWorldExplorer } from '@/components/world/regional-world-explorer';
-import { regionalWorldEnabled } from '@/lib/world/flag';
+import { regionalWorldEnabled, worldReviewEnabled } from '@/lib/world/flag';
 import { hubSummary, regionIslands } from '@/lib/world/learning-islands';
 import { MAPPED_REGION_IDS, isMappedRegion } from '@/lib/islands/regions/region-layouts';
 import { WORLD_MAP, bridgedRegions } from '@/lib/islands/regions/world-map';
@@ -35,7 +35,7 @@ export default async function RegionPage({ params }: { params: Promise<{ region:
   return <main id="main"><h1 className="visually-hidden">{record.name}</h1>
     {/* The focused island lives in the URL (?island=), read on the client; the map and list render around it. */}
     {/* T.1: the archipelago's trial entries go below the map, only in a build that also has LOGIC_ISLAND_TRIALS=1. */}
-    <div className="home-world"><Suspense><RegionalWorldExplorer regionId={record.id} regionName={record.name} regionNameEn={record.nameEn} islands={regionIslands(record.id)}
+    <div className="home-world"><Suspense><RegionalWorldExplorer regionId={record.id} regionName={record.name} regionNameEn={record.nameEn} islands={regionIslands(record.id)} review={worldReviewEnabled()}
       hub={hubSummary().lab}
       // P8.3 (D7): the regions a relation bridge joins to this one; the rest are reached through the world overview.
       neighbours={bridgedRegions(WORLD_MAP, record.id).filter(isMappedRegion).map(id => ({ id, name: getRegion(id)!.name }))}

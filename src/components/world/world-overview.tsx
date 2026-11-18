@@ -36,7 +36,9 @@ const shortName = (name: string) => name.replace(/群島$/, '');
  * P8.3 (D7): the guide also says in words what the map draws between the outlines: the hub's link to every region and
  * the relation bridges between neighbouring regions (WORLD_MAP), so the topology does not depend on seeing the 3D map.
  */
-export function WorldOverview({ regions, unmapped = [], hub, trials }: { regions: RegionSummary[]; unmapped?: UnmappedRegionSummary[]; hub: HubSummary; trials?: Partial<Record<RegionId, RegionTrialEntry[]>> }) {
+export function WorldOverview({ regions, unmapped = [], hub, trials, review = false }: { regions: RegionSummary[]; unmapped?: UnmappedRegionSummary[]; hub: HubSummary; trials?: Partial<Record<RegionId, RegionTrialEntry[]>>;
+  /** P1-37: decided by the server at build time (worldReviewEnabled); without it `?without=` is never read. */
+  review?: boolean }) {
   const router = useRouter();
   const [available, setAvailable] = useState(true);
   const unavailable = useCallback(() => setAvailable(false), []);
@@ -49,11 +51,11 @@ export function WorldOverview({ regions, unmapped = [], hub, trials }: { regions
     // (phones: the name alone). The guide says the rest: a tool island every region shares.
     { id: 'hub' as const, name: '中央樞紐', label: `前往中央樞紐：${hub.lab.name}`, detail: hub.lab.name, accent: HUB_THEME.accent, onOpen: () => router.push(hub.lab.href) },
   ], [regions, hub.lab.href, hub.lab.name, router]);
-  // P8.4 visual review (this prototype only): `/world?without=sys-cs` draws the map without the named links; the
-  // guide and the world map's data do not change.
+  // P8.4 visual review, only in a build the server marked as a review build (P1-37): `/world?without=sys-cs` draws the
+  // map without the named links; the guide and the world map's data do not change. Anywhere else the address is not read.
   const [without, setWithout] = useState('');
   // eslint-disable-next-line react-hooks/set-state-in-effect -- the address is only known in the browser, and the page is prerendered
-  useEffect(() => { setWithout(new URLSearchParams(location.search).get('without') ?? ''); }, []);
+  useEffect(() => { if (review) setWithout(new URLSearchParams(location.search).get('without') ?? ''); }, [review]);
   const names = regions.map(r => r.name).join('、');
   // The relation bridges between regions that are on the map, by name.
   const bridges = WORLD_MAP.bridges.flatMap(b => { const [a, z] = b.between.map(id => regions.find(r => r.id === id)); return a && z ? [{ id: b.id, a, z }] : []; });

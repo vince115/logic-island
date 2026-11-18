@@ -8,6 +8,12 @@ import { regionLayout } from '../src/lib/islands/regions/region-layouts';
  * made with LOGIC_ISLAND_REGIONAL_WORLD=1; run the specs against such a build with the same variable set.
  */
 export const ON = process.env.LOGIC_ISLAND_REGIONAL_WORLD === '1';
+/**
+ * P1-37: the review tools (`/world?without=`, `/world/<region>?stress=glb`) exist only in a build made with
+ * LOGIC_ISLAND_WORLD_REVIEW=1 as well. Without it (the release build, and CI) the specs check that the address cannot
+ * turn them on; set the same variable when running against a review build and the tools themselves are checked.
+ */
+export const REVIEW = process.env.LOGIC_ISLAND_WORLD_REVIEW === '1';
 /** Fails a test on any console error or uncaught error. */
 export const test = base.extend<{ consoleGuard: void }>({
   consoleGuard: [async ({ page }, use) => {
