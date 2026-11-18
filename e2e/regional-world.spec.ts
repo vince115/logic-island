@@ -95,6 +95,7 @@ test.describe('regional world: flag on', () => {
   });
 
   /* P1-37: `?stress=glb` is a review tool. What the map holds once it has stopped changing (the GLB arrives late). */
+  const csName = orderedRegions.find(r => r.id === 'cs')!.name;
   const mapContents = async (page: Page) => {
     const read = () => page.evaluate(() => { const { meshes, instanced, instances } = (document.querySelector('canvas') as unknown as { __hexPerf: () => { meshes: number; instanced: number; instances: number } }).__hexPerf(); return `${meshes}/${instanced}/${instances}`; });
     let last = '', same = 0;
@@ -111,7 +112,7 @@ test.describe('regional world: flag on', () => {
       await openRegion(page, `/world/cs${query}`);
       await expect(label(page, '資料庫應用島')).toBeVisible();
       expect(await mapContents(page), query).toBe(plain);
-      await expect(page.getByRole('region', { name: '資訊科學群島地圖', exact: true })).toBeVisible();
+      await expect(page.getByRole('region', { name: `${csName}地圖`, exact: true })).toBeVisible();
       await expect(page.getByText('效能測試替身')).toHaveCount(0);
       expect(await page.locator('[aria-label*="效能測試替身"]').count(), query).toBe(0);
     }
@@ -123,7 +124,7 @@ test.describe('regional world: flag on', () => {
     await expect(label(page, '資料庫應用島')).toBeVisible();
     const plain = await mapContents(page);
     await openRegion(page, '/world/cs?stress=glb');
-    await expect(page.getByRole('region', { name: '資訊科學群島地圖（效能測試替身）', exact: true })).toBeVisible();
+    await expect(page.getByRole('region', { name: `${csName}地圖（效能測試替身）`, exact: true })).toBeVisible();
     await expect.poll(() => mapContents(page), { timeout: 60_000 }).not.toBe(plain);
   });
 
