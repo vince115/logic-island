@@ -13,7 +13,7 @@
 - **Next.js 16.4.3 → 16.4.5 已合併**（PR #15，Merge Commit `b56e7ec`）：兩則公告都在這一版修正，沒有相容性問題（§4）。
 - 三個 PR 各自 CI 全綠後依序以 Merge Commit 合併。合併前先在本機把三者合成一棵整合樹（tree `a364495`）跑完整回歸；合併後 `origin/main`（`b56e7ec`）的 tree 與它**完全相同**，所以 §5 的結果就是現在 `main` 的結果。
 - 回歸（§5）：Typecheck 0、ESLint 0、Vitest 1976 通過／0 失敗、兩種建置成功；World-only 全套 E2E **485 通過／113 略過／0 失敗**，Default **425／173／0**；私有題庫洩漏掃描全部 clean。
-- 合併後（`b56e7ec`）：Vercel Production 部署 success。正式站 12 個既有頁面都是 200；`/world`、五個 `/world/<region>`、帶審查參數的兩個網址、`/trials`、`/trials/review` 都是 404；首頁沒有指向 `/world` 的連結；`/learn` 的 meta description 已是由資料算出的新文字。`main` 的 `gates`（run 44311919849）在本文件提交時還在執行，結果記在這份文件的 PR；`36093d2` 與 `c5c7a1c` 兩個中間 commit 的 run 被後續的 push 取消（workflow 的 `cancel-in-progress`），三個 PR 的 head 各自通過了同一組檢查。
+- 合併後（`b56e7ec`）：Vercel Production 部署 success。正式站 12 個既有頁面都是 200；`/world`、五個 `/world/<region>`、帶審查參數的兩個網址、`/trials`、`/trials/review` 都是 404；首頁沒有指向 `/world` 的連結；`/learn` 的 meta description 已是由資料算出的新文字。`main` 的 `gates` success（run 44311919849）；`36093d2` 與 `c5c7a1c` 兩個中間 commit 的 run 被後續的 push 取消（workflow 的 `cancel-in-progress`），三個 PR 的 head 各自通過了同一組檢查。
 - **A1-P 沒有執行**。工具與流程準備好了（§6），缺的是 Preview 的環境變數、帶旗標的部署與自動化存取，都需要你在 Vercel 操作（§6.7、§7）。
 
 四個層級的狀態：
