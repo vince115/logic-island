@@ -1,0 +1,30 @@
+# Private bank leak scan (scripts/trials/leak-scan.ts --dir), 2026-11-18, main 961db2f
+## default/.next
+leak scan (a1l/default/.next): 2983 texts against 18220 fragments of 350 private questions
+clean: no private question content found
+## world/.next
+leak scan (a1l/world/.next): 3079 texts against 18220 fragments of 350 private questions
+clean: no private question content found
+## resp-default
+leak scan (a1l/resp-default): 189 texts against 18220 fragments of 350 private questions
+clean: no private question content found
+## resp-world
+leak scan (a1l/resp-world): 308 texts against 18220 fragments of 350 private questions
+clean: no private question content found
+## post-default
+leak scan (a1l/post-default): 80 texts against 18220 fragments of 350 private questions
+clean: no private question content found
+## post-world
+leak scan (a1l/post-world): 80 texts against 18220 fragments of 350 private questions
+clean: no private question content found
+## post-production
+leak scan (a1l/post-production): 80 texts against 18220 fragments of 350 private questions
+clean: no private question content found
+
+# Published questions (src/content/trials/generated) in what each build serves (tools/pubscan.mjs)
+{"dir":"default/.next/static","filesScanned":57,"publishedQuestions":53,"fragments":252,"filesWithHits":0,"hits":[]}
+{"dir":"scratchpad/a1l/resp-default","filesScanned":189,"publishedQuestions":53,"fragments":252,"filesWithHits":0,"hits":[]}
+{"dir":"default/.next/server","filesScanned":1808,"publishedQuestions":53,"fragments":252,"filesWithHits":1,"hits":["chunks/ssr/[root-of-the-server]__1twpc7kxc2fxe._.js (53 questions)"]}
+{"dir":"world/.next/static","filesScanned":57,"publishedQuestions":53,"fragments":252,"filesWithHits":0,"hits":[]}
+{"dir":"scratchpad/a1l/resp-world","filesScanned":308,"publishedQuestions":53,"fragments":252,"filesWithHits":0,"hits":[]}
+{"dir":"world/.next/server","filesScanned":1904,"publishedQuestions":53,"fragments":252,"filesWithHits":1,"hits":["chunks/ssr/[root-of-the-server]__1twpc7kxc2fxe._.js (53 questions)"]}

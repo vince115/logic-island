@@ -1,0 +1,513 @@
+{
+ "islands": [
+  {
+   "region": "cs",
+   "id": "foundations",
+   "label": "01 基礎程式島 20 堂課 · 5 個科目",
+   "panel": "基礎程式島教材入口",
+   "sheet": "基礎程式島科目清單",
+   "planned": false,
+   "lessonLinks": 20,
+   "links": 21,
+   "other": [
+    "/curriculum"
+   ]
+  },
+  {
+   "region": "cs",
+   "id": "structures",
+   "label": "02 資料結構島 20 堂課 · 5 個科目",
+   "panel": "資料結構島教材入口",
+   "sheet": "資料結構島科目清單",
+   "planned": false,
+   "lessonLinks": 23,
+   "links": 24,
+   "other": [
+    "/learn/array",
+    "/learn/stack",
+    "/learn/queue",
+    "/curriculum"
+   ]
+  },
+  {
+   "region": "cs",
+   "id": "algorithms",
+   "label": "03 演算法島 20 堂課 · 6 個科目",
+   "panel": "演算法島教材入口",
+   "sheet": "演算法島科目清單",
+   "planned": false,
+   "lessonLinks": 22,
+   "links": 23,
+   "other": [
+    "/learn/binary-search",
+    "/learn/bubble-sort",
+    "/curriculum"
+   ]
+  },
+  {
+   "region": "cs",
+   "id": "programming-languages",
+   "label": "04 程式語言島 規劃中 預計 20 堂",
+   "panel": "程式語言島教材入口",
+   "sheet": null,
+   "planned": true,
+   "lessonLinks": 0,
+   "links": 1,
+   "other": [
+    "/regions/cs#island-programming-languages"
+   ]
+  },
+  {
+   "region": "cs",
+   "id": "databases",
+   "label": "05 資料庫應用島 20 堂課 · 6 個科目",
+   "panel": "資料庫應用島教材入口",
+   "sheet": "資料庫應用島科目清單",
+   "planned": false,
+   "lessonLinks": 20,
+   "links": 21,
+   "other": [
+    "/curriculum#island-databases"
+   ]
+  },
+  {
+   "region": "cs",
+   "id": "networks",
+   "label": "06 計算機網路島 規劃中 預計 20 堂",
+   "panel": "計算機網路島教材入口",
+   "sheet": null,
+   "planned": true,
+   "lessonLinks": 0,
+   "links": 1,
+   "other": [
+    "/regions/cs#island-networks"
+   ]
+  },
+  {
+   "region": "cs",
+   "id": "systems-analysis",
+   "label": "07 系統分析與設計島 規劃中 預計 20 堂",
+   "panel": "系統分析與設計島教材入口",
+   "sheet": null,
+   "planned": true,
+   "lessonLinks": 0,
+   "links": 1,
+   "other": [
+    "/regions/cs#island-systems-analysis"
+   ]
+  },
+  {
+   "region": "cs",
+   "id": "information-systems",
+   "label": "08 管理資訊系統島 規劃中 預計 20 堂",
+   "panel": "管理資訊系統島教材入口",
+   "sheet": null,
+   "planned": true,
+   "lessonLinks": 0,
+   "links": 1,
+   "other": [
+    "/regions/cs#island-information-systems"
+   ]
+  },
+  {
+   "region": "ai",
+   "id": "ai-foundations",
+   "label": "01 AI 基礎島 規劃中 預計 20 堂",
+   "panel": "AI 基礎島教材入口",
+   "sheet": null,
+   "planned": true,
+   "lessonLinks": 0,
+   "links": 1,
+   "other": [
+    "/regions/ai#island-ai-foundations"
+   ]
+  },
+  {
+   "region": "ai",
+   "id": "machine-learning",
+   "label": "02 機器學習島 規劃中 預計 25 堂",
+   "panel": "機器學習島教材入口",
+   "sheet": null,
+   "planned": true,
+   "lessonLinks": 0,
+   "links": 1,
+   "other": [
+    "/regions/ai#island-machine-learning"
+   ]
+  },
+  {
+   "region": "ai",
+   "id": "deep-learning",
+   "label": "03 深度學習島 規劃中 預計 25 堂",
+   "panel": "深度學習島教材入口",
+   "sheet": null,
+   "planned": true,
+   "lessonLinks": 0,
+   "links": 1,
+   "other": [
+    "/regions/ai#island-deep-learning"
+   ]
+  },
+  {
+   "region": "ai",
+   "id": "large-language-models",
+   "label": "04 大型語言模型島 規劃中 預計 25 堂",
+   "panel": "大型語言模型島教材入口",
+   "sheet": null,
+   "planned": true,
+   "lessonLinks": 0,
+   "links": 1,
+   "other": [
+    "/regions/ai#island-large-language-models"
+   ]
+  },
+  {
+   "region": "ai",
+   "id": "generative-ai",
+   "label": "05 生成式 AI 島 規劃中 預計 20 堂",
+   "panel": "生成式 AI 島教材入口",
+   "sheet": null,
+   "planned": true,
+   "lessonLinks": 0,
+   "links": 1,
+   "other": [
+    "/regions/ai#island-generative-ai"
+   ]
+  },
+  {
+   "region": "ai",
+   "id": "ai-agents",
+   "label": "06 AI 代理島 規劃中 預計 25 堂",
+   "panel": "AI 代理島教材入口",
+   "sheet": null,
+   "planned": true,
+   "lessonLinks": 0,
+   "links": 1,
+   "other": [
+    "/regions/ai#island-ai-agents"
+   ]
+  },
+  {
+   "region": "ai",
+   "id": "ai-engineering",
+   "label": "07 AI 工程與 MLOps 島 規劃中 預計 20 堂",
+   "panel": "AI 工程與 MLOps 島教材入口",
+   "sheet": null,
+   "planned": true,
+   "lessonLinks": 0,
+   "links": 1,
+   "other": [
+    "/regions/ai#island-ai-engineering"
+   ]
+  },
+  {
+   "region": "design",
+   "id": "ui-design",
+   "label": "01 UI 設計島 規劃中 預計 15 堂",
+   "panel": "UI 設計島教材入口",
+   "sheet": null,
+   "planned": true,
+   "lessonLinks": 0,
+   "links": 1,
+   "other": [
+    "/regions/design#island-ui-design"
+   ]
+  },
+  {
+   "region": "design",
+   "id": "ux-research",
+   "label": "02 UX 研究島 規劃中 預計 15 堂",
+   "panel": "UX 研究島教材入口",
+   "sheet": null,
+   "planned": true,
+   "lessonLinks": 0,
+   "links": 1,
+   "other": [
+    "/regions/design#island-ux-research"
+   ]
+  },
+  {
+   "region": "design",
+   "id": "interaction-design",
+   "label": "03 互動設計島 規劃中 預計 14 堂",
+   "panel": "互動設計島教材入口",
+   "sheet": null,
+   "planned": true,
+   "lessonLinks": 0,
+   "links": 1,
+   "other": [
+    "/regions/design#island-interaction-design"
+   ]
+  },
+  {
+   "region": "design",
+   "id": "design-systems",
+   "label": "04 設計系統島 規劃中 預計 12 堂",
+   "panel": "設計系統島教材入口",
+   "sheet": null,
+   "planned": true,
+   "lessonLinks": 0,
+   "links": 1,
+   "other": [
+    "/regions/design#island-design-systems"
+   ]
+  },
+  {
+   "region": "web",
+   "id": "web-foundations",
+   "label": "01 網頁基礎島 規劃中 預計 15 堂",
+   "panel": "網頁基礎島教材入口",
+   "sheet": null,
+   "planned": true,
+   "lessonLinks": 0,
+   "links": 1,
+   "other": [
+    "/regions/web#island-web-foundations"
+   ]
+  },
+  {
+   "region": "web",
+   "id": "frontend",
+   "label": "02 前端開發島 規劃中 預計 15 堂",
+   "panel": "前端開發島教材入口",
+   "sheet": null,
+   "planned": true,
+   "lessonLinks": 0,
+   "links": 1,
+   "other": [
+    "/regions/web#island-frontend"
+   ]
+  },
+  {
+   "region": "web",
+   "id": "responsive-design",
+   "label": "03 響應式設計島 規劃中 預計 12 堂",
+   "panel": "響應式設計島教材入口",
+   "sheet": null,
+   "planned": true,
+   "lessonLinks": 0,
+   "links": 1,
+   "other": [
+    "/regions/web#island-responsive-design"
+   ]
+  },
+  {
+   "region": "web",
+   "id": "mobile-apps",
+   "label": "04 行動應用島 規劃中 預計 13 堂",
+   "panel": "行動應用島教材入口",
+   "sheet": null,
+   "planned": true,
+   "lessonLinks": 0,
+   "links": 1,
+   "other": [
+    "/regions/web#island-mobile-apps"
+   ]
+  },
+  {
+   "region": "sys",
+   "id": "linux-systems",
+   "label": "01 Linux 系統島 規劃中 預計 15 堂",
+   "panel": "Linux 系統島教材入口",
+   "sheet": null,
+   "planned": true,
+   "lessonLinks": 0,
+   "links": 1,
+   "other": [
+    "/regions/sys#island-linux-systems"
+   ]
+  },
+  {
+   "region": "sys",
+   "id": "docker-containers",
+   "label": "02 Docker 容器島 規劃中 預計 15 堂",
+   "panel": "Docker 容器島教材入口",
+   "sheet": null,
+   "planned": true,
+   "lessonLinks": 0,
+   "links": 1,
+   "other": [
+    "/regions/sys#island-docker-containers"
+   ]
+  },
+  {
+   "region": "sys",
+   "id": "network-servers",
+   "label": "03 網路與伺服器島 規劃中 預計 14 堂",
+   "panel": "網路與伺服器島教材入口",
+   "sheet": null,
+   "planned": true,
+   "lessonLinks": 0,
+   "links": 1,
+   "other": [
+    "/regions/sys#island-network-servers"
+   ]
+  },
+  {
+   "region": "sys",
+   "id": "cloud-infrastructure",
+   "label": "04 雲端基礎設施島 規劃中 預計 15 堂",
+   "panel": "雲端基礎設施島教材入口",
+   "sheet": null,
+   "planned": true,
+   "lessonLinks": 0,
+   "links": 1,
+   "other": [
+    "/regions/sys#island-cloud-infrastructure"
+   ]
+  },
+  {
+   "region": "sys",
+   "id": "devops-cicd",
+   "label": "05 DevOps 與 CI/CD 島 規劃中 預計 15 堂",
+   "panel": "DevOps 與 CI/CD 島教材入口",
+   "sheet": null,
+   "planned": true,
+   "lessonLinks": 0,
+   "links": 1,
+   "other": [
+    "/regions/sys#island-devops-cicd"
+   ]
+  },
+  {
+   "region": "sys",
+   "id": "kubernetes-reliability",
+   "label": "06 Kubernetes 與可靠性工程島 規劃中 預計 15 堂",
+   "panel": "Kubernetes 與可靠性工程島教材入口",
+   "sheet": null,
+   "planned": true,
+   "lessonLinks": 0,
+   "links": 1,
+   "other": [
+    "/regions/sys#island-kubernetes-reliability"
+   ]
+  }
+ ],
+ "status": {
+  "/": 200,
+  "/curriculum": 200,
+  "/curriculum#island-databases": "200 anchor",
+  "/curriculum/algorithm-analysis": 200,
+  "/curriculum/algorithms-challenge": 200,
+  "/curriculum/apcs-strategies": 200,
+  "/curriculum/arrays-and-dynamic-arrays": 200,
+  "/curriculum/backtracking": 200,
+  "/curriculum/backup-replication-and-scaling": 200,
+  "/curriculum/basic-sorting": 200,
+  "/curriculum/binary-search": 200,
+  "/curriculum/binary-search-trees": 200,
+  "/curriculum/binary-trees": 200,
+  "/curriculum/breadth-first-search": 200,
+  "/curriculum/choosing-data-structures": 200,
+  "/curriculum/complexity-basics": 200,
+  "/curriculum/conditionals": 200,
+  "/curriculum/data-structures-overview": 200,
+  "/curriculum/database-application-programming": 200,
+  "/curriculum/database-applications-capstone": 200,
+  "/curriculum/database-concepts": 200,
+  "/curriculum/database-indexes": 200,
+  "/curriculum/debugging-basics": 200,
+  "/curriculum/depth-first-search": 200,
+  "/curriculum/deques": 200,
+  "/curriculum/disjoint-set-union": 200,
+  "/curriculum/dynamic-programming-intro": 200,
+  "/curriculum/er-modeling": 200,
+  "/curriculum/er-to-relational-mapping": 200,
+  "/curriculum/for-loops": 200,
+  "/curriculum/foundations-challenge": 200,
+  "/curriculum/functions": 200,
+  "/curriculum/graph-basics": 200,
+  "/curriculum/graph-representations": 200,
+  "/curriculum/greedy": 200,
+  "/curriculum/hash-tables": 200,
+  "/curriculum/heaps-and-priority-queues": 200,
+  "/curriculum/input-and-output": 200,
+  "/curriculum/isolation-levels-and-concurrency-control": 200,
+  "/curriculum/knapsack": 200,
+  "/curriculum/linear-search": 200,
+  "/curriculum/linked-lists": 200,
+  "/curriculum/logical-operators": 200,
+  "/curriculum/maps": 200,
+  "/curriculum/merge-sort": 200,
+  "/curriculum/nested-loops": 200,
+  "/curriculum/normalization": 200,
+  "/curriculum/nosql-data-models": 200,
+  "/curriculum/one-dimensional-arrays": 200,
+  "/curriculum/operators-and-precedence": 200,
+  "/curriculum/parameters-and-return": 200,
+  "/curriculum/prefix-sums": 200,
+  "/curriculum/programs-and-algorithms": 200,
+  "/curriculum/query-plans-and-optimization": 200,
+  "/curriculum/queues": 200,
+  "/curriculum/quick-sort": 200,
+  "/curriculum/recursion-and-divide-and-conquer": 200,
+  "/curriculum/recursion-basics": 200,
+  "/curriculum/relational-model": 200,
+  "/curriculum/sets": 200,
+  "/curriculum/shortest-paths": 200,
+  "/curriculum/simulation": 200,
+  "/curriculum/sliding-window": 200,
+  "/curriculum/sql-aggregation-and-grouping": 200,
+  "/curriculum/sql-ddl-dml-and-constraints": 200,
+  "/curriculum/sql-injection-and-database-security": 200,
+  "/curriculum/sql-joins": 200,
+  "/curriculum/sql-select-queries": 200,
+  "/curriculum/sql-subqueries-ctes-and-window-functions": 200,
+  "/curriculum/stacks": 200,
+  "/curriculum/string-and-array-operations": 200,
+  "/curriculum/string-basics": 200,
+  "/curriculum/string-processing": 200,
+  "/curriculum/structures-challenge": 200,
+  "/curriculum/transactions-and-acid": 200,
+  "/curriculum/tree-basics": 200,
+  "/curriculum/tree-traversal": 200,
+  "/curriculum/two-dimensional-arrays": 200,
+  "/curriculum/two-pointers": 200,
+  "/curriculum/variable-scope": 200,
+  "/curriculum/variables-and-types": 200,
+  "/curriculum/views-and-stored-procedures": 200,
+  "/curriculum/while-loops": 200,
+  "/learn": 200,
+  "/learn/array": 200,
+  "/learn/binary-search": 200,
+  "/learn/bubble-sort": 200,
+  "/learn/queue": 200,
+  "/learn/stack": 200,
+  "/regions/ai": 200,
+  "/regions/ai#island-ai-agents": "200 anchor",
+  "/regions/ai#island-ai-engineering": "200 anchor",
+  "/regions/ai#island-ai-foundations": "200 anchor",
+  "/regions/ai#island-deep-learning": "200 anchor",
+  "/regions/ai#island-generative-ai": "200 anchor",
+  "/regions/ai#island-large-language-models": "200 anchor",
+  "/regions/ai#island-machine-learning": "200 anchor",
+  "/regions/cs": 200,
+  "/regions/cs#island-information-systems": "200 anchor",
+  "/regions/cs#island-networks": "200 anchor",
+  "/regions/cs#island-programming-languages": "200 anchor",
+  "/regions/cs#island-systems-analysis": "200 anchor",
+  "/regions/design": 200,
+  "/regions/design#island-design-systems": "200 anchor",
+  "/regions/design#island-interaction-design": "200 anchor",
+  "/regions/design#island-ui-design": "200 anchor",
+  "/regions/design#island-ux-research": "200 anchor",
+  "/regions/sys": 200,
+  "/regions/sys#island-cloud-infrastructure": "200 anchor",
+  "/regions/sys#island-devops-cicd": "200 anchor",
+  "/regions/sys#island-docker-containers": "200 anchor",
+  "/regions/sys#island-kubernetes-reliability": "200 anchor",
+  "/regions/sys#island-linux-systems": "200 anchor",
+  "/regions/sys#island-network-servers": "200 anchor",
+  "/regions/web": 200,
+  "/regions/web#island-frontend": "200 anchor",
+  "/regions/web#island-mobile-apps": "200 anchor",
+  "/regions/web#island-responsive-design": "200 anchor",
+  "/regions/web#island-web-foundations": "200 anchor",
+  "/world": 200,
+  "/world/ai": 200,
+  "/world/cs": 200,
+  "/world/design": 200,
+  "/world/sys": 200,
+  "/world/web": 200
+ }
+}

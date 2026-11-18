@@ -10,6 +10,19 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## P8 Activation A1-L 本機預驗收（2026-11-18，`main` `961db2f`）
+
+報告：`docs/planning/P8_A1L_LOCAL_PREACCEPTANCE.md`；證據與工具：`docs/planning/evidence/p8-a1l/`。**只有本機隔離建置的結果，不是 Preview，也不是真機。**
+
+- 兩份隔離建置：Default（不設旗標）與 **World-only**（只設 `LOGIC_ISLAND_REGIONAL_WORLD=1`，`LOGIC_ISLAND_TRIALS` 不設）。這是第一次驗證預計發布的組合；之前的旗標建置與 CI 都是兩個旗標同開。
+- World-only：Typecheck 0、build 成功；`/world` 與五個區域 200、`/trials` 404、沒有試煉入口與請求；全套 E2E **481 通過／109 略過／0 失敗**（執行環境只設世界旗標）。Default：全套 E2E **425／165／0**。
+- V-01～V-10 在 42 個畫面（6 頁 × 七種寬度）取證，draw call 與三角形與 P8.5 的數字逐項相同。
+- 十個既有頁面在 Default、World-only、Production 三方 20／20 相同；80 堂課程連結與 Linux Terminal（真實 Enter）三方正常。
+- 私有題庫洩漏掃描：兩份 `.next`、兩份 HTTP 回應與課程頁回應皆 clean。
+- `next build` 第一次會被 Next.js CLI 的安全升級提示以 exit 1 擋下，同一指令 5 分鐘內重跑才通過（KNOWN_ISSUES P1-39）；`tools/build.sh` 已處理。
+- 文件分支提交前在隔離副本上：Typecheck 0、ESLint 0、Vitest 1963 通過／9 略過／0 失敗（76 個檔案）。
+- 沒有做：Vercel Preview（A1-P）、真機（A2）、FPS 量測。
+
 ## P8.6 Hotfix PR #8 與 P8 整合（2026-11-16）
 
 PR #8（導覽打包修正）以 Merge Commit 併入 `main`（`9718f89`）；合併前先把 R8 之後的 `main` 合進 hotfix 分支重驗（Vitest 1926／9／0、E2E 64／2／0、22 組頁面與 `main` 相同）。Production 實測有側欄的頁面腳本量由約 2.2 MB 降到 0.63–0.85 MB；Smoke 34 次載入 0 錯誤；下載的 316 份回應洩漏掃描 clean。P8 分支合入最新 `main`（`be7671c`，無衝突）後重跑全部驗收：Typecheck／ESLint exit 0；Vitest 1963 通過／9 略過／0 失敗；全套 E2E 旗標開啟 495 通過／95 略過／0 失敗、預設建置 425 通過／165 略過／0 失敗；洩漏掃描（追蹤檔案、分支歷史、兩種建置）皆 clean。Flag-off 證明：P8 預設建置的 `/world/**` 全為 404，`/`、`/islands`、`/islands/legacy`、`/islands/candidate` 桌機與手機逐像素 0 差異，其餘 30 組頁面與 `main` 相同。Vitest 要把 IntelliJ 內建 JDK 放進 PATH，否則 279 個 Java 範例測試會被略過而不是失敗（本階段第一次執行就漏了，數字不採計）。V3（圖釘／名牌隨視窗寬度切換）的偶發失敗已找到根因並修正：測試的 `reframed()` 等的條件在「視窗已改、場景還沒跟上」時也成立；6 個平行 worker 加壓下修正前 300 次失敗 10 次、修正後 600 次 0 失敗，產品沒有修改（`docs/planning/evidence/p8-6/v3-resize-race.md`）。重現偶發的 3D 測試失敗時，在命令列加 `--trace retain-on-failure --workers 4`～`6 --repeat-each N`（隔離設定預設 `trace: off`，P8.5 那次失敗因此沒有留下資料）。全部為 headless Chromium；**沒有真機**。完整紀錄：`docs/planning/P8_6_HOTFIX_AND_P8_INTEGRATION.md`；公開發布前的待辦：`docs/planning/P8_RELEASE_CHECKLIST.md`。

@@ -1,0 +1,56 @@
+{"kind":"world","prerendered":116,"listedTrialsOrWorld":["/trials","/trials/review","/world","/world/ai","/world/cs","/world/design","/world/sys","/world/web"]}
+{"route":"/","status":200}
+{"route":"/islands","status":200}
+{"route":"/curriculum","status":200}
+{"route":"/learn","status":200}
+{"route":"/regions/cs","status":200}
+{"route":"/regions/ai","status":200}
+{"route":"/regions/design","status":200}
+{"route":"/regions/web","status":200}
+{"route":"/regions/sys","status":200}
+{"route":"/learn/linux-terminal","status":200}
+{"route":"/world","status":200,"want":200}
+{"route":"/world/cs","status":200,"want":200}
+{"route":"/world/ai","status":200,"want":200}
+{"route":"/world/design","status":200,"want":200}
+{"route":"/world/web","status":200,"want":200}
+{"route":"/world/sys","status":200,"want":200}
+{"route":"/world/cs?island=foundations","status":200,"want":200}
+{"route":"/world/nowhere","status":404,"want":404}
+{"route":"/trials","status":404,"want":404}
+{"route":"/trials/review","status":404,"want":404}
+{"route":"/trials/ipas-aiap-basic","status":404,"want":404}
+{"route":"/trials/ccar-f","status":404,"want":404}
+{"name":"desktop","p":"/","status":200,"requests":42,"trialRequests":[],"trialLinks":[],"worldLinks":[],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":null,"title":"Logic Island — 程式邏輯島","overflow":0,"errors":[]}
+{"name":"desktop","p":"/islands","status":200,"requests":38,"trialRequests":[],"trialLinks":[],"worldLinks":[],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":null,"title":"Logic Islands · 邏輯群島 | Logic Island","overflow":0,"errors":[]}
+{"name":"desktop","p":"/curriculum","status":200,"requests":35,"trialRequests":[],"trialLinks":[],"worldLinks":[],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":null,"title":"完整課綱 · 80 堂課 | Logic Island","overflow":0,"errors":[]}
+{"name":"desktop","p":"/learn","status":200,"requests":43,"trialRequests":[],"trialLinks":[],"worldLinks":[],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":null,"title":"互動實驗島 | Logic Island","overflow":0,"errors":[]}
+{"name":"desktop","p":"/regions/cs","status":200,"requests":31,"trialRequests":[],"trialLinks":[],"worldLinks":[],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":null,"title":"程式與資訊群島 · 8 座主題島 | Logic Island","overflow":0,"errors":[]}
+{"name":"desktop","p":"/regions/ai","status":200,"requests":31,"trialRequests":[],"trialLinks":[],"worldLinks":[],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":null,"title":"AI 人工智慧群島 · 7 座主題島 | Logic Island","overflow":0,"errors":[]}
+{"name":"desktop","p":"/regions/design","status":200,"requests":39,"trialRequests":[],"trialLinks":[],"worldLinks":[],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":null,"title":"數位設計群島 · 4 座主題島 | Logic Island","overflow":0,"errors":[]}
+{"name":"desktop","p":"/regions/web","status":200,"requests":39,"trialRequests":[],"trialLinks":[],"worldLinks":[],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":null,"title":"網頁與應用開發群島 · 4 座主題島 | Logic Island","overflow":0,"errors":[]}
+{"name":"desktop","p":"/regions/sys","status":200,"requests":31,"trialRequests":[],"trialLinks":[],"worldLinks":[],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":null,"title":"系統與雲端工程群島 · 6 座主題島 | Logic Island","overflow":0,"errors":[]}
+{"name":"desktop","p":"/learn/linux-terminal","status":200,"requests":33,"trialRequests":[],"trialLinks":[],"worldLinks":[],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":null,"title":"Linux Terminal Simulator · 互動實驗島 | Logic Island","overflow":0,"errors":[]}
+{"name":"desktop","p":"/world","status":200,"requests":53,"trialRequests":[],"trialLinks":[],"worldLinks":["/world/cs","/world/ai","/world/design","/world/web","/world/sys"],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":"noindex, nofollow","title":"世界總覽（Regional World 原型） | Logic Island","overflow":0,"errors":[]}
+{"name":"desktop","p":"/world/cs","status":200,"requests":42,"trialRequests":[],"trialLinks":[],"worldLinks":["/world","/world/ai","/world/sys"],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":"noindex, nofollow","title":"程式與資訊群島（Regional World 原型） | Logic Island","overflow":0,"errors":[]}
+{"name":"desktop","p":"/world/ai","status":200,"requests":42,"trialRequests":[],"trialLinks":[],"worldLinks":["/world","/world/cs"],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":"noindex, nofollow","title":"AI 人工智慧群島（Regional World 原型） | Logic Island","overflow":0,"errors":[]}
+{"name":"desktop","p":"/world/design","status":200,"requests":42,"trialRequests":[],"trialLinks":[],"worldLinks":["/world","/world/web"],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":"noindex, nofollow","title":"數位設計群島（Regional World 原型） | Logic Island","overflow":0,"errors":[]}
+{"name":"desktop","p":"/world/web","status":200,"requests":42,"trialRequests":[],"trialLinks":[],"worldLinks":["/world","/world/design"],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":"noindex, nofollow","title":"網頁與應用開發群島（Regional World 原型） | Logic Island","overflow":0,"errors":[]}
+{"name":"desktop","p":"/world/sys","status":200,"requests":42,"trialRequests":[],"trialLinks":[],"worldLinks":["/world","/world/cs"],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":"noindex, nofollow","title":"系統與雲端工程群島（Regional World 原型） | Logic Island","overflow":0,"errors":[]}
+{"name":"phone","p":"/","status":200,"requests":29,"trialRequests":[],"trialLinks":[],"worldLinks":[],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":null,"title":"Logic Island — 程式邏輯島","overflow":0,"errors":[]}
+{"name":"phone","p":"/islands","status":200,"requests":29,"trialRequests":[],"trialLinks":[],"worldLinks":[],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":null,"title":"Logic Islands · 邏輯群島 | Logic Island","overflow":0,"errors":[]}
+{"name":"phone","p":"/curriculum","status":200,"requests":32,"trialRequests":[],"trialLinks":[],"worldLinks":[],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":null,"title":"完整課綱 · 80 堂課 | Logic Island","overflow":0,"errors":[]}
+{"name":"phone","p":"/learn","status":200,"requests":32,"trialRequests":[],"trialLinks":[],"worldLinks":[],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":null,"title":"互動實驗島 | Logic Island","overflow":0,"errors":[]}
+{"name":"phone","p":"/regions/cs","status":200,"requests":27,"trialRequests":[],"trialLinks":[],"worldLinks":[],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":null,"title":"程式與資訊群島 · 8 座主題島 | Logic Island","overflow":0,"errors":[]}
+{"name":"phone","p":"/regions/ai","status":200,"requests":27,"trialRequests":[],"trialLinks":[],"worldLinks":[],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":null,"title":"AI 人工智慧群島 · 7 座主題島 | Logic Island","overflow":0,"errors":[]}
+{"name":"phone","p":"/regions/design","status":200,"requests":27,"trialRequests":[],"trialLinks":[],"worldLinks":[],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":null,"title":"數位設計群島 · 4 座主題島 | Logic Island","overflow":0,"errors":[]}
+{"name":"phone","p":"/regions/web","status":200,"requests":27,"trialRequests":[],"trialLinks":[],"worldLinks":[],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":null,"title":"網頁與應用開發群島 · 4 座主題島 | Logic Island","overflow":0,"errors":[]}
+{"name":"phone","p":"/regions/sys","status":200,"requests":27,"trialRequests":[],"trialLinks":[],"worldLinks":[],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":null,"title":"系統與雲端工程群島 · 6 座主題島 | Logic Island","overflow":0,"errors":[]}
+{"name":"phone","p":"/learn/linux-terminal","status":200,"requests":30,"trialRequests":[],"trialLinks":[],"worldLinks":[],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":null,"title":"Linux Terminal Simulator · 互動實驗島 | Logic Island","overflow":0,"errors":[]}
+{"name":"phone","p":"/world","status":200,"requests":37,"trialRequests":[],"trialLinks":[],"worldLinks":["/world/cs","/world/ai","/world/design","/world/web","/world/sys"],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":"noindex, nofollow","title":"世界總覽（Regional World 原型） | Logic Island","overflow":0,"errors":[]}
+{"name":"phone","p":"/world/cs","status":200,"requests":34,"trialRequests":[],"trialLinks":[],"worldLinks":["/world","/world/ai","/world/sys"],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":"noindex, nofollow","title":"程式與資訊群島（Regional World 原型） | Logic Island","overflow":0,"errors":[]}
+{"name":"phone","p":"/world/ai","status":200,"requests":33,"trialRequests":[],"trialLinks":[],"worldLinks":["/world","/world/cs"],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":"noindex, nofollow","title":"AI 人工智慧群島（Regional World 原型） | Logic Island","overflow":0,"errors":[]}
+{"name":"phone","p":"/world/design","status":200,"requests":33,"trialRequests":[],"trialLinks":[],"worldLinks":["/world","/world/web"],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":"noindex, nofollow","title":"數位設計群島（Regional World 原型） | Logic Island","overflow":0,"errors":[]}
+{"name":"phone","p":"/world/web","status":200,"requests":33,"trialRequests":[],"trialLinks":[],"worldLinks":["/world","/world/design"],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":"noindex, nofollow","title":"網頁與應用開發群島（Regional World 原型） | Logic Island","overflow":0,"errors":[]}
+{"name":"phone","p":"/world/sys","status":200,"requests":33,"trialRequests":[],"trialLinks":[],"worldLinks":["/world","/world/cs"],"trialWords":0,"menu":"探索群島|完整課綱|互動實驗島","robots":"noindex, nofollow","title":"系統與雲端工程群島（Regional World 原型） | Logic Island","overflow":0,"errors":[]}
+{"fails":[]}
