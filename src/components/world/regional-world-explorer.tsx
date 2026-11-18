@@ -43,7 +43,7 @@ function regionSceneOptions(region: RegionId, pins: boolean) {
 const PHONE_PIN_REACH = 3.2, PHONE_ROOM = { top: 30, bottom: 26 } as const;
 
 /*
- * M3.1 performance case P4 (`?stress=glb`, only in this flag-gated prototype): every island without a GLB gets a copy
+ * M3.1 performance case P4 (`?stress=glb`, only in a build the server marked as a review build, P1-37): every island without a GLB gets a copy
  * of v2.1's lighthouse and workshop, loaded read-only from the same file, to measure what a region of GLB islands
  * costs before any is made. A load test, never art: the map's accessible name says「效能測試替身」while it is on.
  */
@@ -101,12 +101,14 @@ function RegionMore({ regionId, regionName, islandCount, hub, neighbours, onLeav
  * label, or its list entry when the map is unavailable), and leaving the region tells the overview which region to
  * focus, so the keyboard keeps its place across the three levels.
  */
-export function RegionalWorldExplorer({ regionId, regionName, regionNameEn, islands, hub, neighbours = [], footer }: { regionId: RegionId; regionName: string; regionNameEn: string; islands: LearningIsland[];
-  hub: { name: string; href: string; labs: number }; neighbours?: RegionNeighbour[]; footer?: ReactNode }) {
+export function RegionalWorldExplorer({ regionId, regionName, regionNameEn, islands, hub, neighbours = [], footer, review = false }: { regionId: RegionId; regionName: string; regionNameEn: string; islands: LearningIsland[];
+  hub: { name: string; href: string; labs: number }; neighbours?: RegionNeighbour[]; footer?: ReactNode;
+  /** P1-37: decided by the server at build time (worldReviewEnabled); without it `?stress=` has no effect. */
+  review?: boolean }) {
   const router = useRouter(), path = usePathname(), params = useSearchParams();
   const requested = params.get('island');
   const selectedId = requested && islands.some(i => i.id === requested) ? requested : null;
-  // Only `island` changes; any other parameter (such as the P4 `stress` case) stays in the address.
+  // Only `island` changes; any other parameter stays in the address (the P4 `stress` case of a review build relies on it).
   const withIsland = useCallback((id: string | null) => {
     const next = new URLSearchParams(params.toString());
     if (id) next.set('island', id); else next.delete('island');
@@ -148,7 +150,7 @@ export function RegionalWorldExplorer({ regionId, regionName, regionNameEn, isla
     return () => cancelAnimationFrame(frame);
   }, [selectedId, islands]);
   const phone = useSyncExternalStore(subscribe, () => matchMedia(PHONE).matches, () => false);
-  const stress = params.get('stress') === 'glb';
+  const stress = review && params.get('stress') === 'glb';
   const { layout, camera } = regionLayout(regionId);
   const pins = useSyncExternalStore(subscribePins, () => matchMedia(PINS).matches, () => false);
   const base = useMemo(() => regionSceneOptions(regionId, pins), [regionId, pins]);

@@ -11,7 +11,9 @@ import { delta, flight, flightStats, instrument, round, type Entry, type Flight 
  * WebGL: how soon its list is there and that nothing is drawn.
  *
  * Routes: P0 the five-island home page, P1 the overview, P2 the CS map, P3 the AI map, P4 the CS map with a v2.1
- * stand-in on every island (`?stress=glb`, a load test, not art). PERF_ROUNDS (default 5); PERF_OUT writes the JSON.
+ * stand-in on every island (`?stress=glb`, a load test, not art; P1-37: only a build made with LOGIC_ISLAND_WORLD_REVIEW=1
+ * as well reads that parameter, so P4 is measured only when the same variable is set here). PERF_ROUNDS (default 5);
+ * PERF_OUT writes the JSON.
  */
 const ROUNDS = Number(process.env.PERF_ROUNDS ?? 5);
 type Route = { id: string; path: string; ready: string; glb?: string; island?: RegExp };
@@ -20,7 +22,7 @@ const ROUTES: Route[] = [
   { id: 'P1 overview', path: '/world', ready: '進入資訊科學群島' },
   { id: 'P2 cs', path: '/world/cs', ready: '聚焦基礎程式島', glb: '聚焦基礎程式島', island: /基礎程式島/ },
   { id: 'P3 ai', path: '/world/ai', ready: '聚焦AI 基礎島（規劃中）', island: /AI 基礎島/ },
-  { id: 'P4 cs glb stress', path: '/world/cs?stress=glb', ready: '聚焦基礎程式島', glb: '聚焦資料庫應用島', island: /基礎程式島/ },
+  ...(process.env.LOGIC_ISLAND_WORLD_REVIEW === '1' ? [{ id: 'P4 cs glb stress', path: '/world/cs?stress=glb', ready: '聚焦基礎程式島', glb: '聚焦資料庫應用島', island: /基礎程式島/ }] : []),
 ];
 
 const entries = (page: Page) => page.evaluate(() => (window as unknown as { __perfEntries: Entry[] }).__perfEntries.slice());

@@ -3,7 +3,7 @@ import { hexToWorld } from '../src/lib/islands/hex';
 import { getIsland, islandsInRegion, orderedRegions } from '../src/content/world';
 import { MAPPED_REGION_IDS, regionLayout } from '../src/lib/islands/regions/region-layouts';
 import { chooseIsland, withoutWebGL } from './fallbacks';
-import { ON, expectLabelsClear, islandWidths, openRegion, phone, test, type Probe } from './world-helpers';
+import { ON, REVIEW, expectLabelsClear, islandWidths, openRegion, phone, test, type Probe } from './world-helpers';
 
 /*
  * M3.1 regional world prototype (/world, /world/cs, /world/ai). The pages exist only in a build made with
@@ -85,13 +85,46 @@ test.describe('regional world: flag on', () => {
     await expect(page).toHaveURL(/\/world$/);
     await page.goto('/world/cs?island=no-such-island');
     await expect(page).toHaveURL(/\/world\/cs$/);
-    // Other parameters stay when the island changes (the P4 stress case relies on it).
+    // Other parameters stay when the island changes (the P4 stress case of a review build relies on it).
     await page.goto('/world/cs?stress=glb');
     await expect(page.locator('canvas')).toBeVisible({ timeout: 30_000 });
     await page.getByRole('group', { name: '選擇學習島嶼' }).getByRole('button', { name: /資料庫應用島/ }).click();
     await expect(page).toHaveURL(/\/world\/cs\?stress=glb&island=databases$/);
     await page.getByRole('button', { name: '返回全景' }).click();
     await expect(page).toHaveURL(/\/world\/cs\?stress=glb$/);
+  });
+
+  /* P1-37: `?stress=glb` is a review tool. What the map holds once it has stopped changing (the GLB arrives late). */
+  const mapContents = async (page: Page) => {
+    const read = () => page.evaluate(() => { const { meshes, instanced, instances } = (document.querySelector('canvas') as unknown as { __hexPerf: () => { meshes: number; instanced: number; instances: number } }).__hexPerf(); return `${meshes}/${instanced}/${instances}`; });
+    let last = '', same = 0;
+    await expect.poll(async () => { const now = await read(); same = now === last ? same + 1 : 0; last = now; return same; }, { timeout: 30_000, intervals: [400] }).toBeGreaterThanOrEqual(4);
+    return last;
+  };
+
+  test('release build: /world/cs?stress=glb is the ordinary map, no stand-in models and no「效能測試替身」', async ({ page }) => {
+    test.skip(REVIEW, 'a review build (LOGIC_ISLAND_WORLD_REVIEW=1) reads the parameter on purpose');
+    await openRegion(page, '/world/cs');
+    await expect(label(page, '資料庫應用島')).toBeVisible();
+    const plain = await mapContents(page);
+    for (const query of ['?stress=glb', '?stress=glb&review=1', '?STRESS=glb&stress=glb']) {
+      await openRegion(page, `/world/cs${query}`);
+      await expect(label(page, '資料庫應用島')).toBeVisible();
+      expect(await mapContents(page), query).toBe(plain);
+      await expect(page.getByRole('region', { name: '資訊科學群島地圖', exact: true })).toBeVisible();
+      await expect(page.getByText('效能測試替身')).toHaveCount(0);
+      expect(await page.locator('[aria-label*="效能測試替身"]').count(), query).toBe(0);
+    }
+  });
+
+  test('review build only: /world/cs?stress=glb adds the stand-in models and says so', async ({ page }) => {
+    test.skip(!REVIEW, 'built without LOGIC_ISLAND_WORLD_REVIEW=1');
+    await openRegion(page, '/world/cs');
+    await expect(label(page, '資料庫應用島')).toBeVisible();
+    const plain = await mapContents(page);
+    await openRegion(page, '/world/cs?stress=glb');
+    await expect(page.getByRole('region', { name: '資訊科學群島地圖（效能測試替身）', exact: true })).toBeVisible();
+    await expect.poll(() => mapContents(page), { timeout: 60_000 }).not.toBe(plain);
   });
 
   test('a planned island: its description and「規劃中」, no lesson link, no progress, no「已開放」', async ({ page }) => {
