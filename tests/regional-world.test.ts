@@ -16,6 +16,7 @@ import { REGION_ACCENT } from '@/lib/world/region-accents';
 import { validateRegion } from '@/lib/islands/regions/validate-region';
 import { placeholderLandmarkTiles } from '@/components/islands/hex-world/hex-landmarks';
 import { getIsland, islandsInRegion, labIslandConfig, orderedRegions, subjectIslands } from '@/content/world';
+import { labRegistry } from '@/content/world/labs';
 import type { RegionId } from '@/content/world/types';
 
 /*
@@ -186,7 +187,8 @@ describe('multi-region world data model (P8.2)', async () => {
     expect(labIslandConfig.kind).toBe('tool');
     expect(labIslandConfig.regionId).toBeUndefined();
     expect(WORLD_MAP.hub.islandId).toBe(labIslandConfig.id);
-    expect(hubSummary().lab).toMatchObject({ id: 'labs', href: '/learn', labs: labIslandConfig.labs!.length });
+    // P1-38: the hub stands for all of /learn, so its count is the lab registry's open labs (tests/lab-counts.test.tsx).
+    expect(hubSummary().lab).toMatchObject({ id: 'labs', href: '/learn', labs: labRegistry.filter(l => l.status === 'implemented').length });
   });
 
   it('island visual status is derived: GLB model, authored landmarks or the shared planned outline', () => {

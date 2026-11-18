@@ -307,4 +307,18 @@ test.describe('regional world: flag on', () => {
     await expect(page).toHaveURL(/\/world\/cs$/);
     await expect(chooseIsland(page, '資料庫應用島')).toBeFocused();
   });
+
+  // P1-38: the central hub stands for all of /learn, so the number it states is the number of labs /learn offers.
+  test('the central hub states as many labs as /learn has open: the same number on every region map and on /learn', async ({ page }) => {
+    await page.goto('/learn');
+    const open = await page.locator('a.course-card').count();
+    expect(open).toBeGreaterThan(await page.locator('a.course-card:not([data-kind="tool"])').count());
+    await expect(page.locator('.catalog-summary')).toContainText(`${String(open).padStart(2, '0')} 個互動實驗開放中`);
+    for (const regionId of MAPPED_REGION_IDS) {
+      await page.goto(`/world/${regionId}`);
+      const hub = page.locator('nav[aria-label$="以外"] a[href="/learn"]');
+      await expect(hub, regionId).toContainText(`${open} 個互動實驗`);
+      expect((await hub.innerText()).match(/\d+ 個互動實驗/g), regionId).toEqual([`${open} 個互動實驗`]);
+    }
+  });
 });

@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { ArrowUpRight, Palette } from 'lucide-react';
 import { courses } from '@/content/courses';
 import { lessons } from '@/content/curriculum';
-import { APPROACH_STEPS, LAB_DOMAIN_LABELS, LAB_DOMAINS, labsOfDomain, lessonsUsingLab, type LabEntry } from '@/content/world/labs';
+import { APPROACH_STEPS, LAB_DOMAIN_LABELS, LAB_DOMAINS, labsOfDomain, lessonsUsingLab, openLabCounts, type LabEntry } from '@/content/world/labs';
 import { CourseCard } from './course-card';
 import { Breadcrumbs } from './nav/breadcrumbs';
 
@@ -26,7 +26,7 @@ function ToolCard({ lab }: { lab: LabEntry }) {
 }
 
 export function Catalog(){
-  const open = LAB_DOMAINS.flatMap(d => labsOfDomain(d)).filter(l => l.status === 'implemented').length;
+  const open = openLabCounts().total;
   return <main id="main" className="container catalog"><Breadcrumbs items={[{label:'探索群島',href:'/'},{label:'互動實驗島'}]}/>
     <span className="eyebrow">INTERACTIVE LAB ISLAND · 跨群島共用</span><h1>互動實驗島</h1>
     <p className="intro">所有群島共用的實驗場：程式類實驗依 Think → Visualize → Code，自己輸入資料、逐步播放並對照四種語言；設計類實驗依 Understand → Experiment → Build，即時調整並寫成程式碼。</p>
