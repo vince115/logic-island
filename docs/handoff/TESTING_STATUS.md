@@ -10,6 +10,20 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## P8 A1-L 後續：P1-37、P1-38、Next.js 16.4.5（2026-11-18，`main` `b56e7ec`）
+
+報告：`docs/planning/P8_A1P_PREVIEW_PREPARATION.md`；A1-P 工具：`docs/planning/evidence/p8-a1p/`。**只有本機隔離建置的結果，不是 Preview，也不是真機；A1-P 尚未執行。**
+
+- 對象是三個 PR（#13、#14、#15）合成的整合樹，tree `a364495`，與合併後的 `main` `b56e7ec` 相同。Default 與 World-only 兩份隔離建置，都不設 `LOGIC_ISLAND_WORLD_REVIEW`。
+- Typecheck 0、ESLint 0、Vitest **1976 通過／9 略過／0 失敗**（78 個檔案）；兩種建置在 Next.js 16.4.5 上第一次就成功。
+- 全套 E2E：World-only **485 通過／113 略過／0 失敗**，Default **425／173／0**。
+- 審查參數：正式建置上 `/world?without=…` 與 `/world/<region>?stress=glb` 沒有作用（單元、E2E 與 `hooks.mjs` 量測）。審查功能的 E2E 只在 `LOGIC_ISLAND_WORLD_REVIEW=1` 的建置執行，那兩個測試在審查建置上另外跑過並通過。**CI 不設這個變數，所以 CI 不會執行審查功能的測試**；改動審查功能時要在本機以審查建置跑 `e2e/world-topology.spec.ts` 與 `e2e/regional-world.spec.ts`。
+- V-01～V-10 的 42 個畫面與 A1-L 的資料逐項相同（draw call、三角形、標籤、觸控目標），樞紐入口顯示「12 個互動實驗」。
+- 十個既有頁面：Default 對 World-only、Default 對 Production 20／20 相同；World-only 對 Production 19／20，手機 `/islands` 的 3D 截圖間歇不同（重跑三次兩次相同），文字與連結相同。
+- 私有題庫洩漏掃描：兩份 `.next`、頁面回應與課程頁回應共 7 處皆 clean。
+- A1-P 的 preflight（`preview-check.mjs`）在本機驗證過：正式建置 PASS、審查建置 FAIL、受保護且沒有憑證的 Preview FAIL（辨識出登入頁）。帶憑證通過 Vercel 保護的路徑**沒有驗證**。
+- 沒有做：Vercel Preview（A1-P）、真機（A2）、FPS 量測。
+
 ## P8 Activation A1-L 本機預驗收（2026-11-18，`main` `961db2f`）
 
 報告：`docs/planning/P8_A1L_LOCAL_PREACCEPTANCE.md`；證據與工具：`docs/planning/evidence/p8-a1l/`。**只有本機隔離建置的結果，不是 Preview，也不是真機。**
