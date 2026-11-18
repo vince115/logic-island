@@ -121,14 +121,14 @@ describe('P1-37 what the client does with the address', () => {
     const { RegionalWorldExplorer } = await import('@/components/world/regional-world-explorer');
     const { hubSummary, regionIslands } = await import('@/lib/world/learning-islands');
     captured.search = search;
-    render(<RegionalWorldExplorer regionId="cs" regionName="資訊科學群島" regionNameEn="Computer Science" islands={regionIslands('cs')} hub={hubSummary().lab} {...(review === undefined ? {} : { review })}/>);
+    render(<RegionalWorldExplorer regionId="cs" regionName="程式與資訊群島" regionNameEn="Computer Science" islands={regionIslands('cs')} hub={hubSummary().lab} {...(review === undefined ? {} : { review })}/>);
     const props = captured.explorer.at(-1) as { options: { glbLayouts?: unknown[] }; copy: { section: string } };
     return { models: props.options.glbLayouts?.length ?? 0, section: props.copy.section };
   };
 
   it('/world/cs?stress=glb: the map is the ordinary one when the server said no (and when it said nothing)', async () => {
     const plain = await region(false, '');
-    expect(plain.section).toBe('資訊科學群島地圖');
+    expect(plain.section).toBe('程式與資訊群島地圖');
     for (const review of [false, undefined]) { cleanup(); expect(await region(review, 'stress=glb'), String(review)).toEqual(plain); }
   });
 
@@ -137,6 +137,6 @@ describe('P1-37 what the client does with the address', () => {
     cleanup();
     const stressed = await region(true, 'stress=glb');
     expect(stressed.models).toBeGreaterThan(plain.models);
-    expect(stressed.section).toBe('資訊科學群島地圖（效能測試替身）');
+    expect(stressed.section).toBe('程式與資訊群島地圖（效能測試替身）');
   });
 });
