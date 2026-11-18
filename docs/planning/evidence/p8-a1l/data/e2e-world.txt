@@ -1,0 +1,30 @@
+World-only build (LOGIC_ISLAND_REGIONAL_WORLD=1, LOGIC_ISLAND_TRIALS unset), main 961db2f, 2026-11-18, --trace retain-on-failure, workers 1
+totals: 109 skipped; 481 passed (27.7m)
+failed: 0
+spec                                         passed skipped
+candidate-integration.spec.ts                    30      14
+curriculum.spec.ts                               87       1
+db-activities-f1c.spec.ts                        14       0
+db-activities-f1d.spec.ts                        16       0
+db-activities.spec.ts                            12       0
+device-tool.spec.ts                              14       2
+hex-camera.spec.ts                               28       8
+hex-environment.spec.ts                          21       1
+hex-scale.spec.ts                                30       0
+hex-world.spec.ts                                20       0
+home-databases.spec.ts                           13       1
+islands-acceptance.spec.ts                       12       8
+islands-candidate.spec.ts                        22       4
+islands.spec.ts                                  44       0
+navigation.spec.ts                               28       2
+player.spec.ts                                   22       0
+regional-world.spec.ts                           32       6
+sql.spec.ts                                       8       0
+trials-ccarf-mock.spec.ts                         0      12
+trials-fixed-paper-retirement.spec.ts             0       6
+trials-history.spec.ts                            0       6
+trials-ipas-mock.spec.ts                          0      12
+trials-paper-policy.spec.ts                       0       6
+trials.spec.ts                                    2      10
+world-topology.spec.ts                           26      10
+total                                           481     109
