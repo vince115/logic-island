@@ -4,6 +4,7 @@ import type { IslandId } from '@/content/curriculum/schema';
 import { UNITS } from '@/content/curriculum/units';
 import { getIsland, islandsInRegion, labIslandConfig, orderedRegions } from '@/content/world';
 import { lessonsOfIsland } from '@/content/world/catalog';
+import { openLabCounts } from '@/content/world/labs';
 import type { RegionId } from '@/content/world/types';
 import { isMappedRegion, regionLayout } from '@/lib/islands/regions/region-layouts';
 import type { IslandVisual } from '@/lib/islands/regions/schema';
@@ -96,7 +97,9 @@ export const unmappedRegions = (): UnmappedRegionSummary[] => orderedRegions.fil
 /**
  * The hub of the overview: 互動實驗島 (its labs at /learn) and the central challenge island, which is only planned.
  * P8.2: the lab island is the registry's one tool island, shared by every region and never one of a region's subject
- * islands; `labs` is how many interactive labs it offers.
+ * islands; `labs` is how many interactive labs it offers. P1-38: the hub stands for all of /learn, so that is every
+ * open lab of the lab registry (algorithm and tool labs, never a planned one), the number /learn itself states; the
+ * island record's own `labs` list holds only the six algorithm labs the home map shows under it.
  */
-export const hubSummary = () => ({ lab: { id: labIslandConfig.id, name: labIslandConfig.name, description: labIslandConfig.description, href: '/learn' as const, accent: labIsland.accent, labs: labIslandConfig.labs?.length ?? 0 } });
+export const hubSummary = () => ({ lab: { id: labIslandConfig.id, name: labIslandConfig.name, description: labIslandConfig.description, href: '/learn' as const, accent: labIsland.accent, labs: openLabCounts().total } });
 export type HubSummary = ReturnType<typeof hubSummary>;

@@ -94,6 +94,21 @@ export const getLab = (id: string) => labRegistry.find(l => l.id === id);
 export const implementedToolLabs = () => toolLabs.filter(l => l.status === 'implemented');
 export const labsOfDomain = (domain: LabDomain) => labRegistry.filter(l => l.domain === domain);
 
+/**
+ * P1-38: how many labs /learn offers today, by kind. A planned lab has no route and is never counted. Every place that
+ * states a number of labs for the island as a whole (the /learn summary and description, the world's central hub)
+ * reads it here, so they cannot disagree.
+ */
+export function openLabCounts() {
+  const open = labRegistry.filter(l => l.status === 'implemented');
+  return { total: open.length, algorithm: open.filter(l => l.kind === 'algorithm').length, tool: open.filter(l => l.kind === 'tool').length };
+}
+/** That count in words: `short`「12 個互動實驗」, `detail`「6 個演算法實驗與 6 個工具實驗」(a kind with no open lab is left out). */
+export function openLabText() {
+  const { total, algorithm, tool } = openLabCounts();
+  return { short: `${total} 個互動實驗`, detail: [algorithm ? `${algorithm} 個演算法實驗` : '', tool ? `${tool} 個工具實驗` : ''].filter(Boolean).join('與 ') };
+}
+
 /** A lesson that uses a lab, with its content status: only published ones are links. */
 export interface LabLesson { lessonId: string; title: string; slug: string; status: ContentStatus }
 /** The lessons that use a lab, in catalog order (derived, never stored). */
