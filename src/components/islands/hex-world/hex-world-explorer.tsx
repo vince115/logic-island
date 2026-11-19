@@ -53,6 +53,8 @@ const HexWorldScene=dynamic(()=>import('./hex-world-scene'),{ssr:false,loading:(
 
 /** P8.3: the sheet's offset from the stage's bottom edge plus the clear sea kept between it and the framed island (px). */
 const SHEET_GAP=20;
+/** P9.6: the longest the focused island's panels wait for the camera's arrival (ms). */
+const ARRIVAL_FALLBACK_MS=2500;
 /** D.3-6b: the time-of-day select's wording, in ENVIRONMENTS order. */
 const TIME_OF_DAY:Record<EnvironmentId,string>={morning:'清晨',noon:'中午',sunset:'黃昏',dusk:'傍晚'};
 
@@ -164,6 +166,22 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
   // On phones the island list sits below the map, so choosing there brings the map, with its subjects panel, into view.
   useEffect(()=>{subjectsRef.current?.parentElement?.scrollIntoView({block:'nearest',behavior:reducedMotion?'auto':'smooth'});},[selectedId,reducedMotion]);
   const poiLayout=poiPanel&&selected?options?.glbLayouts?.find(l=>l.islandId===selected.id):undefined;
+  // P9.6 (`panelsOnArrival`): the focused island's panels wait for the camera (its report, or ARRIVAL_FALLBACK_MS if
+  // none comes, e.g. a move that ends on a limit). They stay mounted meanwhile, only hidden, so the phone sheet's
+  // height is known and the camera frames the island above it in the same move.
+  const onArrival=Boolean(options?.panelsOnArrival)&&!reducedMotion;
+  const [arrivedAt,setArrivedAt]=useState<string|null>(null);
+  // A new focus has not arrived yet, even one the camera reached earlier (reset while rendering, before the camera's
+  // own effect can report this focus).
+  const [arrivalFor,setArrivalFor]=useState(selectedId);
+  if(arrivalFor!==selectedId){setArrivalFor(selectedId);setArrivedAt(null);}
+  const arrive=useCallback((id:string|null)=>setArrivedAt(id),[]);
+  useEffect(()=>{
+    if(!onArrival||!selectedId) return;
+    const timer=setTimeout(()=>setArrivedAt(selectedId),ARRIVAL_FALLBACK_MS);
+    return ()=>clearTimeout(timer);
+  },[onArrival,selectedId]);
+  const arriving=onArrival&&Boolean(selectedId)&&arrivedAt!==selectedId;
   // The focused island's subjects over the map (the home map and the region maps).
   const subjectsOpen=Boolean(modeSwitchTarget&&selected&&(selected.units||selected.labGroups)&&subjectsClosedFor!==selected.id);
   // P8.3 (`phoneRoom`, region maps): on single-column screens the camera frames within this room, and a subjects sheet
@@ -227,11 +245,11 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
               reducedMotion={Boolean(reducedMotion)} onReady={markReady} onUnavailable={unavailable} options={options} label={text.canvas}
               infoNode={poiPanel?infoNode:undefined} onInfoChange={poiPanel?setInfoNode:undefined}
               resetKey={resetKey} onViewChange={setViewChanged} orbit={orbiting} onOrbitStop={stopOrbit} environmentId={environmentId} insetRight={insetRight} baseAzimuth={baseAzimuth}
-              onResetRequest={options?.mapControls?overview:undefined} room={room}/>
+              onResetRequest={options?.mapControls?overview:undefined} room={room} onArrive={onArrival?arrive:undefined}/>
           </LoadingCopy.Provider>
         </SceneBoundary>
         {!controlsBelow&&bottom}
-        {subjectsOpen&&selected&&<aside ref={subjectsRef} className={styles.subjectsFloating} aria-label={`${selected.name}${selected.units?'科目':'實驗'}清單`}>
+        {subjectsOpen&&selected&&<aside ref={subjectsRef} className={styles.subjectsFloating} data-arrival={onArrival?arriving?'waiting':'arrived':undefined} aria-label={`${selected.name}${selected.units?'科目':'實驗'}清單`}>
           <div className={styles.subjectsHead}><span><small>{selected.englishName}</small><strong>{selected.name}</strong></span>
             <button type="button" aria-label={`關閉${selected.units?'科目':'實驗'}清單`} onClick={()=>setSubjectsClosedFor(selected.id)}><X size={16}/></button></div>
           <div className={styles.subjectsBody}>{selected.units?<IslandSubjects island={selected} units={selected.units}/>:<IslandLabs island={selected} groups={selected.labGroups!}/>}</div>
@@ -239,8 +257,8 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
       </div>
       {controlsBelow&&bottom}
       </StageFrame>
-      {poiLayout&&selected&&<HexPoiPanel layout={poiLayout} interactions={pageInteractions(selected)} islandName={selected.name} infoNode={infoNode}
-        onInfoChange={setInfoNode} onNavigate={navigate}/>}
+      {poiLayout&&selected&&<div className={styles.arrivalWrap} data-arrival={onArrival?arriving?'waiting':'arrived':undefined}><HexPoiPanel layout={poiLayout} interactions={pageInteractions(selected)} islandName={selected.name} infoNode={infoNode}
+        onInfoChange={setInfoNode} onNavigate={navigate}/></div>}
       </StageColumn>}
       {showList&&<LearningNavigation islands={islands} selectedId={selectedId} onSelect={select} listMode={listMode} more={listMore}/>}
     </div>

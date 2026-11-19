@@ -73,6 +73,10 @@ function frame(points:Vector3[],view:Vector3,width:number,height:number,focused:
   return {center,zoom,up,right,shift:(top-bottom)/(2*zoom),side:insetRight/(2*zoom)};
 }
 
+/** P9.6 (`onArrive`): the share of a move still left when it counts as arrived, and the smallest gaps that count as none. */
+const ARRIVED=.08;
+const ARRIVED_EPS=[1e-2,2e-3,2e-3,2e-3,1e-2];
+
 /**
  * Isometric framing for the hex preview. CameraControls.fitToBox snaps to the nearest axis
  * (a flat side view here), so this keeps the view direction and fits with orthographic zoom instead.
@@ -84,7 +88,7 @@ function frame(points:Vector3[],view:Vector3,width:number,height:number,focused:
  * `orbit` (D.3-5b) turns the overview on its own, keeping tilt and zoom; any drag, pinch or wheel on the map calls
  * `onOrbitStop`, and the explorer decides everything else (focus, list mode, hidden page,「返回全景」).
  */
-export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetKey=0,onViewChange,orbit=false,onOrbitStop,insetRight=0,view:base=VIEW,pan=false,onResetRequest,room,explore}:{frames:IslandDefinition[];selectedId:string|null;reducedMotion:boolean;
+export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetKey=0,onViewChange,orbit=false,onOrbitStop,insetRight=0,view:base=VIEW,pan=false,onResetRequest,room,explore,onArrive}:{frames:IslandDefinition[];selectedId:string|null;reducedMotion:boolean;
   /** Content points (scene space) to frame instead of the bounding boxes: all of them, and per island. */
   fit?:{all:Vector3[];byId:Record<string,Vector3[]>};
   free?:boolean;resetKey?:number;onViewChange?:(view:CameraView)=>void;
@@ -103,10 +107,48 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
   explore?:ExploreView;
   /** P8.3: the room the stage needs at its top and bottom (see `frame`), in place of the built-in allowances. */
   room?:StageRoom;
+  /**
+   * P9.6: called with the focused island (null: the overview) once the camera has as good as reached the view this
+   * focus asked for: every part of the move (center, zoom, angles, offset) is within ARRIVED of what was left when it
+   * began, or camera-controls rests, whichever comes first; at once without a transition (first framing, reduced
+   * motion). camera-controls' own rest comes long after the move looks done (its smoothing tails off), hence the
+   * fraction. A newer framing makes an older one's report stale. Unset, nothing changes.
+   */
+  onArrive?:(id:string|null)=>void;
 }) {
   const baseAzimuth=Math.atan2(base.x,base.z),basePolar=Math.acos(base.y);
   const controls=useRef<CameraControlsImpl>(null);
   const initialized=useRef(false);
+  const arrival=useRef<{seq:number;onArrive?:(id:string|null)=>void;pending:{seq:number;id:string|null;zoom:number;start:number[]}|null}>({seq:0,onArrive,pending:null});
+  useEffect(()=>{arrival.current.onArrive=onArrive;},[onArrive]);
+  const gapScratch=useMemo(()=>({a:new Vector3(),b:new Vector3(),s:new Spherical(),t:new Spherical()}),[]);
+  /** What is left of the move: center, zoom (log), azimuth, polar angle, focal offset. */
+  const gaps=useCallback((controller:CameraControlsImpl,zoom:number)=>{
+    const {a,b,s,t}=gapScratch;
+    const center=controller.getTarget(a,false).distanceTo(controller.getTarget(b,true));
+    controller.getSpherical(s,false);controller.getSpherical(t,true);
+    const offset=controller.getFocalOffset(a,false).distanceTo(controller.getFocalOffset(b,true));
+    return [center,Math.abs(Math.log(controller.camera.zoom/zoom)),Math.abs(s.theta-t.theta),Math.abs(s.phi-t.phi),offset];
+  },[gapScratch]);
+  const finish=useCallback((seq:number)=>{
+    const now=arrival.current;
+    if(now.seq!==seq||now.pending?.seq!==seq) return;
+    const {id}=now.pending;now.pending=null;now.onArrive?.(id);
+  },[]);
+  /** Reports `id` once the moves just issued are as good as done (see `onArrive`), unless a newer framing came. */
+  const arriveAfter=useCallback((id:string|null,moves:Promise<unknown>[],animate:boolean,zoom:number)=>{
+    const seq=++arrival.current.seq,controller=controls.current;
+    // Only a map that listens pays for the per-frame check.
+    if(!arrival.current.onArrive){arrival.current.pending=null;return;}
+    arrival.current.pending={seq,id,zoom,start:controller?gaps(controller,zoom):[]};
+    if(!animate||!controller) finish(seq); else void Promise.all(moves).then(()=>finish(seq));
+  },[gaps,finish]);
+  useFrame(()=>{
+    const pending=arrival.current.pending,controller=controls.current;
+    if(!pending||!controller) return;
+    const left=gaps(controller,pending.zoom);
+    if(left.every((gap,i)=>gap<=Math.max((pending.start[i]??0)*ARRIVED,ARRIVED_EPS[i]))) finish(pending.seq);
+  });
   const {width,height}=useThree(state=>state.size);
   const connected=useThree(state=>state.events.connected) as HTMLElement|undefined;
   const invalidate=useThree(state=>state.invalidate);
@@ -149,8 +191,7 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
       const eye=center.clone().addScaledVector(base,DISTANCE);
       const animate=initialized.current&&!reducedMotion;
       controller.stop();
-      void controller.setLookAt(eye.x,eye.y,eye.z,center.x,center.y,center.z,animate);
-      void controller.zoomTo(zoom,animate);
+      arriveAfter(selectedId,[controller.setLookAt(eye.x,eye.y,eye.z,center.x,center.y,center.z,animate),controller.zoomTo(zoom,animate)],animate,zoom);
       initialized.current=true;
       invalidate();
       return;
@@ -170,17 +211,17 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
     const eye=center.clone().addScaledVector(view,DISTANCE);
     const animate=initialized.current&&!reducedMotion;
     if(boundary){controller.verticalDragToForward=true;controller.setBoundary(boundary.clone().expandByPoint(center));}
-    void controller.setLookAt(eye.x,eye.y,eye.z,center.x,center.y,center.z,animate);
+    const moves=[controller.setLookAt(eye.x,eye.y,eye.z,center.x,center.y,center.z,animate)];
     // The azimuth adds up full turns; take the short way to the new one.
     controller.normalizeRotations();
-    void controller.setFocalOffset(side,-shift,0,animate);
-    void controller.zoomTo(zoom,animate);
+    moves.push(controller.setFocalOffset(side,-shift,0,animate),controller.zoomTo(zoom,animate));
+    arriveAfter(selectedId,moves,animate,zoom);
     framed.current={points,reset,base,zoom:!selected&&view===base?zoom:null,target:center};
     initialized.current=true;
     // P8.3: the move takes effect in the next frame, and with `frameloop="demand"` nothing else may ask for one (a new
     // focus usually redraws the scene, but that frame can come before this effect; a changed `room` redraws nothing).
     invalidate();
-  },[points,width,height,reducedMotion,selected,free,reset,insetRight,base,baseAzimuth,basePolar,boundary,room,explore,invalidate]);
+  },[points,width,height,reducedMotion,selected,selectedId,free,reset,insetRight,base,baseAzimuth,basePolar,boundary,room,explore,invalidate,arriveAfter]);
   // camera-controls sets `touch-action: none` on the element it listens on (R3F's wrapper, which also holds the
   // labels) when it connects; free touch only turns sideways, so the page keeps its vertical scroll. Touch keeps the tilt.
   // The wheel zooms without camera-controls' `controlstart`, so it stops Auto Orbit here.
