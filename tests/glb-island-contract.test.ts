@@ -61,7 +61,7 @@ describe('island GLB contract (M3.1)', () => {
 
   it('the contract rejects what it should: wrong scale, names, missing anchors, a floating pivot, an oversized landmark', () => {
     const bad = validateGlbEntry('bad', { root: 'BasicsRoot', scale: 1, nodes: [
-      { node: 'Tower', kind: 'target', role: 'x', interactionId: 'x', anchor: 'Anchor_Tower', action: { type: 'info', title: '', text: '' } },
+      { node: 'Tower', kind: 'target', role: 'x', interactionId: 'x', anchor: 'Anchor_Tower' },
     ] });
     expect(bad).toEqual(expect.arrayContaining([expect.stringMatching(/scale/), expect.stringMatching(/root/), expect.stringMatching(/target Tower/),
       expect.stringMatching(/no anchor/), expect.stringMatching(/no Anchor_Entry/), expect.stringMatching(/no Anchor_Route_Exit/)]));

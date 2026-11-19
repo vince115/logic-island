@@ -4,6 +4,8 @@ import type { Object3D } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { glbAssets } from '@/lib/islands/asset-registry';
 import { checkGlbContract, resolveTarget } from '@/lib/islands/glb-contract';
+import { interactionOf } from '@/lib/islands/interactions';
+import { HOME_MAP_INTERACTIONS, ISLAND_INTERACTIONS } from '@/lib/islands/island-interactions';
 
 const asset = glbAssets['basics-island-v2.1'];
 let scene: Object3D;
@@ -59,16 +61,21 @@ describe('GLB contract', () => {
 });
 
 describe('interaction targets', () => {
-  it('route the workshop to /learn from any of its meshes', () => {
+  // P9 S1: a hit resolves to a target node; its action comes from the island's interaction spec by interaction id.
+  const actionOf = (set: typeof HOME_MAP_INTERACTIONS, mesh: string) => interactionOf(set[asset.islandId], resolveTarget(node(mesh), asset)!.interactionId)!.action;
+  it('route the workshop from any of its meshes: to /learn on the home map, to the island\'s own syllabus in the registry', () => {
     for (const mesh of ['Workshop_Architecture', 'Workshop_Code_Slash']) {
-      expect(resolveTarget(node(mesh), asset)).toMatchObject({ node: 'Building_Workshop', action: { type: 'route', href: '/learn' } });
+      expect(resolveTarget(node(mesh), asset)).toMatchObject({ node: 'Building_Workshop', interactionId: 'learn' });
+      expect(actionOf(HOME_MAP_INTERACTIONS, mesh)).toEqual({ type: 'route', to: { kind: 'labs' } });
+      expect(actionOf(ISLAND_INTERACTIONS, mesh)).toEqual({ type: 'route', to: { kind: 'syllabus', islandId: 'foundations' } });
     }
   });
 
   it('show info for the lighthouse and the dock', () => {
-    expect(resolveTarget(node('Lighthouse_Structure'), asset)).toMatchObject({ node: 'Landmark_Lighthouse', action: { type: 'info' } });
+    expect(resolveTarget(node('Lighthouse_Structure'), asset)).toMatchObject({ node: 'Landmark_Lighthouse' });
     expect(resolveTarget(node('Light_Lantern'), asset)).toMatchObject({ node: 'Landmark_Lighthouse' });
-    expect(resolveTarget(node('Dock_START_Marker'), asset)).toMatchObject({ node: 'Dock_Entry', action: { type: 'info' } });
+    expect(resolveTarget(node('Dock_START_Marker'), asset)).toMatchObject({ node: 'Dock_Entry' });
+    for (const set of [HOME_MAP_INTERACTIONS, ISLAND_INTERACTIONS]) for (const mesh of ['Lighthouse_Structure', 'Dock_START_Marker']) expect(actionOf(set, mesh)).toMatchObject({ type: 'info' });
   });
 
   it('ignore anchors, route_exit and untagged meshes', () => {

@@ -6,6 +6,7 @@ import {
 } from './hex-natural-scene';
 import type { ForestPatch, TreeInstance } from './hex-nature-data';
 import type { HexBridge, HexSettlement, HexSpur, HexTerrain, HexTile, HexWorld } from './hex-world';
+import type { GlbAsset } from './types';
 
 /**
  * Builders shared by the world layouts (D.3-1): the production world (`islands-world.ts`, 37 tiles) and the
@@ -107,17 +108,12 @@ export function lighthouseFront(pivot: [number, number], scale = glbAssets['basi
   return [pivot[0], pivot[1] + (LIGHTHOUSE_BASE.front + LIGHTHOUSE_BASE.gap) * scale];
 }
 
-/**
- * Rough building footprints (map units) for keeping trees, rocks and plaza features clear; the unit tests check the
- * results against the real GLB footprints. The workshop is about 1.8 × 1.9 at 0.6 scale, so three circles.
- */
-const KEEP_OUT: Record<string, [number, number, number][]> = {
-  Landmark_Lighthouse: [[0, 0, 0.8]], Dock_Entry: [[0, 0, 0.9]], Building_Workshop: [[-0.55, 0.15, 1], [0, 0.15, 1], [0.55, 0.15, 1]],
-};
 function natural(world: HexWorld, layout: HexGlbSettlement, forests: ForestPatch[]): NonNullable<WorldLayout['natural']> {
   const keepOut: KeepOut[] = layout.placements.flatMap(p => {
     const pose = placementPose(world, layout.islandId, p);
-    return (KEEP_OUT[p.node] ?? []).map(([x, z, r]): KeepOut => [pose.position[0] + x, pose.position[2] + z, r]);
+    // Each asset's own footprints (asset-registry.ts) keep trees, rocks and plaza features clear of its buildings.
+    const footprints: GlbAsset['footprints'] = glbAssets[layout.asset].footprints;
+    return (footprints?.[p.node] ?? []).map(([x, z, r]): KeepOut => [pose.position[0] + x, pose.position[2] + z, r]);
   });
   const lighthouse = placementPose(world, layout.islandId, layout.placements.find(p => p.node === 'Landmark_Lighthouse')!).position;
   // The terrace reaches from under the lighthouse base to the end of the lookout road.

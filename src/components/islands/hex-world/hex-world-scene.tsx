@@ -8,6 +8,7 @@ import { hexCorner, hexToWorld } from '@/lib/islands/hex';
 import { tileTop } from '@/lib/islands/hex-terrain';
 import { WATER_LEVEL, settlementFrames, worldCenter, type HexWorld } from '@/lib/islands/hex-world';
 import { ENVIRONMENTS, PREVIEW_NOON, type EnvironmentId } from '@/lib/islands/environments';
+import { pageInteractions } from '@/lib/islands/island-interactions';
 import type { IslandDefinition } from '@/lib/islands/types';
 import { HexCamera, VIEW, viewAt, type CameraView, type StageRoom } from './hex-camera';
 import { HexTiles, WATER_Y } from './hex-tiles';
@@ -248,7 +249,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
             info:selected&&onInfoChange?{node:infoNode??null,onChange:onInfoChange}:undefined,
             hover:options.hover&&selected?(on:boolean)=>setOnTarget(on?settlement.islandId:null):undefined};
           return <group key={settlement.islandId}>
-            {layout?<HexGlbBuildings world={world} layout={layout} selected={selected} fallback={placeholders}
+            {layout?<HexGlbBuildings world={world} layout={layout} interactions={island&&pageInteractions(island)} selected={selected} fallback={placeholders}
               onSourceChange={sourceSetters[layout.islandId]} onNavigate={onNavigate} anchorStyle={options.anchorStyle} targets={targets}/>:placeholders}
             {/* A focused settlement hands its space to the anchor labels; the toolbar still names it. */}
             {island&&!selected&&<group position={[x,0,z]}><Html position={[0,compact?WATER_LEVEL:layout?.label?.height??3.4,0]} center zIndexRange={[15,0]}>
