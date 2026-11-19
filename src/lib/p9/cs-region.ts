@@ -88,13 +88,34 @@ const informationSystems: PlannedSpec = {
 };
 const PLANNED = [programmingLanguages, networks, systemsAnalysis, informationSystems];
 
-/** A planned island's landscape site: the island, its centre, and the tiles the landscape stands on (map coordinates). */
+/*
+ * P9.2 資料結構島 (an island with lessons): its own landmarks in place of the placeholder warehouse and crates. A hill
+ * rises in the north for the Stack Tower, a terrace in the west for the Tree Observatory, a rise in the east for the
+ * Graph Bridges, and the Queue Passage runs along the south beach. The island keeps its id, centre, tile list, ports
+ * and roads (which leave the plaza through (-1, 0), (-1, 1), (1, 0) and (0, 1)/(1, 1), none of them raised or built on).
+ * Landscape tiles, in this order: stack tower, tree observatory, graph bridges, queue passage (two tiles), pier.
+ */
+const DS_HEIGHT: Record<string, { terrain?: HexTile['terrain']; height: number }> = {
+  '0,-2': { terrain: 'stone', height: .9 }, '0,-1': { terrain: 'grass', height: .45 }, '-1,-1': { terrain: 'grass', height: .45 },
+  '1,-1': { terrain: 'grass', height: .3 },
+};
+const DS_LANDSCAPE = [A(0, -2), A(-1, -1), A(1, -1), A(-1, 2), A(0, 2), A(-1, 3)];
+const raiseStructures = (s: HexSettlement): HexSettlement => ({
+  ...s, ownLandmarks: true,
+  tiles: s.tiles.map(t => {
+    const lift = DS_HEIGHT[`${t.q - s.center.q},${t.r - s.center.r}`];
+    return lift ? { ...t, terrain: lift.terrain ?? t.terrain, height: lift.height } : t;
+  }),
+});
+
+/** A landscape site (a planned island's, or 資料結構島's own landmarks): the island, its centre, and its tiles (map coordinates). */
 export interface PlannedLandscape { islandId: string; center: Axial; tiles: Axial[] }
 
 function build(): { region: RegionLayout; landscapes: PlannedLandscape[] } {
   const base = regionLayout('cs'), { world } = base.layout;
   const specs = new Map(PLANNED.map(p => [p.islandId, p]));
   const settlements: HexSettlement[] = world.settlements.map(s => {
+    if (s.islandId === 'structures') return raiseStructures(s);
     const spec = specs.get(s.islandId);
     if (!spec) return s;
     // An ordinary settlement: same id, centre and spurs, its own tiles, and no `planned` (which only chose the mist).
@@ -103,6 +124,8 @@ function build(): { region: RegionLayout; landscapes: PlannedLandscape[] } {
   const p9World = { ...world, settlements };
   const centers = new Map(settlements.map(s => [s.islandId, s.center]));
   const landscapes: PlannedLandscape[] = PLANNED.map(p => ({ islandId: p.islandId, center: centers.get(p.islandId)!, tiles: shift(p.landscape, centers.get(p.islandId)!) }));
+  const ds = centers.get('structures')!;
+  landscapes.push({ islandId: 'structures', center: ds, tiles: shift(DS_LANDSCAPE, ds) });
   const forests: ForestPatch[] = [...base.layout.forests, ...PLANNED.map(p => ({ islandId: p.islandId, tiles: shift(p.forest, centers.get(p.islandId)!), density: 4 }))];
   const natural = base.layout.natural!;
   // Trees and rocks keep off the landscapes as they keep off the buildings: one circle a landscape tile.

@@ -31,7 +31,8 @@ describe('P9.1 CS region layout', () => {
   });
   it('keeps the islands with lessons, every bridge, the docks and the camera of the approved layout', () => {
     const { world } = P9_CS_REGION.layout;
-    for (const s of base.layout.world.settlements.filter(s => !s.planned)) expect(world.settlements.find(o => o.islandId === s.islandId)).toBe(s);
+    // P9.2: 資料結構島 draws its own landmarks on raised land (tests/p9-structures-island.test.ts); the other three are untouched.
+    for (const s of base.layout.world.settlements.filter(s => !s.planned && s.islandId !== 'structures')) expect(world.settlements.find(o => o.islandId === s.islandId)).toBe(s);
     expect(world.bridges).toBe(base.layout.world.bridges);
     expect(P9_CS_REGION.docks).toBe(base.docks);
     expect(P9_CS_REGION.camera).toBe(base.camera);
@@ -52,15 +53,16 @@ describe('P9.1 CS region layout', () => {
   });
   it('stands every landscape on its own island, off the roads\' ports and with trees kept clear', () => {
     const { world, natural } = P9_CS_REGION.layout;
-    expect(PLANNED_LANDSCAPES.map(l => l.islandId).sort()).toEqual([...plannedIds].sort());
+    expect(PLANNED_LANDSCAPES.map(l => l.islandId).sort()).toEqual([...plannedIds, 'structures'].sort());
     for (const l of PLANNED_LANDSCAPES) {
       const s = world.settlements.find(o => o.islandId === l.islandId)!;
       for (const t of l.tiles) expect(s.tiles.some(u => u.q === t.q && u.r === t.r), `${l.islandId} ${hexKey(t)}`).toBe(true);
       for (const tree of natural!.trees.filter(t => t.islandId === l.islandId)) expect(l.tiles.some(t => hexDistance(t, tree.tile) === 0), `${l.islandId} tree on a landscape tile`).toBe(false);
     }
   });
-  it('plants the islands with lessons exactly as /world/cs does', () => {
-    const open = (trees: NonNullable<typeof base.layout.natural>['trees']) => trees.filter(t => !plannedIds.includes(t.islandId));
+  it('plants the other islands with lessons exactly as /world/cs does', () => {
+    // 資料結構島's trees keep off its new landmarks; the other islands with lessons are planted exactly as before.
+    const open = (trees: NonNullable<typeof base.layout.natural>['trees']) => trees.filter(t => !plannedIds.includes(t.islandId) && t.islandId !== 'structures');
     expect(open(P9_CS_REGION.layout.natural!.trees)).toEqual(open(base.layout.natural!.trees));
   });
 });

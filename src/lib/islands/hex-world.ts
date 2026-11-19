@@ -25,6 +25,8 @@ export interface HexSettlement {
   cliffBeaches?: Axial[];
   /** M3.1 regional world: an island of the plan with no written lessons, drawn as a low-detail island in mist. */
   planned?: true;
+  /** P9: the page draws this island's landmarks itself (src/components/p9/p9-landscapes.tsx); HexLandmarks draws none. */
+  ownLandmarks?: true;
 }
 /** A bridge end: the outward edge of one land tile. */
 export interface HexPort { islandId: string; tile: Axial; edge: HexEdge }

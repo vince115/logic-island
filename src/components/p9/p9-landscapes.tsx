@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
-import { BoxGeometry, BufferGeometry, Color, ConeGeometry, CylinderGeometry, Float32BufferAttribute, Matrix4, Quaternion, Vector3 } from 'three';
+import { BoxGeometry, BufferGeometry, Color, ConeGeometry, CylinderGeometry, Float32BufferAttribute, Matrix4, Quaternion, SphereGeometry, Vector3 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { hexToWorld, type Axial } from '@/lib/islands/hex';
 import { LAND_TOP, tileHeight, type HexWorld } from '@/lib/islands/hex-world';
@@ -14,7 +14,13 @@ import type { PlannedLandscape } from '@/lib/p9/cs-region';
  * nothing here can be clicked or focused (no raycast, no HTML): a planned island still opens no lesson, and its label
  * and list entry still say 規劃中. Flat-shaded primitives merged into one vertex-coloured mesh for the whole region.
  */
-type Part = { geometry: BufferGeometry; color: string; at: [number, number, number]; turn?: number; tilt?: number; roll?: number };
+type Part = {
+  geometry: BufferGeometry; color: string; at: [number, number, number]; turn?: number; tilt?: number; roll?: number;
+  /** An explicit orientation (beams between two points); replaces turn, tilt and roll. */
+  quat?: Quaternion;
+  /** A detail the world overview leaves out (its level of detail): ropes, rails, bollards, small props. */
+  fine?: true;
+};
 const STONE = '#d9d2c2', STONE_DARK = '#b9b0a0', WOOD = '#a77b52', WOOD_DARK = '#7d5a3c', STEEL = '#c9d2d8', PAPER = '#dbe9f6', LINE = '#f7fbff';
 const box = (w: number, h: number, d: number) => new BoxGeometry(w, h, d);
 const cyl = (top: number, bottom: number, h: number, sides = 8) => new CylinderGeometry(top, bottom, h, sides);
@@ -46,8 +52,88 @@ const scaffold = (x: number, z: number, w: number, d: number, h: number, turn = 
   ];
 };
 
+/** A beam from a to b (offsets from one tile's centre, before SCALE): a box turned onto the line. */
+const beam = (a: [number, number, number], b: [number, number, number], w: number, h: number, color: string, fine?: true): Part => {
+  const va = new Vector3(...a), vb = new Vector3(...b), dir = vb.clone().sub(va);
+  return { geometry: box(w, h, dir.length()), color, at: va.clone().add(vb).multiplyScalar(.5).toArray() as [number, number, number],
+    quat: new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), dir.normalize()), ...(fine ? { fine } : {}) };
+};
+const ball = (r: number, color: string, at: [number, number, number]): Part => ({ geometry: new SphereGeometry(r, 10, 7), color, at });
+const DS_BLOCKS = ['#188038', '#f4b400', '#4285f4', '#db4437', '#8a4fd1', '#34a853'] as const;
+
+/*
+ * P9.2 資料結構島: four landmarks, one for each idea the island teaches, on the tiles cs-region.ts gives it (in order):
+ * the Stack Tower on the north hill, the Tree Observatory on the west terrace, the Graph Bridges on the east rise, the
+ * Queue Passage along the south beach (two tiles, running east) and a pier. Decoration only, like every landscape:
+ * the island's lessons are reached through its label and list entry, as before.
+ */
+function structuresPieces(accent: string): Piece[] {
+  // Stack Tower: a plinth, six blocks stacked and slightly turned, a cap, and a gantry lowering the next block (push).
+  const stack: Part[] = [
+    { geometry: cyl(.62, .7, .22, 6), color: STONE_DARK, at: [0, .11, 0] },
+    ...DS_BLOCKS.map((c, i): Part => ({ geometry: box(.74 - i * .03, .26, .74 - i * .03), color: c, at: [0, .36 + i * .28, 0], turn: i * .14 })),
+    { geometry: new ConeGeometry(.48, .34, 4), color: '#2f5f8f', at: [0, 2.12, 0], turn: Math.PI / 4 },
+    { geometry: cyl(.05, .06, 3, 6), color: STEEL, at: [.68, 1.5, .1] },
+    beam([.68, 2.98, .1], [-.1, 2.98, .1], .08, .08, STEEL),
+    { geometry: cyl(.012, .012, .36, 4), color: '#55626c', at: [0, 2.78, .1], fine: true },
+    { geometry: box(.56, .2, .56), color: accent, at: [0, 2.52, .1], turn: .5 },
+    { geometry: box(.3, .12, .3), color: STONE_DARK, at: [.68, .06, .1], fine: true },
+  ];
+  // Tree Observatory: a round hall with a telescope, and above it a tree of nodes: a root, two children, four leaves.
+  const root: [number, number, number] = [0, 1.85, 0], kids: [number, number, number][] = [[-.5, 1.35, -.05], [.5, 1.35, .05]];
+  const leaves: [number, number, number][] = [[-.78, .92, -.3], [-.3, .92, .25], [.3, .92, -.25], [.78, .92, .3]];
+  const tree: Part[] = [
+    { geometry: cyl(.55, .62, .5, 10), color: '#efe9dc', at: [0, .25, 0] },
+    { geometry: new SphereGeometry(.48, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), color: '#2f5f8f', at: [0, .5, 0] },
+    { geometry: cyl(.07, .09, .55, 8), color: '#55626c', at: [.28, .78, .12], tilt: -.9, turn: .6, fine: true },
+    { geometry: cyl(.05, .05, 1.2, 6), color: WOOD_DARK, at: [0, 1.25, 0] },
+    ball(.2, accent, root), ...kids.map(k => ball(.15, '#f4b400', k)), ...leaves.map(l => ball(.11, '#4285f4', l)),
+    ...kids.map(k => beam(root, k, .05, .05, WOOD_DARK)),
+    beam(kids[0], leaves[0], .04, .04, WOOD_DARK), beam(kids[0], leaves[1], .04, .04, WOOD_DARK),
+    beam(kids[1], leaves[2], .04, .04, WOOD_DARK), beam(kids[1], leaves[3], .04, .04, WOOD_DARK),
+    ...leaves.map(([x, y, z]): Part => ({ geometry: cyl(.02, .02, y - .5, 4), color: '#9a8f80', at: [x, .25 + (y - .5) / 2, z], fine: true })),
+  ];
+  // Graph Bridges: five round platforms on pillars of different heights, joined by plank footbridges (the edges).
+  const nodes: [number, number, number][] = [[-.5, .9, -.4], [.42, 1.25, -.48], [.6, .7, .35], [-.35, 1.05, .5], [0, .5, 0]];
+  const edges: [number, number][] = [[0, 1], [1, 2], [2, 3], [3, 0], [0, 4], [4, 2], [1, 3]];
+  const graph: Part[] = [
+    ...nodes.flatMap(([x, y, z], i): Part[] => [
+      { geometry: cyl(.07, .09, y, 6), color: STONE_DARK, at: [x, y / 2, z] },
+      { geometry: cyl(.2, .2, .08, 10), color: i === 4 ? accent : '#f3ead6', at: [x, y + .04, z] },
+      { geometry: cyl(.07, .07, .1, 8), color: ['#db4437', '#4285f4', '#f4b400', '#8a4fd1', accent][i], at: [x, y + .13, z] },
+    ]),
+    ...edges.map(([a, b]) => beam([nodes[a][0], nodes[a][1] + .06, nodes[a][2]], [nodes[b][0], nodes[b][1] + .06, nodes[b][2]], .13, .035, WOOD)),
+    ...edges.map(([a, b]) => beam([nodes[a][0], nodes[a][1] + .18, nodes[a][2]], [nodes[b][0], nodes[b][1] + .18, nodes[b][2]], .025, .025, WOOD_DARK, true)),
+  ];
+  // Queue Passage: an arcade along the beach (east-west), a lane under it, crates in line from the green gate (enqueue)
+  // in the west to the red gate (dequeue) in the east.
+  const arch = (x: number, color: string, w = .07): Part[] => [
+    { geometry: box(w, 1, w), color, at: [x, .5, -.38] }, { geometry: box(w, 1, w), color, at: [x, .5, .38] },
+    { geometry: box(w + .04, .1, .9), color, at: [x, 1.02, 0] },
+  ];
+  const crates = (xs: number[], from: number): Part[] => xs.map((x, i): Part => ({ geometry: box(.3, .3, .3), color: DS_BLOCKS[(from + i) % DS_BLOCKS.length], at: [x, .2, 0], turn: .1 * (i % 2) }));
+  const lane = (x: number): Part => ({ geometry: box(1.3, .05, .56), color: '#d9cfb8', at: [x, .025, 0] });
+  const roof = (x: number): Part => ({ geometry: box(1.3, .05, .96), color: '#c9a273', at: [x, 1.1, 0], roll: .02 });
+  const queueWest: Part[] = [lane(.1), roof(.1), ...arch(-.55, '#188038', .1), ...arch(.25, WOOD), ...crates([-.25, .1, .45], 0),
+    { geometry: box(.06, .4, .06), color: '#188038', at: [-.75, .2, .5], fine: true }];
+  const queueEast: Part[] = [lane(-.1), roof(-.1), ...arch(-.45, WOOD), ...arch(.55, '#db4437', .1), ...crates([-.45, -.1, .25], 3),
+    { geometry: box(.06, .4, .06), color: '#db4437', at: [.75, .2, .5], fine: true }];
+  // Pier: planks out over the water to the south, posts, bollards, a moored boat with a crate and two buoys.
+  const pier: Part[] = [
+    { geometry: box(.5, .07, 1.5), color: WOOD, at: [0, .08, .4] },
+    ...[-.2, .2].flatMap((x): Part[] => [.0, .55, 1.05].map((z): Part => ({ geometry: cyl(.04, .04, .5, 5), color: WOOD_DARK, at: [x, -.12, z] }))),
+    ...[-.2, .2].map((x): Part => ({ geometry: cyl(.05, .06, .14, 6), color: '#55626c', at: [x, .19, 1.05], fine: true })),
+    { geometry: box(.34, .16, .9), color: '#f3ead6', at: [.5, -.02, .9] }, { geometry: box(.24, .06, .7), color: '#2f5f8f', at: [.5, .08, .9] },
+    { geometry: box(.18, .18, .18), color: '#f4b400', at: [.5, .2, .8], fine: true },
+    { geometry: new ConeGeometry(.08, .22, 6), color: '#db4437', at: [-.5, .05, 1.4], fine: true },
+    { geometry: new ConeGeometry(.08, .22, 6), color: '#f7fbff', at: [.9, .05, 1.5], fine: true },
+  ];
+  return [...on(0, stack), ...on(1, tree), ...on(2, graph), ...on(3, queueWest), ...on(4, queueEast), ...on(5, pier)];
+}
+
 function pieces(islandId: string, accent: string): Piece[] {
   switch (islandId) {
+    case 'structures': return structuresPieces(accent);
     // 程式語言島: a ring of standing stones, each with a band in the island's colour, and one lintel.
     case 'programming-languages': return [
       ...on(0, [
@@ -129,7 +215,15 @@ function pieces(islandId: string, accent: string): Piece[] {
 }
 
 /** The landscapes of a region's planned islands, in the map's own coordinates (drawn inside the scene's map group). */
-export function P9Landscapes({ world, landscapes, accents }: { world: HexWorld; landscapes: readonly PlannedLandscape[]; accents: Record<string, string> }) {
+/** How many pieces an island's landscape has at a level of detail (for tests: the world draws fewer). */
+export const landscapePieceCount = (islandId: string, detail: 'region' | 'world') =>
+  pieces(islandId, '#000000').filter(p => detail === 'region' || !p.fine).length;
+
+/**
+ * The landscapes of a region's islands, in the map's own coordinates (drawn inside the scene's map group). `detail`
+ * 'world' is the overview's level of detail: the same pieces at the same places, without the fine ones.
+ */
+export function P9Landscapes({ world, landscapes, accents, detail = 'region' }: { world: HexWorld; landscapes: readonly PlannedLandscape[]; accents: Record<string, string>; detail?: 'region' | 'world' }) {
   const geometry = useMemo(() => {
     const up = new Vector3(0, 1, 0), side = new Vector3(1, 0, 0), front = new Vector3(0, 0, 1), parts: BufferGeometry[] = [];
     for (const landscape of landscapes) {
@@ -137,9 +231,10 @@ export function P9Landscapes({ world, landscapes, accents }: { world: HexWorld; 
       if (!settlement) continue;
       const ground = (t: Axial) => { const [x, z] = hexToWorld(t, world.size), tile = settlement.tiles.find(u => u.q === t.q && u.r === t.r); return [x, LAND_TOP + (tile ? tileHeight(tile) : 0), z] as const; };
       for (const piece of pieces(landscape.islandId, accents[landscape.islandId] ?? '#4285f4')) {
+        if (detail === 'world' && piece.fine) { piece.geometry.dispose(); continue; }
         const [x, y, z] = ground(landscape.tiles[piece.tile]);
         const g = piece.geometry.index ? piece.geometry.toNonIndexed() : piece.geometry.clone();
-        const q = new Quaternion().setFromAxisAngle(up, piece.turn ?? 0).multiply(new Quaternion().setFromAxisAngle(side, piece.tilt ?? 0)).multiply(new Quaternion().setFromAxisAngle(front, piece.roll ?? 0));
+        const q = piece.quat ?? new Quaternion().setFromAxisAngle(up, piece.turn ?? 0).multiply(new Quaternion().setFromAxisAngle(side, piece.tilt ?? 0)).multiply(new Quaternion().setFromAxisAngle(front, piece.roll ?? 0));
         g.applyMatrix4(new Matrix4().compose(new Vector3(x + piece.at[0] * SCALE, y + piece.at[1] * SCALE, z + piece.at[2] * SCALE), q, new Vector3(SCALE, SCALE, SCALE)));
         const c = new Color(piece.color), count = g.getAttribute('position').count, colors = new Float32Array(count * 3);
         for (let i = 0; i < count; i++) colors.set([c.r, c.g, c.b], i * 3);
@@ -166,7 +261,7 @@ export function P9Landscapes({ world, landscapes, accents }: { world: HexWorld; 
     const merged = mergeGeometries(parts);
     parts.forEach(p => p.dispose());
     return merged;
-  }, [world, landscapes, accents]);
+  }, [world, landscapes, accents, detail]);
   useEffect(() => () => geometry?.dispose(), [geometry]);
   return geometry ? <mesh geometry={geometry} castShadow receiveShadow raycast={() => undefined}><meshStandardMaterial vertexColors flatShading roughness={.85}/></mesh> : null;
 }
