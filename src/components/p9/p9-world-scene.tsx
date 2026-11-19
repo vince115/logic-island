@@ -13,6 +13,8 @@ import { LINK_WIDTH, frameOverview, overviewLinks, overviewOutlines, stageLands,
 import { WORLD_MAP } from '@/lib/islands/regions/world-map';
 import { regionScene, sceneLayouts, scenePlacement, type SceneId } from '@/lib/p9/region-scene';
 import { P9_WORLD_MAP } from '@/lib/p9/world-map';
+import { DRAG_THRESHOLD, HOME_VIEW, clampView, isHome, panBy, project, wheelFactor, zoomAt, type Stage, type WorldView } from '@/lib/p9/world-view';
+import { Minus, Plus, RotateCcw } from 'lucide-react';
 import { VIEW } from '../islands/hex-world/hex-camera';
 import { GlowProvider, HexEnvironment, STATIC_SHADOW_MAP } from '../islands/hex-world/hex-environment';
 import { OCEAN } from '../islands/hex-world/hex-ocean';
@@ -69,20 +71,85 @@ function useWorld(shape: OverviewShape) {
 }
 
 interface Framed { extents: StageBox[]; lines: StageLine[]; lands: StageLand[] }
-/** The P8 overview's fixed orthographic framing, unchanged: every outline fits with room for its label, left of `insetRight`. */
-function Framing({ outlines, links, shape, insetRight, onFramed }: { outlines: OverviewOutline[]; links: OverviewLink[]; shape: OverviewShape; insetRight: number; onFramed: (framed: Framed) => void }) {
+/**
+ * The P8 overview's fixed orthographic framing, unchanged: every outline fits with room for its label, left of
+ * `insetRight`. P9.4: the view (zoom k and pan) is applied on top, as an orthographic camera would: zoom about the
+ * stage's centre, the camera moved against the pan along its own screen axes.
+ */
+function Framing({ outlines, links, shape, insetRight, view, onFramed }: { outlines: OverviewOutline[]; links: OverviewLink[]; shape: OverviewShape; insetRight: number; view: WorldView; onFramed: (framed: Framed) => void }) {
   const { size, invalidate, get } = useThree();
+  const frame = useMemo(() => frameOverview(outlines, shape, size, insetRight), [outlines, shape, size, insetRight]);
   useLayoutEffect(() => {
-    const camera = get().camera, frame = frameOverview(outlines, shape, size, insetRight), center = new Vector3(...frame.center);
+    onFramed({ extents: frame.boxes, lines: stageLines(frame, links, shape), lands: stageLands(frame, outlines) });
+  }, [frame, links, shape, outlines, onFramed]);
+  useLayoutEffect(() => {
+    const camera = get().camera, center = new Vector3(...frame.center), zoom = frame.zoom * view.k;
     camera.position.copy(center).addScaledVector(VIEW, 120);
     camera.lookAt(center);
-    camera.zoom = frame.zoom;
+    camera.updateMatrixWorld();
+    const right = new Vector3().setFromMatrixColumn(camera.matrixWorld, 0), up = new Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
+    camera.position.addScaledVector(right, -view.dx / zoom).addScaledVector(up, view.dy / zoom);
+    camera.zoom = zoom;
     camera.updateProjectionMatrix();
     camera.updateMatrixWorld();
-    onFramed({ extents: frame.boxes, lines: stageLines(frame, links, shape), lands: stageLands(frame, outlines) });
     invalidate();
-  }, [get, size, outlines, links, shape, insetRight, invalidate, onFramed]);
+  }, [get, frame, view, invalidate]);
   return null;
+}
+
+/**
+ * P9.4: the world's zoom and pan from the pointer: the wheel zooms at the cursor; one pointer drags; two pinch (zoom
+ * at their midpoint, and pan with it). A press that travels past DRAG_THRESHOLD is a drag: the click it ends with is
+ * swallowed (capture phase) so a drag never opens a region. The stage takes no browser gestures (touch-action: none),
+ * so a pinch zooms the map and not the page.
+ */
+function useWorldGestures(element: React.RefObject<HTMLDivElement | null>, stage: Stage, setView: React.Dispatch<React.SetStateAction<WorldView>>) {
+  const dragged = useRef(false);
+  useEffect(() => {
+    const el = element.current;
+    if (!el || !stage.width) return;
+    const local = (e: { clientX: number; clientY: number }) => { const r = el.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top] as [number, number]; };
+    const onWheel = (e: WheelEvent) => { e.preventDefault(); const [x, y] = local(e); setView(v => zoomAt(v, stage, wheelFactor(e.deltaY, e.deltaMode), x, y)); };
+    const pointers = new Map<number, [number, number]>();
+    let start: [number, number] | null = null, travel = 0;
+    const onDown = (e: PointerEvent) => {
+      if (e.button > 0 || (e.target as HTMLElement).closest('button, a, [data-world-controls]')) return;
+      pointers.set(e.pointerId, local(e));
+      if (pointers.size === 1) { start = local(e); travel = 0; dragged.current = false; }
+    };
+    const onMove = (e: PointerEvent) => {
+      const before = pointers.get(e.pointerId);
+      if (!before) return;
+      const now = local(e);
+      if (pointers.size >= 2) {
+        const [a, b] = [...pointers.entries()].sort(([i], [j]) => i - j).map(([id, p]) => id === e.pointerId ? now : p);
+        const [pa, pb] = [...pointers.entries()].sort(([i], [j]) => i - j).map(([, p]) => p);
+        const d0 = Math.hypot(pb[0] - pa[0], pb[1] - pa[1]), d1 = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        const m0 = [(pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2], m1 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+        dragged.current = true;
+        setView(v => panBy(zoomAt(v, stage, d0 > 0 ? d1 / d0 : 1, m1[0], m1[1]), stage, m1[0] - m0[0], m1[1] - m0[1]));
+      } else if (start) {
+        travel = Math.max(travel, Math.hypot(now[0] - start[0], now[1] - start[1]));
+        if (travel > DRAG_THRESHOLD) { dragged.current = true; setView(v => panBy(v, stage, now[0] - before[0], now[1] - before[1])); }
+      }
+      pointers.set(e.pointerId, now);
+    };
+    // The click a drag may end with comes in the same task as its pointerup; after that the flag is cleared, so a
+    // touch drag (no click follows) never swallows the next tap.
+    const onUp = (e: PointerEvent) => { pointers.delete(e.pointerId); if (!pointers.size) { start = null; if (dragged.current) setTimeout(() => { dragged.current = false; }, 0); } };
+    // A drag's closing click opens nothing (region terrain, labels); a tap that did not travel still does.
+    const onClick = (e: MouseEvent) => { if (dragged.current) { e.stopPropagation(); e.preventDefault(); dragged.current = false; } };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    el.addEventListener('pointerdown', onDown);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    el.addEventListener('click', onClick, true);
+    return () => {
+      el.removeEventListener('wheel', onWheel); el.removeEventListener('pointerdown', onDown); el.removeEventListener('click', onClick, true);
+      window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); window.removeEventListener('pointercancel', onUp);
+    };
+  }, [element, stage, setView]);
 }
 
 /** The open sea, in the Region's deep colour and the environment's tint. */
@@ -140,6 +207,11 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
     return () => observer.disconnect();
   }, []);
   const compact = stage.width > 0 && stage.width - insetRight < COMPACT_BELOW;
+  // P9.4: the map's zoom and pan (world-view.ts); a new stage size keeps the view inside its limits.
+  const [view, setView] = useState<WorldView>(HOME_VIEW);
+  const shown_view = useMemo(() => stage.width ? clampView(view, stage) : view, [view, stage]);
+  useWorldGestures(wrap, stage, setView);
+  const step = (factor: number) => setView(v => zoomAt(v, stage, factor, stage.width / 2 - (stage.width > 780 ? insetRight / 2 : 0), stage.height / 2));
   const [spots, setSpots] = useState<LabelSpot[] | null>(null);
   useLayoutEffect(() => {
     const list = buttons.current.slice(0, sides.length);
@@ -156,7 +228,8 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
       landmarks: p.scene.landmarks.map(l => `${l.islandId}:${l.id}`), trees: p.scene.trees.length })),
     links: links.map(l => ({ id: l.id, kind: l.kind })),
   }), [parts, links, environmentId]);
-  return <div ref={wrap} className={styles.canvasWrap} style={hovered && target(hovered)?.onOpen ? { cursor: 'pointer' } : undefined} data-shape={shape} data-compact={compact ? 'true' : undefined} data-p9-world={drawn}>
+  return <div ref={wrap} className={styles.canvasWrap} style={hovered && target(hovered)?.onOpen ? { cursor: 'pointer' } : undefined} data-shape={shape} data-compact={compact ? 'true' : undefined} data-p9-world={drawn}
+    data-view={`${shown_view.k.toFixed(3)},${shown_view.dx.toFixed(1)},${shown_view.dy.toFixed(1)}`}>
     <Canvas orthographic frameloop="demand" dpr={[1, 1.5]} shadows={STATIC_SHADOW_MAP} camera={{ position: [0, 40, 60], zoom: 10, near: .1, far: 500 }}
       gl={{ antialias: true, alpha: false, powerPreference: 'low-power' }}
       onCreated={({ gl }) => {
@@ -175,12 +248,15 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
         {hub && <mesh geometry={hub} castShadow receiveShadow raycast={noRaycast}><meshStandardMaterial color={LINK_THEME.hub} flatShading roughness={.9}/></mesh>}
         {relation && <mesh geometry={relation} castShadow receiveShadow raycast={noRaycast}><meshStandardMaterial color={LINK_THEME.relation} flatShading roughness={.9}/></mesh>}
       </GlowProvider>
-      <Framing outlines={shownOutlines} links={links} shape={shape} insetRight={insetRight} onFramed={setFramed}/>
+      <Framing outlines={shownOutlines} links={links} shape={shape} insetRight={insetRight} view={shown_view} onFramed={setFramed}/>
     </Canvas>
     {framed && shown.map((t, i) => {
+      // P9.4: a label moves with its region under the view; one whose anchor leaves the stage, or reaches the guide
+      // beside it (insetRight), is hidden.
+      const at = spots?.map(spot => { const [x, y] = project(shown_view, stage, spot.x, spot.y); return [x, y, x > -40 && x < stage.width - insetRight - 40 && y > -20 && y < stage.height - 20] as const; }) ?? [];
       const common = {
         ref: (element: HTMLElement | null) => { buttons.current[i] = element; }, className: styles.overviewLabel,
-        style: { '--region-accent': t.accent, left: spots?.[i].x ?? 0, top: spots?.[i].y ?? 0, visibility: spots ? undefined : 'hidden' } as React.CSSProperties,
+        style: { '--region-accent': t.accent, left: at[i]?.[0] ?? 0, top: at[i]?.[1] ?? 0, visibility: spots && at[i]?.[2] ? undefined : 'hidden' } as React.CSSProperties,
         'data-side': spots?.[i].side, 'data-target': t.id, 'data-hovered': hovered === t.id && t.onOpen ? 'true' : undefined,
       };
       const text = <><strong>{(t.name.length > 6 ? t.name.split(/(?<=與)/) : [t.name]).flatMap((part, n) => n ? [<wbr key={n}/>, part] : [part.replace(/ /g, ' ')])}</strong><small className={styles.overviewDetail}>{t.detail}</small></>;
@@ -188,5 +264,11 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
         ? <button key={t.id} type="button" {...common} aria-label={t.label} onClick={t.onOpen}>{text}</button>
         : <div key={t.id} {...common} role="note" aria-label={t.label} data-pending="true">{text}</div>;
     })}
+    {/* P9.4: zoom buttons and 重設視角, for those without a wheel or a pinch; reset frames all five regions again in place (no reload, same address). */}
+    <div className={styles.worldControls} data-world-controls role="group" aria-label="世界地圖視角">
+      <button type="button" aria-label="放大" onClick={() => step(1.4)} disabled={shown_view.k >= 4 - 1e-6}><Plus size={16}/></button>
+      <button type="button" aria-label="縮小" onClick={() => step(1 / 1.4)} disabled={shown_view.k <= 1 + 1e-6}><Minus size={16}/></button>
+      <button type="button" onClick={() => setView(HOME_VIEW)} disabled={isHome(shown_view)}><RotateCcw size={15}/><span>重設視角</span></button>
+    </div>
   </div>;
 }
