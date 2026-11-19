@@ -7,6 +7,6 @@ import { hubSummary, regionSummaries } from '@/lib/world/learning-islands';
  * and scene /p9 drew, with the same registry data. /p9 now redirects here; the region pages stay under /p9/<region>.
  */
 export function P9Home() {
-  return <main id="main"><h1 className="visually-hidden">Logic Island 世界群島</h1>
+  return <main id="main"><h1 className="visually-hidden">Logic Island — 互動學習群島</h1>
     <P9World regions={regionSummaries()} hub={hubSummary()} accents={Object.fromEntries(subjectIslands.map(island => [island.id, island.theme.accent]))}/></main>;
 }

@@ -100,7 +100,7 @@ export function P9RegionExplorer({ regionId, regionName, regionNameEn, islands, 
       layout="fullscreen" modeSwitchTarget={HEADER_TOOLS_ID} selectedId={selectedId} onSelectedChange={change}
       baseAzimuth={P9_REGION_BASE_AZIMUTH}
       listMore={<nav className={styles.regionMore} aria-label={`${regionName}以外`}>
-        <p>{regionName}共 {islands.length} 座學科島。這是 P9.1 的視覺審查頁；課程、導覽與島嶼資料與正式頁面相同。</p>
+        <p>{regionName}共 {islands.length} 座學科島。</p>
         <ul>
           <li><Link href={hub.href}><span><small>共用 · 中央樞紐</small><strong>{hub.name}</strong><em>{hub.labs} 個互動實驗</em></span><ArrowRight size={15}/></Link></li>
           <li><Link href={P9_WORLD_HREF}><span><small>世界</small><strong>世界總覽</strong></span><ArrowRight size={15}/></Link></li>
@@ -108,11 +108,11 @@ export function P9RegionExplorer({ regionId, regionName, regionNameEn, islands, 
         </ul>
       </nav>}
       copy={{
-        section: `${regionName}地圖（P9.1 原型）`, overview: `${regionName}全景`, tag: 'P9.1 VISUAL PROTOTYPE',
-        eyebrow: `P9.1 · ${regionNameEn.toUpperCase()}`,
+        section: `${regionName}地圖`, overview: `${regionName}全景`, tag: 'LOGIC ISLAND',
+        eyebrow: regionNameEn.toUpperCase(),
         title: <>{regionName}<small className={styles.captionStats}>{`${open} 座已開放 · ${planned} 座規劃中`}</small></>,
         hint: phone ? '單指左右旋轉 · 雙指縮放與平移 · 點選島嶼探索' : pins ? '拖曳旋轉 · 滾輪縮放 · 點擊島嶼或圖釘探索 · Esc 返回上一層' : '拖曳旋轉 · 右鍵拖曳或方向鍵平移 · 滾輪縮放 · 點擊島嶼或名牌探索 · Esc 返回上一層',
-        canvas: `${regionName}原型：${islands.length} 座學科島（${open} 座已開放、${planned} 座規劃中），亦可使用場景外的清單導航`,
+        canvas: `${regionName}：${islands.length} 座學科島（${open} 座已開放、${planned} 座規劃中），亦可使用場景外的清單導航`,
         loading: { title: `正在準備${regionName}…`, note: '也可以先使用清單選擇島嶼。' },
       }}/>
   </>;

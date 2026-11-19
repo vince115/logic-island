@@ -88,14 +88,13 @@ test.describe('P9.1 prototype: world overview', () => {
     }
     for (const [i, a] of boxes.entries()) for (const b of boxes.slice(i + 1)) expect(a.x1 <= b.x0 || b.x1 <= a.x0 || a.y1 <= b.y0 || b.y1 <= a.y0, `${a.id} and ${b.id} overlap`).toBe(true);
   });
-  test('only the built region opens a map; the others are named and open nothing; nothing leads to /world', async ({ page }) => {
+  test('every region opens its map from the map and the guide; nothing leads to /world or /p9', async ({ page }) => {
     await openMap(page, '/');
-    await expect(page.locator('button[data-target="cs"]')).toHaveCount(1);
-    for (const id of REGIONS.filter(r => r !== 'cs')) {
-      await expect(page.locator(`button[data-target="${id}"]`), id).toHaveCount(0);
-      await expect(page.locator(`[data-target="${id}"][data-pending="true"]`), id).toHaveCount(1);
-      await expect(page.locator(`[data-region-entry="${id}"]`), id).toHaveJSProperty('tagName', 'DIV');
+    for (const id of REGIONS) {
+      await expect(page.locator(`button[data-target="${id}"]`), id).toHaveCount(1);
+      await expect(page.locator(`a[data-region-entry="${id}"]`), id).toHaveAttribute('href', `/${id}`);
     }
+    expect(await page.locator('a[href^="/p9"]').count()).toBe(0);
     expect(await page.locator('a[href^="/world"]').count()).toBe(0);
     expect(await page.locator('a[href^="/trials"]').count()).toBe(0);
     // The guide's entry, by keyboard: the way in that needs no 3D.
@@ -175,7 +174,7 @@ test.describe('P9.1 prototype: CS region and island', () => {
       for (const id of PLANNED) await expect(page.locator(`[data-island-choice="${id}"]`), id).toContainText('規劃中');
     }
     // The explorer itself: the site header's own 開始學習 link is not part of the island.
-    const explorer = page.locator('section[aria-label$="（P9.1 原型）"]');
+    const explorer = page.locator('section[aria-label$="地圖"]');
     for (const id of PLANNED) {
       await page.goto(`/cs?island=${id}`);
       await expect(page.locator('canvas')).toBeVisible({ timeout: 30_000 });
@@ -193,7 +192,7 @@ test.describe('P9.1 prototype: CS region and island', () => {
     await expect(places).toBeVisible({ timeout: 30_000 });
     for (const name of ['工坊', '燈塔', '碼頭']) await expect(places.getByRole('button', { name: new RegExp(name) }).or(places.getByRole('link', { name: new RegExp(name) })).first(), name).toBeVisible();
     // Its twenty lessons are linked, and every one of them exists.
-    const lessons = await page.locator('section[aria-label$="（P9.1 原型）"] a[href^="/curriculum/"]').evaluateAll(list => [...new Set(list.map(a => a.getAttribute('href')!))]);
+    const lessons = await page.locator('section[aria-label$="地圖"] a[href^="/curriculum/"]').evaluateAll(list => [...new Set(list.map(a => a.getAttribute('href')!))]);
     expect(lessons.length).toBeGreaterThanOrEqual(4);
     for (const href of lessons) expect((await page.request.get(href)).status(), href).toBe(200);
     // Escape: island → region (the address drops the island, the focus goes to its entry) → the prototype's overview.

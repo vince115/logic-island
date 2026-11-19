@@ -103,7 +103,6 @@ exports[`route contract (multi-archipelago v2) > generates the same pages in the
     "responsive-layout",
     "stack",
   ],
-  "p9/[region]": [],
   "regions/[region]": [
     "ai",
     "cs",
@@ -221,7 +220,6 @@ exports[`route contract (multi-archipelago v2) > generates the same pages with b
     "responsive-layout",
     "stack",
   ],
-  "p9/[region]": [],
   "regions/[region]": [
     "ai",
     "cs",

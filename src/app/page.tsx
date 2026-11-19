@@ -9,6 +9,10 @@ import { IslandsWorldExplorer } from '@/components/islands/hex-world/islands-wor
 import { MoreRegions } from '@/components/regions/more-regions';
 import { P9Home } from '@/components/p9/p9-home';
 import { p9PrototypeEnabled } from '@/lib/p9/flag';
+import type { Metadata } from 'next';
+
+// P9 builds name the home page after the product; the default build keeps the layout's title.
+export const generateMetadata = (): Metadata => p9PrototypeEnabled() ? { title: 'Logic Island — 互動學習群島' } : {};
 // The home page opens on the 3D archipelago (the explorer of /islands/candidate); only navigation metadata crosses the client boundary.
 // Phase F.2: 資料庫應用島 joins the map after 互動實驗島, so the four islands keep their numbers in the list. An island of
 // the Phase F plan opens lesson by lesson: the world registry says how many are written and where its syllabus is.

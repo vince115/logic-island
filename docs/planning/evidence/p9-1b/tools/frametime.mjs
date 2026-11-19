@@ -9,6 +9,7 @@ const { chromium } = require('@playwright/test');
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const init = () => {
   const proto = WebGL2RenderingContext.prototype; let draws = 0, ctx = null;
+// eslint-disable-next-line @typescript-eslint/no-this-alias -- page-side probe: it records the WebGL context a draw call ran on
   for (const name of ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced']) { const f = proto[name]; proto[name] = function (...a) { draws++; ctx = this; return f.apply(this, a); }; }
   const raf = window.requestAnimationFrame.bind(window); window.__frames = [];
   window.requestAnimationFrame = cb => raf(t => { const d0 = draws, t0 = performance.now(); cb(t); if (draws > d0 && ctx) { ctx.readPixels(0, 0, 1, 1, ctx.RGBA, ctx.UNSIGNED_BYTE, new Uint8Array(4)); window.__frames.push({ ms: performance.now() - t0, draws: draws - d0 }); } });
