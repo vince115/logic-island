@@ -63,9 +63,10 @@ describe('GLB parts for hex tiles', () => {
 
   it('resolve clicks on lifted meshes to the same targets', () => {
     const mesh = (node: string) => { let m: Object3D | undefined; part(node).object.traverse(o => { if (!m && (o as { isMesh?: boolean }).isMesh) m = o; }); return m!; };
-    expect(resolveTarget(mesh('Building_Workshop'), asset)).toMatchObject({ action: { type: 'route', href: '/learn' } });
-    expect(resolveTarget(mesh('Landmark_Lighthouse'), asset)).toMatchObject({ node: 'Landmark_Lighthouse', action: { type: 'info' } });
-    expect(resolveTarget(mesh('Dock_Entry'), asset)).toMatchObject({ node: 'Dock_Entry', action: { type: 'info' } });
+    // P9 S1: the node says which target was hit; what it does is the island's interaction spec, by interaction id.
+    expect(resolveTarget(mesh('Building_Workshop'), asset)).toMatchObject({ node: 'Building_Workshop', interactionId: 'learn' });
+    expect(resolveTarget(mesh('Landmark_Lighthouse'), asset)).toMatchObject({ node: 'Landmark_Lighthouse', interactionId: 'lighthouse' });
+    expect(resolveTarget(mesh('Dock_Entry'), asset)).toMatchObject({ node: 'Dock_Entry', interactionId: 'entry' });
     expect(resolveTarget(mesh('Tree_001'), asset)).toBeNull();
   });
 

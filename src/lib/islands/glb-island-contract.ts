@@ -80,8 +80,7 @@ export const PLANNED_GLB_ASSETS = {
     nodes: [
       ...DATABASE_LANDMARKS.flatMap(({ node }) => {
         const name = node.split('_')[1], interactionId = name.replace(/[A-Z]/g, (c, i) => (i ? '-' : '') + c.toLowerCase());
-        return [{ node, kind: 'target' as const, role: 'learning_landmark', interactionId, anchor: `Anchor_${name}`,
-          action: { type: 'info' as const, title: node, text: node } }, ...entry(interactionId, name)];
+        return [{ node, kind: 'target' as const, role: 'learning_landmark', interactionId, anchor: `Anchor_${name}` }, ...entry(interactionId, name)];
       }),
       ...entry('entry', 'Entry'), ...entry('route_exit', 'Route_Exit'),
     ],
@@ -92,8 +91,7 @@ export const PLANNED_GLB_ASSETS = {
     nodes: [
       ...(['Building_SymbolLibrary', 'Building_TokenizationWorkshop', 'Landmark_TransformerTower'] as const).flatMap(node => {
         const name = node.split('_')[1], interactionId = name.replace(/[A-Z]/g, (c, i) => (i ? '-' : '') + c.toLowerCase());
-        return [{ node, kind: 'target' as const, role: 'learning_landmark', interactionId, anchor: `Anchor_${name}`,
-          action: { type: 'info' as const, title: node, text: node } }, ...entry(interactionId, name)];
+        return [{ node, kind: 'target' as const, role: 'learning_landmark', interactionId, anchor: `Anchor_${name}` }, ...entry(interactionId, name)];
       }),
       ...entry('entry', 'Entry'), ...entry('route_exit', 'Route_Exit'),
     ],

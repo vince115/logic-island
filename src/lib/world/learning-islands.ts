@@ -10,6 +10,7 @@ import { isMappedRegion, regionLayout } from '@/lib/islands/regions/region-layou
 import type { IslandVisual } from '@/lib/islands/regions/schema';
 import { databaseIsland, islands, labIsland } from '@/lib/islands/data';
 import type { IslandDefinition, LearningIsland } from '@/lib/islands/types';
+import { islandInteractions } from './island-interactions';
 
 /*
  * M3.1 regional world prototype: what each region's map and list show, server-side. Islands with written lessons get
@@ -21,8 +22,11 @@ const MAP_ISLANDS: IslandDefinition[] = [...islands, databaseIsland];
 
 function written(definition: IslandDefinition): LearningIsland {
   const record = getIsland(definition.id), anchor = record?.entryPoints.find(e => e.target.startsWith('/curriculum#'))?.target;
+  const interactions = islandInteractions(definition.id);
   return {
     ...definition,
+    // P9 S1: on a region map an island's targets follow the island registry (the workshop leads to its own syllabus).
+    ...(interactions ? { interactions } : {}),
     // As on the home page, only the database island shows how many of its lessons are written.
     ...(definition.id === databaseIsland.id && record && anchor ? {
       published: { open: lessonsOfIsland(definition.id).filter(l => l.lessonStatus === 'complete').length, total: record.lessonCount },
@@ -42,8 +46,10 @@ function written(definition: IslandDefinition): LearningIsland {
 }
 
 function plannedIsland(id: string): LearningIsland {
-  const record = getIsland(id)!;
+  const record = getIsland(id)!, interactions = islandInteractions(id);
   return {
+    // P9 S1: a planned island's targets, when it has any, are information only (islandInteractions drops the rest).
+    ...(interactions ? { interactions } : {}),
     id, name: record.name, englishName: record.nameEn.toUpperCase(), description: record.description,
     landmark: `學科代碼 ${record.code} · 規劃中`, modelId: 'data-harbor', position: [0, 0, 0], bounds: { min: [-3, -2, -3], max: [3, 3, 3] },
     accent: record.theme.accent, courseSlugs: [], lessons: [], planned: { lessonCount: record.lessonCount },

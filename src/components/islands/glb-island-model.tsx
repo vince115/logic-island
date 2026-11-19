@@ -5,6 +5,7 @@ import { Html, useGLTF } from '@react-three/drei';
 import type { ThreeEvent } from '@react-three/fiber';
 import { Vector3, type Mesh, type Object3D } from 'three';
 import { checkGlbContract, resolveTarget } from '@/lib/islands/glb-contract';
+import { interactionOf, routeHref, targetLabel, type IslandInteractionSpec } from '@/lib/islands/interactions';
 import type { GlbAsset, GlbTargetNode, Vec3 } from '@/lib/islands/types';
 import styles from './islands.module.css';
 
@@ -17,8 +18,8 @@ class GlbBoundary extends Component<{fallback:ReactNode;onError:()=>void;childre
   render(){return this.state.failed?this.props.fallback:this.props.children;}
 }
 
-function LoadedGlb({asset,selected,onReady,onInvalid,onNavigate}:{
-  asset:GlbAsset;selected:boolean;onReady:()=>void;onInvalid:(problems:string[])=>void;onNavigate:(href:string)=>void;
+function LoadedGlb({asset,interactions,selected,onReady,onInvalid,onNavigate}:{
+  asset:GlbAsset;interactions?:IslandInteractionSpec;selected:boolean;onReady:()=>void;onInvalid:(problems:string[])=>void;onNavigate:(href:string)=>void;
 }) {
   // No Draco or Meshopt: the runtime GLB uses neither, and drei's Draco default fetches a decoder from a CDN.
   const {scene}=useGLTF(asset.url,false,false);
@@ -45,23 +46,25 @@ function LoadedGlb({asset,selected,onReady,onInvalid,onNavigate}:{
     // Unselected islands keep the original behavior: the click bubbles up and selects the island.
     if(!selected||event.delta>=6) return;
     const target=resolveTarget(event.object as Object3D,asset);
-    if(!target) return;
+    const action=target&&interactionOf(interactions,target.interactionId)?.action;
+    if(!target||!action) return;
     event.stopPropagation();
-    if(target.action.type==='route') onNavigate(target.action.href);
+    if(action.type==='route') onNavigate(routeHref(action.to));
     else setInfo(target);
   };
+  const infoAction=info&&interactionOf(interactions,info.interactionId)?.action;
   return <group scale={asset.scale} onClick={onClick}>
     <primitive object={model}/>
-    {selected&&asset.nodes.map(entry=>entry.kind==='anchor'&&entry.label&&anchors.has(entry.node)?
+    {selected&&asset.nodes.map(entry=>{const named=entry.kind==='anchor'&&anchors.has(entry.node)?interactionOf(interactions,entry.interactionId):undefined;return named?
       <Html key={entry.node} position={anchors.get(entry.node)} center zIndexRange={[14,0]}
         // drei only forwards pointerEvents in transform mode; both wrappers must let clicks through.
         wrapperClass={styles.anchorWrapper} style={{pointerEvents:'none'}}>
-        <span className={styles.anchorLabel} data-anchor={entry.node}>{entry.label}</span>
-      </Html>:null)}
-    {info&&info.action.type==='info'&&<Html position={anchors.get(info.anchor)} center zIndexRange={[16,0]}>
+        <span className={styles.anchorLabel} data-anchor={entry.node}>{targetLabel(named)}</span>
+      </Html>:null;})}
+    {info&&infoAction&&infoAction.type==='info'&&<Html position={anchors.get(info.anchor)} center zIndexRange={[16,0]}>
       <div className={styles.anchorInfo} role="status" data-target={info.node}>
-        <strong>{info.action.title}</strong><p>{info.action.text}</p>
-        <button type="button" aria-label={`關閉${info.action.title}說明`} onClick={event=>{event.stopPropagation();setInfo(null);}}>×</button>
+        <strong>{infoAction.title}</strong><p>{infoAction.text}</p>
+        <button type="button" aria-label={`關閉${infoAction.title}說明`} onClick={event=>{event.stopPropagation();setInfo(null);}}>×</button>
       </div>
     </Html>}
   </group>;
@@ -71,8 +74,8 @@ function LoadedGlb({asset,selected,onReady,onInvalid,onNavigate}:{
  * Renders a registry GLB, showing the fallback geometry while it loads and whenever
  * loading fails or the node contract does not hold.
  */
-export function GlbIslandModel({asset,Fallback,selected,onSourceChange,onNavigate}:{
-  asset:GlbAsset;Fallback:ComponentType;selected:boolean;
+export function GlbIslandModel({asset,interactions,Fallback,selected,onSourceChange,onNavigate}:{
+  asset:GlbAsset;interactions?:IslandInteractionSpec;Fallback:ComponentType;selected:boolean;
   onSourceChange:(source:ModelSource)=>void;onNavigate:(href:string)=>void;
 }) {
   const [failed,setFailed]=useState(false);
@@ -85,7 +88,7 @@ export function GlbIslandModel({asset,Fallback,selected,onSourceChange,onNavigat
   if(failed) return <Fallback/>;
   return <GlbBoundary fallback={<Fallback/>} onError={fail}>
     <Suspense fallback={<Fallback/>}>
-      <LoadedGlb asset={asset} selected={selected} onReady={ready} onInvalid={invalid} onNavigate={onNavigate}/>
+      <LoadedGlb asset={asset} interactions={interactions} selected={selected} onReady={ready} onInvalid={invalid} onNavigate={onNavigate}/>
     </Suspense>
   </GlbBoundary>;
 }

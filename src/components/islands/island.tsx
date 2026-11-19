@@ -3,6 +3,7 @@
 import { useState, type ComponentType } from 'react';
 import { Html } from '@react-three/drei';
 import { assetRegistry, glbAssets } from '@/lib/islands/asset-registry';
+import { HOME_MAP_INTERACTIONS } from '@/lib/islands/island-interactions';
 import type { IslandDefinition } from '@/lib/islands/types';
 import { BeaconWorkshop } from './models/beacon-workshop';
 import { DataHarbor } from './models/data-harbor';
@@ -23,7 +24,7 @@ export function Island({island,selected,hovered,onSelect,onHover,onNavigate}:{
     onPointerOver={event=>{event.stopPropagation();onHover(island.id);}}
     onPointerOut={event=>{event.stopPropagation();onHover(null);}}
     onClick={event=>{event.stopPropagation();if(event.delta<6)onSelect(island.id);}}>
-    {glb?<GlbIslandModel asset={glb} Fallback={models[assetRegistry[glb.fallback].component]} selected={selected}
+    {glb?<GlbIslandModel asset={glb} interactions={HOME_MAP_INTERACTIONS[island.id]} Fallback={models[assetRegistry[glb.fallback].component]} selected={selected}
       onSourceChange={setSource} onNavigate={onNavigate}/>:<Model/>}
     {/* A submerged selection halo highlights the whole island without duplicating meshes. */}
     <mesh position={[0,-1.93,0]} rotation-x={-Math.PI/2} scale={[1.12,1,1]} raycast={()=>undefined}>

@@ -6,7 +6,7 @@ import { useFrame } from '@react-three/fiber';
 import {
   Color, ConeGeometry, DodecahedronGeometry, InstancedMesh, MeshStandardMaterial, Object3D, type Material, type Mesh,
 } from 'three';
-import { glbAssets } from '@/lib/islands/asset-registry';
+import { VEGETATION_ASSET, glbAssets } from '@/lib/islands/asset-registry';
 import { TREE_NODES, coastRocks, forestInstances, type ForestPatch, type RockInstance, type TreeInstance } from '@/lib/islands/hex-nature-data';
 import { TERRAIN_MATERIAL, TERRAIN_PALETTE } from '@/lib/islands/hex-terrain';
 import type { HexWorld } from '@/lib/islands/hex-world';
@@ -39,7 +39,7 @@ const show=(meshes:(InstancedMesh|null)[],visible:boolean)=>meshes.forEach(mesh=
  * rendering the view) and still draw into the shadow map, so shadows, and the static shadow map, never change.
  */
 function GlbForest({trees,lod}:{trees:TreeInstance[];lod?:number}) {
-  const {scene}=useGLTF(glbAssets['basics-island-v2.1'].url,false,false);
+  const {scene}=useGLTF(glbAssets[VEGETATION_ASSET].url,false,false);
   const kinds=useMemo(()=>TREE_NODES.map(name=>{
     const mesh=scene.getObjectByName(name) as Mesh|undefined;
     return mesh?{geometry:mesh.geometry,material:mesh.material as Material}:null;
