@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import type { LearningIsland } from '@/lib/islands/types';
-import { P9_CS_REGION, PLANNED_LANDSCAPES } from '@/lib/p9/cs-region';
+import { regionScene } from '@/lib/p9/region-scene';
 import type { ExploreView } from '../islands/hex-world/hex-camera';
 import { HexWorldExplorer } from '../islands/hex-world/hex-world-explorer';
 import { HEADER_TOOLS_ID } from '../islands/hex-world/islands-world-explorer';
@@ -18,7 +18,7 @@ import styles from '../world/world.module.css';
  * same shared hex explorer, the same address rules as the regional world (`?island=<id>` is the focused island,
  * choosing one pushes it, an unknown id is dropped, Escape goes one level up: island → region → the prototype's world
  * overview), the same list, sheet and keyboard handling. What differs: the four planned islands' land and landscapes
- * (P9_CS_REGION, P9Landscapes) and how a focused island is looked at (EXPLORE). Review page only.
+ * (the region's scene definition, src/lib/p9/region-scene.ts) and how a focused island is looked at (EXPLORE). Review page only.
  */
 // Loaded with the scene, not with the page: the landscapes build three.js geometry, which the page's own script never needs.
 const P9Landscapes = lazy(() => import('./p9-landscapes').then(m => ({ default: m.P9Landscapes })));
@@ -83,12 +83,13 @@ export function P9RegionExplorer({ regionName, regionNameEn, islands, hub }: { r
   }, [selectedId, islands]);
   const phone = useSyncExternalStore(subscribe, () => matchMedia(PHONE).matches, () => false);
   const pins = useSyncExternalStore(subscribePins, () => matchMedia(PINS).matches, () => false);
-  const { layout, camera } = P9_CS_REGION;
+  // P9.1b: the region's scene definition, the one the world overview draws small.
+  const scene = regionScene('cs'), { layout, camera } = scene.region;
   const accents = useMemo(() => Object.fromEntries(islands.map(i => [i.id, i.accent])), [islands]);
   const options = useMemo(() => ({
     ...sceneOptions(layout, SCENE_PRESETS.lab), labelReach: pins ? PHONE_PIN_REACH : camera.labelReach, largeTargets: true, mapControls: true, phoneRoom: PHONE_ROOM, pins, ownLayer: true,
-    extras: <Suspense fallback={null}><P9Landscapes world={layout.world} landscapes={PLANNED_LANDSCAPES} accents={accents}/></Suspense>, explore: EXPLORE,
-  }), [layout, camera, pins, accents]);
+    extras: <Suspense fallback={null}><P9Landscapes world={layout.world} landscapes={scene.landscapes} accents={accents}/></Suspense>, explore: EXPLORE,
+  }), [layout, camera, pins, accents, scene]);
   const open = islands.filter(i => !i.planned).length, planned = islands.length - open;
   return <>
     <BackToWorld/>

@@ -7,6 +7,7 @@ import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import { ArrowRight, Compass } from 'lucide-react';
 import type { RegionId } from '@/content/world/types';
 import { HUB_THEME, REGION_THEMES } from '@/lib/islands/regions/region-themes';
+import { SITE_TIME_LABELS, useSiteTime } from '@/lib/site-time';
 import type { HubSummary, RegionSummary } from '@/lib/world/learning-islands';
 import { SceneBoundary } from '../islands/hex-world/scene-boundary';
 import status from '../islands/island-status.module.css';
@@ -23,16 +24,21 @@ const regionDetail = (r: RegionSummary) => r.open ? `${r.islands} 座學科島 �
 const shortName = (name: string) => name.replace(/群島$/, '');
 
 /**
- * P9.1 visual prototype: the world overview (/p9). The P8 overview's page, with the prototype's scene in the stage:
+ * P9.1 visual prototype: the world overview (/p9). The P8 overview's page, with the prototype's scene in the stage
+ * (P9.1b: every region drawn from its own Region Scene Definition, in the site's time of day):
  * the same regions, counts and hub from the world registry, the same guide beside the map (below it on phones) as the
  * way in without WebGL. Only the regions in P9_REGIONS lead to a prototype region page; the rest say so.
  */
-export function P9World({ regions, hub }: { regions: RegionSummary[]; hub: HubSummary }) {
+export function P9World({ regions, hub, accents }: { regions: RegionSummary[]; hub: HubSummary;
+  /** Every subject island's accent, by island id (the registry's), for what the regions' scenes draw in it. */
+  accents: Record<string, string> }) {
   const router = useRouter();
   const [available, setAvailable] = useState(true);
   const unavailable = useCallback(() => setAvailable(false), []);
   const ready = useCallback(() => {}, []);
   const wide = useSyncExternalStore(subscribe, () => matchMedia(WIDE).matches, () => false);
+  // P9.1b: the site's time of day (the header's time button), the one every island scene draws.
+  const time = useSiteTime();
   const targets: P9WorldTarget[] = useMemo(() => [
     ...regions.map(r => {
       const built = P9_REGIONS.includes(r.id);
@@ -45,8 +51,8 @@ export function P9World({ regions, hub }: { regions: RegionSummary[]; hub: HubSu
   return <section className={styles.overview} aria-label="世界總覽（P9.1 原型）">
     <div className={styles.stage}>
       {available ? <SceneBoundary onUnavailable={unavailable}>
-        <Scene targets={targets} insetRight={wide ? 360 : 0} shape={wide ? 'wide' : 'tall'} onReady={ready} onUnavailable={unavailable}
-          label={`Logic Island 世界總覽原型：中央樞紐與 ${regions.length} 個群島（${names}）的地形、地標與連結，亦可使用清單導航`}/>
+        <Scene targets={targets} insetRight={wide ? 360 : 0} shape={wide ? 'wide' : 'tall'} environmentId={time} accents={accents} onReady={ready} onUnavailable={unavailable}
+          label={`Logic Island 世界總覽原型（${SITE_TIME_LABELS[time]}）：中央樞紐與 ${regions.length} 個群島（${names}）各自的島嶼、橋樑與地標，亦可使用清單導航`}/>
       </SceneBoundary> : <p className={styles.fallbackNotice} role="status">此裝置的 3D 場景無法使用，已切換至清單導航。</p>}
     </div>
     <nav className={styles.guide} aria-label="世界導覽（原型）">
@@ -66,7 +72,7 @@ export function P9World({ regions, hub }: { regions: RegionSummary[]; hub: HubSu
           </Link>
         </li>
       </ol>
-      <p className={styles.guideNote}>這是 P9.1 的視覺審查頁，不是正式的世界頁面。地形、地標與配色都是待審的提案；群島的數量、位置與橋樑沿用現有的世界資料。</p>
+      <p className={styles.guideNote}>這是 P9.1 的視覺審查頁，不是正式的世界頁面。地圖上的每個群島就是該區域自己的地圖縮小後的樣子：島嶼的位置、輪廓、高低、橋樑與地標都來自同一份區域資料。頁首的時間按鈕切換清晨、中午、黃昏、傍晚，進入區域與島嶼後維持同一個時段。</p>
     </nav>
   </section>;
 }

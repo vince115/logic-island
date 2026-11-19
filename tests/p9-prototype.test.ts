@@ -6,12 +6,7 @@ import { regionLayout } from '@/lib/islands/regions/region-layouts';
 import { validateRegion } from '@/lib/islands/regions/validate-region';
 import { placeholderLandmarkTiles } from '@/components/islands/hex-world/hex-landmarks';
 import { P9_CS_REGION, PLANNED_LANDSCAPES } from '@/lib/p9/cs-region';
-import { REGION_LAYOUTS } from '@/lib/islands/regions/region-layouts';
-import { overviewLinks, overviewOutlines } from '@/lib/islands/regions/world-overview-geometry';
-import { WORLD_MAP, validateWorldMap, worldMapRegionIds } from '@/lib/islands/regions/world-map';
 import { p9PrototypeEnabled } from '@/lib/p9/flag';
-import { LANDMARK_ISLAND, P9_GROW, P9_WORLD_MAP } from '@/lib/p9/world-map';
-import { BIOMES, regionField, sampleHeight, shorePoint, terrainMesh, treeSpots } from '@/lib/p9/world-terrain';
 import { regionIslands } from '@/lib/world/learning-islands';
 
 /*
@@ -67,56 +62,6 @@ describe('P9.1 CS region layout', () => {
   it('plants the islands with lessons exactly as /world/cs does', () => {
     const open = (trees: NonNullable<typeof base.layout.natural>['trees']) => trees.filter(t => !plannedIds.includes(t.islandId));
     expect(open(P9_CS_REGION.layout.natural!.trees)).toEqual(open(base.layout.natural!.trees));
-  });
-});
-
-describe('P9.1 world overview', () => {
-  const shapes = ['wide', 'tall'] as const;
-  it('keeps the world map\'s places, ring and bridges, drawn larger without breaking its composition rules', () => {
-    expect(P9_WORLD_MAP.ring).toBe(WORLD_MAP.ring);
-    expect(P9_WORLD_MAP.bridges).toBe(WORLD_MAP.bridges);
-    for (const shape of shapes) {
-      expect(validateWorldMap(P9_WORLD_MAP, shape), shape).toEqual([]);
-      for (const id of worldMapRegionIds()) {
-        expect(P9_WORLD_MAP.regions[id]![shape].at).toBe(WORLD_MAP.regions[id]![shape].at);
-        expect(P9_WORLD_MAP.regions[id]![shape].width).toBeCloseTo(WORLD_MAP.regions[id]![shape].width * P9_GROW.region);
-      }
-    }
-  });
-  for (const shape of shapes) it(`${shape}: every region and the hub is land with relief, woods and a landmark site above the sea`, () => {
-    const outlines = overviewOutlines(P9_WORLD_MAP, REGION_LAYOUTS, shape);
-    expect(outlines.map(o => o.id).sort()).toEqual([...worldMapRegionIds(), 'hub'].sort());
-    for (const outline of outlines) {
-      const field = regionField(outline, BIOMES[outline.id], outline.id === 'hub' ? undefined : LANDMARK_ISLAND[outline.id], 48);
-      const top = Math.max(...field.heights), mesh = terrainMesh(field);
-      // Relief: the land rises well above the flat 0.5 of the P8 outlines (the hub is one small island).
-      expect(top, `${outline.id} relief`).toBeGreaterThan(outline.id === 'hub' ? .6 : 1.5);
-      expect(Math.min(...field.heights), `${outline.id} seabed`).toBeLessThan(0);
-      expect(field.islands.length, `${outline.id} islands`).toBe(outline.world.settlements.length);
-      // Every tile of the region's own islands stands on land: the landform covers the islands it was grown from.
-      for (const [x, z] of outline.tiles) expect(sampleHeight(field, x, z), `${outline.id} tile ${x.toFixed(1)},${z.toFixed(1)}`).toBeGreaterThan(0);
-      expect(sampleHeight(field, ...field.site.at), `${outline.id} landmark site`).toBeGreaterThan(.25);
-      expect(mesh.triangles, `${outline.id} triangles`).toBeGreaterThan(200);
-      expect(mesh.positions.length).toBe(mesh.triangles * 9);
-      expect(treeSpots(field).length, `${outline.id} trees`).toBeGreaterThan(outline.id === 'hub' ? 3 : 20);
-      for (const spot of treeSpots(field)) expect(spot.y).toBeGreaterThan(0);
-    }
-  });
-  it('is the same land on every run', () => {
-    const [outline] = overviewOutlines(P9_WORLD_MAP, REGION_LAYOUTS, 'wide');
-    const a = regionField(outline, BIOMES[outline.id], LANDMARK_ISLAND.cs, 32), b = regionField(outline, BIOMES[outline.id], LANDMARK_ISLAND.cs, 32);
-    expect([...a.heights]).toEqual([...b.heights]);
-  });
-  it('links leave each region at its shore, and every link of the world map is kept', () => {
-    const outlines = overviewOutlines(P9_WORLD_MAP, REGION_LAYOUTS, 'wide'), links = overviewLinks(P9_WORLD_MAP, outlines);
-    expect(links.map(l => l.id).sort()).toEqual(overviewLinks(WORLD_MAP, overviewOutlines(WORLD_MAP, REGION_LAYOUTS, 'wide')).map(l => l.id).sort());
-    const fields = new Map(outlines.map(o => [o.id, regionField(o, BIOMES[o.id], undefined, 48)]));
-    for (const link of links) {
-      const from = fields.get(link.from)!, shore = shorePoint(from, link.a, link.b);
-      expect(sampleHeight(from, ...shore), `${link.id} leaves land`).toBeGreaterThan(0);
-      const step = from.cell * 1.5, length = Math.hypot(link.b[0] - shore[0], link.b[1] - shore[1]);
-      expect(sampleHeight(from, shore[0] + (link.b[0] - shore[0]) / length * step, shore[1] + (link.b[1] - shore[1]) / length * step), `${link.id} then sea`).toBeLessThanOrEqual(.04);
-    }
   });
 });
 

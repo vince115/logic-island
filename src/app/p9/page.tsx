@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { P9World } from '@/components/p9/p9-world';
 import { p9PrototypeEnabled } from '@/lib/p9/flag';
+import { subjectIslands } from '@/content/world';
 import { hubSummary, regionSummaries } from '@/lib/world/learning-islands';
 
 // P9.1 visual prototype: a review page, unlinked and kept out of search indexes; built only with LOGIC_ISLAND_P9_PROTOTYPE=1.
@@ -9,5 +10,5 @@ export const metadata: Metadata = { title: 'P9.1 世界視覺原型（審查用�
 
 export default function P9WorldPage() {
   if (!p9PrototypeEnabled()) notFound();
-  return <main id="main"><h1 className="visually-hidden">P9.1 世界視覺原型</h1><P9World regions={regionSummaries()} hub={hubSummary()}/></main>;
+  return <main id="main"><h1 className="visually-hidden">P9.1 世界視覺原型</h1><P9World regions={regionSummaries()} hub={hubSummary()} accents={Object.fromEntries(subjectIslands.map(island => [island.id, island.theme.accent]))}/></main>;
 }
