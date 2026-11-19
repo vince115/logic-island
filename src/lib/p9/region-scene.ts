@@ -1,4 +1,3 @@
-import { islandsInRegion, labIslandConfig } from '@/content/world';
 import { REGION_IDS, type RegionId } from '@/content/world/types';
 import { glbAssets } from '@/lib/islands/asset-registry';
 import { DATABASE_LANDMARKS } from '@/lib/islands/database-island';
@@ -9,6 +8,7 @@ import { forestInstances, type TreeInstance } from '@/lib/islands/hex-nature-dat
 import { LAND_TOP, tileHeight, worldCenter, type HexSettlement, type HexWorld } from '@/lib/islands/hex-world';
 import { islandsHomeWorld } from '@/lib/islands/islands-world';
 import { regionLayout, type RegionLayout } from '@/lib/islands/regions/region-layouts';
+import { WORLD_MAP } from '@/lib/islands/regions/world-map';
 import type { Vec3 } from '@/lib/islands/types';
 import { P9_CS_REGION, PLANNED_LANDSCAPES, type PlannedLandscape } from './cs-region';
 
@@ -32,13 +32,12 @@ export type SceneSource = 'p9' | 'approved';
 
 export interface SceneIsland {
   islandId: string;
-  /** The region the registry files the island under; the hub's island has none. */
+  /** The region whose scene the island stands in; the hub's island has none. */
   regionId: RegionId | null;
   /** The island's centre tile on the region's own map (x, z), and how many tiles it has. */
   center: [number, number]; tiles: number;
   /** The highest tile top (map units above the base land height). */
   top: number;
-  planned: boolean;
 }
 /** Something that stands on an island and marks it: a GLB building, an authored landmark, a landscape. */
 export interface SceneLandmark {
@@ -70,22 +69,16 @@ const ground = (world: HexWorld, settlement: HexSettlement, tile: Axial): Vec3 =
 
 function define(id: SceneId, source: SceneSource, region: RegionLayout, landscapes: readonly PlannedLandscape[]): RegionSceneDefinition {
   const { world, glb, forests, natural } = region.layout;
-  const registry = new Map<string, { regionId: RegionId | null; planned: boolean }>(id === 'hub'
-    ? [[labIslandConfig.id, { regionId: null, planned: false }]]
-    : islandsInRegion(id).map(i => [i.id, { regionId: id, planned: i.status === 'planned' }]));
-  const islands: SceneIsland[] = world.settlements.map(s => {
-    const record = registry.get(s.islandId);
-    if (!record) throw new Error(`region scene ${id}: ${s.islandId} is not an island of the registry's ${id}`);
-    return { islandId: s.islandId, ...record, center: hexToWorld(s.center, world.size), tiles: s.tiles.length, top: Math.max(...s.tiles.map(tileHeight)) };
-  });
+  // Space only, like the layouts: which islands a region holds, and which of them are planned, is the world registry's
+  // to say (src/content/world), and a unit test compares every scene's islands with it. Nothing here imports the
+  // registry, so a page that draws a scene does not ship the registry's data with it.
+  const islands: SceneIsland[] = world.settlements.map(s => ({ islandId: s.islandId, regionId: id === 'hub' ? null : id, center: hexToWorld(s.center, world.size), tiles: s.tiles.length, top: Math.max(...s.tiles.map(tileHeight)) }));
   const landmarks: SceneLandmark[] = [];
   for (const layout of glb) {
-    const settlement = world.settlements.find(s => s.islandId === layout.islandId)!;
     const targets = new Set<string>(glbAssets[layout.asset].nodes.filter(n => n.kind === 'target').map(n => n.node));
     for (const placement of layout.placements) if (targets.has(placement.node)) {
       landmarks.push({ islandId: layout.islandId, id: placement.node, kind: 'glb', tile: placement.tile, position: placementPose(world, layout.islandId, placement).position });
     }
-    void settlement;
   }
   const databases = world.settlements.find(s => s.islandId === 'databases');
   if (databases) for (const landmark of DATABASE_LANDMARKS) {
@@ -102,8 +95,8 @@ function define(id: SceneId, source: SceneSource, region: RegionLayout, landscap
 
 /** The hub: 互動實驗島 alone, as the home map draws it, with the home map's own woods on it. */
 function hubRegion(): RegionLayout {
-  const home = islandsHomeWorld, island = home.world.settlements.find(s => s.islandId === labIslandConfig.id);
-  if (!island) throw new Error(`region scene hub: ${labIslandConfig.id} is not on the home map`);
+  const home = islandsHomeWorld, island = home.world.settlements.find(s => s.islandId === WORLD_MAP.hub.islandId);
+  if (!island) throw new Error(`region scene hub: ${WORLD_MAP.hub.islandId} is not on the home map`);
   const own = <T extends { islandId: string }>(list: T[]) => list.filter(item => item.islandId === island.islandId);
   const layout: WorldLayout = {
     world: { size: home.world.size, settlements: [island], bridges: [] }, glb: [], forests: own(home.forests), zones: home.zones,

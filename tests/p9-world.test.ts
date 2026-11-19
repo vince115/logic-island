@@ -36,7 +36,6 @@ describe('P9.1b Region Scene Definition', () => {
       expect(scene.islands.map(i => i.islandId).sort(), id).toEqual(registry.map(i => i.id).sort());
       for (const island of scene.islands) {
         expect(island.regionId, island.islandId).toBe(id);
-        expect(island.planned, island.islandId).toBe(registry.find(i => i.id === island.islandId)!.status === 'planned');
         expect(seen.has(island.islandId), `${island.islandId} twice`).toBe(false);
         seen.add(island.islandId);
       }
