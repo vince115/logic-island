@@ -203,8 +203,7 @@ export function naturalTerrains(world: HexWorld): NaturalTerrain[] {
   return terrains;
 }
 
-/** The spine of the foundations island: arrival at the dock, through the plaza, up to the lighthouse. */
-export const MAIN_ROUTES = ['foundations-dock', 'foundations-lighthouse'] as const;
+/** How wide an island's main route is drawn (the route itself is the island's own: IslandPlazaSpec.mainRoutes). */
 export const MAIN_ROAD_WIDTH = 0.6;
 
 export interface PlazaLayout {
@@ -221,8 +220,16 @@ export interface PlazaLayout {
   pads: { kind: 'forecourt' | 'terrace'; position: Vec3; size: [number, number] }[];
 }
 
+/**
+ * What one island's plaza is laid out from (P9 S1: every island has its own; nothing here names an island):
+ * `mainRoutes`, the ids of the roads that get lamps (its spine, e.g. dock → plaza → landmark); `forecourts`, the ids of
+ * spurs that end at a door, whose last stretch is paved; `terraces`, round paving under a landmark, [x, z, radius] on
+ * the map.
+ */
+export interface PlazaInputs { mainRoutes: readonly string[]; forecourts?: readonly string[]; terraces?: readonly (readonly [number, number, number])[] }
+
 /** Plaza, guidepost, lamps and landmark paving for one settlement, from its roads and building placements. */
-export function plazaLayout(world: HexWorld, islandId: string, keepOut: KeepOut[], landmarks: { terrace?: [number, number, number] } = {}): PlazaLayout {
+export function plazaLayout(world: HexWorld, islandId: string, keepOut: KeepOut[], { mainRoutes, forecourts = [], terraces = [] }: PlazaInputs): PlazaLayout {
   const settlement = world.settlements.find(s => s.islandId === islandId)!, land = new Map(settlement.tiles.map(t => [hexKey(t), t]));
   const plaza = land.get(hexKey(settlement.center))!, [cx, cz] = hexToWorld(plaza, world.size), y = tileTop(plaza);
   const radius = 1, routes = routeSegments(world);
@@ -251,7 +258,7 @@ export function plazaLayout(world: HexWorld, islandId: string, keepOut: KeepOut[
     return Boolean(tile && Math.abs(tileTop(tile) - level) < 1e-6 && fits(world, land, tile, x, z, 0, 0.18)
       && clear({ routes, keepOut }, x, z, 0.33, 0.15) && Math.hypot(x - cx, z - cz) > radius + 0.12);
   };
-  for (const road of roads.filter(r => (MAIN_ROUTES as readonly string[]).includes(r.routeId))) {
+  for (const road of roads.filter(r => mainRoutes.includes(r.routeId))) {
     // A pair at the plaza entry, then one every 1.6 along level stretches, alternating sides.
     const a = entry(road);
     for (const side of [-1, 1]) {
@@ -272,14 +279,12 @@ export function plazaLayout(world: HexWorld, islandId: string, keepOut: KeepOut[
     }
   }
   const pads: PlazaLayout['pads'] = [];
-  const workshop = settlement.spurs?.find(s => s.id === `${islandId}-workshop`)?.approach;
-  if (workshop && workshop.length >= 2) {
-    const [[fx, fz], [dx, dz]] = workshop.slice(-2), level = tileTop(groundAt(dx, dz)!);
+  for (const id of forecourts) {
+    const approach = settlement.spurs?.find(s => s.id === id)?.approach;
+    if (!approach || approach.length < 2) continue;
+    const [[fx, fz], [dx, dz]] = approach.slice(-2), level = tileTop(groundAt(dx, dz)!);
     pads.push({ kind: 'forecourt', position: [(fx + dx) / 2, level, (fz + dz) / 2], size: [1.1, Math.hypot(fx - dx, fz - dz) + 0.1] });
   }
-  if (landmarks.terrace) {
-    const [tx, tz, r] = landmarks.terrace;
-    pads.push({ kind: 'terrace', position: [tx, tileTop(groundAt(tx, tz)!), tz], size: [r, r] });
-  }
+  for (const [tx, tz, r] of terraces) pads.push({ kind: 'terrace', position: [tx, tileTop(groundAt(tx, tz)!), tz], size: [r, r] });
   return { islandId, center: [cx, y, cz], radius, hedges, signs, lamps, pads };
 }

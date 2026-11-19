@@ -1,6 +1,6 @@
 import { REGION_IDS, type RegionId } from '@/content/world/types';
-import { A, assembleLayout, plannedSettlement, shape, type WorldLayout } from '../hex-layout';
-import { DATABASES_SPEC, ISLANDS_LAYOUT } from '../islands-world';
+import { A, assembleLayout, plannedIsland, plannedSettlement, shape, type WorldLayout } from '../hex-layout';
+import { DATABASES_ISLAND, ISLANDS_LAYOUT } from '../islands-world';
 import type { HexBridge } from '../hex-world';
 import { latticeLayout } from './lattice-layout';
 import type { LatticeMapSpec, RegionLayout } from './schema';
@@ -37,10 +37,12 @@ const CS_BRIDGES: HexBridge[] = [
   { id: 'systems-analysis-information-systems', kind: 'stone', from: { islandId: 'systems-analysis', tile: A(7, -17), edge: 2 }, to: { islandId: 'information-systems', tile: A(7, -20), edge: 5 } },
 ];
 
+// P9 S1: the region is a list of island specs. The four islands with lessons are the very specs the home map draws
+// (islands-world.ts), so the two maps cannot drift apart; the four planned ones follow, in registry order.
 const cs: WorldLayout = assembleLayout({
   ...ISLANDS_LAYOUT,
-  databases: DATABASES_SPEC,
-  planned: [planned('programming-languages', A(5, 6)), planned('networks', A(16, -10)), planned('systems-analysis', A(8, -16)), planned('information-systems', A(7, -22))],
+  islands: [...ISLANDS_LAYOUT.islands, DATABASES_ISLAND,
+    ...[planned('programming-languages', A(5, 6)), planned('networks', A(16, -10)), planned('systems-analysis', A(8, -16)), planned('information-systems', A(7, -22))].map(plannedIsland)],
   bridges: [...ISLANDS_LAYOUT.bridges,
     { id: 'structures-databases', kind: 'wood', from: { islandId: 'structures', tile: A(6, -8), edge: 3 }, to: { islandId: 'databases', tile: A(3, -8), edge: 0 } },
     ...CS_BRIDGES],
