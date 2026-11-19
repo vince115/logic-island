@@ -407,3 +407,189 @@ test.describe('P9.5 Region → Island', () => {
     for (const href of hrefs.slice(0, 5)) expect((await page.request.get(href)).status(), href).toBe(200);
   });
 });
+
+test.describe('P9.6 navigation: interrupting, going back, reduced motion, phones', () => {
+  test.skip(!P9, 'needs a build with LOGIC_ISLAND_P9_PROTOTYPE=1');
+  test.use({ reducedMotion: 'no-preference' });
+  const stage = (page: Page) => page.locator('[data-view]');
+  const zoom = async (page: Page) => Number((await stage(page).getAttribute('data-view'))!.split(',')[0]);
+  test('Escape or a drag during the flight cancels it; after Back another region still flies', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'keyboard and mouse: desktop');
+    await openMap(page, '/');
+    await page.locator('[data-target="cs"]').click();
+    await expect(stage(page)).toHaveAttribute('data-fly', 'flying');
+    // Part of the way in, so the view has moved.
+    await expect.poll(() => zoom(page)).toBeGreaterThan(1.05);
+    await page.keyboard.press('Escape');
+    await expect(stage(page)).toHaveAttribute('data-fly', 'idle');
+    const stopped = await zoom(page);
+    await page.waitForTimeout(1200);
+    await expect(page, 'Escape opens nothing').toHaveURL(/:\d+\/$/);
+    expect(await zoom(page), 'the view stays where the flight stopped').toBeCloseTo(stopped, 3);
+    await page.getByRole('button', { name: '重設視角' }).click();
+    await expect.poll(() => zoom(page)).toBe(1);
+    await page.locator('[data-target="design"]').click();
+    await expect(stage(page)).toHaveAttribute('data-fly', 'flying');
+    const box = (await stage(page).boundingBox())!;
+    await page.mouse.move(box.x + 300, box.y + 300); await page.mouse.down();
+    for (let i = 1; i <= 6; i++) await page.mouse.move(box.x + 300 + i * 8, box.y + 300);
+    await page.mouse.up();
+    await expect(stage(page)).toHaveAttribute('data-fly', 'idle');
+    await page.waitForTimeout(1200);
+    await expect(page, 'a drag opens nothing').toHaveURL(/:\d+\/$/);
+    // A full flight, Back, and the next flight starts from rest.
+    await page.getByRole('button', { name: '重設視角' }).click();
+    await page.locator('[data-target="sys"]').click();
+    await expect(page).toHaveURL(/:\d+\/sys$/, { timeout: 10_000 });
+    await page.goBack();
+    await expect(stage(page)).toHaveAttribute('data-fly', 'idle');
+    await expect.poll(() => zoom(page)).toBe(1);
+    await page.locator('[data-target="ai"]').click();
+    await expect(stage(page)).toHaveAttribute('data-fly', 'flying');
+    await expect(page).toHaveURL(/:\d+\/ai$/, { timeout: 10_000 });
+  });
+  test('the flight is 600–750 ms long', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'one layout is enough');
+    await openMap(page, '/');
+    await expect(page.locator('[data-target="web"]')).toBeVisible();
+    const flight = page.evaluate(() => new Promise<number>(done => {
+      let t0 = 0;
+      const tick = () => {
+        const fly = document.querySelector('[data-view]')?.getAttribute('data-fly');
+        if (fly === 'flying' && !t0) t0 = performance.now();
+        if (t0 && fly !== 'flying') { done(performance.now() - t0); return; }
+        requestAnimationFrame(tick);
+      };
+      tick();
+    }));
+    await page.locator('[data-target="web"]').click();
+    const ms = await flight;
+    expect(ms).toBeGreaterThan(560); expect(ms).toBeLessThan(900);
+  });
+  test('phones: zoomed in until no label is left, the region buttons still open each region in one tap', async ({ page, isMobile }) => {
+    test.skip(!isMobile, 'phones');
+    await openMap(page, '/');
+    await expect(page.locator('[data-target="cs"]')).toBeVisible();
+    await expect(page.locator('[data-region-picker]'), 'not at rest: the labels are there').toHaveCount(0);
+    for (let i = 0; i < 4; i++) await page.getByRole('button', { name: '放大' }).click();
+    await expect.poll(() => zoom(page)).toBeGreaterThan(3.5);
+    const picks = page.locator('[data-region-picker] button');
+    await expect(picks).toHaveCount(5);
+    for (const h of await picks.evaluateAll(list => list.map(b => b.getBoundingClientRect().height))) expect(h).toBeGreaterThanOrEqual(44);
+    const width = page.viewportSize()!.width;
+    expect(await page.evaluate(() => [innerWidth, document.documentElement.scrollWidth])).toEqual([width, width]);
+    await page.locator('[data-pick="sys"]').scrollIntoViewIfNeeded();
+    await page.locator('[data-pick="sys"]').tap();
+    await expect(stage(page)).toHaveAttribute('data-fly', /flying|navigating/);
+    await expect(page).toHaveURL(/:\d+\/sys$/, { timeout: 10_000 });
+    await page.goBack();
+    await expect.poll(() => zoom(page)).toBe(1);
+    await expect(page.locator('[data-region-picker]')).toHaveCount(0);
+  });
+  test('narrow phones (360 px): the region row scrolls inside itself, clear of the map buttons, and nothing widens the page', async ({ browser }) => {
+    const context = await browser.newContext({ reducedMotion: 'no-preference', viewport: { width: 360, height: 740 }, isMobile: true, hasTouch: true });
+    const page = await context.newPage();
+    await openMap(page, '/');
+    await expect(page.locator('[data-target="cs"]')).toBeVisible();
+    for (let i = 0; i < 4; i++) await page.getByRole('button', { name: '放大' }).click();
+    const row = page.locator('[data-region-picker]');
+    await expect(row.locator('button')).toHaveCount(5);
+    expect(await page.evaluate(() => [innerWidth, document.documentElement.scrollWidth])).toEqual([360, 360]);
+    const [rowBox, controls, stageBox] = [await row.boundingBox(), await page.locator('[data-world-controls]').boundingBox(), await page.locator('[data-view]').boundingBox()];
+    expect(rowBox!.x).toBeGreaterThanOrEqual(stageBox!.x); expect(rowBox!.x + rowBox!.width).toBeLessThanOrEqual(stageBox!.x + stageBox!.width + 1);
+    expect(rowBox!.y + rowBox!.height, 'the row stays above the zoom buttons').toBeLessThan(controls!.y);
+    for (const name of ['放大', '縮小', '重設視角']) await expect(page.getByRole('button', { name })).toBeInViewport();
+    expect(await row.evaluate(el => el.scrollWidth > el.clientWidth), 'the five buttons scroll inside the row').toBe(true);
+    await row.evaluate(el => { el.scrollLeft = el.scrollWidth; });
+    await expect(page.locator('[data-pick="sys"]')).toBeInViewport();
+    await page.locator('[data-pick="sys"]').tap();
+    await expect(page).toHaveURL(/:\d+\/sys$/, { timeout: 10_000 });
+    await context.close();
+  });
+  test('reduced motion, phones: a region button opens its region at once', async ({ browser }) => {
+    const context = await browser.newContext({ reducedMotion: 'reduce', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const page = await context.newPage();
+    await openMap(page, '/');
+    await expect(page.locator('[data-target="cs"]')).toBeVisible();
+    for (let i = 0; i < 3; i++) await page.getByRole('button', { name: '放大' }).click();
+    await page.locator('[data-pick="ai"]').tap();
+    await expect(page).toHaveURL(/:\d+\/ai$/, { timeout: 3_000 });
+    await context.close();
+  });
+});
+
+test.describe('P9.6 Region → Island: the panel opens once the camera arrives', () => {
+  test.skip(!P9, 'needs a build with LOGIC_ISLAND_P9_PROTOTYPE=1');
+  const sheet = (page: Page) => page.locator('aside[aria-label="資料結構島科目清單"]');
+  const label = (page: Page) => page.locator('button[aria-label^="聚焦資料結構島"]').first();
+  /** Frame by frame after the click: the panel's state and the camera's zoom. */
+  const record = (page: Page, ms: number) => page.evaluate(ms => new Promise<[number, string | null, number][]>(done => {
+    const list: [number, string | null, number][] = [], t0 = performance.now();
+    const tick = () => {
+      const c = document.querySelector('canvas') as (HTMLCanvasElement & { __hexZoom?: () => number }) | null;
+      list.push([performance.now() - t0, document.querySelector('aside[aria-label="資料結構島科目清單"]')?.getAttribute('data-arrival') ?? null, c?.__hexZoom?.() ?? NaN]);
+      if (performance.now() - t0 < ms) requestAnimationFrame(tick); else done(list);
+    };
+    tick();
+  }), ms);
+  test.describe('with motion', () => {
+    test.use({ reducedMotion: 'no-preference' });
+    test('hidden while the camera moves, shown once it has as good as arrived; Back closes it, Forward waits again', async ({ page }) => {
+      await openMap(page, '/cs');
+      await expect(label(page)).toBeVisible({ timeout: 30_000 });
+      await page.waitForTimeout(1500);
+      const frames = record(page, 3500);
+      await label(page).click();
+      await expect(page).toHaveURL(/\/cs\?island=structures$/);
+      const list = await frames;
+      const waiting = list.filter(f => f[1] === 'waiting'), shown = list.find(f => f[1] === 'arrived');
+      expect(waiting.length, 'frames with the panel waiting').toBeGreaterThan(5);
+      expect(shown, 'the panel opened').toBeTruthy();
+      const z0 = list[0][2], z1 = list.at(-1)![2];
+      expect(Math.abs(shown![2] - z0) / Math.abs(z1 - z0), 'the camera had covered most of its way').toBeGreaterThan(.85);
+      await expect(sheet(page)).toBeVisible();
+      await page.goBack();
+      await expect(page).toHaveURL(/\/cs$/);
+      await expect(sheet(page)).toHaveCount(0);
+      const again = record(page, 3000);
+      await page.goForward();
+      await expect(page).toHaveURL(/\/cs\?island=structures$/);
+      const back = await again;
+      expect(back.some(f => f[1] === 'waiting'), 'Forward waits for the camera too').toBe(true);
+      await expect(sheet(page)).toBeVisible();
+    });
+  });
+  test.describe('switching quickly', () => {
+    test.use({ reducedMotion: 'no-preference' });
+    test('a second island chosen before the camera arrives: the first one\'s panel never shows', async ({ page }) => {
+      await openMap(page, '/cs');
+      await expect(label(page)).toBeVisible({ timeout: 30_000 });
+      await page.waitForTimeout(1500);
+      // Every frame: which island the panel is for, and whether it shows.
+      const frames = page.evaluate(() => new Promise<[string, string | null][]>(done => {
+        const list: [string, string | null][] = [], t0 = performance.now();
+        const tick = () => {
+          const a = document.querySelector('aside[aria-label$="科目清單"]');
+          if (a) list.push([a.getAttribute('aria-label')!, a.getAttribute('data-arrival')]);
+          if (performance.now() - t0 < 4000) requestAnimationFrame(tick); else done(list);
+        };
+        tick();
+      }));
+      await label(page).click();
+      await page.waitForTimeout(250);
+      await page.evaluate(() => history.pushState(null, '', '?island=algorithms'));
+      await expect(page).toHaveURL(/\/cs\?island=algorithms$/);
+      const list = await frames;
+      expect(list.filter(([name, state]) => name.startsWith('資料結構島') && state === 'arrived'), 'the first island never opened').toHaveLength(0);
+      expect(list.at(-1), 'the second island opened').toEqual(['演算法島科目清單', 'arrived']);
+      await expect(page.locator('aside[aria-label="演算法島科目清單"]')).toBeVisible();
+    });
+  });
+  test('reduced motion: the panel opens with the island, nothing waits', async ({ page }) => {
+    await openMap(page, '/cs');
+    await expect(label(page)).toBeVisible({ timeout: 30_000 });
+    await label(page).click();
+    await expect(sheet(page)).toBeVisible({ timeout: 1_000 });
+    await expect(sheet(page)).not.toHaveAttribute('data-arrival', /./);
+  });
+});
