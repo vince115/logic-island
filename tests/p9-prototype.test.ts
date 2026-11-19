@@ -25,6 +25,9 @@ function reserved(): Record<string, Axial[]> {
   return out;
 }
 
+// P9.2/P9.3: islands with lessons that draw their own landmarks (raised sites, placeholders stepping aside).
+const OWN = ['structures', 'algorithms', 'databases'];
+
 describe('P9.1 CS region layout', () => {
   it('passes the region rules of /world/cs', () => {
     expect(validateRegion(P9_CS_REGION, ids, reserved(), accepted)).toEqual([]);
@@ -32,7 +35,7 @@ describe('P9.1 CS region layout', () => {
   it('keeps the islands with lessons, every bridge, the docks and the camera of the approved layout', () => {
     const { world } = P9_CS_REGION.layout;
     // P9.2: 資料結構島 draws its own landmarks on raised land (tests/p9-structures-island.test.ts); the other three are untouched.
-    for (const s of base.layout.world.settlements.filter(s => !s.planned && s.islandId !== 'structures')) expect(world.settlements.find(o => o.islandId === s.islandId)).toBe(s);
+    for (const s of base.layout.world.settlements.filter(s => !s.planned && !OWN.includes(s.islandId))) expect(world.settlements.find(o => o.islandId === s.islandId)).toBe(s);
     expect(world.bridges).toBe(base.layout.world.bridges);
     expect(P9_CS_REGION.docks).toBe(base.docks);
     expect(P9_CS_REGION.camera).toBe(base.camera);
@@ -53,7 +56,7 @@ describe('P9.1 CS region layout', () => {
   });
   it('stands every landscape on its own island, off the roads\' ports and with trees kept clear', () => {
     const { world, natural } = P9_CS_REGION.layout;
-    expect(PLANNED_LANDSCAPES.map(l => l.islandId).sort()).toEqual([...plannedIds, 'structures'].sort());
+    expect(PLANNED_LANDSCAPES.map(l => l.islandId).sort()).toEqual([...plannedIds, ...OWN].sort());
     for (const l of PLANNED_LANDSCAPES) {
       const s = world.settlements.find(o => o.islandId === l.islandId)!;
       for (const t of l.tiles) expect(s.tiles.some(u => u.q === t.q && u.r === t.r), `${l.islandId} ${hexKey(t)}`).toBe(true);
@@ -62,7 +65,7 @@ describe('P9.1 CS region layout', () => {
   });
   it('plants the other islands with lessons exactly as /world/cs does', () => {
     // 資料結構島's trees keep off its new landmarks; the other islands with lessons are planted exactly as before.
-    const open = (trees: NonNullable<typeof base.layout.natural>['trees']) => trees.filter(t => !plannedIds.includes(t.islandId) && t.islandId !== 'structures');
+    const open = (trees: NonNullable<typeof base.layout.natural>['trees']) => trees.filter(t => !plannedIds.includes(t.islandId) && !OWN.includes(t.islandId));
     expect(open(P9_CS_REGION.layout.natural!.trees)).toEqual(open(base.layout.natural!.trees));
   });
 });

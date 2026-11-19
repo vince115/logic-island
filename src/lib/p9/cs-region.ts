@@ -4,6 +4,7 @@ import { clusteredForest, naturalRocks, naturalTerrains, type KeepOut } from '@/
 import type { ForestPatch } from '@/lib/islands/hex-nature-data';
 import type { HexSettlement, HexTile } from '@/lib/islands/hex-world';
 import { regionLayout, type RegionLayout } from '@/lib/islands/regions/region-layouts';
+import { pickSites } from './island-sites';
 
 /*
  * P9.1 visual prototype: the CS region's map with its four planned islands as real islands. Review page only
@@ -87,6 +88,8 @@ const informationSystems: PlannedSpec = {
   landscape: [A(0, -1), A(1, -1), A(1, -2), A(0, -2)],
 };
 const PLANNED = [programmingLanguages, networks, systemsAnalysis, informationSystems];
+/** P9.3: islands with lessons whose landmarks the P9 map draws itself (besides 資料結構島, which has fixed sites). */
+const OWN_LANDMARKS: readonly string[] = ['algorithms', 'databases'];
 
 /*
  * P9.2 資料結構島 (an island with lessons): its own landmarks in place of the placeholder warehouse and crates. A hill
@@ -121,11 +124,22 @@ function build(): { region: RegionLayout; landscapes: PlannedLandscape[] } {
     // An ordinary settlement: same id, centre and spurs, its own tiles, and no `planned` (which only chose the mist).
     return { islandId: s.islandId, center: s.center, surface: 'continuous', tiles: tiles(s.center, spec.shape, spec.zone), ...(s.spurs ? { spurs: s.spurs } : {}) };
   });
-  const p9World = { ...world, settlements };
-  const centers = new Map(settlements.map(s => [s.islandId, s.center]));
+  // P9.3: 演算法島 and 資料庫應用島 draw their own landmarks too, on sites clear of their roads (island-sites.ts), the
+  // main one raised a step; the placeholder pieces and the database's transitional art step aside (ownLandmarks).
+  const rough = { ...world, settlements };
+  const ownSites = new Map(OWN_LANDMARKS.map(id => [id, pickSites(rough, settlements.find(s => s.islandId === id)!, 4)]));
+  const finished = settlements.map(s => {
+    const sites = ownSites.get(s.islandId);
+    if (!sites) return s;
+    const main = sites[0] && hexKey(sites[0]);
+    return { ...s, ownLandmarks: true as const, tiles: s.tiles.map(t => hexKey(t) === main ? { ...t, terrain: 'grass' as const, height: Math.max(t.height ?? 0, .3) } : t) };
+  });
+  const p9World = { ...world, settlements: finished };
+  const centers = new Map(finished.map(s => [s.islandId, s.center]));
   const landscapes: PlannedLandscape[] = PLANNED.map(p => ({ islandId: p.islandId, center: centers.get(p.islandId)!, tiles: shift(p.landscape, centers.get(p.islandId)!) }));
   const ds = centers.get('structures')!;
   landscapes.push({ islandId: 'structures', center: ds, tiles: shift(DS_LANDSCAPE, ds) });
+  for (const [islandId, sites] of ownSites) landscapes.push({ islandId, center: centers.get(islandId)!, tiles: sites });
   const forests: ForestPatch[] = [...base.layout.forests, ...PLANNED.map(p => ({ islandId: p.islandId, tiles: shift(p.forest, centers.get(p.islandId)!), density: 4 }))];
   const natural = base.layout.natural!;
   // Trees and rocks keep off the landscapes as they keep off the buildings: one circle a landscape tile.

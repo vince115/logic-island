@@ -7,10 +7,11 @@ import type { WorldLayout } from '@/lib/islands/hex-layout';
 import { forestInstances, type TreeInstance } from '@/lib/islands/hex-nature-data';
 import { LAND_TOP, tileHeight, worldCenter, type HexSettlement, type HexWorld } from '@/lib/islands/hex-world';
 import { islandsHomeWorld } from '@/lib/islands/islands-world';
-import { regionLayout, type RegionLayout } from '@/lib/islands/regions/region-layouts';
+import type { RegionLayout } from '@/lib/islands/regions/region-layouts';
 import { WORLD_MAP } from '@/lib/islands/regions/world-map';
 import type { Vec3 } from '@/lib/islands/types';
 import { P9_CS_REGION, PLANNED_LANDSCAPES, type PlannedLandscape } from './cs-region';
+import { builtRegion } from './built-region';
 
 /*
  * P9.1b: the Region Scene Definition. One definition per region (and one for the hub) says everything a scene of that
@@ -81,7 +82,8 @@ function define(id: SceneId, source: SceneSource, region: RegionLayout, landscap
     }
   }
   const databases = world.settlements.find(s => s.islandId === 'databases');
-  if (databases) for (const landmark of DATABASE_LANDMARKS) {
+  // P9.3: an island that draws its own landmarks (ownLandmarks) no longer shows the database's transitional art.
+  if (databases && !databases.ownLandmarks) for (const landmark of DATABASE_LANDMARKS) {
     const tile = { q: databases.center.q + landmark.at.q, r: databases.center.r + landmark.at.r };
     landmarks.push({ islandId: 'databases', id: landmark.node, kind: 'authored', tile, position: ground(world, databases, tile) });
   }
@@ -116,7 +118,7 @@ export function regionScene(id: SceneId): RegionSceneDefinition {
   if (!scene) {
     scene = id === 'hub' ? define('hub', 'approved', hubRegion(), [])
       : id === 'cs' ? define('cs', 'p9', P9_CS_REGION, PLANNED_LANDSCAPES)
-        : define(id, 'approved', regionLayout(id), []);
+        : (() => { const built = builtRegion(id); return define(id, 'p9', built.region, built.landscapes); })();
     cache.set(id, scene);
   }
   return scene;

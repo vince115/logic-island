@@ -23,9 +23,24 @@ describe('P9.1b Region Scene Definition', () => {
     expect(regionScene('cs').region).toBe(P9_CS_REGION);
     expect(regionScene('cs').source).toBe('p9');
     expect(regionScene('cs').landscapes).toBe(PLANNED_LANDSCAPES);
+    // P9.3: the other regions are their approved maps built: same islands, centres, outlines, bridges and camera, no
+    // mist, every island with landmark sites off its roads, plaza and bridge landings.
     for (const id of REGION_IDS.filter(r => r !== 'cs')) {
-      expect(regionScene(id).region, id).toBe(regionLayout(id));
-      expect(regionScene(id).source, id).toBe('approved');
+      const scene = regionScene(id), approved = regionLayout(id), key = (t: { q: number; r: number }) => `${t.q},${t.r}`;
+      expect(scene.source, id).toBe('p9');
+      expect(scene.region.camera, id).toBe(approved.camera);
+      expect(scene.region.layout.world.bridges, id).toBe(approved.layout.world.bridges);
+      expect(scene.region.layout.world.settlements.map(s => s.islandId), id).toEqual(approved.layout.world.settlements.map(s => s.islandId));
+      for (const s of scene.region.layout.world.settlements) {
+        const before = approved.layout.world.settlements.find(o => o.islandId === s.islandId)!;
+        expect(s.center, s.islandId).toEqual(before.center);
+        expect(s.tiles.map(key).sort(), s.islandId).toEqual(before.tiles.map(key).sort());
+        expect(s.planned, s.islandId).toBeUndefined();
+        const site = scene.landscapes.find(l => l.islandId === s.islandId)!;
+        const blocked = new Set([key(s.center), ...approved.layout.world.bridges.flatMap(b => [b.from, b.to]).filter(p => p.islandId === s.islandId).map(p => key(p.tile))]);
+        expect(site.tiles.length, s.islandId).toBeGreaterThanOrEqual(3);
+        for (const t of site.tiles) expect(blocked.has(key(t)), `${s.islandId} ${key(t)}`).toBe(false);
+      }
     }
     for (const id of SCENE_IDS) expect(regionScene(id), `${id} is built once`).toBe(regionScene(id));
   });
@@ -50,7 +65,8 @@ describe('P9.1b Region Scene Definition', () => {
     const cs = regionScene('cs'), { world } = cs.region.layout;
     expect(cs.landmarks.filter(l => l.kind === 'glb').map(l => l.id).sort()).toEqual(['Building_Workshop', 'Dock_Entry', 'Landmark_Lighthouse']);
     expect(cs.landmarks.filter(l => l.kind === 'glb').every(l => l.islandId === 'foundations')).toBe(true);
-    expect(cs.landmarks.filter(l => l.kind === 'authored').map(l => l.islandId)).toEqual(['databases', 'databases', 'databases', 'databases']);
+    // P9.3: 資料庫應用島 draws its own landmarks, so its transitional art is no longer listed.
+    expect(cs.landmarks.filter(l => l.kind === 'authored')).toEqual([]);
     expect(cs.landmarks.filter(l => l.kind === 'landscape').map(l => l.islandId).sort()).toEqual(PLANNED_LANDSCAPES.map(l => l.islandId).sort());
     for (const landmark of cs.landmarks) {
       const settlement = world.settlements.find(s => s.islandId === landmark.islandId)!;
