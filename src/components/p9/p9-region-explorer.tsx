@@ -7,6 +7,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import type { LearningIsland } from '@/lib/islands/types';
 import { regionScene } from '@/lib/p9/region-scene';
+import { P9_REGION_BASE_AZIMUTH } from '@/lib/p9/camera-heading';
 import type { ExploreView } from '../islands/hex-world/hex-camera';
 import { HexWorldExplorer } from '../islands/hex-world/hex-world-explorer';
 import { HEADER_TOOLS_ID } from '../islands/hex-world/islands-world-explorer';
@@ -95,7 +96,7 @@ export function P9RegionExplorer({ regionName, regionNameEn, islands, hub }: { r
     <BackToWorld/>
     <HexWorldExplorer islands={islands} world={layout.world} options={options} poiPanel captionAbove controlsBelow
       layout="fullscreen" modeSwitchTarget={HEADER_TOOLS_ID} selectedId={selectedId} onSelectedChange={change}
-      baseAzimuth={camera.azimuth[phone ? 'phone' : 'desktop']}
+      baseAzimuth={P9_REGION_BASE_AZIMUTH}
       listMore={<nav className={styles.regionMore} aria-label={`${regionName}以外`}>
         <p>{regionName}共 {islands.length} 座學科島。這是 P9.1 的視覺審查頁；課程、導覽與島嶼資料與正式頁面相同。</p>
         <ul>

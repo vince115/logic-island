@@ -18,6 +18,7 @@ import { GlowProvider, HexEnvironment, STATIC_SHADOW_MAP } from '../islands/hex-
 import { OCEAN } from '../islands/hex-world/hex-ocean';
 import styles from '../world/world.module.css';
 import { P9RegionMiniature } from './p9-region-miniature';
+import { WORLD_CAMERA_POSITION } from '@/lib/p9/camera-heading';
 
 /*
  * P9.1b: the world overview is the five regions' own scenes, drawn small around the hub. Each region is its Region
@@ -157,7 +158,7 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
     links: links.map(l => ({ id: l.id, kind: l.kind })),
   }), [parts, links, environmentId]);
   return <div ref={wrap} className={styles.canvasWrap} style={hovered && target(hovered)?.onOpen ? { cursor: 'pointer' } : undefined} data-shape={shape} data-compact={compact ? 'true' : undefined} data-p9-world={drawn}>
-    <Canvas orthographic frameloop="demand" dpr={[1, 1.5]} shadows={STATIC_SHADOW_MAP} camera={{ position: [0, 40, 60], zoom: 10, near: .1, far: 500 }}
+    <Canvas orthographic frameloop="demand" dpr={[1, 1.5]} shadows={STATIC_SHADOW_MAP} camera={{ position: [...WORLD_CAMERA_POSITION], zoom: 10, near: .1, far: 500 }}
       gl={{ antialias: true, alpha: false, powerPreference: 'low-power' }}
       onCreated={({ gl }) => {
         const canvas = gl.domElement;
