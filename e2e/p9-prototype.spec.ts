@@ -290,3 +290,79 @@ test.describe('P9.4 world zoom and pan', () => {
     await expect(page).toHaveURL(/:\d+\/cs$/);
   });
 });
+
+test.describe('P9.5 world fly-to', () => {
+  test.skip(!P9, 'needs a build with LOGIC_ISLAND_P9_PROTOTYPE=1');
+  // The suite runs with reduced motion (playwright.config.ts); a flight needs motion, so these tests ask for it.
+  test.use({ reducedMotion: 'no-preference' });
+  const stage = (page: Page) => page.locator('[data-view]');
+  const zoom = async (page: Page) => Number((await stage(page).getAttribute('data-view'))!.split(',')[0]);
+  for (const region of REGIONS) {
+    test(`clicking ${region} flies the camera toward it, then opens /${region}; Back returns to the world at rest`, async ({ page, isMobile }) => {
+      test.skip(isMobile && region !== 'cs', 'one region is enough on phones');
+      await openMap(page, '/');
+      await expect(page.locator(`[data-target="${region}"]`)).toBeVisible();
+      // Record the flight frame by frame in the page, so a fast machine cannot skip it.
+      const frames = page.evaluate(() => new Promise<{ fly: string | null; k: number }[]>(done => {
+        const list: { fly: string | null; k: number }[] = [], t0 = performance.now();
+        const tick = () => { const w = document.querySelector('[data-view]'); if (w) list.push({ fly: w.getAttribute('data-fly'), k: Number(w.getAttribute('data-view')!.split(',')[0]) }); if (performance.now() - t0 < 1500 && location.pathname === '/') requestAnimationFrame(tick); else done(list); };
+        tick();
+      }));
+      await page.locator(`[data-target="${region}"]`).click();
+      await expect(page).toHaveURL(new RegExp(`:\\d+/${region}$`), { timeout: 10_000 });
+      const flown = (await frames).filter(f => f.fly === 'flying');
+      expect(flown.length, 'frames in flight').toBeGreaterThan(5);
+      expect(flown.at(-1)!.k, 'the camera zoomed in on the way').toBeGreaterThan(flown[0].k + .5);
+      await page.goBack();
+      await expect(page).toHaveURL(/:\d+\/$/);
+      await expect(stage(page)).toHaveAttribute('data-fly', 'idle');
+      await expect.poll(() => zoom(page)).toBe(1);
+    });
+  }
+  test('a second click while flying opens nothing else; a wheel during the flight cancels it', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'mouse: desktop');
+    await openMap(page, '/');
+    await page.locator('[data-target="cs"]').click();
+    await expect(stage(page)).toHaveAttribute('data-fly', 'flying');
+    await page.locator('[data-target="ai"]').click({ force: true });
+    await expect(page).toHaveURL(/:\d+\/cs$/, { timeout: 10_000 });
+    await page.goBack();
+    await expect(stage(page)).toHaveAttribute('data-fly', 'idle');
+    await page.locator('[data-target="cs"]').click();
+    await expect(stage(page)).toHaveAttribute('data-fly', 'flying');
+    const box = (await stage(page).boundingBox())!;
+    await page.mouse.move(box.x + 200, box.y + 200);
+    await page.mouse.wheel(0, 120);
+    await expect(stage(page)).toHaveAttribute('data-fly', 'idle');
+    await page.waitForTimeout(1800);
+    await expect(page, 'a cancelled flight opens nothing').toHaveURL(/:\d+\/$/);
+  });
+  test('reduced motion opens the region at once, without a flight', async ({ browser }) => {
+    const context = await browser.newContext({ reducedMotion: 'reduce', viewport: { width: 1440, height: 1000 } });
+    const page = await context.newPage();
+    await openMap(page, '/');
+    await page.locator('[data-target="cs"]').click();
+    await expect(page).toHaveURL(/:\d+\/cs$/, { timeout: 3_000 });
+    await context.close();
+  });
+  test('phones: after a pinch and a drag, a tap on the label still flies to the region', async ({ page, isMobile }) => {
+    test.skip(!isMobile, 'touch: phones');
+    await openMap(page, '/');
+    const box = (await stage(page).boundingBox())!, cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+    const down = (id: number, x: number, y: number) => stage(page).dispatchEvent('pointerdown', { pointerId: id, pointerType: 'touch', isPrimary: id === 1, clientX: x, clientY: y, button: 0, buttons: 1 });
+    const move = (type: string, id: number, x: number, y: number) => page.evaluate(([type, id, x, y]) => window.dispatchEvent(new PointerEvent(type as string, { pointerId: id as number, pointerType: 'touch', clientX: x as number, clientY: y as number })), [type, id, x, y] as const);
+    // A gentle pinch (about 1.3×) and a short drag: the map is moved, its regions still on screen.
+    await down(1, cx - 40, cy); await down(2, cx + 40, cy);
+    for (let i = 1; i <= 4; i++) { await move('pointermove', 1, cx - 40 - i * 3, cy); await move('pointermove', 2, cx + 40 + i * 3, cy); }
+    await move('pointerup', 1, cx - 52, cy); await move('pointerup', 2, cx + 52, cy);
+    await down(3, cx, cy); for (let i = 1; i <= 4; i++) await move('pointermove', 3, cx + i * 4, cy + i * 2); await move('pointerup', 3, cx + 16, cy + 8);
+    await expect.poll(() => zoom(page)).toBeGreaterThan(1.15);
+    await expect(page).toHaveURL(/:\d+\/$/);
+    // Whichever region is still on screen after the pinch and the drag (a label off the stage is hidden).
+    const shown = page.locator(REGIONS.map(r => `[data-target="${r}"]:visible`).join(', ')).first();
+    const region = (await shown.getAttribute('data-target'))!;
+    await shown.click();
+    await expect(page).toHaveURL(new RegExp(`:\\d+/${region}$`), { timeout: 10_000 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => innerWidth));
+  });
+});

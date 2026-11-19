@@ -15,6 +15,7 @@ import { regionScene, sceneLayouts, scenePlacement, type SceneId } from '@/lib/p
 import { P9_WORLD_MAP } from '@/lib/p9/world-map';
 import { FLY_MS, FLY_SAFETY_MS, flightView, flyTarget, type FlyState } from '@/lib/p9/world-fly';
 import { useRouter } from 'next/navigation';
+import { REGION_IDS } from '@/content/world/types';
 import { DRAG_THRESHOLD, HOME_VIEW, clampView, isHome, panBy, project, wheelFactor, zoomAt, type Stage, type WorldView } from '@/lib/p9/world-view';
 import { Minus, Plus, RotateCcw } from 'lucide-react';
 import { VIEW } from '../islands/hex-world/hex-camera';
@@ -155,8 +156,11 @@ function useWorldGestures(element: React.RefObject<HTMLDivElement | null>, stage
 }
 
 
-/** Regions the flight opens; the rest open at once (P9.5 Phase B: CS first). */
-const FLY_TO: readonly string[] = ['cs'];
+/**
+ * The targets a flight opens: the five regions, each to its own extent on the overview. The central hub keeps opening
+ * its lab list at once, as before.
+ */
+const FLY_TO: readonly string[] = REGION_IDS;
 
 /**
  * P9.5: the one fly-to controller. start(id, box, go) flies the view to the region's extent and then calls `go` (the
