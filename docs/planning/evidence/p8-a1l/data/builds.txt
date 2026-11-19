@@ -1,0 +1,59 @@
+## default
+kind=default world=unset trials=unset private=absent
+== tsc
+tsc exit 0
+== build
+build first exit 1
+stopped by the Next.js security nudge; retrying the same command
+build exit 0
+kind=default commit=961db2fb62fb027d0553ae92b4e76f44af01691c built=2026-11-18T16:46:09+0800
+
+○  (Static)  prerendered as static content
+●  (SSG)     prerendered as static HTML (uses generateStaticParams)
+
+-- routes
+├ ○ /trials
+├ ● /trials/[exam]
+├ ● /trials/[exam]/[paper]
+├ ● /trials/[exam]/[paper]/result
+├ ○ /trials/review
+├ ○ /world
+└ ● /world/[region]
+-- first attempt (stopped by the Next.js upgrade nudge)
+> Build error occurred
+Error [SecurityFatalError]: Your version of Next.js is affected by a known security vulnerability.
+
+**We strongly recommend you upgrade Next.js.**
+
+This command stopped to show the upgrade recommendation. Retry the same command to continue the original task.
+
+## world
+kind=world world=1 trials=unset private=absent
+== tsc
+tsc exit 0
+== build
+build first exit 1
+stopped by the Next.js security nudge; retrying the same command
+build exit 0
+LOGIC_ISLAND_REGIONAL_WORLD=<set>
+kind=world commit=961db2fb62fb027d0553ae92b4e76f44af01691c built=2026-11-18T16:46:09+0800
+
+○  (Static)  prerendered as static content
+●  (SSG)     prerendered as static HTML (uses generateStaticParams)
+
+-- routes
+├ ○ /trials
+├ ● /trials/[exam]
+├ ● /trials/[exam]/[paper]
+├ ● /trials/[exam]/[paper]/result
+├ ○ /trials/review
+├ ○ /world
+└   /world/[region]
+-- first attempt (stopped by the Next.js upgrade nudge)
+> Build error occurred
+Error [SecurityFatalError]: Your version of Next.js is affected by a known security vulnerability.
+
+**We strongly recommend you upgrade Next.js.**
+
+This command stopped to show the upgrade recommendation. Retry the same command to continue the original task.
+

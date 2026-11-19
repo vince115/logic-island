@@ -1,0 +1,12 @@
+{"gone":"/world","status":200}
+{"gone":"/world/cs","status":200}
+{"gone":"/world/ai","status":200}
+{"gone":"/world/design","status":200}
+{"gone":"/world/web","status":200}
+{"gone":"/world/sys","status":200}
+{"gone":"/trials","status":404}
+{"gone":"/trials/review","status":404}
+{"gone":"/regions","status":404}
+{"curriculumLinks":80,"ok":80,"bad":[],"byDepth":{"1":80}}
+{"terminal":{"pwd":"輸入 help 查看指令，或從下方的練習任務開始。這是模擬環境，不會執行真實的 Shell。 ⏎ learner@logic-island:~$ pwd ⏎ /home/learner","ls":"/home/learner ⏎ learner@logic-island:~$ ls ⏎ README.txt  scripts/  secret.txt  tmp/","made":"learner@logic-island:~$ ls ⏎ README.txt  scripts/  secret.txt  tmp/ ⏎ learner@logic-island:~$ mkdir smoke-dir","after":"learner@logic-island:~$ mkdir smoke-dir ⏎ learner@logic-island:~$ ls ⏎ README.txt  scripts/  secret.txt  smoke-dir/  tmp/","treeHasNewDir":true,"errors":[]}}
+{"fails":[]}

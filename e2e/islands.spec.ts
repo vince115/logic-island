@@ -26,16 +26,21 @@ async function openFoundations(page: Page, route: string) {
 }
 /** Clicks the canvas at an offset from an anchor label; the label itself lets the click through. */
 async function clickNear(page: Page, node: string, dx: number, dy: number) {
-  // Labels follow the camera frame by frame; wait until the label stops moving before aiming.
-  let box = await anchor(page, node).boundingBox();
+  // Labels follow the camera frame by frame, and a place label first appears where the overview has it, a frame or two
+  // before the focused view is drawn. Aim only once the label has stayed put: two reads in a row, each 100 ms after the
+  // one before, that agree with it. (P8.5: this used to compare a read with one taken a few ms earlier, which always
+  // agreed, so the click could go out while the label was still at its overview position.)
+  const same = (a: { x: number; y: number } | null, b: { x: number; y: number } | null) => Boolean(a && b && Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5);
+  let box: Awaited<ReturnType<ReturnType<typeof anchor>['boundingBox']>> = null, still = 0;
   await expect.poll(async () => {
     const next = await anchor(page, node).boundingBox();
-    const settled = Boolean(box && next && Math.abs(box.x - next.x) < 0.5 && Math.abs(box.y - next.y) < 0.5);
+    still = same(box, next) ? still + 1 : 0;
     box = next;
-    return settled;
-  }, { intervals: [100] }).toBe(true);
+    return still;
+  }, { intervals: [100] }).toBeGreaterThanOrEqual(2);
   if (!box) throw new Error(`${node} label has no box`);
-  await page.mouse.click(box.x + box.width / 2 + dx, box.y + box.height / 2 + dy);
+  const at = box as { x: number; y: number; width: number; height: number };
+  await page.mouse.click(at.x + at.width / 2 + dx, at.y + at.height / 2 + dy);
 }
 
 // D.3-3 preflight: /islands/legacy is the current /islands kept for rollback; every scenario runs on both routes.

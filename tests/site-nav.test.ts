@@ -72,8 +72,8 @@ describe('lab tree', () => {
   it('lists every lab by learning domain: the six algorithm labs, the implemented tool labs, planned ones without a link', () => {
     const tree = labTree();
     expect(tree.map(g => g.label)).toEqual(['資料結構', '演算法', 'UI／UX', '網頁設計', '行動裝置設計', 'AI', '系統與雲端']);
-    expect(hrefs(tree).sort()).toEqual([...courses.map(c => `/learn/${c.slug}`), '/learn/color-contrast', '/learn/flexbox-playground', '/learn/linux-terminal'].sort());
-    expect(leaves(tree).filter(isDisabled).map(n => n.label)).toContain('Responsive Layout Simulator');
+    expect(hrefs(tree).sort()).toEqual([...courses.map(c => `/learn/${c.slug}`), '/learn/color-contrast', '/learn/flexbox-playground', '/learn/css-grid-playground', '/learn/responsive-layout', '/learn/mobile-ux', '/learn/linux-terminal'].sort());
+    expect(leaves(tree).filter(isDisabled).map(n => n.label)).toContain('Accessibility Checker');
   });
 });
 
@@ -123,4 +123,18 @@ describe('sidebar state', () => {
     expect(isOpen(s, 'p', true)).toBe(false);
     expect(isOpen(s, 'q', false)).toBe(false);
   });
+});
+
+// P8.4: the client bundle. site-nav.ts and the curriculum index pull in every lesson's content; a client component
+// that imports a value from either ships all of it to every page (found by e2e/db-activities-f1c.spec.ts).
+describe('client components keep the curriculum out of the bundle', async () => {
+  const { readdirSync, readFileSync } = await import('node:fs');
+  const files = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() ? files(`${dir}/${e.name}`) : /\.tsx?$/.test(e.name) ? [`${dir}/${e.name}`] : []);
+  const clients = files('src').filter(f => /^\s*['"]use client['"]/.test(readFileSync(f, 'utf8')));
+  it('finds the client components', () => { expect(clients.length).toBeGreaterThan(20); expect(clients).toContain('src/components/nav/site-sidebar.tsx'); });
+  it('none imports a value from site-nav.ts or the curriculum index (type-only imports are erased and allowed)', () => {
+    const heavy = /^import\s+(?!type\b)[^;]*from\s+'@\/(lib\/nav\/site-nav|content\/curriculum|content\/world\/catalog)';/m;
+    expect(clients.filter(f => heavy.test(readFileSync(f, 'utf8')))).toEqual([]);
+  });
+  it('nav-model.ts imports nothing', () => { expect(readFileSync('src/lib/nav/nav-model.ts', 'utf8')).not.toMatch(/^import\s/m); });
 });

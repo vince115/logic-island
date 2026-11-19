@@ -1380,3 +1380,25 @@
     right: calc(300px + 16px);
   }
 }
+
+/* P8.4 (`pins`, region maps): the phone pins above, on any screen whose stage is too narrow for captions. The same
+   declarations as the 700 px rules, chosen by the scene instead of by the viewport. */
+.hexLabel.hexLabelPin {
+  gap: 0;
+  padding: 5px;
+}
+.hexLabel.hexLabelPin small {
+  display: none;
+}
+.hexLabelPin .hexLabelText {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.hexLabel.hexLabelPin > span {
+  width: 12px;
+  height: 12px;
+}

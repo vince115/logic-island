@@ -20,7 +20,7 @@ export function LearningNavigation({islands,selectedId,onSelect,listMode,more}:{
     <div className={styles.islandChoices} role="group" aria-label="選擇學習島嶼">
       {islands.map((island,index)=><button type="button" key={island.id}
         className={`${styles.choice} ${selectedId===island.id?styles.choiceSelected:''}`}
-        aria-pressed={selectedId===island.id} onClick={()=>onSelect(island.id)}>
+        aria-pressed={selectedId===island.id} data-island-choice={island.id} onClick={()=>onSelect(island.id)}>
         <span className={styles.choiceNumber} style={{color:island.accent}}>0{index+1}</span>
         <span><strong>{island.name}</strong><small>{island.planned?<><em className={status.plannedTag}>規劃中</em> 預計 {island.planned.lessonCount} 堂</>:island.units?`${island.units.reduce((n,u)=>n+u.lessons.length,0)} 堂課 · ${island.units.length} 個科目`:island.labGroups?`${island.lessons.length} 個互動實驗`:island.lessons.length?`${island.lessons.length} 份現有教材`:'學習起點 · 導覽入口'}</small></span><ArrowRight size={15}/>
       </button>)}
@@ -34,7 +34,9 @@ export function LearningNavigation({islands,selectedId,onSelect,listMode,more}:{
         <span className={styles.landmark}>{selected.landmark}</span>
         {/* With subjects or labs, they open in their own panel over the map (hex-world-explorer); the list keeps only the islands. */}
         {/* M3.1: a planned island shows what it will teach, never a link to a lesson that does not exist. */}
-        {selected.planned?<p className={status.plannedNote} role="note"><em className={status.plannedTag}>規劃中</em>預計 {selected.planned.lessonCount} 堂，尚未開放課程</p>:
+        {/* P8.2 (D4): its outline (topics only) is on the region's 2D overview; that is the one link a planned island has. */}
+        {selected.planned?<><p className={status.plannedNote} role="note"><em className={status.plannedTag}>規劃中</em>預計 {selected.planned.lessonCount} 堂，尚未開放課程</p>
+          {selected.outlineHref&&<Link className={status.plannedOutline} href={selected.outlineHref}>查看課程大綱<ArrowRight size={14}/></Link>}</>:
           selected.units||selected.labGroups?null:selected.catalogEntry?<div className={styles.foundationEntry}><small>導覽島 · 尚無專屬教材</small><Link href={selected.catalogEntry.href}>{selected.catalogEntry.label}<ArrowRight size={16}/></Link></div>:
           <ul className={styles.lessonLinks}>{selected.lessons.map((lesson,index)=><li key={lesson.slug}>
             <Link href={`/learn/${lesson.slug}`}><span className={styles.lessonNumber}>0{index+1}</span><span><strong>{lesson.title}</strong><small>{lesson.subtitle}</small></span><ArrowRight size={16}/></Link>

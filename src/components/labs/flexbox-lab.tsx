@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { ALIGN, DEFAULT_FLEX, FLEX_DIRECTIONS, FLEX_PRESETS, JUSTIFY, LIMITS, WRAP, describeFlex, flexCss, normalize, type FlexState } from '@/lib/flexbox';
-import styles from './flexbox-lab.module.css';
+import { CopyCss } from './copy-css';
+import styles from './playground.module.css';
 
 /*
  * R7 (2026-11-12): Flexbox Playground. Native selects and range inputs carry keyboard and screen-reader support; the
@@ -65,7 +66,7 @@ export function FlexboxLab() {
     </section>
     <section className={styles.panel} aria-labelledby="flex-build">
       <h2 id="flex-build"><span>03 · Build</span>寫成 CSS</h2>
-      <p className={styles.note}>只列出和預設值不同的屬性；複製到你的樣式表即可得到同樣的排列。</p>
+      <div className={styles.codeHead}><p className={styles.note}>只列出和預設值不同的屬性；複製到你的樣式表即可得到同樣的排列。</p><CopyCss css={flexCss(s)}/></div>
       <pre className={styles.code}><code>{flexCss(s)}</code></pre>
     </section>
   </div>;

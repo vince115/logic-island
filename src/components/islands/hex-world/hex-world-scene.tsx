@@ -9,7 +9,7 @@ import { tileTop } from '@/lib/islands/hex-terrain';
 import { WATER_LEVEL, settlementFrames, worldCenter, type HexWorld } from '@/lib/islands/hex-world';
 import { ENVIRONMENTS, PREVIEW_NOON, type EnvironmentId } from '@/lib/islands/environments';
 import type { IslandDefinition } from '@/lib/islands/types';
-import { HexCamera, VIEW, viewAt, type CameraView } from './hex-camera';
+import { HexCamera, VIEW, viewAt, type CameraView, type StageRoom } from './hex-camera';
 import { HexTiles, WATER_Y } from './hex-tiles';
 import { HexTerrainMesh, type TerrainStyle } from './hex-terrain-mesh';
 import { HexBridges, HexRoads } from './hex-routes';
@@ -72,6 +72,30 @@ export interface HexSceneOptions {
   labelReach?: number;
   /** M3.1 (regional world): on phones each pin gets an invisible 44 px touch area around it. */
   largeTargets?: boolean;
+  /** P8.2 (region maps, free camera): the map can be panned within its bounds and driven from the keyboard (hex-camera.tsx). */
+  mapControls?: boolean;
+  /** P8.2 (D4, proposal for the lattice region maps): each planned island's survey marker carries a pennant in the island's accent. */
+  plannedMarkers?: boolean;
+  /**
+   * P8.3 (regional world, phones): the room (px) the map needs at its top and bottom on a single-column screen, where
+   * the caption sits above the map and the controls below it, so nothing but the pins needs room. The explorer adds
+   * the height of a sheet over the map's lower part, so a focused island is framed above it. Wide screens and every
+   * explorer that does not set this keep the camera's own allowances.
+   */
+  phoneRoom?: { top: number; bottom: number };
+  /**
+   * P8.4 (regional world): the overview labels are pins (a colored dot; the name stays as the accessible name, a
+   * tooltip and in the list) on any screen, not only on phones. A region map sets it when its stage is too narrow for
+   * captions beside the islands: a caption is a fixed size in px while the map shrinks with the stage, so on a tablet
+   * or a small laptop the captions ended up under the island list, outside the map or over each other.
+   */
+  pins?: boolean;
+  /**
+   * P8.4 (regional world): the map is its own stacking context, so what the scene hangs over the canvas (pins, place
+   * names) stays below anything the explorer lays over the map (the subjects sheet, the island list). Without it a pin
+   * of another island was drawn on top of the focused island's sheet.
+   */
+  ownLayer?: boolean;
 }
 type CaptionSide='left'|'right'|'above'|'below';
 /**
@@ -136,7 +160,7 @@ function Lifecycle({label,onReady,onUnavailable}:{label:string;onReady:()=>void;
   return null;
 }
 
-export default function HexWorldScene({world,islands,selectedId,onSelect,onNavigate,reducedMotion,onReady,onUnavailable,options={},infoNode,onInfoChange,label,resetKey,onViewChange,orbit,onOrbitStop,environmentId='noon',insetRight=0,baseAzimuth=0}:{
+export default function HexWorldScene({world,islands,selectedId,onSelect,onNavigate,reducedMotion,onReady,onUnavailable,options={},infoNode,onInfoChange,label,resetKey,onViewChange,orbit,onOrbitStop,environmentId='noon',insetRight=0,baseAzimuth=0,onResetRequest,room}:{
   world:HexWorld;islands:IslandDefinition[];selectedId:string|null;onSelect:(id:string)=>void;
   reducedMotion:boolean;onReady:()=>void;onUnavailable:()=>void;options?:HexSceneOptions;
   /** Controlled info bubble of the focused settlement, shared with the HTML target list. */
@@ -156,6 +180,10 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
   insetRight?:number;
   /** M3.1 (regional world): degrees added to the default view's azimuth, e.g. a region turned on phones. 0 keeps VIEW. */
   baseAzimuth?:number;
+  /** P8.2 (`mapControls`): the keyboard asked for the overview (0 or Home). */
+  onResetRequest?:()=>void;
+  /** P8.3 (`phoneRoom`): the room the camera keeps at the stage's top and bottom right now. */
+  room?:StageRoom;
 }) {
   const glbLayouts=options.glbLayouts??hexGlbSettlements,continuousOcean=options.ocean==='continuous'||options.ocean==='natural';
   const environment=options.lighting!=='contrast'?PREVIEW_NOON:ENVIRONMENTS[options.timeOfDay?environmentId:'noon'];
@@ -188,7 +216,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
     onViewChange?.(changed);
   },[onViewChange,base]);
   const press=useRef<[number,number]|null>(null);
-  return <div className={styles.canvasWrap} style={pointer?{cursor:'pointer'}:undefined} data-camera={free?'free':undefined}>
+  return <div className={styles.canvasWrap} style={pointer||options.ownLayer?{cursor:pointer?'pointer':undefined,isolation:options.ownLayer?'isolate':undefined}:undefined} data-camera={free?'free':undefined}>
     <Canvas orthographic frameloop="demand" dpr={[1,1.5]} shadows={options.shadows==='static'?STATIC_SHADOW_MAP:'soft'}
       camera={{position:[20,19,24],zoom:27,near:.1,far:400}}
       gl={{antialias:true,alpha:false,powerPreference:'low-power'}}
@@ -214,7 +242,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
           const compact=options.labels==='compact';
           const caption=compact?captionPoint(world,settlement,1.2,view):null;
           const [x,z]=caption?caption.point:hexToWorld(layout?.label?.tile??settlement.center,world.size);
-          const placeholders=<HexLandmarks world={world} settlement={settlement}/>;
+          const placeholders=<HexLandmarks world={world} settlement={settlement} markerAccent={options.plannedMarkers?island?.accent:undefined}/>;
           const selected=selectedId===settlement.islandId;
           const targets:TargetOptions={proxies:options.hitProxies,pads:options.targetPads,
             info:selected&&onInfoChange?{node:infoNode??null,onChange:onInfoChange}:undefined,
@@ -224,8 +252,8 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
               onSourceChange={sourceSetters[layout.islandId]} onNavigate={onNavigate} anchorStyle={options.anchorStyle} targets={targets}/>:placeholders}
             {/* A focused settlement hands its space to the anchor labels; the toolbar still names it. */}
             {island&&!selected&&<group position={[x,0,z]}><Html position={[0,compact?WATER_LEVEL:layout?.label?.height??3.4,0]} center zIndexRange={[15,0]}>
-              <button type="button" className={`${styles.islandLabel} ${styles.hexLabel}${compact?` ${styles.hexLabelCompact}`:''}${island.planned?` ${status.plannedLabel}`:''}${options.largeTargets?` ${status.largeTarget}`:''}`}
-                style={{'--island-accent':island.accent} as React.CSSProperties}
+              <button type="button" className={`${styles.islandLabel} ${styles.hexLabel}${compact?` ${styles.hexLabelCompact}`:''}${island.planned?` ${status.plannedLabel}`:''}${options.largeTargets?` ${status.largeTarget}`:''}${options.pins?` ${styles.hexLabelPin} ${status.pinLabel}`:''}`}
+                style={{'--island-accent':island.accent} as React.CSSProperties} title={options.pins?island.name:undefined}
                 aria-pressed={false} aria-label={`聚焦${island.name}${island.planned?'（規劃中）':''}`} data-model-source={layout?sources[island.id]??'loading':'geometry'} data-side={caption?.side}
                 data-hovered={lit===island.id?'true':undefined}
                 onPointerDown={free?event=>{press.current=[event.clientX,event.clientY];}:undefined}
@@ -243,7 +271,8 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
         })}
       </group></GlowProvider>
       <HexCamera frames={frames} selectedId={selectedId} reducedMotion={reducedMotion} fit={fit}
-        free={free} resetKey={resetKey} onViewChange={free?viewChange:undefined} orbit={free&&orbit} onOrbitStop={free?onOrbitStop:undefined} insetRight={insetRight} view={base}/>
+        free={free} resetKey={resetKey} onViewChange={free?viewChange:undefined} orbit={free&&orbit} onOrbitStop={free?onOrbitStop:undefined} insetRight={insetRight} view={base}
+        pan={free&&options.mapControls} onResetRequest={onResetRequest} room={room}/>
     </Canvas>
   </div>;
 }

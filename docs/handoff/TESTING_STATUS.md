@@ -10,6 +10,57 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## P8 A1-L 後續：P1-37、P1-38、Next.js 16.4.5（2026-11-18，`main` `b56e7ec`）
+
+報告：`docs/planning/P8_A1P_PREVIEW_PREPARATION.md`；A1-P 工具：`docs/planning/evidence/p8-a1p/`。**只有本機隔離建置的結果，不是 Preview，也不是真機；A1-P 尚未執行。**
+
+- 對象是三個 PR（#13、#14、#15）合成的整合樹，tree `a364495`，與合併後的 `main` `b56e7ec` 相同。Default 與 World-only 兩份隔離建置，都不設 `LOGIC_ISLAND_WORLD_REVIEW`。
+- Typecheck 0、ESLint 0、Vitest **1976 通過／9 略過／0 失敗**（78 個檔案）；兩種建置在 Next.js 16.4.5 上第一次就成功。
+- 全套 E2E：World-only **485 通過／113 略過／0 失敗**，Default **425／173／0**。
+- 審查參數：正式建置上 `/world?without=…` 與 `/world/<region>?stress=glb` 沒有作用（單元、E2E 與 `hooks.mjs` 量測）。審查功能的 E2E 只在 `LOGIC_ISLAND_WORLD_REVIEW=1` 的建置執行，那兩個測試在審查建置上另外跑過並通過。**CI 不設這個變數，所以 CI 不會執行審查功能的測試**；改動審查功能時要在本機以審查建置跑 `e2e/world-topology.spec.ts` 與 `e2e/regional-world.spec.ts`。
+- V-01～V-10 的 42 個畫面與 A1-L 的資料逐項相同（draw call、三角形、標籤、觸控目標），樞紐入口顯示「12 個互動實驗」。
+- 十個既有頁面：Default 對 World-only、Default 對 Production 20／20 相同；World-only 對 Production 19／20，手機 `/islands` 的 3D 截圖間歇不同（重跑三次兩次相同），文字與連結相同。
+- 私有題庫洩漏掃描：兩份 `.next`、頁面回應與課程頁回應共 7 處皆 clean。
+- A1-P 的 preflight（`preview-check.mjs`）在本機驗證過：正式建置 PASS、審查建置 FAIL、受保護且沒有憑證的 Preview FAIL（辨識出登入頁）。帶憑證通過 Vercel 保護的路徑**沒有驗證**。
+- 沒有做：Vercel Preview（A1-P）、真機（A2）、FPS 量測。
+
+## P8 Activation A1-L 本機預驗收（2026-11-18，`main` `961db2f`）
+
+報告：`docs/planning/P8_A1L_LOCAL_PREACCEPTANCE.md`；證據與工具：`docs/planning/evidence/p8-a1l/`。**只有本機隔離建置的結果，不是 Preview，也不是真機。**
+
+- 兩份隔離建置：Default（不設旗標）與 **World-only**（只設 `LOGIC_ISLAND_REGIONAL_WORLD=1`，`LOGIC_ISLAND_TRIALS` 不設）。這是第一次驗證預計發布的組合；之前的旗標建置與 CI 都是兩個旗標同開。
+- World-only：Typecheck 0、build 成功；`/world` 與五個區域 200、`/trials` 404、沒有試煉入口與請求；全套 E2E **481 通過／109 略過／0 失敗**（執行環境只設世界旗標）。Default：全套 E2E **425／165／0**。
+- V-01～V-10 在 42 個畫面（6 頁 × 七種寬度）取證，draw call 與三角形與 P8.5 的數字逐項相同。
+- 十個既有頁面在 Default、World-only、Production 三方 20／20 相同；80 堂課程連結與 Linux Terminal（真實 Enter）三方正常。
+- 私有題庫洩漏掃描：兩份 `.next`、兩份 HTTP 回應與課程頁回應皆 clean。
+- `next build` 第一次會被 Next.js CLI 的安全升級提示以 exit 1 擋下，同一指令 5 分鐘內重跑才通過（KNOWN_ISSUES P1-39）；`tools/build.sh` 已處理。
+- 文件分支提交前在隔離副本上：Typecheck 0、ESLint 0、Vitest 1963 通過／9 略過／0 失敗（76 個檔案）。
+- 沒有做：Vercel Preview（A1-P）、真機（A2）、FPS 量測。
+
+## P8.6 Hotfix PR #8 與 P8 整合（2026-11-16）
+
+PR #8（導覽打包修正）以 Merge Commit 併入 `main`（`9718f89`）；合併前先把 R8 之後的 `main` 合進 hotfix 分支重驗（Vitest 1926／9／0、E2E 64／2／0、22 組頁面與 `main` 相同）。Production 實測有側欄的頁面腳本量由約 2.2 MB 降到 0.63–0.85 MB；Smoke 34 次載入 0 錯誤；下載的 316 份回應洩漏掃描 clean。P8 分支合入最新 `main`（`be7671c`，無衝突）後重跑全部驗收：Typecheck／ESLint exit 0；Vitest 1963 通過／9 略過／0 失敗；全套 E2E 旗標開啟 495 通過／95 略過／0 失敗、預設建置 425 通過／165 略過／0 失敗；洩漏掃描（追蹤檔案、分支歷史、兩種建置）皆 clean。Flag-off 證明：P8 預設建置的 `/world/**` 全為 404，`/`、`/islands`、`/islands/legacy`、`/islands/candidate` 桌機與手機逐像素 0 差異，其餘 30 組頁面與 `main` 相同。Vitest 要把 IntelliJ 內建 JDK 放進 PATH，否則 279 個 Java 範例測試會被略過而不是失敗（本階段第一次執行就漏了，數字不採計）。V3（圖釘／名牌隨視窗寬度切換）的偶發失敗已找到根因並修正：測試的 `reframed()` 等的條件在「視窗已改、場景還沒跟上」時也成立；6 個平行 worker 加壓下修正前 300 次失敗 10 次、修正後 600 次 0 失敗，產品沒有修改（`docs/planning/evidence/p8-6/v3-resize-race.md`）。重現偶發的 3D 測試失敗時，在命令列加 `--trace retain-on-failure --workers 4`～`6 --repeat-each N`（隔離設定預設 `trace: off`，P8.5 那次失敗因此沒有留下資料）。全部為 headless Chromium；**沒有真機**。完整紀錄：`docs/planning/P8_6_HOTFIX_AND_P8_INTEGRATION.md`；公開發布前的待辦：`docs/planning/P8_RELEASE_CHECKLIST.md`。
+
+**PR #10 合併前的最後一輪（2026-11-16～17，P8 `fcaae2e`）。** PR #10 獲准在旗標關閉的條件下合併；八項合併前檢查通過（P8.6 §3.3）。合併前重跑全套驗收：Typecheck／ESLint exit 0；Vitest 1963 通過／9 略過／0 失敗；旗標與預設建置成功；全套 E2E 旗標開啟 495 通過／95 略過／0 失敗；預設建置第一次 424／165／1、第二次 425／165／0；洩漏掃描四項皆 clean；Flag-off 比對 `/world/**` 全 404、12 組整個視窗逐像素差異 0、30 組頁面相同。這一輪找到並修正一個產品的時序問題：Escape 離開一座島後，焦點偶爾落在清單項目而不是地圖名牌（只在旗標建置的 `/world/<region>`；6 個平行 worker 下修正前 120 次失敗 45 次，修正後 120 次 0 失敗，`docs/planning/evidence/p8-6/escape-focus-race.md`）。V3 在兩個建置各 120 次加壓 0 失敗。預設建置那 1 次失敗是 `islands-candidate.spec.ts:129`（手機，3D 點擊），P8 與 `main` 各 290 次加壓無法重現，記為 KNOWN_ISSUES P1-36。執行環境的事故：隔離副本所在的暫存目錄在午夜被清理，較舊的檔案（`node_modules` 頂層、隔離用 Playwright 設定、像素比對腳本）被刪，Flag-off 比對與加壓因此重跑；跨夜的驗收要先重建副本。全套 E2E 之後一律加 `--trace retain-on-failure`。全部為 headless Chromium；**沒有真機**。
+
+**PR #10 合併後（2026-11-17）。** PR #10 以 Merge Commit 併入 `main`（`929d638`，tree 與驗收過的 P8 HEAD 相同）；`main` 的 `gates` success、Vercel Production success。旗標關閉：正式站 `/world` 與五個 `/world/<region>` 全部 404，沒有指向 `/world` 的連結，首頁仍是 CS 五島場景。正式站 Smoke：17 頁 × 2 裝置 34 次載入 200、0 錯誤；80 個課程連結全部 200；Linux Terminal Simulator 以 Enter 鍵執行 `pwd`／`ls`／`mkdir` 正常；與合併前的 `main` 建置比較 30 組頁面相同、12 組 3D 畫面逐像素差異 0；下載的 316＋80 份回應洩漏掃描 clean。紀錄：`docs/planning/P8_6_HOTFIX_AND_P8_INTEGRATION.md` §8。下一階段：`docs/planning/P8_REGIONAL_WORLD_ACTIVATION_PLAN.md`（未經另外批准，不得啟用正式 3D 世界或取代首頁）。
+
+## P8.5 Visual Finalization & Performance Hotfix（2026-11-16）
+
+全套 E2E（旗標開啟）第一次 0 失敗：489 通過／95 略過。`islands.spec.ts` 的 3D 點擊不穩定（P1-19）有兩個原因並都已修：舊版 `/islands` 相機聚焦後沒有要求重繪（`camera-controller.tsx`），以及 `clickNear` 的「等標籤停止移動」實際沒有等；逐幀量測見 `docs/planning/evidence/p8-5/islands-focus-timeline.md`。`e2e/world-topology.spec.ts` 新增「P8.5 visual decisions」（V1 無 WEB—SYS 橋、V3 圖釘／名牌切換、V4 樞紐橋對比）與 320／375／390 px 的標頭測試。導覽打包修正另以 `hotfix/nav-client-bundle` 送到 `main`（PR #8）。詳見 [P8_5_VISUAL_FINALIZATION_AND_PERFORMANCE_HOTFIX](../planning/P8_5_VISUAL_FINALIZATION_AND_PERFORMANCE_HOTFIX.md)。
+
+## P8.4 Responsive World UX（2026-11-13，分支 `p8/multi-region-world`）
+
+全套 E2E（旗標開啟）由 10 項失敗降到 1 項：481 通過／92 略過／1 失敗。`curriculum.spec.ts` 的三個測試改為由 registry 推導期望（課綱頁列出五個 Region、實驗島有工具實驗）；`db-activities-f1c.spec.ts:140` 抓到的是產品問題（側欄把整份課綱打包進每一頁），已修並有單元測試（`tests/site-nav.test.ts`）。剩下的 1 項是 `islands.spec.ts` 的 3D 點擊測試：單獨執行穩定，依全套順序跑桌機的 `candidate-integration` 到 `islands.spec.ts` 可以重現，原因未定。`e2e/world-topology.spec.ts` 新增 834／1024／1280／1440 px 的區域地圖名牌檢查、面板與圖釘的層級、320 px 標頭。分類、根因與量測見 [P8_4_RESPONSIVE_WORLD_UX_AND_VISUAL_REVIEW](../planning/P8_4_RESPONSIVE_WORLD_UX_AND_VISUAL_REVIEW.md) §2–§5。
+
+## P8.3 World Topology & Navigation（2026-11-13，分支 `p8/multi-region-world`）
+
+新增 `e2e/world-topology.spec.ts`（世界總覽的樞紐橋與關聯橋、六種寬度的標籤檢查、Region 選取與導航、320／375／390 px 的手機驗收），與 `e2e/regional-world.spec.ts` 共用 `e2e/world-helpers.ts`；兩者都只在 `LOGIC_ISLAND_REGIONAL_WORLD=1` 的 build 執行。手機的區域地圖不再以總覽島寬為門檻：總覽看整體輪廓、圖釘與觸控目標，聚焦後 29 座島逐一檢查 ≥ 88 px。結果、量測與逐像素比對見 [P8_3_WORLD_TOPOLOGY_AND_NAVIGATION](../planning/P8_3_WORLD_TOPOLOGY_AND_NAVIGATION.md) §6、§8、§9；全套 E2E 的 10 項失敗仍是 8 項既有、2 項負載下不穩（單獨重跑通過）。
+
+## P8.2 Multi-Region World（2026-11-12，分支 `p8/multi-region-world`）
+
+`/world/<region>` 現在有五個區域（`cs`、`ai`、`design`、`web`、`sys`），仍只在 `LOGIC_ISLAND_REGIONAL_WORLD=1` 的 build 存在；E2E 的兩種 build 執行方式與下方 M3.1 一節相同。`e2e/regional-world.spec.ts` 的區域與島嶼清單讀自 registry 與 `MAPPED_REGION_IDS`，新增區域或島嶼不需要改 spec。結果、效能數字、逐像素比對與 10 項 E2E 失敗的歸因（8 項既有、2 項負載下不穩）見 [P8_2_MULTI_REGION_WORLD_FOUNDATION](../planning/P8_2_MULTI_REGION_WORLD_FOUNDATION.md) §6–§7。
+
 ## 統一導覽系統與側欄（2026-11-12）
 
 隔離副本執行。TypeScript、ESLint 通過；Vitest 全套 2167／2169 通過，失敗 2 項為 trials CLI 子行程 5 秒逾時（機器負載下，重跑全部通過，與本次變更無關）；新增 `tests/site-nav.test.ts` 7 項。Production build（預設與 `LOGIC_ISLAND_TRIALS=1`）通過。E2E：navigation／curriculum／home-databases／hex-world／islands-acceptance／db-activities／sql 共 165 passed、11 skipped；trials 旗標建置下 navigation 13／13、ccarf／ipas／history 通過。既有失敗（HEAD `git archive` 基準同樣失敗，非本次造成）：`player.spec.ts` 3 項（`.lab-panel` 不在視窗內、假時鐘下 selectOption 逾時）；`trials.spec.ts:42` 仍預期 iPAS／CCAR-F 無試卷（`f241639` 已開放，測試過時）。瀏覽器實測 1440／1024／390／375：無水平溢出、抽屜焦點與 Escape 正常、專注模式啟動。修正過程發現：根 layout 的 Header 若匯入與區域共用的 CSS module，會把區域 CSS 排到 `globals.css` 之前（測驗單選鈕被撐滿寬度），故 Header 改用獨立 `header-focus.module.css`。
