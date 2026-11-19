@@ -366,3 +366,44 @@ test.describe('P9.5 world fly-to', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => innerWidth));
   });
 });
+
+test.describe('P9.5 Region → Island', () => {
+  test.skip(!P9, 'needs a build with LOGIC_ISLAND_P9_PROTOTYPE=1');
+  test.use({ reducedMotion: 'no-preference' });
+  /** The region camera's zoom, frame by frame, for `ms` (the canvas's own probe). */
+  const zooms = (page: Page, ms: number) => page.evaluate(ms => new Promise<number[]>(done => {
+    const list: number[] = [], t0 = performance.now();
+    const tick = () => { const c = document.querySelector('canvas') as (HTMLCanvasElement & { __hexZoom?: () => number }) | null; if (c?.__hexZoom) list.push(c.__hexZoom()); if (performance.now() - t0 < ms) requestAnimationFrame(tick); else done(list); };
+    tick();
+  }), ms);
+  test('World → CS → 資料結構島: the region camera eases in on the same canvas, the address follows, Back and Forward ease back', async ({ page }) => {
+    await openMap(page, '/');
+    await page.locator('[data-target="cs"]').click();
+    await expect(page).toHaveURL(/:\d+\/cs$/, { timeout: 10_000 });
+    await expect(page.locator('button[aria-label^="聚焦資料結構島"]').first()).toBeVisible({ timeout: 30_000 });
+    await page.waitForTimeout(1200);
+    await page.evaluate(() => { (window as unknown as { __canvas: Element | null }).__canvas = document.querySelector('canvas'); });
+    const sameCanvas = () => page.evaluate(() => document.querySelector('canvas') === (window as unknown as { __canvas: Element | null }).__canvas);
+    const inward = zooms(page, 1500);
+    await page.locator('button[aria-label^="聚焦資料結構島"]').first().click();
+    const zin = await inward;
+    await expect(page).toHaveURL(/\/cs\?island=structures$/);
+    const steps = new Set(zin.map(z => z.toFixed(3))).size;
+    expect(steps, 'the zoom moves over several frames, not in one jump').toBeGreaterThan(5);
+    expect(zin.at(-1)!, 'closer on the island').toBeGreaterThan(zin[0]);
+    expect(await sameCanvas(), 'no new canvas for an island').toBe(true);
+    const outward = zooms(page, 1500);
+    await page.goBack();
+    const zout = await outward;
+    await expect(page).toHaveURL(/\/cs$/);
+    expect(zout.at(-1)!, 'back out to the region').toBeLessThan(zout[0]);
+    expect(new Set(zout.map(z => z.toFixed(3))).size).toBeGreaterThan(5);
+    expect(await sameCanvas()).toBe(true);
+    await page.goForward();
+    await expect(page).toHaveURL(/\/cs\?island=structures$/);
+    expect(await sameCanvas()).toBe(true);
+    // The island's own lessons are its published ones.
+    const hrefs = await page.locator('section[aria-label$="地圖"] a[href^="/curriculum/"]').evaluateAll(list => list.map(a => a.getAttribute('href')!));
+    for (const href of hrefs.slice(0, 5)) expect((await page.request.get(href)).status(), href).toBe(200);
+  });
+});
