@@ -110,6 +110,11 @@ const pieces: Record<string, { at: Axial; node: React.ReactNode; offset?: [numbe
   ],
 };
 
+/** P9 S1: the islands that have placeholder pieces here, and those with Transitional Art (a test compares both with FALLBACK_ART). */
+export const PLACEHOLDER_ISLANDS: readonly string[] = Object.keys(pieces);
+const TRANSITIONAL: Record<string, typeof DatabaseLandmarks> = { databases: DatabaseLandmarks };
+export const TRANSITIONAL_ISLANDS: readonly string[] = Object.keys(TRANSITIONAL);
+
 // `pieces` use D.2a coordinates; a settlement centered elsewhere (the scale prototype) shifts them along.
 const D2A_CENTERS: Record<string, Axial> = { foundations: { q: 0, r: 0 }, structures: { q: 4, r: -4 }, algorithms: { q: 8, r: -4 }, labs: { q: 0, r: 0 } };
 
@@ -155,7 +160,9 @@ export function HexLandmarks({world,settlement,markerAccent}:{world:HexWorld;set
   markerAccent?:string}) {
   if (settlement.planned) return <PlannedMist world={world} settlement={settlement} markerAccent={markerAccent}/>;
   // Phase F.2 (home page): 資料庫應用島's Transitional Art is one merged mesh (hex-database-landmarks.tsx).
-  if (settlement.islandId === 'databases') return <DatabaseLandmarks world={world} settlement={settlement}/>;
+  // P9 S1: looked up by island, so another island's Transitional Art is one more entry in TRANSITIONAL.
+  const Transitional = TRANSITIONAL[settlement.islandId];
+  if (Transitional) return <Transitional world={world} settlement={settlement}/>;
   const base = D2A_CENTERS[settlement.islandId] ?? settlement.center;
   return <group>{(pieces[settlement.islandId] ?? []).map(({at, node, offset = [0, 0]}, i) => {
     const q = at.q - base.q + settlement.center.q, r = at.r - base.r + settlement.center.r;
