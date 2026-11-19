@@ -1,0 +1,23 @@
+{
+ "base": "http://127.0.0.1:3150",
+ "commit": "bb5dcf7",
+ "checked": "2026-11-19T00:49:49.724Z",
+ "verdict": "FAIL",
+ "results": [
+  {
+   "id": "app",
+   "result": "FAIL",
+   "detail": "/ answered 302, a redirect to the Vercel login: the access credential is missing or was not accepted"
+  },
+  {
+   "id": "no-login-pages",
+   "result": "FAIL",
+   "detail": {
+    "access": "none",
+    "requests": 1,
+    "loginPages": 1,
+    "errors": 0
+   }
+  }
+ ]
+}
