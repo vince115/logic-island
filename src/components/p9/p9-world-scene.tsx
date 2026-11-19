@@ -112,11 +112,11 @@ function useWorldGestures(element: React.RefObject<HTMLDivElement | null>, stage
     const el = element.current;
     if (!el || !stage.width) return;
     const local = (e: { clientX: number; clientY: number }) => { const r = el.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top] as [number, number]; };
-    const onWheel = (e: WheelEvent) => { e.preventDefault(); onGesture(); const [x, y] = local(e); setView(v => zoomAt(v, stage, wheelFactor(e.deltaY, e.deltaMode), x, y)); };
+    const onWheel = (e: WheelEvent) => { if ((e.target as HTMLElement).closest('[data-region-picker]')) return; e.preventDefault(); onGesture(); const [x, y] = local(e); setView(v => zoomAt(v, stage, wheelFactor(e.deltaY, e.deltaMode), x, y)); };
     const pointers = new Map<number, [number, number]>();
     let start: [number, number] | null = null, travel = 0;
     const onDown = (e: PointerEvent) => {
-      if (e.button > 0 || (e.target as HTMLElement).closest('button, a, [data-world-controls]')) return;
+      if (e.button > 0 || (e.target as HTMLElement).closest('button, a, [data-world-controls], [data-region-picker]')) return;
       pointers.set(e.pointerId, local(e));
       if (pointers.size === 1) { start = local(e); travel = 0; dragged.current = false; }
     };
@@ -354,6 +354,12 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
         ? <button key={t.id} type="button" {...common} aria-label={t.label} onClick={open(t.id)} onPointerEnter={() => fly.prepare(t.id, t.href)} onPointerDown={() => fly.prepare(t.id, t.href)} onFocus={() => fly.prepare(t.id, t.href)}>{text}</button>
         : <div key={t.id} {...common} role="note" aria-label={t.label} data-pending="true">{text}</div>;
     })}
+    {/* P9.6: phones, once the map is zoomed or moved: the five regions as buttons, so one is a tap away even when the
+        zoom has carried every label off the stage. Each flies from the current view, as a label does. */}
+    {shape === 'tall' && !isHome(shown_view) && fly.state === 'idle' && <nav className={styles.regionPicker} data-region-picker aria-label="前往群島">
+      {shown.filter(t => t.onOpen && t.id !== 'hub').map(t => <button key={t.id} type="button" data-pick={t.id} aria-label={t.label} style={{ '--region-accent': t.accent } as React.CSSProperties}
+        onPointerDown={() => fly.prepare(t.id, t.href)} onClick={open(t.id)}>{t.name}</button>)}
+    </nav>}
     {/* P9.4: zoom buttons and 重設視角, for those without a wheel or a pinch; reset frames all five regions again in place (no reload, same address). */}
     <div className={styles.worldControls} data-world-controls role="group" aria-label="世界地圖視角">
       <button type="button" aria-label="放大" onClick={() => step(1.4)} disabled={shown_view.k >= 4 - 1e-6}><Plus size={16}/></button>

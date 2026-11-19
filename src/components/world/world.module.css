@@ -17,8 +17,9 @@
   position: absolute;
   inset: 0;
 }
-/* P9.4: the world map takes its own gestures (wheel, drag, pinch); the page does not scroll or zoom under them. */
-.canvasWrap[data-view] { touch-action: none; }
+/* P9.4: the world map takes its own gestures (wheel, drag, pinch); the page does not scroll or zoom under them.
+   P9.6: and clips what the zoom carries past its edges (hidden labels still take room), so a zoomed map never widens the page. */
+.canvasWrap[data-view] { touch-action: none; overflow: clip; }
 /* P9.5: during a flight the labels step back; they would only slide off with the map. */
 .canvasWrap[data-fly='flying'] .overviewLabel, .canvasWrap[data-fly='navigating'] .overviewLabel { opacity: 0; transition: opacity .2s; pointer-events: none; }
 .worldControls {
@@ -46,6 +47,36 @@
   box-shadow: 0 2px 8px #172b4814;
 }
 .worldControls button:disabled { opacity: .45; }
+/* P9.6: phones, once zoomed or moved: the five regions as one row of buttons over the map's top, scrolled sideways inside itself. */
+.regionPicker {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  z-index: 20;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  scrollbar-width: none;
+  padding: 2px;
+}
+.regionPicker::-webkit-scrollbar { display: none; }
+.regionPicker button {
+  flex: none;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--region-accent, var(--accent));
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px #172b4814;
+}
 .worldControls button:not(:disabled):hover { border-color: var(--accent); }
 .loading,
 .fallbackNotice {
