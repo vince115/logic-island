@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { CameraControls, CameraControlsImpl } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Box3, Spherical, Vector3 } from 'three';
@@ -73,6 +73,9 @@ function frame(points:Vector3[],view:Vector3,width:number,height:number,focused:
   return {center,zoom,up,right,shift:(top-bottom)/(2*zoom),side:insetRight/(2*zoom)};
 }
 
+/** P9.7 prototype: a camera pose in this map's scene space (orthographic zoom). */
+export interface CameraFrom {position:[number,number,number];target:[number,number,number];zoom:number}
+
 /** P9.6 (`onArrive`): the share of a move still left when it counts as arrived, and the smallest gaps that count as none. */
 const ARRIVED=.08;
 const ARRIVED_EPS=[1e-2,2e-3,2e-3,2e-3,1e-2];
@@ -88,7 +91,7 @@ const ARRIVED_EPS=[1e-2,2e-3,2e-3,2e-3,1e-2];
  * `orbit` (D.3-5b) turns the overview on its own, keeping tilt and zoom; any drag, pinch or wheel on the map calls
  * `onOrbitStop`, and the explorer decides everything else (focus, list mode, hidden page,「返回全景」).
  */
-export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetKey=0,onViewChange,orbit=false,onOrbitStop,insetRight=0,view:base=VIEW,pan=false,onResetRequest,room,explore,onArrive}:{frames:IslandDefinition[];selectedId:string|null;reducedMotion:boolean;
+export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetKey=0,onViewChange,orbit=false,onOrbitStop,insetRight=0,view:base=VIEW,pan=false,onResetRequest,room,explore,onArrive,from}:{frames:IslandDefinition[];selectedId:string|null;reducedMotion:boolean;
   /** Content points (scene space) to frame instead of the bounding boxes: all of them, and per island. */
   fit?:{all:Vector3[];byId:Record<string,Vector3[]>};
   free?:boolean;resetKey?:number;onViewChange?:(view:CameraView)=>void;
@@ -115,6 +118,11 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
    * fraction. A newer framing makes an older one's report stale. Unset, nothing changes.
    */
   onArrive?:(id:string|null)=>void;
+  /**
+   * P9.7 prototype (free camera): the pose the camera is in when this map mounts in a canvas that showed something
+   * else (the shared stage's world). The first framing then moves from it instead of jumping. Unset, as before.
+   */
+  from?:CameraFrom;
 }) {
   const baseAzimuth=Math.atan2(base.x,base.z),basePolar=Math.acos(base.y);
   const controls=useRef<CameraControlsImpl>(null);
@@ -180,6 +188,16 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
     box.min.set(box.min.x-MAP_CONTROLS.margin,-200,box.min.z-MAP_CONTROLS.margin);box.max.set(box.max.x+MAP_CONTROLS.margin,200,box.max.z+MAP_CONTROLS.margin);
     return box;
   },[mapControls,pointsFor,frames]);
+  // P9.7 prototype: start from the pose the shared stage handed over, so the first framing is a move, not a jump. A
+  // layout effect: camera-controls applies its own state in every frame, and the first frame comes before effects.
+  useLayoutEffect(()=>{
+    const controller=controls.current;
+    if(!controller||!from||initialized.current) return;
+    void controller.setLookAt(from.position[0],from.position[1],from.position[2],from.target[0],from.target[1],from.target[2],false);
+    void controller.zoomTo(from.zoom,false);
+    controller.update(0);
+    initialized.current=true;
+  },[from]);
   // Only the free camera listens to「返回全景」in the overview; the fixed one reframes on selection alone, as before.
   const reset=free?resetKey:0;
   useEffect(()=>{

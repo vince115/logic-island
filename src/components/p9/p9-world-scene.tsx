@@ -56,7 +56,7 @@ const boxes = (list: { a: readonly [number, number]; b: readonly [number, number
 };
 
 /** Everything the overview composes: every scene with its place, and the world's own links between them. */
-function useWorld(shape: OverviewShape) {
+export function useWorld(shape: OverviewShape) {
   return useMemo(() => {
     // The outlines place each region's own map (its tiles) on the overview: the same placement the P8 overview uses.
     const outlines = overviewOutlines(P9_WORLD_MAP, sceneLayouts(), shape), links = overviewLinks(P9_WORLD_MAP, outlines);
@@ -73,13 +73,13 @@ function useWorld(shape: OverviewShape) {
   }, [shape]);
 }
 
-interface Framed { extents: StageBox[]; lines: StageLine[]; lands: StageLand[] }
+export interface Framed { extents: StageBox[]; lines: StageLine[]; lands: StageLand[] }
 /**
  * The P8 overview's fixed orthographic framing, unchanged: every outline fits with room for its label, left of
  * `insetRight`. P9.4: the view (zoom k and pan) is applied on top, as an orthographic camera would: zoom about the
  * stage's centre, the camera moved against the pan along its own screen axes.
  */
-function Framing({ outlines, links, shape, insetRight, view, onFramed }: { outlines: OverviewOutline[]; links: OverviewLink[]; shape: OverviewShape; insetRight: number; view: WorldView; onFramed: (framed: Framed) => void }) {
+export function Framing({ outlines, links, shape, insetRight, view, onFramed }: { outlines: OverviewOutline[]; links: OverviewLink[]; shape: OverviewShape; insetRight: number; view: WorldView; onFramed: (framed: Framed) => void }) {
   const { size, invalidate, get } = useThree();
   const frame = useMemo(() => frameOverview(outlines, shape, size, insetRight), [outlines, shape, size, insetRight]);
   useLayoutEffect(() => {
@@ -106,7 +106,7 @@ function Framing({ outlines, links, shape, insetRight, view, onFramed }: { outli
  * swallowed (capture phase) so a drag never opens a region. The stage takes no browser gestures (touch-action: none),
  * so a pinch zooms the map and not the page.
  */
-function useWorldGestures(element: React.RefObject<HTMLDivElement | null>, stage: Stage, setView: React.Dispatch<React.SetStateAction<WorldView>>, onGesture: () => void) {
+export function useWorldGestures(element: React.RefObject<HTMLDivElement | null>, stage: Stage, setView: React.Dispatch<React.SetStateAction<WorldView>>, onGesture: () => void) {
   const dragged = useRef(false);
   useEffect(() => {
     const el = element.current;
@@ -232,7 +232,7 @@ function useFlyTo(stage: Stage, insetRight: number, view: WorldView, setView: Re
 }
 
 /** The open sea, in the Region's deep colour and the environment's tint. */
-function Sea({ tint }: { tint: string }) {
+export function Sea({ tint }: { tint: string }) {
   const color = useMemo(() => new Color(OCEAN.deep).multiply(new Color(tint)), [tint]);
   return <mesh rotation-x={-Math.PI / 2} position-y={-.012} receiveShadow raycast={noRaycast} renderOrder={2}><planeGeometry args={[600, 600]}/><meshStandardMaterial color={color} roughness={.55} metalness={0}/></mesh>;
 }

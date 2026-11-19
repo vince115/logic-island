@@ -10,7 +10,7 @@ import { WATER_LEVEL, settlementFrames, worldCenter, type HexWorld } from '@/lib
 import { ENVIRONMENTS, PREVIEW_NOON, type EnvironmentId } from '@/lib/islands/environments';
 import { pageInteractions } from '@/lib/islands/island-interactions';
 import type { IslandDefinition } from '@/lib/islands/types';
-import { HexCamera, VIEW, viewAt, type CameraView, type ExploreView, type StageRoom } from './hex-camera';
+import { HexCamera, VIEW, viewAt, type CameraFrom, type CameraView, type ExploreView, type StageRoom } from './hex-camera';
 import { HexTiles, WATER_Y } from './hex-tiles';
 import { HexTerrainMesh, type TerrainStyle } from './hex-terrain-mesh';
 import { HexBridges, HexRoads } from './hex-routes';
@@ -174,7 +174,11 @@ function Lifecycle({label,onReady,onUnavailable}:{label:string;onReady:()=>void;
   return null;
 }
 
-export default function HexWorldScene({world,islands,selectedId,onSelect,onNavigate,reducedMotion,onReady,onUnavailable,options={},infoNode,onInfoChange,label,resetKey,onViewChange,orbit,onOrbitStop,environmentId='noon',insetRight=0,baseAzimuth=0,onResetRequest,room,onArrive}:{
+/**
+ * P9.7 prototype: everything the map draws inside its canvas, so another canvas (the shared P9.7 stage) can host it.
+ * `onPointerChange` tells the host whether the pointer is on something a click acts on (its cursor).
+ */
+export function HexWorldContent({world,islands,selectedId,onSelect,onNavigate,reducedMotion,onReady,onUnavailable,options={},infoNode,onInfoChange,label,resetKey,onViewChange,orbit,onOrbitStop,environmentId='noon',insetRight=0,baseAzimuth=0,onResetRequest,room,onArrive,onPointerChange,cameraFrom}:{
   world:HexWorld;islands:IslandDefinition[];selectedId:string|null;onSelect:(id:string)=>void;
   reducedMotion:boolean;onReady:()=>void;onUnavailable:()=>void;options?:HexSceneOptions;
   /** Controlled info bubble of the focused settlement, shared with the HTML target list. */
@@ -200,6 +204,10 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
   onResetRequest?:()=>void;
   /** P8.3 (`phoneRoom`): the room the camera keeps at the stage's top and bottom right now. */
   room?:StageRoom;
+
+  onPointerChange?:(pointer:boolean)=>void;
+  /** P9.7 prototype: the camera's pose when this content mounts in a canvas that already showed something else. */
+  cameraFrom?:CameraFrom;
 }) {
   const glbLayouts=options.glbLayouts??hexGlbSettlements,continuousOcean=options.ocean==='continuous'||options.ocean==='natural';
   const environment=options.lighting!=='contrast'?PREVIEW_NOON:ENVIRONMENTS[options.timeOfDay?environmentId:'noon'];
@@ -232,11 +240,8 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
     onViewChange?.(changed);
   },[onViewChange,base]);
   const press=useRef<[number,number]|null>(null);
-  return <div className={styles.canvasWrap} style={pointer||options.ownLayer?{cursor:pointer?'pointer':undefined,isolation:options.ownLayer?'isolate':undefined}:undefined} data-camera={free?'free':undefined}>
-    <Canvas orthographic frameloop="demand" dpr={[1,1.5]} shadows={options.shadows==='static'?STATIC_SHADOW_MAP:'soft'}
-      camera={{position:[20,19,24],zoom:27,near:.1,far:400}}
-      gl={{antialias:true,alpha:false,powerPreference:'low-power'}}
-      fallback={<p className={styles.canvasFallback}>此裝置無法顯示 3D，請使用清單導航。</p>}>
+  useEffect(()=>{onPointerChange?.(Boolean(pointer));},[pointer,onPointerChange]);
+  return <>
       <Lifecycle label={label} onReady={onReady} onUnavailable={onUnavailable}/>
       {options.perfProbe&&<Suspense fallback={null}><PerfProbe ox={ox} oz={oz}/></Suspense>}
       <HexEnvironment environment={environment} shadowExtent={shadowExtent} staticShadows={options.shadows==='static'}/>
@@ -290,7 +295,23 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
       </group></GlowProvider>
       <HexCamera frames={frames} selectedId={selectedId} reducedMotion={reducedMotion} fit={fit}
         free={free} resetKey={resetKey} onViewChange={free?viewChange:undefined} orbit={free&&orbit} onOrbitStop={free?onOrbitStop:undefined} insetRight={insetRight} view={base}
-        pan={free&&options.mapControls} onResetRequest={onResetRequest} room={room} explore={free?options.explore:undefined} onArrive={onArrive}/>
+        pan={free&&options.mapControls} onResetRequest={onResetRequest} room={room} explore={free?options.explore:undefined} onArrive={onArrive} from={cameraFrom}/>
+  </>;
+}
+
+export default function HexWorldScene(props:Parameters<typeof HexWorldContent>[0]) {
+  const [pointer,setPointer]=useState(false);
+  const {options={}}=props,free=options.camera==='free';
+  // As before the split: the scene renders again from here once it is ready (a remount after the list, too); the
+  // first drei Html label stays empty without it.
+  const [,setReadyRenders]=useState(0),{onReady:reportReady}=props;
+  const onReady=useCallback(()=>{setReadyRenders(n=>n+1);reportReady();},[reportReady]);
+  return <div className={styles.canvasWrap} style={pointer||options.ownLayer?{cursor:pointer?'pointer':undefined,isolation:options.ownLayer?'isolate':undefined}:undefined} data-camera={free?'free':undefined}>
+    <Canvas orthographic frameloop="demand" dpr={[1,1.5]} shadows={options.shadows==='static'?STATIC_SHADOW_MAP:'soft'}
+      camera={{position:[20,19,24],zoom:27,near:.1,far:400}}
+      gl={{antialias:true,alpha:false,powerPreference:'low-power'}}
+      fallback={<p className={styles.canvasFallback}>此裝置無法顯示 3D，請使用清單導航。</p>}>
+      <HexWorldContent {...props} onReady={onReady} onPointerChange={setPointer}/>
     </Canvas>
   </div>;
 }
