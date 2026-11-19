@@ -1,0 +1,6 @@
+{"name":"desktop","p":"/?island=foundations","text":true,"links":true,"buttons":true,"pixels":0,"routesA":"","routesB":"Building_Workshop→labs"}
+{"name":"desktop","p":"/islands/candidate","text":true,"links":true,"buttons":true,"pixels":0,"routesA":"","routesB":""}
+{"name":"phone","p":"/?island=foundations","text":true,"links":true,"buttons":true,"pixels":0,"routesA":"","routesB":"Building_Workshop→labs"}
+{"name":"phone","p":"/islands/candidate","text":true,"links":true,"buttons":true,"pixels":0,"routesA":"","routesB":""}
+{"name":"desktop","p":"/world/cs?island=foundations","text":false,"links":true,"buttons":false,"pixels":4401,"routesA":"","routesB":"Building_Workshop→syllabus"}
+{"name":"phone","p":"/world/cs?island=foundations","text":false,"links":true,"buttons":false,"pixels":0,"routesA":"","routesB":"Building_Workshop→syllabus"}

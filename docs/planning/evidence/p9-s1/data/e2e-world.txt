@@ -1,0 +1,606 @@
+  ✓    4 [desktop-chromium] › e2e/curriculum.spec.ts:33:1 › 課綱目錄：四座島，F／D／A 各 20 堂，資料庫應用島 20 堂中已開放的可點、其餘標示規劃中
+  ✓    2 [desktop-chromium] › e2e/db-activities-f1c.spec.ts:30:1 › 查詢計畫：練習場把 EXPLAIN QUERY PLAN 寫成步驟並顯示執行時間；建索引後變成索引搜尋
+  ✓    3 [desktop-chromium] › e2e/db-activities-f1d.spec.ts:30:1 › 往返序列：每種做法實際執行，列出每次往返的 SQL、參數與列數；可重設
+  ✓    7 [desktop-chromium] › e2e/db-activities-f1d.spec.ts:51:1 › 驅動程式範例：Python、JavaScript、Java 分頁；顯示 Python／JavaScript 的輸出，Java 註明只編譯
+  ✓    6 [desktop-chromium] › e2e/db-activities-f1c.spec.ts:47:1 › B+ 樹：搜尋經過的節點與範圍沿葉節點鏈走過的葉子，以文字說明；錯誤輸入有提示；可重設
+  ✓    5 [desktop-chromium] › e2e/curriculum.spec.ts:53:1 › 完整教材 F01：目標、三語範例切換（全頁同步、鍵盤）、變數追蹤逐步執行
+  ✓    8 [desktop-chromium] › e2e/db-activities-f1d.spec.ts:65:1 › 參數化查詢：練習場的參數值另外綁定，惡意輸入只是資料
+  ✓   10 [desktop-chromium] › e2e/curriculum.spec.ts:95:1 › 程式碼複製：複製目前選的語言
+  ✓   11 [desktop-chromium] › e2e/db-activities-f1d.spec.ts:80:1 › 參數組與當機檢查的練習：典型錯誤（拼接、少了交易）被指出；參考解答通過
+  ✓   12 [desktop-chromium] › e2e/curriculum.spec.ts:106:1 › 觀念測驗與進度：未答完不送出；答錯顯示解析與差幾題；全對＋讀完才完成，重新整理後保留
+  ✓    9 [desktop-chromium] › e2e/db-activities-f1c.spec.ts:69:1 › 依查詢計畫檢查的練習：結果對但仍全表掃描會被指出；參考解答通過
+  ✓   14 [desktop-chromium] › e2e/curriculum.spec.ts:143:1 › 條件分支視覺化：邊界值走進正確的分支
+  ✓   13 [desktop-chromium] › e2e/db-activities-f1d.spec.ts:97:1 › 資料模型比較：勾選操作，表格與結論用資料模型的說法
+  ✓   15 [desktop-chromium] › e2e/db-activities-f1c.spec.ts:84:1 › 交易時間軸：逐步看已提交的值、交易內的值與日誌；在任一步當機後看復原結果
+  ✓   17 [desktop-chromium] › e2e/db-activities-f1d.spec.ts:114:1 › 備份與複寫：架構圖與模擬；改變故障時間、日誌封存與複寫方式，結果跟著重算；可重設
+  ✓   18 [desktop-chromium] › e2e/db-activities-f1c.spec.ts:99:1 › 交錯排程：切換並行控制與隔離等級，看實際執行、等待、中止、最後的值與異常
+  ✓   16 [desktop-chromium] › e2e/curriculum.spec.ts:156:1 › 規劃中課程只有大綱（全部完成後目錄不再有規劃中）；有互動實驗的課程連到實驗
+  ✓   19 [desktop-chromium] › e2e/db-activities-f1d.spec.ts:133:1 › 備份與複寫練習：答案由模擬器算出；錯的答案得到提示，正確答案通過；可清除
+  ✓   21 [desktop-chromium] › e2e/curriculum.spec.ts:181:1 › 上一堂／下一堂只在同一座島內（F.1b）；先修只提示不封鎖
+  ✓   22 [desktop-chromium] › e2e/db-activities-f1d.spec.ts:151:1 › 資料庫應用島的最後一堂：關卡可逐步前進；頁尾說明本島已到最後一堂，不連到其他島的第一堂
+  ✓   23 [desktop-chromium] › e2e/curriculum.spec.ts:206:1 › 進度資料：無法讀取的舊資料先備份；較新版本的資料不被覆寫
+  ✓    1 [desktop-chromium] › e2e/candidate-integration.spec.ts:108:1 › 候選頁（D.3-5c）：自由相機上線，預設全景不變、載入後不跳動；地圖區保留垂直捲頁；時間預設中午
+  ✓   20 [desktop-chromium] › e2e/db-activities-f1c.spec.ts:117:1 › 交易練習：答案由模擬器算出；錯的答案得到提示，正確答案通過；可清除
+  ✓   27 [desktop-chromium] › e2e/db-activities-f1c.spec.ts:140:1 › 程式課程不載入任何資料庫活動的程式、資料集或 WebAssembly（F.1c：資料集曾因頂層呼叫被打包進每一課）
+  ✓   25 [desktop-chromium] › e2e/curriculum.spec.ts:221:1 › 無障礙：每個按鈕、連結與輸入都有名稱；標題只有一個 h1；練習標明沒有線上評測
+  ✓   29 [desktop-chromium] › e2e/curriculum.spec.ts:235:1 › 既有教材不變：/learn（互動實驗島）仍是六份互動教材，並連到課綱
+  ✓   30 [desktop-chromium] › e2e/curriculum.spec.ts:255:1 › 迴圈視覺化（F07）：每一輪的條件與次數，條件不成立時說明迴圈結束
+  ✓   31 [desktop-chromium] › e2e/curriculum.spec.ts:269:1 › 巢狀迴圈視覺化（F09）：同時顯示外層與內層的輪次
+  ✓   32 [desktop-chromium] › e2e/curriculum.spec.ts:277:1 › 陣列與字串視覺化（F10）：讀取的格子以文字標示，越界時說明範圍
+  ✓   33 [desktop-chromium] › e2e/curriculum.spec.ts:288:1 › 複合條件（F06）：短路略過的比較以文字標示
+  ✓   34 [desktop-chromium] › e2e/curriculum.spec.ts:300:1 › 函式呼叫視覺化（F13）：呼叫時堆疊多一層並標示執行中與等待中，return 後消失
+  ✓   35 [desktop-chromium] › e2e/curriculum.spec.ts:314:1 › 二維陣列視覺化（F12）：列與行的索引，以及越界的鄰居以文字說明
+  ✓   36 [desktop-chromium] › e2e/curriculum.spec.ts:324:1 › 遞迴視覺化（F18）：堆疊長到終止條件，再一層層回傳
+  ✓   37 [desktop-chromium] › e2e/curriculum.spec.ts:335:1 › 複雜度示意模型（F19）：標明是公式計算的次數，不是實測時間
+  ✓   28 [desktop-chromium] › e2e/hex-camera.spec.ts:97:1 › D.3-5a：預設全景沿用原本的視角與構圖，地圖區保留垂直捲頁
+  ✓   38 [desktop-chromium] › e2e/curriculum.spec.ts:345:1 › 綜合挑戰（F20）：逐階段前進，每階段列出用到的課程
+  ✓   24 [desktop-chromium] › e2e/db-activities.spec.ts:26:1 › DDL／DML 練習：執行後比對檢查敘述，錯誤的設計被指出，參考解答與另一種寫法通過
+  ✓   40 [desktop-chromium] › e2e/curriculum.spec.ts:355:1 › 新教材的進度（F13）：全對＋讀完才完成，重新整理後保留
+  ✓   42 [desktop-chromium] › e2e/curriculum.spec.ts:373:1 › 基礎程式島整體完成：20 堂都完成後，目錄與 F20 都顯示全部完成；既有進度不被覆寫
+  ✓   41 [desktop-chromium] › e2e/db-activities.spec.ts:69:1 › ER 圖建構：依選擇即時畫出 ER 圖與文字版，依意義檢查，錯的詞語附提示
+  ✓   44 [desktop-chromium] › e2e/db-activities.spec.ts:91:1 › 正規化：工作台算出閉包、候選鍵與正規形式；候選鍵與分解練習依條件檢查
+  ✓   45 [desktop-chromium] › e2e/db-activities.spec.ts:132:1 › SQL 練習場：每堂課各自一個資料庫，修改不影響其他課；重設後與原始資料相同
+  ✓   46 [desktop-chromium] › e2e/db-activities.spec.ts:174:1 › DB08（F.1b 回歸）：ER 課沒有程式分頁與 SQL 練習場、不下載 SQLite；ER 建構可用鍵盤操作；完成後記錄進度
+  ✓   47 [desktop-chromium] › e2e/db-activities.spec.ts:199:1 › 正規化工作台：閉包、分解的即時分析與重設；DB10 完成後記錄進度；SQL 課仍載入練習場
+  ✓   48 [desktop-chromium] › e2e/hex-environment.spec.ts:47:1 › 實驗室頁（D.3-6a）：背景、光源與陰影設定和中午環境資料一致，沒有霧
+  ✓   43 [desktop-chromium] › e2e/curriculum.spec.ts:393:1 › 所有完整教材：每頁都沒有水平溢出，長程式碼、樹與圖只在自己的區塊內捲動
+  ✓   50 [desktop-chromium] › e2e/curriculum.spec.ts:409:1 › 堆疊視覺化（D05）：逐步 push／pop，頂端以文字標示；方向鍵可切換步驟；自己試試會限制輸入範圍並說明 underflow
+  ✓   51 [desktop-chromium] › e2e/curriculum.spec.ts:435:1 › 鏈結串列視覺化（D04）：節點、next 與 null 結尾以文字呈現；搜尋沿著節點逐一前進
+  ✓   52 [desktop-chromium] › e2e/curriculum.spec.ts:449:1 › 動態陣列視覺化（D02）：容量已滿時擴容並說明複製成本；自己試試最多 10 個元素
+  ✓   53 [desktop-chromium] › e2e/curriculum.spec.ts:463:1 › 資料結構比較（D01）：勾選需要的操作，表格以文字標示適合／較慢並列出都適合的結構
+  ✓   54 [desktop-chromium] › e2e/curriculum.spec.ts:477:1 › 佇列與雙端佇列（D06、D07）：先進先出，兩端都能操作，空的時候以文字說明
+  ✓   55 [desktop-chromium] › e2e/curriculum.spec.ts:495:1 › 雜湊視覺化（D08、D10）：鍵依 hash mod m 放進桶，碰撞與重複以文字說明，只比對同一個桶
+  ✓   56 [desktop-chromium] › e2e/curriculum.spec.ts:514:1 › 樹與 BST 視覺化（D13、D14）：走訪到最後輸出完整順序；BST 的插入、搜尋與刪除有文字版結構
+  ✓   49 [desktop-chromium] › e2e/hex-environment.spec.ts:66:1 › 實驗室頁（D.3-6a）：燈塔兩處發光共用本頁自己的一份暖光材質，其餘 GLB 材質仍與樹木共用快取
+  ✓   39 [desktop-chromium] › e2e/hex-camera.spec.ts:113:1 › D.3-5a：滑鼠拖曳旋轉，不會聚焦或離開頁面；從名牌開始拖曳也不會，單純點擊名牌仍可聚焦
+  ✓   57 [desktop-chromium] › e2e/curriculum.spec.ts:541:1 › 堆積視覺化（D15）：push 逐步上浮、pop 逐步下沉，陣列與樹同時顯示
+  ✓   60 [desktop-chromium] › e2e/curriculum.spec.ts:554:1 › 圖與並查集視覺化（D17、D18）：鄰接串列與矩陣是圖的文字版；並查集合併、路徑壓縮與集合清單
+  ✓   61 [desktop-chromium] › e2e/curriculum.spec.ts:576:1 › 資料結構島的進度（D05）：全對＋讀完才完成，重新整理後保留，不改動基礎程式島的進度
+  ✓   62 [desktop-chromium] › e2e/curriculum.spec.ts:605:1 › 資料結構島整體完成：20 堂都完成後，目錄與 D20 都顯示全部完成；目錄的完整教材數與資料一致
+  ✓   63 [desktop-chromium] › e2e/curriculum.spec.ts:631:1 › 搜尋（A03、A04）：範圍、指標與迴圈不變量；自己試試檢查輸入並要求排序
+  ✓   64 [desktop-chromium] › e2e/curriculum.spec.ts:655:1 › 排序（A05）：逐步比較與交換、最後輸出排好的陣列；自己試試使用 Bubble Sort 實驗的引擎
+  ✓   65 [desktop-chromium] › e2e/curriculum.spec.ts:673:1 › 進階排序（A06、A07）：逐步執行到最後陣列已排好；自己試試排出正確結果（含重複與負數）
+  ✓   66 [desktop-chromium] › e2e/curriculum.spec.ts:689:1 › 雙指標、滑動視窗、前綴和（A08～A10）：指標與範圍以文字標示；視窗拒絕負數
+  ✓   67 [desktop-chromium] › e2e/curriculum.spec.ts:711:1 › 遞迴樹與回溯（A11、A12）：呼叫樹有文字大綱，呼叫堆疊同步顯示
+  ✓   68 [desktop-chromium] › e2e/curriculum.spec.ts:724:1 › 貪心（A13）：候選逐一標示選取或捨棄與原因
+  ✓   69 [desktop-chromium] › e2e/curriculum.spec.ts:735:1 › BFS 與 DFS（A14、A15）：佇列／堆疊、距離與父節點表；自己試試選起點，到不了的節點以文字說明
+  ✓   70 [desktop-chromium] › e2e/curriculum.spec.ts:753:1 › 最短路徑（A16）：距離表、鬆弛與路徑還原；Dijkstra 要求非負權重
+  ✓   71 [desktop-chromium] › e2e/curriculum.spec.ts:766:1 › 動態規劃與背包（A17、A18）：表格的列與行有標籤，讀取與寫入的格子以文字標示；容量輸入受限
+  ✓   58 [desktop-chromium] › e2e/hex-environment.spec.ts:100:1 › 實驗室頁（D.3-6b）：原生選單「時間情境」預設中午，依序列出清晨、中午、黃昏、傍晚；候選頁（D.3-6d 起）相同
+  ✓   72 [desktop-chromium] › e2e/curriculum.spec.ts:783:1 › 課綱全部完成：A20 是演算法島最後一堂，不接到 DB01（F.1b）；所有開放的課都完成時顯示全部完成
+  ✓   74 [desktop-chromium] › e2e/curriculum.spec.ts:823:1 › JavaScript（F05 試點起，全部課程）：四個語言分頁、輸出與解答，選擇跨課程保留
+  ✓   26 [desktop-chromium] › e2e/candidate-integration.spec.ts:125:1 › 候選頁（D.3-5c）：滑鼠拖曳旋轉 360°（不聚焦、從名牌拖曳也不聚焦）、滾輪縮放不捲頁，點名牌仍可聚焦
+  -   76 [desktop-chromium] › e2e/candidate-integration.spec.ts:161:1 › 候選頁（D.3-5c）：觸控單指水平旋轉、垂直捲頁、雙指縮放，短按名牌聚焦（Chromium 模擬）
+  ✓   75 [desktop-chromium] › e2e/hex-scale.spec.ts:46:3 › 19 格：三座聚落載入，只請求本站資源
+  ✓   73 [desktop-chromium] › e2e/hex-environment.spec.ts:110:1 › 實驗室頁（D.3-6b）：每個時間情境畫出自己的資料，陰影範圍依太陽方向取，海面依色調，沒有霧
+  ✓   59 [desktop-chromium] › e2e/hex-camera.spec.ts:135:1 › D.3-5a：滾輪縮放與俯仰都停在上下限，滾輪不捲動頁面，低角度拉遠時畫面邊緣不露底色
+  ✓   78 [desktop-chromium] › e2e/hex-scale.spec.ts:57:3 › 19 格：聚焦後只顯示精簡標記，且不攔截點擊
+  ✓   79 [desktop-chromium] › e2e/hex-environment.spec.ts:132:1 › 實驗室頁（D.3-6b）：每個時間情境的 draw call 與三角形都和中午相同（主畫面與陰影 pass）
+  ✓   81 [desktop-chromium] › e2e/hex-scale.spec.ts:70:3 › 19 格：在 3D 場景點燈塔、碼頭顯示說明，點工坊前往 /learn
+  ✓   80 [desktop-chromium] › e2e/hex-camera.spec.ts:170:1 › D.3-5a：旋轉後點名牌聚焦並保留方位，返回全景恢復預設視角與原本畫面
+  ✓   83 [desktop-chromium] › e2e/hex-scale.spec.ts:46:3 › 37 格：三座聚落載入，只請求本站資源
+  ✓   77 [desktop-chromium] › e2e/candidate-integration.spec.ts:179:1 › 候選頁（D.3-5c）：旋轉後聚焦保留目前方位、聚焦後仍可旋轉；返回全景回到原本的中午畫面
+  ✓   85 [desktop-chromium] › e2e/hex-scale.spec.ts:57:3 › 37 格：聚焦後只顯示精簡標記，且不攔截點擊
+  ✓   84 [desktop-chromium] › e2e/hex-camera.spec.ts:194:1 › D.3-5a：只在全景旋轉後也能用返回全景（鍵盤）恢復；鍵盤 Enter 聚焦名牌不受拖曳判斷影響
+  ✓   87 [desktop-chromium] › e2e/hex-scale.spec.ts:70:3 › 37 格：在 3D 場景點燈塔、碼頭顯示說明，點工坊前往 /learn
+  ✓   82 [desktop-chromium] › e2e/hex-environment.spec.ts:147:1 › 實驗室頁（D.3-6b）：切換時間情境時陰影只重畫一次，之後閒置重畫為 0
+  ✓   89 [desktop-chromium] › e2e/hex-scale.spec.ts:88:1 › 37 格：HTML 地點入口以觸控或鍵盤操作，結果與 3D 點擊相同
+  ✓   88 [desktop-chromium] › e2e/hex-camera.spec.ts:211:1 › D.3-5a：視窗尺寸改變時保留目前方位角
+  -   92 [desktop-chromium] › e2e/hex-camera.spec.ts:222:1 › D.3-5a：觸控（Chromium 模擬）水平滑動旋轉、垂直滑動捲頁、雙指縮放，仰角固定，短按名牌仍可聚焦
+  -   93 [desktop-chromium] › e2e/hex-camera.spec.ts:259:1 › D.3-5a：實驗室頁在 360／390 px 沒有水平溢出
+  ✓   91 [desktop-chromium] › e2e/hex-scale.spec.ts:121:1 › 37 格（D.2c-1）：全景名牌放在島嶼外側，不遮住任何地塊，也不超出畫面
+  ✓   90 [desktop-chromium] › e2e/hex-environment.spec.ts:166:1 › 實驗室頁（D.3-6b）：切換時間不影響自動旋轉、聚焦與返回全景，返回全景也不改時間
+  ✓   95 [desktop-chromium] › e2e/hex-scale.spec.ts:170:1 › 37 格（D.2c-2）：鏡頭移動時不重畫陰影貼圖，畫面與即時陰影相同
+  ✓   96 [desktop-chromium] › e2e/hex-environment.spec.ts:192:1 › 實驗室頁（D.3-6b）：黃昏與傍晚時地圖標題的文字對比至少 4.5:1（不論後方是哪種畫面）
+  ✓   86 [desktop-chromium] › e2e/candidate-integration.spec.ts:209:1 › 候選頁（D.3-5b）：自動旋轉預設關閉、可用鍵盤開啟；拖曳、縮放、點名牌、清單、返回全景、分頁隱藏都會停止
+  ✓   94 [desktop-chromium] › e2e/hex-camera.spec.ts:268:1 › D.3-5c：候選頁改用同一套自由相機（拖曳旋轉、滾輪縮放不捲頁、地圖區保留垂直捲頁、提供自動旋轉）
+  ✓   98 [desktop-chromium] › e2e/hex-environment.spec.ts:219:1 › 實驗室頁（D.3-6b）：時間選單可用 Tab 到達，在 360／390 px 與桌機都在地圖內且不溢出
+  ✓   99 [desktop-chromium] › e2e/candidate-integration.spec.ts:251:1 › 候選頁（D.3-5b）：reduced motion 下自動旋轉仍預設關閉、聚焦立即到位，可手動開啟
+  ✓   97 [desktop-chromium] › e2e/hex-scale.spec.ts:183:1 › 37 格（D.3-2）：清單模式可選島與進入教材，切回 3D 後場景重新載入
+  ✓  103 [desktop-chromium] › e2e/hex-scale.spec.ts:195:5 › 37 格（D.3-2）：WebGL 無法建立時由 Error Boundary 接住，改為清單導航
+  ✓  101 [desktop-chromium] › e2e/hex-environment.spec.ts:253:1 › 實驗室頁（D.3-6c）：只有暖光材質隨情境增強，反覆切換不累積、不新增材質或 shader，切回中午恢復原值
+  -  105 [desktop-chromium] › e2e/hex-environment.spec.ts:283:1 › 實驗室頁（D.3-6c）：手機 360／390 px 的黃昏與傍晚，標題底板不蓋住燈塔
+  ✓  104 [desktop-chromium] › e2e/hex-scale.spec.ts:204:5 › 37 格（D.3-2）：WebGL context 遺失時改為清單導航
+  ✓  106 [desktop-chromium] › e2e/hex-world.spec.ts:40:1 › 六角聚落預覽顯示三座聚落，只請求本站 GLB
+  ✓  108 [desktop-chromium] › e2e/hex-world.spec.ts:56:1 › 名牌與清單都能聚焦聚落並顯示教材入口
+  ✓  107 [desktop-chromium] › e2e/hex-scale.spec.ts:211:1 › 37 格（D.3-2）：聚焦後大名牌讓位，但地圖上仍標示目前島嶼，並可返回全景
+  ✓  109 [desktop-chromium] › e2e/hex-world.spec.ts:70:1 › 點擊聚落地塊即可聚焦該島
+  ✓  102 [desktop-chromium] › e2e/candidate-integration.spec.ts:264:1 › 候選頁（D.3-6d）：切換時間不動相機、不停自動旋轉；四個情境畫面不同，切回中午與載入時逐像素相同、不編譯 shader
+  ✓  110 [desktop-chromium] › e2e/hex-scale.spec.ts:227:5 › 37 格：GLB 載入失敗時回到暫代建築，HTML 地點入口仍可使用
+  ✓  111 [desktop-chromium] › e2e/hex-world.spec.ts:80:1 › D.3-2：預覽頁使用共用 Explorer，可切到清單並回到 3D
+  ✓  114 [desktop-chromium] › e2e/hex-world.spec.ts:92:1 › 預覽頁可回到正式群島地圖
+  ✓  115 [desktop-chromium] › e2e/hex-world.spec.ts:98:1 › 基礎程式島 GLB 建築：Anchor 標籤只定位，不攔截點擊
+  ✓  113 [desktop-chromium] › e2e/hex-scale.spec.ts:241:5 › 37 格：必要契約節點缺失時回到暫代建築
+  ✓  100 [desktop-chromium] › e2e/hex-camera.spec.ts:313:1 › D.3-5b：自動旋轉預設關閉（含 reduced motion），可用鍵盤開關，約每秒 6° 且保持仰角與縮放，只在全景提供
+  ✓  116 [desktop-chromium] › e2e/hex-world.spec.ts:110:1 › 燈塔與碼頭顯示說明，工坊前往 /learn
+  ✓  117 [desktop-chromium] › e2e/home-databases.spec.ts:44:1 › 首頁五座島都看得到：名牌在畫面內、不互相重疊，畫布說明含資料庫應用島；清單有五座島
+  ✓  119 [desktop-chromium] › e2e/hex-world.spec.ts:123:5 › GLB 載入失敗時基礎程式島回到暫代建築
+  ✓  121 [desktop-chromium] › e2e/hex-world.spec.ts:132:5 › 必要契約節點缺失時基礎程式島回到暫代建築
+  ✓  120 [desktop-chromium] › e2e/home-databases.spec.ts:60:1 › 點選資料庫應用島：6 個科目、DB01–DB20 連到各自的課；教材開放數與個人進度分開；完整課綱連到本島
+  ✓  122 [desktop-chromium] › e2e/hex-world.spec.ts:140:1 › 桌面顯示聚落名稱；手機全景改為圓點，聚焦後提示列不遮住碼頭
+  ✓  124 [desktop-chromium] › e2e/island-interactions.spec.ts:14:5 › every published island's syllabus anchor exists on /curriculum and lands on its heading
+  ✓  125 [desktop-chromium] › e2e/island-interactions.spec.ts:28:5 › home map (unchanged): the foundations workshop is named 學習路線 and leads to /learn
+  ✓  123 [desktop-chromium] › e2e/home-databases.spec.ts:82:1 › 鍵盤：名牌可以聚焦並以 Enter 選取資料庫應用島，返回全景後五座島都在
+  ✓  126 [desktop-chromium] › e2e/island-interactions.spec.ts:42:7 › region map (flag on) › the foundations workshop leads to the island's own syllabus; lighthouse and dock give information
+  ✓  112 [desktop-chromium] › e2e/candidate-integration.spec.ts:295:1 › 候選頁（D.3-6d）：每個情境的 draw call 與三角形和中午相同；每次切換只畫一次陰影，之後閒置 0
+  ✓  118 [desktop-chromium] › e2e/hex-camera.spec.ts:344:1 › D.3-5b：拖曳與滾輪立即停止，停止後不自動恢復
+  -  130 [desktop-chromium] › e2e/hex-camera.spec.ts:358:1 › D.3-5b：單指滑動與雙指縮放立即停止（Chromium 觸控模擬）
+  ✓  129 [desktop-chromium] › e2e/candidate-integration.spec.ts:321:1 › 候選頁（D.3-6d）：黃昏與傍晚的地圖標題對比至少 4.5:1；手機上標題在地圖外
+  -  132 [desktop-chromium] › e2e/candidate-integration.spec.ts:349:3 › 候選頁（D.3-6d）：手機 360px 四個情境不溢出；時間、自動旋轉、返回全景不互相擠壓；旋轉、縮放、聚焦後標題都不在地圖上
+  -  133 [desktop-chromium] › e2e/candidate-integration.spec.ts:349:3 › 候選頁（D.3-6d）：手機 390px 四個情境不溢出；時間、自動旋轉、返回全景不互相擠壓；旋轉、縮放、聚焦後標題都不在地圖上
+  -  134 [desktop-chromium] › e2e/candidate-integration.spec.ts:349:3 › 候選頁（D.3-6d）：手機 430px 四個情境不溢出；時間、自動旋轉、返回全景不互相擠壓；旋轉、縮放、聚焦後標題都不在地圖上
+  ✓  131 [desktop-chromium] › e2e/hex-camera.spec.ts:370:1 › D.3-5b：旋轉中點名牌或點島嶼會停止，並聚焦點到的那座島
+  ✓  128 [desktop-chromium] › e2e/island-interactions.spec.ts:65:7 › region map (flag on) › a planned island has no place list and no course entry, in any region
+  -  137 [desktop-chromium] › e2e/islands-acceptance.spec.ts:46:5 › /islands/candidate › 360px：全景、聚焦與清單模式都沒有水平溢出
+  -  138 [desktop-chromium] › e2e/islands-acceptance.spec.ts:46:5 › /islands/candidate › 390px：全景、聚焦與清單模式都沒有水平溢出
+  ✓  135 [desktop-chromium] › e2e/candidate-integration.spec.ts:388:1 › 候選頁（D.3-6d）：桌機標題留在地圖上，但島嶼名牌疊在它上面；旋轉、縮放、聚焦後名牌都可點
+  ✓  127 [desktop-chromium] › e2e/home-databases.spec.ts:91:1 › 滑鼠 hover：資料庫應用島上顯示可點擊游標並點亮它的名牌
+  ✓  139 [desktop-chromium] › e2e/islands-acceptance.spec.ts:62:3 › /islands/candidate › 鍵盤：Tab 到島嶼名牌按 Enter 聚焦，再 Tab 到「返回全景」按 Enter 回到全景，焦點框可見
+  ✓  140 [desktop-chromium] › e2e/candidate-integration.spec.ts:427:5 › 候選頁（D.3-6d）：WebGL 不可用或中途遺失時改為清單，不留下無效的 3D 控制
+  -  143 [desktop-chromium] › e2e/candidate-integration.spec.ts:454:3 › 候選頁（D.3-7a）：360px 跳至主要內容平時不顯示、不擋地圖；Tab 聚焦時完整可見，Enter 跳到主要內容
+  -  144 [desktop-chromium] › e2e/candidate-integration.spec.ts:454:3 › 候選頁（D.3-7a）：390px 跳至主要內容平時不顯示、不擋地圖；Tab 聚焦時完整可見，Enter 跳到主要內容
+  -  145 [desktop-chromium] › e2e/candidate-integration.spec.ts:454:3 › 候選頁（D.3-7a）：430px 跳至主要內容平時不顯示、不擋地圖；Tab 聚焦時完整可見，Enter 跳到主要內容
+  ✓  141 [desktop-chromium] › e2e/home-databases.spec.ts:107:1 › 學習進度沿用原本的資料：已完成的課顯示在面板上，教材開放數不受影響
+  ✓  142 [desktop-chromium] › e2e/islands-acceptance.spec.ts:78:3 › /islands/candidate › 鍵盤：只用鍵盤切到清單、選島並進入教材
+  ✓  147 [desktop-chromium] › e2e/home-databases.spec.ts:122:5 › 沒有 WebGL 時改為清單導航，清單裡有資料庫應用島與它的簡介
+  ✓  149 [desktop-chromium] › e2e/home-databases.spec.ts:131:1 › DB01–DB20 每一堂都能開啟
+  ✓  146 [desktop-chromium] › e2e/candidate-integration.spec.ts:454:3 › 候選頁（D.3-7a）：1280px 跳至主要內容平時不顯示、不擋地圖；Tab 聚焦時完整可見，Enter 跳到主要內容
+  -  151 [desktop-chromium] › e2e/candidate-integration.spec.ts:492:3 › 候選頁（D.3-7a）：手機 360px 提示與按鈕在地圖下方一列，不蓋地圖；觸控目標 44px、高度與圓角一致、不截字；聚焦後與深色模式
+  -  152 [desktop-chromium] › e2e/candidate-integration.spec.ts:492:3 › 候選頁（D.3-7a）：手機 390px 提示與按鈕在地圖下方一列，不蓋地圖；觸控目標 44px、高度與圓角一致、不截字；聚焦後與深色模式
+  -  153 [desktop-chromium] › e2e/candidate-integration.spec.ts:492:3 › 候選頁（D.3-7a）：手機 430px 提示與按鈕在地圖下方一列，不蓋地圖；觸控目標 44px、高度與圓角一致、不截字；聚焦後與深色模式
+  ✓  136 [desktop-chromium] › e2e/hex-camera.spec.ts:398:1 › D.3-5b：分頁隱藏、切換清單模式、返回全景都會停止；返回全景同時重設視角
+  ✓  148 [desktop-chromium] › e2e/islands-acceptance.spec.ts:94:3 › /islands/candidate › 無障礙名稱：地圖內每個按鈕與連結都有可讀名稱，地圖區塊與畫布都有標籤
+  -  156 [desktop-chromium] › e2e/islands-acceptance.spec.ts:46:5 › /islands/legacy › 360px：全景、聚焦與清單模式都沒有水平溢出
+  -  157 [desktop-chromium] › e2e/islands-acceptance.spec.ts:46:5 › /islands/legacy › 390px：全景、聚焦與清單模式都沒有水平溢出
+  ✓  150 [desktop-chromium] › e2e/islands-candidate.spec.ts:66:1 › 正式文案：沒有 Prototype 字樣與測試控制項；保留 3D／清單切換、BFS 入口與島嶼／教材數量
+  ✓  158 [desktop-chromium] › e2e/islands-acceptance.spec.ts:62:3 › /islands/legacy › 鍵盤：Tab 到島嶼名牌按 Enter 聚焦，再 Tab 到「返回全景」按 Enter 回到全景，焦點框可見
+  ✓  154 [desktop-chromium] › e2e/candidate-integration.spec.ts:553:1 › 候選頁（D.3-7a）：桌機 1280px 提示與按鈕仍在地圖下緣上方（不變）
+  ✓  160 [desktop-chromium] › e2e/islands-acceptance.spec.ts:78:3 › /islands/legacy › 鍵盤：只用鍵盤切到清單、選島並進入教材
+  ✓  161 [desktop-chromium] › e2e/islands.spec.ts:50:3 › /islands › 基礎程式島載入 GLB，不請求外部 Draco decoder
+  ✓  162 [desktop-chromium] › e2e/islands-acceptance.spec.ts:94:3 › /islands/legacy › 無障礙名稱：地圖內每個按鈕與連結都有可讀名稱，地圖區塊與畫布都有標籤
+  ✓  164 [desktop-chromium] › e2e/navigation.spec.ts:14:5 › /visualize 與 /visualize/<slug> 永久轉址到 /learn，保留 slug 與查詢參數
+  ✓  159 [desktop-chromium] › e2e/islands-candidate.spec.ts:90:1 › 清單模式：不用 3D 也能選島與進入教材，切回 3D 後場景重新載入
+  ✓  165 [desktop-chromium] › e2e/navigation.spec.ts:26:5 › 主選單：探索群島／完整課綱／互動實驗島，目前頁面標示；開始學習開啟 F01
+  ✓  163 [desktop-chromium] › e2e/islands.spec.ts:61:3 › /islands › 另外兩座島維持原本的幾何模型與教材入口
+  ✓  166 [desktop-chromium] › e2e/islands-candidate.spec.ts:102:5 › WebGL 無法建立時由 Error Boundary 接住，自動改為清單導航
+  ✓  167 [desktop-chromium] › e2e/navigation.spec.ts:42:5 › 互動實驗島列出六個實驗；實驗頁沒有模式切換，麵包屑回到互動實驗島
+  ✓  170 [desktop-chromium] › e2e/navigation.spec.ts:61:5 › 完整課綱開頭的簡介：Think · Visualize · Code，從 F01 開始或先到互動實驗島
+  ✓  171 [desktop-chromium] › e2e/navigation.spec.ts:73:5 › 404 頁指向完整課綱與互動實驗島
+  ✓  168 [desktop-chromium] › e2e/islands.spec.ts:74:3 › /islands › Anchor 標籤只負責定位，不攔截點擊；route_exit 沒有標籤
+  ✓  169 [desktop-chromium] › e2e/islands-candidate.spec.ts:111:5 › WebGL context 中途遺失時改為清單導航
+  ✓  173 [desktop-chromium] › e2e/islands.spec.ts:89:3 › /islands › 燈塔與碼頭只顯示簡短說明
+  ✓  175 [desktop-chromium] › e2e/islands.spec.ts:103:3 › /islands › 選取基礎程式島後點工坊前往 /learn
+  ✓  174 [desktop-chromium] › e2e/islands-candidate.spec.ts:117:5 › GLB 載入失敗時回到暫代建築，HTML 地點入口仍可使用
+  ✓  172 [desktop-chromium] › e2e/navigation.spec.ts:80:5 › 六個實驗與所有課綱頁（含資料庫應用島已開放的課）都能開啟，頁面內的站內連結沒有失效
+  ✓  178 [desktop-chromium] › e2e/navigation.spec.ts:106:5 › 側欄：目前課程所在的島與難度自動展開並標示，島嶼卡片回到 3D 島嶼；手機版是可用 Escape 關閉的抽屜
+  ✓  179 [desktop-chromium] › e2e/navigation.spec.ts:140:5 › 規劃中的群島與課程看得到但不能點：側欄停用列與完整課綱的大綱都沒有連結
+  ✓  180 [desktop-chromium] › e2e/navigation.spec.ts:159:5 › 色彩與無障礙實驗室：輸入顏色即時判定 AA／AAA，套用建議色後通過
+  ✓  176 [desktop-chromium] › e2e/islands.spec.ts:110:3 › /islands › 清單模式：不用 3D 也能選島與進入教材，切回 3D 後場景重新載入
+  ✓  181 [desktop-chromium] › e2e/navigation.spec.ts:185:5 › Linux Terminal Simulator：指令改變虛擬檔案系統、任務依結果完成、權限有效、可重設
+  ✓  182 [desktop-chromium] › e2e/islands.spec.ts:121:7 › /islands › WebGL 無法建立時由 Error Boundary 接住，自動改為清單導航
+  ✓  183 [desktop-chromium] › e2e/navigation.spec.ts:223:5 › AI 群島入口：首頁「更多學習群島」→ 群島總覽，七座島三個主題都是規劃中且沒有課程連結；側欄標示目前群島
+  ✓  185 [desktop-chromium] › e2e/navigation.spec.ts:263:5 › Flexbox Playground：調整屬性後預覽與 CSS 同步，預設版面可一鍵套用，課程列為規劃中
+  ✓  186 [desktop-chromium] › e2e/navigation.spec.ts:291:5 › CSS Grid Playground：輸入軌道與位置即時套用到真實格線，錯誤值標示且不套用，預設版面與 CSS 同步
+  ✓  184 [desktop-chromium] › e2e/islands.spec.ts:130:7 › /islands › WebGL context 中途遺失時改為清單導航
+  ✓  187 [desktop-chromium] › e2e/navigation.spec.ts:328:5 › Responsive Layout Simulator：預覽框以真實寬度套用媒體查詢，斷點可調，頁面不水平溢出
+  ✓  189 [desktop-chromium] › e2e/navigation.spec.ts:365:5 › Mobile Navigation Simulator：四種模式可切換操作，鍵盤、焦點與 ARIA 正確，觸控目標實測至少 48px
+  ✓  177 [desktop-chromium] › e2e/islands-candidate.spec.ts:129:1 › 聚焦：地圖與工具列標示目前島嶼，地點清單與 3D 點擊都能進入教材，並可返回全景
+  ✓  190 [desktop-chromium] › e2e/player.spec.ts:26:1 › 首頁與主選單導航
+  ✓  155 [desktop-chromium] › e2e/hex-camera.spec.ts:425:1 › D.3-5b：自動旋轉與鏡頭飛行不互搶：飛行途中開啟會等降落才轉，旋轉中聚焦由飛行接手
+  ✓  192 [desktop-chromium] › e2e/player.spec.ts:43:3 › array 教材、語言切換與前進後退一致
+  ✓  188 [desktop-chromium] › e2e/islands.spec.ts:137:3 › /islands › BFS 不屬於任何島，仍可從頁面附註進入原教材頁
+  ✓  194 [desktop-chromium] › e2e/player.spec.ts:43:3 › stack 教材、語言切換與前進後退一致
+  ✓  196 [desktop-chromium] › e2e/player.spec.ts:43:3 › queue 教材、語言切換與前進後退一致
+  ✓  197 [desktop-chromium] › e2e/player.spec.ts:43:3 › binary-search 教材、語言切換與前進後退一致
+  ✓  195 [desktop-chromium] › e2e/islands.spec.ts:146:7 › /islands › GLB 載入失敗時恢復原本的幾何模型
+  ✓  198 [desktop-chromium] › e2e/player.spec.ts:43:3 › bubble-sort 教材、語言切換與前進後退一致
+  ✓  200 [desktop-chromium] › e2e/player.spec.ts:43:3 › bfs 教材、語言切換與前進後退一致
+  ✓  199 [desktop-chromium] › e2e/islands.spec.ts:155:7 › /islands › 必要契約節點缺失時恢復原本的幾何模型
+  ✓  193 [desktop-chromium] › e2e/hex-camera.spec.ts:463:5 › D.3-5b：環繞中 WebGL context 遺失時停止並改為清單導航
+  ✓  201 [desktop-chromium] › e2e/player.spec.ts:74:1 › 播放結束立即停止，且可從結尾重播
+  ✓  202 [desktop-chromium] › e2e/islands.spec.ts:50:3 › /islands/legacy › 基礎程式島載入 GLB，不請求外部 Draco decoder
+  ✓  204 [desktop-chromium] › e2e/player.spec.ts:90:1 › 暫停、重置取消計時並可重新播放
+  ✓  206 [desktop-chromium] › e2e/player.spec.ts:107:1 › 播放中更換輸入後重建步驟與更新值
+  ✓  205 [desktop-chromium] › e2e/islands.spec.ts:61:3 › /islands/legacy › 另外兩座島維持原本的幾何模型與教材入口
+  ✓  208 [desktop-chromium] › e2e/islands.spec.ts:74:3 › /islands/legacy › Anchor 標籤只負責定位，不攔截點擊；route_exit 沒有標籤
+  ✓  207 [desktop-chromium] › e2e/player.spec.ts:131:1 › 深淺色切換、保存與頁面溢出檢查
+  -  210 [desktop-chromium] › e2e/regional-world.spec.ts:20:7 › regional world: flag off (default build) › no /world route exists and nothing links to one
+  ✓  191 [desktop-chromium] › e2e/islands-candidate.spec.ts:154:1 › 滑鼠 hover：島上顯示可點擊游標並點亮該島名牌，海面沒有；聚焦後目標建築也顯示可點擊
+  -  212 [desktop-chromium] › e2e/islands-candidate.spec.ts:182:3 › 手機 360px：工具列維持一行、島名不截字，地圖標題不遮住名牌
+  -  213 [desktop-chromium] › e2e/islands-candidate.spec.ts:182:3 › 手機 390px：工具列維持一行、島名不截字，地圖標題不遮住名牌
+  ✓  209 [desktop-chromium] › e2e/islands.spec.ts:89:3 › /islands/legacy › 燈塔與碼頭只顯示簡短說明
+  ✓  211 [desktop-chromium] › e2e/regional-world.spec.ts:30:7 › regional world: flag on › overview: every region and the hub, in 3D and in the guide; a region opens its map
+  ✓  215 [desktop-chromium] › e2e/islands.spec.ts:103:3 › /islands/legacy › 選取基礎程式島後點工坊前往 /learn
+  ✓  203 [desktop-chromium] › e2e/hex-camera.spec.ts:471:1 › D.3-5b：環繞時持續重畫但不重畫陰影；停止後閒置重畫為 0
+  ✓  216 [desktop-chromium] › e2e/regional-world.spec.ts:43:7 › regional world: flag on › CS region: eight islands, planned ones marked, labels clear, every island at least 180 px wide on desktop
+  ✓  214 [desktop-chromium] › e2e/islands-candidate.spec.ts:209:1 › 桌機：地圖標題不遮住任何島嶼名牌（1440 與 1280 px 寬）
+  ✓  217 [desktop-chromium] › e2e/islands.spec.ts:110:3 › /islands/legacy › 清單模式：不用 3D 也能選島與進入教材，切回 3D 後場景重新載入
+  ✓  221 [desktop-chromium] › e2e/islands.spec.ts:121:7 › /islands/legacy › WebGL 無法建立時由 Error Boundary 接住，自動改為清單導航
+  ✓  219 [desktop-chromium] › e2e/regional-world.spec.ts:58:7 › regional world: flag on › AI region: seven planned islands, labels clear, islands at least 180 px wide on desktop
+  ✓  222 [desktop-chromium] › e2e/islands.spec.ts:130:7 › /islands/legacy › WebGL context 中途遺失時改為清單導航
+  ✓  218 [desktop-chromium] › e2e/hex-camera.spec.ts:488:1 › D.3-5b：自動旋轉與返回全景並排在地圖內，桌機與 360／390 px 都不溢出
+  ✓  220 [desktop-chromium] › e2e/islands-candidate.spec.ts:219:3 › /islands/candidate：Skip link 只在鍵盤聚焦時出現
+  ✓  225 [desktop-chromium] › e2e/sql.spec.ts:33:1 › SQL 課程：沒有程式語言分頁，範例有語法高亮與結果表，先修與建議先修分開列出
+  ✓  227 [desktop-chromium] › e2e/sql.spec.ts:47:1 › SQL 練習場：預設查詢、空結果、錯誤回饋、修改後重設、重複執行與 Ctrl+Enter（只載入本站的 WebAssembly）
+  ✓  224 [desktop-chromium] › e2e/islands.spec.ts:137:3 › /islands/legacy › BFS 不屬於任何島，仍可從頁面附註進入原教材頁
+  ✓  226 [desktop-chromium] › e2e/islands-candidate.spec.ts:219:3 › /islands/legacy：Skip link 只在鍵盤聚焦時出現
+  ✓  229 [desktop-chromium] › e2e/islands.spec.ts:146:7 › /islands/legacy › GLB 載入失敗時恢復原本的幾何模型
+  ✓  231 [desktop-chromium] › e2e/islands.spec.ts:155:7 › /islands/legacy › 必要契約節點缺失時恢復原本的幾何模型
+  -  232 [desktop-chromium] › e2e/trials-ccarf-mock.spec.ts:40:3 › CCAR-F mock exam (fixture build) › the exam page offers both modes and no longer says the questions are being prepared
+  -  233 [desktop-chromium] › e2e/trials-ccarf-mock.spec.ts:48:3 › CCAR-F mock exam (fixture build) › official-style: 60 mixed questions, 120 minutes, the exact-match rule and no official score or verdict
+  -  234 [desktop-chromium] › e2e/trials-ccarf-mock.spec.ts:65:3 › CCAR-F mock exam (fixture build) › multiple-response: checkboxes up to the cap, partial and full selection, changes, keyboard, labels and touch targets
+  -  235 [desktop-chromium] › e2e/trials-ccarf-mock.spec.ts:116:3 › CCAR-F mock exam (fixture build) › mark, reload into the same draw and choices, confirm with a partial answer, exact-match results and the wrong-answer book
+  -  236 [desktop-chromium] › e2e/trials-ccarf-mock.spec.ts:181:3 › CCAR-F mock exam (fixture build) › official-style submits itself when the 120 minutes run out, with no verdict
+  -  237 [desktop-chromium] › e2e/trials-ccarf-mock.spec.ts:196:3 › CCAR-F mock exam (fixture build) › a session whose drawn question changed is blocked, never re-drawn or graded
+  -  238 [desktop-chromium] › e2e/trials-fixed-paper-retirement.spec.ts:51:3 › APCS fixed paper with a withdrawn question (fixture build) › the exam page and the paper say it is under maintenance, offer no start, and carry nothing of the withdrawn questi
+  -  239 [desktop-chromium] › e2e/trials-fixed-paper-retirement.spec.ts:62:3 › APCS fixed paper with a withdrawn question (fixture build) › an unfinished session holding the withdrawn question is not resumed; it can be abandoned, ungraded
+  -  240 [desktop-chromium] › e2e/trials-fixed-paper-retirement.spec.ts:74:3 › APCS fixed paper with a withdrawn question (fixture build) › a result taken before the withdrawal keeps its score and shows the withdrawn question as withdrawn
+  -  241 [desktop-chromium] › e2e/trials-history.spec.ts:45:3 › version-1 records in the browser › reading a version-1 result changes nothing: the score as it was, the data untouched
+  -  242 [desktop-chromium] › e2e/trials-history.spec.ts:52:3 › version-1 records in the browser › the first write saves the exact version-1 text, then version 2 with every record (the unreadable one set aside)
+  -  243 [desktop-chromium] › e2e/trials-history.spec.ts:75:3 › unreadable records in the browser (T.3I) › two different corruptions are each kept, exactly; the same one again adds nothing; the review book says so
+  -  244 [desktop-chromium] › e2e/trials-ipas-mock.spec.ts:31:3 › iPAS mock exam (fixture build) › the exam page offers both subjects in both modes
+  -  245 [desktop-chromium] › e2e/trials-ipas-mock.spec.ts:38:3 › iPAS mock exam (fixture build) › official-style: 75 minutes and the official pass mark with its source
+  -  246 [desktop-chromium] › e2e/trials-ipas-mock.spec.ts:49:3 › iPAS mock exam (fixture build) › extended practice: navigate, mark, reload into the same draw, confirm, submit, results and wrong-answer review
+  -  247 [desktop-chromium] › e2e/trials-ipas-mock.spec.ts:102:3 › iPAS mock exam (fixture build) › L12 official-style: a drawn 50-question paper by keyboard, then results by syllabus item (T.3D)
+  -  248 [desktop-chromium] › e2e/trials-ipas-mock.spec.ts:130:3 › iPAS mock exam (fixture build) › official-style submits itself when the 75 minutes run out
+  -  249 [desktop-chromium] › e2e/trials-ipas-mock.spec.ts:141:3 › iPAS mock exam (fixture build) › a session whose drawn question changed is blocked, never re-drawn or graded
+  -  250 [desktop-chromium] › e2e/trials-paper-policy.spec.ts:27:3 › retired, original and adapted papers (fixture build) › a retired paper is listed as retired and takes no new session
+  -  251 [desktop-chromium] › e2e/trials-paper-policy.spec.ts:37:3 › retired, original and adapted papers (fixture build) › the official original under maintenance says it is no longer whole and carries nothing of the withdrawn question
+  -  252 [desktop-chromium] › e2e/trials-paper-policy.spec.ts:48:3 › retired, original and adapted papers (fixture build) › the adapted paper says what it comes from, holds 39 questions without the withdrawn one, and can be taken
+  ✓  253 [desktop-chromium] › e2e/trials.spec.ts:33:3 › flag off › every /trials route is a 404
+  -  254 [desktop-chromium] › e2e/trials.spec.ts:42:3 › trial hall to result (flag on) › the hall groups the exams by archipelago; only exams with a paper open
+  -  255 [desktop-chromium] › e2e/trials.spec.ts:57:3 › trial hall to result (flag on) › take a paper: answer, reload, submit, read the result, then the review book
+  -  256 [desktop-chromium] › e2e/trials.spec.ts:90:3 › trial hall to result (flag on) › the first official paper (114 普考計算機概要): 40 questions in their order, credited, with the official answer
+  -  257 [desktop-chromium] › e2e/trials.spec.ts:111:3 › trial hall to result (flag on) › a session whose time ran out while the page was closed is graded on opening
+  -  258 [desktop-chromium] › e2e/trials.spec.ts:131:3 › archipelago entries on the world pages (both flags) › the overview guide and each region list their trials; iPAS is named but not open
+  ✓  259 [desktop-chromium] › e2e/world-topology.spec.ts:65:7 › P8.3 world topology › overview: the hub is linked to every region and relation bridges join neighbours, on the map and in words
+  ✓  260 [desktop-chromium] › e2e/world-topology.spec.ts:80:7 › P8.3 world topology › overview labels at each reviewed size: on the stage, apart, off every island and every link
+  ✓  223 [desktop-chromium] › e2e/regional-world.spec.ts:67:7 › regional world: flag on › focus follows the address: choose, back, forward, deep link, unknown id, Escape up two levels
+  ✓  230 [desktop-chromium] › e2e/islands-candidate.spec.ts:241:1 › 三條路由互不影響：/islands 維持現行版，legacy 就是它（不被索引），candidate 是新版且未被連結
+  ✓  228 [desktop-chromium] › e2e/sql.spec.ts:87:1 › SQL 練習：結果比對（錯誤、參考解答與另一種寫法都正確判定），隱藏測試不顯示預期資料
+  ✓  264 [desktop-chromium] › e2e/device-tool.spec.ts:52:1 › 沒有開啟量測時，頁面原樣經過量測 proxy
+  ✓  265 [desktop-chromium] › e2e/device-tool.spec.ts:60:1 › 區網暴露：只轉址到本機路徑、錯誤不回傳堆疊、拒絕過大的請求
+  ✓  263 [desktop-chromium] › e2e/sql.spec.ts:108:1 › 目錄：資料庫應用島 20 堂全部開放（F.1d），最後一堂不接到其他島；規劃中的島的課沒有頁面
+  ✓  261 [desktop-chromium] › e2e/world-topology.spec.ts:93:7 › P8.3 world topology › region selection: each region opens from its label and from the guide, back returns to the overview; the hub opens the labs
+  ✓  268 [desktop-chromium] › e2e/world-topology.spec.ts:115:7 › P8.3 world topology › keyboard: Tab walks the labels in registry order, the hub last; Enter opens the region
+  ✓  267 [mobile-chromium] › e2e/candidate-integration.spec.ts:108:1 › 候選頁（D.3-5c）：自由相機上線，預設全景不變、載入後不跳動；地圖區保留垂直捲頁；時間預設中午
+  -  270 [mobile-chromium] › e2e/candidate-integration.spec.ts:125:1 › 候選頁（D.3-5c）：滑鼠拖曳旋轉 360°（不聚焦、從名牌拖曳也不聚焦）、滾輪縮放不捲頁，點名牌仍可聚焦
+  ✓  271 [mobile-chromium] › e2e/candidate-integration.spec.ts:161:1 › 候選頁（D.3-5c）：觸控單指水平旋轉、垂直捲頁、雙指縮放，短按名牌聚焦（Chromium 模擬）
+  ✓  269 [desktop-chromium] › e2e/world-topology.spec.ts:132:7 › P8.3 world topology › a region map offers the regions its bridges reach; every other region is reached through the world overview
+  -  273 [desktop-chromium] › e2e/world-topology.spec.ts:201:9 › P8.3 phone acceptance of the region maps › 320 px: every region reads as a whole, every island focuses to at least 88 px clear of what lies over the map
+  -  274 [desktop-chromium] › e2e/world-topology.spec.ts:201:9 › P8.3 phone acceptance of the region maps › 375 px: every region reads as a whole, every island focuses to at least 88 px clear of what lies over the map
+  -  275 [desktop-chromium] › e2e/world-topology.spec.ts:201:9 › P8.3 phone acceptance of the region maps › 390 px: every region reads as a whole, every island focuses to at least 88 px clear of what lies over the map
+  -  276 [desktop-chromium] › e2e/world-topology.spec.ts:287:7 › P8.3 phone acceptance of the region maps › phones: closing the subjects sheet gives the focused island the whole map; the list is below the map, not over it
+  ✓  262 [desktop-chromium] › e2e/regional-world.spec.ts:106:7 › regional world: flag on › release build: /world/cs?stress=glb is the ordinary map, no stand-in models and no「效能測試替身」
+  -  278 [desktop-chromium] › e2e/regional-world.spec.ts:121:7 › regional world: flag on › review build only: /world/cs?stress=glb adds the stand-in models and says so
+  ✓  279 [desktop-chromium] › e2e/regional-world.spec.ts:131:7 › regional world: flag on › a planned island: its description and「規劃中」, no lesson link, no progress, no「已開放」
+  ✓  280 [desktop-chromium] › e2e/regional-world.spec.ts:143:7 › regional world: flag on › keyboard: a label takes focus and Enter focuses its island
+  ✓  272 [mobile-chromium] › e2e/candidate-integration.spec.ts:179:1 › 候選頁（D.3-5c）：旋轉後聚焦保留目前方位、聚焦後仍可旋轉；返回全景回到原本的中午畫面
+  ✓  281 [desktop-chromium] › e2e/regional-world.spec.ts:151:7 › regional world: flag on › mouse hover over an island lights its label
+  -  283 [desktop-chromium] › e2e/regional-world.spec.ts:162:7 › regional world: flag on › phones: each pin has a 44 px touch area
+  ✓  284 [desktop-chromium] › e2e/regional-world.spec.ts:171:7 › regional world: flag on › P8.2 overview: one guide entry and one label per registry region, labels apart and on the stage, no sideways scroll
+  ✓  285 [desktop-chromium] › e2e/regional-world.spec.ts:199:9 › regional world: flag on › P8.2 ai region: every registry island on the map and in the list, planned ones marked, labels clear
+  ✓  286 [desktop-chromium] › e2e/regional-world.spec.ts:199:9 › regional world: flag on › P8.2 design region: every registry island on the map and in the list, planned ones marked, labels clear
+  ✓  287 [desktop-chromium] › e2e/regional-world.spec.ts:199:9 › regional world: flag on › P8.2 web region: every registry island on the map and in the list, planned ones marked, labels clear
+  ✓  288 [desktop-chromium] › e2e/regional-world.spec.ts:199:9 › regional world: flag on › P8.2 sys region: every registry island on the map and in the list, planned ones marked, labels clear
+  ✓  282 [mobile-chromium] › e2e/candidate-integration.spec.ts:209:1 › 候選頁（D.3-5b）：自動旋轉預設關閉、可用鍵盤開啟；拖曳、縮放、點名牌、清單、返回全景、分頁隱藏都會停止
+  ✓  289 [desktop-chromium] › e2e/regional-world.spec.ts:216:7 › regional world: flag on › P8.2 (D5) a focused island is at least 88 px wide on phones (180 px on desktop) in every region
+  ✓  290 [mobile-chromium] › e2e/candidate-integration.spec.ts:251:1 › 候選頁（D.3-5b）：reduced motion 下自動旋轉仍預設關閉、聚焦立即到位，可手動開啟
+  ✓  291 [desktop-chromium] › e2e/regional-world.spec.ts:227:7 › regional world: flag on › P8.2 CS region: the lab island is the shared hub, not one of the eight
+  ✓  277 [desktop-chromium] › e2e/world-topology.spec.ts:316:7 › P8.4 responsive world › region maps from 834 to 1440 px: every label on the map, apart and clear of the island list; pins where the stage is too narrow for captions
+  ✓  293 [desktop-chromium] › e2e/regional-world.spec.ts:236:7 › regional world: flag on › P8.2 keyboard map controls: arrows pan, 0 returns to the overview, Escape gives the focus back level by level
+  -  295 [desktop-chromium] › e2e/regional-world.spec.ts:274:7 › regional world: flag on › P8.2 phones: the map takes two fingers for zoom and pan, one for turning; the overview labels are 44 px targets
+  ✓  296 [desktop-chromium] › e2e/regional-world.spec.ts:293:7 › regional world: flag on › without WebGL: the overview guide and each region list still reach every island; planned ones say so
+  ✓  297 [desktop-chromium] › e2e/regional-world.spec.ts:313:7 › regional world: flag on › the central hub states as many labs as /learn has open: the same number on every region map and on /learn
+  ✓  294 [desktop-chromium] › e2e/world-topology.spec.ts:338:7 › P8.4 responsive world › a focused island's subjects sheet is above the map's pins
+  -  298 [desktop-chromium] › e2e/world-topology.spec.ts:362:45 › P8.4 responsive world › 320 px: the header of the world pages keeps its menu on one line, its height, and 44 px touch areas that do not overlap; other pages are untouched
+  -  299 [desktop-chromium] › e2e/world-topology.spec.ts:362:45 › P8.4 responsive world › 375 px: the header of the world pages keeps its menu on one line, its height, and 44 px touch areas that do not overlap; other pages are untouched
+  -  300 [desktop-chromium] › e2e/world-topology.spec.ts:362:45 › P8.4 responsive world › 390 px: the header of the world pages keeps its menu on one line, its height, and 44 px touch areas that do not overlap; other pages are untouched
+  -  301 [desktop-chromium] › e2e/world-topology.spec.ts:396:7 › P8.4 responsive world › visual review (review build only): /world?without=<link> draws the overview without that link and changes nothing else
+  ✓  303 [mobile-chromium] › e2e/curriculum.spec.ts:33:1 › 課綱目錄：四座島，F／D／A 各 20 堂，資料庫應用島 20 堂中已開放的可點、其餘標示規劃中
+  ✓  292 [mobile-chromium] › e2e/candidate-integration.spec.ts:264:1 › 候選頁（D.3-6d）：切換時間不動相機、不停自動旋轉；四個情境畫面不同，切回中午與載入時逐像素相同、不編譯 shader
+  ✓  304 [mobile-chromium] › e2e/curriculum.spec.ts:53:1 › 完整教材 F01：目標、三語範例切換（全頁同步、鍵盤）、變數追蹤逐步執行
+  -  306 [mobile-chromium] › e2e/curriculum.spec.ts:95:1 › 程式碼複製：複製目前選的語言
+  ✓  307 [mobile-chromium] › e2e/curriculum.spec.ts:106:1 › 觀念測驗與進度：未答完不送出；答錯顯示解析與差幾題；全對＋讀完才完成，重新整理後保留
+  ✓  308 [mobile-chromium] › e2e/curriculum.spec.ts:143:1 › 條件分支視覺化：邊界值走進正確的分支
+  ✓  302 [desktop-chromium] › e2e/world-topology.spec.ts:406:7 › P8.4 responsive world › release build: /world?without=<links> cannot remove a bridge; the map and the guide are those of /world
+  ✓  309 [mobile-chromium] › e2e/curriculum.spec.ts:156:1 › 規劃中課程只有大綱（全部完成後目錄不再有規劃中）；有互動實驗的課程連到實驗
+  ✓  311 [mobile-chromium] › e2e/curriculum.spec.ts:181:1 › 上一堂／下一堂只在同一座島內（F.1b）；先修只提示不封鎖
+  ✓  312 [mobile-chromium] › e2e/curriculum.spec.ts:206:1 › 進度資料：無法讀取的舊資料先備份；較新版本的資料不被覆寫
+  ✓  313 [mobile-chromium] › e2e/curriculum.spec.ts:221:1 › 無障礙：每個按鈕、連結與輸入都有名稱；標題只有一個 h1；練習標明沒有線上評測
+  ✓  314 [mobile-chromium] › e2e/curriculum.spec.ts:235:1 › 既有教材不變：/learn（互動實驗島）仍是六份互動教材，並連到課綱
+  ✓  315 [mobile-chromium] › e2e/curriculum.spec.ts:255:1 › 迴圈視覺化（F07）：每一輪的條件與次數，條件不成立時說明迴圈結束
+  ✓  316 [mobile-chromium] › e2e/curriculum.spec.ts:269:1 › 巢狀迴圈視覺化（F09）：同時顯示外層與內層的輪次
+  ✓  310 [desktop-chromium] › e2e/world-topology.spec.ts:428:7 › P8.5 visual decisions › V1: no bridge between web and sys on the overview; both keep their causeway to the hub and are reached through the world overview
+  ✓  317 [mobile-chromium] › e2e/curriculum.spec.ts:277:1 › 陣列與字串視覺化（F10）：讀取的格子以文字標示，越界時說明範圍
+  ✓  319 [mobile-chromium] › e2e/curriculum.spec.ts:288:1 › 複合條件（F06）：短路略過的比較以文字標示
+  ✓  320 [mobile-chromium] › e2e/curriculum.spec.ts:300:1 › 函式呼叫視覺化（F13）：呼叫時堆疊多一層並標示執行中與等待中，return 後消失
+  ✓  318 [desktop-chromium] › e2e/world-topology.spec.ts:444:7 › P8.5 visual decisions › V4: the hub causeways are quieter than before and still stand out from the sea; relation bridges stand out more
+  ✓  321 [mobile-chromium] › e2e/curriculum.spec.ts:314:1 › 二維陣列視覺化（F12）：列與行的索引，以及越界的鄰居以文字說明
+  ✓  323 [mobile-chromium] › e2e/curriculum.spec.ts:324:1 › 遞迴視覺化（F18）：堆疊長到終止條件，再一層層回傳
+  ✓  324 [mobile-chromium] › e2e/curriculum.spec.ts:335:1 › 複雜度示意模型（F19）：標明是公式計算的次數，不是實測時間
+  ✓  325 [mobile-chromium] › e2e/curriculum.spec.ts:345:1 › 綜合挑戰（F20）：逐階段前進，每階段列出用到的課程
+  ✓  326 [mobile-chromium] › e2e/curriculum.spec.ts:355:1 › 新教材的進度（F13）：全對＋讀完才完成，重新整理後保留
+  ✓  327 [mobile-chromium] › e2e/curriculum.spec.ts:373:1 › 基礎程式島整體完成：20 堂都完成後，目錄與 F20 都顯示全部完成；既有進度不被覆寫
+  ✓  322 [desktop-chromium] › e2e/world-topology.spec.ts:476:7 › P8.5 visual decisions › V3: pins and captions swap with the window's width without losing the focused island, the address or the list
+  ✓  305 [mobile-chromium] › e2e/candidate-integration.spec.ts:295:1 › 候選頁（D.3-6d）：每個情境的 draw call 與三角形和中午相同；每次切換只畫一次陰影，之後閒置 0
+  ✓  329 [mobile-chromium] › e2e/db-activities-f1c.spec.ts:30:1 › 查詢計畫：練習場把 EXPLAIN QUERY PLAN 寫成步驟並顯示執行時間；建索引後變成索引搜尋
+  ✓  331 [mobile-chromium] › e2e/db-activities-f1c.spec.ts:47:1 › B+ 樹：搜尋經過的節點與範圍沿葉節點鏈走過的葉子，以文字說明；錯誤輸入有提示；可重設
+  ✓  332 [mobile-chromium] › e2e/db-activities-f1c.spec.ts:69:1 › 依查詢計畫檢查的練習：結果對但仍全表掃描會被指出；參考解答通過
+  ✓  333 [mobile-chromium] › e2e/db-activities-f1c.spec.ts:84:1 › 交易時間軸：逐步看已提交的值、交易內的值與日誌；在任一步當機後看復原結果
+  ✓  334 [mobile-chromium] › e2e/db-activities-f1c.spec.ts:99:1 › 交錯排程：切換並行控制與隔離等級，看實際執行、等待、中止、最後的值與異常
+  ✓  330 [mobile-chromium] › e2e/candidate-integration.spec.ts:321:1 › 候選頁（D.3-6d）：黃昏與傍晚的地圖標題對比至少 4.5:1；手機上標題在地圖外
+  ✓  335 [mobile-chromium] › e2e/db-activities-f1c.spec.ts:117:1 › 交易練習：答案由模擬器算出；錯的答案得到提示，正確答案通過；可清除
+  ✓  328 [mobile-chromium] › e2e/curriculum.spec.ts:393:1 › 所有完整教材：每頁都沒有水平溢出，長程式碼、樹與圖只在自己的區塊內捲動
+  ✓  337 [mobile-chromium] › e2e/db-activities-f1c.spec.ts:140:1 › 程式課程不載入任何資料庫活動的程式、資料集或 WebAssembly（F.1c：資料集曾因頂層呼叫被打包進每一課）
+  ✓  338 [mobile-chromium] › e2e/curriculum.spec.ts:409:1 › 堆疊視覺化（D05）：逐步 push／pop，頂端以文字標示；方向鍵可切換步驟；自己試試會限制輸入範圍並說明 underflow
+  ✓  339 [mobile-chromium] › e2e/db-activities-f1d.spec.ts:30:1 › 往返序列：每種做法實際執行，列出每次往返的 SQL、參數與列數；可重設
+  ✓  340 [mobile-chromium] › e2e/curriculum.spec.ts:435:1 › 鏈結串列視覺化（D04）：節點、next 與 null 結尾以文字呈現；搜尋沿著節點逐一前進
+  ✓  341 [mobile-chromium] › e2e/db-activities-f1d.spec.ts:51:1 › 驅動程式範例：Python、JavaScript、Java 分頁；顯示 Python／JavaScript 的輸出，Java 註明只編譯
+  ✓  342 [mobile-chromium] › e2e/curriculum.spec.ts:449:1 › 動態陣列視覺化（D02）：容量已滿時擴容並說明複製成本；自己試試最多 10 個元素
+  ✓  343 [mobile-chromium] › e2e/db-activities-f1d.spec.ts:65:1 › 參數化查詢：練習場的參數值另外綁定，惡意輸入只是資料
+  ✓  344 [mobile-chromium] › e2e/curriculum.spec.ts:463:1 › 資料結構比較（D01）：勾選需要的操作，表格以文字標示適合／較慢並列出都適合的結構
+  ✓  345 [mobile-chromium] › e2e/db-activities-f1d.spec.ts:80:1 › 參數組與當機檢查的練習：典型錯誤（拼接、少了交易）被指出；參考解答通過
+  ✓  346 [mobile-chromium] › e2e/curriculum.spec.ts:477:1 › 佇列與雙端佇列（D06、D07）：先進先出，兩端都能操作，空的時候以文字說明
+  ✓  347 [mobile-chromium] › e2e/db-activities-f1d.spec.ts:97:1 › 資料模型比較：勾選操作，表格與結論用資料模型的說法
+  ✓  348 [mobile-chromium] › e2e/curriculum.spec.ts:495:1 › 雜湊視覺化（D08、D10）：鍵依 hash mod m 放進桶，碰撞與重複以文字說明，只比對同一個桶
+  ✓  349 [mobile-chromium] › e2e/db-activities-f1d.spec.ts:114:1 › 備份與複寫：架構圖與模擬；改變故障時間、日誌封存與複寫方式，結果跟著重算；可重設
+  ✓  351 [mobile-chromium] › e2e/db-activities-f1d.spec.ts:133:1 › 備份與複寫練習：答案由模擬器算出；錯的答案得到提示，正確答案通過；可清除
+  ✓  350 [mobile-chromium] › e2e/curriculum.spec.ts:514:1 › 樹與 BST 視覺化（D13、D14）：走訪到最後輸出完整順序；BST 的插入、搜尋與刪除有文字版結構
+  ✓  352 [mobile-chromium] › e2e/db-activities-f1d.spec.ts:151:1 › 資料庫應用島的最後一堂：關卡可逐步前進；頁尾說明本島已到最後一堂，不連到其他島的第一堂
+  ✓  353 [mobile-chromium] › e2e/curriculum.spec.ts:541:1 › 堆積視覺化（D15）：push 逐步上浮、pop 逐步下沉，陣列與樹同時顯示
+  ✓  336 [mobile-chromium] › e2e/candidate-integration.spec.ts:349:3 › 候選頁（D.3-6d）：手機 360px 四個情境不溢出；時間、自動旋轉、返回全景不互相擠壓；旋轉、縮放、聚焦後標題都不在地圖上
+  ✓  355 [mobile-chromium] › e2e/curriculum.spec.ts:554:1 › 圖與並查集視覺化（D17、D18）：鄰接串列與矩陣是圖的文字版；並查集合併、路徑壓縮與集合清單
+  ✓  357 [mobile-chromium] › e2e/curriculum.spec.ts:576:1 › 資料結構島的進度（D05）：全對＋讀完才完成，重新整理後保留，不改動基礎程式島的進度
+  ✓  358 [mobile-chromium] › e2e/curriculum.spec.ts:605:1 › 資料結構島整體完成：20 堂都完成後，目錄與 D20 都顯示全部完成；目錄的完整教材數與資料一致
+  ✓  359 [mobile-chromium] › e2e/curriculum.spec.ts:631:1 › 搜尋（A03、A04）：範圍、指標與迴圈不變量；自己試試檢查輸入並要求排序
+  ✓  360 [mobile-chromium] › e2e/curriculum.spec.ts:655:1 › 排序（A05）：逐步比較與交換、最後輸出排好的陣列；自己試試使用 Bubble Sort 實驗的引擎
+  ✓  361 [mobile-chromium] › e2e/curriculum.spec.ts:673:1 › 進階排序（A06、A07）：逐步執行到最後陣列已排好；自己試試排出正確結果（含重複與負數）
+  ✓  362 [mobile-chromium] › e2e/curriculum.spec.ts:689:1 › 雙指標、滑動視窗、前綴和（A08～A10）：指標與範圍以文字標示；視窗拒絕負數
+  ✓  363 [mobile-chromium] › e2e/curriculum.spec.ts:711:1 › 遞迴樹與回溯（A11、A12）：呼叫樹有文字大綱，呼叫堆疊同步顯示
+  ✓  364 [mobile-chromium] › e2e/curriculum.spec.ts:724:1 › 貪心（A13）：候選逐一標示選取或捨棄與原因
+  ✓  365 [mobile-chromium] › e2e/curriculum.spec.ts:735:1 › BFS 與 DFS（A14、A15）：佇列／堆疊、距離與父節點表；自己試試選起點，到不了的節點以文字說明
+  ✓  366 [mobile-chromium] › e2e/curriculum.spec.ts:753:1 › 最短路徑（A16）：距離表、鬆弛與路徑還原；Dijkstra 要求非負權重
+  ✓  354 [mobile-chromium] › e2e/db-activities.spec.ts:26:1 › DDL／DML 練習：執行後比對檢查敘述，錯誤的設計被指出，參考解答與另一種寫法通過
+  ✓  367 [mobile-chromium] › e2e/curriculum.spec.ts:766:1 › 動態規劃與背包（A17、A18）：表格的列與行有標籤，讀取與寫入的格子以文字標示；容量輸入受限
+  ✓  356 [mobile-chromium] › e2e/candidate-integration.spec.ts:349:3 › 候選頁（D.3-6d）：手機 390px 四個情境不溢出；時間、自動旋轉、返回全景不互相擠壓；旋轉、縮放、聚焦後標題都不在地圖上
+  ✓  368 [mobile-chromium] › e2e/db-activities.spec.ts:69:1 › ER 圖建構：依選擇即時畫出 ER 圖與文字版，依意義檢查，錯的詞語附提示
+  ✓  369 [mobile-chromium] › e2e/curriculum.spec.ts:783:1 › 課綱全部完成：A20 是演算法島最後一堂，不接到 DB01（F.1b）；所有開放的課都完成時顯示全部完成
+  ✓  372 [mobile-chromium] › e2e/curriculum.spec.ts:823:1 › JavaScript（F05 試點起，全部課程）：四個語言分頁、輸出與解答，選擇跨課程保留
+  ✓  371 [mobile-chromium] › e2e/db-activities.spec.ts:91:1 › 正規化：工作台算出閉包、候選鍵與正規形式；候選鍵與分解練習依條件檢查
+  ✓  374 [mobile-chromium] › e2e/db-activities.spec.ts:132:1 › SQL 練習場：每堂課各自一個資料庫，修改不影響其他課；重設後與原始資料相同
+  ✓  375 [mobile-chromium] › e2e/db-activities.spec.ts:174:1 › DB08（F.1b 回歸）：ER 課沒有程式分頁與 SQL 練習場、不下載 SQLite；ER 建構可用鍵盤操作；完成後記錄進度
+  ✓  376 [mobile-chromium] › e2e/db-activities.spec.ts:199:1 › 正規化工作台：閉包、分解的即時分析與重設；DB10 完成後記錄進度；SQL 課仍載入練習場
+  ✓  373 [mobile-chromium] › e2e/hex-camera.spec.ts:97:1 › D.3-5a：預設全景沿用原本的視角與構圖，地圖區保留垂直捲頁
+  -  378 [mobile-chromium] › e2e/hex-camera.spec.ts:113:1 › D.3-5a：滑鼠拖曳旋轉，不會聚焦或離開頁面；從名牌開始拖曳也不會，單純點擊名牌仍可聚焦
+  -  379 [mobile-chromium] › e2e/hex-camera.spec.ts:135:1 › D.3-5a：滾輪縮放與俯仰都停在上下限，滾輪不捲動頁面，低角度拉遠時畫面邊緣不露底色
+  ✓  377 [mobile-chromium] › e2e/hex-environment.spec.ts:47:1 › 實驗室頁（D.3-6a）：背景、光源與陰影設定和中午環境資料一致，沒有霧
+  ✓  370 [mobile-chromium] › e2e/candidate-integration.spec.ts:349:3 › 候選頁（D.3-6d）：手機 430px 四個情境不溢出；時間、自動旋轉、返回全景不互相擠壓；旋轉、縮放、聚焦後標題都不在地圖上
+  -  382 [mobile-chromium] › e2e/candidate-integration.spec.ts:388:1 › 候選頁（D.3-6d）：桌機標題留在地圖上，但島嶼名牌疊在它上面；旋轉、縮放、聚焦後名牌都可點
+  ✓  381 [mobile-chromium] › e2e/hex-environment.spec.ts:66:1 › 實驗室頁（D.3-6a）：燈塔兩處發光共用本頁自己的一份暖光材質，其餘 GLB 材質仍與樹木共用快取
+  ✓  383 [mobile-chromium] › e2e/candidate-integration.spec.ts:427:5 › 候選頁（D.3-6d）：WebGL 不可用或中途遺失時改為清單，不留下無效的 3D 控制
+  ✓  380 [mobile-chromium] › e2e/hex-camera.spec.ts:170:1 › D.3-5a：旋轉後點名牌聚焦並保留方位，返回全景恢復預設視角與原本畫面
+  -  386 [mobile-chromium] › e2e/hex-camera.spec.ts:194:1 › D.3-5a：只在全景旋轉後也能用返回全景（鍵盤）恢復；鍵盤 Enter 聚焦名牌不受拖曳判斷影響
+  ✓  385 [mobile-chromium] › e2e/candidate-integration.spec.ts:454:3 › 候選頁（D.3-7a）：360px 跳至主要內容平時不顯示、不擋地圖；Tab 聚焦時完整可見，Enter 跳到主要內容
+  ✓  384 [mobile-chromium] › e2e/hex-environment.spec.ts:100:1 › 實驗室頁（D.3-6b）：原生選單「時間情境」預設中午，依序列出清晨、中午、黃昏、傍晚；候選頁（D.3-6d 起）相同
+  ✓  388 [mobile-chromium] › e2e/candidate-integration.spec.ts:454:3 › 候選頁（D.3-7a）：390px 跳至主要內容平時不顯示、不擋地圖；Tab 聚焦時完整可見，Enter 跳到主要內容
+  ✓  387 [mobile-chromium] › e2e/hex-camera.spec.ts:211:1 › D.3-5a：視窗尺寸改變時保留目前方位角
+  ✓  390 [mobile-chromium] › e2e/candidate-integration.spec.ts:454:3 › 候選頁（D.3-7a）：430px 跳至主要內容平時不顯示、不擋地圖；Tab 聚焦時完整可見，Enter 跳到主要內容
+  ✓  389 [mobile-chromium] › e2e/hex-environment.spec.ts:110:1 › 實驗室頁（D.3-6b）：每個時間情境畫出自己的資料，陰影範圍依太陽方向取，海面依色調，沒有霧
+  -  392 [mobile-chromium] › e2e/candidate-integration.spec.ts:454:3 › 候選頁（D.3-7a）：1280px 跳至主要內容平時不顯示、不擋地圖；Tab 聚焦時完整可見，Enter 跳到主要內容
+  ✓  393 [mobile-chromium] › e2e/hex-environment.spec.ts:132:1 › 實驗室頁（D.3-6b）：每個時間情境的 draw call 與三角形都和中午相同（主畫面與陰影 pass）
+  ✓  394 [mobile-chromium] › e2e/candidate-integration.spec.ts:492:3 › 候選頁（D.3-7a）：手機 360px 提示與按鈕在地圖下方一列，不蓋地圖；觸控目標 44px、高度與圓角一致、不截字；聚焦後與深色模式
+  ✓  396 [mobile-chromium] › e2e/candidate-integration.spec.ts:492:3 › 候選頁（D.3-7a）：手機 390px 提示與按鈕在地圖下方一列，不蓋地圖；觸控目標 44px、高度與圓角一致、不截字；聚焦後與深色模式
+  ✓  391 [mobile-chromium] › e2e/hex-camera.spec.ts:222:1 › D.3-5a：觸控（Chromium 模擬）水平滑動旋轉、垂直滑動捲頁、雙指縮放，仰角固定，短按名牌仍可聚焦
+  ✓  397 [mobile-chromium] › e2e/candidate-integration.spec.ts:492:3 › 候選頁（D.3-7a）：手機 430px 提示與按鈕在地圖下方一列，不蓋地圖；觸控目標 44px、高度與圓角一致、不截字；聚焦後與深色模式
+  -  399 [mobile-chromium] › e2e/candidate-integration.spec.ts:553:1 › 候選頁（D.3-7a）：桌機 1280px 提示與按鈕仍在地圖下緣上方（不變）
+  ✓  400 [mobile-chromium] › e2e/hex-scale.spec.ts:46:3 › 19 格：三座聚落載入，只請求本站資源
+  ✓  398 [mobile-chromium] › e2e/hex-camera.spec.ts:259:1 › D.3-5a：實驗室頁在 360／390 px 沒有水平溢出
+  -  402 [mobile-chromium] › e2e/hex-camera.spec.ts:268:1 › D.3-5c：候選頁改用同一套自由相機（拖曳旋轉、滾輪縮放不捲頁、地圖區保留垂直捲頁、提供自動旋轉）
+  ✓  395 [mobile-chromium] › e2e/hex-environment.spec.ts:147:1 › 實驗室頁（D.3-6b）：切換時間情境時陰影只重畫一次，之後閒置重畫為 0
+  ✓  401 [mobile-chromium] › e2e/hex-scale.spec.ts:57:3 › 19 格：聚焦後只顯示精簡標記，且不攔截點擊
+  ✓  405 [mobile-chromium] › e2e/hex-scale.spec.ts:70:3 › 19 格：在 3D 場景點燈塔、碼頭顯示說明，點工坊前往 /learn
+  ✓  404 [mobile-chromium] › e2e/hex-environment.spec.ts:166:1 › 實驗室頁（D.3-6b）：切換時間不影響自動旋轉、聚焦與返回全景，返回全景也不改時間
+  ✓  406 [mobile-chromium] › e2e/hex-scale.spec.ts:46:3 › 37 格：三座聚落載入，只請求本站資源
+  ✓  407 [mobile-chromium] › e2e/hex-environment.spec.ts:192:1 › 實驗室頁（D.3-6b）：黃昏與傍晚時地圖標題的文字對比至少 4.5:1（不論後方是哪種畫面）
+  ✓  408 [mobile-chromium] › e2e/hex-scale.spec.ts:57:3 › 37 格：聚焦後只顯示精簡標記，且不攔截點擊
+  ✓  410 [mobile-chromium] › e2e/hex-scale.spec.ts:70:3 › 37 格：在 3D 場景點燈塔、碼頭顯示說明，點工坊前往 /learn
+  ✓  409 [mobile-chromium] › e2e/hex-environment.spec.ts:219:1 › 實驗室頁（D.3-6b）：時間選單可用 Tab 到達，在 360／390 px 與桌機都在地圖內且不溢出
+  ✓  403 [mobile-chromium] › e2e/hex-camera.spec.ts:313:1 › D.3-5b：自動旋轉預設關閉（含 reduced motion），可用鍵盤開關，約每秒 6° 且保持仰角與縮放，只在全景提供
+  -  413 [mobile-chromium] › e2e/hex-camera.spec.ts:344:1 › D.3-5b：拖曳與滾輪立即停止，停止後不自動恢復
+  ✓  411 [mobile-chromium] › e2e/hex-scale.spec.ts:88:1 › 37 格：HTML 地點入口以觸控或鍵盤操作，結果與 3D 點擊相同
+  ✓  412 [mobile-chromium] › e2e/hex-environment.spec.ts:253:1 › 實驗室頁（D.3-6c）：只有暖光材質隨情境增強，反覆切換不累積、不新增材質或 shader，切回中午恢復原值
+  ✓  415 [mobile-chromium] › e2e/hex-scale.spec.ts:121:1 › 37 格（D.2c-1）：全景名牌放在島嶼外側，不遮住任何地塊，也不超出畫面
+  ✓  417 [mobile-chromium] › e2e/hex-scale.spec.ts:170:1 › 37 格（D.2c-2）：鏡頭移動時不重畫陰影貼圖，畫面與即時陰影相同
+  ✓  416 [mobile-chromium] › e2e/hex-environment.spec.ts:283:1 › 實驗室頁（D.3-6c）：手機 360／390 px 的黃昏與傍晚，標題底板不蓋住燈塔
+  ✓  414 [mobile-chromium] › e2e/hex-camera.spec.ts:358:1 › D.3-5b：單指滑動與雙指縮放立即停止（Chromium 觸控模擬）
+  ✓  419 [mobile-chromium] › e2e/hex-world.spec.ts:40:1 › 六角聚落預覽顯示三座聚落，只請求本站 GLB
+  ✓  418 [mobile-chromium] › e2e/hex-scale.spec.ts:183:1 › 37 格（D.3-2）：清單模式可選島與進入教材，切回 3D 後場景重新載入
+  ✓  422 [mobile-chromium] › e2e/hex-scale.spec.ts:195:5 › 37 格（D.3-2）：WebGL 無法建立時由 Error Boundary 接住，改為清單導航
+  ✓  421 [mobile-chromium] › e2e/hex-world.spec.ts:56:1 › 名牌與清單都能聚焦聚落並顯示教材入口
+  ✓  424 [mobile-chromium] › e2e/hex-world.spec.ts:70:1 › 點擊聚落地塊即可聚焦該島
+  ✓  420 [mobile-chromium] › e2e/hex-camera.spec.ts:370:1 › D.3-5b：旋轉中點名牌或點島嶼會停止，並聚焦點到的那座島
+  ✓  423 [mobile-chromium] › e2e/hex-scale.spec.ts:204:5 › 37 格（D.3-2）：WebGL context 遺失時改為清單導航
+  ✓  425 [mobile-chromium] › e2e/hex-world.spec.ts:80:1 › D.3-2：預覽頁使用共用 Explorer，可切到清單並回到 3D
+  ✓  428 [mobile-chromium] › e2e/hex-world.spec.ts:92:1 › 預覽頁可回到正式群島地圖
+  ✓  427 [mobile-chromium] › e2e/hex-scale.spec.ts:211:1 › 37 格（D.3-2）：聚焦後大名牌讓位，但地圖上仍標示目前島嶼，並可返回全景
+  ✓  429 [mobile-chromium] › e2e/hex-world.spec.ts:98:1 › 基礎程式島 GLB 建築：Anchor 標籤只定位，不攔截點擊
+  ✓  430 [mobile-chromium] › e2e/hex-scale.spec.ts:227:5 › 37 格：GLB 載入失敗時回到暫代建築，HTML 地點入口仍可使用
+  ✓  431 [mobile-chromium] › e2e/hex-world.spec.ts:110:1 › 燈塔與碼頭顯示說明，工坊前往 /learn
+  ✓  433 [mobile-chromium] › e2e/hex-world.spec.ts:123:5 › GLB 載入失敗時基礎程式島回到暫代建築
+  ✓  432 [mobile-chromium] › e2e/hex-scale.spec.ts:241:5 › 37 格：必要契約節點缺失時回到暫代建築
+  ✓  266 [desktop-chromium] › e2e/device-tool.spec.ts:80:3 › 自動量測 › 一輪候選頁與舊版：數字與桌面量測一致，軟體算圖標為不可靠；候選頁另量時間切換與自動旋轉
+  ✓  434 [mobile-chromium] › e2e/hex-world.spec.ts:132:5 › 必要契約節點缺失時基礎程式島回到暫代建築
+  ✓  436 [mobile-chromium] › e2e/hex-world.spec.ts:140:1 › 桌面顯示聚落名稱；手機全景改為圓點，聚焦後提示列不遮住碼頭
+  ✓  426 [mobile-chromium] › e2e/hex-camera.spec.ts:398:1 › D.3-5b：分頁隱藏、切換清單模式、返回全景都會停止；返回全景同時重設視角
+  ✓  438 [mobile-chromium] › e2e/island-interactions.spec.ts:14:5 › every published island's syllabus anchor exists on /curriculum and lands on its heading
+  ✓  440 [mobile-chromium] › e2e/island-interactions.spec.ts:28:5 › home map (unchanged): the foundations workshop is named 學習路線 and leads to /learn
+  ✓  437 [mobile-chromium] › e2e/home-databases.spec.ts:44:1 › 首頁五座島都看得到：名牌在畫面內、不互相重疊，畫布說明含資料庫應用島；清單有五座島
+  ✓  442 [mobile-chromium] › e2e/home-databases.spec.ts:60:1 › 點選資料庫應用島：6 個科目、DB01–DB20 連到各自的課；教材開放數與個人進度分開；完整課綱連到本島
+  ✓  441 [mobile-chromium] › e2e/island-interactions.spec.ts:42:7 › region map (flag on) › the foundations workshop leads to the island's own syllabus; lighthouse and dock give information
+  ✓  443 [mobile-chromium] › e2e/home-databases.spec.ts:82:1 › 鍵盤：名牌可以聚焦並以 Enter 選取資料庫應用島，返回全景後五座島都在
+  -  445 [mobile-chromium] › e2e/home-databases.spec.ts:91:1 › 滑鼠 hover：資料庫應用島上顯示可點擊游標並點亮它的名牌
+  ✓  435 [desktop-chromium] › e2e/device-tool.spec.ts:129:3 › /islands/candidate › 故障注入：WebGL 無法建立、context 遺失都改為清單；GLB 失敗回到暫代建築
+  -  447 [desktop-chromium] › e2e/device-tool.spec.ts:142:3 › /islands/candidate › 雙指縮放：每次雙指觸控計時，送出後存成結果
+  ✓  446 [mobile-chromium] › e2e/home-databases.spec.ts:107:1 › 學習進度沿用原本的資料：已完成的課顯示在面板上，教材開放數不受影響
+  ✓  449 [mobile-chromium] › e2e/home-databases.spec.ts:122:5 › 沒有 WebGL 時改為清單導航，清單裡有資料庫應用島與它的簡介
+  ✓  450 [mobile-chromium] › e2e/home-databases.spec.ts:131:1 › DB01–DB20 每一堂都能開啟
+  ✓  451 [mobile-chromium] › e2e/islands-acceptance.spec.ts:46:5 › /islands/candidate › 360px：全景、聚焦與清單模式都沒有水平溢出
+  ✓  444 [mobile-chromium] › e2e/island-interactions.spec.ts:65:7 › region map (flag on) › a planned island has no place list and no course entry, in any region
+  ✓  452 [mobile-chromium] › e2e/islands-acceptance.spec.ts:46:5 › /islands/candidate › 390px：全景、聚焦與清單模式都沒有水平溢出
+  -  454 [mobile-chromium] › e2e/islands-acceptance.spec.ts:62:3 › /islands/candidate › 鍵盤：Tab 到島嶼名牌按 Enter 聚焦，再 Tab 到「返回全景」按 Enter 回到全景，焦點框可見
+  -  455 [mobile-chromium] › e2e/islands-acceptance.spec.ts:78:3 › /islands/candidate › 鍵盤：只用鍵盤切到清單、選島並進入教材
+  ✓  439 [mobile-chromium] › e2e/hex-camera.spec.ts:425:1 › D.3-5b：自動旋轉與鏡頭飛行不互搶：飛行途中開啟會等降落才轉，旋轉中聚焦由飛行接手
+  ✓  448 [desktop-chromium] › e2e/device-tool.spec.ts:129:3 › /islands/legacy › 故障注入：WebGL 無法建立、context 遺失都改為清單；GLB 失敗回到暫代建築
+  -  458 [desktop-chromium] › e2e/device-tool.spec.ts:142:3 › /islands/legacy › 雙指縮放：每次雙指觸控計時，送出後存成結果
+  ✓  453 [mobile-chromium] › e2e/islands-candidate.spec.ts:66:1 › 正式文案：沒有 Prototype 字樣與測試控制項；保留 3D／清單切換、BFS 入口與島嶼／教材數量
+  ✓  459 [desktop-chromium] › e2e/device-tool.spec.ts:169:1 › 人工檢查表（D.3-4B）：先登記裝置；只存操作過的項目，其餘 Not Tested；匯出 JSON 與文字版
+  ✓  461 [mobile-chromium] › e2e/islands.spec.ts:50:3 › /islands › 基礎程式島載入 GLB，不請求外部 Draco decoder
+  ✓  456 [mobile-chromium] › e2e/islands-acceptance.spec.ts:94:3 › /islands/candidate › 無障礙名稱：地圖內每個按鈕與連結都有可讀名稱，地圖區塊與畫布都有標籤
+  ✓  462 [mobile-chromium] › e2e/islands.spec.ts:61:3 › /islands › 另外兩座島維持原本的幾何模型與教材入口
+  ✓  457 [mobile-chromium] › e2e/hex-camera.spec.ts:463:5 › D.3-5b：環繞中 WebGL context 遺失時停止並改為清單導航
+  ✓  463 [mobile-chromium] › e2e/islands-acceptance.spec.ts:46:5 › /islands/legacy › 360px：全景、聚焦與清單模式都沒有水平溢出
+  ✓  460 [mobile-chromium] › e2e/islands-candidate.spec.ts:90:1 › 清單模式：不用 3D 也能選島與進入教材，切回 3D 後場景重新載入
+  ✓  464 [mobile-chromium] › e2e/islands.spec.ts:74:3 › /islands › Anchor 標籤只負責定位，不攔截點擊；route_exit 沒有標籤
+  ✓  467 [mobile-chromium] › e2e/islands-candidate.spec.ts:102:5 › WebGL 無法建立時由 Error Boundary 接住，自動改為清單導航
+  ✓  466 [mobile-chromium] › e2e/islands-acceptance.spec.ts:46:5 › /islands/legacy › 390px：全景、聚焦與清單模式都沒有水平溢出
+  -  470 [mobile-chromium] › e2e/islands-acceptance.spec.ts:62:3 › /islands/legacy › 鍵盤：Tab 到島嶼名牌按 Enter 聚焦，再 Tab 到「返回全景」按 Enter 回到全景，焦點框可見
+  -  471 [mobile-chromium] › e2e/islands-acceptance.spec.ts:78:3 › /islands/legacy › 鍵盤：只用鍵盤切到清單、選島並進入教材
+  ✓  468 [mobile-chromium] › e2e/islands.spec.ts:89:3 › /islands › 燈塔與碼頭只顯示簡短說明
+  ✓  472 [mobile-chromium] › e2e/islands-acceptance.spec.ts:94:3 › /islands/legacy › 無障礙名稱：地圖內每個按鈕與連結都有可讀名稱，地圖區塊與畫布都有標籤
+  ✓  474 [mobile-chromium] › e2e/navigation.spec.ts:14:5 › /visualize 與 /visualize/<slug> 永久轉址到 /learn，保留 slug 與查詢參數
+  ✓  469 [mobile-chromium] › e2e/islands-candidate.spec.ts:111:5 › WebGL context 中途遺失時改為清單導航
+  ✓  475 [mobile-chromium] › e2e/navigation.spec.ts:26:5 › 主選單：探索群島／完整課綱／互動實驗島，目前頁面標示；開始學習開啟 F01
+  ✓  477 [mobile-chromium] › e2e/navigation.spec.ts:42:5 › 互動實驗島列出六個實驗；實驗頁沒有模式切換，麵包屑回到互動實驗島
+  ✓  473 [mobile-chromium] › e2e/islands.spec.ts:103:3 › /islands › 選取基礎程式島後點工坊前往 /learn
+  ✓  478 [mobile-chromium] › e2e/navigation.spec.ts:61:5 › 完整課綱開頭的簡介：Think · Visualize · Code，從 F01 開始或先到互動實驗島
+  ✓  480 [mobile-chromium] › e2e/navigation.spec.ts:73:5 › 404 頁指向完整課綱與互動實驗島
+  -  481 [mobile-chromium] › e2e/navigation.spec.ts:80:5 › 六個實驗與所有課綱頁（含資料庫應用島已開放的課）都能開啟，頁面內的站內連結沒有失效
+  ✓  482 [mobile-chromium] › e2e/navigation.spec.ts:106:5 › 側欄：目前課程所在的島與難度自動展開並標示，島嶼卡片回到 3D 島嶼；手機版是可用 Escape 關閉的抽屜
+  -  483 [mobile-chromium] › e2e/navigation.spec.ts:140:5 › 規劃中的群島與課程看得到但不能點：側欄停用列與完整課綱的大綱都沒有連結
+  ✓  484 [mobile-chromium] › e2e/navigation.spec.ts:159:5 › 色彩與無障礙實驗室：輸入顏色即時判定 AA／AAA，套用建議色後通過
+  ✓  485 [mobile-chromium] › e2e/navigation.spec.ts:185:5 › Linux Terminal Simulator：指令改變虛擬檔案系統、任務依結果完成、權限有效、可重設
+  ✓  476 [mobile-chromium] › e2e/islands-candidate.spec.ts:117:5 › GLB 載入失敗時回到暫代建築，HTML 地點入口仍可使用
+  ✓  486 [mobile-chromium] › e2e/navigation.spec.ts:223:5 › AI 群島入口：首頁「更多學習群島」→ 群島總覽，七座島三個主題都是規劃中且沒有課程連結；側欄標示目前群島
+  ✓  479 [mobile-chromium] › e2e/islands.spec.ts:110:3 › /islands › 清單模式：不用 3D 也能選島與進入教材，切回 3D 後場景重新載入
+  ✓  488 [mobile-chromium] › e2e/navigation.spec.ts:263:5 › Flexbox Playground：調整屬性後預覽與 CSS 同步，預設版面可一鍵套用，課程列為規劃中
+  ✓  490 [mobile-chromium] › e2e/navigation.spec.ts:291:5 › CSS Grid Playground：輸入軌道與位置即時套用到真實格線，錯誤值標示且不套用，預設版面與 CSS 同步
+  ✓  489 [mobile-chromium] › e2e/islands.spec.ts:121:7 › /islands › WebGL 無法建立時由 Error Boundary 接住，自動改為清單導航
+  ✓  465 [mobile-chromium] › e2e/hex-camera.spec.ts:471:1 › D.3-5b：環繞時持續重畫但不重畫陰影；停止後閒置重畫為 0
+  ✓  491 [mobile-chromium] › e2e/navigation.spec.ts:328:5 › Responsive Layout Simulator：預覽框以真實寬度套用媒體查詢，斷點可調，頁面不水平溢出
+  ✓  494 [mobile-chromium] › e2e/navigation.spec.ts:365:5 › Mobile Navigation Simulator：四種模式可切換操作，鍵盤、焦點與 ARIA 正確，觸控目標實測至少 48px
+  ✓  492 [mobile-chromium] › e2e/islands.spec.ts:130:7 › /islands › WebGL context 中途遺失時改為清單導航
+  ✓  495 [mobile-chromium] › e2e/player.spec.ts:26:1 › 首頁與主選單導航
+  ✓  487 [mobile-chromium] › e2e/islands-candidate.spec.ts:129:1 › 聚焦：地圖與工具列標示目前島嶼，地點清單與 3D 點擊都能進入教材，並可返回全景
+  -  498 [mobile-chromium] › e2e/islands-candidate.spec.ts:154:1 › 滑鼠 hover：島上顯示可點擊游標並點亮該島名牌，海面沒有；聚焦後目標建築也顯示可點擊
+  ✓  497 [mobile-chromium] › e2e/player.spec.ts:43:3 › array 教材、語言切換與前進後退一致
+  ✓  500 [mobile-chromium] › e2e/player.spec.ts:43:3 › stack 教材、語言切換與前進後退一致
+  ✓  496 [mobile-chromium] › e2e/islands.spec.ts:137:3 › /islands › BFS 不屬於任何島，仍可從頁面附註進入原教材頁
+  ✓  501 [mobile-chromium] › e2e/player.spec.ts:43:3 › queue 教材、語言切換與前進後退一致
+  ✓  503 [mobile-chromium] › e2e/player.spec.ts:43:3 › binary-search 教材、語言切換與前進後退一致
+  ✓  504 [mobile-chromium] › e2e/player.spec.ts:43:3 › bubble-sort 教材、語言切換與前進後退一致
+  ✓  502 [mobile-chromium] › e2e/islands.spec.ts:146:7 › /islands › GLB 載入失敗時恢復原本的幾何模型
+  ✓  505 [mobile-chromium] › e2e/player.spec.ts:43:3 › bfs 教材、語言切換與前進後退一致
+  ✓  499 [mobile-chromium] › e2e/islands-candidate.spec.ts:182:3 › 手機 360px：工具列維持一行、島名不截字，地圖標題不遮住名牌
+  ✓  506 [mobile-chromium] › e2e/islands.spec.ts:155:7 › /islands › 必要契約節點缺失時恢復原本的幾何模型
+  ✓  507 [mobile-chromium] › e2e/player.spec.ts:74:1 › 播放結束立即停止，且可從結尾重播
+  ✓  510 [mobile-chromium] › e2e/player.spec.ts:90:1 › 暫停、重置取消計時並可重新播放
+  ✓  493 [mobile-chromium] › e2e/hex-camera.spec.ts:488:1 › D.3-5b：自動旋轉與返回全景並排在地圖內，桌機與 360／390 px 都不溢出
+  -  512 [mobile-chromium] › e2e/regional-world.spec.ts:20:7 › regional world: flag off (default build) › no /world route exists and nothing links to one
+  ✓  511 [mobile-chromium] › e2e/player.spec.ts:107:1 › 播放中更換輸入後重建步驟與更新值
+  ✓  509 [mobile-chromium] › e2e/islands.spec.ts:50:3 › /islands/legacy › 基礎程式島載入 GLB，不請求外部 Draco decoder
+  ✓  508 [mobile-chromium] › e2e/islands-candidate.spec.ts:182:3 › 手機 390px：工具列維持一行、島名不截字，地圖標題不遮住名牌
+  -  516 [mobile-chromium] › e2e/islands-candidate.spec.ts:209:1 › 桌機：地圖標題不遮住任何島嶼名牌（1440 與 1280 px 寬）
+  ✓  515 [mobile-chromium] › e2e/islands.spec.ts:61:3 › /islands/legacy › 另外兩座島維持原本的幾何模型與教材入口
+  ✓  514 [mobile-chromium] › e2e/player.spec.ts:131:1 › 深淺色切換、保存與頁面溢出檢查
+  ✓  519 [mobile-chromium] › e2e/sql.spec.ts:33:1 › SQL 課程：沒有程式語言分頁，範例有語法高亮與結果表，先修與建議先修分開列出
+  ✓  513 [mobile-chromium] › e2e/regional-world.spec.ts:30:7 › regional world: flag on › overview: every region and the hub, in 3D and in the guide; a region opens its map
+  ✓  518 [mobile-chromium] › e2e/islands.spec.ts:74:3 › /islands/legacy › Anchor 標籤只負責定位，不攔截點擊；route_exit 沒有標籤
+  ✓  520 [mobile-chromium] › e2e/sql.spec.ts:47:1 › SQL 練習場：預設查詢、空結果、錯誤回饋、修改後重設、重複執行與 Ctrl+Enter（只載入本站的 WebAssembly）
+  ✓  517 [mobile-chromium] › e2e/islands-candidate.spec.ts:219:3 › /islands/candidate：Skip link 只在鍵盤聚焦時出現
+  ✓  522 [mobile-chromium] › e2e/islands.spec.ts:89:3 › /islands/legacy › 燈塔與碼頭只顯示簡短說明
+  ✓  524 [mobile-chromium] › e2e/islands-candidate.spec.ts:219:3 › /islands/legacy：Skip link 只在鍵盤聚焦時出現
+  ✓  521 [mobile-chromium] › e2e/regional-world.spec.ts:43:7 › regional world: flag on › CS region: eight islands, planned ones marked, labels clear, every island at least 180 px wide on desktop
+  ✓  525 [mobile-chromium] › e2e/islands.spec.ts:103:3 › /islands/legacy › 選取基礎程式島後點工坊前往 /learn
+  ✓  527 [mobile-chromium] › e2e/regional-world.spec.ts:58:7 › regional world: flag on › AI region: seven planned islands, labels clear, islands at least 180 px wide on desktop
+  ✓  528 [mobile-chromium] › e2e/islands.spec.ts:110:3 › /islands/legacy › 清單模式：不用 3D 也能選島與進入教材，切回 3D 後場景重新載入
+  ✓  530 [mobile-chromium] › e2e/islands.spec.ts:121:7 › /islands/legacy › WebGL 無法建立時由 Error Boundary 接住，自動改為清單導航
+  ✓  523 [mobile-chromium] › e2e/sql.spec.ts:87:1 › SQL 練習：結果比對（錯誤、參考解答與另一種寫法都正確判定），隱藏測試不顯示預期資料
+  ✓  526 [mobile-chromium] › e2e/islands-candidate.spec.ts:241:1 › 三條路由互不影響：/islands 維持現行版，legacy 就是它（不被索引），candidate 是新版且未被連結
+  -  533 [mobile-chromium] › e2e/trials-ccarf-mock.spec.ts:40:3 › CCAR-F mock exam (fixture build) › the exam page offers both modes and no longer says the questions are being prepared
+  -  534 [mobile-chromium] › e2e/trials-ccarf-mock.spec.ts:48:3 › CCAR-F mock exam (fixture build) › official-style: 60 mixed questions, 120 minutes, the exact-match rule and no official score or verdict
+  -  535 [mobile-chromium] › e2e/trials-ccarf-mock.spec.ts:65:3 › CCAR-F mock exam (fixture build) › multiple-response: checkboxes up to the cap, partial and full selection, changes, keyboard, labels and touch targets
+  -  536 [mobile-chromium] › e2e/trials-ccarf-mock.spec.ts:116:3 › CCAR-F mock exam (fixture build) › mark, reload into the same draw and choices, confirm with a partial answer, exact-match results and the wrong-answer book
+  -  537 [mobile-chromium] › e2e/trials-ccarf-mock.spec.ts:181:3 › CCAR-F mock exam (fixture build) › official-style submits itself when the 120 minutes run out, with no verdict
+  -  538 [mobile-chromium] › e2e/trials-ccarf-mock.spec.ts:196:3 › CCAR-F mock exam (fixture build) › a session whose drawn question changed is blocked, never re-drawn or graded
+  -  539 [mobile-chromium] › e2e/trials-fixed-paper-retirement.spec.ts:51:3 › APCS fixed paper with a withdrawn question (fixture build) › the exam page and the paper say it is under maintenance, offer no start, and carry nothing of the withdrawn questio
+  -  540 [mobile-chromium] › e2e/trials-fixed-paper-retirement.spec.ts:62:3 › APCS fixed paper with a withdrawn question (fixture build) › an unfinished session holding the withdrawn question is not resumed; it can be abandoned, ungraded
+  -  541 [mobile-chromium] › e2e/trials-fixed-paper-retirement.spec.ts:74:3 › APCS fixed paper with a withdrawn question (fixture build) › a result taken before the withdrawal keeps its score and shows the withdrawn question as withdrawn
+  -  542 [mobile-chromium] › e2e/trials-history.spec.ts:45:3 › version-1 records in the browser › reading a version-1 result changes nothing: the score as it was, the data untouched
+  -  543 [mobile-chromium] › e2e/trials-history.spec.ts:52:3 › version-1 records in the browser › the first write saves the exact version-1 text, then version 2 with every record (the unreadable one set aside)
+  -  544 [mobile-chromium] › e2e/trials-history.spec.ts:75:3 › unreadable records in the browser (T.3I) › two different corruptions are each kept, exactly; the same one again adds nothing; the review book says so
+  -  545 [mobile-chromium] › e2e/trials-ipas-mock.spec.ts:31:3 › iPAS mock exam (fixture build) › the exam page offers both subjects in both modes
+  -  546 [mobile-chromium] › e2e/trials-ipas-mock.spec.ts:38:3 › iPAS mock exam (fixture build) › official-style: 75 minutes and the official pass mark with its source
+  -  547 [mobile-chromium] › e2e/trials-ipas-mock.spec.ts:49:3 › iPAS mock exam (fixture build) › extended practice: navigate, mark, reload into the same draw, confirm, submit, results and wrong-answer review
+  -  548 [mobile-chromium] › e2e/trials-ipas-mock.spec.ts:102:3 › iPAS mock exam (fixture build) › L12 official-style: a drawn 50-question paper by keyboard, then results by syllabus item (T.3D)
+  -  549 [mobile-chromium] › e2e/trials-ipas-mock.spec.ts:130:3 › iPAS mock exam (fixture build) › official-style submits itself when the 75 minutes run out
+  -  550 [mobile-chromium] › e2e/trials-ipas-mock.spec.ts:141:3 › iPAS mock exam (fixture build) › a session whose drawn question changed is blocked, never re-drawn or graded
+  -  551 [mobile-chromium] › e2e/trials-paper-policy.spec.ts:27:3 › retired, original and adapted papers (fixture build) › a retired paper is listed as retired and takes no new session
+  -  552 [mobile-chromium] › e2e/trials-paper-policy.spec.ts:37:3 › retired, original and adapted papers (fixture build) › the official original under maintenance says it is no longer whole and carries nothing of the withdrawn question
+  -  553 [mobile-chromium] › e2e/trials-paper-policy.spec.ts:48:3 › retired, original and adapted papers (fixture build) › the adapted paper says what it comes from, holds 39 questions without the withdrawn one, and can be taken
+  ✓  554 [mobile-chromium] › e2e/trials.spec.ts:33:3 › flag off › every /trials route is a 404
+  -  555 [mobile-chromium] › e2e/trials.spec.ts:42:3 › trial hall to result (flag on) › the hall groups the exams by archipelago; only exams with a paper open
+  -  556 [mobile-chromium] › e2e/trials.spec.ts:57:3 › trial hall to result (flag on) › take a paper: answer, reload, submit, read the result, then the review book
+  -  557 [mobile-chromium] › e2e/trials.spec.ts:90:3 › trial hall to result (flag on) › the first official paper (114 普考計算機概要): 40 questions in their order, credited, with the official answer
+  -  558 [mobile-chromium] › e2e/trials.spec.ts:111:3 › trial hall to result (flag on) › a session whose time ran out while the page was closed is graded on opening
+  -  559 [mobile-chromium] › e2e/trials.spec.ts:131:3 › archipelago entries on the world pages (both flags) › the overview guide and each region list their trials; iPAS is named but not open
+  ✓  532 [mobile-chromium] › e2e/sql.spec.ts:108:1 › 目錄：資料庫應用島 20 堂全部開放（F.1d），最後一堂不接到其他島；規劃中的島的課沒有頁面
+  ✓  531 [mobile-chromium] › e2e/islands.spec.ts:130:7 › /islands/legacy › WebGL context 中途遺失時改為清單導航
+  ✓  561 [mobile-chromium] › e2e/device-tool.spec.ts:52:1 › 沒有開啟量測時，頁面原樣經過量測 proxy
+  ✓  563 [mobile-chromium] › e2e/device-tool.spec.ts:60:1 › 區網暴露：只轉址到本機路徑、錯誤不回傳堆疊、拒絕過大的請求
+  ✓  560 [mobile-chromium] › e2e/world-topology.spec.ts:65:7 › P8.3 world topology › overview: the hub is linked to every region and relation bridges join neighbours, on the map and in words
+  ✓  565 [mobile-chromium] › e2e/world-topology.spec.ts:80:7 › P8.3 world topology › overview labels at each reviewed size: on the stage, apart, off every island and every link
+  ✓  562 [mobile-chromium] › e2e/islands.spec.ts:137:3 › /islands/legacy › BFS 不屬於任何島，仍可從頁面附註進入原教材頁
+  ✓  567 [mobile-chromium] › e2e/islands.spec.ts:146:7 › /islands/legacy › GLB 載入失敗時恢復原本的幾何模型
+  ✓  529 [mobile-chromium] › e2e/regional-world.spec.ts:67:7 › regional world: flag on › focus follows the address: choose, back, forward, deep link, unknown id, Escape up two levels
+  ✓  568 [mobile-chromium] › e2e/islands.spec.ts:155:7 › /islands/legacy › 必要契約節點缺失時恢復原本的幾何模型
+  ✓  566 [mobile-chromium] › e2e/world-topology.spec.ts:93:7 › P8.3 world topology › region selection: each region opens from its label and from the guide, back returns to the overview; the hub opens the labs
+  -  570 [mobile-chromium] › e2e/world-topology.spec.ts:115:7 › P8.3 world topology › keyboard: Tab walks the labels in registry order, the hub last; Enter opens the region
+  ✓  571 [mobile-chromium] › e2e/world-topology.spec.ts:132:7 › P8.3 world topology › a region map offers the regions its bridges reach; every other region is reached through the world overview
+  ✓  569 [mobile-chromium] › e2e/regional-world.spec.ts:106:7 › regional world: flag on › release build: /world/cs?stress=glb is the ordinary map, no stand-in models and no「效能測試替身」
+  -  573 [mobile-chromium] › e2e/regional-world.spec.ts:121:7 › regional world: flag on › review build only: /world/cs?stress=glb adds the stand-in models and says so
+  ✓  574 [mobile-chromium] › e2e/regional-world.spec.ts:131:7 › regional world: flag on › a planned island: its description and「規劃中」, no lesson link, no progress, no「已開放」
+  ✓  575 [mobile-chromium] › e2e/regional-world.spec.ts:143:7 › regional world: flag on › keyboard: a label takes focus and Enter focuses its island
+  -  576 [mobile-chromium] › e2e/regional-world.spec.ts:151:7 › regional world: flag on › mouse hover over an island lights its label
+  ✓  577 [mobile-chromium] › e2e/regional-world.spec.ts:162:7 › regional world: flag on › phones: each pin has a 44 px touch area
+  ✓  578 [mobile-chromium] › e2e/regional-world.spec.ts:171:7 › regional world: flag on › P8.2 overview: one guide entry and one label per registry region, labels apart and on the stage, no sideways scroll
+  ✓  579 [mobile-chromium] › e2e/regional-world.spec.ts:199:9 › regional world: flag on › P8.2 ai region: every registry island on the map and in the list, planned ones marked, labels clear
+  ✓  580 [mobile-chromium] › e2e/regional-world.spec.ts:199:9 › regional world: flag on › P8.2 design region: every registry island on the map and in the list, planned ones marked, labels clear
+  ✓  581 [mobile-chromium] › e2e/regional-world.spec.ts:199:9 › regional world: flag on › P8.2 web region: every registry island on the map and in the list, planned ones marked, labels clear
+  ✓  572 [mobile-chromium] › e2e/world-topology.spec.ts:201:9 › P8.3 phone acceptance of the region maps › 320 px: every region reads as a whole, every island focuses to at least 88 px clear of what lies over the map
+  ✓  582 [mobile-chromium] › e2e/regional-world.spec.ts:199:9 › regional world: flag on › P8.2 sys region: every registry island on the map and in the list, planned ones marked, labels clear
+  ✓  584 [mobile-chromium] › e2e/regional-world.spec.ts:216:7 › regional world: flag on › P8.2 (D5) a focused island is at least 88 px wide on phones (180 px on desktop) in every region
+  ✓  585 [mobile-chromium] › e2e/regional-world.spec.ts:227:7 › regional world: flag on › P8.2 CS region: the lab island is the shared hub, not one of the eight
+  -  586 [mobile-chromium] › e2e/regional-world.spec.ts:236:7 › regional world: flag on › P8.2 keyboard map controls: arrows pan, 0 returns to the overview, Escape gives the focus back level by level
+  ✓  587 [mobile-chromium] › e2e/regional-world.spec.ts:274:7 › regional world: flag on › P8.2 phones: the map takes two fingers for zoom and pan, one for turning; the overview labels are 44 px targets
+  ✓  588 [mobile-chromium] › e2e/regional-world.spec.ts:293:7 › regional world: flag on › without WebGL: the overview guide and each region list still reach every island; planned ones say so
+  ✓  589 [mobile-chromium] › e2e/regional-world.spec.ts:313:7 › regional world: flag on › the central hub states as many labs as /learn has open: the same number on every region map and on /learn
+  ✓  583 [mobile-chromium] › e2e/world-topology.spec.ts:201:9 › P8.3 phone acceptance of the region maps › 375 px: every region reads as a whole, every island focuses to at least 88 px clear of what lies over the map
+  ✓  590 [mobile-chromium] › e2e/world-topology.spec.ts:201:9 › P8.3 phone acceptance of the region maps › 390 px: every region reads as a whole, every island focuses to at least 88 px clear of what lies over the map
+  ✓  591 [mobile-chromium] › e2e/world-topology.spec.ts:287:7 › P8.3 phone acceptance of the region maps › phones: closing the subjects sheet gives the focused island the whole map; the list is below the map, not over it
+  -  592 [mobile-chromium] › e2e/world-topology.spec.ts:316:7 › P8.4 responsive world › region maps from 834 to 1440 px: every label on the map, apart and clear of the island list; pins where the stage is too narrow for captions
+  ✓  593 [mobile-chromium] › e2e/world-topology.spec.ts:338:7 › P8.4 responsive world › a focused island's subjects sheet is above the map's pins
+  ✓  594 [mobile-chromium] › e2e/world-topology.spec.ts:362:45 › P8.4 responsive world › 320 px: the header of the world pages keeps its menu on one line, its height, and 44 px touch areas that do not overlap; other pages are untouched
+  ✓  595 [mobile-chromium] › e2e/world-topology.spec.ts:362:45 › P8.4 responsive world › 375 px: the header of the world pages keeps its menu on one line, its height, and 44 px touch areas that do not overlap; other pages are untouched
+  ✓  596 [mobile-chromium] › e2e/world-topology.spec.ts:362:45 › P8.4 responsive world › 390 px: the header of the world pages keeps its menu on one line, its height, and 44 px touch areas that do not overlap; other pages are untouched
+  -  597 [mobile-chromium] › e2e/world-topology.spec.ts:396:7 › P8.4 responsive world › visual review (review build only): /world?without=<link> draws the overview without that link and changes nothing else
+  ✓  598 [mobile-chromium] › e2e/world-topology.spec.ts:406:7 › P8.4 responsive world › release build: /world?without=<links> cannot remove a bridge; the map and the guide are those of /world
+  ✓  599 [mobile-chromium] › e2e/world-topology.spec.ts:428:7 › P8.5 visual decisions › V1: no bridge between web and sys on the overview; both keep their causeway to the hub and are reached through the world overview
+  ✓  600 [mobile-chromium] › e2e/world-topology.spec.ts:444:7 › P8.5 visual decisions › V4: the hub causeways are quieter than before and still stand out from the sea; relation bridges stand out more
+  -  601 [mobile-chromium] › e2e/world-topology.spec.ts:476:7 › P8.5 visual decisions › V3: pins and captions swap with the window's width without losing the focused island, the address or the list
+  ✓  564 [mobile-chromium] › e2e/device-tool.spec.ts:80:3 › 自動量測 › 一輪候選頁與舊版：數字與桌面量測一致，軟體算圖標為不可靠；候選頁另量時間切換與自動旋轉
+  ✓  602 [mobile-chromium] › e2e/device-tool.spec.ts:129:3 › /islands/candidate › 故障注入：WebGL 無法建立、context 遺失都改為清單；GLB 失敗回到暫代建築
+  ✓  603 [mobile-chromium] › e2e/device-tool.spec.ts:142:3 › /islands/candidate › 雙指縮放：每次雙指觸控計時，送出後存成結果
+  ✓  604 [mobile-chromium] › e2e/device-tool.spec.ts:129:3 › /islands/legacy › 故障注入：WebGL 無法建立、context 遺失都改為清單；GLB 失敗回到暫代建築
+  ✓  605 [mobile-chromium] › e2e/device-tool.spec.ts:142:3 › /islands/legacy › 雙指縮放：每次雙指觸控計時，送出後存成結果
+  ✓  606 [mobile-chromium] › e2e/device-tool.spec.ts:169:1 › 人工檢查表（D.3-4B）：先登記裝置；只存操作過的項目，其餘 Not Tested；匯出 JSON 與文字版

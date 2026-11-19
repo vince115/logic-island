@@ -1,0 +1,9 @@
+world-only (LOGIC_ISLAND_REGIONAL_WORLD=1 only), head b1a9010:
+  113 skipped
+  493 passed (10.4m)
+default (no flag), head b1a9010:
+  177 skipped
+  429 passed (9.4m)
+review build (LOGIC_ISLAND_REGIONAL_WORLD=1 and LOGIC_ISLAND_WORLD_REVIEW=1), regional-world, world-topology and island-interactions specs only:
+  20 skipped
+  70 passed (2.0m)
