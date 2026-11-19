@@ -1,0 +1,12 @@
+{"build":"prototype (0423877, world + p9 flags)","route":"/world","size":"1440x1000","main":15,"mainTriangles":15902,"shadow":0,"shadowTriangles":0}
+{"build":"prototype (0423877, world + p9 flags)","route":"/p9","size":"1440x1000","main":14,"mainTriangles":43944,"shadow":11,"shadowTriangles":43522}
+{"build":"prototype (0423877, world + p9 flags)","route":"/world/cs","size":"1440x1000","main":58,"mainTriangles":45228,"shadow":48,"shadowTriangles":47678}
+{"build":"prototype (0423877, world + p9 flags)","route":"/p9/cs","size":"1440x1000","main":51,"mainTriangles":66821,"shadow":45,"shadowTriangles":88065}
+{"build":"prototype (0423877, world + p9 flags)","route":"/world/cs?island=foundations","size":"1440x1000","main":35,"mainTriangles":50680,"shadow":48,"shadowTriangles":47678}
+{"build":"prototype (0423877, world + p9 flags)","route":"/p9/cs?island=foundations","size":"1440x1000","main":41,"mainTriangles":90545,"shadow":45,"shadowTriangles":88065}
+{"build":"prototype (0423877, world + p9 flags)","route":"/world","size":"375x812","main":15,"mainTriangles":15866,"shadow":0,"shadowTriangles":0}
+{"build":"prototype (0423877, world + p9 flags)","route":"/p9","size":"375x812","main":14,"mainTriangles":45976,"shadow":11,"shadowTriangles":45554}
+{"build":"prototype (0423877, world + p9 flags)","route":"/world/cs","size":"375x812","main":58,"mainTriangles":45228,"shadow":48,"shadowTriangles":47678}
+{"build":"prototype (0423877, world + p9 flags)","route":"/p9/cs","size":"375x812","main":51,"mainTriangles":66821,"shadow":45,"shadowTriangles":88065}
+{"build":"prototype (0423877, world + p9 flags)","route":"/world/cs?island=foundations","size":"375x812","main":44,"mainTriangles":41531,"shadow":48,"shadowTriangles":47678}
+{"build":"prototype (0423877, world + p9 flags)","route":"/p9/cs?island=foundations","size":"375x812","main":39,"mainTriangles":57959,"shadow":45,"shadowTriangles":88065}

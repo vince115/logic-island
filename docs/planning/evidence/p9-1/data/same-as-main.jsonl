@@ -1,0 +1,12 @@
+{"route":"/","size":"1440x1000","text":true,"links":true,"differentPixels":0,"total":1440000}
+{"route":"/world","size":"1440x1000","text":true,"links":true,"differentPixels":0,"total":1440000}
+{"route":"/world/cs","size":"1440x1000","text":true,"links":true,"differentPixels":0,"total":1440000}
+{"route":"/world/cs?island=foundations","size":"1440x1000","text":true,"links":true,"differentPixels":0,"total":1440000}
+{"route":"/world/cs?island=networks","size":"1440x1000","text":true,"links":true,"differentPixels":0,"total":1440000}
+{"route":"/world/ai","size":"1440x1000","text":true,"links":true,"differentPixels":0,"total":1440000}
+{"route":"/islands","size":"1440x1000","text":true,"links":true,"differentPixels":0,"total":1440000}
+{"route":"/","size":"375x812","text":true,"links":true,"differentPixels":0,"total":304500}
+{"route":"/world","size":"375x812","text":true,"links":true,"differentPixels":0,"total":304500}
+{"route":"/world/cs","size":"375x812","text":true,"links":true,"differentPixels":0,"total":304500}
+{"route":"/world/cs?island=foundations","size":"375x812","text":true,"links":true,"differentPixels":0,"total":304500}
+{"route":"/islands","size":"375x812","text":true,"links":true,"differentPixels":0,"total":304500}
