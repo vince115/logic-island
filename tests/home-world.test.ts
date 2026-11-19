@@ -77,7 +77,7 @@ describe('home world (資料庫應用島)', () => {
     const candidate = islandsWorld.natural!;
     expect(keep(islandsHomeWorld.natural!.trees).filter(t => t.islandId !== LAB_ISLAND_ID)).toEqual(candidate.trees);
     expect(keep(islandsHomeWorld.natural!.rocks).filter(t => t.islandId !== LAB_ISLAND_ID)).toEqual(candidate.rocks);
-    expect(islandsHomeWorld.natural!.plaza).toEqual(candidate.plaza);
+    expect(islandsHomeWorld.natural!.plazas).toEqual(candidate.plazas);
     const roads = (w: typeof home) => settlementRoads(w).filter(r => r.bridgeId !== 'structures-databases' && r.bridgeId !== 'algorithms-labs').map(r => JSON.stringify(r));
     expect(roads(home)).toEqual(roads(islandsWorld.world));
   });

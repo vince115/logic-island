@@ -1,0 +1,5 @@
+Private-bank leak scan (scripts/trials/leak-scan.ts, read-only; reports paths, counts and ids, never text), 2026-11-19, head b1a9010.
+tracked files:            701 texts against 18220 fragments of 350 private questions  -> clean
+history origin/main..HEAD: 40 texts                                                   -> clean
+head world-only .next:   2952 texts                                                   -> clean
+head default .next:      2270 texts                                                   -> clean

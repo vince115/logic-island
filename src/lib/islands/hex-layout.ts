@@ -1,16 +1,21 @@
 import { addAxial, hexDistance, hexSpiral, type Axial } from './hex';
 import { glbAssets } from './asset-registry';
-import { placementPose, type HexGlbSettlement } from './hex-buildings';
+import { placementPose, type HexGlbPlacement, type HexGlbSettlement } from './hex-buildings';
 import {
-  MAIN_ROAD_WIDTH, MAIN_ROUTES, clusteredForest, naturalRocks, naturalTerrains, plazaLayout, type KeepOut, type NaturalRock, type PlazaLayout,
+  MAIN_ROAD_WIDTH, clusteredForest, naturalRocks, naturalTerrains, plazaLayout, type KeepOut, type NaturalRock, type PlazaLayout,
 } from './hex-natural-scene';
 import type { ForestPatch, TreeInstance } from './hex-nature-data';
 import type { HexBridge, HexSettlement, HexSpur, HexTerrain, HexTile, HexWorld } from './hex-world';
+import type { GlbAsset, GlbAssetId } from './types';
 
 /**
  * Builders shared by the world layouts (D.3-1): the production world (`islands-world.ts`, 37 tiles) and the
  * 19-tile scale prototype describe their own tiles, roads, bridges and buildings as a `LayoutSpec`;
  * `assembleLayout` turns either into the same `WorldLayout`.
+ *
+ * P9 S1: a `LayoutSpec` is a list of `IslandSpec`s and the bridges between them. Nothing here names an island: an
+ * island's terrain, woods, roads, buildings and plaza are its own spec, so any of the 29 islands (and any number of
+ * them with buildings and a plaza) goes through the same builder.
  */
 export interface WorldLayout {
   world: HexWorld;
@@ -19,10 +24,10 @@ export interface WorldLayout {
   /** Zone summary for the comparison report: which tiles serve which purpose. */
   zones: Record<'plaza' | 'buildings' | 'forest' | 'hills' | 'shore' | 'open', number>;
   /**
-   * D.2c-1 natural style, placed once here: clustered trees, rocks, the plaza layout and the wider main route from
-   * the dock through the plaza to the lighthouse.
+   * D.2c-1 natural style, placed once here: clustered trees, rocks, and for every island that has a plaza (P9 S1) its
+   * plaza layout and its wider main route (on the foundations island, from the dock through the plaza to the lighthouse).
    */
-  natural?: { trees: TreeInstance[]; rocks: NaturalRock[]; keepOut: KeepOut[]; plaza: PlazaLayout; roadWidths: Record<string, number> };
+  natural?: { trees: TreeInstance[]; rocks: NaturalRock[]; keepOut: KeepOut[]; plazas: PlazaLayout[]; roadWidths: Record<string, number> };
 }
 
 export const at = (a: Axial, b: Axial) => a.q === b.q && a.r === b.r;
@@ -38,7 +43,7 @@ export function tiles(center: Axial, rel: Axial[], zone: (t: Axial) => Zone): He
 export const inList = (list: Axial[]) => (t: Axial) => list.some(x => at(x, t));
 export const A = (q: number, r: number): Axial => ({ q, r });
 
-/* -------------------------------------------- the other two islands (placeholders) */
+/* -------------------------------------------- terrain presets (the islands without authored terrain) */
 
 function harbor(center: Axial, rel: Axial[], forest: Axial[]): HexTile[] {
   return tiles(center, rel, t => at(t, A(0, 0)) ? { terrain: 'plaza' } : t.r >= 1 && t.q + t.r >= 1 ? { terrain: 'sand' }
@@ -73,7 +78,7 @@ function planned(center: Axial, rel: Axial[]): HexTile[] {
   return tiles(center, rel, t => t.r >= 1 && t.q + t.r >= 1 ? { terrain: 'sand' } : { terrain: 'grass' });
 }
 
-/** Tile counts per zone for the foundations island, for the comparison report. */
+/** Tile counts per zone of one island, for the comparison report. */
 function zones(settlement: HexSettlement, buildingTiles: Axial[]): WorldLayout['zones'] {
   const count = (f: (t: HexTile) => boolean) => settlement.tiles.filter(f).length;
   const isBuilding = inList(buildingTiles);
@@ -108,65 +113,98 @@ export function lighthouseFront(pivot: [number, number], scale = glbAssets['basi
 }
 
 /**
- * Rough building footprints (map units) for keeping trees, rocks and plaza features clear; the unit tests check the
- * results against the real GLB footprints. The workshop is about 1.8 × 1.9 at 0.6 scale, so three circles.
+ * One island's plaza (D.2c-1; P9 S1: any island may have one). `mainRoutes`: the ids of its roads that are drawn wide
+ * and lit, its spine. `forecourts`: spurs that end at a door and get paving there. `terraces`: round paving under a
+ * placed GLB node, `radius` in that asset's own units (the builder scales it and finds the node on the map).
  */
-const KEEP_OUT: Record<string, [number, number, number][]> = {
-  Landmark_Lighthouse: [[0, 0, 0.8]], Dock_Entry: [[0, 0, 0.9]], Building_Workshop: [[-0.55, 0.15, 1], [0, 0.15, 1], [0.55, 0.15, 1]],
-};
-function natural(world: HexWorld, layout: HexGlbSettlement, forests: ForestPatch[]): NonNullable<WorldLayout['natural']> {
-  const keepOut: KeepOut[] = layout.placements.flatMap(p => {
-    const pose = placementPose(world, layout.islandId, p);
-    return (KEEP_OUT[p.node] ?? []).map(([x, z, r]): KeepOut => [pose.position[0] + x, pose.position[2] + z, r]);
-  });
-  const lighthouse = placementPose(world, layout.islandId, layout.placements.find(p => p.node === 'Landmark_Lighthouse')!).position;
-  // The terrace reaches from under the lighthouse base to the end of the lookout road.
-  const terrace: [number, number, number] = [lighthouse[0], lighthouse[2], (LIGHTHOUSE_BASE.front + LIGHTHOUSE_BASE.gap) * glbAssets[layout.asset].scale];
-  return { keepOut, trees: clusteredForest(world, forests, keepOut), rocks: naturalRocks(world, naturalTerrains(world), keepOut),
-    plaza: plazaLayout(world, layout.islandId, keepOut, { terrace }),
-    roadWidths: Object.fromEntries(MAIN_ROUTES.map(id => [id, MAIN_ROAD_WIDTH])) };
+export interface IslandPlazaSpec { mainRoutes: readonly string[]; forecourts?: readonly string[]; terraces?: readonly { node: string; radius: number }[] }
+
+/**
+ * One island of a world layout, in map coordinates: where it is, its land, and what stands on it. Everything optional
+ * is left out by an island that does not have it yet, and the builder draws what is there.
+ */
+export interface IslandSpec {
+  islandId: string;
+  center: Axial;
+  tiles: HexTile[];
+  cliffBeaches?: Axial[];
+  /** Roads from the plaza that are not bridges: to a dock, a landmark, a door. */
+  spurs?: HexSpur[];
+  /** Its woods: forest tiles and trees per tile. */
+  forest?: { tiles: Axial[]; density: number };
+  /** M3.1: an island of the plan with no written lessons, drawn in mist (see HexSettlement.planned). */
+  planned?: true;
+  /** GLB buildings from the island's asset (asset-registry.ts), each node on its tile. */
+  glb?: { asset: GlbAssetId; placements: HexGlbPlacement[]; label?: HexGlbSettlement['label'] };
+  plaza?: IslandPlazaSpec;
+  /** The tiles its buildings stand on, for the zone report. */
+  buildingTiles?: Axial[];
 }
 
-/** One world as data: the foundations island (with its GLB buildings), the two placeholder islands and the bridges. */
+/** One world as data: its islands in drawing order and the bridges between them. */
 export interface LayoutSpec {
-  foundations: { tiles: HexTile[]; cliffBeaches?: Axial[]; spurs: HexSpur[]; forest: Axial[]; buildingTiles: Axial[] };
-  structures: { center: Axial; shape: Axial[]; forest: Axial[] };
-  algorithms: { center: Axial; shape: Axial[]; forest: Axial[] };
-  /** 2026-11-01: the Interactive Lab Island (互動實驗島), on the home page's world only. */
-  labs?: { center: Axial; shape: Axial[]; forest: Axial[] };
-  /** Phase F.2: 資料庫應用島, on the home page's world only; `terrace` tiles are raised for the main tower. */
-  databases?: { center: Axial; shape: Axial[]; forest: Axial[]; terrace: Axial[] };
-  /** M3.1 regional world prototype: islands of the plan, appended after the others (see `planned`). */
-  planned?: PlannedSettlement[];
+  islands: IslandSpec[];
   bridges: HexBridge[];
-  glb: Pick<HexGlbSettlement, 'label' | 'placements'>;
-  /** Place the D.2c-1 natural layout (clustered trees, rocks, plaza, main route). */
+  /** Place the D.2c-1 natural layout (clustered trees, rocks, each island's plaza and main route). */
   natural: boolean;
 }
 
+/** The terrain of an island given only as a shape around its centre: which preset turns the shape into tiles. */
+export type TerrainPreset = 'harbor' | 'ridge' | 'lawn' | 'terraced';
+export interface ShapedIsland { center: Axial; shape: Axial[]; forest: Axial[]; /** `terraced` only: the raised tiles. */ terrace?: Axial[] }
+/** An island from a shape, a forest and a terrain preset (tiles relative to the centre), with four trees a forest tile. */
+export function shapedIsland(islandId: string, preset: TerrainPreset, { center, shape, forest, terrace = [] }: ShapedIsland, density = 4): IslandSpec {
+  const land = preset === 'harbor' ? harbor(center, shape, forest) : preset === 'ridge' ? ridge(center, shape, forest)
+    : preset === 'lawn' ? lab(center, shape, forest) : vault(center, shape, forest, terrace);
+  return { islandId, center, tiles: land, forest: { tiles: shift(forest, center), density } };
+}
+
 export interface PlannedSettlement { islandId: string; center: Axial; shape: Axial[]; spurs?: HexSpur[] }
-export const plannedSettlement = ({ islandId, center, shape, spurs }: PlannedSettlement): HexSettlement =>
-  ({ islandId, center, surface: 'continuous', planned: true, tiles: planned(center, shape), ...(spurs ? { spurs } : {}) });
+/** A planned island (M3.1): the shared low-detail terrain, no woods, plaza or buildings. */
+export const plannedIsland = ({ islandId, center, shape, spurs }: PlannedSettlement): IslandSpec =>
+  ({ islandId, center, tiles: planned(center, shape), planned: true, ...(spurs ? { spurs } : {}) });
+
+/** The settlement the map draws for an island (key order kept from before P9 S1: the world-data fingerprints hash it). */
+const settlementOf = (island: IslandSpec): HexSettlement => ({
+  islandId: island.islandId, center: island.center, surface: 'continuous', ...(island.planned ? { planned: true as const } : {}), tiles: island.tiles,
+  ...(island.cliffBeaches ? { cliffBeaches: island.cliffBeaches } : {}), ...(island.spurs ? { spurs: island.spurs } : {}),
+});
+export const plannedSettlement = (settlement: PlannedSettlement): HexSettlement => settlementOf(plannedIsland(settlement));
+
+function natural(world: HexWorld, islands: IslandSpec[], glb: HexGlbSettlement[], forests: ForestPatch[]): NonNullable<WorldLayout['natural']> {
+  const keepOut: KeepOut[] = glb.flatMap(layout => layout.placements.flatMap(p => {
+    const pose = placementPose(world, layout.islandId, p);
+    // Each asset's own footprints (asset-registry.ts) keep trees, rocks and plaza features clear of its buildings.
+    const footprints: GlbAsset['footprints'] = glbAssets[layout.asset].footprints;
+    return (footprints?.[p.node] ?? []).map(([x, z, r]): KeepOut => [pose.position[0] + x, pose.position[2] + z, r]);
+  }));
+  const plazas = islands.flatMap(island => {
+    if (!island.plaza) return [];
+    const layout = glb.find(g => g.islandId === island.islandId);
+    const terraces = (island.plaza.terraces ?? []).map(({ node, radius }): [number, number, number] => {
+      const placement = layout?.placements.find(p => p.node === node);
+      if (!layout || !placement) throw new Error(`${island.islandId}: plaza terrace names ${node}, which is not placed on the island`);
+      const at = placementPose(world, island.islandId, placement).position;
+      return [at[0], at[2], radius * glbAssets[layout.asset].scale];
+    });
+    return [plazaLayout(world, island.islandId, keepOut, { mainRoutes: island.plaza.mainRoutes, forecourts: island.plaza.forecourts, terraces })];
+  });
+  return { keepOut, trees: clusteredForest(world, forests, keepOut), rocks: naturalRocks(world, naturalTerrains(world), keepOut), plazas,
+    roadWidths: Object.fromEntries(islands.flatMap(island => island.plaza?.mainRoutes ?? []).map(id => [id, MAIN_ROAD_WIDTH])) };
+}
+
+const NO_ZONES: WorldLayout['zones'] = { plaza: 0, buildings: 0, forest: 0, hills: 0, shore: 0, open: 0 };
 
 export function assembleLayout(spec: LayoutSpec): WorldLayout {
-  const { foundations: f, structures: s, algorithms: a } = spec;
-  const foundations: HexSettlement = {
-    islandId: 'foundations', center: A(0, 0), surface: 'continuous', tiles: f.tiles,
-    ...(f.cliffBeaches ? { cliffBeaches: f.cliffBeaches } : {}), spurs: f.spurs,
-  };
-  const structures: HexSettlement = { islandId: 'structures', center: s.center, surface: 'continuous', tiles: harbor(s.center, s.shape, s.forest) };
-  const algorithms: HexSettlement = { islandId: 'algorithms', center: a.center, surface: 'continuous', tiles: ridge(a.center, a.shape, a.forest) };
-  const labs: HexSettlement[] = spec.labs ? [{ islandId: 'labs', center: spec.labs.center, surface: 'continuous', tiles: lab(spec.labs.center, spec.labs.shape, spec.labs.forest) }] : [];
-  const d = spec.databases;
-  const databases: HexSettlement[] = d ? [{ islandId: 'databases', center: d.center, surface: 'continuous', tiles: vault(d.center, d.shape, d.forest, d.terrace) }] : [];
-  const world: HexWorld = { size: 1.25, settlements: [foundations, structures, algorithms, ...labs, ...databases, ...(spec.planned ?? []).map(plannedSettlement)], bridges: spec.bridges };
-  const glb: HexGlbSettlement[] = [{ islandId: 'foundations', asset: 'basics-island-v2.1', label: spec.glb.label, placements: spec.glb.placements }];
-  const forests: ForestPatch[] = [
-    { islandId: 'foundations', tiles: f.forest, density: 5 },
-    { islandId: 'structures', tiles: shift(s.forest, s.center), density: 4 },
-    { islandId: 'algorithms', tiles: shift(a.forest, a.center), density: 4 },
-    ...(spec.labs ? [{ islandId: 'labs', tiles: shift(spec.labs.forest, spec.labs.center), density: 4 }] : []),
-    ...(d ? [{ islandId: 'databases', tiles: shift(d.forest, d.center), density: 4 }] : []),
-  ];
-  return { world, glb, forests, zones: zones(foundations, f.buildingTiles), natural: spec.natural ? natural(world, glb[0], forests) : undefined };
+  const ids = spec.islands.map(island => island.islandId);
+  if (new Set(ids).size !== ids.length) throw new Error(`world layout: an island is listed twice (${ids.join(', ')})`);
+  const settlements = spec.islands.map(settlementOf);
+  const world: HexWorld = { size: 1.25, settlements, bridges: spec.bridges };
+  const glb: HexGlbSettlement[] = spec.islands.flatMap(island => island.glb
+    ? [{ islandId: island.islandId, asset: island.glb.asset, label: island.glb.label, placements: island.glb.placements }] : []);
+  const forests: ForestPatch[] = spec.islands.flatMap(island => island.forest ? [{ islandId: island.islandId, tiles: island.forest.tiles, density: island.forest.density }] : []);
+  // The zone report is of the first island that declares its building tiles (the foundations island in every layout so far).
+  const reported = spec.islands.findIndex(island => island.buildingTiles);
+  return { world, glb, forests, zones: reported < 0 ? NO_ZONES : zones(settlements[reported], spec.islands[reported].buildingTiles!),
+    natural: spec.natural ? natural(world, spec.islands, glb, forests) : undefined };
 }

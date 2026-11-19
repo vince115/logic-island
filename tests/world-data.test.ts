@@ -64,7 +64,11 @@ describe('world data fingerprints (D.3-0)', () => {
     // linux-x64 one from GitHub Actions run 42829136596). A world change changes both; a new platform must add its own.
     const NATURAL: Record<string, string> = { 'darwin-arm64': '63188173624e0fcd', 'linux-x64': '6c5895f2b08d3974' };
     expect(NATURAL[`${process.platform}-${process.arch}`], `no natural fingerprint for ${process.platform}-${process.arch}`).toBeDefined();
-    expect(fingerprint(p.natural)).toBe(NATURAL[`${process.platform}-${process.arch}`]);
+    // P9 S1: a layout holds a plaza for every island that has one (`plazas`). This world has the one it always had, so
+    // the same data in the shape the fingerprints were taken in must hash to the same values.
+    const { keepOut, trees, rocks, plazas, roadWidths } = p.natural!;
+    expect(plazas.map(plaza => plaza.islandId)).toEqual(['foundations']);
+    expect(fingerprint({ keepOut, trees, rocks, plaza: plazas[0], roadWidths })).toBe(NATURAL[`${process.platform}-${process.arch}`]);
     expect(fingerprint(naturalTerrains(p.world))).toBe('0142d9efea22ef4f');
     expect(fingerprint(seaGrid(p.world))).toBe('8d7d1c7994621db9');
     expect(fingerprint(roadProfiles(p.world))).toBe('0209a3f6b59f88ea');

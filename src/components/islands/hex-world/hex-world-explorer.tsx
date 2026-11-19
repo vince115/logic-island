@@ -8,6 +8,7 @@ import { useReducedMotion } from 'motion/react';
 import { Globe2, Hexagon, List, Orbit, RotateCcw, X } from 'lucide-react';
 import { hexWorld, type HexWorld } from '@/lib/islands/hex-world';
 import { ENVIRONMENTS, type EnvironmentId } from '@/lib/islands/environments';
+import { pageInteractions } from '@/lib/islands/island-interactions';
 import type { LearningIsland } from '@/lib/islands/types';
 import { IslandLabs, IslandSubjects, LearningNavigation } from '../learning-navigation';
 import type { HexSceneOptions } from './hex-world-scene';
@@ -238,7 +239,7 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
       </div>
       {controlsBelow&&bottom}
       </StageFrame>
-      {poiLayout&&selected&&<HexPoiPanel layout={poiLayout} islandName={selected.name} infoNode={infoNode}
+      {poiLayout&&selected&&<HexPoiPanel layout={poiLayout} interactions={pageInteractions(selected)} islandName={selected.name} infoNode={infoNode}
         onInfoChange={setInfoNode} onNavigate={navigate}/>}
       </StageColumn>}
       {showList&&<LearningNavigation islands={islands} selectedId={selectedId} onSelect={select} listMode={listMode} more={listMore}/>}

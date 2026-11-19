@@ -10,6 +10,19 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## P9 S1 引擎通用化（2026-11-19，分支 `p9/s1-1` 至 `p9/s1-4`，未合併）
+
+報告：`docs/planning/P9_S1_ENGINE_GENERALIZATION.md`；證據與工具：`docs/planning/evidence/p9-s1/`。**只有本機隔離建置的結果，不是 Preview，也不是真機。**
+
+- 對象是疊起來的最上層 `p9/s1-3-island-registry`（`b1a9010`）；基線是 `main` `070f440`。Default 與 World-only 兩份隔離建置都成功。
+- Typecheck 0、ESLint 0、Vitest **2,004 通過／9 略過／0 失敗**（81 個檔案；`main` 是 78 個檔案 1,976／9／0）。GitHub CI 的 `gates` 在 PR #19 至 #22 通過。
+- 全套 E2E：World-only **493 通過／113 略過／0 失敗**，Default **429／177／0**。多出來的是 `e2e/island-interactions.spec.ts`（4 項 × 桌機與手機；區域世界的 2 項只在世界旗標的建置執行）。
+- 與 `main` 逐頁比對：Default 16 頁 × 2 共 32 組，文字、連結、按鈕文字、像素全部相同；World-only 13 頁 × 2 共 26 組，24 組相同，不同的是刻意改變的 `/world/cs?island=foundations`（工坊「學習路線」→「課綱」，島嶼說明改用世界登錄的文字）。
+- 80 堂已發布課程的連結在兩個建置都回 200；四個課綱錨點存在。
+- 私有題庫洩漏掃描：追蹤檔案、`origin/main..HEAD`、兩份 `.next`，四處皆 clean。
+- 新增的單元測試：`tests/island-interactions.test.ts`、`tests/island-layout.test.ts`、`tests/island-registry.test.ts`。`tests/world-data.test.ts` 的世界指紋全部沿用原值。
+- 沒有做：Vercel Preview、真機、FPS、draw call 與三角形的重新量測（S1 沒有改變繪製內容）。
+
 ## P8 A1-L 後續：P1-37、P1-38、Next.js 16.4.5（2026-11-18，`main` `b56e7ec`）
 
 報告：`docs/planning/P8_A1P_PREVIEW_PREPARATION.md`；A1-P 工具：`docs/planning/evidence/p8-a1p/`。**只有本機隔離建置的結果，不是 Preview，也不是真機；A1-P 尚未執行。**

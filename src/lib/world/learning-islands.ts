@@ -6,10 +6,11 @@ import { getIsland, islandsInRegion, labIslandConfig, orderedRegions } from '@/c
 import { lessonsOfIsland } from '@/content/world/catalog';
 import { openLabCounts } from '@/content/world/labs';
 import type { RegionId } from '@/content/world/types';
-import { isMappedRegion, regionLayout } from '@/lib/islands/regions/region-layouts';
+import { isMappedRegion } from '@/lib/islands/regions/region-layouts';
 import type { IslandVisual } from '@/lib/islands/regions/schema';
 import { databaseIsland, islands, labIsland } from '@/lib/islands/data';
 import type { IslandDefinition, LearningIsland } from '@/lib/islands/types';
+import { getIslandEntry } from './island-registry';
 
 /*
  * M3.1 regional world prototype: what each region's map and list show, server-side. Islands with written lessons get
@@ -19,10 +20,28 @@ import type { IslandDefinition, LearningIsland } from '@/lib/islands/types';
  */
 const MAP_ISLANDS: IslandDefinition[] = [...islands, databaseIsland];
 
-function written(definition: IslandDefinition): LearningIsland {
-  const record = getIsland(definition.id), anchor = record?.entryPoints.find(e => e.target.startsWith('/curriculum#'))?.target;
+/**
+ * P9 S1: an island with written lessons that the home map never drew (every island beyond the first four, once its
+ * lessons are published) is described by the world registry alone, so publishing an island needs no entry here. The
+ * hex map frames an island from its tiles, so `modelId`, `position` and `bounds` are never read for it.
+ */
+function registryDefinition(id: string): IslandDefinition {
+  const record = getIsland(id)!;
+  return { id, name: record.name, englishName: record.nameEn.toUpperCase(), description: record.description, landmark: record.theme.landmark ?? `學科代碼 ${record.code}`,
+    modelId: 'data-harbor', position: [0, 0, 0], bounds: { min: [-3, -2, -3], max: [3, 3, 3] }, accent: record.theme.accent, courseSlugs: [] };
+}
+
+function written(home: IslandDefinition): LearningIsland {
+  const record = getIsland(home.id), anchor = record?.entryPoints.find(e => e.target.startsWith('/curriculum#'))?.target;
+  const interactions = getIslandEntry(home.id)?.interactionSpec;
+  // The home map presents the foundations island as the site's guide (`catalogEntry`, 「尚無專屬教材」). On a region map
+  // it is a subject island like the others (S0 decision 4): the registry's description, and no guide entry.
+  const { catalogEntry, ...own } = home;
+  const definition: IslandDefinition = catalogEntry && record ? { ...own, description: record.description } : home;
   return {
     ...definition,
+    // P9 S1: on a region map an island's targets follow the island registry (the workshop leads to its own syllabus).
+    ...(interactions ? { interactions } : {}),
     // As on the home page, only the database island shows how many of its lessons are written.
     ...(definition.id === databaseIsland.id && record && anchor ? {
       published: { open: lessonsOfIsland(definition.id).filter(l => l.lessonStatus === 'complete').length, total: record.lessonCount },
@@ -42,8 +61,10 @@ function written(definition: IslandDefinition): LearningIsland {
 }
 
 function plannedIsland(id: string): LearningIsland {
-  const record = getIsland(id)!;
+  const record = getIsland(id)!, interactions = getIslandEntry(id)?.interactionSpec;
   return {
+    // P9 S1: a planned island's targets, when it has any, are information only (islandInteractions drops the rest).
+    ...(interactions ? { interactions } : {}),
     id, name: record.name, englishName: record.nameEn.toUpperCase(), description: record.description,
     landmark: `學科代碼 ${record.code} · 規劃中`, modelId: 'data-harbor', position: [0, 0, 0], bounds: { min: [-3, -2, -3], max: [3, 3, 3] },
     accent: record.theme.accent, courseSlugs: [], lessons: [], planned: { lessonCount: record.lessonCount },
@@ -61,18 +82,16 @@ function plannedIsland(id: string): LearningIsland {
 export function islandVisual(islandId: string): IslandVisual {
   const record = getIsland(islandId);
   if (!record?.regionId || !isMappedRegion(record.regionId)) throw new Error(`${islandId} is not on a region map`);
-  const { layout } = regionLayout(record.regionId);
-  const state = record.status === 'planned' ? 'planned' : 'open';
-  return { state, tier: layout.glb.some(g => g.islandId === islandId) ? 'glb' : state === 'planned' ? 'outline' : 'landmark' };
+  // P9 S1: read from the island registry, the one place the 3D world takes an island from.
+  const { state, tier } = getIslandEntry(islandId)!.visualSpec;
+  return { state, tier };
 }
 
 /** A region's islands in registry order: written ones as on the home page, planned ones as planned. */
 export function regionIslands(region: RegionId): LearningIsland[] {
   return islandsInRegion(region).map(record => {
     if (record.status === 'planned') return plannedIsland(record.id);
-    const definition = MAP_ISLANDS.find(d => d.id === record.id);
-    if (!definition) throw new Error(`No map definition for ${record.id}, which has written lessons`);
-    return written(definition);
+    return written(MAP_ISLANDS.find(d => d.id === record.id) ?? registryDefinition(record.id));
   });
 }
 

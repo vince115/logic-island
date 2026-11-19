@@ -8,6 +8,7 @@ import { hexCorner, hexToWorld } from '@/lib/islands/hex';
 import { tileTop } from '@/lib/islands/hex-terrain';
 import { WATER_LEVEL, settlementFrames, worldCenter, type HexWorld } from '@/lib/islands/hex-world';
 import { ENVIRONMENTS, PREVIEW_NOON, type EnvironmentId } from '@/lib/islands/environments';
+import { pageInteractions } from '@/lib/islands/island-interactions';
 import type { IslandDefinition } from '@/lib/islands/types';
 import { HexCamera, VIEW, viewAt, type CameraView, type ExploreView, type StageRoom } from './hex-camera';
 import { HexTiles, WATER_Y } from './hex-tiles';
@@ -241,7 +242,8 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
         {world.settlements.filter(s=>s.surface==='continuous').map(s=><HexTerrainMesh key={s.islandId} world={world} settlement={s} onSelect={onSelect} style={options.terrain}
           onHover={options.hover?setHovered:undefined}/>)}
         {options.routes==='merged'?<MergedRoutes world={world} widths={options.nature?.roadWidths}/>:<><HexRoads world={world}/><HexBridges world={world}/></>}
-        {options.nature&&<HexPlaza layout={options.nature.plaza} accent={islands.find(i=>i.id===options.nature!.plaza.islandId)?.accent??'#4285f4'}/>}
+        {/* P9 S1: one plaza for each island that has one, in that island's accent. */}
+        {options.nature?.plazas.map(plaza=><HexPlaza key={plaza.islandId} layout={plaza} accent={islands.find(i=>i.id===plaza.islandId)?.accent??'#4285f4'}/>)}
         {options.extras}
         {world.settlements.map(settlement=>{
           const island=islands.find(i=>i.id===settlement.islandId);
@@ -256,7 +258,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
             info:selected&&onInfoChange?{node:infoNode??null,onChange:onInfoChange}:undefined,
             hover:options.hover&&selected?(on:boolean)=>setOnTarget(on?settlement.islandId:null):undefined};
           return <group key={settlement.islandId}>
-            {layout?<HexGlbBuildings world={world} layout={layout} selected={selected} fallback={placeholders}
+            {layout?<HexGlbBuildings world={world} layout={layout} interactions={island&&pageInteractions(island)} selected={selected} fallback={placeholders}
               onSourceChange={sourceSetters[layout.islandId]} onNavigate={onNavigate} anchorStyle={options.anchorStyle} targets={targets}/>:placeholders}
             {/* A focused settlement hands its space to the anchor labels; the toolbar still names it. */}
             {island&&!selected&&<group position={[x,0,z]}><Html position={[0,compact?WATER_LEVEL:layout?.label?.height??3.4,0]} center zIndexRange={[15,0]}>

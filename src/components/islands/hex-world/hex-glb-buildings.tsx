@@ -8,6 +8,7 @@ import { glbAssets } from '@/lib/islands/asset-registry';
 import { checkGlbContract, resolveTarget } from '@/lib/islands/glb-contract';
 import { extractGlbParts, ownGlowMaterials } from '@/lib/islands/glb-parts';
 import { hitProxyBox } from '@/lib/islands/interaction-targets';
+import { interactionOf, routeHref, targetLabel, type IslandInteractionSpec } from '@/lib/islands/interactions';
 import { placementPose, type HexGlbSettlement } from '@/lib/islands/hex-buildings';
 import type { HexWorld } from '@/lib/islands/hex-world';
 import type { GlbAsset, GlbTargetNode, Vec3 } from '@/lib/islands/types';
@@ -37,8 +38,8 @@ export interface TargetOptions {
   hover?: (onTarget: boolean) => void;
 }
 
-function LoadedParts({world,layout,selected,anchorStyle,targets,onReady,onInvalid,onNavigate}:{
-  world:HexWorld;layout:HexGlbSettlement;selected:boolean;anchorStyle:AnchorStyle;targets:TargetOptions;
+function LoadedParts({world,layout,interactions,selected,anchorStyle,targets,onReady,onInvalid,onNavigate}:{
+  world:HexWorld;layout:HexGlbSettlement;interactions?:IslandInteractionSpec;selected:boolean;anchorStyle:AnchorStyle;targets:TargetOptions;
   onReady:()=>void;onInvalid:(problems:string[])=>void;onNavigate:(href:string)=>void;
 }) {
   const asset:GlbAsset=glbAssets[layout.asset];
@@ -82,14 +83,17 @@ function LoadedParts({world,layout,selected,anchorStyle,targets,onReady,onInvali
     // Unselected: let the click reach the tile below so it selects the settlement.
     if(!selected||event.delta>=6) return;
     const target=resolveTarget(event.object as Object3D,asset);
-    if(!target) return;
+    // P9 S1: what the target does is the island's interaction spec; a target with no entry there does nothing.
+    const action=target&&interactionOf(interactions,target.interactionId)?.action;
+    if(!target||!action) return;
     event.stopPropagation();
-    if(target.action.type==='route') onNavigate(target.action.href);
+    if(action.type==='route') onNavigate(routeHref(action.to));
     else setInfo(target);
   };
+  const infoAction=info&&interactionOf(interactions,info.interactionId)?.action;
   const hover=targets.hover;
   const pointAt=(event:ThreeEvent<PointerEvent>)=>{
-    if(event.pointerType==='mouse') hover?.(Boolean(resolveTarget(event.object as Object3D,asset)));
+    if(event.pointerType==='mouse'){const target=resolveTarget(event.object as Object3D,asset);hover?.(Boolean(target&&interactionOf(interactions,target.interactionId)));}
   };
   const anchorOf=(node:string)=>placed.find(p=>p.part.anchor?.node===node)?.anchor??undefined;
   return <group onClick={onClick} onPointerOver={hover&&pointAt} onPointerOut={hover&&(()=>hover(false))}>
@@ -107,20 +111,21 @@ function LoadedParts({world,layout,selected,anchorStyle,targets,onReady,onInvali
       <meshBasicMaterial color="#ffffff" transparent opacity={.75} depthWrite={false}/>
     </mesh>)}
     {selected&&asset.nodes.map(entry=>{
-      if(entry.kind!=='anchor'||!entry.label) return null;
+      const named=entry.kind==='anchor'?interactionOf(interactions,entry.interactionId):undefined;
+      if(!named) return null;
       const position=anchorOf(entry.node);
       return position?<Html key={entry.node} position={position} center zIndexRange={[14,0]}
         wrapperClass={styles.anchorWrapper} style={{pointerEvents:'none'}}>
         {anchorStyle==='compact'
-          ?<span className={styles.hexPoi} data-anchor={entry.node}>{entry.label.split(' · ')[0]}</span>
-          :<span className={`${styles.anchorLabel} ${styles.hexAnchorLabel}`} data-anchor={entry.node}>{entry.label}</span>}
+          ?<span className={styles.hexPoi} data-anchor={entry.node}>{named.label}</span>
+          :<span className={`${styles.anchorLabel} ${styles.hexAnchorLabel}`} data-anchor={entry.node}>{targetLabel(named)}</span>}
       </Html>:null;
     })}
     {/* With controlled info the HTML panel outside the canvas is the accessible copy; this bubble is visual only. */}
-    {info&&info.action.type==='info'&&<Html position={anchorOf(info.anchor)} center zIndexRange={[16,0]}>
+    {info&&infoAction&&infoAction.type==='info'&&<Html position={anchorOf(info.anchor)} center zIndexRange={[16,0]}>
       <div className={`${styles.anchorInfo} ${controlled?styles.hexInfoMirror:''}`} role={controlled?undefined:'status'} aria-hidden={controlled?true:undefined} data-target={info.node}>
-        <strong>{info.action.title}</strong><p>{info.action.text}</p>
-        <button type="button" aria-label={`關閉${info.action.title}說明`} tabIndex={controlled?-1:undefined} onClick={event=>{event.stopPropagation();setInfo(null);}}>×</button>
+        <strong>{infoAction.title}</strong><p>{infoAction.text}</p>
+        <button type="button" aria-label={`關閉${infoAction.title}說明`} tabIndex={controlled?-1:undefined} onClick={event=>{event.stopPropagation();setInfo(null);}}>×</button>
       </div>
     </Html>}
   </group>;
@@ -129,8 +134,10 @@ function LoadedParts({world,layout,selected,anchorStyle,targets,onReady,onInvali
 /** GLB buildings for one settlement; the placeholder landmarks show while loading and on any failure. */
 const NO_TARGET_OPTIONS:TargetOptions={};
 
-export function HexGlbBuildings({world,layout,selected,fallback,onSourceChange,onNavigate,anchorStyle='default',targets=NO_TARGET_OPTIONS}:{
-  world:HexWorld;layout:HexGlbSettlement;selected:boolean;fallback:ReactNode;
+export function HexGlbBuildings({world,layout,interactions,selected,fallback,onSourceChange,onNavigate,anchorStyle='default',targets=NO_TARGET_OPTIONS}:{
+  world:HexWorld;layout:HexGlbSettlement;
+  /** P9 S1: what this island's targets do and how they are named; without it the buildings are drawn and nothing is clickable. */
+  interactions?:IslandInteractionSpec;selected:boolean;fallback:ReactNode;
   onSourceChange:(source:ModelSource)=>void;onNavigate:(href:string)=>void;anchorStyle?:AnchorStyle;targets?:TargetOptions;
 }) {
   const [failed,setFailed]=useState(false);
@@ -143,7 +150,7 @@ export function HexGlbBuildings({world,layout,selected,fallback,onSourceChange,o
   if(failed) return <>{fallback}</>;
   return <PartsBoundary fallback={fallback} onError={fail}>
     <Suspense fallback={fallback}>
-      <LoadedParts world={world} layout={layout} selected={selected} anchorStyle={anchorStyle} targets={targets} onReady={ready} onInvalid={invalid} onNavigate={onNavigate}/>
+      <LoadedParts world={world} layout={layout} interactions={interactions} selected={selected} anchorStyle={anchorStyle} targets={targets} onReady={ready} onInvalid={invalid} onNavigate={onNavigate}/>
     </Suspense>
   </PartsBoundary>;
 }
