@@ -62,7 +62,8 @@ test.describe('P9.1 prototype: world overview', () => {
     expect(world.regions.find(r => r.id === 'hub')!.islands).toEqual(['labs']);
     expect(world.links.filter(l => l.kind === 'hub').map(l => l.id).sort()).toEqual(REGIONS.map(r => `hub-${r}`).sort());
     expect(world.links.filter(l => l.kind === 'relation').map(l => l.id).sort()).toEqual(['cs-ai', 'design-web', 'sys-cs']);
-    // Six labels on the map, inside the stage and off each other.
+    // Six labels on the map, inside the stage and off each other (shown once the camera rests on the world).
+    await expect(page.locator('[data-p9-world]')).toHaveAttribute('data-settled', 'true', { timeout: 30_000 });
     const labels = page.locator('[data-target]');
     await expect(labels).toHaveCount(6);
     const stage = (await page.locator('[data-p9-world]').boundingBox())!;
@@ -92,6 +93,7 @@ test.describe('P9.1 prototype: world overview', () => {
   });
   test('the map label opens the region', async ({ page }) => {
     await openMap(page, '/p9');
+    await expect(page.locator('[data-p9-world]')).toHaveAttribute('data-settled', 'true', { timeout: 30_000 });
     await page.locator('button[data-target="cs"]').click();
     await expect(page).toHaveURL(/\/p9\/cs$/);
     await expect(page.locator('canvas')).toBeVisible({ timeout: 30_000 });
@@ -124,6 +126,7 @@ test.describe('P9.1b prototype: one geography and one time of day on every level
   test('a time set on the world stays through the region and the island, and back', async ({ page }) => {
     await openMap(page, '/p9');
     await setTime(page, 'sunset');
+    await expect(page.locator('[data-p9-world]')).toHaveAttribute('data-settled', 'true', { timeout: 30_000 });
     await page.locator('button[data-target="cs"]').click();
     await expect(page).toHaveURL(/\/p9\/cs$/);
     await expect(page.locator('[data-environment]')).toHaveAttribute('data-environment', 'sunset', { timeout: 30_000 });
@@ -210,5 +213,138 @@ test.describe('P9.1 prototype: CS region and island', () => {
     await expect(sheet).toBeVisible({ timeout: 30_000 });
     const canvas = (await page.locator('canvas').boundingBox())!, box = (await sheet.boundingBox())!;
     expect(Math.max(0, canvas.y + canvas.height - box.y) / canvas.height, 'the sheet covers at most 60% of the map').toBeLessThanOrEqual(.6);
+  });
+});
+
+/*
+ * P9.1c: the world, the region and the island are one scene in one canvas (src/app/p9/layout.tsx). Going down or up a
+ * level is a camera flight, not a new page's scene: the canvas element is the same one, the camera passes through the
+ * zooms between the two levels, and nothing is re-created on the way.
+ */
+type CameraProbe = HTMLCanvasElement & { __p9Camera: () => { zoom: number; x: number; y: number; z: number } };
+const zoomNow = (page: Page) => page.locator('canvas').first().evaluate(c => (c as CameraProbe).__p9Camera().zoom);
+/** Starts sampling the camera's zoom on every frame (until `stopSampling`), so a flight can be checked after it. */
+const startSampling = (page: Page) => page.evaluate(() => {
+  const c = document.querySelector('canvas') as CameraProbe, w = window as unknown as { __zooms: number[]; __sampling: boolean };
+  w.__zooms = []; w.__sampling = true;
+  const tick = () => { if (!w.__sampling) return; w.__zooms.push(c.__p9Camera().zoom); requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
+});
+const stopSampling = (page: Page) => page.evaluate(() => { const w = window as unknown as { __zooms: number[]; __sampling: boolean }; w.__sampling = false; return w.__zooms; });
+/** Waits until the camera has been still for half a second, and returns its zoom. */
+async function settle(page: Page) {
+  let last = -1, still = 0;
+  for (let i = 0; i < 80 && still < 5; i++) { await page.waitForTimeout(100); const z = await zoomNow(page); still = Math.abs(z - last) < 1e-3 ? still + 1 : 0; last = z; }
+  return last;
+}
+/** Marks the canvas, so later checks can tell it is the same element, never a new one. */
+const markCanvas = (page: Page) => page.evaluate(() => { (window as unknown as { __p9Canvas: Element }).__p9Canvas = document.querySelector('canvas')!; });
+const sameCanvas = (page: Page) => page.evaluate(() => {
+  const c = document.querySelectorAll('canvas'), first = (window as unknown as { __p9Canvas: Element }).__p9Canvas;
+  return c.length === 1 && c[0] === first && first.isConnected;
+});
+/** A flight from `from` to `to`: the camera passed through the zooms between them (at least three frames strictly inside). */
+function expectFlight(zooms: number[], from: number, to: number, what: string) {
+  const [lo, hi] = [Math.min(from, to), Math.max(from, to)], inside = zooms.filter(z => z > lo * 1.02 && z < hi * .98);
+  expect(inside.length, `${what}: ${zooms.length} frames, zooms ${zooms.map(z => z.toFixed(1)).join(' ')}`).toBeGreaterThanOrEqual(3);
+  expect(Math.abs(zooms.at(-1)! - to) / to, `${what} ends at its level`).toBeLessThan(.02);
+}
+
+test.describe('P9.1c prototype: one canvas, camera flights between world, region and island', () => {
+  test.skip(!P9, 'needs a build with LOGIC_ISLAND_P9_PROTOTYPE=1');
+  test('world → region → island and back up: the same canvas, a zoom flight each way, the address at every level', async ({ page }) => {
+    await openMap(page, '/p9');
+    await expect(page.locator('[data-p9-world]')).toHaveAttribute('data-settled', 'true', { timeout: 30_000 });
+    await markCanvas(page);
+    const world = await settle(page);
+    // World → region: the map label.
+    await startSampling(page);
+    await page.locator('button[data-target="cs"]').click();
+    await expect(page).toHaveURL(/\/p9\/cs$/);
+    const region = await settle(page);
+    expectFlight(await stopSampling(page), world, region, 'world → region');
+    expect(region, 'the region is closer than the world').toBeGreaterThan(world * 1.5);
+    expect(await sameCanvas(page), 'world → region keeps the canvas').toBe(true);
+    // The world's labels give way to the region's own island labels.
+    await expect(page.locator('[data-target]')).toHaveCount(0);
+    // Region → island: the island's entry in the list (the keyboard's and the no-3D way).
+    const choice = page.locator('[data-island-choice="foundations"]');
+    await startSampling(page);
+    if (await choice.isVisible()) await choice.click(); else await page.goto('/p9/cs?island=foundations');
+    await expect(page).toHaveURL(/\/p9\/cs\?island=foundations$/);
+    const island = await settle(page);
+    if (await choice.isVisible()) expectFlight(await stopSampling(page), region, island, 'region → island'); else await stopSampling(page);
+    expect(island).toBeGreaterThan(region * 1.5);
+    // Island → region → world: Escape, twice; each a flight out in the same canvas.
+    await startSampling(page);
+    await page.keyboard.press('Escape');
+    await expect(page).toHaveURL(/\/p9\/cs$/);
+    const regionAgain = await settle(page);
+    expectFlight(await stopSampling(page), island, regionAgain, 'island → region');
+    await startSampling(page);
+    await page.keyboard.press('Escape');
+    await expect(page).toHaveURL(/\/p9$/);
+    const worldAgain = await settle(page);
+    expectFlight(await stopSampling(page), regionAgain, worldAgain, 'region → world');
+    expect(Math.abs(worldAgain - world) / world, 'back at the same world view').toBeLessThan(.02);
+    await expect(page.locator('[data-p9-world]')).toHaveAttribute('data-settled', 'true');
+    expect(await sameCanvas(page), 'the canvas was never remounted').toBe(true);
+  });
+
+  test('the browser\'s back and forward fly between the levels in the same canvas', async ({ page }) => {
+    await openMap(page, '/p9');
+    await expect(page.locator('[data-p9-world]')).toHaveAttribute('data-settled', 'true', { timeout: 30_000 });
+    await markCanvas(page);
+    const world = await settle(page);
+    await page.locator('a[data-region-entry="cs"]').click();
+    await expect(page).toHaveURL(/\/p9\/cs$/);
+    const region = await settle(page);
+    await startSampling(page);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/p9$/);
+    expectFlight(await (async () => { await settle(page); return stopSampling(page); })(), region, world, 'back to the world');
+    await startSampling(page);
+    await page.goForward();
+    await expect(page).toHaveURL(/\/p9\/cs$/);
+    expectFlight(await (async () => { await settle(page); return stopSampling(page); })(), world, region, 'forward to the region');
+    expect(await sameCanvas(page)).toBe(true);
+  });
+
+  test('a deep link opens straight on its level; quick clicks end on the last one asked for', async ({ page }) => {
+    await openMap(page, '/p9/cs?island=foundations');
+    await markCanvas(page);
+    const island = await settle(page);
+    await expect(page.locator('[data-p9-world]')).toHaveCount(0);
+    // Up to the world and straight back down before the first flight has landed.
+    await page.locator('a[aria-label="返回世界總覽（原型）"]').click();
+    await expect(page).toHaveURL(/\/p9$/);
+    await page.locator('a[data-region-entry="cs"]').click();
+    await expect(page).toHaveURL(/\/p9\/cs$/);
+    const region = await settle(page);
+    expect(region).toBeLessThan(island);
+    await expect(page.locator('[data-p9-world]')).toHaveCount(0);
+    // And the world again, then the region again, as fast as the keyboard allows.
+    await page.keyboard.press('Escape');
+    await expect(page).toHaveURL(/\/p9$/);
+    await page.locator('a[data-region-entry="cs"]').focus();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/p9\/cs$/);
+    expect(Math.abs(await settle(page) - region) / region).toBeLessThan(.02);
+    expect(await sameCanvas(page), 'quick navigation keeps the one canvas').toBe(true);
+  });
+
+  test('with prefers-reduced-motion each level is reached in one step, still in the same canvas', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await openMap(page, '/p9');
+    await expect(page.locator('[data-p9-world]')).toHaveAttribute('data-settled', 'true', { timeout: 30_000 });
+    await markCanvas(page);
+    const world = await settle(page);
+    await startSampling(page);
+    await page.locator('button[data-target="cs"]').click();
+    await expect(page).toHaveURL(/\/p9\/cs$/);
+    const region = await settle(page);
+    const zooms = await stopSampling(page);
+    expect(zooms.filter(z => z > world * 1.02 && z < region * .98), `no frames between the levels: ${zooms.map(z => z.toFixed(1)).join(' ')}`).toEqual([]);
+    expect(await sameCanvas(page)).toBe(true);
   });
 });

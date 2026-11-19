@@ -9,7 +9,7 @@ import { tileTop } from '@/lib/islands/hex-terrain';
 import { WATER_LEVEL, settlementFrames, worldCenter, type HexWorld } from '@/lib/islands/hex-world';
 import { ENVIRONMENTS, PREVIEW_NOON, type EnvironmentId } from '@/lib/islands/environments';
 import type { IslandDefinition } from '@/lib/islands/types';
-import { HexCamera, VIEW, viewAt, type CameraView, type ExploreView, type StageRoom } from './hex-camera';
+import { HexCamera, VIEW, viewAt, type CameraView, type ExploreView, type StageRoom, type WorldView } from './hex-camera';
 import { HexTiles, WATER_Y } from './hex-tiles';
 import { HexTerrainMesh, type TerrainStyle } from './hex-terrain-mesh';
 import { HexBridges, HexRoads } from './hex-routes';
@@ -103,6 +103,14 @@ export interface HexSceneOptions {
   extras?: ReactNode;
   /** P9.1 visual prototype (free camera): a focused island is looked at from lower and closer (hex-camera.tsx). */
   explore?: ExploreView;
+  /**
+   * P9.1c visual prototype (free camera): the world around this map, in the same canvas, so going from the world to
+   * the map and to an island (and back) is one camera flight (WorldView, hex-camera.tsx). What the world draws comes
+   * in `extras`. While `active`, the map's own island labels give way to the world's, which the explorer lays over the
+   * stage (`overlay`, given the pixels the island list covers), and the explorer shows `caption` and `panel` in place of
+   * its own caption and island list. `far` is the camera's far plane (the world is much deeper than one map).
+   */
+  world?: WorldView & { far: number; caption?: ReactNode; panel?: ReactNode; overlay?: (insetRight: number) => ReactNode };
 }
 type CaptionSide='left'|'right'|'above'|'below';
 /**
@@ -225,7 +233,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
   const press=useRef<[number,number]|null>(null);
   return <div className={styles.canvasWrap} style={pointer||options.ownLayer?{cursor:pointer?'pointer':undefined,isolation:options.ownLayer?'isolate':undefined}:undefined} data-camera={free?'free':undefined}>
     <Canvas orthographic frameloop="demand" dpr={[1,1.5]} shadows={options.shadows==='static'?STATIC_SHADOW_MAP:'soft'}
-      camera={{position:[20,19,24],zoom:27,near:.1,far:400}}
+      camera={{position:[20,19,24],zoom:27,near:.1,far:options.world?.far??400}}
       gl={{antialias:true,alpha:false,powerPreference:'low-power'}}
       fallback={<p className={styles.canvasFallback}>此裝置無法顯示 3D，請使用清單導航。</p>}>
       <Lifecycle label={label} onReady={onReady} onUnavailable={onUnavailable}/>
@@ -259,7 +267,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
             {layout?<HexGlbBuildings world={world} layout={layout} selected={selected} fallback={placeholders}
               onSourceChange={sourceSetters[layout.islandId]} onNavigate={onNavigate} anchorStyle={options.anchorStyle} targets={targets}/>:placeholders}
             {/* A focused settlement hands its space to the anchor labels; the toolbar still names it. */}
-            {island&&!selected&&<group position={[x,0,z]}><Html position={[0,compact?WATER_LEVEL:layout?.label?.height??3.4,0]} center zIndexRange={[15,0]}>
+            {island&&!selected&&!options.world?.active&&<group position={[x,0,z]}><Html position={[0,compact?WATER_LEVEL:layout?.label?.height??3.4,0]} center zIndexRange={[15,0]}>
               <button type="button" className={`${styles.islandLabel} ${styles.hexLabel}${compact?` ${styles.hexLabelCompact}`:''}${island.planned?` ${status.plannedLabel}`:''}${options.largeTargets?` ${status.largeTarget}`:''}${options.pins?` ${styles.hexLabelPin} ${status.pinLabel}`:''}`}
                 style={{'--island-accent':island.accent} as React.CSSProperties} title={options.pins?island.name:undefined}
                 aria-pressed={false} aria-label={`聚焦${island.name}${island.planned?'（規劃中）':''}`} data-model-source={layout?sources[island.id]??'loading':'geometry'} data-side={caption?.side}
@@ -280,7 +288,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
       </group></GlowProvider>
       <HexCamera frames={frames} selectedId={selectedId} reducedMotion={reducedMotion} fit={fit}
         free={free} resetKey={resetKey} onViewChange={free?viewChange:undefined} orbit={free&&orbit} onOrbitStop={free?onOrbitStop:undefined} insetRight={insetRight} view={base}
-        pan={free&&options.mapControls} onResetRequest={onResetRequest} room={room} explore={free?options.explore:undefined}/>
+        pan={free&&options.mapControls} onResetRequest={onResetRequest} room={room} explore={free?options.explore:undefined} world={free?options.world:undefined}/>
     </Canvas>
   </div>;
 }

@@ -183,14 +183,16 @@
    scene sets data-compact): the name alone (the counts are in the guide), narrow enough to stand in the sea between
    the links; a long name takes two lines, broken only after its 與. The label stays a 44 px touch target: its box is
    shorter, and the area around it (::before) makes up the rest. */
-.canvasWrap[data-compact='true'] .overviewLabel {
+.canvasWrap[data-compact='true'] .overviewLabel,
+.p9WorldLabels[data-compact='true'] .overviewLabel {
   display: flex;
   align-items: center;
   min-height: 28px;
   padding: 3px 8px;
   border-radius: 8px;
 }
-.canvasWrap[data-compact='true'] .overviewLabel::before {
+.canvasWrap[data-compact='true'] .overviewLabel::before,
+.p9WorldLabels[data-compact='true'] .overviewLabel::before {
   content: '';
   position: absolute;
   inset: 50% 0 auto;
@@ -198,14 +200,16 @@
   transform: translateY(-50%);
 }
 /* As wide as its longest line: the name breaks only where the scene allows it (after 與 in a long name). */
-.canvasWrap[data-compact='true'] .overviewLabel strong {
+.canvasWrap[data-compact='true'] .overviewLabel strong,
+.p9WorldLabels[data-compact='true'] .overviewLabel strong {
   width: min-content;
   font-size: var(--text-xs);
   line-height: 1.3;
   white-space: normal;
   word-break: keep-all;
 }
-.canvasWrap[data-compact='true'] .overviewDetail { display: none; }
+.canvasWrap[data-compact='true'] .overviewDetail,
+.p9WorldLabels[data-compact='true'] .overviewDetail { display: none; }
 /* The guide's second way into a region: its 2D overview, which needs no WebGL. */
 .guideAlt {
   display: inline-flex;
@@ -361,3 +365,9 @@
     min-height: 44px;
   }
 }
+
+/* P9.1c: the world level's labels over the region explorer's canvas (the same canvas at every level). */
+.p9WorldLabels { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+.p9WorldLabels > * { pointer-events: auto; }
+/* P9.1c: the world guide in the region explorer's list column (the column places it; no stage to float over). */
+.guide.guideInList { position: static; width: auto; max-height: none; padding: 0; background: none; border: 0; box-shadow: none; overflow: visible; }

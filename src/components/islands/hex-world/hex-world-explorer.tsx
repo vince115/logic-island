@@ -178,7 +178,9 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
     return ()=>{observer.disconnect();setSheet(0);};
   },[phoneRoom,singleColumn,subjectsOpen]);
   const room=useMemo(()=>phoneRoom&&singleColumn?{top:phoneRoom.top,bottom:sheet?sheet+SHEET_GAP:phoneRoom.bottom}:undefined,[phoneRoom,singleColumn,sheet]);
-  const caption=selected
+  // P9.1c: at the world level the explorer's caption and island list are the world's (options.world).
+  const worldLevel=options?.world?.active?options.world:undefined;
+  const caption=worldLevel?.caption?worldLevel.caption:selected
     ?<><span>{selected.englishName}</span><strong>{selected.name}</strong></>
     :<><span>{text.eyebrow}</span><strong>{text.title}</strong></>;
   // The hint and the map buttons: over the map, or with `controlsBelow` in a row of their own on narrow screens.
@@ -187,7 +189,7 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
       {timeOfDay&&!modeSwitchTarget&&<select aria-label="時間情境" value={environmentId} onChange={event=>setEnvironmentId(event.target.value as EnvironmentId)}>
         {(Object.keys(ENVIRONMENTS) as EnvironmentId[]).map(id=><option key={id} value={id}>{TIME_OF_DAY[id]}</option>)}
       </select>}
-      {!selectedId&&<button type="button" aria-pressed={orbiting} disabled={!ready} onClick={()=>setOrbiting(on=>!on)}><Orbit size={14}/>自動旋轉</button>}
+      {!selectedId&&!worldLevel&&<button type="button" aria-pressed={orbiting} disabled={!ready} onClick={()=>setOrbiting(on=>!on)}><Orbit size={14}/>自動旋轉</button>}
       <button type="button" onClick={overview} disabled={!selectedId&&!viewChanged&&!orbiting}><RotateCcw size={14}/>返回全景</button>
     </div>
     :<button type="button" onClick={overview} disabled={!selectedId&&!viewChanged}><RotateCcw size={14}/>返回全景</button>}</div>;
@@ -225,10 +227,11 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
             <HexWorldScene world={world} islands={islands} selectedId={selectedId} onSelect={select} onNavigate={navigate}
               reducedMotion={Boolean(reducedMotion)} onReady={markReady} onUnavailable={unavailable} options={options} label={text.canvas}
               infoNode={poiPanel?infoNode:undefined} onInfoChange={poiPanel?setInfoNode:undefined}
-              resetKey={resetKey} onViewChange={setViewChanged} orbit={orbiting} onOrbitStop={stopOrbit} environmentId={environmentId} insetRight={insetRight} baseAzimuth={baseAzimuth}
+              resetKey={resetKey} onViewChange={setViewChanged} orbit={orbiting&&!worldLevel} onOrbitStop={stopOrbit} environmentId={environmentId} insetRight={insetRight} baseAzimuth={baseAzimuth}
               onResetRequest={options?.mapControls?overview:undefined} room={room}/>
           </LoadingCopy.Provider>
         </SceneBoundary>
+        {options?.world?.overlay?.(insetRight)}
         {!controlsBelow&&bottom}
         {subjectsOpen&&selected&&<aside ref={subjectsRef} className={styles.subjectsFloating} aria-label={`${selected.name}${selected.units?'科目':'實驗'}清單`}>
           <div className={styles.subjectsHead}><span><small>{selected.englishName}</small><strong>{selected.name}</strong></span>
@@ -241,7 +244,7 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
       {poiLayout&&selected&&<HexPoiPanel layout={poiLayout} islandName={selected.name} infoNode={infoNode}
         onInfoChange={setInfoNode} onNavigate={navigate}/>}
       </StageColumn>}
-      {showList&&<LearningNavigation islands={islands} selectedId={selectedId} onSelect={select} listMode={listMode} more={listMore}/>}
+      {showList&&(worldLevel?.panel??<LearningNavigation islands={islands} selectedId={selectedId} onSelect={select} listMode={listMode} more={listMore}/>)}
     </div>
     {footer&&<div className={styles.explorerFooter}>{footer}</div>}
   </section>;

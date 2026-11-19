@@ -58,6 +58,15 @@ export type StageRoom={top:number;bottom:number};
  * may go (times the closest island fit; FREE_CAMERA.zoomIn is the default).
  */
 export type ExploreView={elevation:number;zoom:number;minElevation:number;zoomIn:number};
+/**
+ * P9.1c (prototype, free camera only): the world around a region map, in the same scene. `frame` gives where the camera
+ * stands to show the whole world for a stage of this size (rendered coordinates, along VIEW, no focal offset): while
+ * `active`, that is the view, and leaving it (or coming back) is one camera flight, like a focus. `distance` keeps the
+ * camera far enough back that nothing of the world is cut by the near plane (orthographic: the picture is the same).
+ * `onSettled` says when the camera has come to rest on the world view, and when it has left it.
+ */
+export type WorldView={active:boolean;frame:(size:{width:number;height:number},insetRight:number)=>{center:[number,number,number];zoom:number};
+  distance:number;onSettled?:(atWorld:boolean)=>void};
 function frame(points:Vector3[],view:Vector3,width:number,height:number,focused:boolean,insetRight=0,room?:StageRoom) {
   const right=new Vector3().crossVectors(UP,view).normalize(),up=new Vector3().crossVectors(view,right);
   // Extents on screen axes; the center is the middle of those extents (for a box, the box center).
@@ -84,7 +93,7 @@ function frame(points:Vector3[],view:Vector3,width:number,height:number,focused:
  * `orbit` (D.3-5b) turns the overview on its own, keeping tilt and zoom; any drag, pinch or wheel on the map calls
  * `onOrbitStop`, and the explorer decides everything else (focus, list mode, hidden page,「返回全景」).
  */
-export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetKey=0,onViewChange,orbit=false,onOrbitStop,insetRight=0,view:base=VIEW,pan=false,onResetRequest,room,explore}:{frames:IslandDefinition[];selectedId:string|null;reducedMotion:boolean;
+export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetKey=0,onViewChange,orbit=false,onOrbitStop,insetRight=0,view:base=VIEW,pan=false,onResetRequest,room,explore,world}:{frames:IslandDefinition[];selectedId:string|null;reducedMotion:boolean;
   /** Content points (scene space) to frame instead of the bounding boxes: all of them, and per island. */
   fit?:{all:Vector3[];byId:Record<string,Vector3[]>};
   free?:boolean;resetKey?:number;onViewChange?:(view:CameraView)=>void;
@@ -103,10 +112,14 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
   explore?:ExploreView;
   /** P8.3: the room the stage needs at its top and bottom (see `frame`), in place of the built-in allowances. */
   room?:StageRoom;
+  /** P9.1c prototype (free camera only): the world view around this map (WorldView). Without it, exactly as before. */
+  world?:WorldView;
 }) {
   const baseAzimuth=Math.atan2(base.x,base.z),basePolar=Math.acos(base.y);
   const controls=useRef<CameraControlsImpl>(null);
   const initialized=useRef(false);
+  // P9.1c: where the camera is with respect to the world view: on its way there, at rest on it, or elsewhere.
+  const atWorld=useRef<'flying'|'settled'|null>(null);
   const {width,height}=useThree(state=>state.size);
   const connected=useThree(state=>state.events.connected) as HTMLElement|undefined;
   const invalidate=useThree(state=>state.invalidate);
@@ -119,14 +132,23 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
     return out;
   },[frames,fit]);
   const points=useMemo(()=>pointsFor(selected),[pointsFor,selected]);
+  // P9.1c: the world view for this stage size (rendered coordinates), whether or not it is the view right now.
+  const worldFrame=world?.frame,worldActive=Boolean(free&&world?.active),worldDistance=world?.distance??DISTANCE;
+  const worldAt=useMemo(()=>{
+    if(!free||!worldFrame||!width||!height) return null;
+    const {center,zoom}=worldFrame({width,height},insetRight);
+    return {center:new Vector3(...center),zoom};
+  },[free,worldFrame,width,height,insetRight]);
   // Free zoom range for this stage size: the whole world fits at every azimuth, and each island can be looked at closer.
   const zoomRange=useMemo(()=>{
     if(!free||!width||!height) return {min:4,max:150};
     const all=pointsFor(undefined);
     const out=Math.min(...Array.from({length:12},(_,i)=>frame(all,viewAt(AZIMUTH+i*Math.PI/6,POLAR),width,height,false,insetRight,room).zoom));
     const closest=Math.max(...frames.map(island=>frame(pointsFor(island),base,width,height,true,insetRight,room).zoom));
-    return {min:out*FREE_CAMERA.zoomOut,max:Math.min(FREE_CAMERA.maxZoom,closest*(explore?.zoomIn??FREE_CAMERA.zoomIn))};
-  },[free,width,height,pointsFor,frames,insetRight,base,room,explore]);
+    // P9.1c: with a world around the map, the camera can go out to it (and a flight from it never hits the limit).
+    const min=out*FREE_CAMERA.zoomOut;
+    return {min:worldAt?Math.min(min,worldAt.zoom*FREE_CAMERA.zoomOut):min,max:Math.min(FREE_CAMERA.maxZoom,closest*(explore?.zoomIn??FREE_CAMERA.zoomIn))};
+  },[free,width,height,pointsFor,frames,insetRight,base,room,explore,worldAt]);
   const framed=useRef<{points:Vector3[];reset:number;base:Vector3;zoom:number|null;target:Vector3}|null>(null);
   const mapControls=free&&pan;
   // Camera bounds: the view's center never leaves the box around the islands' own middles (plus a margin), at any
@@ -136,8 +158,10 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
     if(!mapControls) return null;
     const box=new Box3().setFromPoints(frames.map(island=>{const points=pointsFor(island);return points.reduce((sum,p)=>sum.add(p),new Vector3()).divideScalar(points.length);}));
     box.min.set(box.min.x-MAP_CONTROLS.margin,-200,box.min.z-MAP_CONTROLS.margin);box.max.set(box.max.x+MAP_CONTROLS.margin,200,box.max.z+MAP_CONTROLS.margin);
+    // P9.1c: the world view's center is inside too, so a flight between the world and the map is never clamped.
+    if(worldAt) box.expandByPoint(worldAt.center);
     return box;
-  },[mapControls,pointsFor,frames]);
+  },[mapControls,pointsFor,frames,worldAt]);
   // Only the free camera listens to「返回全景」in the overview; the fixed one reframes on selection alone, as before.
   const reset=free?resetKey:0;
   useEffect(()=>{
@@ -158,6 +182,23 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
     // Free: the first framing and「返回全景」look along VIEW. Otherwise the azimuth stays; a new focus goes back to the
     // default tilt, a resize keeps the current one.
     controller.stop();
+    // P9.1c: the world view is one more framing, flown to and from like a focus: along VIEW, no focal offset.
+    if(worldActive&&worldAt){
+      const {center,zoom}=worldAt,eye=center.clone().addScaledVector(VIEW,worldDistance),animate=initialized.current&&!reducedMotion;
+      if(boundary){controller.verticalDragToForward=true;controller.setBoundary(boundary.clone().expandByPoint(center));}
+      void controller.setLookAt(eye.x,eye.y,eye.z,center.x,center.y,center.z,animate);
+      controller.normalizeRotations();
+      void controller.setFocalOffset(0,0,0,animate);
+      void controller.zoomTo(zoom,animate);
+      // Leaving the world is a new framing from the map's own view (`reset: -1` makes the next one a home framing).
+      framed.current={points:[],reset:-1,base,zoom:null,target:center};
+      atWorld.current=animate?'flying':'settled';
+      if(!animate) world?.onSettled?.(true);
+      initialized.current=true;
+      invalidate();
+      return;
+    }
+    if(atWorld.current){atWorld.current=null;world?.onSettled?.(false);}
     const last=framed.current,current=controller.getSpherical(new Spherical());
     const home=!last||last.reset!==reset||last.base!==base;
     // P9.1 (`explore`): a new focus starts from the explore tilt instead of the default one, and closer than its fit.
@@ -180,7 +221,7 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
     // P8.3: the move takes effect in the next frame, and with `frameloop="demand"` nothing else may ask for one (a new
     // focus usually redraws the scene, but that frame can come before this effect; a changed `room` redraws nothing).
     invalidate();
-  },[points,width,height,reducedMotion,selected,free,reset,insetRight,base,baseAzimuth,basePolar,boundary,room,explore,invalidate]);
+  },[points,width,height,reducedMotion,selected,free,reset,insetRight,base,baseAzimuth,basePolar,boundary,room,explore,invalidate,worldActive,worldAt,worldDistance,world]);
   // camera-controls sets `touch-action: none` on the element it listens on (R3F's wrapper, which also holds the
   // labels) when it connects; free touch only turns sideways, so the page keeps its vertical scroll. Touch keeps the tilt.
   // The wheel zooms without camera-controls' `controlstart`, so it stops Auto Orbit here.
@@ -235,7 +276,7 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
     const phi=Math.max(controller.getSpherical(sphere.now,false).phi,controller.getSpherical(sphere.end,true).phi);
     const reach=height/2/controller.camera.zoom+Math.abs(controller.getFocalOffset(sphere.offset,true).y);
     const need=(reach*Math.sin(phi)+WATER_LEVEL+1-controller.getTarget(sphere.target,false).y)/Math.cos(phi);
-    const distance=Math.max(DISTANCE,need);
+    const distance=Math.max(world?.distance??DISTANCE,need);
     if(Math.abs(controller.distance-distance)>1e-3) controller.distance=distance;
   },-2);
   // Report the view once it settles, not while a finger or button still holds it. camera-controls skips `rest` when a
@@ -253,7 +294,10 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
   },[onViewChange,baseAzimuth,basePolar,mapControls]);
   const start=useCallback(()=>{holding.current=true;onOrbitStop?.();},[onOrbitStop]);
   const end=useCallback(()=>{holding.current=false;report();},[report]);
-  const rest=useCallback(()=>{if(!holding.current) report();},[report]);
+  const rest=useCallback(()=>{
+    if(!holding.current) report();
+    if(atWorld.current==='flying'){atWorld.current='settled';world?.onSettled?.(true);}
+  },[report,world]);
   // D.3-5b Auto Orbit: turn the overview around its center. Each turned frame asks for the next one (frameloop
   // "demand"), so frames are drawn only while it turns. A frame after a pause (hidden tab) moves at most 50 ms worth.
   // The overview labels follow every 15°, not every frame.
