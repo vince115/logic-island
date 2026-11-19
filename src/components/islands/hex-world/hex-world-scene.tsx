@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Vector3 } from 'three';
 import { Canvas, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
@@ -10,7 +10,7 @@ import { WATER_LEVEL, settlementFrames, worldCenter, type HexWorld } from '@/lib
 import { ENVIRONMENTS, PREVIEW_NOON, type EnvironmentId } from '@/lib/islands/environments';
 import { pageInteractions } from '@/lib/islands/island-interactions';
 import type { IslandDefinition } from '@/lib/islands/types';
-import { HexCamera, VIEW, viewAt, type CameraView, type StageRoom } from './hex-camera';
+import { HexCamera, VIEW, viewAt, type CameraView, type ExploreView, type StageRoom } from './hex-camera';
 import { HexTiles, WATER_Y } from './hex-tiles';
 import { HexTerrainMesh, type TerrainStyle } from './hex-terrain-mesh';
 import { HexBridges, HexRoads } from './hex-routes';
@@ -97,6 +97,13 @@ export interface HexSceneOptions {
    * of another island was drawn on top of the focused island's sheet.
    */
   ownLayer?: boolean;
+  /**
+   * P9.1 visual prototype: more of the map, drawn inside the map's own group (map coordinates, after the terrain and
+   * routes), e.g. the landscapes of a region's planned islands. Nothing the explorer knows about: no label, no target.
+   */
+  extras?: ReactNode;
+  /** P9.1 visual prototype (free camera): a focused island is looked at from lower and closer (hex-camera.tsx). */
+  explore?: ExploreView;
 }
 type CaptionSide='left'|'right'|'above'|'below';
 /**
@@ -237,6 +244,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
         {options.routes==='merged'?<MergedRoutes world={world} widths={options.nature?.roadWidths}/>:<><HexRoads world={world}/><HexBridges world={world}/></>}
         {/* P9 S1: one plaza for each island that has one, in that island's accent. */}
         {options.nature?.plazas.map(plaza=><HexPlaza key={plaza.islandId} layout={plaza} accent={islands.find(i=>i.id===plaza.islandId)?.accent??'#4285f4'}/>)}
+        {options.extras}
         {world.settlements.map(settlement=>{
           const island=islands.find(i=>i.id===settlement.islandId);
           const layout=glbLayouts.find(l=>l.islandId===settlement.islandId);
@@ -274,7 +282,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
       </group></GlowProvider>
       <HexCamera frames={frames} selectedId={selectedId} reducedMotion={reducedMotion} fit={fit}
         free={free} resetKey={resetKey} onViewChange={free?viewChange:undefined} orbit={free&&orbit} onOrbitStop={free?onOrbitStop:undefined} insetRight={insetRight} view={base}
-        pan={free&&options.mapControls} onResetRequest={onResetRequest} room={room}/>
+        pan={free&&options.mapControls} onResetRequest={onResetRequest} room={room} explore={free?options.explore:undefined}/>
     </Canvas>
   </div>;
 }

@@ -1,0 +1,9 @@
+{"version":"P9.1 0423877","route":"/p9","size":"1440x1000","main":14,"mainTriangles":43944,"shadow":11,"shadowTriangles":43522,"shadowMap":"every frame"}
+{"version":"P9.1b 14c8cb0","route":"/p9","size":"1440x1000","main":73,"mainTriangles":88210,"shadow":55,"shadowTriangles":74180,"shadowMap":"only when casters change"}
+{"version":"P9.1 0423877","route":"/p9","size":"375x812","main":14,"mainTriangles":45976,"shadow":11,"shadowTriangles":45554,"shadowMap":"every frame"}
+{"version":"P9.1b 14c8cb0","route":"/p9","size":"375x812","main":73,"mainTriangles":87922,"shadow":55,"shadowTriangles":73892,"shadowMap":"only when casters change"}
+{"version":"P9.1 0423877","route":"/p9/cs","size":"1440x1000","main":51,"mainTriangles":66821,"shadow":45,"shadowTriangles":88065}
+{"version":"P9.1b 14c8cb0","route":"/p9/cs","size":"1440x1000","main":51,"mainTriangles":66821,"shadow":45,"shadowTriangles":88065}
+{"version":"P9.1 0423877","route":"/p9/cs?island=foundations","size":"1440x1000","main":41,"mainTriangles":90545,"shadow":45,"shadowTriangles":88065}
+{"version":"P9.1b 14c8cb0","route":"/p9/cs?island=foundations","size":"1440x1000","main":41,"mainTriangles":90545,"shadow":45,"shadowTriangles":88065}
+{"version":"P8 (same build)","route":"/world","size":"1440x1000","main":15,"mainTriangles":15902,"shadow":0,"shadowTriangles":0}

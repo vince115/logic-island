@@ -158,6 +158,7 @@ function PlannedMist({world,settlement,markerAccent}:{world:HexWorld;settlement:
 export function HexLandmarks({world,settlement,markerAccent}:{world:HexWorld;settlement:HexSettlement;
   /** P8.2: a planned island's accent pennant (see PlannedMist); undefined keeps the M3.1 marker. */
   markerAccent?:string}) {
+  if (settlement.ownLandmarks) return null;
   if (settlement.planned) return <PlannedMist world={world} settlement={settlement} markerAccent={markerAccent}/>;
   // Phase F.2 (home page): 資料庫應用島's Transitional Art is one merged mesh (hex-database-landmarks.tsx).
   // P9 S1: looked up by island, so another island's Transitional Art is one more entry in TRANSITIONAL.

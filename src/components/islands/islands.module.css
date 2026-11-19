@@ -1099,6 +1099,9 @@
 @media (max-width: 780px) {
   .modeSwitch[data-in-header='true'] button {
     padding: 5px 9px;
+    /* The button holds its own 44 px touch area (world.module.css ::before); without this the area is laid out
+       against the header and spans its whole width, over the 返回世界總覽 link beside it. */
+    position: relative;
   }
   .modeSwitch[data-in-header='true'] .modeLabel {
     position: absolute;
