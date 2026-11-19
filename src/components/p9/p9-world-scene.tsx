@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { BoxGeometry, Color, Vector3, type BufferGeometry } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Canvas, useThree } from '@react-three/fiber';
@@ -13,6 +13,9 @@ import { LINK_WIDTH, frameOverview, overviewLinks, overviewOutlines, stageLands,
 import { WORLD_MAP } from '@/lib/islands/regions/world-map';
 import { regionScene, sceneLayouts, scenePlacement, type SceneId } from '@/lib/p9/region-scene';
 import { P9_WORLD_MAP } from '@/lib/p9/world-map';
+import { FLY_MS, FLY_SAFETY_MS, flightView, flyTarget, type FlyState } from '@/lib/p9/world-fly';
+import { useRouter } from 'next/navigation';
+import { REGION_IDS } from '@/content/world/types';
 import { DRAG_THRESHOLD, HOME_VIEW, clampView, isHome, panBy, project, wheelFactor, zoomAt, type Stage, type WorldView } from '@/lib/p9/world-view';
 import { Minus, Plus, RotateCcw } from 'lucide-react';
 import { VIEW } from '../islands/hex-world/hex-camera';
@@ -103,13 +106,13 @@ function Framing({ outlines, links, shape, insetRight, view, onFramed }: { outli
  * swallowed (capture phase) so a drag never opens a region. The stage takes no browser gestures (touch-action: none),
  * so a pinch zooms the map and not the page.
  */
-function useWorldGestures(element: React.RefObject<HTMLDivElement | null>, stage: Stage, setView: React.Dispatch<React.SetStateAction<WorldView>>) {
+function useWorldGestures(element: React.RefObject<HTMLDivElement | null>, stage: Stage, setView: React.Dispatch<React.SetStateAction<WorldView>>, onGesture: () => void) {
   const dragged = useRef(false);
   useEffect(() => {
     const el = element.current;
     if (!el || !stage.width) return;
     const local = (e: { clientX: number; clientY: number }) => { const r = el.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top] as [number, number]; };
-    const onWheel = (e: WheelEvent) => { e.preventDefault(); const [x, y] = local(e); setView(v => zoomAt(v, stage, wheelFactor(e.deltaY, e.deltaMode), x, y)); };
+    const onWheel = (e: WheelEvent) => { e.preventDefault(); onGesture(); const [x, y] = local(e); setView(v => zoomAt(v, stage, wheelFactor(e.deltaY, e.deltaMode), x, y)); };
     const pointers = new Map<number, [number, number]>();
     let start: [number, number] | null = null, travel = 0;
     const onDown = (e: PointerEvent) => {
@@ -126,11 +129,11 @@ function useWorldGestures(element: React.RefObject<HTMLDivElement | null>, stage
         const [pa, pb] = [...pointers.entries()].sort(([i], [j]) => i - j).map(([, p]) => p);
         const d0 = Math.hypot(pb[0] - pa[0], pb[1] - pa[1]), d1 = Math.hypot(b[0] - a[0], b[1] - a[1]);
         const m0 = [(pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2], m1 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-        dragged.current = true;
+        dragged.current = true; onGesture();
         setView(v => panBy(zoomAt(v, stage, d0 > 0 ? d1 / d0 : 1, m1[0], m1[1]), stage, m1[0] - m0[0], m1[1] - m0[1]));
       } else if (start) {
         travel = Math.max(travel, Math.hypot(now[0] - start[0], now[1] - start[1]));
-        if (travel > DRAG_THRESHOLD) { dragged.current = true; setView(v => panBy(v, stage, now[0] - before[0], now[1] - before[1])); }
+        if (travel > DRAG_THRESHOLD) { dragged.current = true; onGesture(); setView(v => panBy(v, stage, now[0] - before[0], now[1] - before[1])); }
       }
       pointers.set(e.pointerId, now);
     };
@@ -149,7 +152,56 @@ function useWorldGestures(element: React.RefObject<HTMLDivElement | null>, stage
       el.removeEventListener('wheel', onWheel); el.removeEventListener('pointerdown', onDown); el.removeEventListener('click', onClick, true);
       window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); window.removeEventListener('pointercancel', onUp);
     };
-  }, [element, stage, setView]);
+  }, [element, stage, setView, onGesture]);
+}
+
+
+/**
+ * The targets a flight opens: the five regions, each to its own extent on the overview. The central hub keeps opening
+ * its lab list at once, as before.
+ */
+const FLY_TO: readonly string[] = REGION_IDS;
+
+/**
+ * P9.5: the one fly-to controller. start(id, box, go) flies the view to the region's extent and then calls `go` (the
+ * route change); repeat starts while flying or navigating are ignored, so a quick double click or a click on another
+ * region opens nothing twice. Reduced motion, a region outside FLY_TO or one without an extent opens at once. A wheel
+ * or drag cancels the flight (the view stays where it is, nothing opens). If the frames stall, the safety timer still
+ * opens the region. The route is prefetched when the flight starts.
+ */
+function useFlyTo(stage: Stage, insetRight: number, view: WorldView, setView: React.Dispatch<React.SetStateAction<WorldView>>) {
+  const router = useRouter();
+  const [state, setState] = useState<FlyState>('idle');
+  const [target, setTarget] = useState<string | null>(null);
+  const live = useRef<{ state: FlyState; frame: number; timer: ReturnType<typeof setTimeout> | null }>({ state: 'idle', frame: 0, timer: null });
+  const viewNow = useRef(view);
+  useEffect(() => { viewNow.current = view; }, [view]);
+  const set = useCallback((next: FlyState) => { live.current.state = next; setState(next); }, []);
+  const stop = useCallback(() => { cancelAnimationFrame(live.current.frame); if (live.current.timer) clearTimeout(live.current.timer); live.current.timer = null; }, []);
+  useEffect(() => stop, [stop]);
+  const cancel = useCallback(() => {
+    if (live.current.state !== 'flying') return;
+    stop(); set('cancelled'); setTarget(null);
+    setTimeout(() => { if (live.current.state === 'cancelled') set('idle'); }, 0);
+  }, [stop, set]);
+  const start = useCallback((id: string, box: { x0: number; y0: number; x1: number; y1: number } | undefined, go: () => void, href?: string) => {
+    if (live.current.state === 'flying' || live.current.state === 'navigating') return;
+    const arrive = () => { stop(); if (live.current.state === 'navigating') return; set('navigating'); go(); };
+    if (href) router.prefetch(href);
+    const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced || !box || !stage.width || !FLY_TO.includes(id)) { setTarget(id); arrive(); return; }
+    const from = viewNow.current, to = flyTarget(box, stage, insetRight), t0 = performance.now();
+    setTarget(id); set('flying');
+    const tick = () => {
+      if (live.current.state !== 'flying') return;
+      const t = (performance.now() - t0) / FLY_MS;
+      setView(flightView(from, to, t, stage, insetRight));
+      if (t >= 1) arrive(); else live.current.frame = requestAnimationFrame(tick);
+    };
+    live.current.frame = requestAnimationFrame(tick);
+    live.current.timer = setTimeout(() => { if (live.current.state === 'flying') arrive(); }, FLY_MS + FLY_SAFETY_MS);
+  }, [router, stage, insetRight, setView, set, stop]);
+  return { state, target, start, cancel };
 }
 
 /** The open sea, in the Region's deep colour and the environment's tint. */
@@ -175,6 +227,8 @@ export interface P9WorldTarget {
   label: string; accent: string;
   /** Nothing to open yet (a region the prototype has not built a page for): the label is shown, not a button to somewhere. */
   onOpen?: () => void;
+  /** P9.5: where onOpen goes, prefetched when a flight to it starts. */
+  href?: string;
 }
 /** Under this much free stage width (px) the labels are the short ones (as on the P8 overview). */
 const COMPACT_BELOW = 720;
@@ -210,7 +264,9 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
   // P9.4: the map's zoom and pan (world-view.ts); a new stage size keeps the view inside its limits.
   const [view, setView] = useState<WorldView>(HOME_VIEW);
   const shown_view = useMemo(() => stage.width ? clampView(view, stage) : view, [view, stage]);
-  useWorldGestures(wrap, stage, setView);
+  // P9.5: the camera flight to a region (world-fly.ts), one controller for every target; a wheel or drag cancels it.
+  const fly = useFlyTo(stage, insetRight, shown_view, setView);
+  useWorldGestures(wrap, stage, setView, fly.cancel);
   const step = (factor: number) => setView(v => zoomAt(v, stage, factor, stage.width / 2 - (stage.width > 780 ? insetRight / 2 : 0), stage.height / 2));
   const [spots, setSpots] = useState<LabelSpot[] | null>(null);
   useLayoutEffect(() => {
@@ -221,6 +277,13 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
   }, [framed, sides, stage.width, stage.height, insetRight, compact]);
   useEffect(() => () => { hub?.dispose(); relation?.dispose(); }, [hub, relation]);
   const target = (id: string) => targets.find(t => t.id === id);
+  /** Opens a target by flying to it first: its extent at rest is the flight's goal; a target without one opens at once. */
+  const open = (id: string) => {
+    const t = target(id), i = shown.findIndex(s => s.id === id), box = framed?.extents[i];
+    if (!t?.onOpen) return undefined;
+    const go = t.onOpen;
+    return () => fly.start(id, box, go, t.href);
+  };
   // What was drawn, for the review tools and tests: every scene's source, scale and counts, the links, the time of day.
   const drawn = useMemo(() => JSON.stringify({
     time: environmentId,
@@ -229,7 +292,7 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
     links: links.map(l => ({ id: l.id, kind: l.kind })),
   }), [parts, links, environmentId]);
   return <div ref={wrap} className={styles.canvasWrap} style={hovered && target(hovered)?.onOpen ? { cursor: 'pointer' } : undefined} data-shape={shape} data-compact={compact ? 'true' : undefined} data-p9-world={drawn}
-    data-view={`${shown_view.k.toFixed(3)},${shown_view.dx.toFixed(1)},${shown_view.dy.toFixed(1)}`}>
+    data-view={`${shown_view.k.toFixed(3)},${shown_view.dx.toFixed(1)},${shown_view.dy.toFixed(1)}`} data-fly={fly.state} data-fly-target={fly.target ?? undefined}>
     <Canvas orthographic frameloop="demand" dpr={[1, 1.5]} shadows={STATIC_SHADOW_MAP} camera={{ position: [0, 40, 60], zoom: 10, near: .1, far: 500 }}
       gl={{ antialias: true, alpha: false, powerPreference: 'low-power' }}
       onCreated={({ gl }) => {
@@ -243,7 +306,7 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
       <GlowProvider value={environment}>
         <Sea tint={environment.sea.tint}/>
         {parts.map(p => <P9RegionMiniature key={p.id} scene={p.scene} placement={p.placement} seaTint={environment.sea.tint} accents={accents} order={p.order + 1}
-          onOpen={target(p.id)?.onOpen} onHover={on => setHovered(h => on ? p.id : h === p.id ? null : h)}/>)}
+          onOpen={open(p.id)} onHover={on => setHovered(h => on ? p.id : h === p.id ? null : h)}/>)}
         {/* The world's own links: the hub's causeways in pale stone, the relation bridges as wooden planks (the P8 overview's colours). */}
         {hub && <mesh geometry={hub} castShadow receiveShadow raycast={noRaycast}><meshStandardMaterial color={LINK_THEME.hub} flatShading roughness={.9}/></mesh>}
         {relation && <mesh geometry={relation} castShadow receiveShadow raycast={noRaycast}><meshStandardMaterial color={LINK_THEME.relation} flatShading roughness={.9}/></mesh>}
@@ -261,7 +324,7 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
       };
       const text = <><strong>{(t.name.length > 6 ? t.name.split(/(?<=與)/) : [t.name]).flatMap((part, n) => n ? [<wbr key={n}/>, part] : [part.replace(/ /g, ' ')])}</strong><small className={styles.overviewDetail}>{t.detail}</small></>;
       return t.onOpen
-        ? <button key={t.id} type="button" {...common} aria-label={t.label} onClick={t.onOpen}>{text}</button>
+        ? <button key={t.id} type="button" {...common} aria-label={t.label} onClick={open(t.id)}>{text}</button>
         : <div key={t.id} {...common} role="note" aria-label={t.label} data-pending="true">{text}</div>;
     })}
     {/* P9.4: zoom buttons and 重設視角, for those without a wheel or a pinch; reset frames all five regions again in place (no reload, same address). */}

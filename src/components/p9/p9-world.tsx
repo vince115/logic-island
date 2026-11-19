@@ -44,9 +44,9 @@ export function P9World({ regions, hub, accents }: { regions: RegionSummary[]; h
     ...regions.map(r => {
       const built = P9_REGIONS.includes(r.id);
       return { id: r.id, name: shortName(r.name), detail: regionDetail(r), accent: REGION_THEMES[r.id].accent,
-        label: built ? `進入${r.name}` : `${r.name}：${regionDetail(r)}`, ...(built ? { onOpen: () => router.push(p9RegionHref(r.id)) } : {}) };
+        label: built ? `進入${r.name}` : `${r.name}：${regionDetail(r)}`, ...(built ? { onOpen: () => router.push(p9RegionHref(r.id)), href: p9RegionHref(r.id) } : {}) };
     }),
-    { id: 'hub' as const, name: '中央樞紐', label: `前往中央樞紐：${hub.lab.name}`, detail: hub.lab.name, accent: HUB_THEME.accent, onOpen: () => router.push(hub.lab.href) },
+    { id: 'hub' as const, name: '中央樞紐', label: `前往中央樞紐：${hub.lab.name}`, detail: hub.lab.name, accent: HUB_THEME.accent, onOpen: () => router.push(hub.lab.href), href: hub.lab.href },
   ], [regions, hub.lab.href, hub.lab.name, router]);
   const names = regions.map(r => r.name).join('、');
   return <section className={styles.overview} aria-label="世界總覽">

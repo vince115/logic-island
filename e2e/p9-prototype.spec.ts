@@ -290,3 +290,120 @@ test.describe('P9.4 world zoom and pan', () => {
     await expect(page).toHaveURL(/:\d+\/cs$/);
   });
 });
+
+test.describe('P9.5 world fly-to', () => {
+  test.skip(!P9, 'needs a build with LOGIC_ISLAND_P9_PROTOTYPE=1');
+  // The suite runs with reduced motion (playwright.config.ts); a flight needs motion, so these tests ask for it.
+  test.use({ reducedMotion: 'no-preference' });
+  const stage = (page: Page) => page.locator('[data-view]');
+  const zoom = async (page: Page) => Number((await stage(page).getAttribute('data-view'))!.split(',')[0]);
+  for (const region of REGIONS) {
+    test(`clicking ${region} flies the camera toward it, then opens /${region}; Back returns to the world at rest`, async ({ page, isMobile }) => {
+      test.skip(isMobile && region !== 'cs', 'one region is enough on phones');
+      await openMap(page, '/');
+      await expect(page.locator(`[data-target="${region}"]`)).toBeVisible();
+      // Record the flight frame by frame in the page, so a fast machine cannot skip it.
+      const frames = page.evaluate(() => new Promise<{ fly: string | null; k: number }[]>(done => {
+        const list: { fly: string | null; k: number }[] = [], t0 = performance.now();
+        const tick = () => { const w = document.querySelector('[data-view]'); if (w) list.push({ fly: w.getAttribute('data-fly'), k: Number(w.getAttribute('data-view')!.split(',')[0]) }); if (performance.now() - t0 < 1500 && location.pathname === '/') requestAnimationFrame(tick); else done(list); };
+        tick();
+      }));
+      await page.locator(`[data-target="${region}"]`).click();
+      await expect(page).toHaveURL(new RegExp(`:\\d+/${region}$`), { timeout: 10_000 });
+      const flown = (await frames).filter(f => f.fly === 'flying');
+      expect(flown.length, 'frames in flight').toBeGreaterThan(5);
+      expect(flown.at(-1)!.k, 'the camera zoomed in on the way').toBeGreaterThan(flown[0].k + .5);
+      await page.goBack();
+      await expect(page).toHaveURL(/:\d+\/$/);
+      await expect(stage(page)).toHaveAttribute('data-fly', 'idle');
+      await expect.poll(() => zoom(page)).toBe(1);
+    });
+  }
+  test('a second click while flying opens nothing else; a wheel during the flight cancels it', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'mouse: desktop');
+    await openMap(page, '/');
+    await page.locator('[data-target="cs"]').click();
+    await expect(stage(page)).toHaveAttribute('data-fly', 'flying');
+    await page.locator('[data-target="ai"]').click({ force: true });
+    await expect(page).toHaveURL(/:\d+\/cs$/, { timeout: 10_000 });
+    await page.goBack();
+    await expect(stage(page)).toHaveAttribute('data-fly', 'idle');
+    await page.locator('[data-target="cs"]').click();
+    await expect(stage(page)).toHaveAttribute('data-fly', 'flying');
+    const box = (await stage(page).boundingBox())!;
+    await page.mouse.move(box.x + 200, box.y + 200);
+    await page.mouse.wheel(0, 120);
+    await expect(stage(page)).toHaveAttribute('data-fly', 'idle');
+    await page.waitForTimeout(1800);
+    await expect(page, 'a cancelled flight opens nothing').toHaveURL(/:\d+\/$/);
+  });
+  test('reduced motion opens the region at once, without a flight', async ({ browser }) => {
+    const context = await browser.newContext({ reducedMotion: 'reduce', viewport: { width: 1440, height: 1000 } });
+    const page = await context.newPage();
+    await openMap(page, '/');
+    await page.locator('[data-target="cs"]').click();
+    await expect(page).toHaveURL(/:\d+\/cs$/, { timeout: 3_000 });
+    await context.close();
+  });
+  test('phones: after a pinch and a drag, a tap on the label still flies to the region', async ({ page, isMobile }) => {
+    test.skip(!isMobile, 'touch: phones');
+    await openMap(page, '/');
+    const box = (await stage(page).boundingBox())!, cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+    const down = (id: number, x: number, y: number) => stage(page).dispatchEvent('pointerdown', { pointerId: id, pointerType: 'touch', isPrimary: id === 1, clientX: x, clientY: y, button: 0, buttons: 1 });
+    const move = (type: string, id: number, x: number, y: number) => page.evaluate(([type, id, x, y]) => window.dispatchEvent(new PointerEvent(type as string, { pointerId: id as number, pointerType: 'touch', clientX: x as number, clientY: y as number })), [type, id, x, y] as const);
+    // A gentle pinch (about 1.3×) and a short drag: the map is moved, its regions still on screen.
+    await down(1, cx - 40, cy); await down(2, cx + 40, cy);
+    for (let i = 1; i <= 4; i++) { await move('pointermove', 1, cx - 40 - i * 3, cy); await move('pointermove', 2, cx + 40 + i * 3, cy); }
+    await move('pointerup', 1, cx - 52, cy); await move('pointerup', 2, cx + 52, cy);
+    await down(3, cx, cy); for (let i = 1; i <= 4; i++) await move('pointermove', 3, cx + i * 4, cy + i * 2); await move('pointerup', 3, cx + 16, cy + 8);
+    await expect.poll(() => zoom(page)).toBeGreaterThan(1.15);
+    await expect(page).toHaveURL(/:\d+\/$/);
+    // Whichever region is still on screen after the pinch and the drag (a label off the stage is hidden).
+    const shown = page.locator(REGIONS.map(r => `[data-target="${r}"]:visible`).join(', ')).first();
+    const region = (await shown.getAttribute('data-target'))!;
+    await shown.click();
+    await expect(page).toHaveURL(new RegExp(`:\\d+/${region}$`), { timeout: 10_000 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => innerWidth));
+  });
+});
+
+test.describe('P9.5 Region → Island', () => {
+  test.skip(!P9, 'needs a build with LOGIC_ISLAND_P9_PROTOTYPE=1');
+  test.use({ reducedMotion: 'no-preference' });
+  /** The region camera's zoom, frame by frame, for `ms` (the canvas's own probe). */
+  const zooms = (page: Page, ms: number) => page.evaluate(ms => new Promise<number[]>(done => {
+    const list: number[] = [], t0 = performance.now();
+    const tick = () => { const c = document.querySelector('canvas') as (HTMLCanvasElement & { __hexZoom?: () => number }) | null; if (c?.__hexZoom) list.push(c.__hexZoom()); if (performance.now() - t0 < ms) requestAnimationFrame(tick); else done(list); };
+    tick();
+  }), ms);
+  test('World → CS → 資料結構島: the region camera eases in on the same canvas, the address follows, Back and Forward ease back', async ({ page }) => {
+    await openMap(page, '/');
+    await page.locator('[data-target="cs"]').click();
+    await expect(page).toHaveURL(/:\d+\/cs$/, { timeout: 10_000 });
+    await expect(page.locator('button[aria-label^="聚焦資料結構島"]').first()).toBeVisible({ timeout: 30_000 });
+    await page.waitForTimeout(1200);
+    await page.evaluate(() => { (window as unknown as { __canvas: Element | null }).__canvas = document.querySelector('canvas'); });
+    const sameCanvas = () => page.evaluate(() => document.querySelector('canvas') === (window as unknown as { __canvas: Element | null }).__canvas);
+    const inward = zooms(page, 1500);
+    await page.locator('button[aria-label^="聚焦資料結構島"]').first().click();
+    const zin = await inward;
+    await expect(page).toHaveURL(/\/cs\?island=structures$/);
+    const steps = new Set(zin.map(z => z.toFixed(3))).size;
+    expect(steps, 'the zoom moves over several frames, not in one jump').toBeGreaterThan(5);
+    expect(zin.at(-1)!, 'closer on the island').toBeGreaterThan(zin[0]);
+    expect(await sameCanvas(), 'no new canvas for an island').toBe(true);
+    const outward = zooms(page, 1500);
+    await page.goBack();
+    const zout = await outward;
+    await expect(page).toHaveURL(/\/cs$/);
+    expect(zout.at(-1)!, 'back out to the region').toBeLessThan(zout[0]);
+    expect(new Set(zout.map(z => z.toFixed(3))).size).toBeGreaterThan(5);
+    expect(await sameCanvas()).toBe(true);
+    await page.goForward();
+    await expect(page).toHaveURL(/\/cs\?island=structures$/);
+    expect(await sameCanvas()).toBe(true);
+    // The island's own lessons are its published ones.
+    const hrefs = await page.locator('section[aria-label$="地圖"] a[href^="/curriculum/"]').evaluateAll(list => list.map(a => a.getAttribute('href')!));
+    for (const href of hrefs.slice(0, 5)) expect((await page.request.get(href)).status(), href).toBe(200);
+  });
+});
