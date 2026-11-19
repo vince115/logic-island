@@ -7,6 +7,8 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import type { LearningIsland } from '@/lib/islands/types';
 import { regionScene } from '@/lib/p9/region-scene';
+import { P9_WORLD_HREF } from '@/lib/p9/routes';
+import type { RegionId } from '@/content/world/types';
 import { P9_REGION_BASE_AZIMUTH } from '@/lib/p9/camera-heading';
 import type { ExploreView } from '../islands/hex-world/hex-camera';
 import { HexWorldExplorer } from '../islands/hex-world/hex-world-explorer';
@@ -39,10 +41,10 @@ function BackToWorld() {
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- the target lives outside React's tree and exists only in the DOM
   useEffect(() => { setSlot(document.getElementById(HEADER_TOOLS_ID)); }, []);
-  return slot ? createPortal(<Link className={styles.backToWorld} href="/p9" aria-label="返回世界總覽（原型）"><ArrowLeft size={15}/><span>世界總覽</span></Link>, slot) : null;
+  return slot ? createPortal(<Link className={styles.backToWorld} href={P9_WORLD_HREF} aria-label="返回世界總覽"><ArrowLeft size={15}/><span>世界總覽</span></Link>, slot) : null;
 }
 
-export function P9RegionExplorer({ regionName, regionNameEn, islands, hub }: { regionName: string; regionNameEn: string; islands: LearningIsland[]; hub: { name: string; href: string; labs: number } }) {
+export function P9RegionExplorer({ regionId, regionName, regionNameEn, islands, hub }: { regionId: RegionId; regionName: string; regionNameEn: string; islands: LearningIsland[]; hub: { name: string; href: string; labs: number } }) {
   const router = useRouter(), path = usePathname(), params = useSearchParams();
   const requested = params.get('island');
   const selectedId = requested && islands.some(i => i.id === requested) ? requested : null;
@@ -63,7 +65,7 @@ export function P9RegionExplorer({ regionName, regionNameEn, islands, hub }: { r
     const key = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented) return;
       if (event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
-      if (selectedId) { returnTo.current = selectedId; change(null); } else router.push('/p9');
+      if (selectedId) { returnTo.current = selectedId; change(null); } else router.push(P9_WORLD_HREF);
     };
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
@@ -85,7 +87,7 @@ export function P9RegionExplorer({ regionName, regionNameEn, islands, hub }: { r
   const phone = useSyncExternalStore(subscribe, () => matchMedia(PHONE).matches, () => false);
   const pins = useSyncExternalStore(subscribePins, () => matchMedia(PINS).matches, () => false);
   // P9.1b: the region's scene definition, the one the world overview draws small.
-  const scene = regionScene('cs'), { layout, camera } = scene.region;
+  const scene = regionScene(regionId), { layout, camera } = scene.region;
   const accents = useMemo(() => Object.fromEntries(islands.map(i => [i.id, i.accent])), [islands]);
   const options = useMemo(() => ({
     ...sceneOptions(layout, SCENE_PRESETS.lab), labelReach: pins ? PHONE_PIN_REACH : camera.labelReach, largeTargets: true, mapControls: true, phoneRoom: PHONE_ROOM, pins, ownLayer: true,
@@ -101,8 +103,8 @@ export function P9RegionExplorer({ regionName, regionNameEn, islands, hub }: { r
         <p>{regionName}共 {islands.length} 座學科島。這是 P9.1 的視覺審查頁；課程、導覽與島嶼資料與正式頁面相同。</p>
         <ul>
           <li><Link href={hub.href}><span><small>共用 · 中央樞紐</small><strong>{hub.name}</strong><em>{hub.labs} 個互動實驗</em></span><ArrowRight size={15}/></Link></li>
-          <li><Link href="/p9"><span><small>原型</small><strong>世界總覽</strong></span><ArrowRight size={15}/></Link></li>
-          <li><Link href="/regions/cs"><span><small>不需 3D</small><strong>{regionName}清單總覽</strong></span><ArrowRight size={15}/></Link></li>
+          <li><Link href={P9_WORLD_HREF}><span><small>世界</small><strong>世界總覽</strong></span><ArrowRight size={15}/></Link></li>
+          <li><Link href={`/regions/${regionId}`}><span><small>不需 3D</small><strong>{regionName}清單總覽</strong></span><ArrowRight size={15}/></Link></li>
         </ul>
       </nav>}
       copy={{

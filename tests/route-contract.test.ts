@@ -20,6 +20,9 @@ const PAGES = {
   'trials/[exam]/[paper]': () => import('../src/app/trials/[exam]/[paper]/page'),
   'trials/[exam]/[paper]/result': () => import('../src/app/trials/[exam]/[paper]/result/page'),
   'islands/hex/scale/[variant]': () => import('../src/app/islands/hex/scale/[variant]/page'),
+  // P9: the region maps at the top level (/cs …), only with LOGIC_ISLAND_P9_PROTOTYPE=1; old /p9/<region> links redirect.
+  '[region]': () => import('../src/app/[region]/page'),
+  'p9/[region]': () => import('../src/app/p9/[region]/page'),
 } as const;
 
 async function routes() {
@@ -44,6 +47,18 @@ describe('route contract (multi-archipelago v2)', () => {
     vi.stubEnv('LOGIC_ISLAND_TRIALS', '1');
     vi.stubEnv('LOGIC_ISLAND_REGIONAL_WORLD', '1');
     expect(await routes()).toMatchSnapshot();
+  });
+});
+
+describe('route contract (P9)', () => {
+  it('generates the five region maps at the top level only with the P9 flag', async () => {
+    vi.stubEnv('LOGIC_ISLAND_P9_PROTOTYPE', '1');
+    vi.stubEnv('VERCEL_ENV', '');
+    const out = await routes();
+    expect(out['[region]']).toEqual(['ai', 'cs', 'design', 'sys', 'web']);
+    expect(out['p9/[region]']).toEqual([]);
+    vi.stubEnv('VERCEL_ENV', 'production');
+    expect((await routes())['[region]']).toEqual([]);
   });
 });
 

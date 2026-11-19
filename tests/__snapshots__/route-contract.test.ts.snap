@@ -2,6 +2,7 @@
 
 exports[`route contract (multi-archipelago v2) > generates the same pages in the default build 1`] = `
 {
+  "[region]": [],
   "curriculum/[slug]": [
     "algorithm-analysis",
     "algorithms-challenge",
@@ -102,6 +103,7 @@ exports[`route contract (multi-archipelago v2) > generates the same pages in the
     "responsive-layout",
     "stack",
   ],
+  "p9/[region]": [],
   "regions/[region]": [
     "ai",
     "cs",
@@ -118,6 +120,7 @@ exports[`route contract (multi-archipelago v2) > generates the same pages in the
 
 exports[`route contract (multi-archipelago v2) > generates the same pages with both feature flags on 1`] = `
 {
+  "[region]": [],
   "curriculum/[slug]": [
     "algorithm-analysis",
     "algorithms-challenge",
@@ -218,6 +221,7 @@ exports[`route contract (multi-archipelago v2) > generates the same pages with b
     "responsive-layout",
     "stack",
   ],
+  "p9/[region]": [],
   "regions/[region]": [
     "ai",
     "cs",

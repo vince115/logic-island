@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import { ArrowRight, Compass } from 'lucide-react';
-import type { RegionId } from '@/content/world/types';
+import { REGION_IDS, type RegionId } from '@/content/world/types';
+import { p9RegionHref } from '@/lib/p9/routes';
 import { HUB_THEME, REGION_THEMES } from '@/lib/islands/regions/region-themes';
 import { SITE_TIME_LABELS, useSiteTime } from '@/lib/site-time';
 import type { HubSummary, RegionSummary } from '@/lib/world/learning-islands';
@@ -18,8 +19,8 @@ const Scene = dynamic(() => import('./p9-world-scene'), { ssr: false, loading: (
 const WIDE = '(min-width: 781px)';
 const subscribe = (onChange: () => void) => { const list = matchMedia(WIDE); list.addEventListener('change', onChange); return () => list.removeEventListener('change', onChange); };
 
-/** The regions the prototype has built a map for. The others are drawn on the overview and listed, but open nothing yet. */
-export const P9_REGIONS: readonly RegionId[] = ['cs'];
+/** The regions with a P9 map page (/<region>): all five; CS has the P9 land and landmarks, the others their approved maps. */
+export const P9_REGIONS: readonly RegionId[] = REGION_IDS;
 const regionDetail = (r: RegionSummary) => r.open ? `${r.islands} 座學科島 · ${r.open} 座已開放 · ${r.planned} 座規劃中` : `${r.islands} 座學科島 · 全部規劃中`;
 const shortName = (name: string) => name.replace(/群島$/, '');
 
@@ -43,7 +44,7 @@ export function P9World({ regions, hub, accents }: { regions: RegionSummary[]; h
     ...regions.map(r => {
       const built = P9_REGIONS.includes(r.id);
       return { id: r.id, name: shortName(r.name), detail: regionDetail(r), accent: REGION_THEMES[r.id].accent,
-        label: built ? `進入${r.name}（原型）` : `${r.name}：${regionDetail(r)}，原型尚未製作區域地圖`, ...(built ? { onOpen: () => router.push(`/p9/${r.id}`) } : {}) };
+        label: built ? `進入${r.name}（原型）` : `${r.name}：${regionDetail(r)}，原型尚未製作區域地圖`, ...(built ? { onOpen: () => router.push(p9RegionHref(r.id)) } : {}) };
     }),
     { id: 'hub' as const, name: '中央樞紐', label: `前往中央樞紐：${hub.lab.name}`, detail: hub.lab.name, accent: HUB_THEME.accent, onOpen: () => router.push(hub.lab.href) },
   ], [regions, hub.lab.href, hub.lab.name, router]);
@@ -61,7 +62,7 @@ export function P9World({ regions, hub, accents }: { regions: RegionSummary[]; h
         {regions.map(r => {
           const built = P9_REGIONS.includes(r.id), text = <span><small>{r.nameEn}</small><strong>{r.name}</strong><em>{regionDetail(r)}</em></span>;
           return <li key={r.id} className={styles.guideRegion}>
-            {built ? <Link href={`/p9/${r.id}`} className={styles.guideEntry} data-region-entry={r.id} style={{ '--region-accent': REGION_THEMES[r.id].accent } as React.CSSProperties}>{text}<ArrowRight size={16}/></Link>
+            {built ? <Link href={p9RegionHref(r.id)} className={styles.guideEntry} data-region-entry={r.id} style={{ '--region-accent': REGION_THEMES[r.id].accent } as React.CSSProperties}>{text}<ArrowRight size={16}/></Link>
               : <div className={styles.guideEntry} data-region-entry={r.id} data-pending="true" style={{ '--region-accent': REGION_THEMES[r.id].accent } as React.CSSProperties}>{text}</div>}
             {!built && <p className={styles.guidePlanned}><em className={status.plannedTag}>原型未製作</em>區域地圖留待 P9.2</p>}
           </li>;
