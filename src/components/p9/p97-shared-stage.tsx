@@ -1,10 +1,12 @@
 'use client';
 
-import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Canvas, useFrame, useThree, type RootState } from '@react-three/fiber';
 import { Vector3 } from 'three';
+import { useGLTF } from '@react-three/drei';
+import { VEGETATION_ASSET, glbAssets, type GlbAssetId } from '@/lib/islands/asset-registry';
 import { ENVIRONMENTS, type WorldEnvironment } from '@/lib/islands/environments';
 import { worldCenter } from '@/lib/islands/hex-world';
 import { frameOverview } from '@/lib/islands/regions/world-overview-geometry';
@@ -21,6 +23,7 @@ import { SCENE_PRESETS, sceneOptions } from '../islands/hex-world/hex-scene-pres
 import { HexWorldContent } from '../islands/hex-world/hex-world-scene';
 import styles from '../world/world.module.css';
 import { EXPLORE } from './p9-region-explorer';
+import { P9Landscapes } from './p9-landscapes';
 import { P9RegionMiniature } from './p9-region-miniature';
 import { Framing, Sea, useWorld, useWorldGestures, type Framed } from './p9-world-scene';
 
@@ -34,9 +37,22 @@ import { Framing, Sea, useWorld, useWorldGestures, type Framed } from './p9-worl
  * Both look along VIEW (P9_REGION_BASE_AZIMUTH = 0), so a point on the camera's axis is all a handover needs.
  * Desktop only, no list, no panels: just enough to measure continuity, contexts and cost.
  */
-const P9Landscapes = lazy(() => import('./p9-landscapes').then(m => ({ default: m.P9Landscapes })));
+// A static import, not lazy(): the world already loaded this module, and a lazy component's first render suspends
+// once even then; React then holds the boundary's reveal back (about 300 ms), which was the buildings' pop-in.
 const SHAPE = 'wide' as const, INSET = 0;
 const csScene = () => regionScene('cs');
+
+/**
+ * The CS region's own GLB files (its buildings' assets and the trees'), fetched and parsed when the flight starts, so
+ * the region's first frame has its buildings instead of their stand-ins (the pop-in). Only this region's, once.
+ */
+let csAssetsLoaded = false;
+const preloadCsAssets = () => {
+  if (csAssetsLoaded) return;
+  csAssetsLoaded = true;
+  const ids = new Set<GlbAssetId>([...csScene().region.layout.glb.map(g => g.asset), VEGETATION_ASSET]);
+  for (const id of ids) useGLTF.preload(glbAssets[id].url, false, false);
+};
 
 /** How a CS map point moves between the world (its miniature) and the region map. */
 function csTransform(placement: { scale: number; position: [number, number, number] }) {
@@ -98,7 +114,7 @@ function RegionContent({ islands, cameraFrom, onReady }: { islands: LearningIsla
   const accents = useMemo(() => Object.fromEntries(islands.map(i => [i.id, i.accent])), [islands]);
   const options = useMemo(() => ({
     ...sceneOptions(layout, SCENE_PRESETS.lab), labelReach: camera.labelReach, largeTargets: true, mapControls: true, ownLayer: true, explore: EXPLORE,
-    extras: <Suspense fallback={null}><P9Landscapes world={layout.world} landscapes={scene.landscapes} accents={accents} region="cs"/></Suspense>,
+    extras: <P9Landscapes world={layout.world} landscapes={scene.landscapes} accents={accents} region="cs"/>,
   }), [layout, camera, scene, accents]);
   const select = useCallback((id: string | null) => router.push(id ? `/p97/cs?island=${id}` : '/p97/cs', { scroll: false }), [router]);
   const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -131,17 +147,26 @@ export function P97SharedStage({ islands, accents, children }: { islands: Learni
   const animate = useCallback((from: WorldView, to: WorldView, done: () => void) => {
     // The clock starts at the first frame: after a mode switch that frame waits for the new content to be built.
     let t0 = 0; setFlying(true);
+    // Reduced motion: no flight; the view jumps to its end and the handover follows once the camera has it (two frames).
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setView(to); frame.current = requestAnimationFrame(() => { frame.current = requestAnimationFrame(() => { setFlying(false); done(); }); }); return;
+    }
     const tick = () => { if (!t0) t0 = performance.now(); const t = (performance.now() - t0) / FLY_MS; setView(flightView(from, to, t, stage, INSET)); if (t >= 1) { setFlying(false); done(); } else frame.current = requestAnimationFrame(tick); };
     frame.current = requestAnimationFrame(tick);
   }, [stage]);
   useEffect(() => () => cancelAnimationFrame(frame.current), []);
   useWorldGestures(wrap, stage, setView, () => {});
   // World → CS: fly the world view to CS, hand the camera over, change the route; the canvas stays.
+  // A second click (or a click on the miniature too) in the same frame sees `flying` still false; this ref does not.
+  const busy = useRef(false);
+  useEffect(() => { busy.current = false; }, [mode]);
   const openCs = useCallback(() => {
-    if (flying || !framed) return;
+    if (busy.current || !framed) return;
+    busy.current = true;
     (window as unknown as { __p97Click?: number }).__p97Click = performance.now();
     const box = framed.extents[outlines.findIndex(o => o.id === 'cs')], to = flyTarget(box, stage, INSET);
     router.prefetch('/p97/cs');
+    if (!new URLSearchParams(location.search).has('noPreload')) preloadCsAssets();
     animate(shown, to, () => {
       const now = cameraNow(); if (!now) return;
       const at = cs.toRegion(now.at), target = at.clone().addScaledVector(VIEW, -60);
@@ -149,7 +174,7 @@ export function P97SharedStage({ islands, accents, children }: { islands: Learni
       handover.worldView = to;
       router.push('/p97/cs');
     });
-  }, [flying, framed, outlines, stage, shown, animate, router, cs]);
+  }, [framed, outlines, stage, shown, animate, router, cs]);
   // CS → world (Back or the link): the world opens at the view that shows what the region camera showed, then flies home.
   const lastMode = useRef(mode), regionCamera = useRef<{ at: Vector3; zoom: number } | null>(null);
   useEffect(() => {
