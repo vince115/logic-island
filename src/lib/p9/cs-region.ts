@@ -9,8 +9,8 @@ import { regionLayout, type RegionLayout } from '@/lib/islands/regions/region-la
  * P9.1 visual prototype: the CS region's map with its four planned islands as real islands. Review page only
  * (/p9/cs); /world/cs keeps REGION_LAYOUTS.cs, which this file reads and never changes.
  *
- * The four islands with lessons (foundations, structures, algorithms, databases), every bridge, port, dock and camera
- * preset are the approved CS layout, untouched. The four planned islands keep their centres and their bridge ports;
+ * The four islands with lessons (foundations, structures, algorithms, databases), every bridge, port and dock are
+ * the approved CS layout, untouched; the camera keeps its caption room and takes the world overview's heading. The four planned islands keep their centres and their bridge ports;
  * what changes is the land itself: each gets its own outline, heights, woods and shore in place of the shared 19-tile
  * plate, and a landscape of its own (PLANNED_LANDSCAPES, drawn by p9-landscapes.tsx). In this layout they are ordinary
  * settlements, so the scene gives them the natural terrain, trees and rocks of the other islands and no mist; that they
@@ -111,8 +111,13 @@ function build(): { region: RegionLayout; landscapes: PlannedLandscape[] } {
     ...base.layout, world: p9World, forests,
     natural: { ...natural, keepOut, trees: clusteredForest(p9World, forests, keepOut), rocks: naturalRocks(p9World, naturalTerrains(p9World), keepOut) },
   };
-  return { region: { ...base, layout }, landscapes };
+  // The world overview (/p9) looks along the default view, with no turn. The approved CS preset turns the map 295°
+  // (desktop) and 105° (phones) to give the smallest island more pixels, so north pointed a different way on each
+  // level. The prototype keeps one heading from World to Region: no added azimuth on either device.
+  return { region: { ...base, camera: { ...base.camera, azimuth: P9_REGION_AZIMUTH }, layout }, landscapes };
 }
+/** Degrees added to the default view on the prototype's region maps: none, the heading of the world overview. */
+export const P9_REGION_AZIMUTH = { desktop: 0, phone: 0 } as const;
 const built = build();
 /** The CS region as the prototype draws it. */
 export const P9_CS_REGION: RegionLayout = built.region;

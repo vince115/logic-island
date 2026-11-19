@@ -39,7 +39,9 @@ describe('P9.1 CS region layout', () => {
     for (const s of base.layout.world.settlements.filter(s => !s.planned)) expect(world.settlements.find(o => o.islandId === s.islandId)).toBe(s);
     expect(world.bridges).toBe(base.layout.world.bridges);
     expect(P9_CS_REGION.docks).toBe(base.docks);
-    expect(P9_CS_REGION.camera).toBe(base.camera);
+    // The camera keeps the approved caption room and takes the world overview's heading on both devices.
+    expect(P9_CS_REGION.camera).toEqual({ ...base.camera, azimuth: { desktop: 0, phone: 0 } });
+    expect(base.camera.azimuth).toEqual({ desktop: 295, phone: 105 });
     expect(P9_CS_REGION.layout.glb).toBe(base.layout.glb);
   });
   it('gives each planned island its own land: no two share an outline, none is the 19-tile plate, none is flat', () => {
