@@ -10,9 +10,10 @@ import { SEA_FLOOR, buildRamps, buildSettlementTerrain, roadProfiles, tileTop } 
 import {
   BEACH_TOP, NATURAL_INSET, STEP_LEAN_MAX, buildNaturalTerrain, reservedEdges, seamless, type NaturalTriangle,
 } from '@/lib/islands/hex-terrain-natural';
-import { MAIN_ROAD_WIDTH, MAIN_ROUTES, naturalTerrains, routeSegments, seaGrid, seaShade } from '@/lib/islands/hex-natural-scene';
+import { MAIN_ROAD_WIDTH, naturalTerrains, routeSegments, seaGrid, seaShade } from '@/lib/islands/hex-natural-scene';
 import { LIGHTHOUSE_BASE } from '@/lib/islands/hex-layout';
 import { scalePrototypes } from '@/lib/islands/hex-scale-prototype';
+import { FOUNDATIONS_ISLAND } from '@/lib/islands/islands-world';
 import { ROAD, roadParts } from '@/lib/islands/hex-route-parts';
 import { WATER_LEVEL, hexWorld, portPoint, validateHexWorld, type HexTile } from '@/lib/islands/hex-world';
 import { islands } from '@/lib/islands/data';
@@ -230,7 +231,8 @@ describe('D.2c-1 sea shade', () => {
 });
 
 describe('D.2c-1 settlement layout', () => {
-  const plaza = natural!.plaza, foundations = world.settlements[0];
+  // P9 S1: the plaza and the main route are the island's own spec; this world has one plaza, the foundations island's.
+  const plaza = natural!.plazas[0], foundations = world.settlements[0], MAIN_ROUTES = FOUNDATIONS_ISLAND.plaza!.mainRoutes;
   const roads = roadProfiles(world).filter(r => r.islandId === 'foundations'), routes = routeSegments(world);
 
   it('is still a valid world: same tiles and placements, roads checked by the validator', () => {
@@ -262,7 +264,7 @@ describe('D.2c-1 settlement layout', () => {
 
   it('lines the main route with lamps on level ground beside it, clear of roads and buildings', () => {
     expect(plaza.lamps.length).toBeGreaterThanOrEqual(6);
-    const main = roads.filter(r => (MAIN_ROUTES as readonly string[]).includes(r.routeId));
+    const main = roads.filter(r => MAIN_ROUTES.includes(r.routeId));
     for (const [x, y, z] of plaza.lamps) {
       const tile = foundations.tiles.find(t => hexKey(t) === hexKey(worldToHex(x, z, R)))!;
       expect(tile, `${x},${z}`).toBeDefined();
@@ -279,7 +281,7 @@ describe('D.2c-1 settlement layout', () => {
     const plain = roadParts(world).boxes, wide = roadParts(world, natural!.roadWidths).boxes;
     let k = 0;
     for (const road of roadProfiles(world)) for (let i = 1; i < road.points.length; i++, k++) {
-      expect(wide[k].size[2]).toBe((MAIN_ROUTES as readonly string[]).includes(road.routeId) ? MAIN_ROAD_WIDTH : ROAD.width);
+      expect(wide[k].size[2]).toBe(MAIN_ROUTES.includes(road.routeId) ? MAIN_ROAD_WIDTH : ROAD.width);
       expect(wide[k].position).toEqual(plain[k].position);
     }
   });

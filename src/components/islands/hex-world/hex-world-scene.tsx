@@ -235,7 +235,8 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
         {world.settlements.filter(s=>s.surface==='continuous').map(s=><HexTerrainMesh key={s.islandId} world={world} settlement={s} onSelect={onSelect} style={options.terrain}
           onHover={options.hover?setHovered:undefined}/>)}
         {options.routes==='merged'?<MergedRoutes world={world} widths={options.nature?.roadWidths}/>:<><HexRoads world={world}/><HexBridges world={world}/></>}
-        {options.nature&&<HexPlaza layout={options.nature.plaza} accent={islands.find(i=>i.id===options.nature!.plaza.islandId)?.accent??'#4285f4'}/>}
+        {/* P9 S1: one plaza for each island that has one, in that island's accent. */}
+        {options.nature?.plazas.map(plaza=><HexPlaza key={plaza.islandId} layout={plaza} accent={islands.find(i=>i.id===plaza.islandId)?.accent??'#4285f4'}/>)}
         {world.settlements.map(settlement=>{
           const island=islands.find(i=>i.id===settlement.islandId);
           const layout=glbLayouts.find(l=>l.islandId===settlement.islandId);

@@ -1,5 +1,5 @@
 import { hexKey, type Axial } from './hex';
-import { A, assembleLayout, inList, shape, tiles, type WorldLayout } from './hex-layout';
+import { A, assembleLayout, inList, shape, shapedIsland, tiles, type WorldLayout } from './hex-layout';
 import { islandsWorld } from './islands-world';
 
 /**
@@ -33,25 +33,29 @@ const S19 = shape(2, [A(2, 0), A(-2, 2), A(0, -2)], []), S19_FOREST: Axial[] = [
 const A19 = shape(2, [A(-2, 0), A(1, 1), A(2, -2)], []), A19_FOREST: Axial[] = [A(1, 0), A(0, 2)];
 
 const scale19: WorldLayout = assembleLayout({
-  foundations: {
-    tiles: f19, forest: F19_FOREST, buildingTiles: [A(0, -3), A(-1, 1), A(-1, 0), A(1, 1)],
-    // A lookout road climbs to the tile below the lighthouse; the dock road drops to the low shore.
-    spurs: [{ id: 'foundations-dock', tile: A(1, 1), edge: 5 }, { id: 'foundations-lighthouse', tile: A(0, -2) }],
-  },
-  structures: { center: A(6, -3), shape: S19, forest: S19_FOREST },
-  algorithms: { center: A(5, 3), shape: A19, forest: A19_FOREST },
+  islands: [
+    {
+      islandId: 'foundations', center: A(0, 0),
+      tiles: f19, forest: { tiles: F19_FOREST, density: 5 }, buildingTiles: [A(0, -3), A(-1, 1), A(-1, 0), A(1, 1)],
+      // A lookout road climbs to the tile below the lighthouse; the dock road drops to the low shore.
+      spurs: [{ id: 'foundations-dock', tile: A(1, 1), edge: 5 }, { id: 'foundations-lighthouse', tile: A(0, -2) }],
+      glb: {
+        asset: 'basics-island-v2.1',
+        label: { tile: A(0, 1), height: 2.2 },
+        placements: [
+          { node: 'Landmark_Lighthouse', tile: A(0, -3), offset: [0, -.15] },
+          { node: 'Building_Workshop', tile: A(-1, 1), across: 2 },
+          { node: 'Dock_Entry', tile: A(1, 1), edge: 5 },
+        ],
+      },
+    },
+    shapedIsland('structures', 'harbor', { center: A(6, -3), shape: S19, forest: S19_FOREST }),
+    shapedIsland('algorithms', 'ridge', { center: A(5, 3), shape: A19, forest: A19_FOREST }),
+  ],
   bridges: [
     { id: 'foundations-structures', kind: 'wood', from: { islandId: 'foundations', tile: A(2, -1), edge: 1 }, to: { islandId: 'structures', tile: A(4, -3), edge: 4 } },
     { id: 'structures-algorithms', kind: 'stone', from: { islandId: 'structures', tile: A(5, -1), edge: 5 }, to: { islandId: 'algorithms', tile: A(5, 1), edge: 2 } },
   ],
-  glb: {
-    label: { tile: A(0, 1), height: 2.2 },
-    placements: [
-      { node: 'Landmark_Lighthouse', tile: A(0, -3), offset: [0, -.15] },
-      { node: 'Building_Workshop', tile: A(-1, 1), across: 2 },
-      { node: 'Dock_Entry', tile: A(1, 1), edge: 5 },
-    ],
-  },
   natural: false,
 });
 

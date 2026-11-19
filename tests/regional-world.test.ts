@@ -88,7 +88,7 @@ describe('CS region keeps the home page islands (M3.1)', () => {
   });
   it('same GLB placements, plaza and existing roads', () => {
     expect(cs.glb).toEqual(islandsHomeWorld.glb);
-    expect(cs.natural!.plaza).toEqual(islandsHomeWorld.natural!.plaza);
+    expect(cs.natural!.plazas).toEqual(islandsHomeWorld.natural!.plazas);
     const homeRoads = settlementRoads(home).filter(r => ids.includes(r.islandId) && (!r.bridgeId || !r.bridgeId.includes('labs')));
     const roads = settlementRoads(cs.world);
     for (const road of homeRoads) expect(roads.find(r => r.routeId === road.routeId && r.islandId === road.islandId)?.tiles, road.routeId).toEqual(road.tiles);

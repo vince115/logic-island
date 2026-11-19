@@ -1,5 +1,5 @@
 import { hexEdgeMidpoint, hexKey, hexToWorld } from './hex';
-import { A, assembleLayout, inList, lighthouseFront, shape, tiles, workshopDoor, type LayoutSpec, type WorldLayout } from './hex-layout';
+import { A, LIGHTHOUSE_BASE, assembleLayout, inList, lighthouseFront, shape, shapedIsland, tiles, workshopDoor, type IslandSpec, type LayoutSpec, type WorldLayout } from './hex-layout';
 
 /**
  * The world map candidate for production (D.3-1): the 37-tile foundations island accepted in D.2c-1 and D.2c-2,
@@ -47,21 +47,19 @@ const workshop = workshopDoor(hexEdgeMidpoint(A(1, 0), 0, 1.25));
 // D.2c-1: the lookout road continues across the level headland to the lighthouse's door side.
 const [lx, lz] = hexToWorld(A(0, -4), 1.25), lighthouse = lighthouseFront([lx + LIGHTHOUSE_OFFSET[0], lz + LIGHTHOUSE_OFFSET[1]]);
 
-export const ISLANDS_LAYOUT: LayoutSpec = {
-  foundations: {
-    tiles: f37, cliffBeaches: F37_CLIFF_BEACHES, forest: F37_FOREST, buildingTiles: [A(0, -4), A(1, 0), A(2, 0), A(-2, 3)],
-    // A lookout road climbs to the lighthouse headland; the dock road drops to the low shore.
-    spurs: [{ id: 'foundations-dock', tile: A(-2, 3), edge: 5 }, { id: 'foundations-lighthouse', tile: A(0, -3), approach: [lighthouse] },
-      { id: 'foundations-workshop', tile: A(1, 1), via: [A(0, 1)], approach: [workshop.front, workshop.door] }],
-  },
-  structures: { center: A(8, -8), shape: S37, forest: S37_FOREST },
-  algorithms: { center: A(10, -2), shape: A37, forest: A37_FOREST },
-  // Ports chosen so the lighthouse, dock and bridges each get their own coast (see the design log).
-  bridges: [
-    { id: 'foundations-structures', kind: 'wood', from: { islandId: 'foundations', tile: A(3, -3), edge: 1 }, to: { islandId: 'structures', tile: A(6, -6), edge: 4 } },
-    { id: 'structures-algorithms', kind: 'stone', from: { islandId: 'structures', tile: A(10, -7), edge: 5 }, to: { islandId: 'algorithms', tile: A(10, -4), edge: 2 } },
-  ],
+/*
+ * P9 S1: each island is its own spec (hex-layout.ts IslandSpec), and a world is a list of them. The foundations island
+ * carries everything the Island Visual Standard asks of an island: authored terrain, woods, GLB buildings, roads to
+ * each of them, and a plaza with its main route. The same builder takes any island that declares the same parts.
+ */
+export const FOUNDATIONS_ISLAND: IslandSpec = {
+  islandId: 'foundations', center: A(0, 0),
+  tiles: f37, cliffBeaches: F37_CLIFF_BEACHES, forest: { tiles: F37_FOREST, density: 5 }, buildingTiles: [A(0, -4), A(1, 0), A(2, 0), A(-2, 3)],
+  // A lookout road climbs to the lighthouse headland; the dock road drops to the low shore.
+  spurs: [{ id: 'foundations-dock', tile: A(-2, 3), edge: 5 }, { id: 'foundations-lighthouse', tile: A(0, -3), approach: [lighthouse] },
+    { id: 'foundations-workshop', tile: A(1, 1), via: [A(0, 1)], approach: [workshop.front, workshop.door] }],
   glb: {
+    asset: 'basics-island-v2.1',
     label: { tile: A(0, 1), height: 2.2 },
     // Scale stays 0.6; the island grows around the buildings instead.
     placements: [
@@ -71,6 +69,23 @@ export const ISLANDS_LAYOUT: LayoutSpec = {
       { node: 'Dock_Entry', tile: A(-2, 3), edge: 5 },
     ],
   },
+  // The spine of the island: arrival at the dock, through the plaza, up to the lighthouse. The workshop's door gets a
+  // forecourt, and the lighthouse a terrace from under its base to the end of the lookout road.
+  plaza: {
+    mainRoutes: ['foundations-dock', 'foundations-lighthouse'], forecourts: ['foundations-workshop'],
+    terraces: [{ node: 'Landmark_Lighthouse', radius: LIGHTHOUSE_BASE.front + LIGHTHOUSE_BASE.gap }],
+  },
+};
+export const STRUCTURES_ISLAND = shapedIsland('structures', 'harbor', { center: A(8, -8), shape: S37, forest: S37_FOREST });
+export const ALGORITHMS_ISLAND = shapedIsland('algorithms', 'ridge', { center: A(10, -2), shape: A37, forest: A37_FOREST });
+
+export const ISLANDS_LAYOUT: LayoutSpec = {
+  islands: [FOUNDATIONS_ISLAND, STRUCTURES_ISLAND, ALGORITHMS_ISLAND],
+  // Ports chosen so the lighthouse, dock and bridges each get their own coast (see the design log).
+  bridges: [
+    { id: 'foundations-structures', kind: 'wood', from: { islandId: 'foundations', tile: A(3, -3), edge: 1 }, to: { islandId: 'structures', tile: A(6, -6), edge: 4 } },
+    { id: 'structures-algorithms', kind: 'stone', from: { islandId: 'structures', tile: A(10, -7), edge: 5 }, to: { islandId: 'algorithms', tile: A(10, -4), edge: 2 } },
+  ],
   natural: true,
 };
 export const islandsWorld: WorldLayout = assembleLayout(ISLANDS_LAYOUT);
@@ -92,10 +107,11 @@ const DB37 = shape(2, [A(2, -2), A(-2, 2), A(-1, 2)], []), DB_FOREST = [A(-2, 0)
 export const DATABASE_ISLAND_ID = 'databases';
 /** M3.1: the database island as placed here; the regional world's CS map keeps it as it is. */
 export const DATABASES_SPEC = { center: A(2, -9), shape: DB37, forest: DB_FOREST, terrace: DB_TERRACE };
+export const DATABASES_ISLAND = shapedIsland(DATABASE_ISLAND_ID, 'terraced', DATABASES_SPEC);
+export const LABS_ISLAND = shapedIsland(LAB_ISLAND_ID, 'lawn', { center: A(3, 5), shape: LAB37, forest: LAB_FOREST });
 export const islandsHomeWorld: WorldLayout = assembleLayout({
   ...ISLANDS_LAYOUT,
-  labs: { center: A(3, 5), shape: LAB37, forest: LAB_FOREST },
-  databases: DATABASES_SPEC,
+  islands: [...ISLANDS_LAYOUT.islands, LABS_ISLAND, DATABASES_ISLAND],
   bridges: [...ISLANDS_LAYOUT.bridges,
     { id: 'algorithms-labs', kind: 'stone', from: { islandId: 'algorithms', tile: A(8, 1), edge: 4 }, to: { islandId: LAB_ISLAND_ID, tile: A(5, 4), edge: 1 } },
     { id: 'structures-databases', kind: 'wood', from: { islandId: 'structures', tile: A(6, -8), edge: 3 }, to: { islandId: DATABASE_ISLAND_ID, tile: A(3, -8), edge: 0 } }],
