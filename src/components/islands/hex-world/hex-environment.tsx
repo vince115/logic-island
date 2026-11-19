@@ -28,6 +28,8 @@ function StaticShadows() {
 /** D.3-6a: the current environment's glow, for the models that own glowing materials (noon: 1, white). */
 const GlowContext=createContext<Pick<WorldEnvironment,'glow'|'glowTint'>>({glow:1,glowTint:'#ffffff'});
 export const GlowProvider=GlowContext.Provider;
+/** P9.4: the environment's glow factor itself (noon 1 … dusk 1.6), for materials that set their own curve on it. */
+export const useGlowLevel=()=>useContext(GlowContext).glow;
 
 /**
  * Keeps each owned glowing material at its own strength times the environment's glow and (D.3-6c) its own emissive

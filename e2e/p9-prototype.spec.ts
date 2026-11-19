@@ -72,11 +72,11 @@ test.describe('P9.1 prototype: world overview', () => {
     expect(cs.source).toBe('p9');
     expect([...cs.islands].sort()).toEqual(CS_ISLANDS);
     expect(cs.bridges).toHaveLength(7);
-    expect(cs.landmarks).toEqual(expect.arrayContaining(['foundations:Landmark_Lighthouse', 'foundations:Building_Workshop', 'foundations:Dock_Entry', ...[...PLANNED, 'structures', 'algorithms', 'databases'].map(id => `${id}:${id}`)]));
+    expect(cs.landmarks).toEqual(expect.arrayContaining(['foundations:Landmark_Lighthouse', 'foundations:Building_Workshop', 'foundations:Dock_Entry', 'structures:stack-tower', 'algorithms:research-tower', 'databases:storage-fortress', 'programming-languages:compiler-temple', 'networks:comms-tower', 'systems-analysis:design-studio', 'information-systems:archive']));
     // P9.3: every region is built: each island besides 基礎程式島 (GLB) stands its own landmarks, in the world as on its map.
     for (const region of world.regions.filter(r => r.id !== 'hub')) {
       expect(region.source, region.id).toBe('p9');
-      for (const island of region.islands.filter(i => i !== 'foundations')) expect(region.landmarks, `${region.id} ${island}`).toContain(`${island}:${island}`);
+      for (const island of region.islands.filter(i => i !== 'foundations')) expect(region.landmarks.filter(l => l.startsWith(`${island}:`)).length, `${region.id} ${island}`).toBeGreaterThanOrEqual(3);
     }
     expect(cs.trees).toBeGreaterThan(100);
     expect(world.regions.find(r => r.id === 'hub')!.islands).toEqual(['labs']);
@@ -229,5 +229,64 @@ test.describe('P9.1 prototype: CS region and island', () => {
     await expect(sheet).toBeVisible({ timeout: 30_000 });
     const canvas = (await page.locator('canvas').boundingBox())!, box = (await sheet.boundingBox())!;
     expect(Math.max(0, canvas.y + canvas.height - box.y) / canvas.height, 'the sheet covers at most 60% of the map').toBeLessThanOrEqual(.6);
+  });
+});
+
+test.describe('P9.4 world zoom and pan', () => {
+  test.skip(!P9, 'needs a build with LOGIC_ISLAND_P9_PROTOTYPE=1');
+  const view = async (page: Page) => (await page.locator('[data-view]').getAttribute('data-view'))!.split(',').map(Number);
+  test('wheel zooms, a drag pans and opens nothing, 重設視角 brings the whole world back, a click still opens a region', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'wheel and mouse drag: desktop');
+    await openMap(page, '/');
+    await expect(page.locator('[data-target="cs"]')).toBeVisible();
+    const stage = (await page.locator('[data-view]').boundingBox())!;
+    const at = [stage.x + stage.width * .35, stage.y + stage.height * .45] as const;
+    await page.mouse.move(...at);
+    for (let i = 0; i < 4; i++) await page.mouse.wheel(0, -120);
+    await expect.poll(async () => (await view(page))[0]).toBeGreaterThan(1.3);
+    await expect(page).toHaveURL(/:\d+\/$/);
+    const before = await view(page);
+    await page.mouse.move(...at); await page.mouse.down();
+    for (let i = 1; i <= 10; i++) await page.mouse.move(at[0] + i * 15, at[1] + i * 6);
+    await page.mouse.up();
+    await expect.poll(async () => (await view(page))[1]).toBeGreaterThan(before[1] + 50);
+    await page.waitForTimeout(500);
+    await expect(page, 'a drag opens no region').toHaveURL(/:\d+\/$/);
+    const reset = page.getByRole('button', { name: '重設視角' });
+    await reset.click();
+    await expect.poll(() => view(page)).toEqual([1, 0, 0]);
+    await expect(reset).toBeDisabled();
+    await expect(page.locator('[data-target]:visible')).toHaveCount(6);
+    // The zoom buttons, then the label still opens its region.
+    await page.getByRole('button', { name: '放大' }).click();
+    await expect.poll(async () => (await view(page))[0]).toBeGreaterThan(1.3);
+    await reset.click();
+    await page.locator('[data-target="cs"]').click();
+    await expect(page).toHaveURL(/:\d+\/cs$/);
+  });
+  test('phones: a pinch zooms the map, not the page; a one-finger drag pans; reset; the label opens its region', async ({ page, isMobile }) => {
+    test.skip(!isMobile, 'touch: phones');
+    await openMap(page, '/');
+    const stage = page.locator('[data-view]'), box = (await stage.boundingBox())!;
+    const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+    await expect(stage).toHaveCSS('touch-action', 'none');
+    const down = (id: number, x: number, y: number) => stage.dispatchEvent('pointerdown', { pointerId: id, pointerType: 'touch', isPrimary: id === 1, clientX: x, clientY: y, button: 0, buttons: 1 });
+    const move = (type: string, id: number, x: number, y: number) => page.evaluate(([type, id, x, y]) => window.dispatchEvent(new PointerEvent(type as string, { pointerId: id as number, pointerType: 'touch', clientX: x as number, clientY: y as number })), [type, id, x, y] as const);
+    const scroll = await page.evaluate(() => scrollY);
+    await down(1, cx - 40, cy); await down(2, cx + 40, cy);
+    for (let i = 1; i <= 8; i++) { await move('pointermove', 1, cx - 40 - i * 10, cy); await move('pointermove', 2, cx + 40 + i * 10, cy); }
+    await move('pointerup', 1, cx - 120, cy); await move('pointerup', 2, cx + 120, cy);
+    await expect.poll(async () => (await view(page))[0]).toBeGreaterThan(2);
+    expect(await page.evaluate(() => scrollY)).toBe(scroll);
+    const pinched = await view(page);
+    await down(3, cx, cy);
+    for (let i = 1; i <= 6; i++) await move('pointermove', 3, cx + i * 12, cy + i * 8);
+    await move('pointerup', 3, cx + 72, cy + 48);
+    await expect.poll(async () => (await view(page))[1]).toBeGreaterThan(pinched[1] + 30);
+    await expect(page).toHaveURL(/:\d+\/$/);
+    await page.getByRole('button', { name: '重設視角' }).click();
+    await expect.poll(() => view(page)).toEqual([1, 0, 0]);
+    await page.locator('[data-target="cs"]').click();
+    await expect(page).toHaveURL(/:\d+\/cs$/);
   });
 });

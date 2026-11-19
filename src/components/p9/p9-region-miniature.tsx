@@ -213,7 +213,7 @@ export function P9RegionMiniature({ scene, placement, seaTint, accents, order, o
       return <HexLandmarks key={settlement.islandId} world={world} settlement={settlement}/>;
     })}
     <GlbStandIns world={world} layouts={glb}/>
-    {scene.landscapes.length > 0 && <Suspense fallback={null}><P9Landscapes world={world} landscapes={scene.landscapes} accents={accents} detail="world"/></Suspense>}
+    {scene.landscapes.length > 0 && <Suspense fallback={null}><P9Landscapes world={world} landscapes={scene.landscapes} accents={accents} region={scene.id} detail="world"/></Suspense>}
     <Trees trees={scene.trees}/>
     <Sea world={world} tint={seaTint} lift={order * .004}/>
   </group>;

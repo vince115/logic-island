@@ -43,3 +43,19 @@ describe('P9.3 island landmarks', () => {
     });
   }
 });
+
+describe('P9.4 region styles', () => {
+  it('keep every building on its own tile, glow faintly by day and clearly at dusk, one colour a region', async () => {
+    const { REGION_STYLE, glowStrength } = await import('@/components/p9/landmarks/style');
+    for (const [id, style] of Object.entries(REGION_STYLE)) {
+      // The widest base in the kit is 1.3 across; a tile is 2.16 across its flats.
+      expect(1.3 * style.scale * style.main, id).toBeLessThanOrEqual(2.16);
+      expect(style.tall, id).toBeGreaterThanOrEqual(1);
+    }
+    expect(new Set(['cs', 'ai', 'design', 'web', 'sys'].map(id => REGION_STYLE[id as keyof typeof REGION_STYLE].glow)).size).toBe(5);
+    // Glow factor by time of day (environments.ts): morning and noon 1, sunset 1.2, dusk 1.6.
+    expect(glowStrength(1)).toBeLessThanOrEqual(.12);
+    expect(glowStrength(1.2)).toBeGreaterThan(glowStrength(1));
+    expect(glowStrength(1.6)).toBeGreaterThanOrEqual(.75);
+  });
+});
