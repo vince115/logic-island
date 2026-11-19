@@ -1,0 +1,8 @@
+{"version":"P9.1 0423877","route":"/p9","size":"1440x1000","frames":48,"medianMs":62.0,"p90Ms":71.9,"drawsPerFrame":25}
+{"version":"P9.1b 56feb78","route":"/p9","size":"1440x1000","frames":48,"medianMs":61.1,"p90Ms":79.0,"drawsPerFrame":73}
+{"version":"P9.1 0423877","route":"/p9","size":"375x812","frames":48,"medianMs":31.4,"p90Ms":35.3,"drawsPerFrame":25}
+{"version":"P9.1b 56feb78","route":"/p9","size":"375x812","frames":48,"medianMs":29.6,"p90Ms":30.8,"drawsPerFrame":73}
+{"version":"P9.1 0423877","route":"/p9/cs","size":"1440x1000","frames":72,"medianMs":62.4,"p90Ms":74.9,"drawsPerFrame":51}
+{"version":"P9.1b 56feb78","route":"/p9/cs","size":"1440x1000","frames":72,"medianMs":60.5,"p90Ms":73.1,"drawsPerFrame":51}
+{"version":"P8, in the P9.1 build","route":"/world","size":"1440x1000","frames":48,"medianMs":23.6,"p90Ms":35.7,"drawsPerFrame":15}
+{"version":"P8, in the P9.1b build","route":"/world","size":"1440x1000","frames":48,"medianMs":22.6,"p90Ms":36.7,"drawsPerFrame":15}
