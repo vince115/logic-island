@@ -10,7 +10,7 @@ import { landscapePieceCount } from '@/components/p9/p9-landscapes';
  * P9.3: every island of a finished region has landmarks of its own, on sites of its own island that no bridge lands
  * on, with a main building tall enough to read from the world overview and a lighter world level of detail.
  */
-const FINISHED: RegionId[] = ['cs', 'ai'];
+const FINISHED: RegionId[] = ['cs', 'ai', 'design', 'web'];
 /** 基礎程式島 is drawn from its GLB, not from the landmark kit. */
 const GLB_ISLANDS = ['foundations'];
 

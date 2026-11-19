@@ -1,6 +1,7 @@
 import type { Piece } from './kit';
 import { AI_LANDMARKS } from './ai';
 import { CS_LANDMARKS } from './cs';
+import { DESIGN_LANDMARKS, WEB_LANDMARKS } from './design-web';
 import { structuresPieces } from './structures';
 
 /*
@@ -11,6 +12,8 @@ const LANDMARKS: Record<string, (accent: string) => Piece[]> = {
   structures: structuresPieces,
   ...CS_LANDMARKS,
   ...AI_LANDMARKS,
+  ...DESIGN_LANDMARKS,
+  ...WEB_LANDMARKS,
 };
 
 export const landmarkPieces = (islandId: string, accent: string): Piece[] => LANDMARKS[islandId]?.(accent) ?? [];
