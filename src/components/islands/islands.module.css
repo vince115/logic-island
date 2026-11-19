@@ -1238,6 +1238,12 @@
 .subjectsFloating {
   display: none;
 }
+/* P9.6 (P9 region maps): a focused island's panels wait, laid out but hidden, until the camera reaches the island, then fade in. */
+.subjectsFloating[data-arrival='waiting'],
+.arrivalWrap[data-arrival='waiting'] { visibility: hidden; }
+.arrivalWrap { display: contents; }
+.subjectsFloating[data-arrival='arrived'] { animation: panelArrive .22s ease-out; }
+@keyframes panelArrive { from { opacity: 0; transform: translateY(6px); } }
 .explorer[data-layout='fullscreen'] .subjectsFloating {
   display: flex;
   flex-direction: column;

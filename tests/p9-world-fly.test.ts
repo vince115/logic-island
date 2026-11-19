@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { easeInOut, flightView, flyTarget } from '@/lib/p9/world-fly';
+import { FLY_MS, FLY_SAFETY_MS, easeInOut, flightView, flyTarget } from '@/lib/p9/world-fly';
 import { HOME_VIEW, MAX_ZOOM, project } from '@/lib/p9/world-view';
 
 const stage = { width: 1440, height: 936 }, inset = 360;
@@ -20,5 +20,9 @@ describe('P9.5 world fly-to', () => {
     let k = 1;
     for (let t = .05; t <= 1; t += .05) { const v = flightView(HOME_VIEW, to, t, stage, inset); expect(v.k).toBeGreaterThanOrEqual(k - 1e-9); k = v.k; }
     expect(easeInOut(0)).toBe(0); expect(easeInOut(1)).toBe(1); expect(easeInOut(.5)).toBeCloseTo(.5);
+  });
+  it('P9.6: the flight takes 600–750 ms, and the safety net opens the region well under two seconds', () => {
+    expect(FLY_MS).toBeGreaterThanOrEqual(600); expect(FLY_MS).toBeLessThanOrEqual(750);
+    expect(FLY_MS + FLY_SAFETY_MS).toBeLessThan(2000);
   });
 });

@@ -104,6 +104,12 @@ export interface HexSceneOptions {
   extras?: ReactNode;
   /** P9.1 visual prototype (free camera): a focused island is looked at from lower and closer (hex-camera.tsx). */
   explore?: ExploreView;
+  /**
+   * P9.6 (P9 region maps): the focused island's panels over the map (its subjects, the GLB targets) wait until the
+   * camera has reached the island (hex-camera.tsx `onArrive`), so they open on the island rather than ahead of it.
+   * Reduced motion shows them at once; unset, they show on selection as before.
+   */
+  panelsOnArrival?: boolean;
 }
 type CaptionSide='left'|'right'|'above'|'below';
 /**
@@ -168,7 +174,7 @@ function Lifecycle({label,onReady,onUnavailable}:{label:string;onReady:()=>void;
   return null;
 }
 
-export default function HexWorldScene({world,islands,selectedId,onSelect,onNavigate,reducedMotion,onReady,onUnavailable,options={},infoNode,onInfoChange,label,resetKey,onViewChange,orbit,onOrbitStop,environmentId='noon',insetRight=0,baseAzimuth=0,onResetRequest,room}:{
+export default function HexWorldScene({world,islands,selectedId,onSelect,onNavigate,reducedMotion,onReady,onUnavailable,options={},infoNode,onInfoChange,label,resetKey,onViewChange,orbit,onOrbitStop,environmentId='noon',insetRight=0,baseAzimuth=0,onResetRequest,room,onArrive}:{
   world:HexWorld;islands:IslandDefinition[];selectedId:string|null;onSelect:(id:string)=>void;
   reducedMotion:boolean;onReady:()=>void;onUnavailable:()=>void;options?:HexSceneOptions;
   /** Controlled info bubble of the focused settlement, shared with the HTML target list. */
@@ -188,6 +194,8 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
   insetRight?:number;
   /** M3.1 (regional world): degrees added to the default view's azimuth, e.g. a region turned on phones. 0 keeps VIEW. */
   baseAzimuth?:number;
+  /** P9.6: the camera has reached the view of this focus (hex-camera.tsx). */
+  onArrive?:(id:string|null)=>void;
   /** P8.2 (`mapControls`): the keyboard asked for the overview (0 or Home). */
   onResetRequest?:()=>void;
   /** P8.3 (`phoneRoom`): the room the camera keeps at the stage's top and bottom right now. */
@@ -282,7 +290,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
       </group></GlowProvider>
       <HexCamera frames={frames} selectedId={selectedId} reducedMotion={reducedMotion} fit={fit}
         free={free} resetKey={resetKey} onViewChange={free?viewChange:undefined} orbit={free&&orbit} onOrbitStop={free?onOrbitStop:undefined} insetRight={insetRight} view={base}
-        pan={free&&options.mapControls} onResetRequest={onResetRequest} room={room} explore={free?options.explore:undefined}/>
+        pan={free&&options.mapControls} onResetRequest={onResetRequest} room={room} explore={free?options.explore:undefined} onArrive={onArrive}/>
     </Canvas>
   </div>;
 }

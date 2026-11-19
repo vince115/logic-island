@@ -112,11 +112,11 @@ function useWorldGestures(element: React.RefObject<HTMLDivElement | null>, stage
     const el = element.current;
     if (!el || !stage.width) return;
     const local = (e: { clientX: number; clientY: number }) => { const r = el.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top] as [number, number]; };
-    const onWheel = (e: WheelEvent) => { e.preventDefault(); onGesture(); const [x, y] = local(e); setView(v => zoomAt(v, stage, wheelFactor(e.deltaY, e.deltaMode), x, y)); };
+    const onWheel = (e: WheelEvent) => { if ((e.target as HTMLElement).closest('[data-region-picker]')) return; e.preventDefault(); onGesture(); const [x, y] = local(e); setView(v => zoomAt(v, stage, wheelFactor(e.deltaY, e.deltaMode), x, y)); };
     const pointers = new Map<number, [number, number]>();
     let start: [number, number] | null = null, travel = 0;
     const onDown = (e: PointerEvent) => {
-      if (e.button > 0 || (e.target as HTMLElement).closest('button, a, [data-world-controls]')) return;
+      if (e.button > 0 || (e.target as HTMLElement).closest('button, a, [data-world-controls], [data-region-picker]')) return;
       pointers.set(e.pointerId, local(e));
       if (pointers.size === 1) { start = local(e); travel = 0; dragged.current = false; }
     };
@@ -163,11 +163,25 @@ function useWorldGestures(element: React.RefObject<HTMLDivElement | null>, stage
 const FLY_TO: readonly string[] = REGION_IDS;
 
 /**
+ * P9.6: the region page's scene code, which that page loads lazily (the shared hex scene and the P9 landscapes), fetched
+ * once as soon as a region is about to open (hover, focus, the flight's start), so the page that follows finds it loaded.
+ */
+let sceneWarmed = false;
+const warmRegionScene = () => {
+  if (sceneWarmed) return;
+  sceneWarmed = true;
+  void import('../islands/hex-world/hex-world-scene');
+  void import('./p9-landscapes');
+};
+
+/**
  * P9.5: the one fly-to controller. start(id, box, go) flies the view to the region's extent and then calls `go` (the
  * route change); repeat starts while flying or navigating are ignored, so a quick double click or a click on another
  * region opens nothing twice. Reduced motion, a region outside FLY_TO or one without an extent opens at once. A wheel
  * or drag cancels the flight (the view stays where it is, nothing opens). If the frames stall, the safety timer still
  * opens the region. The route is prefetched when the flight starts.
+ * P9.6: `prepare(id, href)` prefetches the route and the region scene's code before a click (hover, focus); Escape
+ * cancels a flight as a wheel does.
  */
 function useFlyTo(stage: Stage, insetRight: number, view: WorldView, setView: React.Dispatch<React.SetStateAction<WorldView>>) {
   const router = useRouter();
@@ -184,10 +198,23 @@ function useFlyTo(stage: Stage, insetRight: number, view: WorldView, setView: Re
     stop(); set('cancelled'); setTarget(null);
     setTimeout(() => { if (live.current.state === 'cancelled') set('idle'); }, 0);
   }, [stop, set]);
+  const prepared = useRef(new Set<string>());
+  const prepare = useCallback((id: string, href?: string) => {
+    if (!href || prepared.current.has(href)) return;
+    prepared.current.add(href);
+    router.prefetch(href);
+    if (FLY_TO.includes(id)) warmRegionScene();
+  }, [router]);
+  useEffect(() => {
+    if (state !== 'flying') return;
+    const key = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.preventDefault(); cancel(); } };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, [state, cancel]);
   const start = useCallback((id: string, box: { x0: number; y0: number; x1: number; y1: number } | undefined, go: () => void, href?: string) => {
     if (live.current.state === 'flying' || live.current.state === 'navigating') return;
     const arrive = () => { stop(); if (live.current.state === 'navigating') return; set('navigating'); go(); };
-    if (href) router.prefetch(href);
+    prepare(id, href);
     const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduced || !box || !stage.width || !FLY_TO.includes(id)) { setTarget(id); arrive(); return; }
     const from = viewNow.current, to = flyTarget(box, stage, insetRight), t0 = performance.now();
@@ -200,8 +227,8 @@ function useFlyTo(stage: Stage, insetRight: number, view: WorldView, setView: Re
     };
     live.current.frame = requestAnimationFrame(tick);
     live.current.timer = setTimeout(() => { if (live.current.state === 'flying') arrive(); }, FLY_MS + FLY_SAFETY_MS);
-  }, [router, stage, insetRight, setView, set, stop]);
-  return { state, target, start, cancel };
+  }, [prepare, stage, insetRight, setView, set, stop]);
+  return { state, target, start, cancel, prepare };
 }
 
 /** The open sea, in the Region's deep colour and the environment's tint. */
@@ -306,7 +333,7 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
       <GlowProvider value={environment}>
         <Sea tint={environment.sea.tint}/>
         {parts.map(p => <P9RegionMiniature key={p.id} scene={p.scene} placement={p.placement} seaTint={environment.sea.tint} accents={accents} order={p.order + 1}
-          onOpen={open(p.id)} onHover={on => setHovered(h => on ? p.id : h === p.id ? null : h)}/>)}
+          onOpen={open(p.id)} onHover={on => { if (on) fly.prepare(p.id, target(p.id)?.href); setHovered(h => on ? p.id : h === p.id ? null : h); }}/>)}
         {/* The world's own links: the hub's causeways in pale stone, the relation bridges as wooden planks (the P8 overview's colours). */}
         {hub && <mesh geometry={hub} castShadow receiveShadow raycast={noRaycast}><meshStandardMaterial color={LINK_THEME.hub} flatShading roughness={.9}/></mesh>}
         {relation && <mesh geometry={relation} castShadow receiveShadow raycast={noRaycast}><meshStandardMaterial color={LINK_THEME.relation} flatShading roughness={.9}/></mesh>}
@@ -324,9 +351,15 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
       };
       const text = <><strong>{(t.name.length > 6 ? t.name.split(/(?<=與)/) : [t.name]).flatMap((part, n) => n ? [<wbr key={n}/>, part] : [part.replace(/ /g, ' ')])}</strong><small className={styles.overviewDetail}>{t.detail}</small></>;
       return t.onOpen
-        ? <button key={t.id} type="button" {...common} aria-label={t.label} onClick={open(t.id)}>{text}</button>
+        ? <button key={t.id} type="button" {...common} aria-label={t.label} onClick={open(t.id)} onPointerEnter={() => fly.prepare(t.id, t.href)} onPointerDown={() => fly.prepare(t.id, t.href)} onFocus={() => fly.prepare(t.id, t.href)}>{text}</button>
         : <div key={t.id} {...common} role="note" aria-label={t.label} data-pending="true">{text}</div>;
     })}
+    {/* P9.6: phones, once the map is zoomed or moved: the five regions as buttons, so one is a tap away even when the
+        zoom has carried every label off the stage. Each flies from the current view, as a label does. */}
+    {shape === 'tall' && !isHome(shown_view) && fly.state === 'idle' && <nav className={styles.regionPicker} data-region-picker aria-label="前往群島">
+      {shown.filter(t => t.onOpen && t.id !== 'hub').map(t => <button key={t.id} type="button" data-pick={t.id} aria-label={t.label} style={{ '--region-accent': t.accent } as React.CSSProperties}
+        onPointerDown={() => fly.prepare(t.id, t.href)} onClick={open(t.id)}>{t.name}</button>)}
+    </nav>}
     {/* P9.4: zoom buttons and 重設視角, for those without a wheel or a pinch; reset frames all five regions again in place (no reload, same address). */}
     <div className={styles.worldControls} data-world-controls role="group" aria-label="世界地圖視角">
       <button type="button" aria-label="放大" onClick={() => step(1.4)} disabled={shown_view.k >= 4 - 1e-6}><Plus size={16}/></button>

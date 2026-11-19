@@ -10,8 +10,11 @@ import { MAX_ZOOM, type Stage, type WorldView } from './world-view';
  * States: idle → flying → navigating; a pointer or wheel gesture during a flight cancels it (cancelled → idle).
  */
 export type FlyState = 'idle' | 'flying' | 'navigating' | 'cancelled';
-/** Flight length (ms); short enough not to delay, long enough to read the direction. */
-export const FLY_MS = 950;
+/**
+ * Flight length (ms); short enough not to delay, long enough to read the direction. P9.6: 950 → 700 ms (the brief's
+ * 600–750 ms range); the region page's route and scene code load during the flight (p9-world-scene.tsx).
+ */
+export const FLY_MS = 700;
 /** If the frames stall (a hidden tab, a busy device), the region still opens this long after the flight should end. */
 export const FLY_SAFETY_MS = 700;
 /** How much of the free stage the region fills at the end of the flight. */

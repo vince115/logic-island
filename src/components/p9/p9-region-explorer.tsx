@@ -92,6 +92,8 @@ export function P9RegionExplorer({ regionId, regionName, regionNameEn, islands, 
   const options = useMemo(() => ({
     ...sceneOptions(layout, SCENE_PRESETS.lab), labelReach: pins ? PHONE_PIN_REACH : camera.labelReach, largeTargets: true, mapControls: true, phoneRoom: PHONE_ROOM, pins, ownLayer: true,
     extras: <Suspense fallback={null}><P9Landscapes world={layout.world} landscapes={scene.landscapes} accents={accents} region={regionId}/></Suspense>, explore: EXPLORE,
+    // P9.6: the island's subjects open once the camera has reached it.
+    panelsOnArrival: true,
   }), [layout, camera, pins, accents, scene, regionId]);
   const open = islands.filter(i => !i.planned).length, planned = islands.length - open;
   return <>
