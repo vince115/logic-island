@@ -72,11 +72,11 @@ test.describe('P9.1 prototype: world overview', () => {
     expect(cs.source).toBe('p9');
     expect([...cs.islands].sort()).toEqual(CS_ISLANDS);
     expect(cs.bridges).toHaveLength(7);
-    expect(cs.landmarks).toEqual(expect.arrayContaining(['foundations:Landmark_Lighthouse', 'foundations:Building_Workshop', 'foundations:Dock_Entry', ...[...PLANNED, 'structures', 'algorithms', 'databases'].map(id => `${id}:${id}`)]));
+    expect(cs.landmarks).toEqual(expect.arrayContaining(['foundations:Landmark_Lighthouse', 'foundations:Building_Workshop', 'foundations:Dock_Entry', 'structures:stack-tower', 'algorithms:research-tower', 'databases:storage-fortress', 'programming-languages:compiler-temple', 'networks:comms-tower', 'systems-analysis:design-studio', 'information-systems:archive']));
     // P9.3: every region is built: each island besides 基礎程式島 (GLB) stands its own landmarks, in the world as on its map.
     for (const region of world.regions.filter(r => r.id !== 'hub')) {
       expect(region.source, region.id).toBe('p9');
-      for (const island of region.islands.filter(i => i !== 'foundations')) expect(region.landmarks, `${region.id} ${island}`).toContain(`${island}:${island}`);
+      for (const island of region.islands.filter(i => i !== 'foundations')) expect(region.landmarks.filter(l => l.startsWith(`${island}:`)).length, `${region.id} ${island}`).toBeGreaterThanOrEqual(3);
     }
     expect(cs.trees).toBeGreaterThan(100);
     expect(world.regions.find(r => r.id === 'hub')!.islands).toEqual(['labs']);

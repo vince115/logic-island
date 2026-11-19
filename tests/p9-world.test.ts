@@ -67,7 +67,7 @@ describe('P9.1b Region Scene Definition', () => {
     expect(cs.landmarks.filter(l => l.kind === 'glb').every(l => l.islandId === 'foundations')).toBe(true);
     // P9.3: 資料庫應用島 draws its own landmarks, so its transitional art is no longer listed.
     expect(cs.landmarks.filter(l => l.kind === 'authored')).toEqual([]);
-    expect(cs.landmarks.filter(l => l.kind === 'landscape').map(l => l.islandId).sort()).toEqual(PLANNED_LANDSCAPES.map(l => l.islandId).sort());
+    expect([...new Set(cs.landmarks.filter(l => l.kind === 'landscape').map(l => l.islandId))].sort()).toEqual(PLANNED_LANDSCAPES.map(l => l.islandId).sort());
     for (const landmark of cs.landmarks) {
       const settlement = world.settlements.find(s => s.islandId === landmark.islandId)!;
       expect(settlement.tiles.some(t => t.q === landmark.tile.q && t.r === landmark.tile.r), `${landmark.islandId}:${landmark.id} stands on its island`).toBe(true);

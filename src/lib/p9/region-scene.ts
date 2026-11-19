@@ -1,6 +1,7 @@
 import { REGION_IDS, type RegionId } from '@/content/world/types';
 import { glbAssets } from '@/lib/islands/asset-registry';
 import { DATABASE_LANDMARKS } from '@/lib/islands/database-island';
+import { islandLandmarks } from '@/lib/islands/island-landmarks';
 import { hexToWorld, type Axial } from '@/lib/islands/hex';
 import { placementPose } from '@/lib/islands/hex-buildings';
 import type { WorldLayout } from '@/lib/islands/hex-layout';
@@ -90,7 +91,10 @@ function define(id: SceneId, source: SceneSource, region: RegionLayout, landscap
   for (const landscape of landscapes) {
     const settlement = world.settlements.find(s => s.islandId === landscape.islandId);
     if (!settlement) throw new Error(`region scene ${id}: landscape of ${landscape.islandId}, which is not on the map`);
-    landmarks.push({ islandId: landscape.islandId, id: landscape.islandId, kind: 'landscape', tile: landscape.tiles[0], position: ground(world, settlement, landscape.tiles[0]) });
+    // P9.4: one entry per landmark of the island's landmark registry (src/lib/islands/island-landmarks.ts), on its site.
+    const named = islandLandmarks(landscape.islandId).filter(l => landscape.tiles[l.site]);
+    if (!named.length) landmarks.push({ islandId: landscape.islandId, id: landscape.islandId, kind: 'landscape', tile: landscape.tiles[0], position: ground(world, settlement, landscape.tiles[0]) });
+    for (const l of named) landmarks.push({ islandId: landscape.islandId, id: l.landmarkId, kind: 'landscape', tile: landscape.tiles[l.site], position: ground(world, settlement, landscape.tiles[l.site]) });
   }
   return { id, source, region, islands, landmarks, landscapes, trees: natural?.trees ?? forestInstances(world, forests) };
 }
