@@ -91,8 +91,8 @@ export function P9RegionExplorer({ regionId, regionName, regionNameEn, islands, 
   const accents = useMemo(() => Object.fromEntries(islands.map(i => [i.id, i.accent])), [islands]);
   const options = useMemo(() => ({
     ...sceneOptions(layout, SCENE_PRESETS.lab), labelReach: pins ? PHONE_PIN_REACH : camera.labelReach, largeTargets: true, mapControls: true, phoneRoom: PHONE_ROOM, pins, ownLayer: true,
-    extras: <Suspense fallback={null}><P9Landscapes world={layout.world} landscapes={scene.landscapes} accents={accents}/></Suspense>, explore: EXPLORE,
-  }), [layout, camera, pins, accents, scene]);
+    extras: <Suspense fallback={null}><P9Landscapes world={layout.world} landscapes={scene.landscapes} accents={accents} region={regionId}/></Suspense>, explore: EXPLORE,
+  }), [layout, camera, pins, accents, scene, regionId]);
   const open = islands.filter(i => !i.planned).length, planned = islands.length - open;
   return <>
     <BackToWorld/>
