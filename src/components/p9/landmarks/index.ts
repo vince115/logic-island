@@ -1,4 +1,5 @@
 import type { Piece } from './kit';
+import { AI_LANDMARKS } from './ai';
 import { CS_LANDMARKS } from './cs';
 import { structuresPieces } from './structures';
 
@@ -9,6 +10,7 @@ import { structuresPieces } from './structures';
 const LANDMARKS: Record<string, (accent: string) => Piece[]> = {
   structures: structuresPieces,
   ...CS_LANDMARKS,
+  ...AI_LANDMARKS,
 };
 
 export const landmarkPieces = (islandId: string, accent: string): Piece[] => LANDMARKS[islandId]?.(accent) ?? [];
