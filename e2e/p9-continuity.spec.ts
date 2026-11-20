@@ -209,8 +209,10 @@ test.describe('P9.8a World → Region continuity', () => {
     await openWorld(page);
     const before = await page.evaluate(() => history.length);
     await page.locator('[data-target="cs"]').click();
-    await page.locator('[data-target="cs"]').click({ force: true }).catch(() => {});
-    await page.locator('[data-target="ai"]').click({ force: true }).catch(() => {});
+    // More clicks while it flies. P9.8b: each may find the page already changed (a slow machine, the flight over); the
+    // label is then gone, and the click gives up after a second instead of waiting out the test.
+    await page.locator('[data-target="cs"]').click({ force: true, timeout: 1000 }).catch(() => {});
+    await page.locator('[data-target="ai"]').click({ force: true, timeout: 1000 }).catch(() => {});
     await expect(page).toHaveURL(/\/cs$/);
     await page.waitForTimeout(1500);
     await expect(page).toHaveURL(/\/cs$/);
