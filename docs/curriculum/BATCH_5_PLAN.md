@@ -40,8 +40,12 @@
 
 ## 4. 發布後要調整的測試
 
-PL20 原本是測試裡「仍為規劃中的課」的例子。發布後改用其他仍規劃中的島（系統分析與設計島 SA），不把 PL20 偽裝回規劃中：
+PL20 原本是測試裡「仍為規劃中的課」的例子。發布後不把 PL20 偽裝回規劃中，也不改成寫死另一堂未來的課（例如 SA20），否則那堂課發布時同樣的問題會再出現。改為從目錄中動態取「目前仍是大綱的課」：
 
-- `tests/world-catalog.test.ts`、`tests/world-config.test.ts`、`tests/trials-validate.test.ts`、`e2e/sql.spec.ts`：改用 SA20 `systems-analysis-capstone`。
-- `tests/world-navigation.test.ts`：PL20 結束程式語言島（`islandComplete`）；「下一堂仍是大綱、不給連結」改由規劃中島嶼的課驗證。
+- `tests/world-catalog.test.ts`：取第一堂大綱課檢查沒有頁面；slug 查詢改為對所有大綱課逐一檢查。
+- `tests/world-config.test.ts`、`tests/trials-validate.test.ts`、`e2e/sql.spec.ts`：以第一堂大綱課當「沒有頁面／不是完整課程」的例子。
+- `tests/world-navigation.test.ts`：PL20 結束程式語言島（`islandComplete`）；「下一堂仍是大綱、不給連結」改由目錄中第一對相鄰的大綱課驗證。
+- `e2e/regional-world.spec.ts`：頁面上沒有任何指向大綱課的連結（對所有大綱課檢查）。
 - `tests/world.test.ts`：程式語言島的課程狀態為 `complete`，`mapState` 仍是 `'planned'`。
+
+這些測試只在全部 520 堂都發布、目錄裡不再有大綱課時才需要改寫；屆時會以「the catalog still has an outline lesson」的明確訊息失敗，而不是默默通過。驗證器本身（`validateIslandLinks`、`validateTrials`）仍以複製後修改的資料測試，不依賴真實課程狀態。

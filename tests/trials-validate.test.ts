@@ -4,6 +4,7 @@ import { hasPrivateBank } from '../src/content/trials/private-bank';
 import { trialContext } from '../src/content/trials/context';
 import { LICENSE_DISPLAY, revisionHash, validateTrials, type Question, type TrialBank } from '../src/content/trials/schema';
 import published from '../src/content/trials/published-hashes.json';
+import { catalogLessons } from '../src/content/world/catalog';
 
 // Shared Trial System T.0: the question bank and its checks (docs/exam-system/04 §4).
 const ctx = trialContext();
@@ -61,14 +62,16 @@ describe('trial bank (T.0)', () => {
 
 describe('validateTrials catches', () => {
   it('unknown references', () => {
+    // An outline lesson (whichever is still planned) and a lesson id that does not exist.
+    const outline = catalogLessons.find(l => l.lessonStatus === 'planned')!;
     const bank = clone();
     q(bank, 'orig-apcs-read-01').tags.push('no.such-tag');
-    q(bank, 'orig-apcs-read-01').links.lessons = ['PL20', 'F99'];
+    q(bank, 'orig-apcs-read-01').links.lessons = [outline.lessonId, 'F99'];
     bank.papers[0].items.push({ questionId: 'missing', points: 1 });
     bank.entries.push({ id: 'x', examId: 'nope', place: { kind: 'region', regionId: 'cs' }, label: 'x', order: 9 });
     const found = problems(bank).join('\n');
     expect(found).toMatch(/unknown tag no\.such-tag/);
-    expect(found).toMatch(/lesson PL20 is not a complete lesson/);
+    expect(found).toContain(`lesson ${outline.lessonId} is not a complete lesson`);
     expect(found).toMatch(/lesson F99 is not a complete lesson/);
     expect(found).toMatch(/unknown question missing/);
     expect(found).toMatch(/entry x: unknown exam nope/);
