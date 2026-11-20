@@ -6,7 +6,7 @@ import { regionLayout } from '@/lib/islands/regions/region-layouts';
 import { validateRegion } from '@/lib/islands/regions/validate-region';
 import { placeholderLandmarkTiles } from '@/components/islands/hex-world/hex-landmarks';
 import { P9_CS_REGION, PLANNED_LANDSCAPES } from '@/lib/p9/cs-region';
-import { p9PrototypeEnabled } from '@/lib/p9/flag';
+import { p9PrototypeEnabled, p9SharedCanvasEnabled } from '@/lib/p9/flag';
 import { regionIslands } from '@/lib/world/learning-islands';
 
 /*
@@ -91,6 +91,27 @@ describe('P9.1 review flag', () => {
     expect(run('1', 'preview')).toBe(true);
     expect(run('1', 'development')).toBe(true);
     expect(run('1', 'production')).toBe(false);
+  });
+  it('P9.8c: the shared canvas needs its own variable and the P9 flag, and is never on in a Vercel Production build', () => {
+    const shared = (prototype: string | undefined, sharedCanvas: string | undefined, vercel: string | undefined) => {
+      const before = [env.LOGIC_ISLAND_P9_PROTOTYPE, env.LOGIC_ISLAND_P9_SHARED_CANVAS, env.VERCEL_ENV];
+      const set = (key: string, value: string | undefined) => { if (value === undefined) delete env[key]; else env[key] = value; };
+      set('LOGIC_ISLAND_P9_PROTOTYPE', prototype); set('LOGIC_ISLAND_P9_SHARED_CANVAS', sharedCanvas); set('VERCEL_ENV', vercel);
+      try { return [p9PrototypeEnabled(), p9SharedCanvasEnabled()]; } finally {
+        set('LOGIC_ISLAND_P9_PROTOTYPE', before[0]); set('LOGIC_ISLAND_P9_SHARED_CANVAS', before[1]); set('VERCEL_ENV', before[2]);
+      }
+    };
+    // P9 off: the shared canvas changes nothing, and cannot turn P9 on.
+    expect(shared(undefined, '1', undefined)).toEqual([false, false]);
+    expect(shared('0', '1', 'preview')).toEqual([false, false]);
+    // P9 on: P9.8b unless the shared canvas is asked for, exactly with '1'.
+    expect(shared('1', undefined, undefined)).toEqual([true, false]);
+    expect(shared('1', '0', 'preview')).toEqual([true, false]);
+    expect(shared('1', 'true', 'preview')).toEqual([true, false]);
+    expect(shared('1', '1', undefined)).toEqual([true, true]);
+    expect(shared('1', '1', 'preview')).toEqual([true, true]);
+    // Never in Production.
+    expect(shared('1', '1', 'production')).toEqual([false, false]);
   });
   it('gives planned islands no lesson to open on the prototype\'s region page', () => {
     for (const island of regionIslands('cs').filter(i => i.planned)) {
