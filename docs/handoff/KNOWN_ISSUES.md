@@ -52,6 +52,10 @@
 | P1-13 | 燈塔／碼頭說明只能透過 3D 點擊觸發，鍵盤與螢幕閱讀器無對應入口 | 教材入口（工坊→`/learn`）在側欄有等價連結；說明內容屬補充資訊。若要完整等價，需在側欄或清單補說明，屬後續決定 |
 | P1-09 | 原型基礎島 catalogEntry=/learn；Blender Workshop metadata route=/learn | 不存在「基礎程式島專屬課程」路由。人工確認 lighthouse／learn／entry 的產品行為，不能自創教材或錯導所有點擊 |
 | P1-10 | .gitignore 不排除 .env*、沒有二進位策略 | 當前無秘密 env 檔，但未來建立 Git 前要審查 ignore／LFS／來源歸屬；不要把1.2G node_modules、298M .next 或整個 Codex folder 放入版控 |
+| P1-40 | Presence 的儲存是行程內記憶體（`src/lib/presence/store.ts` `MemoryPresenceStore`，2026-11-20）。Vercel Functions 可能同時有多個 instance，且會冷啟動 | 在 Vercel 上各 instance 各算各的、重啟歸零，人口數字不可靠。**啟用 `LOGIC_ISLAND_PRESENCE=1` 於 Production 前必須換成共用儲存**（介面 `PresenceStore` 已備妥），並設定 `LOGIC_ISLAND_PRESENCE_SECRET`；兩者都是新增基礎設施／憑證，需使用者核准。見 `docs/planning/PRESENCE_POPULATION_SYSTEM.md` §8 D1、D2 |
+| P1-41 | 開啟 `LOGIC_ISLAND_PRESENCE=1` 的 build 含一個 route handler（`/api/presence`），考試系統的 release preflight（`src/lib/trials/preflight.ts` `routeCheck`）會判定失敗。閘門**刻意未修改**；預設 build 與 CI 沒有任何 route handler | Presence 要與考試系統在同一個 build 上線前，需決定是否把 `/api/presence/route` 加進白名單（考試系統治理的變更，需另行授權）。見同文件 §8 D3 |
+| P1-42 | 島上 NPC（`LOGIC_ISLAND_POPULATION_NPC`）讓首頁地圖從「閒置 0 幀」變成持續繪製（桌機上限 30 fps、手機 20 fps；無人、頁面隱藏、畫布離開畫面、Reduced Motion、兩分鐘無操作時不畫）。量測只有本機 headless Chromium（SwiftShader 與 Apple M6 Metal） | 真機的 FPS、發熱與耗電未量測；啟用 `live` 前需真機驗收（同文件 §8 D8）。NPC 不投影，所以 P1-23 的靜態陰影限制不受影響；若日後要 NPC 投影，需先處理 P1-23 |
+| P1-43 | `e2e/candidate-integration.spec.ts:179`（返回全景後的畫面與載入時相同）與 `:264`（切回中午與載入時逐像素相同）在桌機失敗（2026-11-20 發現）。未修改的 `main` `709c9fc` 以 `git archive` 建置後單獨重跑 3／3 失敗，`presence/visitor-population` 同樣 3／3 失敗；手機專案通過 | `main` 既有問題，與 Presence 無關，本輪未調查原因也未修改（不在授權範圍）。需另案查明是測試的等待條件還是 `/islands/candidate` 的畫面確實在返回後不同。在那之前，全套 E2E 的這兩項失敗不能當作其他變更的回歸 |
 
 ## P2：可延後但需有記錄
 

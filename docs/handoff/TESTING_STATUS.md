@@ -10,6 +10,21 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## Dynamic Island Population：Presence 與島上 NPC（2026-11-20，分支 `presence/visitor-population`，未合併）
+
+報告：`docs/planning/PRESENCE_POPULATION_SYSTEM.md`；證據與工具：`docs/planning/evidence/presence/`。**只有本機建置的結果，不是 Preview、不是 Production，也不是真機。**
+
+- 基線是 `main` `709c9fc`。建置與測試在本任務自己的 worktree（`../logic-island-presence`）執行；對照用的 `main` 以 `git archive` 建在 scratch 副本。
+- Typecheck 0、ESLint 0、Vitest **2,599 通過／9 略過／0 失敗**（96 個檔案；新增 `tests/presence-*.test.ts` 5 個檔案 71 項）。
+- 三種 build 各自驗證，旗標在 build 時決定，測試時要設同一組變數：
+  - 預設（旗標全關）：`e2e/presence.spec.ts` 4／4；`app-paths-manifest.json` 沒有 route handler，`trials:preflight --build` 的 `routes`、`bundle-leak` 通過；與 `main` 9 頁 × 桌機／手機 18 組逐像素 0 差異；首載腳本每頁 +296 bytes、首頁 +861 bytes。
+  - `LOGIC_ISLAND_PRESENCE=1 LOGIC_ISLAND_POPULATION_NPC=mock`：`e2e/presence.spec.ts` 28／28（含一項等待約 95 秒的逾時測試）。
+  - `LOGIC_ISLAND_PRESENCE=1 LOGIC_ISLAND_POPULATION_NPC=live`：live 測試 2／2。
+- `e2e/presence.spec.ts` 要單獨跑且 `--workers=1`：它在同一台伺服器上數訪客，其他測試檔的頁面也會被計入。
+- 全套 E2E（預設 build）：**437 通過／303 略過／2 失敗**（742 項，8.1 分鐘）。兩項失敗是 `e2e/candidate-integration.spec.ts:179` 與 `:264`（桌機，`/islands/candidate` 回到中午畫面的逐像素比對）；同兩項在未修改的 `main` `709c9fc` 基線上單獨重跑也是 3／3 失敗，本分支單獨重跑同樣 3／3 失敗，判定為 `main` 既有問題、與本變更無關（KNOWN_ISSUES P1-43），本輪未處理。
+- 3D 效能單次量測（首頁全景、8 個 NPC）：draw call 66 → 69、三角形 +432、陰影貼圖重畫 0 次；自動旋轉時有無 NPC 幀率未觀察到差異（Metal 60／60 fps，SwiftShader 桌機 26.9／27.3）；閒置時由 0 fps 變為桌機 30、手機 20 fps。**真機未量測。**
+- 沒有做：Vercel Preview、Production、真機、iOS Safari、螢幕閱讀器、共用儲存。
+
 ## P9 S1 引擎通用化（2026-11-19，分支 `p9/s1-1` 至 `p9/s1-4`，未合併）
 
 報告：`docs/planning/P9_S1_ENGINE_GENERALIZATION.md`；證據與工具：`docs/planning/evidence/p9-s1/`。**只有本機隔離建置的結果，不是 Preview，也不是真機。**
