@@ -57,7 +57,7 @@ export function publishProblems(meta: LessonMeta, content: LessonContent | undef
   // Placeholder text anywhere in the lesson.
   for (const text of strings(content)) { const hit = PLACEHOLDER.exec(text); if (hit) { fail(`placeholder text "${hit[0]}"`); break; } }
   // Sections: each has substance.
-  for (const s of content.sections) { const length = strings(s).join('').length; if (length < MIN_SECTION) fail(`section "${s.heading}" has ${length} characters`); }
+  for (const s of content.sections) { const length = strings(s).join('').length; if (length < MIN_SECTION) fail(`section "${s.title}" has ${length} characters`); }
   // Examples, quiz and exercises: as many as the curriculum asks (program and SQL lessons count theirs differently).
   const program = meta.capabilities.includes('program-code');
   if (program && content.examples.length < MIN_EXAMPLES) fail(`${content.examples.length} examples`);
