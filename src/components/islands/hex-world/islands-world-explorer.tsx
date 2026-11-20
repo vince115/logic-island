@@ -1,10 +1,14 @@
 'use client';
 
-import { useCallback, useSyncExternalStore } from 'react';
+import { Suspense, lazy, useCallback, useMemo, useSyncExternalStore } from 'react';
 import { LAB_ISLAND_ID, islandsHomeWorld, islandsWorld } from '@/lib/islands/islands-world';
 import type { LearningIsland } from '@/lib/islands/types';
 import { HexWorldExplorer, type ExplorerCopy } from './hex-world-explorer';
 import { SCENE_PRESETS, sceneOptions } from './hex-scene-presets';
+import type { PopulationSource } from '@/lib/presence/flag';
+
+// Dynamic Island Population: the figures of the home map, downloaded only by a page whose build chose a population source.
+const PopulationLayer = lazy(() => import('@/components/presence/population-layer'));
 
 /** The production wording, carried over from the current /islands explorer. */
 const ISLANDS_COPY: ExplorerCopy = {
@@ -50,11 +54,15 @@ function useIslandInAddress(ids:string[]){
   return {selectedId,change};
 }
 
-export function IslandsWorldExplorer({islands,layout,islandInAddress=false,listMore}:{islands:LearningIsland[];layout?:'card'|'fullscreen';islandInAddress?:boolean;listMore?:React.ReactNode}) {
+export function IslandsWorldExplorer({islands,layout,islandInAddress=false,listMore,population}:{islands:LearningIsland[];layout?:'card'|'fullscreen';islandInAddress?:boolean;listMore?:React.ReactNode;
+  /** Dynamic Island Population (home map only): draw the islands' online population as walking figures, from this source. Unset: none. */
+  population?:PopulationSource}) {
   const lessons=islands.reduce((sum,island)=>sum+island.lessons.length,0);
   const home=islands.some(island=>island.id===LAB_ISLAND_ID);
   const address=useIslandInAddress(islands.map(i=>i.id));
-  return <HexWorldExplorer islands={islands} world={(home?islandsHomeWorld:islandsWorld).world} options={home?HOME_OPTIONS:OPTIONS} poiPanel captionAbove controlsBelow layout={layout} modeSwitchTarget={layout==='fullscreen'?HEADER_TOOLS_ID:undefined} copy={home?HOME_COPY:ISLANDS_COPY}
+  // The figures go in through the scene's `extras` (the map's own group): the scene, its models and its camera are as they were.
+  const options=useMemo(()=>home&&population?{...HOME_OPTIONS,extras:<Suspense fallback={null}><PopulationLayer layout={islandsHomeWorld} source={population}/></Suspense>}:home?HOME_OPTIONS:OPTIONS,[home,population]);
+  return <HexWorldExplorer islands={islands} world={(home?islandsHomeWorld:islandsWorld).world} options={options} poiPanel captionAbove controlsBelow layout={layout} modeSwitchTarget={layout==='fullscreen'?HEADER_TOOLS_ID:undefined} copy={home?HOME_COPY:ISLANDS_COPY}
     {...islandInAddress?{selectedId:address.selectedId,onSelectedChange:address.change}:{}} listMore={listMore}
     // The island and lesson counts stay with the inner map page; the full-screen home map leaves them out.
     footer={layout==='fullscreen'?undefined:<span>{islands.length} 座主題島嶼 <b>/</b> {lessons} 份教材入口 <b>/</b> 一步步建立理解</span>}/>;
