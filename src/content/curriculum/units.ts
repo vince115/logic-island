@@ -43,5 +43,8 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '資料模型、架構與綜合挑戰', summary: 'NoSQL 與 CAP；備份、複寫與分片；從需求到安全串接的完整應用', lessonIds: range('DB', 18, 20) },
   ],
   // 2026-11-20 (course production, batch 1): the written lessons only; the island's other units come with their lessons.
-  'programming-languages': [],
+  'programming-languages': [
+    { title: '程式設計典範與抽象', summary: '命令式、程序式、物件導向、函數式與宣告式的比較；封裝、繼承與介面；純函式與函式組合', lessonIds: range('PL', 1, 3) },
+    { title: '型別與多型', summary: '靜態與動態、強與弱型別、型別推論；多載、覆寫與泛型', lessonIds: range('PL', 4, 5) },
+  ],
 };

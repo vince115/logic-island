@@ -329,7 +329,13 @@ function programFromBlueprint(lessonId: string, summary: string, minutes: number
     status: 'complete', version: '1.0.0', extraLanguages: ['JavaScript'], capabilities: ['program-code'], blueprintId: lessonId };
 }
 /** Batch 1: the programming-languages island's first written lessons. Its other 15 stay planned in src/content/world. */
-const programmingLanguages: Outline[] = [];
+const programmingLanguages: Outline[] = [
+  programFromBlueprint('PL01', '用同一個「偶數平方和」問題比較命令式、程序式、物件導向與函數式寫法，認識宣告式的 SQL 與邏輯式的 Prolog，看懂 C++、Java、Python、JavaScript 各自支援的典範組合，並依可讀性與可變狀態選擇合適的風格。', 45, 'variable-state'),
+  programFromBlueprint('PL02', '用類別把狀態與行為包在一起、以私有欄位守住不變條件，比較 C++、Java、Python、JavaScript 的存取權限、繼承、介面與抽象類別（含 JavaScript 的 prototype 鏈），追蹤 virtual／override 的動態分派在執行時選到哪個方法，並判斷何時該用組合而非繼承。', 55, 'function-call'),
+  programFromBlueprint('PL03', '分辨純函式與副作用、用不可變資料避免意外修改，以 lambda 與 map、filter、reduce 把可變狀態的迴圈改寫成函式組合，並比較遞迴與 reduce 的限制，說明參照透明為什麼讓測試更簡單。', 50, 'function-call'),
+  programFromBlueprint('PL04', '區分「什麼時候檢查」的靜態／動態型別與「會不會自動轉型」的強／弱型別，預測 "5" + 1 這類運算在 C++、Java、Python、JavaScript 中是編譯錯誤、執行期錯誤還是悄悄轉型，追蹤 auto 與 var 的型別推論，比較名義與結構型別，並把寬鬆的隱式轉型改寫成嚴格驗證的輸入解析。', 50, 'none'),
+  programFromBlueprint('PL05', '區分多載、覆寫與泛型三種多型，用 C++ 模板、Java 有界泛型、Python TypeVar 與 Protocol 寫出帶約束的通用函式，並比較模板實例化與型別擦除的代價與限制。', 60, 'none'),
+];
 
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */
 function idAt(islandId: (typeof ISLAND_IDS)[number], index: number, blueprintId?: string): LessonId {

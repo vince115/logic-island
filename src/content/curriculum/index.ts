@@ -59,6 +59,11 @@ import { A17 } from './content/A17';
 import { A18 } from './content/A18';
 import { A19 } from './content/A19';
 import { A20 } from './content/A20';
+import { PL01 } from './content/PL01';
+import { PL02 } from './content/PL02';
+import { PL03 } from './content/PL03';
+import { PL04 } from './content/PL04';
+import { PL05 } from './content/PL05';
 import { DB01 } from './content/DB01';
 import { DB02 } from './content/DB02';
 import { DB03 } from './content/DB03';
@@ -94,6 +99,7 @@ export const curriculum: Curriculum = {
     A06, A07, A08, A09, A10,
     A11, A12, A13, A14, A15,
     A16, A17, A18, A19, A20,
+    PL01, PL02, PL03, PL04, PL05,
     DB01, DB02, DB03, DB04, DB05, DB06, DB07, DB08, DB09, DB10,
     DB11, DB12, DB13, DB14, DB15, DB16, DB17, DB18, DB19, DB20 },
 };
