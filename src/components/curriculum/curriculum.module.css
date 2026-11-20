@@ -942,6 +942,12 @@
   flex: none;
   accent-color: var(--accent);
 }
+/* 2026-11-20 (course production, batch 3): an option's text may hold a long unbroken type name
+   (CompletableFuture<CompletableFuture<Integer>>); as a flex item it may shrink and break it rather than widen the page. */
+.option > :not(input) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .option[data-correct='true'] {
   border-color: var(--cur-ok);
 }

@@ -3,7 +3,8 @@
 > 以 `origin/main` `36a8343` 的 Repository 實際資料重新核對（`src/content/world` 的目錄、`src/content/curriculum` 的課綱與內容），不沿用舊報告的數字。分支 `courses/batch-1`，worktree `../logic-island-courses`。
 
 > **第一批之後（2026-11-20）**：PL01–PL05 發布，已發布 **85**、規劃中 **435**（CS 85／160；PL 5/20，程式語言島從「規劃中」變成「部分開放」）。
-> **第二批之後（2026-11-20）**：PL06–PL10 發布，已發布 **90**、規劃中 **430**（CS 90／160；PL 10/20，地景仍為規劃中）。下面 §1–§5 保留 Phase 0 盤點當時的數字；之後的數字以產生的 [COURSE_PRODUCTION_PROGRESS](COURSE_PRODUCTION_PROGRESS.md) 為準。
+> **第二批之後（2026-11-20）**：PL06–PL10 發布，已發布 **90**、規劃中 **430**（CS 90／160；PL 10/20，地景仍為規劃中）。
+> **第三批之後（2026-11-20）**：PL11–PL15 發布，已發布 **95**、規劃中 **425**（CS 95／160；PL 15/20，地景仍為規劃中）。尚未實作的互動活動見 [INTERACTIVE_LAB_ROADMAP](INTERACTIVE_LAB_ROADMAP.md)。下面 §1–§5 保留 Phase 0 盤點當時的數字；之後的數字以產生的 [COURSE_PRODUCTION_PROGRESS](COURSE_PRODUCTION_PROGRESS.md) 為準。
 
 ## 1. 總數
 

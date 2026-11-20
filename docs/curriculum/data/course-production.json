@@ -31,6 +31,20 @@
       "notes": "大綱活動 scope-chain、memory-model、gc-visualizer、compiler-pipeline 未實作，改用已實作的共用視覺化；PL 地景維持規劃中",
       "pr": "#31",
       "merged": "bd0a035"
+    },
+    {
+      "id": 3,
+      "date": "2026-11-20",
+      "lessons": [
+        "PL11",
+        "PL12",
+        "PL13",
+        "PL14",
+        "PL15"
+      ],
+      "commit": "3831212",
+      "tests": "驗證器、發布閘門 95/95、PL11–PL15 四語程式測試 120（含 Java）、Vitest 2412、E2E 桌機＋手機（旗標關、P9＋區域世界旗標開）、測驗 40 題逐題複核、洩漏掃描",
+      "notes": "ast-explorer、concurrency-timeline 未實作（INTERACTIVE_LAB_ROADMAP）；以共用追蹤的樹、框架、容器與表格面板表達；執行緒交錯只以排程模擬呈現；PL 地景維持規劃中"
     }
   ]
 }
