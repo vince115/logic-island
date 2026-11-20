@@ -6,12 +6,11 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { Box3, Spherical, Vector3 } from 'three';
 import { getFocusBounds, getWorldBounds } from '@/lib/islands/data';
 import { WATER_LEVEL } from '@/lib/islands/hex-world';
-import { MAP_VIEW } from '@/lib/islands/map-view';
+import { VIEW, frame, type StageRoom } from '@/lib/islands/hex-framing';
 import type { IslandDefinition } from '@/lib/islands/types';
 
 // About 40° above the water, looking from the south-east like a board on a table (the numbers: lib/islands/map-view.ts).
-export const VIEW = new Vector3(...MAP_VIEW).normalize();
-const UP = new Vector3(0, 1, 0);
+export { VIEW, type StageRoom };
 const {ACTION}=CameraControlsImpl;
 // VIEW as camera-controls angles: azimuth around the vertical axis from +z, polar angle down from straight up.
 const AZIMUTH=Math.atan2(VIEW.x,VIEW.z),POLAR=Math.acos(VIEW.y);
@@ -42,36 +41,12 @@ export function viewAt(azimuth:number,polar:number) {
 const turn=(a:number,b:number)=>Math.atan2(Math.sin(a-b),Math.cos(a-b));
 
 /**
- * Where the camera looks and how far it zooms to fit `points` seen along `view`, between the overlays: the caption
- * at the top, the hint bar at the bottom (two rows on phones, one once a settlement is focused there). `shift` is how
- * far the view moves along the screen's up so the content sits between them. 2026-11-02: `insetRight` pixels on the
- * right are covered by a panel (the home page's island list); the content fits left of it and `side` moves the view
- * along the screen's right by half that width. 0 (the default) frames exactly as before.
- * P8.3: `room` replaces the top and bottom allowances (px) for a stage whose caption and controls are not over the
- * map (a region map on a phone), plus whatever does cover its lower part (a sheet). Without it, exactly as before.
- */
-export type StageRoom={top:number;bottom:number};
-/**
  * P9.1 visual prototype: how a focused island is looked at when the scene asks for an explore view. `elevation` is the
  * tilt a new focus starts from (degrees above the water; the map's own view is about 40), `zoom` how much closer than
  * the fit that shows the whole island, `minElevation` how low the view may then be turned and `zoomIn` how far in it
  * may go (times the closest island fit; FREE_CAMERA.zoomIn is the default).
  */
 export type ExploreView={elevation:number;zoom:number;minElevation:number;zoomIn:number};
-function frame(points:Vector3[],view:Vector3,width:number,height:number,focused:boolean,insetRight=0,room?:StageRoom) {
-  const right=new Vector3().crossVectors(UP,view).normalize(),up=new Vector3().crossVectors(view,right);
-  // Extents on screen axes; the center is the middle of those extents (for a box, the box center).
-  const rs=points.map(p=>p.dot(right)),us=points.map(p=>p.dot(up)),depth=points.reduce((sum,p)=>sum+p.dot(view),0)/points.length;
-  const [r0,r1,u0,u1]=[Math.min(...rs),Math.max(...rs),Math.min(...us),Math.max(...us)];
-  const center=right.clone().multiplyScalar((r0+r1)/2).addScaledVector(up,(u0+u1)/2).addScaledVector(view,depth);
-  const halfWidth=(r1-r0)/2,halfHeight=(u1-u0)/2;
-  const phone=width<700;
-  const top=room?.top??(phone?72:40),bottom=room?.bottom??(phone?(focused?64:96):56);
-  // An orthographic camera shows width/zoom world units across, so zoom = pixels / units.
-  const pad=phone?1.1:1.12;
-  const zoom=Math.min((width-insetRight)/(2*halfWidth*pad),(height-top-bottom)/(2*halfHeight*pad));
-  return {center,zoom,up,right,shift:(top-bottom)/(2*zoom),side:insetRight/(2*zoom)};
-}
 
 /** P9.6 (`onArrive`): the share of a move still left when it counts as arrived, and the smallest gaps that count as none. */
 const ARRIVED=.08;

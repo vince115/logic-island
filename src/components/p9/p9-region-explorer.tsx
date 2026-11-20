@@ -7,6 +7,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import type { LearningIsland } from '@/lib/islands/types';
 import { regionScene } from '@/lib/p9/region-scene';
+import { PHONE_PIN_REACH, PHONE_ROOM } from '@/lib/p9/region-layout';
 import { P9_WORLD_HREF } from '@/lib/p9/routes';
 import type { RegionId } from '@/content/world/types';
 import { P9_REGION_BASE_AZIMUTH } from '@/lib/p9/camera-heading';
@@ -29,7 +30,6 @@ const P9Landscapes = lazy(() => import('./p9-landscapes').then(m => ({ default: 
 const PHONE = '(max-width: 699px)', PINS = '(max-width: 1239px)';
 const watch = (query: string) => (onChange: () => void) => { const list = matchMedia(query); list.addEventListener('change', onChange); return () => list.removeEventListener('change', onChange); };
 const subscribe = watch(PHONE), subscribePins = watch(PINS);
-const PHONE_PIN_REACH = 3.2, PHONE_ROOM = { top: 30, bottom: 26 } as const;
 /**
  * The explore view of a focused island: from 28° above the water instead of about 40°, a tenth closer than the fit
  * that shows the whole island, and free to go down to 14° and in to three and a half times the closest island fit.
