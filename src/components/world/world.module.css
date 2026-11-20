@@ -370,6 +370,24 @@
 .regionMore strong { font-size: var(--text-sm); }
 .regionMore em { font-style: normal; font-size: var(--text-xs); color: var(--muted); }
 
+/* Region maps (P8 /world/<region>, P9 /<region>), up to 780 px: the header's first row is the brand and, with the back
+   link and the 清單 button in the tool slot, more tools than on any other page. Measured on a region map (Chromium,
+   Arial) the brand (197 px with its version tag) and the tools (135 px; 230 px with 開始學習) did not fit in one row from
+   320 up to 490 px: the tools wrapped onto a row of their own, pushing the brand above the 88 px header and the menu
+   below it. So, on these pages only: no version tag and a narrower gap (brand 150 px, gap 12 px); 開始學習 steps aside
+   up to 480 px (it is shown again where the row has room for it); phones up to 360 px draw the name a size smaller (at
+   341 px the full-size row was exactly full and still wrapped). The header keeps its height (--header-h) and its two rows, so the map's layout (src/lib/p9/region-layout.ts)
+   is unchanged. */
+@media (max-width: 780px) {
+  :global(.site-header):has(.backToWorld) :global(.version) { display: none; }
+  :global(.site-header):has(.backToWorld) :global(.header-inner) { column-gap: 12px; }
+}
+@media (max-width: 480px) {
+  :global(.site-header):has(.backToWorld) :global(.header-start) { display: none; }
+}
+@media (max-width: 360px) {
+  :global(.site-header):has(.backToWorld) :global(.brand) { gap: 8px; font-size: var(--text-lg); }
+}
 /* P8.4: the site header on the world pages (this prototype) only, chosen by what these pages put on the screen: the
    overview section, or a region map's back link in the header's tool slot. No other page's header changes.
    320 px: the main menu's four entries stay on one line (they wrapped inside each link, character by character). */
