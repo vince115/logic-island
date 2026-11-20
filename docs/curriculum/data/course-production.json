@@ -47,6 +47,19 @@
       "notes": "ast-explorer、concurrency-timeline 未實作（INTERACTIVE_LAB_ROADMAP）；以共用追蹤的樹、框架、容器與表格面板表達；執行緒交錯只以排程模擬呈現；PL 地景維持規劃中",
       "pr": "#34",
       "merged": "3092455"
+    },
+    {
+      "id": 4,
+      "date": "2026-11-20",
+      "lessons": [
+        "PL16",
+        "PL17",
+        "PL18",
+        "PL19"
+      ],
+      "commit": "ee75472",
+      "tests": "驗證器、發布閘門 99/99、PL16–PL19 四語程式測試（含 Java）、Vitest 2508、E2E 桌機＋手機 430（旗標關；候選頁 2 個像素比對失敗為 main 既有回歸，見 #36）、P9＋區域世界旗標開 206、測驗 31 題逐題複核、洩漏掃描",
+      "notes": "compiler-pipeline、ast-explorer、case-study-board 未實作（INTERACTIVE_LAB_ROADMAP）；PL16 以圖面板呈現 CFG、PL17 以堆疊容器、PL18 以呼叫框架、PL19 以比較表格；PL20 綜合挑戰為第五批；PL 地景維持規劃中"
     }
   ]
 }
