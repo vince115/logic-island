@@ -96,6 +96,22 @@
   background: var(--panel);
   border-bottom: 1px solid var(--border);
 }
+/* P9.8c: the notice's way back to 3D (a new canvas, only when asked). */
+.fallbackNotice p { margin: 0; }
+.fallbackNotice button {
+  min-height: 44px;
+  margin-top: 12px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.fallbackNotice button:hover { border-color: var(--accent); }
+.fallbackNotice button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* The guide floats over the right of the stage on wide screens (like the home map's list) and sits below it on phones. */
 .guide {
