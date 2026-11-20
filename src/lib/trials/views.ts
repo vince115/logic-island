@@ -1,6 +1,6 @@
 import { getLessonById } from '@/content/curriculum';
 import { examOfSubject, getPaper, getSubject, originOfPaper, playableById, playableQuestions, sourceById, tagById, withdrawnCountOf } from '@/content/trials';
-import { currentRevisionOf, paperTotalPoints, revisionHash, selectCountOf, type Block, type CodeLanguage, type ExamMode, type ExamPaper, type PaperDraw, type Question, type QuestionType, type ResultPolicy } from '@/content/trials/schema';
+import { FREE_CODE, currentRevisionOf, paperTotalPoints, revisionHash, selectCountOf, type Block, type CodeLanguage, type ExamMode, type ExamPaper, type PaperDraw, type Question, type QuestionType, type ResultPolicy } from '@/content/trials/schema';
 import type { HlLines } from '@/lib/highlight/kinds';
 import { highlight, type HighlightLanguage } from '@/lib/highlight/server';
 import type { DrawItem } from './draw';
@@ -36,6 +36,8 @@ export interface PaperView {
   durationMinutes: number; passPoints?: number; passBasis?: string; totalPoints: number; disclaimer: string;
   /** Questions a session answers (the drawn count of a generated paper). */
   questionCount: number; examMode?: ExamMode;
+  /** Docs 35: free practice (no syllabus quotas), and how many of the paper's questions passed only the structural check. */
+  free?: true; unverified: number;
   /** T.3B: from the paper's blueprint — the mode's name, the question types, how the result is shown. */
   modeLabel?: string; questionTypes: QuestionType[]; result: ResultPolicy;
   /** T.2E: a generated paper — `engine.items` and `questions` are the published pool, and a session draws from `pool`. */
@@ -75,6 +77,8 @@ function sourceNote(q: Question): SourceNote {
     : { original: false, label: '官方試題', title: s.title, url: s.url, attribution: s.attribution, ...q.provenance.locator ? { number: q.provenance.locator.questionNumber } : {} };
 }
 
+/** Docs 35: published on an automated structural check alone — no human has verified its content. */
+export const structuralOnly = (q: Question | undefined) => !!q && q.review.reviews.some(r => r.basis === 'structural-check') && !q.review.reviews.some(r => r.reviewer === 'human' && r.verdict === 'approve');
 /** Every exam the question appears in (an original may target subjects of two exams). */
 const examsOf = (q: Question) => [...new Set(q.appearances.flatMap(a => examOfSubject(a.subjectId)?.id ?? []))].sort();
 
@@ -119,14 +123,15 @@ export function paperView(paperId: string): PaperView | undefined {
   const items = paper.items.filter(it => playableById.has(it.questionId)), withdrawn = withdrawnCountOf(paper);
   return {
     id: paper.id, examId: exam.id, examName: exam.name, subjectName: subject.name, title: paper.title, description: paper.description,
-    ...paper.note ? { note: paper.note } : {}, durationMinutes: paper.durationMinutes,
+    ...paper.note ? { note: paper.note } : {}, durationMinutes: paper.durationMinutes, ...paper.free ? { free: true as const } : {},
+    unverified: paper.items.filter(it => structuralOnly(playableById.get(it.questionId))).length,
     ...paper.passPoints !== undefined ? { passPoints: paper.passPoints } : {}, ...paper.passBasis ? { passBasis: paper.passBasis } : {},
     totalPoints: paperTotalPoints(paper), disclaimer: exam.disclaimer,
     questionCount: paper.draw && paper.kind === 'generated' ? paper.draw.count : paper.items.length, ...paper.examMode ? { examMode: paper.examMode } : {},
     ...paper.modeLabel ? { modeLabel: paper.modeLabel } : {},
     questionTypes: paper.questionTypes ?? [...new Set(items.map(it => playableById.get(it.questionId)!.type))],
     result: paper.result ?? { score: 'points', groupBy: 'item' },
-    ...paper.kind === 'generated' && paper.draw ? { draw: { spec: paper.draw, pool: paper.items.map(it => drawItemOf(playableById.get(it.questionId)!, it.revision!, tagById)) } } : {},
+    ...paper.kind === 'generated' && paper.draw ? { draw: { spec: paper.draw, pool: paper.items.map(it => { const d = drawItemOf(playableById.get(it.questionId)!, it.revision!, tagById); return paper.free ? { questionId: d.questionId, revision: d.revision, hash: d.hash, code: FREE_CODE } : d; }) } } : {},
     ...withdrawn ? { maintenance: { withdrawn } } : {}, fixed: paper.kind === 'fixed',
     origin: originOfPaper(paper), ...paper.retired ? { retired: paper.retired } : {},
     ...paper.adaptedFrom ? { adaptedFrom: { ...paper.adaptedFrom, ...getPaper(paper.adaptedFrom.paperId) ? { title: getPaper(paper.adaptedFrom.paperId)!.title } : {} } } : {},

@@ -1,7 +1,9 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { trialBank } from '@/content/trials';
+import { sourceById, tagById, trialBank } from '@/content/trials';
+import { conflictPairs } from '@/content/trials/conflicts';
+import { mockBlueprints } from '@/content/trials/mock-exams';
 import { trialContext } from '@/content/trials/context';
 import { hasPrivateBank, privateFile } from '@/content/trials/private-bank';
 import { publicBatches } from '@/content/trials/generated';
@@ -9,6 +11,8 @@ import type { GeneratedBatch, Question, TrialBank } from '@/content/trials/schem
 import { batchFileOf, planImport } from '@/lib/trials/import';
 import type { Manifest } from '@/lib/trials/integrity';
 import { checkLedger, examResolver, type Ledger } from '@/lib/trials/lifecycle';
+import { readyMockPapers } from '@/lib/trials/mock-assembly';
+import { practicePapers } from '@/lib/trials/practice';
 import type { FileWrite } from './write-files';
 
 /*
@@ -58,6 +62,15 @@ export function manifestWrites(m: Manifest): FileWrite[] {
   if (!hasPrivateBank && Object.keys(rest.entries).length) throw new Error('entries of unpublished questions belong in the private bank, which is not checked out');
   return [{ path: MANIFEST, content: text(part(true)) }, ...hasPrivateBank ? [{ path: PRIVATE_MANIFEST, content: text(rest) }] : []];
 }
+/**
+ * Docs 35: the papers a bank state gives — the fixed ones as they are, and the mock and free-practice papers assembled from
+ * the published pool of that state. A withdrawal or a publication changes the pool, so the rebuild re-assembles them: a
+ * paper still naming a withdrawn question would otherwise refuse the very withdrawal that is meant to remove it.
+ */
+const fixedPapers = trialBank.papers.filter(p => p.kind === 'fixed');
+const papersOf = (questions: Question[], hashes: Record<string, string>) => [...fixedPapers,
+  ...readyMockPapers(mockBlueprints, questions, sourceById, hashes, conflictPairs(), tagById),
+  ...practicePapers(mockBlueprints, questions, sourceById, hashes, conflictPairs())];
 
 export interface Rebuild { ok: boolean; errors: string[]; files: FileWrite[]; statuses: Map<string, string> }
 
@@ -76,15 +89,16 @@ export function rebuild(ledger: Ledger, committed: Ledger): Rebuild {
     const file = batchFileOf(id), out = generatedFileOf(id), at = batchPathOf(id);
     if (!existsSync(at)) { errors.push(`${id}: no batch file at ${file} or in the private bank`); continue; }
     const raw = read<unknown>(at), previous = generatedOf(id);
-    const before = planImport(raw, bank, ctx, previous, hashes, file, undefined, committed);
+    const before = planImport(raw, bank, ctx, previous, hashes, file, undefined, committed, papersOf);
     if (!before.ok || JSON.stringify(before.output) !== JSON.stringify(previous)) { errors.push(`${id}: the generated file is not in sync with its batch file; run the importer first`); continue; }
-    const after = planImport(raw, bank, ctx, previous, hashes, file, undefined, ledger);
+    const after = planImport(raw, bank, ctx, previous, hashes, file, undefined, ledger, papersOf);
     if (!after.ok) { errors.push(...after.errors.map(e => `${id}: ${e}`), ...after.bankProblems.map(e => `${id}: ${e}`)); continue; }
     for (const l of after.lines) statuses.set(l.id, l.status);
     const text = `${JSON.stringify(after.output, null, 1)}\n`;
     if (text !== readFileSync(out, 'utf8')) files.push({ path: out, content: text });
     hashes = after.hashes!;
-    bank = { ...bank, questions: [...bank.questions.filter(q => !after.output!.questions.some(o => o.id === q.id)), ...after.output!.questions] };
+    const questions = [...bank.questions.filter(q => !after.output!.questions.some(o => o.id === q.id)), ...after.output!.questions];
+    bank = { ...bank, questions, papers: papersOf(questions, hashes) };
   }
   const hashText = `${JSON.stringify(hashes, null, 1)}\n`;
   if (hashText !== readFileSync(HASHES, 'utf8')) files.push({ path: HASHES, content: hashText });

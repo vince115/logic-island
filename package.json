@@ -19,6 +19,7 @@
     "trials:ledger": "node --experimental-transform-types --no-warnings --import ./scripts/trials/register.mjs scripts/trials/ledger.ts",
     "trials:ci-base": "node --experimental-transform-types --no-warnings --import ./scripts/trials/register.mjs scripts/trials/ci-base.ts",
     "trials:ci-bootstrap": "node --experimental-transform-types --no-warnings --import ./scripts/trials/register.mjs scripts/trials/ci-bootstrap.ts",
+    "trials:auto-release": "node --experimental-transform-types --no-warnings --import ./scripts/trials/register.mjs scripts/trials/auto-release.ts",
     "trials:release-gate": "node --experimental-transform-types --no-warnings --import ./scripts/trials/register.mjs scripts/trials/release-gate.ts",
     "trials:leak-scan": "node --experimental-transform-types --no-warnings --import ./scripts/trials/register.mjs scripts/trials/leak-scan.ts"
   },

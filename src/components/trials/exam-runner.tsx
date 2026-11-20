@@ -184,14 +184,14 @@ export function ExamRunner({ paper }: { paper: PaperView }) {
       </dl>
       <h3 className={exam.subheading}>考試須知</h3>
       <ul className={styles.subjects}>
-        {paper.draw && <li>每次開始時，依考綱比例從已發布的題目中抽出 {paper.questionCount} 題；題目在開始時固定，重新整理不會重新抽題。</li>}
+        {paper.draw && <li>{paper.free ? `每次開始時，從已發布的題目中隨機抽出 ${paper.questionCount} 題（不依考綱配額、不重複）` : `每次開始時，依考綱比例從已發布的題目中抽出 ${paper.questionCount} 題`}；題目在開始時固定，重新整理不會重新抽題。</li>}
         <li>按下「開始」後才開始計時。每次作答都會自動暫存；切換題目、重新整理或關閉分頁，時間都不會暫停或重設，回來時接著作答。</li>
         <li>可以用「上一題／下一題」或題號導覽切換題目，並把不確定的題目標記為「稍後檢查」。</li>
         <li>時間到時自動交卷，以已作答的題目評分。交卷後不能再修改答案，之後才會顯示答案與解析。</li>
         <li>計時以這台裝置的瀏覽器時間為準，沒有伺服器端驗證；修改瀏覽器資料或時間可能影響計時。成績只供自我練習。</li>
       </ul>
       <p className={styles.notice}>{paper.disclaimer}</p>
-      {drawFailed && <p className={styles.notice} role="alert">目前已發布的題目不足以依考綱比例組成試卷，無法開始作答。</p>}
+      {drawFailed && <p className={styles.notice} role="alert">目前無法抽出這份試卷的題目，無法開始作答。</p>}
       <div className={styles.paperActions}><button type="button" className={styles.button} onClick={start} disabled={!writable}>開始</button></div>
     </section>;
   }

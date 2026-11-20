@@ -44,11 +44,13 @@ export const DECISIONS_FORMAT = 'logic-island.trials-review/1';
 export const MAX_DECISIONS = 25;
 
 export type Role = 'review' | 'publish';
-export interface Reviewer { id: string; name: string; roles: Role[] }
+/** Docs 35: `automated` reviewers write structural-check decisions only; they are never a human approval. */
+export interface Reviewer { id: string; name: string; roles: Role[]; kind?: 'automated' }
+export const STRUCTURAL = 'structural-check' as const;
 export type Verdict = Review['verdict'];
 /** T.3G: a record's place in the ledger's one sequence and its content-bound id (absent on records written before T.3G). */
 export interface Sequenced { seq?: number; eventId?: string }
-export interface LedgerReview extends Sequenced { exam?: string; questionId: string; revision: number; hash: string; by: string; at: string; verdict: Verdict; checks: ReviewCheck[]; note?: string }
+export interface LedgerReview extends Sequenced { exam?: string; questionId: string; revision: number; hash: string; by: string; at: string; verdict: Verdict; checks: ReviewCheck[]; note?: string; /** Docs 35: a structural check, not a human approval. */ basis?: typeof STRUCTURAL }
 export interface LedgerPublication extends Publication, Sequenced {
   exam?: string; questionId: string; /** T.3F: publishes a revoked revision again. */ republishes?: true;
   /** T.3G: the event id of the approval this publication rests on (each approval authorizes one publication). */
@@ -74,7 +76,7 @@ export function requiredChecks(q: Question): ReviewCheck[] {
 }
 
 /** The ledger's review entries in the shape a question's review state records. */
-export const asReview = (e: LedgerReview): Review => ({ by: e.by, reviewer: 'human', at: e.at, verdict: e.verdict, checks: e.checks, ...e.note ? { note: e.note } : {}, revision: e.revision, hash: e.hash });
+export const asReview = (e: LedgerReview): Review => ({ by: e.by, reviewer: e.basis ? 'ai' : 'human', ...e.basis ? { basis: e.basis } : {}, at: e.at, verdict: e.verdict, checks: e.checks, ...e.note ? { note: e.note } : {}, revision: e.revision, hash: e.hash });
 
 /** One revision's publication history: its publications and revocations, oldest first, and whether it is live now. */
 export interface Exposure {
@@ -113,7 +115,7 @@ export function lifecycleOf(q: Question, ledger: Ledger, recordedHash?: string):
   const rev = currentRevisionOf(q)!, hash = revisionHash(rev);
   const decisions = ledger.reviews.filter(e => e.questionId === q.id && e.revision === rev.revision && e.hash === hash);
   const decision = decisions[decisions.length - 1];
-  const missing = decision?.verdict === 'approve' ? requiredChecks(q).filter(c => !decision.checks.includes(c)) : [];
+  const missing = decision?.verdict === 'approve' && !decision.basis ? requiredChecks(q).filter(c => !decision.checks.includes(c)) : [];
   const x = exposureOf(ledger, q.id, rev.revision, hash, recordedHash);
   const revoked = x.revocations[x.revocations.length - 1];
   // T.3F/T.3G: after a withdrawal only an approval that comes after it counts; a same-day pair without sequence numbers
@@ -162,6 +164,11 @@ export function checkLedger(ledger: Ledger, questions: Question[], examOf?: Exam
     entry('reviews', e, 'review', i);
     if (!VERDICTS.includes(e.verdict)) problems.push(`ledger reviews[${i}]: verdict is approve, changes or reject`);
     if (!Array.isArray(e.checks) || !e.checks.every(c => CHECKS.includes(c))) problems.push(`ledger reviews[${i}]: unknown check`);
+    // Docs 35: a structural-check basis belongs to an automated reviewer, and an automated reviewer writes nothing else.
+    const automated = people.get(e.by)?.kind === 'automated', q = byId.get(e.questionId);
+    if (e.basis !== undefined && e.basis !== STRUCTURAL) problems.push(`ledger reviews[${i}]: unknown basis ${String(e.basis)}`);
+    if (automated !== (e.basis === STRUCTURAL)) problems.push(`ledger reviews[${i}]: ${e.by} ${automated ? 'is automated and may only record a structural-check decision' : 'is not an automated reviewer, so it cannot record a structural-check decision'}`);
+    if (e.basis === STRUCTURAL && (e.checks.length || (q && q.provenance.origin !== 'original'))) problems.push(`ledger reviews[${i}]: a structural-check decision confirms no check and applies to original questions only`);
   });
   const revocations = ledger.revocations ?? [];
   if (ledger.revocations !== undefined && !Array.isArray(ledger.revocations)) problems.push('ledger: revocations is a list');
@@ -188,7 +195,7 @@ export function checkLedger(ledger: Ledger, questions: Question[], examOf?: Exam
       else if (latest && latest !== approval) problems.push(`${at}: ${k} names approval ${p.approval}, but a later decision (${latest.eventId ?? latest.at}) replaced it`);
       usedApproval.set(p.approval, (usedApproval.get(p.approval) ?? 0) + 1);
     }
-    if (!approval || approval.verdict !== 'approve' || (q && requiredChecks(q).some(c => !approval.checks.includes(c))))
+    if (!approval || approval.verdict !== 'approve' || (q && !approval.basis && requiredChecks(q).some(c => !approval.checks.includes(c))))
       problems.push(`${at}: ${k} was published without a human approval of that revision and hash`);
   });
   for (const [id, n] of usedApproval) if (n > 1) problems.push(`ledger: approval ${id} authorizes ${n} publications (an approval is used once)`);
@@ -234,7 +241,7 @@ export function checkLedger(ledger: Ledger, questions: Question[], examOf?: Exam
 // ---- review decisions --------------------------------------------------------------------------------------------
 export interface Decision { questionId: string; revision: number; hash: string; verdict: Verdict; checks: ReviewCheck[]; note?: string }
 /** T.3B: `exam` names the certification the file decides on; every decision must be on a question of it. */
-export interface DecisionFile { format: typeof DECISIONS_FORMAT; exam?: string; by: string; at: string; decisions: Decision[] }
+export interface DecisionFile { format: typeof DECISIONS_FORMAT; exam?: string; by: string; at: string; /** Docs 35: every decision is a structural check by an automated reviewer. */ basis?: typeof STRUCTURAL; decisions: Decision[] }
 export interface LedgerPlan { ok: boolean; errors: string[]; ledger?: Ledger; added: number }
 
 const isObject = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
@@ -251,6 +258,8 @@ export function planDecisions(raw: unknown, questions: Question[], ledger: Ledge
   const file = raw as unknown as DecisionFile;
   const reviewer = ledger.reviewers.find(r => r.id === file.by);
   if (!reviewer?.roles.includes('review')) errors.push(`${file.by} is not a reviewer in the ledger`);
+  if (file.basis !== undefined && file.basis !== STRUCTURAL) errors.push(`basis is "${STRUCTURAL}" or absent`);
+  if (reviewer && (reviewer.kind === 'automated') !== (file.basis === STRUCTURAL)) errors.push(file.basis === STRUCTURAL ? `${file.by} is not an automated reviewer, so it cannot record structural-check decisions` : `${file.by} is an automated reviewer and may record structural-check decisions only`);
   if (!isDate(file.at)) errors.push('at is a date (YYYY-MM-DD)');
   if (!file.decisions.length) errors.push('there is no decision');
   if (file.decisions.length > MAX_DECISIONS) errors.push(`${file.decisions.length} decisions: at most ${MAX_DECISIONS} at a time`);
@@ -269,7 +278,10 @@ export function planDecisions(raw: unknown, questions: Question[], ledger: Ledge
     else if (d.hash !== revisionHash(rev)) errors.push(`${at}: hash ${d.hash} is not the current content (${revisionHash(rev)}): stale`);
     if (!VERDICTS.includes(d.verdict)) errors.push(`${at}: verdict is approve, changes or reject`);
     if (!Array.isArray(d.checks) || !d.checks.every(c => CHECKS.includes(c))) errors.push(`${at}: unknown check`);
-    else if (d.verdict === 'approve') {
+    else if (file.basis === STRUCTURAL) {
+      if (d.checks.length) errors.push(`${at}: a structural check confirms no content check`);
+      if (q.provenance.origin !== 'original') errors.push(`${at}: a structural check never releases an official question`);
+    } else if (d.verdict === 'approve') {
       const missing = requiredChecks(q).filter(c => !d.checks.includes(c));
       if (missing.length) errors.push(`${at}: an approval confirms ${missing.join(', ')}`);
     }
@@ -283,7 +295,7 @@ export function planDecisions(raw: unknown, questions: Question[], ledger: Ledge
   if (errors.length) return { ok: false, errors, added: 0 };
   const examOfId = (id: string) => { const q = byId.get(id); return q && examOf?.(q); };
   const seq = nextSeq(ledger);
-  const added: LedgerReview[] = file.decisions.map((d, i) => stamp('review', { ...examOfId(d.questionId) ? { exam: examOfId(d.questionId) } : {}, questionId: d.questionId, revision: d.revision, hash: d.hash, by: file.by, at: file.at, verdict: d.verdict, checks: d.checks, ...d.note ? { note: d.note } : {} }, seq + i));
+  const added: LedgerReview[] = file.decisions.map((d, i) => stamp('review', { ...examOfId(d.questionId) ? { exam: examOfId(d.questionId) } : {}, questionId: d.questionId, revision: d.revision, hash: d.hash, by: file.by, at: file.at, verdict: d.verdict, checks: d.checks, ...file.basis ? { basis: file.basis } : {}, ...d.note ? { note: d.note } : {} }, seq + i));
   return { ok: true, errors, ledger: { ...ledger, reviews: [...ledger.reviews, ...added] }, added: added.length };
 }
 

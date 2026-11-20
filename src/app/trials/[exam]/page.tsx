@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { examStatus, getEdition, getExam, originOfPaper, papersOfExam, sourceById, statusOfPaper, subjectsOfExam, trialBank } from '@/content/trials';
-import { paperQuestionCount, paperTotalPoints } from '@/content/trials/schema';
+import { paperQuestionCount, paperTotalPoints, type ExamPaper } from '@/content/trials/schema';
 import { PaperHistory } from '@/components/trials/paper-history';
 import { trialsEnabled } from '@/lib/trials/flag';
 import styles from '@/components/trials/trials.module.css';
@@ -23,6 +23,22 @@ export default async function ExamPage({ params }: { params: Promise<{ exam: str
   const exam = getExam((await params).exam);
   if (!trialsEnabled() || !exam || examStatus(exam.id) !== 'available') notFound();
   const official = sourceById.get(exam.official.sourceId)!;
+  const papers = papersOfExam(exam.id), free = papers.filter(p => p.free), rest = papers.filter(p => !p.free);
+  const card = (p: ExamPaper) => <div key={p.id} className={styles.card}>
+      <h3>{p.title}</h3>
+      <p>{p.description}</p>
+      <div className={styles.cardMeta}>
+        <span>{paperQuestionCount(p)} 題{p.kind === 'generated' && '（每次抽題）'}</span><span>{paperTotalPoints(p)} 分</span><span>限時 {p.durationMinutes} 分鐘</span>
+        {p.free && <span className={styles.status}>自由練習（不需完整考綱配額）</span>}
+        {p.passPoints !== undefined && <span>{p.passBasis ? `${p.passPoints} 分及格（官方標準）` : `參考及格 ${p.passPoints} 分`}</span>}
+        {statusOfPaper(p) === 'maintenance' && <span className={styles.status}>題目維護中（暫停新作答）</span>}
+        {statusOfPaper(p) === 'retired' && <span className={styles.status}>已退場（只供查看歷史成績）</span>}
+        {originOfPaper(p) === 'adapted' && <span className={styles.status}>改編練習卷（非完整官方原卷）</span>}
+      </div>
+      {p.note && <p>{p.note}</p>}
+      <PaperHistory examId={exam.id} paperId={p.id}/>
+      <div className={styles.paperActions}><Link className={styles.button} href={`/trials/${exam.id}/${p.id}`}>{p.free ? '開始自由練習' : '進入試卷'}</Link></div>
+    </div>;
   return <main id="main" className={`container ${styles.page}`}>
     <nav className="breadcrumbs" aria-label="麵包屑"><Link href="/trials">試煉大廳</Link><span aria-hidden>/</span><span>{exam.name}</span></nav>
     <h1>{exam.name}</h1>
@@ -35,20 +51,14 @@ export default async function ExamPage({ params }: { params: Promise<{ exam: str
       <small>{[s.format.durationMinutes && `${s.format.durationMinutes} 分鐘`, s.format.questionCount && `${s.format.questionCount} 題`, s.format.totalPoints && `${s.format.totalPoints} 分`].filter(Boolean).join(' · ') || '官方格式未確認'}{s.note && `；${s.note}`}（{getEdition(s.editionId)?.label}）</small>
     </li>)}</ul>
 
-    <h2>試卷</h2>
-    <div className={styles.grid}>{papersOfExam(exam.id).map(p => <div key={p.id} className={styles.card}>
-      <h3>{p.title}</h3>
-      <p>{p.description}</p>
-      <div className={styles.cardMeta}>
-        <span>{paperQuestionCount(p)} 題{p.kind === 'generated' && '（每次抽題）'}</span><span>{paperTotalPoints(p)} 分</span><span>限時 {p.durationMinutes} 分鐘</span>
-        {p.passPoints !== undefined && <span>{p.passBasis ? `${p.passPoints} 分及格（官方標準）` : `參考及格 ${p.passPoints} 分`}</span>}
-        {statusOfPaper(p) === 'maintenance' && <span className={styles.status}>題目維護中（暫停新作答）</span>}
-        {statusOfPaper(p) === 'retired' && <span className={styles.status}>已退場（只供查看歷史成績）</span>}
-        {originOfPaper(p) === 'adapted' && <span className={styles.status}>改編練習卷（非完整官方原卷）</span>}
-      </div>
-      {p.note && <p>{p.note}</p>}
-      <PaperHistory examId={exam.id} paperId={p.id}/>
-      <div className={styles.paperActions}><Link className={styles.button} href={`/trials/${exam.id}/${p.id}`}>進入試卷</Link></div>
-    </div>)}</div>
+    {free.length > 0 && <>
+      <h2>自由練習</h2>
+      <p className={styles.muted}>隨時可以開始：從目前已發布的題目隨機抽題，題數不足時自動縮減，不需要湊滿考綱配額。</p>
+      <div className={styles.grid}>{free.map(card)}</div>
+    </>}
+    {rest.length > 0 && <>
+      <h2>{free.length ? '模擬考與試卷' : '試卷'}</h2>
+      <div className={styles.grid}>{rest.map(card)}</div>
+    </>}
   </main>;
 }

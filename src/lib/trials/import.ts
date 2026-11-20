@@ -196,7 +196,7 @@ const seen = (r: QuestionRevision) => JSON.stringify([r.stem, r.options, r.answe
  * Checks a batch against the bank and plans the import. `bank` is the whole bank as the site builds it now (the
  * batch's earlier output included), `previous` that earlier output if there is one, `published` the recorded hashes.
  */
-export function planImport(raw: unknown, bank: TrialBank, ctx: TrialContext, previous: GeneratedBatch | undefined, published: Record<string, string>, file: string, today?: string, ledger: Ledger = committedLedger): ImportPlan {
+export function planImport(raw: unknown, bank: TrialBank, ctx: TrialContext, previous: GeneratedBatch | undefined, published: Record<string, string>, file: string, today?: string, ledger: Ledger = committedLedger, papersOf?: (questions: Question[], hashes: Record<string, string>) => TrialBank['papers']): ImportPlan {
   const errors: string[] = [], warnings: string[] = [], lines: QuestionLine[] = [];
   const shape = checkBatchShape(raw);
   if (shape.length) return { ok: false, errors: shape.map(m => `shape: ${m}`), warnings, lines, bankProblems: [] };
@@ -353,15 +353,19 @@ export function planImport(raw: unknown, bank: TrialBank, ctx: TrialContext, pre
   if (today) for (const o of overdueReviews(built, today)) warnings.push(`question ${o.questionId}: review was due ${o.reviewBy}`);
 
   // The whole bank with this batch in place, and the hashes: recorded ones never change, new published ones are added.
-  const merged: TrialBank = { ...bank, questions: [...others, ...built] };
-  const builtIds = new Set(built.map(q => q.id));
-  const bankProblems = [...validateTrials(merged, ctx), ...checkLedger(ledger, merged.questions, examResolver(merged), published).filter(p => [...builtIds].some(id => p.includes(`(${id} r`)))];
   const hashes: Record<string, string> = { ...published };
   for (const q of built) for (const r of q.revisions) {
     const k = `${q.id}@${r.revision}`, h = revisionHash(r);
     if (published[k] !== undefined && published[k] !== h) errors.push(`question ${q.id}: published revision ${r.revision} would change (${published[k]} → ${h})`);
-    if (q.review.status === 'published' && published[k] === undefined) hashes[k] = h;
+    // Docs 35: only the revision that is published is recorded; an earlier revision of it was never published (the preflight checks that).
+    if (q.review.status === 'published' && published[k] === undefined && r.revision === q.currentRevision) hashes[k] = h;
   }
+  // Docs 35: a mock or practice paper is assembled from the published pool, so with this batch in place (a publication or a
+  // withdrawal) the caller re-assembles them (`papersOf`); otherwise the withdrawal would be refused by the paper it removes.
+  const questionsNow = [...others, ...built];
+  const merged: TrialBank = { ...bank, questions: questionsNow, ...papersOf ? { papers: papersOf(questionsNow, hashes) } : {} };
+  const builtIds = new Set(built.map(q => q.id));
+  const bankProblems = [...validateTrials(merged, ctx), ...checkLedger(ledger, merged.questions, examResolver(merged), published).filter(p => [...builtIds].some(id => p.includes(`(${id} r`)))];
   const ok = !errors.length && !bankProblems.length;
   return {
     ok, errors, warnings, lines, bankProblems,

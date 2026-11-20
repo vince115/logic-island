@@ -64,7 +64,7 @@ export function replayLedger(ledger: Ledger, questions: Question[], recorded: Re
     if (q && examOf && e.exam !== undefined && e.exam !== examOf(q)) { violations.push(`${label(p)}: names exam ${e.exam}, the question belongs to ${examOf(q)}: ignored`); continue; }
     if (p.kind === 'review') {
       const r = e as LedgerReview;
-      s.pending = r.verdict === 'approve' && (!q || requiredChecks(q).every(c => r.checks.includes(c))) ? r : undefined;
+      s.pending = r.verdict === 'approve' && (!q || r.basis || requiredChecks(q).every(c => r.checks.includes(c))) ? r : undefined;
     } else if (p.kind === 'publication') {
       const pub = e as Ledger['publications'][number];
       if (s.live) { violations.push(`${label(p)}: already live: ignored`); continue; }

@@ -33,7 +33,7 @@ export function previewPaperView(bp: MockBlueprint, questions: Question[], confl
   return {
     id: engine.id, examId: bp.examId, examName: getExam(bp.examId)?.name ?? bp.examId, subjectName: bp.title, title: `${bp.title} ${mode.titleSuffix}（測試預覽）`, description: bp.description,
     modeLabel: mode.titleSuffix, questionTypes: bp.questionTypes, result: bp.result,
-    note: mode.note, durationMinutes: mode.durationMinutes, totalPoints: bp.questionCount * bp.pointsPerQuestion, questionCount: bp.questionCount, examMode,
+    note: mode.note, durationMinutes: mode.durationMinutes, totalPoints: bp.questionCount * bp.pointsPerQuestion, questionCount: bp.questionCount, examMode, unverified: 0,
     ...mode.passPoints !== undefined ? { passPoints: mode.passPoints, passBasis: mode.passBasis } : {},
     draw: { spec: drawSpecOf(bp, conflicts, ids), pool }, fixed: false, origin: 'practice',
     disclaimer: '測試預覽：題目尚未發布，只在自動化測試中使用。', engine, questions: pool.map(p => questionView(byId.get(p.questionId)!)),

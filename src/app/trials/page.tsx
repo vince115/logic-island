@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { regions } from '@/content/world';
-import { examStatus, getExam, papersOfExam, subjectsOfExam, trialBank } from '@/content/trials';
+import { examStatus, getExam, offerText, subjectsOfExam, trialBank } from '@/content/trials';
 import { trialsEnabled } from '@/lib/trials/flag';
 import styles from '@/components/trials/trials.module.css';
 
@@ -25,12 +25,12 @@ export default function TrialsPage() {
       return <section key={region.id} className={styles.region} aria-labelledby={`region-${region.id}`}>
         <div className={styles.regionHeading}><h2 id={`region-${region.id}`}>{region.name}</h2><small>{region.nameEn.toUpperCase()}</small></div>
         <div className={styles.grid}>{entries.map(entry => {
-          const exam = getExam(entry.examId)!, open = examStatus(exam.id) === 'available', count = papersOfExam(exam.id).length;
+          const exam = getExam(entry.examId)!, open = examStatus(exam.id) === 'available';
           const body = <>
             <h3>{entry.label}</h3>
             <p>{exam.issuer}</p>
             <div className={styles.cardMeta}>
-              <span className={`${styles.status} ${open ? styles.statusOpen : ''}`}>{open ? `${count} 份試卷` : '題目準備中'}</span>
+              <span className={`${styles.status} ${open ? styles.statusOpen : ''}`}>{offerText(exam.id)}</span>
               <span>科目：{subjectsOfExam(exam.id).map(s => s.name).join('、')}</span>
             </div>
           </>;

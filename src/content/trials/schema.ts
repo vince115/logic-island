@@ -12,6 +12,8 @@ export type QuestionType = typeof QUESTION_TYPES[number];
  * exactly `answer.select` options, and only the exact set of correct options scores (Logic Island's rule, no partial
  * credit). `multiple-choice` (any number of correct options, unstated) stays unsupported.
  */
+/** Docs 35: the single draw code of a free-practice paper (it has no syllabus quotas). */
+export const FREE_CODE = 'free';
 export const MVP_TYPES = ['single-choice', 'code-reading', 'multiple-response'] as const satisfies readonly QuestionType[];
 
 // ---- content ---------------------------------------------------------------------------------------------------
@@ -132,6 +134,12 @@ export type ReviewCheck = 'answer-verified' | 'code-executed' | 'source-checked'
 export interface Review {
   by: string; reviewer: 'human' | 'ai'; at: string; verdict: 'approve' | 'changes' | 'reject'; checks: ReviewCheck[]; note?: string;
   revision?: number; hash?: string;
+  /**
+   * `structural-check`: an automated check of the question's structure only (schema, options, answer key, explanation).
+   * It is never a professional review of the content: reviewer is `ai`, checks stay empty, and the question is shown as
+   * unverified (docs/exam-system/35). Absent on every human decision.
+   */
+  basis?: 'structural-check';
 }
 /** T.2C: the explicit act that put one revision on the site (src/content/trials/ledger.json). */
 export interface Publication { revision: number; hash: string; by: string; at: string; note?: string }
@@ -268,6 +276,8 @@ export interface ExamPaper {
   kind: 'fixed' | 'generated';
   draw?: PaperDraw;
   examMode?: ExamMode;
+  /** Docs 35: free practice — drawn at random from the published pool with no syllabus quotas; never a mock exam. */
+  free?: true;
   /** Where the pass mark comes from, when it is the official one rather than a practice line. */
   passBasis?: string;
   subjectId: string;
@@ -410,7 +420,13 @@ function generatedPaperCheck(p: ExamPaper, questions: Map<string, Question>, tag
   const points = new Set(p.items.map(i => i.points)), each = [...points][0] ?? 0;
   if (points.size !== 1) fail(at, 'a generated paper gives every question the same points');
   if (Object.values(d.coverage).reduce((a, n) => a + n, 0) !== d.count) fail(at, `draw coverage adds up to ${d.count}`);
-  for (const [code, n] of Object.entries(d.coverage)) {
+  if (p.free) {
+    // Docs 35: free practice has one pseudo-item and no quotas; it never claims to be an official-style mock.
+    if (Object.keys(d.coverage).join() !== FREE_CODE) fail(at, `a free-practice paper draws from the single item "${FREE_CODE}"`);
+    if (d.count < 1 || d.count > p.items.length) fail(at, `a free-practice paper draws 1 to ${p.items.length} questions`);
+    if (p.examMode !== 'extended-practice' || p.passPoints !== undefined) fail(at, 'a free-practice paper is an extended-practice paper with no pass mark');
+  }
+  for (const [code, n] of Object.entries(p.free ? {} : d.coverage)) {
     const have = p.items.filter(i => questions.get(i.questionId) && syllabusCodeOf(questions.get(i.questionId)!, tags) === code).length;
     if (have < n) fail(at, `${code}: the pool has ${have} questions, the draw needs ${n}`);
     const shape = d.shapes?.[code];
@@ -540,13 +556,15 @@ export function validateTrials(bank: TrialBank, ctx: TrialContext): string[] {
     // Review state.
     const { status, generatedBy, reviews } = q.review;
     if (status === 'generated' && !generatedBy) fail(at, 'a generated question records what generated it');
+    // Docs 35: an AI-written original question may also be published on a structural check alone (`basis`), shown as unverified.
+    const structural = (r: Review) => r.basis === 'structural-check' && r.reviewer === 'ai' && q.provenance.origin === 'original';
     if (status === 'published' && generatedBy) {
-      if (!reviews.some(r => r.reviewer === 'human' && r.verdict === 'approve')) fail(at, 'an AI-written question needs a human approval before it is published');
-      if (!reviews.some(r => r.verdict === 'approve' && r.checks.includes('answer-verified'))) fail(at, 'an AI-written question needs a verified answer before it is published');
+      if (!reviews.some(r => (r.reviewer === 'human' || structural(r)) && r.verdict === 'approve')) fail(at, 'an AI-written question needs a human approval before it is published');
+      if (!reviews.some(r => r.verdict === 'approve' && (r.checks.includes('answer-verified') || structural(r)))) fail(at, 'an AI-written question needs a verified answer before it is published');
     }
     // T.2C: an approval or a publication holds only for the exact content it was made on.
     const current = currentRevisionOf(q), currentHash = current && revisionHash(current);
-    const boundApproval = reviews.some(r => r.reviewer === 'human' && r.verdict === 'approve' && r.revision === q.currentRevision && r.hash === currentHash);
+    const boundApproval = reviews.some(r => (r.reviewer === 'human' || structural(r)) && r.verdict === 'approve' && r.revision === q.currentRevision && r.hash === currentHash);
     if (status === 'approved' && !boundApproval) fail(at, 'an approved question has a human approval of its current revision and hash');
     if (q.review.publication) {
       const p = q.review.publication;

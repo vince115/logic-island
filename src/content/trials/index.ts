@@ -9,6 +9,7 @@ import { isPlayable, paperOriginOf, paperStatusOf, withdrawnItems, type ExamPape
 import { sources } from './sources';
 import { tags } from './tags';
 import { readyMockPapers } from '@/lib/trials/mock-assembly';
+import { practicePapers } from '@/lib/trials/practice';
 
 /*
  * T.0 trial bank: the static data assembled, and lookups. Server-side data, like the world registry: pages pass what a
@@ -20,7 +21,9 @@ const questions = generatedBatches.flatMap(b => b.questions);
 export const trialBank: TrialBank = {
   exams, editions, subjects, sources, tags, entries: trialEntries, questions,
   // T.2D/T.2E: a mock blueprint gives papers only once its published pool fills every syllabus quota (src/lib/trials/mock-assembly.ts).
-  papers: [...papers, ...readyMockPapers(mockBlueprints, questions, new Map(sources.map(s => [s.id, s])), published, conflictPairs(), new Map(tags.map(t => [t.id, t])))],
+  // Docs 35: a subject with any published question also gets a free-practice paper, which needs no quotas.
+  papers: [...papers, ...readyMockPapers(mockBlueprints, questions, new Map(sources.map(s => [s.id, s])), published, conflictPairs(), new Map(tags.map(t => [t.id, t]))),
+    ...practicePapers(mockBlueprints, questions, new Map(sources.map(s => [s.id, s])), published, conflictPairs())],
 };
 
 
@@ -41,6 +44,24 @@ export const subjectsOfExam = (examId: string) => subjects.filter(s => editionBy
 export const papersOfExam = (examId: string) => trialBank.papers.filter(p => examOfSubject(p.subjectId)?.id === examId);
 /** Content status: an exam is available once one of its papers can be taken. */
 export const examStatus = (examId: string): ExamStatus => papersOfExam(examId).length ? 'available' : 'planned';
+/**
+ * Docs 35: what an exam offers, apart from "has a paper": how many published questions free practice draws from, and
+ * whether a full mock exam (every syllabus quota met) exists. The hall and the region pages show both.
+ */
+export const examOffer = (examId: string) => {
+  const mine = papersOfExam(examId);
+  return {
+    practiceQuestions: new Set(mine.filter(p => p.free).flatMap(p => p.items.map(i => i.questionId))).size,
+    mock: mine.some(p => p.kind === 'generated' && !p.free),
+    papers: mine.filter(p => !p.free).length,
+  };
+};
+/** The hall's one-line status for an exam: 0 questions is still being prepared. */
+export const offerText = (examId: string) => {
+  const o = examOffer(examId);
+  if (o.practiceQuestions) return `可自由練習（${o.practiceQuestions} 題）${o.mock ? '・可模擬考' : ''}${o.papers && !o.mock ? `・${o.papers} 份試卷` : ''}`;
+  return o.papers ? `${o.papers} 份試卷` : '題目準備中';
+};
 /** Questions that may reach the site at all. */
 export const playableQuestions = trialBank.questions.filter(q => isPlayable(q, sourceById));
 /**
@@ -60,5 +81,5 @@ export const regionTrialEntries = (regionId: 'cs' | 'ai'): RegionTrialEntry[] =>
   .filter(e => e.place.kind === 'region' && e.place.regionId === regionId).sort((a, b) => a.order - b.order)
   .map(e => {
     const papers = papersOfExam(e.examId).length;
-    return { id: e.id, label: e.label, ...papers ? { href: `/trials/${e.examId}` } : {}, detail: papers ? `${papers} 份試卷` : '題目準備中' };
+    return { id: e.id, label: e.label, ...papers ? { href: `/trials/${e.examId}` } : {}, detail: offerText(e.examId) };
   });

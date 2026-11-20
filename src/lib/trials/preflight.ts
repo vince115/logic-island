@@ -67,7 +67,7 @@ export function ledgerCheck({ bank, ledger, recorded }: PreflightInput): Check {
     if (q.review.status === 'revoked' && !s.revoked) fails.push(`${q.id}: revoked without a withdrawal of r${rev.revision} ${hash} in the ledger`);
     // Published before T.2C, a question keeps the review notes of its batch file; its recorded hash vouches for it.
     if (recorded[keyOf(q)] === hash) continue;
-    if (q.review.reviews.some(r => r.reviewer !== 'human')) fails.push(`${q.id}: a review record that is not a human's`);
+    if (q.review.reviews.some(r => r.reviewer !== 'human' && r.basis !== 'structural-check')) fails.push(`${q.id}: a review record that is not a human's`);
     const inLedger = ledger.reviews.filter(e => e.questionId === q.id).length;
     if (q.review.reviews.length !== inLedger) fails.push(`${q.id}: ${q.review.reviews.length} review records, ${inLedger} in the ledger — a record did not come from the ledger`);
   }

@@ -26,6 +26,7 @@ export default async function PaperPage({ params }: { params: Promise<{ exam: st
     <h1>{view.title}</h1>
     <p className={styles.lead}>{view.examName} · {view.subjectName}。{view.description}</p>
     {view.note && <p className={styles.muted}>{view.note}</p>}
+    {view.unverified > 0 && <p className={styles.notice} role="note">本卷題庫 {view.unverified} 題只通過自動結構檢查（格式、選項、答案與解析是否完整一致），<strong>尚未經人工專業驗證</strong>；答案與解析仍可能有誤，請當作練習參考，並對照官方資料。</p>}
     <ExamRunner paper={view}/>
   </main>;
 }

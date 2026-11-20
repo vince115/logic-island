@@ -64,6 +64,8 @@ export function releaseGate(e: ReleaseEvidence): { gates: GateResult[]; wouldRel
     const s = lifecycleOf(x.q, e.ledger);
     if (s.decision && s.decision.verdict !== 'approve') return { x, state: 'blocked' as const, why: `${x.t}: the latest decision is ${s.decision.verdict}` };
     if (!s.approved || !s.decision) return { x, state: 'not-verified' as const, why: `${x.t}: no human approval of the current content` };
+    // Docs 35: a structural check puts a question on the practice site; it is never a human approval.
+    if (s.decision.basis) return { x, state: 'not-verified' as const, why: `${x.t}: only a structural check by ${s.decision.by} on ${s.decision.at}, no human approval` };
     if (isSynthetic(s.decision.by) || isSynthetic(reviewer(s.decision.by)?.name)) synthetic.push(`approval of ${x.t} by ${s.decision.by}`);
     return { x, state: 'ok' as const, why: `${x.t}: approved by ${s.decision.by} on ${s.decision.at} (${s.decision.hash})` };
   });
