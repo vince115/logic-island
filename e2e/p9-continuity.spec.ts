@@ -234,3 +234,127 @@ test.describe('P9.8a reduced motion', () => {
     for (const [file, count] of models) expect(count, file).toBe(1);
   });
 });
+
+/*
+ * P9.8b camera handover (hex-camera.tsx `handover`), through the region pages' review parameter
+ * `?handover=tx,ty,tz,zoom,azimuth,polar`. What the camera showed is read from the frames themselves: before any page
+ * script, the matrices the renderer uploads for each frame's screen pass (not the shadow map's) are kept, one pair per
+ * frame, so the first drawn frame can be checked, which no review hook loaded after mount can see.
+ */
+type CameraFrame = { zoom: number; azimuth: number; polar: number; origin: [number, number] };
+function recordCameraFrames() {
+  const w = window as unknown as { __cameraFrames: CameraFrame[] };
+  w.__cameraFrames = [];
+  const names = new WeakMap<WebGLUniformLocation, string>();
+  const proto = WebGL2RenderingContext.prototype;
+  const locate = proto.getUniformLocation;
+  proto.getUniformLocation = function (program, name) { const at = locate.call(this, program, name); if (at) names.set(at, name); return at; };
+  let offscreen = false, projection: Float32Array | null = null, view: Float32Array | null = null, pending = false;
+  const bind = proto.bindFramebuffer;
+  proto.bindFramebuffer = function (kind, framebuffer) { if (kind !== this.READ_FRAMEBUFFER) offscreen = framebuffer !== null; return bind.call(this, kind, framebuffer); };
+  const upload = proto.uniformMatrix4fv as (this: WebGL2RenderingContext, ...args: unknown[]) => void;
+  (proto as unknown as { uniformMatrix4fv: (...args: unknown[]) => void }).uniformMatrix4fv = function (this: WebGL2RenderingContext, ...args: unknown[]) {
+    const name = args[0] ? names.get(args[0] as WebGLUniformLocation) : undefined;
+    if (!offscreen && !pending && (name === 'projectionMatrix' || name === 'viewMatrix')) {
+      const m = Float32Array.from(args[2] as ArrayLike<number>);
+      if (name === 'projectionMatrix') projection ??= m; else view ??= m;
+      if (projection && view) {
+        const width = (this.canvas as HTMLCanvasElement).getBoundingClientRect().width, v = view, p = projection;
+        // Orthographic: projection[0] = 2·zoom / width. The view's third row is the camera's own z axis in the scene.
+        const clip = [p[0] * v[12] + p[12], p[5] * v[13] + p[13]];
+        w.__cameraFrames.push({ zoom: p[0] * width / 2, azimuth: Math.atan2(v[2], v[10]) * 180 / Math.PI, polar: Math.acos(v[6]) * 180 / Math.PI, origin: [clip[0], clip[1]] });
+        pending = true;
+      }
+    }
+    return upload.apply(this, args);
+  };
+  const tick = () => { projection = null; view = null; pending = false; requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
+}
+const cameraFrames = (page: Page) => page.evaluate(() => (window as unknown as { __cameraFrames: CameraFrame[] }).__cameraFrames);
+/** The region page's opening view without a handover: its first and settled frames (they must be the same). */
+async function openingFrames(page: Page) {
+  await page.goto('/cs');
+  await expect(page.locator('button[aria-label^="聚焦"]')).toHaveCount(8, { timeout: 30_000 });
+  await page.waitForTimeout(1500);
+  const frames = await cameraFrames(page);
+  return { first: frames[0], settled: frames.at(-1)! };
+}
+const HANDOVER = (opening: CameraFrame) => ({ zoom: opening.zoom * .6, azimuth: opening.azimuth + 20, polar: opening.polar });
+const param = (h: { zoom: number; azimuth: number; polar: number }) => `0,0,0,${h.zoom.toFixed(4)},${h.azimuth.toFixed(4)},${h.polar.toFixed(4)}`;
+const near = (a: number, b: number, tolerance: number) => Math.abs(a - b) <= tolerance;
+
+test.describe('P9.8b camera handover', () => {
+  test.skip(!P9, 'needs a build with LOGIC_ISLAND_P9_PROTOTYPE=1');
+  test.use({ reducedMotion: 'no-preference' });
+  test.beforeEach(async ({ page }) => { await page.addInitScript(recordCameraFrames); });
+
+  test('without a handover the first frame is the opening view, and nothing moves after it', async ({ page }) => {
+    const { first, settled } = await openingFrames(page);
+    await expect(page.locator('[data-camera-handover]')).toHaveCount(0);
+    expect(Math.abs(first.zoom / settled.zoom - 1)).toBeLessThan(1e-4);
+    expect(Math.abs(first.azimuth - settled.azimuth)).toBeLessThan(1e-3);
+    expect(Math.abs(first.polar - settled.polar)).toBeLessThan(1e-3);
+  });
+
+  test('with a handover the first frame shows that pose, then the camera eases to the opening view', async ({ page }) => {
+    const { settled: opening } = await openingFrames(page);
+    const pose = HANDOVER(opening);
+    await page.goto(`/cs?handover=${param(pose)}`);
+    await expect(page.locator('[data-camera-handover]')).toHaveAttribute('data-camera-handover', 'applied', { timeout: 30_000 });
+    await expect(page.locator('button[aria-label^="聚焦"]')).toHaveCount(8, { timeout: 30_000 });
+    await page.waitForTimeout(3000);
+    const frames = await cameraFrames(page), first = frames[0], last = frames.at(-1)!;
+    // The first drawn frame is the handover pose, or the first eased step away from it (the move starts in that
+    // frame): on the way from the handover to the opening view, under 5 % along, in zoom (log) and in azimuth.
+    const along = (value: number, from: number, to: number) => (value - from) / (to - from);
+    const zoomAlong = along(Math.log(first.zoom), Math.log(pose.zoom), Math.log(opening.zoom)), turnAlong = along(first.azimuth, pose.azimuth, opening.azimuth);
+    test.info().annotations.push({ type: 'first frame', description: JSON.stringify({ zoomAlong, turnAlong, origin: first.origin }) });
+    expect(zoomAlong, 'first frame: zoom, share of the way to the opening view').toBeGreaterThanOrEqual(-1e-3);
+    expect(zoomAlong, 'first frame: zoom, share of the way to the opening view').toBeLessThan(.05);
+    expect(turnAlong, 'first frame: azimuth, share of the way to the opening view').toBeGreaterThanOrEqual(-1e-3);
+    expect(turnAlong, 'first frame: azimuth, share of the way to the opening view').toBeLessThan(.05);
+    expect(Math.abs(first.polar - pose.polar), 'first frame: the handover polar angle').toBeLessThan(.1);
+    expect(Math.hypot(...first.origin), 'first frame: the handover target near the centre').toBeLessThan(.05);
+    // It then eases (frames in between) to the region page's own opening view.
+    expect(frames.filter(f => !near(f.zoom, pose.zoom, pose.zoom * .005) && !near(f.zoom, opening.zoom, opening.zoom * .005)).length, 'frames in between').toBeGreaterThan(3);
+    expect(Math.abs(last.zoom / opening.zoom - 1), 'settled: the opening zoom').toBeLessThan(.005);
+    expect(Math.abs(last.azimuth - opening.azimuth), 'settled: the opening azimuth').toBeLessThan(.1);
+  });
+
+  test('a handover leaves the map\'s zoom limits, island focus and Back as they were', async ({ page }) => {
+    const { settled: opening } = await openingFrames(page);
+    const limits = await page.evaluate(() => (document.querySelector('canvas') as HTMLCanvasElement & { __hexCamera: () => { minZoom: number; maxZoom: number } }).__hexCamera());
+    await page.goto(`/cs?handover=${param(HANDOVER(opening))}`);
+    const label = page.locator('button[aria-label^="聚焦資料結構島"]').first();
+    await expect(label).toBeVisible({ timeout: 30_000 });
+    await page.waitForFunction(() => (document.querySelector('canvas') as (HTMLCanvasElement & { __hexCamera?: () => unknown }) | null)?.__hexCamera?.());
+    const withHandover = await page.evaluate(() => (document.querySelector('canvas') as HTMLCanvasElement & { __hexCamera: () => { minZoom: number; maxZoom: number } }).__hexCamera());
+    expect(withHandover.minZoom).toBeCloseTo(limits.minZoom, 6);
+    expect(withHandover.maxZoom).toBeCloseTo(limits.maxZoom, 6);
+    await page.waitForTimeout(2000);
+    await label.click();
+    await expect(page).toHaveURL(/\/cs\?handover=[^&]+&island=structures$/);
+    await expect(page.locator('aside[aria-label="資料結構島科目清單"]')).toBeVisible({ timeout: 10_000 });
+    await page.goBack();
+    await expect(page).toHaveURL(/\/cs\?handover=[^&]+$/);
+    await expect(page.locator('aside[aria-label="資料結構島科目清單"]')).toHaveCount(0);
+  });
+});
+
+test.describe('P9.8b camera handover, reduced motion', () => {
+  test.skip(!P9, 'needs a build with LOGIC_ISLAND_P9_PROTOTYPE=1');
+  test.use({ reducedMotion: 'reduce' });
+  test.beforeEach(async ({ page }) => { await page.addInitScript(recordCameraFrames); });
+  test('the camera goes from the handover to the opening view at once, with no frames in between', async ({ page }) => {
+    const { settled: opening } = await openingFrames(page);
+    const pose = HANDOVER(opening);
+    await page.goto(`/cs?handover=${param(pose)}`);
+    await expect(page.locator('[data-camera-handover]')).toHaveAttribute('data-camera-handover', 'applied', { timeout: 30_000 });
+    await expect(page.locator('button[aria-label^="聚焦"]')).toHaveCount(8, { timeout: 30_000 });
+    await page.waitForTimeout(1500);
+    const frames = await cameraFrames(page);
+    expect(frames.every(f => near(f.zoom, pose.zoom, pose.zoom * .005) || near(f.zoom, opening.zoom, opening.zoom * .005)), 'only the handover and the opening view').toBe(true);
+    expect(Math.abs(frames.at(-1)!.zoom / opening.zoom - 1)).toBeLessThan(.005);
+  });
+});

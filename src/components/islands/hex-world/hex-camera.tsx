@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { CameraControls, CameraControlsImpl } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Box3, Spherical, Vector3 } from 'three';
@@ -48,6 +48,14 @@ const turn=(a:number,b:number)=>Math.atan2(Math.sin(a-b),Math.cos(a-b));
  */
 export type ExploreView={elevation:number;zoom:number;minElevation:number;zoomIn:number};
 
+/**
+ * P9.8b camera handover: a pose for a map's camera to start from as it mounts, e.g. the view another canvas showed
+ * the same place in. Scene space (the map's centre at the origin): where the camera looks (`target`), its orthographic
+ * `zoom` (px per unit), and its direction as camera-controls angles in radians (`azimuth` around the vertical from +z,
+ * `polar` down from straight up; VIEW is the default view's).
+ */
+export interface CameraHandover {target:[number,number,number];zoom:number;azimuth:number;polar:number}
+
 /** P9.6 (`onArrive`): the share of a move still left when it counts as arrived, and the smallest gaps that count as none. */
 const ARRIVED=.08;
 const ARRIVED_EPS=[1e-2,2e-3,2e-3,2e-3,1e-2];
@@ -63,7 +71,7 @@ const ARRIVED_EPS=[1e-2,2e-3,2e-3,2e-3,1e-2];
  * `orbit` (D.3-5b) turns the overview on its own, keeping tilt and zoom; any drag, pinch or wheel on the map calls
  * `onOrbitStop`, and the explorer decides everything else (focus, list mode, hidden page,「返回全景」).
  */
-export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetKey=0,onViewChange,orbit=false,onOrbitStop,insetRight=0,view:base=VIEW,pan=false,onResetRequest,room,explore,onArrive}:{frames:IslandDefinition[];selectedId:string|null;reducedMotion:boolean;
+export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetKey=0,onViewChange,orbit=false,onOrbitStop,insetRight=0,view:base=VIEW,pan=false,onResetRequest,room,explore,onArrive,handover,onHandover}:{frames:IslandDefinition[];selectedId:string|null;reducedMotion:boolean;
   /** Content points (scene space) to frame instead of the bounding boxes: all of them, and per island. */
   fit?:{all:Vector3[];byId:Record<string,Vector3[]>};
   free?:boolean;resetKey?:number;onViewChange?:(view:CameraView)=>void;
@@ -90,10 +98,31 @@ export function HexCamera({frames,selectedId,reducedMotion,fit,free=false,resetK
    * fraction. A newer framing makes an older one's report stale. Unset, nothing changes.
    */
   onArrive?:(id:string|null)=>void;
+  /**
+   * P9.8b (`handover`): the pose the camera starts from when it mounts (CameraHandover), applied once, before the first
+   * frame; the first framing then moves from it as a new focus would (eased, or at once with reduced motion). Read at
+   * mount only: a later value changes nothing. Zoom and pan limits are the map's own, as without it. `onHandover` is
+   * called once it is applied. Unset, the camera starts exactly as before.
+   */
+  handover?:CameraHandover;onHandover?:()=>void;
 }) {
   const baseAzimuth=Math.atan2(base.x,base.z),basePolar=Math.acos(base.y);
   const controls=useRef<CameraControlsImpl>(null);
   const initialized=useRef(false);
+  // P9.8b: the handover pose, applied once at mount. A layout effect, so it is in place before the first frame
+  // (camera-controls writes its own state to the camera in every frame), and before the first framing (a passive
+  // effect), which then starts from it. Kept in refs: a new handover or callback after mount changes nothing.
+  const mountHandover=useRef({handover,onHandover});
+  useLayoutEffect(()=>{
+    const controller=controls.current,{handover:pose,onHandover:applied}=mountHandover.current;
+    if(!controller||!pose||initialized.current) return;
+    const eye=new Vector3().setFromSphericalCoords(DISTANCE,pose.polar,pose.azimuth).add(new Vector3(...pose.target));
+    void controller.setLookAt(eye.x,eye.y,eye.z,...pose.target,false);
+    void controller.zoomTo(pose.zoom,false);
+    controller.update(0);
+    initialized.current=true;
+    applied?.();
+  },[]);
   const arrival=useRef<{seq:number;onArrive?:(id:string|null)=>void;pending:{seq:number;id:string|null;zoom:number;start:number[]}|null}>({seq:0,onArrive,pending:null});
   useEffect(()=>{arrival.current.onArrive=onArrive;},[onArrive]);
   const gapScratch=useMemo(()=>({a:new Vector3(),b:new Vector3(),s:new Spherical(),t:new Spherical()}),[]);

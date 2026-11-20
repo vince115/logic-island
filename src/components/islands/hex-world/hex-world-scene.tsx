@@ -8,7 +8,7 @@ import { WATER_LEVEL, settlementFrames, worldCenter, type HexWorld } from '@/lib
 import { ENVIRONMENTS, PREVIEW_NOON, type EnvironmentId } from '@/lib/islands/environments';
 import { pageInteractions } from '@/lib/islands/island-interactions';
 import type { IslandDefinition } from '@/lib/islands/types';
-import { HexCamera, VIEW, viewAt, type CameraView, type ExploreView, type StageRoom } from './hex-camera';
+import { HexCamera, VIEW, viewAt, type CameraHandover, type CameraView, type ExploreView, type StageRoom } from './hex-camera';
 import { captionPoint, fitPoints } from '@/lib/islands/hex-framing';
 import { HexTiles, WATER_Y } from './hex-tiles';
 import { HexTerrainMesh, type TerrainStyle } from './hex-terrain-mesh';
@@ -157,6 +157,8 @@ export interface HexSceneProps {
   onResetRequest?:()=>void;
   /** P8.3 (`phoneRoom`): the room the camera keeps at the stage's top and bottom right now. */
   room?:StageRoom;
+  /** P9.8b: the pose the camera starts from at mount (hex-camera.tsx `handover`); unset, as before. */
+  cameraHandover?:CameraHandover;
 }
 
 /**
@@ -165,7 +167,7 @@ export interface HexSceneProps {
  * than HexWorldScene's own could host it. `onReady` reports the content mounted (and the frame that shows it asked
  * for); `onPointerChange` tells the host whether the pointer is on something a click acts on (its cursor).
  */
-export function HexWorldContent({world,islands,selectedId,onSelect,onNavigate,reducedMotion,onReady,options={},infoNode,onInfoChange,resetKey,onViewChange,orbit,onOrbitStop,environmentId='noon',insetRight=0,baseAzimuth=0,onResetRequest,room,onArrive,onPointerChange}:Omit<HexSceneProps,'label'|'onUnavailable'>&{onPointerChange?:(pointer:boolean)=>void}) {
+export function HexWorldContent({world,islands,selectedId,onSelect,onNavigate,reducedMotion,onReady,options={},infoNode,onInfoChange,resetKey,onViewChange,orbit,onOrbitStop,environmentId='noon',insetRight=0,baseAzimuth=0,onResetRequest,room,onArrive,cameraHandover,onPointerChange,onCameraHandover}:Omit<HexSceneProps,'label'|'onUnavailable'>&{onPointerChange?:(pointer:boolean)=>void;onCameraHandover?:()=>void}) {
   const glbLayouts=options.glbLayouts??hexGlbSettlements,continuousOcean=options.ocean==='continuous'||options.ocean==='natural';
   const environment=options.lighting!=='contrast'?PREVIEW_NOON:ENVIRONMENTS[options.timeOfDay?environmentId:'noon'];
   // Shadows must cover the whole map; the D.2a/D.2b world fits the original ±16 box.
@@ -256,7 +258,8 @@ export function HexWorldContent({world,islands,selectedId,onSelect,onNavigate,re
       </group></GlowProvider>
       <HexCamera frames={frames} selectedId={selectedId} reducedMotion={reducedMotion} fit={fit}
         free={free} resetKey={resetKey} onViewChange={free?viewChange:undefined} orbit={free&&orbit} onOrbitStop={free?onOrbitStop:undefined} insetRight={insetRight} view={base}
-        pan={free&&options.mapControls} onResetRequest={onResetRequest} room={room} explore={free?options.explore:undefined} onArrive={onArrive}/>
+        pan={free&&options.mapControls} onResetRequest={onResetRequest} room={room} explore={free?options.explore:undefined} onArrive={onArrive}
+        handover={cameraHandover} onHandover={onCameraHandover}/>
   </>;
 }
 
@@ -264,8 +267,11 @@ export function HexWorldContent({world,islands,selectedId,onSelect,onNavigate,re
  * P9.8b canvas shell: the map's element and canvas (renderer, shadows, pixel ratio, the fallback when WebGL cannot
  * start), the canvas's lifecycle and the cursor its content asks for. `children` is the content (HexWorldContent).
  */
-export function HexCanvasShell({options={},label,onUnavailable,pointer,children}:{options?:HexSceneOptions;label:string;onUnavailable:()=>void;pointer:boolean;children:ReactNode}) {
-  return <div className={styles.canvasWrap} style={pointer||options.ownLayer?{cursor:pointer?'pointer':undefined,isolation:options.ownLayer?'isolate':undefined}:undefined} data-camera={options.camera==='free'?'free':undefined}>
+export function HexCanvasShell({options={},label,onUnavailable,pointer,handover,children}:{options?:HexSceneOptions;label:string;onUnavailable:()=>void;pointer:boolean;
+  /** P9.8b: whether a camera handover was asked for and applied (`data-camera-handover`, for tests and review). */
+  handover?:'pending'|'applied';children:ReactNode}) {
+  return <div className={styles.canvasWrap} style={pointer||options.ownLayer?{cursor:pointer?'pointer':undefined,isolation:options.ownLayer?'isolate':undefined}:undefined} data-camera={options.camera==='free'?'free':undefined}
+    data-camera-handover={handover}>
     <Canvas orthographic frameloop="demand" dpr={[1,1.5]} shadows={options.shadows==='static'?STATIC_SHADOW_MAP:'soft'}
       camera={{position:[20,19,24],zoom:27,near:.1,far:400}}
       gl={{antialias:true,alpha:false,powerPreference:'low-power'}}
@@ -279,7 +285,10 @@ export function HexCanvasShell({options={},label,onUnavailable,pointer,children}
 /** The hex map: its canvas shell with its content, as one component (the explorers' API, unchanged by P9.8b). */
 export default function HexWorldScene(props:HexSceneProps) {
   const [pointer,setPointer]=useState(false);
-  return <HexCanvasShell options={props.options} label={props.label} onUnavailable={props.onUnavailable} pointer={pointer}>
-    <HexWorldContent {...props} onPointerChange={setPointer}/>
+  // The camera reads the callback once, at mount (hex-camera.tsx `handover`).
+  const [handedOver,setHandedOver]=useState(false);
+  return <HexCanvasShell options={props.options} label={props.label} onUnavailable={props.onUnavailable} pointer={pointer}
+    handover={props.cameraHandover?handedOver?'applied':'pending':undefined}>
+    <HexWorldContent {...props} onPointerChange={setPointer} onCameraHandover={()=>setHandedOver(true)}/>
   </HexCanvasShell>;
 }
