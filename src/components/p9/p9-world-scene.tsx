@@ -25,6 +25,7 @@ import { GlowProvider, HexEnvironment, STATIC_SHADOW_MAP } from '../islands/hex-
 import { OCEAN } from '../islands/hex-world/hex-ocean';
 import styles from '../world/world.module.css';
 import { P9RegionMiniature } from './p9-region-miniature';
+import { loadLandscapes, preloadRegionModels } from './p9-scene-loaders';
 
 /*
  * P9.1b: the world overview is the five regions' own scenes, drawn small around the hub. Each region is its Region
@@ -175,7 +176,7 @@ const warmRegionScene = () => {
   if (sceneWarmed) return;
   sceneWarmed = true;
   void import('../islands/hex-world/hex-world-scene');
-  void import('./p9-landscapes');
+  void loadLandscapes();
 };
 
 /**
@@ -187,7 +188,7 @@ const warmRegionScene = () => {
  * P9.6: `prepare(id, href)` prefetches the route and the region scene's code before a click (hover, focus); Escape
  * cancels a flight as a wheel does.
  * P9.8a: start(id, to, go) flies to the view `to` (the region page's opening view, or the region's extent), from the
- * view on screen (`view` clamped). A cancelled flight's view
+ * view on screen (`view` clamped); a flight starting also preloads the region's GLB models. A cancelled flight's view
  * is brought back within the limits a pan or zoom keeps (the flight itself may pass them).
  */
 function useFlyTo(stage: Stage, insetRight: number, view: WorldView, setView: React.Dispatch<React.SetStateAction<WorldView>>) {
@@ -222,6 +223,7 @@ function useFlyTo(stage: Stage, insetRight: number, view: WorldView, setView: Re
     if (live.current.state === 'flying' || live.current.state === 'navigating') return;
     const arrive = () => { stop(); if (live.current.state === 'navigating') return; set('navigating'); go(); };
     prepare(id, href);
+    if (FLY_TO.includes(id)) preloadRegionModels(id as SceneId);
     const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduced || !to || !stage.width || !FLY_TO.includes(id)) { setTarget(id); arrive(); return; }
     const from = clampView(viewNow.current, stage), t0 = performance.now();

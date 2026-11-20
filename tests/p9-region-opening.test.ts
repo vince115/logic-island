@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { REGION_IDS } from '@/content/world/types';
+import { VEGETATION_ASSET, glbAssets } from '@/lib/islands/asset-registry';
+import { forestInstances } from '@/lib/islands/hex-nature-data';
 import { WATER_LEVEL, worldCenter } from '@/lib/islands/hex-world';
 import { frameOverview, overviewOutlines } from '@/lib/islands/regions/world-overview-geometry';
 import type { OverviewShape } from '@/lib/islands/regions/schema';
 import { regionStage } from '@/lib/p9/region-layout';
+import { regionModelUrls } from '@/lib/p9/region-models';
 import { openingWorldView, regionOpening } from '@/lib/p9/region-opening';
 import { regionScene, sceneLayouts, scenePlacement, type SceneId } from '@/lib/p9/region-scene';
 import { P9_WORLD_MAP } from '@/lib/p9/world-map';
@@ -48,6 +51,19 @@ describe('P9.8a region opening and the flight that ends on it', () => {
       expect(x + screen.worldOffset[0], id).toBeCloseTo(screen.region.left + screen.region.width / 2, 6);
       expect(y + screen.worldOffset[1], id).toBeCloseTo(screen.region.top + screen.region.height / 2, 6);
       expect(frame.zoom * view.k * s, id).toBeCloseTo(opening.zoom, 6);
+    }
+  });
+});
+
+describe('P9.8a region models preloaded before a flight', () => {
+  it('are the GLB files the region page loads: every building set, and the trees when the map has any', () => {
+    for (const id of REGION_IDS) {
+      const { layout } = regionScene(id).region, urls = regionModelUrls(id);
+      const expected = new Set(layout.glb.map(g => glbAssets[g.asset].url));
+      // The page's HexForest: the natural trees, or trees grown in the forest patches; any at all load the vegetation GLB.
+      if ((layout.natural?.trees ?? forestInstances(layout.world, layout.forests)).length) expected.add(glbAssets[VEGETATION_ASSET].url);
+      expect(new Set(urls), id).toEqual(expected);
+      expect(urls.length, id).toBe(new Set(urls).size);
     }
   });
 });
