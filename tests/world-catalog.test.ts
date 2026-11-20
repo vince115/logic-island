@@ -35,10 +35,10 @@ describe('lesson catalog (F.0)', () => {
     // F.1d: the database island is written to the end; DB19 keeps its blueprint gap (cloud platforms) once written.
     expect(getCatalogLesson('DB20')).toMatchObject({ islandId: 'databases', lessonStatus: 'complete', href: '/curriculum/database-applications-capstone', activity: 'challenge-stages' });
     expect(getCatalogLesson('DB19')?.gaps).toEqual(['cloud-platforms']);
-    // Course production batch 1 published PL01–PL05; PL06 onwards are still outlines.
+    // Course production publishes PL in batches (PL01–PL10 so far); PL20, the island's capstone, is written last.
     expect(getCatalogLesson('PL01')).toMatchObject({ islandId: 'programming-languages', lessonStatus: 'complete', href: '/curriculum/programming-paradigms' });
-    expect(getCatalogLesson('PL06')).toMatchObject({ islandId: 'programming-languages', lessonStatus: 'planned' });
-    expect(getCatalogLesson('PL06')?.href).toBeUndefined();
+    expect(getCatalogLesson('PL20')).toMatchObject({ islandId: 'programming-languages', lessonStatus: 'planned' });
+    expect(getCatalogLesson('PL20')?.href).toBeUndefined();
     expect(getCatalogLesson('D01')).toMatchObject({ islandId: 'structures', lessonStatus: 'complete' });
   });
 
@@ -76,7 +76,7 @@ describe('lesson catalog (F.0)', () => {
       expect(curriculum.contents).not.toHaveProperty(lesson.lessonId);
       expect(lesson.learningObjectives.length, lesson.lessonId).toBeGreaterThan(0);
     }
-    expect(getCatalogLessonBySlug('binding-scope-and-closures')).toMatchObject({ lessonId: 'PL06', lessonStatus: 'planned' });
+    expect(getCatalogLessonBySlug('programming-languages-capstone')).toMatchObject({ lessonId: 'PL20', lessonStatus: 'planned' });
     expect(isLearnable('F01')).toBe(true);
     expect(Object.keys(curriculum.contents)).toHaveLength(lessons.length);
   });
