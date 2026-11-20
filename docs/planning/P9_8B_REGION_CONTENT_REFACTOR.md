@@ -164,6 +164,21 @@ export interface CameraHandover {
 | `p9-continuity`「quick repeated clicks」 | **測試本身的問題**（P9.8a 時寫的）：額外的點擊在頁面已經換頁時，會等到整個測試逾時。已修正為每次點擊最多等 1 秒，斷言不變 | 修正後 8/8 |
 | `p9-prototype` P9.6「switching quickly」（手機，第二次執行） | 時序 | 8/8 通過 |
 
+### 與 main 的整合（PR #30、#31）
+
+PR 建立後，main 合併了另一個 session 的課程第一批（#30，PL01–PL05，課程開放與 3D 地景分離）與第二批（#31，PL06–PL10）。雙方都改了 `e2e/p9-prototype.spec.ts`，文字上可以乾淨合併。我把 `origin/main` 合併進本分支（`5950c9d`，對方的內容全部保留），在合併後的程式碼上重跑：
+
+| 檢查 | 結果 |
+|---|---|
+| TypeScript、ESLint | 0 錯誤 |
+| Vitest | 91 個檔案，1954 通過、347 跳過、0 失敗（含課程批次的新測試） |
+| Build | 旗標開啟、關閉、Regional World 都成功 |
+| E2E 旗標關閉（同上 13 個 spec） | 313 通過、121 跳過、0 失敗 |
+| E2E Regional World | 70 通過、22 跳過、0 失敗 |
+| E2E 旗標開啟（同上 9 個 spec） | 第一次在 load average 25 時執行，26 個失敗，全是計時類測試（飛行中的影格數、緩動中間影格、每秒約 6° 的旋轉、飛行時間）。負載降到約 10 後，用 1 個 worker 重跑同一建置：**257 通過、33 跳過、0 失敗** |
+| CI（合併後的 commit） | `gates` 通過、Vercel Preview 成功 |
+| Leak scan | `91b869d..5950c9d` 與兩個 `.next` 都乾淨 |
+
 ## 8. 限制
 
 - **真機**：沒有真機測試（這台機器沒有 Xcode 或 WebKit，也沒有連接裝置）。
