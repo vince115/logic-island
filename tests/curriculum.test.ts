@@ -106,10 +106,11 @@ describe('curriculum (E.1)', () => {
 
   it('complete lessons use only implemented visualizations; the six labs are linked from their lessons', () => {
     // A complete program lesson shows an implemented visualization, or none by choice (CONTENT_AUTHORING_GUIDE §6: tables
-    // and step-by-step text instead of a stand-in; PL04, PL05, whose blueprint activity type-checker is not built yet).
+    // and step-by-step text instead of a stand-in; PL04, PL05, whose blueprint activity type-checker is not built yet, and PL19,
+    // whose case-study-board is not built either).
     for (const l of programLessons.filter(l => l.lessonStatus === 'complete'))
       expect(l.visualizationType === 'none' || curriculum.visualizations[l.visualizationType].status === 'implemented', `${l.lessonId} ${l.visualizationType}`).toBe(true);
-    expect(programLessons.filter(l => l.visualizationType === 'none').map(l => l.lessonId)).toEqual(['PL04', 'PL05']);
+    expect(programLessons.filter(l => l.visualizationType === 'none').map(l => l.lessonId)).toEqual(['PL04', 'PL05', 'PL19']);
     expect(lessons.flatMap(l => l.labs ?? []).sort()).toEqual(['array', 'array', 'bfs', 'binary-search', 'bubble-sort', 'queue', 'stack']);
   });
 
