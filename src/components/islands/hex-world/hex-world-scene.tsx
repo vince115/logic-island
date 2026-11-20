@@ -3,13 +3,12 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Vector3 } from 'three';
 import { Canvas, useThree } from '@react-three/fiber';
-import { Html } from '@react-three/drei';
 import { hexToWorld } from '@/lib/islands/hex';
 import { WATER_LEVEL, settlementFrames, worldCenter, type HexWorld } from '@/lib/islands/hex-world';
 import { ENVIRONMENTS, PREVIEW_NOON, type EnvironmentId } from '@/lib/islands/environments';
 import { pageInteractions } from '@/lib/islands/island-interactions';
 import type { IslandDefinition } from '@/lib/islands/types';
-import { HexCamera, VIEW, viewAt, type CameraView, type ExploreView, type StageRoom } from './hex-camera';
+import { HexCamera, VIEW, viewAt, type CameraHandover, type CameraView, type ExploreView, type StageRoom } from './hex-camera';
 import { captionPoint, fitPoints } from '@/lib/islands/hex-framing';
 import { HexTiles, WATER_Y } from './hex-tiles';
 import { HexTerrainMesh, type TerrainStyle } from './hex-terrain-mesh';
@@ -25,6 +24,7 @@ import { HexForest, HexRocks } from './hex-nature';
 import { HexNaturalOcean, HexOcean } from './hex-ocean';
 import { HexPlaza } from './hex-plaza';
 import { GlowProvider, HexEnvironment, STATIC_SHADOW_MAP } from './hex-environment';
+import { SceneHtml, useOverlaysReady } from './scene-html';
 import styles from '../islands.module.css';
 import status from '../island-status.module.css';
 
@@ -114,7 +114,8 @@ export interface HexSceneOptions {
 // Prototype-only measurement and review hooks; loaded only when `perfProbe` is on, so production never downloads it.
 const PerfProbe=lazy(()=>import('./hex-perf-probe'));
 
-function Lifecycle({label,onReady,onUnavailable}:{label:string;onReady:()=>void;onUnavailable:()=>void}) {
+/** P9.8b canvas shell: the canvas's own lifecycle (a lost WebGL context, its accessible name) and the camera's start. */
+function CanvasLifecycle({label,onUnavailable}:{label:string;onUnavailable:()=>void}) {
   const {gl,camera}=useThree();
   useEffect(()=>{
     const canvas=gl.domElement;
@@ -122,15 +123,26 @@ function Lifecycle({label,onReady,onUnavailable}:{label:string;onReady:()=>void;
     canvas.addEventListener('webglcontextlost',lost);
     canvas.setAttribute('aria-label',label);
     canvas.setAttribute('role','img');
-    onReady();
     return ()=>canvas.removeEventListener('webglcontextlost',lost);
-  },[gl,label,onReady,onUnavailable]);
+  },[gl,label,onUnavailable]);
   // Same as /islands: CameraControls starts from this isometric orientation.
   useEffect(()=>{camera.lookAt(new Vector3(0,0,0));},[camera]);
   return null;
 }
 
-export default function HexWorldScene({world,islands,selectedId,onSelect,onNavigate,reducedMotion,onReady,onUnavailable,options={},infoNode,onInfoChange,label,resetKey,onViewChange,orbit,onOrbitStop,environmentId='noon',insetRight=0,baseAzimuth=0,onResetRequest,room,onArrive}:{
+/**
+ * P9.8b scene ready: once the canvas's events are connected the content's overlays (labels, anchors) mount in their
+ * final element (scene-html.tsx), so ready means the map with its labels; it comes once per canvas, not per render. A
+ * component of its own, so that moment renders only it (and each overlay), not the whole content.
+ */
+function ContentReady({onReady}:{onReady:()=>void}) {
+  const overlays=useOverlaysReady();
+  useEffect(()=>{if(overlays) onReady();},[overlays,onReady]);
+  return null;
+}
+
+/** The scene's props: what HexWorldScene takes (unchanged by P9.8b); its content takes the same inside a canvas. */
+export interface HexSceneProps {
   world:HexWorld;islands:IslandDefinition[];selectedId:string|null;onSelect:(id:string)=>void;
   reducedMotion:boolean;onReady:()=>void;onUnavailable:()=>void;options?:HexSceneOptions;
   /** Controlled info bubble of the focused settlement, shared with the HTML target list. */
@@ -156,7 +168,17 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
   onResetRequest?:()=>void;
   /** P8.3 (`phoneRoom`): the room the camera keeps at the stage's top and bottom right now. */
   room?:StageRoom;
-}) {
+  /** P9.8b: the pose the camera starts from at mount (hex-camera.tsx `handover`); unset, as before. */
+  cameraHandover?:CameraHandover;
+}
+
+/**
+ * P9.8b scene content: everything the map draws inside a canvas (terrain, islands and buildings, landmarks, light,
+ * labels, targets, the camera and its controls) and the focus it shows, without the canvas itself, so a canvas other
+ * than HexWorldScene's own could host it. `onReady` reports the content mounted (and the frame that shows it asked
+ * for); `onPointerChange` tells the host whether the pointer is on something a click acts on (its cursor).
+ */
+export function HexWorldContent({world,islands,selectedId,onSelect,onNavigate,reducedMotion,onReady,options={},infoNode,onInfoChange,resetKey,onViewChange,orbit,onOrbitStop,environmentId='noon',insetRight=0,baseAzimuth=0,onResetRequest,room,onArrive,cameraHandover,onPointerChange,onCameraHandover}:Omit<HexSceneProps,'label'|'onUnavailable'>&{onPointerChange?:(pointer:boolean)=>void;onCameraHandover?:()=>void}) {
   const glbLayouts=options.glbLayouts??hexGlbSettlements,continuousOcean=options.ocean==='continuous'||options.ocean==='natural';
   const environment=options.lighting!=='contrast'?PREVIEW_NOON:ENVIRONMENTS[options.timeOfDay?environmentId:'noon'];
   // Shadows must cover the whole map; the D.2a/D.2b world fits the original ±16 box.
@@ -188,12 +210,10 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
     onViewChange?.(changed);
   },[onViewChange,base]);
   const press=useRef<[number,number]|null>(null);
-  return <div className={styles.canvasWrap} style={pointer||options.ownLayer?{cursor:pointer?'pointer':undefined,isolation:options.ownLayer?'isolate':undefined}:undefined} data-camera={free?'free':undefined}>
-    <Canvas orthographic frameloop="demand" dpr={[1,1.5]} shadows={options.shadows==='static'?STATIC_SHADOW_MAP:'soft'}
-      camera={{position:[20,19,24],zoom:27,near:.1,far:400}}
-      gl={{antialias:true,alpha:false,powerPreference:'low-power'}}
-      fallback={<p className={styles.canvasFallback}>此裝置無法顯示 3D，請使用清單導航。</p>}>
-      <Lifecycle label={label} onReady={onReady} onUnavailable={onUnavailable}/>
+  const hand=Boolean(pointer);
+  useEffect(()=>{onPointerChange?.(hand);},[hand,onPointerChange]);
+  return <>
+      <ContentReady onReady={onReady}/>
       {options.perfProbe&&<Suspense fallback={null}><PerfProbe ox={ox} oz={oz}/></Suspense>}
       <HexEnvironment environment={environment} shadowExtent={shadowExtent} staticShadows={options.shadows==='static'}/>
       {!continuousOcean&&<mesh rotation-x={-Math.PI/2} position-y={WATER_Y} receiveShadow raycast={()=>undefined}>
@@ -225,7 +245,7 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
             {layout?<HexGlbBuildings world={world} layout={layout} interactions={island&&pageInteractions(island)} selected={selected} fallback={placeholders}
               onSourceChange={sourceSetters[layout.islandId]} onNavigate={onNavigate} anchorStyle={options.anchorStyle} targets={targets}/>:placeholders}
             {/* A focused settlement hands its space to the anchor labels; the toolbar still names it. */}
-            {island&&!selected&&<group position={[x,0,z]}><Html position={[0,compact?WATER_LEVEL:layout?.label?.height??3.4,0]} center zIndexRange={[15,0]}>
+            {island&&!selected&&<group position={[x,0,z]}><SceneHtml position={[0,compact?WATER_LEVEL:layout?.label?.height??3.4,0]} center zIndexRange={[15,0]}>
               <button type="button" className={`${styles.islandLabel} ${styles.hexLabel}${compact?` ${styles.hexLabelCompact}`:''}${island.planned?` ${status.plannedLabel}`:''}${options.largeTargets?` ${status.largeTarget}`:''}${options.pins?` ${styles.hexLabelPin} ${status.pinLabel}`:''}`}
                 style={{'--island-accent':island.accent} as React.CSSProperties} title={options.pins?island.name:undefined}
                 aria-pressed={false} aria-label={`聚焦${island.name}${island.planned?'（規劃中）':''}`} data-model-source={layout?sources[island.id]??'loading':'geometry'} data-side={caption?.side}
@@ -240,13 +260,43 @@ export default function HexWorldScene({world,islands,selectedId,onSelect,onNavig
                   ?<span className={status.plannedName}><strong className={styles.hexLabelText}>{island.name}</strong><em className={`${status.plannedTag} ${status.plannedMapTag}`}>規劃中</em></span>
                   :<strong className={styles.hexLabelText}>{island.name}</strong>}<small>↗</small>
               </button>
-            </Html></group>}
+            </SceneHtml></group>}
           </group>;
         })}
       </group></GlowProvider>
       <HexCamera frames={frames} selectedId={selectedId} reducedMotion={reducedMotion} fit={fit}
         free={free} resetKey={resetKey} onViewChange={free?viewChange:undefined} orbit={free&&orbit} onOrbitStop={free?onOrbitStop:undefined} insetRight={insetRight} view={base}
-        pan={free&&options.mapControls} onResetRequest={onResetRequest} room={room} explore={free?options.explore:undefined} onArrive={onArrive}/>
+        pan={free&&options.mapControls} onResetRequest={onResetRequest} room={room} explore={free?options.explore:undefined} onArrive={onArrive}
+        handover={cameraHandover} onHandover={onCameraHandover}/>
+  </>;
+}
+
+/**
+ * P9.8b canvas shell: the map's element and canvas (renderer, shadows, pixel ratio, the fallback when WebGL cannot
+ * start), the canvas's lifecycle and the cursor its content asks for. `children` is the content (HexWorldContent).
+ */
+export function HexCanvasShell({options={},label,onUnavailable,pointer,handover,children}:{options?:HexSceneOptions;label:string;onUnavailable:()=>void;pointer:boolean;
+  /** P9.8b: whether a camera handover was asked for and applied (`data-camera-handover`, for tests and review). */
+  handover?:'pending'|'applied';children:ReactNode}) {
+  return <div className={styles.canvasWrap} style={pointer||options.ownLayer?{cursor:pointer?'pointer':undefined,isolation:options.ownLayer?'isolate':undefined}:undefined} data-camera={options.camera==='free'?'free':undefined}
+    data-camera-handover={handover}>
+    <Canvas orthographic frameloop="demand" dpr={[1,1.5]} shadows={options.shadows==='static'?STATIC_SHADOW_MAP:'soft'}
+      camera={{position:[20,19,24],zoom:27,near:.1,far:400}}
+      gl={{antialias:true,alpha:false,powerPreference:'low-power'}}
+      fallback={<p className={styles.canvasFallback}>此裝置無法顯示 3D，請使用清單導航。</p>}>
+      <CanvasLifecycle label={label} onUnavailable={onUnavailable}/>
+      {children}
     </Canvas>
   </div>;
+}
+
+/** The hex map: its canvas shell with its content, as one component (the explorers' API, unchanged by P9.8b). */
+export default function HexWorldScene(props:HexSceneProps) {
+  const [pointer,setPointer]=useState(false);
+  // The camera reads the callback once, at mount (hex-camera.tsx `handover`).
+  const [handedOver,setHandedOver]=useState(false);
+  return <HexCanvasShell options={props.options} label={props.label} onUnavailable={props.onUnavailable} pointer={pointer}
+    handover={props.cameraHandover?handedOver?'applied':'pending':undefined}>
+    <HexWorldContent {...props} onPointerChange={setPointer} onCameraHandover={()=>setHandedOver(true)}/>
+  </HexCanvasShell>;
 }

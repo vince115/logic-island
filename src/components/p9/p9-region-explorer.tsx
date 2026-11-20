@@ -12,7 +12,7 @@ import { loadLandscapes, loadedLandscapes } from './p9-scene-loaders';
 import { P9_WORLD_HREF } from '@/lib/p9/routes';
 import type { RegionId } from '@/content/world/types';
 import { P9_REGION_BASE_AZIMUTH } from '@/lib/p9/camera-heading';
-import type { ExploreView } from '../islands/hex-world/hex-camera';
+import type { CameraHandover, ExploreView } from '../islands/hex-world/hex-camera';
 import { HexWorldExplorer } from '../islands/hex-world/hex-world-explorer';
 import { HEADER_TOOLS_ID } from '../islands/hex-world/islands-world-explorer';
 import { SCENE_PRESETS, sceneOptions } from '../islands/hex-world/hex-scene-presets';
@@ -46,6 +46,17 @@ const subscribe = watch(PHONE), subscribePins = watch(PINS);
  */
 export const EXPLORE: ExploreView = { elevation: 28, zoom: 1.1, minElevation: 14, zoomIn: 3.5 };
 
+/**
+ * P9.8b review and test hook: `?handover=tx,ty,tz,zoom,azimuth,polar` (scene space; angles in degrees) starts the map's
+ * camera from that pose (hex-camera.tsx `handover`), the way a shared canvas will hand one over in P9.8c. The region
+ * pages exist only in a build with LOGIC_ISLAND_P9_PROTOTYPE=1; anything else in the parameter is ignored.
+ */
+function handoverParam(value: string | null): CameraHandover | undefined {
+  const n = value?.split(',').map(Number);
+  if (!n || n.length !== 6 || n.some(v => !Number.isFinite(v)) || n[3] <= 0) return undefined;
+  return { target: [n[0], n[1], n[2]], zoom: n[3], azimuth: n[4] * Math.PI / 180, polar: n[5] * Math.PI / 180 };
+}
+
 function BackToWorld() {
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- the target lives outside React's tree and exists only in the DOM
@@ -56,6 +67,8 @@ function BackToWorld() {
 export function P9RegionExplorer({ regionId, regionName, regionNameEn, islands, hub }: { regionId: RegionId; regionName: string; regionNameEn: string; islands: LearningIsland[]; hub: { name: string; href: string; labs: number } }) {
   const router = useRouter(), path = usePathname(), params = useSearchParams();
   const requested = params.get('island');
+  // Read once: the camera takes a handover at mount only.
+  const [handover] = useState(() => handoverParam(params.get('handover')));
   const selectedId = requested && islands.some(i => i.id === requested) ? requested : null;
   const withIsland = useCallback((id: string | null) => {
     const next = new URLSearchParams(params.toString());
@@ -109,7 +122,7 @@ export function P9RegionExplorer({ regionId, regionName, regionNameEn, islands, 
     <BackToWorld/>
     <HexWorldExplorer islands={islands} world={layout.world} options={options} poiPanel captionAbove controlsBelow
       layout="fullscreen" modeSwitchTarget={HEADER_TOOLS_ID} selectedId={selectedId} onSelectedChange={change}
-      baseAzimuth={P9_REGION_BASE_AZIMUTH}
+      baseAzimuth={P9_REGION_BASE_AZIMUTH} cameraHandover={handover}
       listMore={<nav className={styles.regionMore} aria-label={`${regionName}以外`}>
         <p>{regionName}共 {islands.length} 座學科島。</p>
         <ul>

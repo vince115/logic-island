@@ -8,6 +8,8 @@ import { lessons } from '../src/content/curriculum/lessons';
  * no internal link points at a page that is gone.
  */
 const F01 = lessons.find(l => l.lessonId === 'F01')!;
+/** A build made with LOGIC_ISLAND_P9_PROTOTYPE=1: / is the P9 world overview instead of the home map. */
+const P9 = process.env.LOGIC_ISLAND_P9_PROTOTYPE === '1';
 // The tool labs with a page, in registry order (P4, R7, R8, P7).
 const TOOL_LABS = ['/learn/color-contrast', '/learn/flexbox-playground', '/learn/css-grid-playground', '/learn/responsive-layout', '/learn/mobile-ux', '/learn/linux-terminal'];
 
@@ -223,11 +225,20 @@ test('Linux Terminal Simulator：指令改變虛擬檔案系統、任務依結�
 test('AI 群島入口：首頁「更多學習群島」→ 群島總覽，七座島三個主題都是規劃中且沒有課程連結；側欄標示目前群島', async ({ page }, info) => {
   const phone = info.project.name.startsWith('mobile');
   await page.goto('/');
-  const more = page.getByRole('navigation', { name: '更多學習群島' });
-  if (!await more.isVisible()) await page.getByRole('button', { name: /清單/ }).first().click();
-  await expect(more.getByRole('link')).toHaveCount(4); // ai, design, web and (P6) sys
-  await expect(more.getByRole('link', { name: /AI 人工智慧群島/ })).toContainText('規劃中');
-  await more.getByRole('link', { name: /AI 人工智慧群島/ }).click();
+  if (P9) {
+    // P9.8b: in a build with LOGIC_ISLAND_P9_PROTOTYPE=1, / is the P9 world overview, whose guide is the home page's way
+    // in to each archipelago (its P9 region page); the archipelago overview below is the same page in both builds.
+    const entry = page.locator('[data-region-entry="ai"]');
+    await expect(entry).toHaveAttribute('href', '/ai');
+    await expect(entry).toContainText('AI 人工智慧群島');
+    await page.goto('/regions/ai');
+  } else {
+    const more = page.getByRole('navigation', { name: '更多學習群島' });
+    if (!await more.isVisible()) await page.getByRole('button', { name: /清單/ }).first().click();
+    await expect(more.getByRole('link')).toHaveCount(4); // ai, design, web and (P6) sys
+    await expect(more.getByRole('link', { name: /AI 人工智慧群島/ })).toContainText('規劃中');
+    await more.getByRole('link', { name: /AI 人工智慧群島/ }).click();
+  }
   await expect(page).toHaveURL('/regions/ai');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('AI 人工智慧群島');
   const main = page.locator('main');

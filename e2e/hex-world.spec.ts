@@ -89,6 +89,30 @@ test('D.3-2：預覽頁使用共用 Explorer，可切到清單並回到 3D', asy
   await expect(page.getByRole('button', { name: '聚焦基礎程式島', exact: true })).toHaveAttribute('data-model-source', 'glb', { timeout: 20_000 });
 });
 
+/** HTML overlays (drei Html roots) in the map's event element that are left without content. */
+const emptyOverlays = (page: Page) => page.evaluate(() => {
+  const host = document.querySelector('canvas')?.parentElement?.parentElement;
+  return [...(host?.querySelectorAll(':scope > div') ?? [])].filter(d => (d as HTMLElement).style.transform.startsWith('translate3d') && !d.children.length).length;
+});
+
+/**
+ * P9.8b: the map's HTML overlays mount once the canvas's events are connected (hex-world/scene-html.tsx), so every
+ * island label comes back, filled, however often the list and the 3D map take turns (no fixed wait: polling only).
+ */
+test('P9.8b：清單與 3D 來回切換三次，每次三座島的名牌都完整出現，沒有空白的標籤', async ({ page }) => {
+  await page.goto('/islands/hex');
+  for (let round = 1; round <= 3; round++) {
+    for (const name of NAMES) await expect(label(page, name), `round ${round}: ${name}`).toBeVisible({ timeout: 20_000 });
+    await expect.poll(() => emptyOverlays(page), { message: `round ${round}: empty overlays` }).toBe(0);
+    await modes(page).getByRole('button', { name: '清單' }).click();
+    await expect(page.locator('canvas')).toHaveCount(0);
+    await modes(page).getByRole('button', { name: '3D 群島' }).click();
+    await expect(page.locator('canvas')).toHaveCount(1);
+  }
+  for (const name of NAMES) await expect(label(page, name)).toBeVisible({ timeout: 20_000 });
+  expect(await emptyOverlays(page)).toBe(0);
+});
+
 test('預覽頁可回到正式群島地圖', async ({ page }) => {
   await page.goto('/islands/hex');
   await page.getByRole('link', { name: '回到正式群島地圖' }).click();
