@@ -313,10 +313,26 @@ const databases: Outline[] = [
   fromBlueprint('DB20', '綜合挑戰：以一家小店的訂單系統貫穿五個關卡，從需求畫出 ER 圖、正規化到 3NF 並寫出有約束的 DDL，完成主要功能的查詢、檢視表與交易，依查詢計畫加上複合索引並前後量測，再以參數化查詢、交易與最小權限安全地接上程式。', 120, ['sql', 'er-diagram', 'normalization', 'query-plan', 'driver-code', 'visualization']),
 ];
 
+/**
+ * 2026-11-20 (course production): a program-language lesson of a planned island, written from its blueprint outline the
+ * way the database lessons are (fromBlueprint): slug, title, objectives, concepts, difficulty and prerequisites are the
+ * blueprint's. The blueprint's activity may be one that is not built yet (type-checker, memory-model); the lesson then
+ * shows one of the implemented shared visualizations instead (`visualization`), never a stand-in.
+ */
+function programFromBlueprint(lessonId: string, summary: string, minutes: number, visualization: VisualizationType, apcs: ApcsRelevance[] = ['none']): Outline {
+  const b = planning.plannedLessons.find(l => l.lessonId === lessonId);
+  if (!b) throw new Error(`${lessonId} is not in the blueprint`);
+  return { slug: b.slug, title: b.title, summary, objectives: b.learningObjectives, concepts: b.concepts, difficulty: b.difficulty as Difficulty,
+    minutes, prerequisites: b.prerequisites as LessonId[], recommended: b.recommended as AnyLessonId[], apcs, visualization,
+    status: 'complete', version: '1.0.0', extraLanguages: ['JavaScript'], capabilities: ['program-code'] };
+}
+/** Batch 1: the programming-languages island's first written lessons. Its other 15 stay planned in src/content/world. */
+const programmingLanguages: Outline[] = [];
+
 /** F, D and A are taught in the program languages: every lesson there declares program-code. */
 const program = (list: Omit<Outline, 'capabilities'>[]): Outline[] => list.map(o => ({ ...o, capabilities: ['program-code'] }));
 const outlines: Record<(typeof ISLAND_IDS)[number], Outline[]> = {
-  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases };
+  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages };
 
 export const lessons: LessonMeta[] = ISLAND_IDS.flatMap(islandId => outlines[islandId].map((o, index): LessonMeta => ({
   lessonId: `${ISLAND_PREFIX[islandId]}${String(index + 1).padStart(2, '0')}` as LessonId,

@@ -1,4 +1,4 @@
-import type { IslandId, LessonId } from './schema';
+import type { IslandId, LessonId, LessonPrefixWritten } from './schema';
 
 /**
  * 2026-11-01: each island is a subject area; its 20 lessons fall into units (科目), shown when an island is chosen on
@@ -7,7 +7,7 @@ import type { IslandId, LessonId } from './schema';
  */
 export interface CurriculumUnit { title: string; summary: string; lessonIds: LessonId[] }
 
-const range = (prefix: 'F' | 'D' | 'A' | 'DB', from: number, to: number) =>
+const range = (prefix: LessonPrefixWritten, from: number, to: number) =>
   Array.from({ length: to - from + 1 }, (_, i) => `${prefix}${String(from + i).padStart(2, '0')}` as LessonId);
 
 export const UNITS: Record<IslandId, CurriculumUnit[]> = {
@@ -42,4 +42,6 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '交易、應用程式與安全', summary: 'ACID、隔離等級與並行控制；驅動程式、ORM 與 N+1；SQL injection 與最小權限', lessonIds: range('DB', 14, 17) },
     { title: '資料模型、架構與綜合挑戰', summary: 'NoSQL 與 CAP；備份、複寫與分片；從需求到安全串接的完整應用', lessonIds: range('DB', 18, 20) },
   ],
+  // 2026-11-20 (course production, batch 1): the written lessons only; the island's other units come with their lessons.
+  'programming-languages': [],
 };
