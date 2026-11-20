@@ -49,6 +49,6 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '作用域、記憶體與錯誤處理', summary: '名稱綁定、作用域鏈與閉包；堆疊與堆積、值與參考；RAII、參考計數與垃圾回收；例外、Result 與錯誤邊界', lessonIds: range('PL', 6, 9) },
     { title: '語言處理', summary: '從字元到 token 再到 AST 與執行：詞法分析、遞迴下降解析、走訪 AST 的直譯器與環境', lessonIds: range('PL', 10, 12) },
     { title: '並行與非同步', summary: '並行與平行、競爭條件；互斥鎖、原子操作、死結與生產者—消費者；事件迴圈、Promise 與 async／await', lessonIds: range('PL', 13, 15) },
-    { title: '編譯、執行與語言設計', summary: '編譯流程與中間表示、虛擬機與 JIT、反射與裝飾器等超程式設計，以及從安全、效能與表達力比較語言的設計取捨', lessonIds: range('PL', 16, 19) },
+    { title: '編譯、執行、語言設計與綜合挑戰', summary: '編譯流程與中間表示、虛擬機與 JIT、反射與裝飾器等超程式設計、從安全、效能與表達力比較語言的設計取捨，以及整合 lexer、parser 與直譯器打造迷你語言', lessonIds: range('PL', 16, 20) },
   ],
 };

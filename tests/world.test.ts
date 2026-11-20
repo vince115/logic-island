@@ -117,11 +117,12 @@ describe('world registry (F.0)', () => {
     expect(labIslandConfig.labs).toEqual(['array', 'stack', 'queue', 'binary-search', 'bubble-sort', 'bfs']);
   });
 
-  it('marks the three existing islands and the database island (written to the end in F.1d) complete, PL available (batch 1) and the other twenty-four planned', () => {
-    expect(subjectIslands.filter(i => i.status === 'complete').map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'databases']);
-    // Course production batch 1 published PL01–PL05 of 20: the island is open (available), its map stays planned.
-    expect(subjectIslands.filter(i => i.status === 'available').map(i => i.id)).toEqual(['programming-languages']);
-    expect(getIsland('programming-languages')).toMatchObject({ status: 'available', mapState: 'planned' });
+  it('marks the three existing islands, the database island (F.1d) and PL (course production batches 1–5) complete and the other twenty-four planned', () => {
+    expect(subjectIslands.filter(i => i.status === 'complete').map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases']);
+    // Course production batch 5 published PL20, the last of 20: every PL lesson is written, but its map stays planned
+    // (an island's 3D look is set by hand in IslandConfig.mapState, never by its lessons).
+    expect(subjectIslands.filter(i => i.status === 'available').map(i => i.id)).toEqual([]);
+    expect(getIsland('programming-languages')).toMatchObject({ status: 'complete', mapState: 'planned' });
     expect(subjectIslands.filter(i => i.status === 'planned')).toHaveLength(24);
     expect(regionStatus('design')).toBe('planned');
     expect(regionStatus('sys')).toBe('planned');

@@ -35,10 +35,14 @@ describe('lesson catalog (F.0)', () => {
     // F.1d: the database island is written to the end; DB19 keeps its blueprint gap (cloud platforms) once written.
     expect(getCatalogLesson('DB20')).toMatchObject({ islandId: 'databases', lessonStatus: 'complete', href: '/curriculum/database-applications-capstone', activity: 'challenge-stages' });
     expect(getCatalogLesson('DB19')?.gaps).toEqual(['cloud-platforms']);
-    // Course production publishes PL in batches (PL01–PL19 so far); PL20, the island's capstone, is written last.
+    // Course production published PL in five batches; PL20, the island's capstone, was written last.
     expect(getCatalogLesson('PL01')).toMatchObject({ islandId: 'programming-languages', lessonStatus: 'complete', href: '/curriculum/programming-paradigms' });
-    expect(getCatalogLesson('PL20')).toMatchObject({ islandId: 'programming-languages', lessonStatus: 'planned' });
-    expect(getCatalogLesson('PL20')?.href).toBeUndefined();
+    expect(getCatalogLesson('PL20')).toMatchObject({ islandId: 'programming-languages', lessonStatus: 'complete', href: '/curriculum/programming-languages-capstone', activity: 'challenge-stages' });
+    // An outline lesson has no page. The example is whichever lesson is still an outline, so publishing any one island
+    // never breaks this test (PL20 was the example until batch 5 published it).
+    const outline = catalogLessons.find(l => l.lessonStatus === 'planned');
+    expect(outline, 'the catalog still has an outline lesson').toBeDefined();
+    expect(outline?.href).toBeUndefined();
     expect(getCatalogLesson('D01')).toMatchObject({ islandId: 'structures', lessonStatus: 'complete' });
   });
 
@@ -76,7 +80,7 @@ describe('lesson catalog (F.0)', () => {
       expect(curriculum.contents).not.toHaveProperty(lesson.lessonId);
       expect(lesson.learningObjectives.length, lesson.lessonId).toBeGreaterThan(0);
     }
-    expect(getCatalogLessonBySlug('programming-languages-capstone')).toMatchObject({ lessonId: 'PL20', lessonStatus: 'planned' });
+    for (const lesson of catalogLessons.filter(l => l.lessonStatus === 'planned')) expect(getCatalogLessonBySlug(lesson.slug)).toMatchObject({ lessonId: lesson.lessonId, lessonStatus: 'planned' });
     expect(isLearnable('F01')).toBe(true);
     expect(Object.keys(curriculum.contents)).toHaveLength(lessons.length);
   });

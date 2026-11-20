@@ -32,7 +32,7 @@ const plannedEntries = (page: Page) => page.locator('main ol').getByText('規劃
 
 test('課綱目錄：五座島，F／D／A／DB 各 20 堂，程式語言島 20 堂中已開放的可點、其餘標示規劃中', async ({ page }) => {
   await page.goto('/curriculum');
-  // Course production batch 1 added 程式語言島 (PL01–PL05 written, PL06–PL20 listed as planned).
+  // Course production added 程式語言島 in five batches (PL01–PL20, all written by batch 5).
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(`${lessons.length} 堂課，五座島。`);
   for (const island of ['基礎程式島', '資料結構島', '演算法島', '程式語言島', '資料庫應用島']) {
     const list = page.getByRole('region', { name: new RegExp(island) }).getByRole('listitem');
@@ -351,6 +351,39 @@ test('綜合挑戰（F20）：逐階段前進，每階段列出用到的課程',
   await viz.getByRole('button', { name: '下一步' }).click();
   await expect(viz.getByRole('heading', { name: '階段 2：計算總分與各科最高' })).toBeVisible();
   await expect(viz.getByText('✓ 完成')).toHaveCount(1);
+});
+
+// Course production batch 5: PL20 is the PL island's capstone. The shared stepper shows its five stages in order (it has no
+// lock of its own); the island completes like the others, from every lesson's progress, while its 3D map stays planned.
+test('綜合挑戰（PL20）：五個關卡依序前進並列出用到的課程；20 堂都完成後顯示程式語言島全部完成', async ({ page }) => {
+  const title = (id: string) => lessons.find(l => l.lessonId === id)!.title;
+  await page.goto('/curriculum/programming-languages-capstone');
+  const viz = page.locator('#visualization');
+  const stages = [['lexer：把每一行切成 token', ['PL10']], ['parser：遞迴下降建出 AST', ['PL11']], ['求值：環境、閉包與遞迴', ['PL12', 'PL06']],
+    ['型別檢查與錯誤訊息', ['PL04', 'PL09']], ['測試與設計取捨', ['PL19', 'PL17']]] as const;
+  for (const [i, [name, used]] of stages.entries()) {
+    await expect(viz.getByRole('heading', { name: `階段 ${i + 1}：${name}` })).toBeVisible();
+    for (const id of used) await expect(viz.getByText(`${id} ${title(id)}`)).toBeVisible();
+    await expect(viz.getByText('✓ 完成')).toHaveCount(i);
+    await expect(viz.getByRole('button', { name: '下一步' })).toBeEnabled({ enabled: i < stages.length - 1 });
+    if (i < stages.length - 1) await viz.getByRole('button', { name: '下一步' }).click();
+  }
+  await viz.getByRole('button', { name: '重來' }).click();
+  await expect(viz.getByRole('heading', { name: `階段 1：${stages[0][0]}` })).toBeVisible();
+  // PL20 ends the island with nothing planned after it.
+  await expect(page.locator('a[rel="next"]')).toHaveCount(0);
+  await expect(page.getByText('規劃中，尚未開放')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /本島課程已到最後一堂.*返回程式語言島課綱/ })).toHaveAttribute('href', '/curriculum#island-programming-languages');
+  await page.evaluate(() => {
+    const at = '2026-11-20T10:00:00.000Z', done: Record<string, unknown> = {};
+    for (let i = 1; i <= 20; i++) done[`PL${String(i).padStart(2, '0')}`] = { startedAt: at, readAt: at, quiz: { correct: 6, total: 6, at }, completedAt: at };
+    localStorage.setItem('logic-island.progress', JSON.stringify({ version: 1, lessons: done }));
+  });
+  await page.goto('/curriculum');
+  const island = page.getByRole('region', { name: /程式語言島/ });
+  await expect(island).toContainText('程式語言島：已完成 20／20 堂');
+  await expect(island.getByText('程式語言島全部完成！')).toBeVisible();
+  expect(await noOverflow(page)).toBeLessThanOrEqual(0);
 });
 
 test('新教材的進度（F13）：全對＋讀完才完成，重新整理後保留', async ({ page }) => {

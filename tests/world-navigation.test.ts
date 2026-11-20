@@ -50,14 +50,18 @@ describe('lesson navigation (F.1b)', () => {
     for (const p of nav.paths) if (p.next) expect(p.next.lessonStatus).toBe('complete');
   });
 
-  it('names a planned next lesson without a link (F.1b; on the PL island, written in batches)', () => {
-    // PL01 leads on to PL02; the last published PL lesson names the next outline without a link.
+  it('names a planned next lesson without a link (F.1b) and ends a fully written island (PL, batches 1–5)', () => {
+    // PL01 leads on to PL02; PL20, written last, ends the island with every lesson open.
     expect(lessonNavigation('PL01').next).toMatchObject({ lessonId: 'PL02', lessonStatus: 'complete', href: '/curriculum/object-oriented-programming' });
-    const pl = catalogLessons.filter(l => l.islandId === 'programming-languages'), open = pl.filter(l => l.lessonStatus === 'complete');
-    expect(open.length).toBeGreaterThanOrEqual(10);
-    const nav = lessonNavigation(open.at(-1)!.lessonId as 'PL10');
+    const pl = catalogLessons.filter(l => l.islandId === 'programming-languages');
+    expect(pl.every(l => l.lessonStatus === 'complete')).toBe(true);
+    expect(lessonNavigation('PL20')).toMatchObject({ next: undefined, plannedNext: undefined, islandEnd: true, islandComplete: true });
+    // An outline lesson followed by another outline names it without a link (whichever pair is still planned).
+    const at = catalogLessons.findIndex((l, i, all) => l.lessonStatus === 'planned' && all[i + 1]?.islandId === l.islandId && all[i + 1].lessonStatus === 'planned');
+    expect(at, 'the catalog still has two outline lessons in a row').toBeGreaterThanOrEqual(0);
+    const nav = lessonNavigation(catalogLessons[at].lessonId);
     expect(nav).toMatchObject({ next: undefined, islandEnd: true, islandComplete: false });
-    expect(nav.plannedNext).toMatchObject({ lessonId: pl[open.length].lessonId, lessonStatus: 'planned' });
+    expect(nav.plannedNext).toMatchObject({ lessonId: catalogLessons[at + 1].lessonId, lessonStatus: 'planned' });
     expect(nav.plannedNext?.href).toBeUndefined();
   });
 });
