@@ -180,6 +180,29 @@ test.describe('P9.8a World → Region continuity', () => {
     for (const [file, count] of models) expect(count, file).toBe(1);
   });
 
+  test('the region canvas builds each shader program once (no shadow pass redrawn for casters that did not change)', async ({ page }) => {
+    // P9.8b: the static shadow map used to be drawn a second time one frame after a flight's region page appeared
+    // (its caster check read world matrices not yet updated), compiling three shadow programs again.
+    await page.addInitScript(() => {
+      const w = window as unknown as { __links: string[] }, P = WebGL2RenderingContext.prototype;
+      w.__links = [];
+      const source = P.shaderSource, attach = P.attachShader, link = P.linkProgram;
+      P.shaderSource = function (shader, code) { (shader as unknown as { code: string }).code = code; return source.call(this, shader, code); };
+      P.attachShader = function (program, shader) { ((program as unknown as { parts?: string[] }).parts ??= []).push((shader as unknown as { code: string }).code); return attach.call(this, program, shader); };
+      P.linkProgram = function (program) {
+        if (!(this.canvas as HTMLCanvasElement).closest('[data-fly]')) w.__links.push((program as unknown as { parts: string[] }).parts.join('\n//--\n'));
+        return link.call(this, program);
+      };
+    });
+    await openWorld(page);
+    await openFromLabel(page, 'cs');
+    await expect(page.locator('button[aria-label^="聚焦"]')).toHaveCount(8, { timeout: 30_000 });
+    await page.waitForTimeout(2500);
+    const links = await page.evaluate(() => (window as unknown as { __links: string[] }).__links);
+    expect(links.length, 'programs linked by the region canvas').toBeGreaterThan(5);
+    expect(links.length - new Set(links).size, 'programs linked twice').toBe(0);
+  });
+
   test('quick repeated clicks open one region once', async ({ page }) => {
     test.skip(phone(), 'mouse: desktop');
     const models = countModels(page);

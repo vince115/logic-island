@@ -16,7 +16,12 @@ export const STATIC_SHADOW_MAP={enabled:true,type:PCFShadowMap,autoUpdate:false}
 function StaticShadows() {
   const casters=useRef<string|null>(null);
   // Runs before each rendered frame; a new caster's matrix is applied within that same render, before its shadow pass.
+  // P9.8b: the key reads the casters' world matrices, which the render brings up to date only after this runs, so
+  // they are brought up to date here first: a caster that has just mounted counts at its own place in its first frame,
+  // not at the origin and then again at its place in the next (one shadow pass too many). drei's Html did this for
+  // the whole scene as it mounted, so maps whose labels mounted with the scene never showed it.
   useFrame(({scene,gl})=>{
+    scene.updateMatrixWorld();
     const list:string[]=[];
     scene.traverseVisible(o=>{if((o as Mesh).isMesh&&o.castShadow){const m=o.matrixWorld.elements;list.push(`${o.id}:${m[12].toFixed(3)},${m[13].toFixed(3)},${m[14].toFixed(3)}`);}});
     const key=list.join(';');

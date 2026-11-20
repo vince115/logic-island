@@ -130,6 +130,17 @@ function CanvasLifecycle({label,onUnavailable}:{label:string;onUnavailable:()=>v
   return null;
 }
 
+/**
+ * P9.8b scene ready: once the canvas's events are connected the content's overlays (labels, anchors) mount in their
+ * final element (scene-html.tsx), so ready means the map with its labels; it comes once per canvas, not per render. A
+ * component of its own, so that moment renders only it (and each overlay), not the whole content.
+ */
+function ContentReady({onReady}:{onReady:()=>void}) {
+  const overlays=useOverlaysReady();
+  useEffect(()=>{if(overlays) onReady();},[overlays,onReady]);
+  return null;
+}
+
 /** The scene's props: what HexWorldScene takes (unchanged by P9.8b); its content takes the same inside a canvas. */
 export interface HexSceneProps {
   world:HexWorld;islands:IslandDefinition[];selectedId:string|null;onSelect:(id:string)=>void;
@@ -201,11 +212,8 @@ export function HexWorldContent({world,islands,selectedId,onSelect,onNavigate,re
   const press=useRef<[number,number]|null>(null);
   const hand=Boolean(pointer);
   useEffect(()=>{onPointerChange?.(hand);},[hand,onPointerChange]);
-  // P9.8b scene ready: once the canvas's events are connected the content's overlays (labels, anchors) mount in their
-  // final element (scene-html.tsx), so ready means the map with its labels; it comes once per canvas, not per render.
-  const overlays=useOverlaysReady();
-  useEffect(()=>{if(overlays) onReady();},[overlays,onReady]);
   return <>
+      <ContentReady onReady={onReady}/>
       {options.perfProbe&&<Suspense fallback={null}><PerfProbe ox={ox} oz={oz}/></Suspense>}
       <HexEnvironment environment={environment} shadowExtent={shadowExtent} staticShadows={options.shadows==='static'}/>
       {!continuousOcean&&<mesh rotation-x={-Math.PI/2} position-y={WATER_Y} receiveShadow raycast={()=>undefined}>
