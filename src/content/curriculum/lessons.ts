@@ -19,6 +19,8 @@ type Outline = {
   /** Phase F.1b: a database lesson's activity (the blueprint's). */
   activity?: LessonActivity;
   recommended?: AnyLessonId[];
+  /** The blueprint's id of an outline built from it: the lesson's place in the list must give the same id. */
+  blueprintId?: string;
 };
 const B = 'Beginner', I = 'Intermediate', A = 'Advanced';
 
@@ -285,7 +287,7 @@ function fromBlueprint(lessonId: string, summary: string, minutes: number, capab
     minutes, prerequisites: b.prerequisites as LessonId[], recommended: b.recommended as AnyLessonId[], apcs: ['none'],
     // F.1d: the blueprint's shared-visualization activities (ds-comparison, challenge-stages) are the lesson's visualization.
     visualization: (DATABASE_VISUALIZATIONS as readonly string[]).includes(b.activity) ? b.activity as VisualizationType : 'none',
-    status: 'complete', version: '1.0.0', activity: b.activity as LessonActivity, capabilities };
+    status: 'complete', version: '1.0.0', activity: b.activity as LessonActivity, capabilities, blueprintId: lessonId };
 }
 const databases: Outline[] = [
   fromBlueprint('DB01', '為什麼應用程式需要資料庫管理系統（DBMS）：綱要與實例、資料獨立性、DBMS 的各種功能，並在 SQL 練習場執行第一個查詢。', 40, ['sql']),
@@ -324,18 +326,24 @@ function programFromBlueprint(lessonId: string, summary: string, minutes: number
   if (!b) throw new Error(`${lessonId} is not in the blueprint`);
   return { slug: b.slug, title: b.title, summary, objectives: b.learningObjectives, concepts: b.concepts, difficulty: b.difficulty as Difficulty,
     minutes, prerequisites: b.prerequisites as LessonId[], recommended: b.recommended as AnyLessonId[], apcs, visualization,
-    status: 'complete', version: '1.0.0', extraLanguages: ['JavaScript'], capabilities: ['program-code'] };
+    status: 'complete', version: '1.0.0', extraLanguages: ['JavaScript'], capabilities: ['program-code'], blueprintId: lessonId };
 }
 /** Batch 1: the programming-languages island's first written lessons. Its other 15 stay planned in src/content/world. */
 const programmingLanguages: Outline[] = [];
 
+/** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */
+function idAt(islandId: (typeof ISLAND_IDS)[number], index: number, blueprintId?: string): LessonId {
+  const id = `${ISLAND_PREFIX[islandId]}${String(index + 1).padStart(2, '0')}` as LessonId;
+  if (blueprintId && blueprintId !== id) throw new Error(`${blueprintId} is listed in the place of ${id}`);
+  return id;
+}
 /** F, D and A are taught in the program languages: every lesson there declares program-code. */
 const program = (list: Omit<Outline, 'capabilities'>[]): Outline[] => list.map(o => ({ ...o, capabilities: ['program-code'] }));
 const outlines: Record<(typeof ISLAND_IDS)[number], Outline[]> = {
   foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages };
 
 export const lessons: LessonMeta[] = ISLAND_IDS.flatMap(islandId => outlines[islandId].map((o, index): LessonMeta => ({
-  lessonId: `${ISLAND_PREFIX[islandId]}${String(index + 1).padStart(2, '0')}` as LessonId,
+  lessonId: idAt(islandId, index, o.blueprintId),
   islandId, slug: o.slug, title: o.title, summary: o.summary, learningObjectives: o.objectives, difficulty: o.difficulty,
   estimatedMinutes: o.minutes, prerequisites: o.prerequisites, concepts: o.concepts, apcsRelevance: o.apcs,
   supportedLanguages: o.capabilities.includes('program-code') ? [...LANGUAGES, ...(o.extraLanguages ?? [])] : [], visualizationType: o.visualization, lessonStatus: o.status ?? 'planned',
