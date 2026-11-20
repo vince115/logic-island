@@ -328,7 +328,7 @@ function programFromBlueprint(lessonId: string, summary: string, minutes: number
     minutes, prerequisites: b.prerequisites as LessonId[], recommended: b.recommended as AnyLessonId[], apcs, visualization,
     status: 'complete', version: '1.0.0', extraLanguages: ['JavaScript'], capabilities: ['program-code'], blueprintId: lessonId };
 }
-/** Batches 1–3: the programming-languages island's written lessons. Its other 5 stay planned in src/content/world. */
+/** Batches 1–4: the programming-languages island's written lessons. Its capstone PL20 stays planned in src/content/world. */
 const programmingLanguages: Outline[] = [
   programFromBlueprint('PL01', '用同一個「偶數平方和」問題比較命令式、程序式、物件導向與函數式寫法，認識宣告式的 SQL 與邏輯式的 Prolog，看懂 C++、Java、Python、JavaScript 各自支援的典範組合，並依可讀性與可變狀態選擇合適的風格。', 45, 'variable-state'),
   programFromBlueprint('PL02', '用類別把狀態與行為包在一起、以私有欄位守住不變條件，比較 C++、Java、Python、JavaScript 的存取權限、繼承、介面與抽象類別（含 JavaScript 的 prototype 鏈），追蹤 virtual／override 的動態分派在執行時選到哪個方法，並判斷何時該用組合而非繼承。', 55, 'function-call'),
@@ -347,6 +347,10 @@ const programmingLanguages: Outline[] = [
   programFromBlueprint('PL13', '區分並行與平行，比較共享記憶體執行緒、事件迴圈非同步與 actor／訊息傳遞三種模型並依情境選擇，用可重現的排程模擬在時間軸上重現兩個執行緒「讀—加—寫」的遺失更新並列舉所有交錯的結果，說明 C++ std::thread、Java 執行緒與 ExecutorService、Python GIL 下的執行緒與 JavaScript 單執行緒事件迴圈的差異。', 55, 'variable-state'),
   programFromBlueprint('PL14', '用互斥鎖（std::mutex＋lock_guard、synchronized、threading.Lock）與原子操作（std::atomic、AtomicInteger、Atomics）保護共享計數器並分辨可見性與原子性，以等待圖說明死結的四個條件、用固定鎖順序與 std::scoped_lock 避開它，用條件變數（在 while 迴圈中等待）或 BlockingQueue／queue.Queue 寫出有界緩衝區的生產者—消費者，並比較 C++ std::thread、Java synchronized 與虛擬執行緒、Python threading 與 JavaScript 單執行緒事件迴圈的同步方式。', 60, 'stack-queue'),
   programFromBlueprint('PL15', '追蹤 JavaScript 事件迴圈中呼叫堆疊、任務佇列與微任務佇列的變化，準確預測同步程式、Promise、await 與 setTimeout 混合時的輸出順序，把巢狀回呼改寫成 Promise／Future 與 async／await，用 Promise.all、asyncio.gather 同時等待多個工作並在 await 處處理錯誤，以 generator 與協程說明函式如何暫停與恢復，並比較 JavaScript、Python asyncio、Java CompletableFuture 與 C++ std::future 的執行模型。', 60, 'stack-queue'),
+  programFromBlueprint('PL16', '把一小段程式走過完整的編譯流程：說明前端、中端、後端各階段的輸入與輸出，以符號表做名稱解析並檢查型別，用後序走訪把運算式攤平成三位址碼，把 if 與 while 降成跳躍、切出基本區塊並畫出控制流程圖，再以常數折疊、常數傳播與死碼消除改寫中間表示，最後產生堆疊機器指令，並認識 LLVM IR、GIMPLE 與 JVM 位元組碼這些真實的中間表示。', 60, 'graph-traversal'),
+  programFromBlueprint('PL17', '把運算式與迴圈編譯成的位元組碼交給堆疊式 VM，以取指—解碼—執行迴圈逐條追蹤 pc、運算元堆疊與區域變數槽，比較堆疊式與暫存器式 VM（JVM、CPython 與 Lua、Dalvik），說明 Java（javac、.class、HotSpot 直譯器與 C1／C2）、CPython（.pyc 與直譯器迴圈）、V8（Ignition 與 TurboFan）與 C++ AOT 的執行路徑，用呼叫計數與型別守衛的確定性模擬說明 JIT 的熱點、型別回饋與去最佳化，並分析 AOT、直譯與 JIT 在啟動時間、峰值效能、記憶體與暖機上的取捨。', 60, 'stack-queue'),
+  programFromBlueprint('PL18', '用反射在執行期列出類別的欄位與方法並依名稱呼叫（Java Class、getDeclaredMethods 與 setAccessible 在模組系統下的限制、Python getattr／vars／inspect、JavaScript Reflect，C++ 沒有執行期反射），寫出在定義時套用的 Python 裝飾器並追蹤疊加時「套用由下往上、呼叫由外往內」的順序與 functools.wraps，以 @Retention(RUNTIME) 的 Java 註解搭配反射做計時處理，用 C++ 模板遞迴、constexpr 與 static_assert 在編譯期計算，以 Proxy 的 get／set／apply 陷阱攔截物件操作，並評估反射、Proxy、程式碼產生、巨集與 eval 對可讀性、除錯、效能與安全的影響。', 60, 'function-call'),
+  programFromBlueprint('PL19', '從安全、效能、表達力與學習成本比較 C++、Java、Python、JavaScript 的設計選擇，以四語程式看出 null 處理（std::optional、Optional、None、?. 與 ??）、預設可變與淺層的 const／final／tuple／Object.freeze、記憶體管理、整數溢位與相等比較的後果，讀懂 Java record、Python match、ES2020 ?? 等新版本特性解決了什麼、沒有解決什麼，並以硬性限制加權重的方法為專案情境選語言、寫出理由與代價。', 55, 'none'),
 ];
 
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */
