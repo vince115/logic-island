@@ -7,6 +7,8 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import type { LearningIsland } from '@/lib/islands/types';
 import { regionScene } from '@/lib/p9/region-scene';
+import { PHONE_PIN_REACH, PHONE_ROOM } from '@/lib/p9/region-layout';
+import { loadLandscapes, loadedLandscapes } from './p9-scene-loaders';
 import { P9_WORLD_HREF } from '@/lib/p9/routes';
 import type { RegionId } from '@/content/world/types';
 import { P9_REGION_BASE_AZIMUTH } from '@/lib/p9/camera-heading';
@@ -24,12 +26,19 @@ import styles from '../world/world.module.css';
  * (the region's scene definition, src/lib/p9/region-scene.ts) and how a focused island is looked at (EXPLORE). Review page only.
  */
 // Loaded with the scene, not with the page: the landscapes build three.js geometry, which the page's own script never needs.
-const P9Landscapes = lazy(() => import('./p9-landscapes').then(m => ({ default: m.P9Landscapes })));
+// P9.8a: once the module has loaded (the world overview loads it before a flight), the lazy component resolves at once
+// (a settled thenable, which React.lazy accepts), so the map's first frame has its landmarks; otherwise Suspense waits
+// for them and holds their reveal back (about 300 ms), and they pop in after the rest of the map.
+const P9Landscapes = lazy(() => {
+  const loaded = loadedLandscapes();
+  if (!loaded) return loadLandscapes().then(m => ({ default: m.P9Landscapes }));
+  const resolved = { default: loaded.P9Landscapes };
+  return { then: (resolve: (value: typeof resolved) => void) => resolve(resolved) } as unknown as Promise<typeof resolved>;
+});
 /** Phones: the camera's own phone breakpoint; under PINS the map's labels are pins (both as on /world/<region>). */
 const PHONE = '(max-width: 699px)', PINS = '(max-width: 1239px)';
 const watch = (query: string) => (onChange: () => void) => { const list = matchMedia(query); list.addEventListener('change', onChange); return () => list.removeEventListener('change', onChange); };
 const subscribe = watch(PHONE), subscribePins = watch(PINS);
-const PHONE_PIN_REACH = 3.2, PHONE_ROOM = { top: 30, bottom: 26 } as const;
 /**
  * The explore view of a focused island: from 28° above the water instead of about 40°, a tenth closer than the fit
  * that shows the whole island, and free to go down to 14° and in to three and a half times the closest island fit.
