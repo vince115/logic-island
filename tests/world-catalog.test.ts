@@ -10,13 +10,16 @@ import { BLUEPRINT, readJson } from '../scripts/planning-data.mjs';
 // ones as metadata only, and nothing about the existing lessons, pages or progress changed.
 const mutate = (id: string, change: Partial<CatalogLesson>) => catalogLessons.map(l => l.lessonId === id ? { ...l, ...change } : l);
 
+/** Islands whose lessons the curriculum writes from the blueprint's outlines (F.1a; course production batch 1 for PL). */
+const FROM_BLUEPRINT = ['databases', 'programming-languages'];
+
 describe('lesson catalog (F.0)', () => {
   it('passes its own rules and the world rules', () => {
     expect(validateCatalog(catalogLessons)).toEqual([]);
     expect(validateWorld(world, catalogLessons)).toEqual([]);
   });
 
-  it('knows every lesson of the plan: every curriculum lesson complete (60 + the written database lessons), the rest planned', () => {
+  it('knows every lesson of the plan: every curriculum lesson complete (60 + the lessons written from the blueprint), the rest planned', () => {
     const declared = world.islands.reduce((n, i) => n + i.lessonCount, 0);
     expect(catalogCounts()).toEqual({ total: declared, complete: lessons.length, planned: declared - lessons.length });
     expect(lessonsOfIsland('databases').filter(l => l.lessonStatus === 'complete').map(l => l.lessonId)).toEqual(lessons.filter(l => l.islandId === 'databases').map(l => l.lessonId));
@@ -32,8 +35,10 @@ describe('lesson catalog (F.0)', () => {
     // F.1d: the database island is written to the end; DB19 keeps its blueprint gap (cloud platforms) once written.
     expect(getCatalogLesson('DB20')).toMatchObject({ islandId: 'databases', lessonStatus: 'complete', href: '/curriculum/database-applications-capstone', activity: 'challenge-stages' });
     expect(getCatalogLesson('DB19')?.gaps).toEqual(['cloud-platforms']);
-    expect(getCatalogLesson('PL01')).toMatchObject({ islandId: 'programming-languages', lessonStatus: 'planned' });
-    expect(getCatalogLesson('PL01')?.href).toBeUndefined();
+    // Course production batch 1 published PL01–PL05; PL06 onwards are still outlines.
+    expect(getCatalogLesson('PL01')).toMatchObject({ islandId: 'programming-languages', lessonStatus: 'complete', href: '/curriculum/programming-paradigms' });
+    expect(getCatalogLesson('PL06')).toMatchObject({ islandId: 'programming-languages', lessonStatus: 'planned' });
+    expect(getCatalogLesson('PL06')?.href).toBeUndefined();
     expect(getCatalogLesson('D01')).toMatchObject({ islandId: 'structures', lessonStatus: 'complete' });
   });
 
@@ -44,13 +49,13 @@ describe('lesson catalog (F.0)', () => {
       expect(complete[i], lesson.lessonId).toMatchObject({ slug: lesson.slug, title: lesson.title, prerequisites: lesson.prerequisites, difficulty: lesson.difficulty, href: `/curriculum/${lesson.slug}` });
     const references = readJson(BLUEPRINT).lessons.filter((l: { status: string }) => l.status === 'complete');
     expect(references.map((l: { id: string; slug: string; titleZh: string; difficulty: string; prerequisites: string[] }) =>
-      [l.id, l.slug, l.titleZh, l.difficulty, l.prerequisites.join()])).toEqual(lessons.filter(l => l.islandId !== 'databases').map(l => [l.lessonId, l.slug, l.title, l.difficulty, l.prerequisites.join()]));
+      [l.id, l.slug, l.titleZh, l.difficulty, l.prerequisites.join()])).toEqual(lessons.filter(l => !FROM_BLUEPRINT.includes(l.islandId)).map(l => [l.lessonId, l.slug, l.title, l.difficulty, l.prerequisites.join()]));
   });
 
   it('publishes written lessons of a planned island exactly as the blueprint defines them (F.1a), without editing the blueprint', () => {
     type Entry = { id: string; slug: string; titleZh: string; difficulty: string; prerequisites: string[]; recommended: string[]; objectives: string[]; concepts: string[]; status: string };
     const blueprint = new Map<string, Entry>(readJson(BLUEPRINT).lessons.map((l: Entry) => [l.id, l]));
-    for (const lesson of lessons.filter(l => l.islandId === 'databases')) {
+    for (const lesson of lessons.filter(l => FROM_BLUEPRINT.includes(l.islandId))) {
       const b = blueprint.get(lesson.lessonId)!;
       // The blueprint keeps its planning status; the curriculum decides what is published.
       expect(b.status, lesson.lessonId).toBe('planned');
@@ -71,7 +76,7 @@ describe('lesson catalog (F.0)', () => {
       expect(curriculum.contents).not.toHaveProperty(lesson.lessonId);
       expect(lesson.learningObjectives.length, lesson.lessonId).toBeGreaterThan(0);
     }
-    expect(getCatalogLessonBySlug('programming-paradigms')).toMatchObject({ lessonId: 'PL01', lessonStatus: 'planned' });
+    expect(getCatalogLessonBySlug('binding-scope-and-closures')).toMatchObject({ lessonId: 'PL06', lessonStatus: 'planned' });
     expect(isLearnable('F01')).toBe(true);
     expect(Object.keys(curriculum.contents)).toHaveLength(lessons.length);
   });
@@ -80,7 +85,7 @@ describe('lesson catalog (F.0)', () => {
     const pl01 = getCatalogLesson('PL01')!;
     expect(pl01.prerequisites).toEqual(['F13']);
     expect(pl01.recommended).toEqual(['F01', 'F16']);
-    for (const lesson of catalogLessons.filter(l => l.lessonStatus === 'complete' && l.islandId !== 'databases')) expect(lesson.recommended).toEqual([]);
+    for (const lesson of catalogLessons.filter(l => l.lessonStatus === 'complete' && !FROM_BLUEPRINT.includes(l.islandId))) expect(lesson.recommended).toEqual([]);
   });
 
   it('catches cycles, overlaps, unknown lessons and pages for planned lessons', () => {

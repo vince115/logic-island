@@ -50,10 +50,12 @@ describe('lesson navigation (F.1b)', () => {
     for (const p of nav.paths) if (p.next) expect(p.next.lessonStatus).toBe('complete');
   });
 
-  it('names a planned next lesson without a link (F.1b; on a planned island now that no curriculum island has one)', () => {
-    const nav = lessonNavigation('PL01');
+  it('names a planned next lesson without a link (F.1b; on the PL island, whose lessons after PL05 are still outlines)', () => {
+    // Course production batch 1 published PL01–PL05: PL01 leads on to PL02, and PL05 names PL06 without a link.
+    expect(lessonNavigation('PL01').next).toMatchObject({ lessonId: 'PL02', lessonStatus: 'complete', href: '/curriculum/object-oriented-programming' });
+    const nav = lessonNavigation('PL05');
     expect(nav).toMatchObject({ next: undefined, islandEnd: true, islandComplete: false });
-    expect(nav.plannedNext).toMatchObject({ lessonId: 'PL02', lessonStatus: 'planned' });
+    expect(nav.plannedNext).toMatchObject({ lessonId: 'PL06', lessonStatus: 'planned' });
     expect(nav.plannedNext?.href).toBeUndefined();
   });
 });

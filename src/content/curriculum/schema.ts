@@ -33,15 +33,19 @@ export const LESSON_LANGUAGES: readonly LessonLanguage[] = [...LANGUAGES, ...OPT
 /** Code in the three languages every lesson has, plus JavaScript where the lesson offers it. */
 export type LessonCode = Record<Language, string> & Partial<Record<'JavaScript', string>>;
 /** Phase F.1a: the database island joins with its first lessons (DB01–DB05); the rest of its 20 are planned in src/content/world. */
-export const ISLAND_IDS = ['foundations', 'structures', 'algorithms', 'databases'] as const;
+// 2026-11-20: the islands with written lessons, in the world registry's order (programming-languages is the CS region's
+// fourth island, databases its fifth), so a database lesson may require a programming-languages one (DB16 → PL02).
+export const ISLAND_IDS = ['foundations', 'structures', 'algorithms', 'programming-languages', 'databases'] as const;
 export type IslandId = typeof ISLAND_IDS[number];
 /**
  * F = 基礎程式島, D = 資料結構島, A = 演算法島, then a two-digit position (F01..F20). Phase F.0: the number is two digits in
  * the type too (it was any string, so DB01 or AG01 type-checked as a D or A lesson); IDs of every island, planned ones
  * included, are AnyLessonId in src/content/world/lesson-id.ts and are always parsed with their whole prefix.
  */
-export type LessonId = `${'F' | 'D' | 'A' | 'DB'}${LessonNumber}`;
-export const ISLAND_PREFIX: Record<IslandId, 'F' | 'D' | 'A' | 'DB'> = { foundations: 'F', structures: 'D', algorithms: 'A', databases: 'DB' };
+export type LessonPrefixWritten = 'F' | 'D' | 'A' | 'DB' | 'PL';
+export type LessonId = `${LessonPrefixWritten}${LessonNumber}`;
+/** 2026-11-20 (course production, batch 1): the programming-languages island (PL) joins with its first written lessons. */
+export const ISLAND_PREFIX: Record<IslandId, LessonPrefixWritten> = { foundations: 'F', structures: 'D', algorithms: 'A', databases: 'DB', 'programming-languages': 'PL' };
 
 /**
  * Phase F.1a: a lesson taught in a query language instead of the four programming languages. A SQL lesson has no program
@@ -437,6 +441,12 @@ export interface Curriculum {
   contents: Partial<Record<LessonId, LessonContent>>;
   visualizations: Record<VisualizationType, { status: 'implemented' | 'planned' | 'not-available' }>;
   labs: readonly string[];
+  /**
+   * 2026-11-20 (course production): every lesson the blueprint outlines, written or not, for the recommended-lesson
+   * check of islands written in batches. Passed in (lessons.ts reads the blueprint) so that this module, which client
+   * code imports, never bundles the planning data.
+   */
+  outlined?: readonly string[];
 }
 
 export const MIN_OBJECTIVES = 3;
@@ -451,7 +461,8 @@ const SEMVER = /^\d+\.\d+\.\d+$/;
  * lesson can be reached), the three base languages in every program lesson (SQL lessons: none, SQL content instead),
  * references to visualizations, labs and examples, and content that is complete exactly when the lesson says so.
  */
-export function validateCurriculum({ islands, lessons, contents, visualizations, labs }: Curriculum): string[] {
+export function validateCurriculum({ islands, lessons, contents, visualizations, labs, outlined = [] }: Curriculum): string[] {
+  const OUTLINED = new Set<string>(outlined);
   const problems: string[] = [];
   const fail = (where: string, what: string) => problems.push(`${where}: ${what}`);
   const order = new Map(lessons.map((lesson, index) => [lesson.lessonId, index]));
@@ -496,9 +507,10 @@ export function validateCurriculum({ islands, lessons, contents, visualizations,
     else if (lesson.activity && !capabilities.includes(CAPABILITY_ACTIVITY[lesson.activity])) fail(at, `activity ${lesson.activity} needs the ${CAPABILITY_ACTIVITY[lesson.activity]} capability`);
     if (!program && !lesson.activity) fail(at, 'a lesson without program code names its activity');
     for (const id of lesson.recommended ?? []) {
-      // A lesson of an island the curriculum has must exist here; one of a planned island (PL, CN…) is the catalog's to check.
+      // A lesson of an island the curriculum has must exist here, or (2026-11-20, an island written in batches: DB15 → PL14)
+      // be one of its outlined lessons still to write; one of a planned island (CN, LNX…) is the catalog's to check.
       const ours = (Object.values(ISLAND_PREFIX) as string[]).includes(parseLessonId(id)?.prefix ?? '');
-      if (!parseLessonId(id) || (ours && !order.has(id as LessonId))) fail(at, `unknown recommended lesson ${id}`);
+      if (!parseLessonId(id) || (ours && !order.has(id as LessonId) && !OUTLINED.has(id))) fail(at, `unknown recommended lesson ${id}`);
       if (id === at || lesson.prerequisites.includes(id as LessonId)) fail(at, `${id} is recommended and also the lesson itself or a prerequisite`);
     }
     const extra = lesson.supportedLanguages.filter(l => !(LANGUAGES as readonly string[]).includes(l));

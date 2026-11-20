@@ -12,7 +12,9 @@ import { ON, REVIEW, expectLabelsClear, islandWidths, openRegion, phone, test, t
  * P8.3: the world's topology and the phone acceptance checks are in world-topology.spec.ts.
  */
 const CS = ['基礎程式島', '資料結構島', '演算法島', '程式語言島', '資料庫應用島', '計算機網路島', '系統分析與設計島', '管理資訊系統島'];
-const CS_PLANNED = new Set(['程式語言島', '計算機網路島', '系統分析與設計島', '管理資訊系統島']);
+// Islands whose lessons are all planned. 程式語言島 opened PL01–PL05 in course production batch 1: its label and panel are a
+// written island's, while its landscape stays the planned-island one (the map state, tests/regional-world.test.ts).
+const CS_PLANNED = new Set(['計算機網路島', '系統分析與設計島', '管理資訊系統島']);
 const label = (page: Page, name: string) => page.getByRole('button', { name: `聚焦${name}${CS_PLANNED.has(name) ? '（規劃中）' : ''}`, exact: true });
 
 test.describe('regional world: flag off (default build)', () => {
@@ -31,7 +33,7 @@ test.describe('regional world: flag on', () => {
     await page.goto('/world');
     for (const name of [...orderedRegions.map(r => `進入${r.name}`), '前往中央樞紐：互動實驗島']) await expect(page.getByRole('button', { name, exact: true })).toBeVisible({ timeout: 30_000 });
     const guide = page.getByRole('navigation', { name: '世界導覽' });
-    await expect(guide.getByRole('link', { name: /程式與資訊群島.*8 座學科島 · 4 座已開放 · 4 座規劃中/ })).toHaveAttribute('href', '/world/cs');
+    await expect(guide.getByRole('link', { name: /程式與資訊群島.*8 座學科島 · 5 座已開放 · 3 座規劃中/ })).toHaveAttribute('href', '/world/cs');
     await expect(guide.getByRole('link', { name: /AI 人工智慧群島.*7 座學科島 · 全部規劃中/ })).toHaveAttribute('href', '/world/ai');
     await expect(guide).toContainText('規劃中中央挑戰島');
     await expect(page.locator('a[href*="challenge"]')).toHaveCount(0);
@@ -50,7 +52,8 @@ test.describe('regional world: flag on', () => {
     if (!phone()) for (const [id, w] of Object.entries(await islandWidths(page, 'cs'))) expect(w, id).toBeGreaterThanOrEqual(180);
     const list = page.getByRole('group', { name: '選擇學習島嶼' });
     await expect(list.getByRole('button')).toHaveCount(8);
-    await expect(list.getByRole('button').nth(3)).toContainText('程式語言島規劃中 預計 20 堂');
+    await expect(list.getByRole('button').nth(3)).toContainText('程式語言島5 堂課 · 2 個科目');
+    await expect(list.getByRole('button').nth(5)).toContainText('計算機網路島規劃中 預計 20 堂');
     await expect(list.getByRole('button').nth(4)).toContainText('資料庫應用島20 堂課 · 6 個科目');
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   });
@@ -142,10 +145,10 @@ test.describe('regional world: flag on', () => {
 
   test('keyboard: a label takes focus and Enter focuses its island', async ({ page }) => {
     await openRegion(page, '/world/cs');
-    await label(page, '程式語言島').focus();
+    await label(page, '計算機網路島').focus();
     await page.keyboard.press('Enter');
-    await expect(page).toHaveURL(/island=programming-languages$/);
-    await expect(page.getByRole('region', { name: '程式語言島教材入口' })).toContainText('規劃中');
+    await expect(page).toHaveURL(/island=networks$/);
+    await expect(page.getByRole('region', { name: '計算機網路島教材入口' })).toContainText('規劃中');
   });
 
   test('mouse hover over an island lights its label', async ({ page }) => {
@@ -297,10 +300,16 @@ test.describe('regional world: flag on', () => {
     await page.getByRole('navigation', { name: '世界導覽' }).getByRole('link', { name: /程式與資訊群島.*座學科島/ }).click();
     await expect(page).toHaveURL(/\/world\/cs$/);
     await expect(page.getByRole('status').filter({ hasText: '此裝置的 3D 場景無法使用' })).toBeVisible({ timeout: 20_000 });
+    await chooseIsland(page, '計算機網路島').click();
+    await expect(page.getByRole('region', { name: '計算機網路島教材入口' })).toContainText('規劃中');
+    await expect(page.getByRole('region', { name: '計算機網路島教材入口' }).getByRole('link')).toHaveCount(1);
+    await expect(page.getByRole('region', { name: '計算機網路島教材入口' }).locator('a[href^="/curriculum/"]')).toHaveCount(0);
+    // 程式語言島 has published lessons (batch 1): it is listed as open, not planned, and links no outline-only lesson.
+    // (Its subjects open in the panel over the 3D map, which this no-WebGL list does not have, as for 資料庫應用島.)
     await chooseIsland(page, '程式語言島').click();
-    await expect(page.getByRole('region', { name: '程式語言島教材入口' })).toContainText('規劃中');
-    await expect(page.getByRole('region', { name: '程式語言島教材入口' }).getByRole('link')).toHaveCount(1);
-    await expect(page.getByRole('region', { name: '程式語言島教材入口' }).locator('a[href^="/curriculum/"]')).toHaveCount(0);
+    await expect(page.getByRole('region', { name: '程式語言島教材入口' })).toBeVisible();
+    await expect(page.getByRole('region', { name: '程式語言島教材入口' })).not.toContainText('規劃中');
+    await expect(page.locator('a[href="/curriculum/binding-scope-and-closures"]')).toHaveCount(0);
     await chooseIsland(page, '資料庫應用島').click();
     await expect(page).toHaveURL(/island=databases$/);
     // With no map there is no label to wait for: Escape puts the focus on the island's list entry.

@@ -14,7 +14,9 @@ import { regionIslands } from '@/lib/world/learning-islands';
  * these tests hold it to the same region rules as /world/cs and to what it must not change.
  */
 const base = regionLayout('cs'), ids = islandsInRegion('cs').map(i => i.id);
-const plannedIds = ids.filter(id => getIsland(id)!.status === 'planned');
+// The islands the approved CS map draws as planned (the registry's map state, not their lessons: PL opened lessons in
+// course production batch 1 and keeps its planned landscape, so the prototype's new land for it is unchanged).
+const plannedIds = ids.filter(id => getIsland(id)!.mapState === 'planned');
 const accepted = islandsHomeWorld.world.bridges.map(b => b.id);
 function reserved(): Record<string, Axial[]> {
   const { world, glb } = P9_CS_REGION.layout, out: Record<string, Axial[]> = {};

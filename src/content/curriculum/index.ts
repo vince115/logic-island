@@ -59,6 +59,11 @@ import { A17 } from './content/A17';
 import { A18 } from './content/A18';
 import { A19 } from './content/A19';
 import { A20 } from './content/A20';
+import { PL01 } from './content/PL01';
+import { PL02 } from './content/PL02';
+import { PL03 } from './content/PL03';
+import { PL04 } from './content/PL04';
+import { PL05 } from './content/PL05';
 import { DB01 } from './content/DB01';
 import { DB02 } from './content/DB02';
 import { DB03 } from './content/DB03';
@@ -79,13 +84,13 @@ import { DB17 } from './content/DB17';
 import { DB18 } from './content/DB18';
 import { DB19 } from './content/DB19';
 import { DB20 } from './content/DB20';
-import { lessons } from './lessons';
+import { lessons, outlinedLessonIds } from './lessons';
 import { islands, visualizations } from './registry';
 import type { Curriculum, LessonContent, LessonId } from './schema';
 
 /** The curriculum (Phase E, and from Phase F.1a the database island's written lessons), as one value the validator and the pages both read. */
 export const curriculum: Curriculum = {
-  islands, lessons, visualizations, labs: algorithmIds,
+  islands, lessons, visualizations, labs: algorithmIds, outlined: outlinedLessonIds,
   contents: { F01, F02, F03, F04, F05, F06, F07, F08, F09, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20,
     D01, D02, D03, D04, D05, D06, D07, D08, D09, D10,
     D11, D12, D13, D14, D15,
@@ -94,6 +99,7 @@ export const curriculum: Curriculum = {
     A06, A07, A08, A09, A10,
     A11, A12, A13, A14, A15,
     A16, A17, A18, A19, A20,
+    PL01, PL02, PL03, PL04, PL05,
     DB01, DB02, DB03, DB04, DB05, DB06, DB07, DB08, DB09, DB10,
     DB11, DB12, DB13, DB14, DB15, DB16, DB17, DB18, DB19, DB20 },
 };

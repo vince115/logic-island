@@ -63,12 +63,12 @@ describe('validateTrials catches', () => {
   it('unknown references', () => {
     const bank = clone();
     q(bank, 'orig-apcs-read-01').tags.push('no.such-tag');
-    q(bank, 'orig-apcs-read-01').links.lessons = ['PL01', 'F99'];
+    q(bank, 'orig-apcs-read-01').links.lessons = ['PL06', 'F99'];
     bank.papers[0].items.push({ questionId: 'missing', points: 1 });
     bank.entries.push({ id: 'x', examId: 'nope', place: { kind: 'region', regionId: 'cs' }, label: 'x', order: 9 });
     const found = problems(bank).join('\n');
     expect(found).toMatch(/unknown tag no\.such-tag/);
-    expect(found).toMatch(/lesson PL01 is not a complete lesson/);
+    expect(found).toMatch(/lesson PL06 is not a complete lesson/);
     expect(found).toMatch(/lesson F99 is not a complete lesson/);
     expect(found).toMatch(/unknown question missing/);
     expect(found).toMatch(/entry x: unknown exam nope/);
