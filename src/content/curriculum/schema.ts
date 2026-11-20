@@ -257,7 +257,8 @@ export type ComplexityModel = '1' | 'log n' | 'n' | 'n log n' | 'n^2';
 export interface ChallengeStage { title: string; concepts: LessonId[]; goal: string; detail: string }
 
 export type VisualizationConfig =
-  | { kind: TraceKind; title: string; language: Language; code: string; steps: TraceStep[]; playground?: Playground; tryIt?: TryIt }
+  // 2026-11-20 (course production, batch 3): a trace may be of a JavaScript program (PL15's event loop); the highlighter has it.
+  | { kind: TraceKind; title: string; language: LessonLanguage; code: string; steps: TraceStep[]; playground?: Playground; tryIt?: TryIt }
   | { kind: 'conditional-branch'; title: string; variable: string; min: number; max: number; initial: number; branches: Branch[]; otherwise: string }
   /** Counted operations of model programs for an input size (an illustrative model, not measured time). */
   | { kind: 'complexity'; title: string; min: number; max: number; initial: number; models: { model: ComplexityModel; example: string }[] }
