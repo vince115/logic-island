@@ -1,7 +1,7 @@
 'use client';
 
 import { Component, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Html, useGLTF } from '@react-three/drei';
+import { useGLTF } from '@react-three/drei';
 import type { ThreeEvent } from '@react-three/fiber';
 import { MeshBasicMaterial, Vector3, type Mesh, type Object3D } from 'three';
 import { glbAssets } from '@/lib/islands/asset-registry';
@@ -14,6 +14,7 @@ import type { HexWorld } from '@/lib/islands/hex-world';
 import type { GlbAsset, GlbTargetNode, Vec3 } from '@/lib/islands/types';
 import type { ModelSource } from '../glb-island-model';
 import { useGlow } from './hex-environment';
+import { SceneHtml } from './scene-html';
 import styles from '../islands.module.css';
 
 class PartsBoundary extends Component<{fallback:ReactNode;onError:()=>void;children:ReactNode},{failed:boolean}> {
@@ -114,20 +115,20 @@ function LoadedParts({world,layout,interactions,selected,anchorStyle,targets,onR
       const named=entry.kind==='anchor'?interactionOf(interactions,entry.interactionId):undefined;
       if(!named) return null;
       const position=anchorOf(entry.node);
-      return position?<Html key={entry.node} position={position} center zIndexRange={[14,0]}
+      return position?<SceneHtml key={entry.node} position={position} center zIndexRange={[14,0]}
         wrapperClass={styles.anchorWrapper} style={{pointerEvents:'none'}}>
         {anchorStyle==='compact'
           ?<span className={styles.hexPoi} data-anchor={entry.node}>{named.label}</span>
           :<span className={`${styles.anchorLabel} ${styles.hexAnchorLabel}`} data-anchor={entry.node}>{targetLabel(named)}</span>}
-      </Html>:null;
+      </SceneHtml>:null;
     })}
     {/* With controlled info the HTML panel outside the canvas is the accessible copy; this bubble is visual only. */}
-    {info&&infoAction&&infoAction.type==='info'&&<Html position={anchorOf(info.anchor)} center zIndexRange={[16,0]}>
+    {info&&infoAction&&infoAction.type==='info'&&<SceneHtml position={anchorOf(info.anchor)} center zIndexRange={[16,0]}>
       <div className={`${styles.anchorInfo} ${controlled?styles.hexInfoMirror:''}`} role={controlled?undefined:'status'} aria-hidden={controlled?true:undefined} data-target={info.node}>
         <strong>{infoAction.title}</strong><p>{infoAction.text}</p>
         <button type="button" aria-label={`關閉${infoAction.title}說明`} tabIndex={controlled?-1:undefined} onClick={event=>{event.stopPropagation();setInfo(null);}}>×</button>
       </div>
-    </Html>}
+    </SceneHtml>}
   </group>;
 }
 
