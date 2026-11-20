@@ -24,7 +24,6 @@ export interface SlotEntry {
 type Listener = () => void;
 let entry: SlotEntry | null = null, pose: StagePose | null = null, lost = false;
 let readPose: ((frame: SceneFrame) => StagePose | null) | null = null;
-const memory = new Map<string, unknown>();
 const listeners = new Set<Listener>();
 const emit = () => listeners.forEach(listener => listener());
 
@@ -49,7 +48,4 @@ export const canvasSlot = {
   setLost() { if (lost) return; lost = true; entry?.onUnavailable(); emit(); },
   /** Asks the host for a new canvas after a lost one (the user's choice: never automatic). */
   retry() { if (!lost) return; lost = false; emit(); },
-  /** What a page wants back when it returns (e.g. the world's view before it opened a region). */
-  remember(key: string, value: unknown) { memory.set(key, value); },
-  recall<T>(key: string): T | undefined { return memory.get(key) as T | undefined; },
 };

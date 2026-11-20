@@ -41,11 +41,15 @@ function watchSwitch() {
   }
   const tick = () => { if (draws) w.__frames.push([performance.now(), draws, triangles]); draws = 0; triangles = 0; requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
+  // The region page starts drawing with a canvas of its own (a new context), or (P9.8c, shared canvas) when its scene
+  // takes the shared canvas over (its stage appears).
   const getContext = HTMLCanvasElement.prototype.getContext;
   HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, kind: string, ...rest: unknown[]) {
     if (/webgl/.test(kind) && !this.closest('[data-fly]')) w.__regionCanvasAt ??= performance.now();
     return (getContext as (...a: unknown[]) => RenderingContext | null).call(this, kind, ...rest);
   } as typeof getContext;
+  new MutationObserver(() => { if (document.querySelector('[data-shared-stage="hex-map"]')) w.__regionCanvasAt ??= performance.now(); })
+    .observe(document, { subtree: true, childList: true });
   // Every overview this page shows (a Back makes a new one): its stage turning to `navigating` ends a flight.
   new MutationObserver(records => {
     for (const { target } of records) {

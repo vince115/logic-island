@@ -131,6 +131,9 @@ export function P9RegionExplorer({ regionId, regionName, regionNameEn, islands, 
   const lost = useSyncExternalStore(canvasSlot.subscribe, () => sharedCanvas && canvasSlot.lost(), () => false);
   const [attempt, setAttempt] = useState(0);
   const retry = useCallback(() => { canvasSlot.retry(); setAttempt(n => n + 1); }, []);
+  // The way back to the world is one canvas too: its scene's code is loaded ahead (as the world loads this map's on the
+  // way here, P9.6), so the canvas goes from this map to the world without a moment between with nothing to draw.
+  useEffect(() => { if (sharedCanvas) void import('./p9-world-scene'); }, [sharedCanvas]);
   return <>
     <BackToWorld/>
     {lost && <div className={styles.fallbackNotice} role="status"><p>3D 地圖已停止（WebGL 失效），島嶼清單與課程連結仍可使用。</p><button type="button" onClick={retry}>重新載入 3D 地圖</button></div>}

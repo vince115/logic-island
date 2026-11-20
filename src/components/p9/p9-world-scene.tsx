@@ -294,8 +294,6 @@ export interface P9WorldTarget {
 /** Under this much free stage width (px) the labels are the short ones (as on the P8 overview). */
 const COMPACT_BELOW = 720;
 
-/** P9.8c: what the shared canvas keeps for the world while another page is drawn: the view to fly back to. */
-const WORLD_VIEW = 'p9.world.view';
 const IDENTITY_FRAME = { scale: 1, offset: [0, 0, 0] as const };
 
 export default function P9WorldScene({ targets, insetRight, label, shape, environmentId, accents, onReady, onUnavailable, sharedCanvas = false }: {
@@ -338,7 +336,7 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
   // P9.8a: a flight's frames are drawn as they are: its end, the region page's opening view, may lie past the limits a
   // pan or a zoom keeps (a region at the map's edge, framed for a page laid out differently). Otherwise as before.
   // P9.8c (shared canvas): back from the CS page, the world starts at the view the CS camera left and flies back to the
-  // view it had before it opened CS (returnFrom); a wheel, drag or pinch stops it where it is.
+  // whole world at rest, as Back has done since P9.5; a wheel, drag or pinch stops it where it is.
   const returning = useRef<{ frame: number; on: boolean }>({ frame: 0, on: false }), [isReturning, setReturning] = useState(false);
   const stopReturn = useCallback(() => {
     if (!returning.current.on) return;
@@ -347,7 +345,9 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
   useEffect(() => stopReturn, [stopReturn]);
   const flying = fly.state === 'flying' || fly.state === 'navigating' || isReturning;
   const shown_view = useMemo(() => stage.width && !flying ? clampView(view, stage) : view, [view, stage, flying]);
-  const cancelMotion = useCallback(() => { fly.cancel(); if (returning.current.on) { stopReturn(); setView(v => stage.width ? clampView(v, stage) : v); } }, [fly, stopReturn, stage]);
+  // Stable while a gesture lasts (the gesture listeners are set up again when it changes): fly.cancel, not fly.
+  const cancelFlight = fly.cancel;
+  const cancelMotion = useCallback(() => { cancelFlight(); if (returning.current.on) { stopReturn(); setView(v => stage.width ? clampView(v, stage) : v); } }, [cancelFlight, stopReturn, stage]);
   useWorldGestures(wrap, stage, setView, cancelMotion);
   const step = (factor: number) => setView(v => zoomAt(v, stage, factor, stage.width / 2 - (stage.width > 780 ? insetRight / 2 : 0), stage.height / 2));
   const [spots, setSpots] = useState<LabelSpot[] | null>(null);
@@ -379,32 +379,30 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
     const t = target(id), i = shown.findIndex(s => s.id === id), box = framed?.extents[i];
     if (!t?.onOpen) return undefined;
     const go = t.onOpen;
-    return () => { departure.current = shown_view; fly.start(id, openingView(id) ?? (box && stage.width ? flyTarget(box, stage, insetRight) : undefined), go, t.href); };
+    return () => fly.start(id, openingView(id) ?? (box && stage.width ? flyTarget(box, stage, insetRight) : undefined), go, t.href);
   };
-  // P9.8c: the view to come back to when the world returns (see below); `latest` is the one on screen.
-  const departure = useRef<WorldView | null>(null), latest = useRef(shown_view);
   useLayoutEffect(() => {
     if (!sharedCanvas) return;
     if (canvasSlot.lost()) { onUnavailable(); return; }
     onReady();
-    // On leaving, the view to come back to: the one before the flight that left, else the one on screen.
-    return () => { canvasSlot.remember(WORLD_VIEW, departure.current ?? latest.current); canvasSlot.release('p9-world'); };
+    return () => canvasSlot.release('p9-world');
   }, [sharedCanvas, onReady, onUnavailable]);
   // P9.8c: the first view. From the CS page, the one that shows the CS camera's last frame on this canvas (the same
-  // points at the same pixels), then a flight back; with reduced motion, or a camera the world cannot show (turned), the
-  // view to come back to at once. Measured here, before the first frame, so the canvas never shows another view first.
+  // points at the same pixels), then a flight back to the world at rest; with reduced motion, or a camera the world
+  // cannot show (turned), the world at rest at once. Measured here, before the first frame, so the canvas never shows
+  // another view first.
   useLayoutEffect(() => {
     const element = wrap.current;
     if (!sharedCanvas || !element) return;
-    const pose = canvasSlot.takePose(), back = canvasSlot.recall<WorldView>(WORLD_VIEW) ?? HOME_VIEW;
+    const pose = canvasSlot.takePose();
     const size = { width: element.clientWidth, height: element.clientHeight }, box = element.getBoundingClientRect();
     if (!pose || !size.width) return;
     const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
     const from = reduced ? undefined : worldViewFromPose(pose, { left: box.left, top: box.top, width: box.width, height: box.height }, frameOverview(shownOutlines, shape, size, insetRight), size);
-    const to = clampView(back, size);
-    // The first view needs the stage's measured size, before the first frame.
-    setView(from ?? to);
+    const to = HOME_VIEW;
     if (!from) return;
+    // The first view needs the stage's measured size, before the first frame.
+    setView(from);
     const t0 = performance.now();
     returning.current.on = true; setReturning(true);
     const tick = () => {
@@ -439,7 +437,6 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
   </>;
   // P9.8c (shared canvas): the scene goes to the shared canvas with every render, as it would to a canvas of its own.
   useLayoutEffect(() => {
-    latest.current = shown_view;
     if (!sharedCanvas || !wrap.current) return;
     canvasSlot.register({ id: 'p9-world', stage: wrap.current, content: scene, frame: IDENTITY_FRAME, label, onUnavailable });
   });
