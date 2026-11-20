@@ -28,7 +28,9 @@
       ],
       "commit": "8257a9b",
       "tests": "驗證器、發布閘門 90/90、PL06–PL10 四語程式測試 124（含 Java）、Vitest 2292、E2E 桌機＋手機 431（旗標關）、P9＋區域世界旗標開 117、測驗逐題複核",
-      "notes": "大綱活動 scope-chain、memory-model、gc-visualizer、compiler-pipeline 未實作，改用已實作的共用視覺化；PL 地景維持規劃中"
+      "notes": "大綱活動 scope-chain、memory-model、gc-visualizer、compiler-pipeline 未實作，改用已實作的共用視覺化；PL 地景維持規劃中",
+      "pr": "#31",
+      "merged": "bd0a035"
     }
   ]
 }
