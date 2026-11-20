@@ -16,7 +16,7 @@ const inReview = (q: Question): Question => ({ ...clone(q), review: { ...q.revie
 const fix = (q: Question, edit: (r: ReturnType<typeof rev>) => void): Question => { const c = inReview(q); edit(rev(c)); return c; };
 const problems = (q: Question) => structuralProblems(q, sourceById, tagById);
 // A public single-choice question, made into an original, waiting-for-review CCAR-F question with one syllabus item.
-const base = trialBank.questions.find(q => q.type === 'single-choice' && rev(q).options?.length && rev(q).explanation)!;
+const base = trialBank.questions.find(q => q.review.status === 'published' && q.type === 'single-choice' && rev(q).options?.length && rev(q).explanation)!;
 const sample: Question = (() => {
   const q = clone(base);
   q.provenance = { origin: 'original', sourceId: 'basis-ccarf' } as Question['provenance'];
