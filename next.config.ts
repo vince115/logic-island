@@ -1,9 +1,14 @@
 import type { NextConfig } from 'next';
 import { p9PrototypeEnabled } from './src/lib/p9/flag';
+import { presenceEnabled } from './src/lib/presence/flag';
 
 const P9_REGIONS = 'cs|ai|design|web|sys';
 
 const nextConfig: NextConfig = {
+  // Dynamic Island Population: the presence API (src/app/api/presence/route.presence.ts) is a route only in a build
+  // made with LOGIC_ISLAND_PRESENCE=1. Without the flag the extension list is Next.js's default, the file is not a
+  // route, and the app keeps having no route handler (the trial system's release preflight checks that).
+  ...(presenceEnabled() ? { pageExtensions: ['tsx', 'ts', 'jsx', 'js', 'presence.ts'] } : {}),
   // T.3J (docs/exam-system/34): the private question bank is read from disk at build time, never shipped with a route.
   outputFileTracingExcludes: { '*': ['private/**'] },
   // 2026-11-02 (Phase E.5): /visualize listed the same six labs as /learn, and /visualize/<slug> rendered the same page
