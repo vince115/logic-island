@@ -25,7 +25,14 @@ test('every published island\'s syllabus anchor exists on /curriculum and lands 
   }
 });
 
+/**
+ * P9.8a: a build made with LOGIC_ISLAND_P9_PROTOTYPE=1 has the P9 world overview at /, not the home map, so the home
+ * map's own test runs only where / is the home map; the P9 test below checks the same workshop on the P9 region page.
+ */
+const P9 = process.env.LOGIC_ISLAND_P9_PROTOTYPE === '1';
+
 test('home map (unchanged): the foundations workshop is named 學習路線 and leads to /learn', async ({ page }) => {
+  test.skip(P9, 'with LOGIC_ISLAND_P9_PROTOTYPE=1, / is the P9 world overview (no home map)');
   await page.goto('/?island=foundations');
   const workshop = poi(page, '基礎程式島', 'Building_Workshop');
   await expect(workshop).toBeVisible({ timeout: 30_000 });
@@ -34,6 +41,20 @@ test('home map (unchanged): the foundations workshop is named 學習路線 and l
   await expect(places(page, '基礎程式島').locator('button[data-target]')).toHaveCount(3);
   await workshop.click();
   await expect(page).toHaveURL(/\/learn$/);
+});
+
+test('P9 build: the CS region page\'s foundations workshop leads to the island\'s own syllabus', async ({ page }) => {
+  test.skip(!P9, 'needs a build with LOGIC_ISLAND_P9_PROTOTYPE=1');
+  await page.goto('/?island=foundations');
+  // The P9 world overview has no island to focus; the island lives on its region page.
+  await expect(places(page, '基礎程式島')).toHaveCount(0);
+  await page.goto('/cs?island=foundations');
+  const workshop = poi(page, '基礎程式島', 'Building_Workshop');
+  await expect(workshop).toBeVisible({ timeout: 30_000 });
+  await expect(workshop).toHaveText(/工坊\s*課綱/);
+  await expect(workshop).toHaveAttribute('data-route', 'syllabus');
+  await workshop.click();
+  await expect(page).toHaveURL(/\/curriculum#island-foundations$/);
 });
 
 test.describe('region map (flag on)', () => {
