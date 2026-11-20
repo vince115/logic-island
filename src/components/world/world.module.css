@@ -21,7 +21,7 @@
    P9.6: and clips what the zoom carries past its edges (hidden labels still take room), so a zoomed map never widens the page. */
 .canvasWrap[data-view] { touch-action: none; overflow: clip; }
 /* P9.5: during a flight the labels step back; they would only slide off with the map. */
-.canvasWrap[data-fly='flying'] .overviewLabel, .canvasWrap[data-fly='navigating'] .overviewLabel { opacity: 0; transition: opacity .2s; pointer-events: none; }
+.canvasWrap[data-fly='flying'] .overviewLabel, .canvasWrap[data-fly='navigating'] .overviewLabel, .canvasWrap[data-fly='returning'] .overviewLabel { opacity: 0; transition: opacity .2s; pointer-events: none; }
 .worldControls {
   position: absolute;
   left: 12px;

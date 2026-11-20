@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { getRegion } from '@/content/world';
 import { REGION_IDS, type RegionId } from '@/content/world/types';
 import { P9RegionExplorer } from '@/components/p9/p9-region-explorer';
-import { p9PrototypeEnabled } from '@/lib/p9/flag';
+import { p9PrototypeEnabled, p9SharedCanvasEnabled } from '@/lib/p9/flag';
 import { hubSummary, regionIslands } from '@/lib/world/learning-islands';
 
 /*
@@ -29,6 +29,7 @@ export default async function P9RegionPage({ params }: { params: Promise<{ regio
   if (!p9PrototypeEnabled() || !isRegion(region)) notFound();
   const record = getRegion(region)!;
   return <main id="main"><h1 className="visually-hidden">{record.name}</h1>
-    <div className="home-world"><Suspense><P9RegionExplorer regionId={region} regionName={record.name} regionNameEn={record.nameEn} islands={regionIslands(region)} hub={hubSummary().lab}/></Suspense></div>
+    <div className="home-world"><Suspense><P9RegionExplorer regionId={region} regionName={record.name} regionNameEn={record.nameEn} islands={regionIslands(region)} hub={hubSummary().lab}
+      sharedCanvas={region === 'cs' && p9SharedCanvasEnabled()}/></Suspense></div>
   </main>;
 }

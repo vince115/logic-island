@@ -5,14 +5,16 @@ import { BoxGeometry, Color, Vector3, type BufferGeometry } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Canvas, useThree } from '@react-three/fiber';
 import { ENVIRONMENTS, type EnvironmentId, type WorldEnvironment } from '@/lib/islands/environments';
-import { WATER_LEVEL, worldCenter } from '@/lib/islands/hex-world';
 import { placeLabels, type LabelSpot, type StageBox, type StageLand, type StageLine } from '@/lib/islands/regions/overview-labels';
 import { LINK_THEME } from '@/lib/islands/regions/region-themes';
 import type { LabelSide, OverviewShape } from '@/lib/islands/regions/schema';
-import { LINK_WIDTH, frameOverview, overviewLinks, overviewOutlines, stageLands, stageLines, type OverviewFrame, type OverviewLink, type OverviewOutline } from '@/lib/islands/regions/world-overview-geometry';
+import { LINK_WIDTH, frameOverview, overviewLinks, stageLands, stageLines, type OverviewFrame, type OverviewLink, type OverviewOutline } from '@/lib/islands/regions/world-overview-geometry';
 import { WORLD_MAP } from '@/lib/islands/regions/world-map';
-import { regionScene, sceneLayouts, scenePlacement, type SceneId } from '@/lib/p9/region-scene';
+import type { SceneId } from '@/lib/p9/region-scene';
 import { P9_WORLD_MAP } from '@/lib/p9/world-map';
+import { worldPlacements } from '@/lib/p9/world-placements';
+import { worldViewFromPose } from '@/lib/p9/world-pose';
+import { canvasSlot } from '../islands/hex-world/canvas-slot';
 import { FLY_MS, FLY_SAFETY_MS, flightView, flyTarget, type FlyState } from '@/lib/p9/world-fly';
 import { regionStage } from '@/lib/p9/region-layout';
 import { openingWorldView, regionOpening } from '@/lib/p9/region-opening';
@@ -62,13 +64,7 @@ const boxes = (list: { a: readonly [number, number]; b: readonly [number, number
 function useWorld(shape: OverviewShape) {
   return useMemo(() => {
     // The outlines place each region's own map (its tiles) on the overview: the same placement the P8 overview uses.
-    const outlines = overviewOutlines(P9_WORLD_MAP, sceneLayouts(), shape), links = overviewLinks(P9_WORLD_MAP, outlines);
-    const parts = outlines.map((outline, order) => {
-      const scene = regionScene(outline.id as SceneId), { world } = scene.region.layout;
-      // The outline's own anchor: where the map's centre lands. The hub's outline is the same island as the hub scene's.
-      const anchor = outline.placed.point(...worldCenter(outline.world));
-      return { id: outline.id as SceneId, scene, order, placement: scenePlacement(world, anchor, outline.placed.scale, WATER_LEVEL) };
-    });
+    const { outlines, parts } = worldPlacements(shape), links = overviewLinks(P9_WORLD_MAP, outlines);
     const hub = boxes(links.filter(l => l.kind === 'hub').map(l => ({ a: l.a, b: l.b, width: LINK_WIDTH[shape].hub * 1.5, planks: false })));
     const relation = boxes(links.filter(l => l.kind === 'relation').map(l => ({ a: l.a, b: l.b, width: LINK_WIDTH[shape].relation * 1.5, planks: true })));
     const reach = Math.max(...outlines.flatMap(o => o.tiles.map(t => Math.max(Math.abs(t[0]), Math.abs(t[1]))))) + 6;
@@ -298,12 +294,21 @@ export interface P9WorldTarget {
 /** Under this much free stage width (px) the labels are the short ones (as on the P8 overview). */
 const COMPACT_BELOW = 720;
 
-export default function P9WorldScene({ targets, insetRight, label, shape, environmentId, accents, onReady, onUnavailable }: {
+/** P9.8c: what the shared canvas keeps for the world while another page is drawn: the view to fly back to. */
+const WORLD_VIEW = 'p9.world.view';
+const IDENTITY_FRAME = { scale: 1, offset: [0, 0, 0] as const };
+
+export default function P9WorldScene({ targets, insetRight, label, shape, environmentId, accents, onReady, onUnavailable, sharedCanvas = false }: {
   targets: P9WorldTarget[]; insetRight: number; label: string; shape: OverviewShape;
   /** The time of day: the site's own (src/lib/site-time.ts), the one the Region and Island levels draw. */
   environmentId: EnvironmentId;
   accents: Record<string, string>;
   onReady: () => void; onUnavailable: () => void;
+  /**
+   * P9.8c (LOGIC_ISLAND_P9_SHARED_CANVAS=1): the world draws in the shared canvas (shared-stage.tsx) instead of a canvas
+   * of its own, so the canvas stays when the CS page opens and when it comes back from there.
+   */
+  sharedCanvas?: boolean;
 }) {
   const { outlines, links, parts, hub, relation, reach } = useWorld(shape);
   // The islands' own environment. Only the shadow's fit differs: the world is far wider than one region's map, so the
@@ -332,9 +337,18 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
   const fly = useFlyTo(stage, insetRight, view, setView);
   // P9.8a: a flight's frames are drawn as they are: its end, the region page's opening view, may lie past the limits a
   // pan or a zoom keeps (a region at the map's edge, framed for a page laid out differently). Otherwise as before.
-  const flying = fly.state === 'flying' || fly.state === 'navigating';
+  // P9.8c (shared canvas): back from the CS page, the world starts at the view the CS camera left and flies back to the
+  // view it had before it opened CS (returnFrom); a wheel, drag or pinch stops it where it is.
+  const returning = useRef<{ frame: number; on: boolean }>({ frame: 0, on: false }), [isReturning, setReturning] = useState(false);
+  const stopReturn = useCallback(() => {
+    if (!returning.current.on) return;
+    cancelAnimationFrame(returning.current.frame); returning.current.on = false; setReturning(false);
+  }, []);
+  useEffect(() => stopReturn, [stopReturn]);
+  const flying = fly.state === 'flying' || fly.state === 'navigating' || isReturning;
   const shown_view = useMemo(() => stage.width && !flying ? clampView(view, stage) : view, [view, stage, flying]);
-  useWorldGestures(wrap, stage, setView, fly.cancel);
+  const cancelMotion = useCallback(() => { fly.cancel(); if (returning.current.on) { stopReturn(); setView(v => stage.width ? clampView(v, stage) : v); } }, [fly, stopReturn, stage]);
+  useWorldGestures(wrap, stage, setView, cancelMotion);
   const step = (factor: number) => setView(v => zoomAt(v, stage, factor, stage.width / 2 - (stage.width > 780 ? insetRight / 2 : 0), stage.height / 2));
   const [spots, setSpots] = useState<LabelSpot[] | null>(null);
   useLayoutEffect(() => {
@@ -365,8 +379,43 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
     const t = target(id), i = shown.findIndex(s => s.id === id), box = framed?.extents[i];
     if (!t?.onOpen) return undefined;
     const go = t.onOpen;
-    return () => fly.start(id, openingView(id) ?? (box && stage.width ? flyTarget(box, stage, insetRight) : undefined), go, t.href);
+    return () => { departure.current = shown_view; fly.start(id, openingView(id) ?? (box && stage.width ? flyTarget(box, stage, insetRight) : undefined), go, t.href); };
   };
+  // P9.8c: the view to come back to when the world returns (see below); `latest` is the one on screen.
+  const departure = useRef<WorldView | null>(null), latest = useRef(shown_view);
+  useLayoutEffect(() => {
+    if (!sharedCanvas) return;
+    if (canvasSlot.lost()) { onUnavailable(); return; }
+    onReady();
+    // On leaving, the view to come back to: the one before the flight that left, else the one on screen.
+    return () => { canvasSlot.remember(WORLD_VIEW, departure.current ?? latest.current); canvasSlot.release('p9-world'); };
+  }, [sharedCanvas, onReady, onUnavailable]);
+  // P9.8c: the first view. From the CS page, the one that shows the CS camera's last frame on this canvas (the same
+  // points at the same pixels), then a flight back; with reduced motion, or a camera the world cannot show (turned), the
+  // view to come back to at once. Measured here, before the first frame, so the canvas never shows another view first.
+  useLayoutEffect(() => {
+    const element = wrap.current;
+    if (!sharedCanvas || !element) return;
+    const pose = canvasSlot.takePose(), back = canvasSlot.recall<WorldView>(WORLD_VIEW) ?? HOME_VIEW;
+    const size = { width: element.clientWidth, height: element.clientHeight }, box = element.getBoundingClientRect();
+    if (!pose || !size.width) return;
+    const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const from = reduced ? undefined : worldViewFromPose(pose, { left: box.left, top: box.top, width: box.width, height: box.height }, frameOverview(shownOutlines, shape, size, insetRight), size);
+    const to = clampView(back, size);
+    // The first view needs the stage's measured size, before the first frame.
+    setView(from ?? to);
+    if (!from) return;
+    const t0 = performance.now();
+    returning.current.on = true; setReturning(true);
+    const tick = () => {
+      if (!returning.current.on) return;
+      const t = (performance.now() - t0) / FLY_MS;
+      setView(flightView(from, to, t, size, insetRight));
+      if (t >= 1) { returning.current.on = false; setReturning(false); } else returning.current.frame = requestAnimationFrame(tick);
+    };
+    returning.current.frame = requestAnimationFrame(tick);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- once, at mount: the pose is taken once
+  }, []);
   // What was drawn, for the review tools and tests: every scene's source, scale and counts, the links, the time of day.
   const drawn = useMemo(() => JSON.stringify({
     time: environmentId,
@@ -374,16 +423,8 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
       landmarks: p.scene.landmarks.map(l => `${l.islandId}:${l.id}`), trees: p.scene.trees.length })),
     links: links.map(l => ({ id: l.id, kind: l.kind })),
   }), [parts, links, environmentId]);
-  return <div ref={wrap} className={styles.canvasWrap} style={hovered && target(hovered)?.onOpen ? { cursor: 'pointer' } : undefined} data-shape={shape} data-compact={compact ? 'true' : undefined} data-p9-world={drawn}
-    data-view={`${shown_view.k.toFixed(3)},${shown_view.dx.toFixed(1)},${shown_view.dy.toFixed(1)}`} data-fly={fly.state} data-fly-target={fly.target ?? undefined}>
-    <Canvas orthographic frameloop="demand" dpr={[1, 1.5]} shadows={STATIC_SHADOW_MAP} camera={{ position: [0, 40, 60], zoom: 10, near: .1, far: 500 }}
-      gl={{ antialias: true, alpha: false, powerPreference: 'low-power' }}
-      onCreated={({ gl }) => {
-        const canvas = gl.domElement;
-        canvas.setAttribute('aria-label', label); canvas.setAttribute('role', 'img');
-        canvas.addEventListener('webglcontextlost', event => { event.preventDefault(); onUnavailable(); });
-        onReady();
-      }}>
+  // The world's scene: in a canvas of its own, or (P9.8c) in the shared canvas.
+  const scene = <>
       <HexEnvironment environment={environment} shadowExtent={reach} staticShadows/>
       <Probe placements={parts}/>
       <GlowProvider value={environment}>
@@ -395,7 +436,24 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
         {relation && <mesh geometry={relation} castShadow receiveShadow raycast={noRaycast}><meshStandardMaterial color={LINK_THEME.relation} flatShading roughness={.9}/></mesh>}
       </GlowProvider>
       <Framing outlines={shownOutlines} links={links} shape={shape} insetRight={insetRight} view={shown_view} onFramed={setFramed}/>
-    </Canvas>
+  </>;
+  // P9.8c (shared canvas): the scene goes to the shared canvas with every render, as it would to a canvas of its own.
+  useLayoutEffect(() => {
+    latest.current = shown_view;
+    if (!sharedCanvas || !wrap.current) return;
+    canvasSlot.register({ id: 'p9-world', stage: wrap.current, content: scene, frame: IDENTITY_FRAME, label, onUnavailable });
+  });
+  return <div ref={wrap} className={styles.canvasWrap} style={hovered && target(hovered)?.onOpen ? { cursor: 'pointer' } : undefined} data-shape={shape} data-compact={compact ? 'true' : undefined} data-p9-world={drawn}
+    data-view={`${shown_view.k.toFixed(3)},${shown_view.dx.toFixed(1)},${shown_view.dy.toFixed(1)}`} data-fly={isReturning ? 'returning' : fly.state} data-fly-target={fly.target ?? undefined}
+    data-shared-stage={sharedCanvas ? 'world' : undefined}>
+    {!sharedCanvas && <Canvas orthographic frameloop="demand" dpr={[1, 1.5]} shadows={STATIC_SHADOW_MAP} camera={{ position: [0, 40, 60], zoom: 10, near: .1, far: 500 }}
+      gl={{ antialias: true, alpha: false, powerPreference: 'low-power' }}
+      onCreated={({ gl }) => {
+        const canvas = gl.domElement;
+        canvas.setAttribute('aria-label', label); canvas.setAttribute('role', 'img');
+        canvas.addEventListener('webglcontextlost', event => { event.preventDefault(); onUnavailable(); });
+        onReady();
+      }}>{scene}</Canvas>}
     {framed && shown.map((t, i) => {
       // P9.4: a label moves with its region under the view; one whose anchor leaves the stage, or reaches the guide
       // beside it (insetRight), is hidden.

@@ -13,6 +13,7 @@ import type { LearningIsland } from '@/lib/islands/types';
 import { IslandLabs, IslandSubjects, LearningNavigation } from '../learning-navigation';
 import type { HexSceneOptions } from './hex-world-scene';
 import type { CameraHandover } from './hex-camera';
+import type { SceneFrame } from '@/lib/islands/stage-pose';
 import { HexPoiPanel } from './hex-poi-panel';
 import { SceneBoundary } from './scene-boundary';
 import { useSiteTime } from '@/lib/site-time';
@@ -89,7 +90,7 @@ function useMediaQuery(query:string) {
     ()=>matchMedia(query).matches,()=>false);
 }
 
-export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,captionAbove=false,controlsBelow=false,layout='card',modeSwitchTarget,copy,toolbar,footer,listMore,selectedId:selectedFromUrl,onSelectedChange,baseAzimuth,cameraHandover}:{
+export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,captionAbove=false,controlsBelow=false,layout='card',modeSwitchTarget,copy,toolbar,footer,listMore,selectedId:selectedFromUrl,onSelectedChange,baseAzimuth,cameraHandover,sharedCanvas}:{
   islands:LearningIsland[];world?:HexWorld;options?:HexSceneOptions;
   /** Show the HTML list of the focused island's places (touch and keyboard equivalent of the 3D targets). */
   poiPanel?:boolean;
@@ -116,6 +117,8 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
   baseAzimuth?:number;
   /** P9.8b: the pose the map's camera starts from when its scene mounts (hex-camera.tsx `handover`); unset, as before. */
   cameraHandover?:CameraHandover;
+  /** P9.8c: draw the map in the shared canvas (hex-world-scene.tsx `sharedCanvas`); unset, a canvas of its own. */
+  sharedCanvas?:{frame:SceneFrame};
 }) {
   const text={...PREVIEW_COPY,...copy};
   const [mode,setMode]=useState<'3d'|'list'>('3d');
@@ -247,7 +250,7 @@ export function HexWorldExplorer({islands,world=hexWorld,options,poiPanel=false,
             <HexWorldScene world={world} islands={islands} selectedId={selectedId} onSelect={select} onNavigate={navigate}
               reducedMotion={Boolean(reducedMotion)} onReady={markReady} onUnavailable={unavailable} options={options} label={text.canvas}
               infoNode={poiPanel?infoNode:undefined} onInfoChange={poiPanel?setInfoNode:undefined}
-              resetKey={resetKey} onViewChange={setViewChanged} orbit={orbiting} onOrbitStop={stopOrbit} environmentId={environmentId} insetRight={insetRight} baseAzimuth={baseAzimuth} cameraHandover={cameraHandover}
+              resetKey={resetKey} onViewChange={setViewChanged} orbit={orbiting} onOrbitStop={stopOrbit} environmentId={environmentId} insetRight={insetRight} baseAzimuth={baseAzimuth} cameraHandover={cameraHandover} sharedCanvas={sharedCanvas}
               onResetRequest={options?.mapControls?overview:undefined} room={room} onArrive={onArrival?arrive:undefined}/>
           </LoadingCopy.Provider>
         </SceneBoundary>
