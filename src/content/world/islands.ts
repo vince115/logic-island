@@ -40,7 +40,7 @@ function firstLesson(islandId: string) {
 function existing(id: string, code: string, lessonPrefix: LessonPrefix, order: number, name: string, nameEn: string,
   description: string, theme: IslandConfig['theme'], links: IslandLink[]): IslandConfig {
   return { id, kind: 'subject', regionId: 'cs', code, order, name, nameEn, description, lessonPrefix, lessonCount: 20,
-    status: 'complete', theme, entryPoints: [curriculumAnchor(id), ...firstLesson(id)], links, version: '1.0.0' };
+    status: 'complete', mapState: 'built', theme, entryPoints: [curriculumAnchor(id), ...firstLesson(id)], links, version: '1.0.0' };
 }
 
 /**
@@ -54,8 +54,9 @@ function fromPlan(id: keyof typeof planning.islands, lessonPrefix: LessonPrefix,
   const { code, regionId, name, nameEn, description } = planning.islands[id];
   const written = lessons.filter(l => l.islandId === id && l.lessonStatus === 'complete').length;
   const status = written === 0 ? 'planned' : written < lessonCount ? 'available' : 'complete';
+  // The map state is the island's map entry (`map`: it has its own place and buildings on the home map), never its lessons.
   return { id, kind: 'subject', regionId: regionId as RegionId, code, order, name, nameEn, description, lessonPrefix, lessonCount,
-    status, theme: map ? { accent, landmark: map.landmark } : { accent }, entryPoints: written ? [curriculumAnchor(id), ...firstLesson(id)] : [], links: map?.links ?? [],
+    status, mapState: map ? 'built' : 'planned', theme: map ? { accent, landmark: map.landmark } : { accent }, entryPoints: written ? [curriculumAnchor(id), ...firstLesson(id)] : [], links: map?.links ?? [],
     version: status === 'planned' ? '0.1.0' : '0.2.0' };
 }
 
@@ -103,7 +104,7 @@ export const worldIslands: IslandConfig[] = [
   {
     id: LAB_ISLAND_ID, kind: 'tool', code: 'LAB', name: '互動實驗島', nameEn: 'Interactive Lab Island',
     description: '跨學科共用的工具島：自己輸入資料，逐步播放陣列、堆疊、佇列、搜尋、排序與圖的走訪；不是學科、沒有課程編號。',
-    lessonCount: 0, status: 'available', theme: { accent: '#8a4fd1', landmark: '實驗穹頂 · 看見每一步' },
+    lessonCount: 0, status: 'available', mapState: 'built', theme: { accent: '#8a4fd1', landmark: '實驗穹頂 · 看見每一步' },
     entryPoints: [{ id: 'labs', label: '互動實驗島', target: '/learn' }], links: [], labs: algorithmIds, version: '1.0.0',
   },
 ];

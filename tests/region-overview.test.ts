@@ -21,8 +21,9 @@ describe('region overview', () => {
       else expect(island.href).toBeUndefined();
     }
     const cs = regionOverview('cs');
-    expect(cs).toMatchObject({ status: 'available', islandCount: 8, lessonCount: 160, published: 80 });
-    expect(cs.ungrouped.filter(i => i.href).map(i => i.code)).toEqual(['F', 'DS', 'AL', 'DB']);
+    // 80 lessons, then PL01–PL05 (course production batch 1): PL links to its syllabus like the other open islands.
+    expect(cs).toMatchObject({ status: 'available', islandCount: 8, lessonCount: 160, published: 85 });
+    expect(cs.ungrouped.filter(i => i.href).map(i => i.code)).toEqual(['F', 'DS', 'AL', 'PL', 'DB']);
   });
 
   it('counts agree with the catalog for every region (520 lessons, 80 open; P6 adds sys)', () => {

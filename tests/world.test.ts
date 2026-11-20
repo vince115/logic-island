@@ -117,10 +117,12 @@ describe('world registry (F.0)', () => {
     expect(labIslandConfig.labs).toEqual(['array', 'stack', 'queue', 'binary-search', 'bubble-sort', 'bfs']);
   });
 
-  it('marks the three existing islands and the database island (written to the end in F.1d) complete, and the other twenty-five planned', () => {
+  it('marks the three existing islands and the database island (written to the end in F.1d) complete, PL available (batch 1) and the other twenty-four planned', () => {
     expect(subjectIslands.filter(i => i.status === 'complete').map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'databases']);
-    expect(subjectIslands.filter(i => i.status === 'available').map(i => i.id)).toEqual([]);
-    expect(subjectIslands.filter(i => i.status === 'planned')).toHaveLength(25);
+    // Course production batch 1 published PL01–PL05 of 20: the island is open (available), its map stays planned.
+    expect(subjectIslands.filter(i => i.status === 'available').map(i => i.id)).toEqual(['programming-languages']);
+    expect(getIsland('programming-languages')).toMatchObject({ status: 'available', mapState: 'planned' });
+    expect(subjectIslands.filter(i => i.status === 'planned')).toHaveLength(24);
     expect(regionStatus('design')).toBe('planned');
     expect(regionStatus('sys')).toBe('planned');
     expect(regionStatus('web')).toBe('planned');
@@ -138,9 +140,10 @@ describe('world registry (F.0)', () => {
     }
   });
 
-  it('gives the curriculum the same three islands as before, then the database island (F.1a)', () => {
-    expect(curriculumIslands.map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'databases']);
-    expect(curriculumIslands[3]).toMatchObject({ name: '資料庫應用島', englishName: 'Database Applications', summary: planning.islands.databases.description });
+  it('gives the curriculum the same three islands as before, then the database island (F.1a) and PL in world order (batch 1)', () => {
+    expect(curriculumIslands.map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases']);
+    expect(curriculumIslands.find(i => i.id === 'databases')).toMatchObject({ name: '資料庫應用島', englishName: 'Database Applications', summary: planning.islands.databases.description });
+    expect(curriculumIslands.find(i => i.id === 'programming-languages')).toMatchObject({ name: planning.islands['programming-languages'].name, summary: planning.islands['programming-languages'].description });
     expect(curriculumIslands.slice(0, 3)).toEqual([
       { id: 'foundations', name: '基礎程式島', englishName: 'Programming Fundamentals', summary: '從第一支程式到遞迴與複雜度：變數、輸入輸出、條件、迴圈、陣列、字串與函式。' },
       { id: 'structures', name: '資料結構島', englishName: 'Data Structures', summary: '資料怎麼放，決定程式能多快：陣列、鏈結串列、堆疊、佇列、雜湊、樹、堆積與圖。' },

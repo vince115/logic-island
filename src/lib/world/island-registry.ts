@@ -80,13 +80,14 @@ function assetSpec(islandId: string): IslandAssetSpec {
   };
 }
 
-function visualSpec(islandId: string, status: IslandStatus, place: IslandPlace): IslandVisualSpec {
+function visualSpec(islandId: string, mapState: 'built' | 'planned', place: IslandPlace): IslandVisualSpec {
   const region = place.kind === 'region' ? REGION_LAYOUTS[place.regionId] : undefined;
   const world = region ? region.layout.world : hubWorld(WORLD_MAP);
   const settlement = world.settlements.find(s => s.islandId === islandId);
   if (!settlement) throw new Error(`${islandId} has no settlement on ${place.kind === 'region' ? `the ${place.regionId} map` : 'the hub'}`);
   const layout = region?.layout, buildings = layout?.glb.find(g => g.islandId === islandId);
-  const state = status === 'planned' ? 'planned' : 'open';
+  // 2026-11-20: the registry's map state, not the lessons: an island can open lessons while it keeps its planned landscape.
+  const state = mapState === 'planned' ? 'planned' : 'open';
   const forest = layout?.forests.find(f => f.islandId === islandId), plaza = layout?.natural?.plazas.find(p => p.islandId === islandId);
   return {
     place, settlement, world, state, tier: buildings ? 'glb' : state === 'planned' ? 'outline' : 'landmark',
@@ -102,7 +103,7 @@ function entry(islandId: string): IslandRegistryEntry {
   return {
     islandId, kind: record.kind, ...(record.regionId ? { regionId: record.regionId } : {}), publicationStatus: record.status,
     lessons: { planned: record.lessonCount, published: own.filter(l => l.lessonStatus === 'complete').length },
-    visualSpec: visualSpec(islandId, record.status, place), assetSpec: assetSpec(islandId),
+    visualSpec: visualSpec(islandId, record.mapState, place), assetSpec: assetSpec(islandId),
     ...(interactionSpec ? { interactionSpec } : {}),
   };
 }
@@ -165,7 +166,9 @@ export function validateIslandRegistry(entries: readonly IslandRegistryEntry[] =
     if (places.length !== 1 || places[0] !== expected) problems.push(`${e.islandId} is drawn on ${places.join(', ') || 'no map'}; it belongs on ${expected} alone`);
     if (e.kind === 'subject' && (e.visualSpec.place.kind !== 'region' || e.visualSpec.place.regionId !== e.regionId)) problems.push(`${e.islandId}: placed outside its region`);
     if (e.kind === 'tool' && e.visualSpec.place.kind !== 'hub') problems.push(`${e.islandId}: a tool island is the hub`);
-    if (e.visualSpec.state !== (e.publicationStatus === 'planned' ? 'planned' : 'open')) problems.push(`${e.islandId}: visual state does not follow its publication status`);
+    // 2026-11-20: the visual state is the registry's map state, and the map draws exactly that; neither follows the lessons.
+    if (e.visualSpec.state !== (getIsland(e.islandId)!.mapState === 'planned' ? 'planned' : 'open')) problems.push(`${e.islandId}: visual state does not follow its map state`);
+    if (Boolean(e.visualSpec.settlement.planned) !== (e.visualSpec.state === 'planned')) problems.push(`${e.islandId}: the map draws it ${e.visualSpec.settlement.planned ? 'planned' : 'built'}, its map state says ${e.visualSpec.state}`);
     if (e.assetSpec.glb && glbAssets[e.assetSpec.glb.id].islandId !== e.islandId) problems.push(`${e.islandId}: its GLB belongs to another island`);
     if (e.visualSpec.buildings && e.visualSpec.buildings.asset !== e.assetSpec.glb?.id) problems.push(`${e.islandId}: the map places a GLB that is not the island's asset`);
     if (e.assetSpec.glb && e.assetSpec.declared) problems.push(`${e.islandId}: has a runtime GLB and is still declared as planned`);

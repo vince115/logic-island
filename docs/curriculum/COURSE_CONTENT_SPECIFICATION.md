@@ -43,6 +43,7 @@
 2. 每堂一個撰寫者（一個 `content/<id>.ts` 只有一個寫入者），在私人副本完成並自我驗證：`validateCurriculum`、發布閘門、該堂的程式碼測試（Java 不得略過）、`tsc`。
 3. 整合者在獨立 worktree 登錄大綱（`lessons.ts` 的 `programFromBlueprint`：標題、目標、概念與先修取自藍圖，不得偏離）、單元（`units.ts`），重跑全部驗證，逐題校對測驗答案，並在桌機與手機檢查頁面。
 4. 全部通過才把狀態改為 `complete`，commit、push，經 PR 與 CI 合併；正式部署遵循既有流程。
+5. 發布課程不改 3D 地景：島嶼的地形由 `IslandConfig.mapState` 手動決定，不隨課程開放而改變（見 [COURSE_INVENTORY](COURSE_INVENTORY.md) §6）。島上第一批課發布時，只會改變課綱、側欄、島嶼面板與區域頁的計數；若測試把該島當成「規劃中」的範例，改用仍規劃中的島，不把已發布的課改回規劃中。
 
 ## 6. 發布閘門（`src/lib/curriculum/publish-gate.ts`）
 

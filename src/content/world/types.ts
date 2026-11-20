@@ -65,6 +65,12 @@ export interface IslandConfig {
   lessonPrefix?: LessonPrefix;
   lessonCount: number;
   status: IslandStatus;
+  /**
+   * 2026-11-20 (course production): how the 3D maps draw the island, set by hand and never derived from its lessons.
+   * `built`: its own buildings or landmarks (the islands of the home map, the hub); `planned`: the shared planned-island
+   * landscape. An island can open lessons (`status`) while its map stays `planned` until it has its own design.
+   */
+  mapState: 'built' | 'planned';
   theme: { accent: string; landmark?: string };
   entryPoints: EntryPoint[];
   links: IslandLink[];

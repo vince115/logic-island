@@ -27,3 +27,7 @@
 
 - 先修只依賴已開放的基礎程式島（F02、F13、F14、F18）。
 - 已開放的資料庫島 DB16（ORM 與驅動程式）以 PL02 為先修；DB14～DB16 建議 PL09、PL13、PL14（規劃中）。
+
+## 3D 世界
+
+程式語言島的課程已部分開放（`status: 'available'`），3D 地圖仍是原本的規劃中地景（`mapState: 'planned'`）：沒有 GLB、沒有重新建模、座標與地形不變。島嶼面板與區域頁依課程顯示已開放的課與單元；地形、霧與標記依 `mapState`。兩者分開的原因與規則見 [COURSE_INVENTORY](COURSE_INVENTORY.md) §6。

@@ -2,6 +2,8 @@
 
 > 以 `origin/main` `36a8343` 的 Repository 實際資料重新核對（`src/content/world` 的目錄、`src/content/curriculum` 的課綱與內容），不沿用舊報告的數字。分支 `courses/batch-1`，worktree `../logic-island-courses`。
 
+> **第一批之後（2026-11-20）**：PL01–PL05 發布，已發布 **85**、規劃中 **435**（CS 85／160；PL 5/20，程式語言島從「規劃中」變成「部分開放」）。下面 §1–§5 保留 Phase 0 盤點當時的數字；之後的數字以產生的 [COURSE_PRODUCTION_PROGRESS](COURSE_PRODUCTION_PROGRESS.md) 為準。
+
 ## 1. 總數
 
 5 個區域、29 座主題島（另有 1 座共用的互動實驗島）、520 堂課：**已發布 80、規劃中 440**。課程只有這兩種狀態（`contentStatusOf`：published、planned；「製作中」目前沒有任何課）。先前紀錄的 5 區域、29 島、520 課、80／440 經核對無誤。
@@ -42,5 +44,19 @@
 1. **程式語言島 PL01–PL20**：先修只依賴已發布的基礎程式島，完全重用 `program-code`；同時補上 DB16 的先修缺口。（第一批 PL01–PL05）
 2. **計算機網路 CN、Linux LNX**：先新增 capability（協定往返、終端機與設定檔），再開課；可重用 `protocol-sequence` 與 Linux Terminal Simulator。
 3. 之後依學習路線完整度排列，讓學習者能完整學完一條路線（路線清單見 `learning-paths.json`）。
+
+## 6. 課程開放與 3D 視覺狀態分離（第一批發布時決定）
+
+一座島「有沒有已發布的課」與「3D 地圖怎麼畫它」是兩件事，分開記錄：
+
+| 狀態 | 欄位 | 由誰決定 | 影響 |
+|---|---|---|---|
+| 課程開放 | `IslandConfig.status`（planned／available／complete） | 由已寫好的課自動推導 | 課綱、側欄、島嶼面板的課程與單元、區域頁的「已開放」計數、DB16 → PL02 這類先修連結 |
+| 3D 地景 | `IslandConfig.mapState`（built／planned） | 手動設定（`src/content/world/islands.ts`），不由課程推導 | 區域地圖的地形（規劃中的霧與標記）、世界總覽的低細節島、`island-registry` 的 `visualSpec`、home map 的橋 |
+
+- 程式語言島：`status: 'available'`（5/20），`mapState: 'planned'`：仍是原本的規劃地景，沒有 GLB、沒有重新建模、座標不變。
+- 規則：課程全部規劃中的島一定畫成規劃中（地景可以落後課程，不能超前）；`validateIslandRegistry` 檢查地圖實際畫的狀態與 `mapState` 一致；`validateIslandLinks` 的「橋只連地圖上的島」改看 `mapState`。
+- 要讓一座島換成自己的地景（模型選版、建模、GLB 整合）是另外的授權階段，完成時才把 `mapState` 改成 `built`。
+- 尚未合併的 P9 分支（`p9/1c-camera-flight`、`p9/1c-seamless-navigation`、`p9/8a-navigation-continuity` 等）沒有新增以課程狀態決定地景的程式；它們的區域標題計數來自頁面資料，rebase 到 main 後會顯示「5 座已開放 · 3 座規劃中」，若其 E2E 寫死「4 座已開放」或把程式語言島當成規劃中的範例，需改用 `mapState` 或改選計算機網路島。
 
 規格與佇列見 [COURSE_CONTENT_SPECIFICATION](COURSE_CONTENT_SPECIFICATION.md)，進度見 [COURSE_PRODUCTION_PROGRESS](COURSE_PRODUCTION_PROGRESS.md)。
