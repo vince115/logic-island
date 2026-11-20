@@ -4,10 +4,9 @@ import { Component, Fragment, useEffect, useLayoutEffect, useState, useSyncExter
 import { createPortal } from 'react-dom';
 import { usePathname } from 'next/navigation';
 import { Canvas, useThree } from '@react-three/fiber';
-import type { OrthographicCamera } from 'three';
+import { PCFShadowMap, type OrthographicCamera } from 'three';
 import type { Vec3 } from '@/lib/islands/stage-pose';
 import { canvasSlot } from '../islands/hex-world/canvas-slot';
-import { STATIC_SHADOW_MAP } from '../islands/hex-world/hex-environment';
 
 /*
  * P9.8c (LOGIC_ISLAND_P9_SHARED_CANVAS=1): the one canvas the P9 world (`/`) and the CS region page (`/cs`) draw in.
@@ -29,6 +28,11 @@ import { STATIC_SHADOW_MAP } from '../islands/hex-world/hex-environment';
  * (canvasSlot.retry), never by itself.
  */
 const SHARED_PATHS = new Set(['/', '/cs']);
+/**
+ * The scenes' static shadow map (hex-environment.tsx STATIC_SHADOW_MAP, which both scenes use), written out here so
+ * the host does not bring that module's code into its own chunk.
+ */
+const SHADOWS = { enabled: true, type: PCFShadowMap, autoUpdate: false } as const;
 
 /** The scene the current page registered: a new id mounts a new scene, the same id updates it. */
 function SlotContent() {
@@ -115,7 +119,7 @@ export default function P9SharedStage() {
   if (wasLost !== lost) { setWasLost(lost); if (!lost) setGeneration(n => n + 1); }
   if (!drawing || !container) return null;
   return createPortal(<CanvasBoundary key={generation}>
-    <Canvas orthographic frameloop="demand" dpr={[1, 1.5]} shadows={STATIC_SHADOW_MAP} camera={{ position: [0, 40, 60], zoom: 10, near: .1, far: 500 }}
+    <Canvas orthographic frameloop="demand" dpr={[1, 1.5]} shadows={SHADOWS} camera={{ position: [0, 40, 60], zoom: 10, near: .1, far: 500 }}
       gl={{ antialias: true, alpha: false, powerPreference: 'low-power' }}>
       <Lifecycle/>
       <StageSize/>

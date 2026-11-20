@@ -8,7 +8,7 @@ import { ArrowLeft, ArrowRight } from 'lucide-react';
 import type { LearningIsland } from '@/lib/islands/types';
 import { regionScene } from '@/lib/p9/region-scene';
 import { PHONE_PIN_REACH, PHONE_ROOM } from '@/lib/p9/region-layout';
-import { loadLandscapes, loadedLandscapes } from './p9-scene-loaders';
+import { loadLandscapes, loadWorldScene, loadedLandscapes } from './p9-scene-loaders';
 import { regionFrame } from '@/lib/p9/world-placements';
 import { canvasSlot } from '../islands/hex-world/canvas-slot';
 import { P9_WORLD_HREF } from '@/lib/p9/routes';
@@ -61,11 +61,11 @@ function handoverParam(value: string | null): CameraHandover | undefined {
   return { target: [n[0], n[1], n[2]], zoom: n[3], azimuth: n[4] * Math.PI / 180, polar: n[5] * Math.PI / 180 };
 }
 
-function BackToWorld() {
+function BackToWorld({ onIntent }: { onIntent?: () => void }) {
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- the target lives outside React's tree and exists only in the DOM
   useEffect(() => { setSlot(document.getElementById(HEADER_TOOLS_ID)); }, []);
-  return slot ? createPortal(<Link className={styles.backToWorld} href={P9_WORLD_HREF} aria-label="返回世界總覽"><ArrowLeft size={15}/><span>世界總覽</span></Link>, slot) : null;
+  return slot ? createPortal(<Link className={styles.backToWorld} href={P9_WORLD_HREF} aria-label="返回世界總覽" onPointerEnter={onIntent} onFocus={onIntent} onPointerDown={onIntent}><ArrowLeft size={15}/><span>世界總覽</span></Link>, slot) : null;
 }
 
 export function P9RegionExplorer({ regionId, regionName, regionNameEn, islands, hub, sharedCanvas = false }: { regionId: RegionId; regionName: string; regionNameEn: string; islands: LearningIsland[]; hub: { name: string; href: string; labs: number };
@@ -93,11 +93,11 @@ export function P9RegionExplorer({ regionId, regionName, regionNameEn, islands, 
     const key = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented) return;
       if (event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
-      if (selectedId) { returnTo.current = selectedId; change(null); } else router.push(P9_WORLD_HREF);
+      if (selectedId) { returnTo.current = selectedId; change(null); } else { if (sharedCanvas) void loadWorldScene(); router.push(P9_WORLD_HREF); }
     };
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
-  }, [selectedId, change, router]);
+  }, [selectedId, change, router, sharedCanvas]);
   useEffect(() => {
     const id = returnTo.current;
     if (selectedId || !id) return;
@@ -131,11 +131,13 @@ export function P9RegionExplorer({ regionId, regionName, regionNameEn, islands, 
   const lost = useSyncExternalStore(canvasSlot.subscribe, () => sharedCanvas && canvasSlot.lost(), () => false);
   const [attempt, setAttempt] = useState(0);
   const retry = useCallback(() => { canvasSlot.retry(); setAttempt(n => n + 1); }, []);
-  // The way back to the world is one canvas too: its scene's code is loaded ahead (as the world loads this map's on the
-  // way here, P9.6), so the canvas goes from this map to the world without a moment between with nothing to draw.
-  useEffect(() => { if (sharedCanvas) void import('./p9-world-scene'); }, [sharedCanvas]);
+  // The way back to the world is one canvas too: its scene's code is loaded ahead when the way back is about to be taken
+  // (a pointer on, or focus on, a link to the world, or Escape), as the world loads this map's on the way here (P9.6),
+  // so the canvas goes from this map to the world without a moment between with nothing to draw. Coming from the world
+  // it is loaded already. (A browser Back after a direct load of this page loads it then, as a page of its own would.)
+  const towardWorld = useCallback(() => { if (sharedCanvas) void loadWorldScene(); }, [sharedCanvas]);
   return <>
-    <BackToWorld/>
+    <BackToWorld onIntent={towardWorld}/>
     {lost && <div className={styles.fallbackNotice} role="status"><p>3D 地圖已停止（WebGL 失效），島嶼清單與課程連結仍可使用。</p><button type="button" onClick={retry}>重新載入 3D 地圖</button></div>}
     <HexWorldExplorer key={attempt} islands={islands} sharedCanvas={shared} world={layout.world} options={options} poiPanel captionAbove controlsBelow
       layout="fullscreen" modeSwitchTarget={HEADER_TOOLS_ID} selectedId={selectedId} onSelectedChange={change}
@@ -144,7 +146,7 @@ export function P9RegionExplorer({ regionId, regionName, regionNameEn, islands, 
         <p>{regionName}共 {islands.length} 座學科島。</p>
         <ul>
           <li><Link href={hub.href}><span><small>共用 · 中央樞紐</small><strong>{hub.name}</strong><em>{hub.labs} 個互動實驗</em></span><ArrowRight size={15}/></Link></li>
-          <li><Link href={P9_WORLD_HREF}><span><small>世界</small><strong>世界總覽</strong></span><ArrowRight size={15}/></Link></li>
+          <li><Link href={P9_WORLD_HREF} onPointerEnter={towardWorld} onFocus={towardWorld} onPointerDown={towardWorld}><span><small>世界</small><strong>世界總覽</strong></span><ArrowRight size={15}/></Link></li>
           <li><Link href={`/regions/${regionId}`}><span><small>不需 3D</small><strong>{regionName}清單總覽</strong></span><ArrowRight size={15}/></Link></li>
         </ul>
       </nav>}

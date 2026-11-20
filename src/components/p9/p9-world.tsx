@@ -15,8 +15,9 @@ import { SceneBoundary } from '../islands/hex-world/scene-boundary';
 import status from '../islands/island-status.module.css';
 import styles from '../world/world.module.css';
 import type { P9WorldTarget } from './p9-world-scene';
+import { loadWorldScene } from './p9-scene-loaders';
 
-const Scene = dynamic(() => import('./p9-world-scene'), { ssr: false, loading: () => <div className={styles.loading} role="status">正在準備世界群島…</div> });
+const Scene = dynamic(loadWorldScene, { ssr: false, loading: () => <div className={styles.loading} role="status">正在準備世界群島…</div> });
 const WIDE = '(min-width: 781px)';
 const subscribe = (onChange: () => void) => { const list = matchMedia(WIDE); list.addEventListener('change', onChange); return () => list.removeEventListener('change', onChange); };
 
