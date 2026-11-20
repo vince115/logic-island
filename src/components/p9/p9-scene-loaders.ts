@@ -14,12 +14,6 @@ export const loadLandscapes = () => import('./p9-landscapes').then(module => (la
 /** The landscapes module if it has loaded (on this page or the one before it), else undefined. */
 export const loadedLandscapes = () => landscapes;
 
-/**
- * P9.8c: the world overview's scene code, from one place: the world page loads it from here (p9-world.tsx), and the
- * CS page loads it ahead from here too (shared canvas), so both use the same chunks and nothing is fetched twice.
- */
-export const loadWorldScene = () => import('./p9-world-scene');
-
 const modelsFor = new Set<SceneId>();
 /**
  * The region's GLB buildings and trees, once per region per page load: the list (region-models.ts) is worked out here,

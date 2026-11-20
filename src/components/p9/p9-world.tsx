@@ -15,7 +15,7 @@ import { SceneBoundary } from '../islands/hex-world/scene-boundary';
 import status from '../islands/island-status.module.css';
 import styles from '../world/world.module.css';
 import type { P9WorldTarget } from './p9-world-scene';
-import { loadWorldScene } from './p9-scene-loaders';
+import { loadWorldScene } from './world-scene-loader';
 import { useFocusOnLoss } from './use-focus-on-loss';
 
 const Scene = dynamic(loadWorldScene, { ssr: false, loading: () => <div className={styles.loading} role="status">正在準備世界群島…</div> });
