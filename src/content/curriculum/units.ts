@@ -47,6 +47,7 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '程式設計典範與抽象', summary: '命令式、程序式、物件導向、函數式與宣告式的比較；封裝、繼承與介面；純函式與函式組合', lessonIds: range('PL', 1, 3) },
     { title: '型別與多型', summary: '靜態與動態、強與弱型別、型別推論；多載、覆寫與泛型', lessonIds: range('PL', 4, 5) },
     { title: '作用域、記憶體與錯誤處理', summary: '名稱綁定、作用域鏈與閉包；堆疊與堆積、值與參考；RAII、參考計數與垃圾回收；例外、Result 與錯誤邊界', lessonIds: range('PL', 6, 9) },
-    { title: '語言處理', summary: '從字元到 token：詞法分析、最長匹配與有限狀態機', lessonIds: range('PL', 10, 10) },
+    { title: '語言處理', summary: '從字元到 token 再到 AST 與執行：詞法分析、遞迴下降解析、走訪 AST 的直譯器與環境', lessonIds: range('PL', 10, 12) },
+    { title: '並行與非同步', summary: '並行與平行、競爭條件；互斥鎖、原子操作、死結與生產者—消費者；事件迴圈、Promise 與 async／await', lessonIds: range('PL', 13, 15) },
   ],
 };

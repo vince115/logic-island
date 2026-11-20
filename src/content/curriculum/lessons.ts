@@ -328,7 +328,7 @@ function programFromBlueprint(lessonId: string, summary: string, minutes: number
     minutes, prerequisites: b.prerequisites as LessonId[], recommended: b.recommended as AnyLessonId[], apcs, visualization,
     status: 'complete', version: '1.0.0', extraLanguages: ['JavaScript'], capabilities: ['program-code'], blueprintId: lessonId };
 }
-/** Batches 1 and 2: the programming-languages island's written lessons. Its other 10 stay planned in src/content/world. */
+/** Batches 1–3: the programming-languages island's written lessons. Its other 5 stay planned in src/content/world. */
 const programmingLanguages: Outline[] = [
   programFromBlueprint('PL01', '用同一個「偶數平方和」問題比較命令式、程序式、物件導向與函數式寫法，認識宣告式的 SQL 與邏輯式的 Prolog，看懂 C++、Java、Python、JavaScript 各自支援的典範組合，並依可讀性與可變狀態選擇合適的風格。', 45, 'variable-state'),
   programFromBlueprint('PL02', '用類別把狀態與行為包在一起、以私有欄位守住不變條件，比較 C++、Java、Python、JavaScript 的存取權限、繼承、介面與抽象類別（含 JavaScript 的 prototype 鏈），追蹤 virtual／override 的動態分派在執行時選到哪個方法，並判斷何時該用組合而非繼承。', 55, 'function-call'),
@@ -341,6 +341,12 @@ const programmingLanguages: Outline[] = [
   programFromBlueprint('PL08', '比較手動 new/delete、RAII 與 unique_ptr／shared_ptr／weak_ptr、參考計數與追蹤式 GC 由誰在何時釋放物件，看出循環參考為什麼讓參考計數失效、weak_ptr 與 Python 的循環收集器如何補救，在物件圖上模擬 mark-and-sweep 從根集合標記可達物件，並說明世代式 GC 的弱世代假說與停頓對程式的影響。', 55, 'graph-traversal'),
   programFromBlueprint('PL09', '比較錯誤碼、例外與 Result／Optional 三種錯誤表示，用 C++ 的 std::optional、Java 的 Optional、Python 的 None 與 JavaScript 的 { ok, value } 寫同一個解析函式，追蹤例外穿過多層呼叫時的堆疊回溯與 finally／RAII 清理順序，說明 Java checked 與 unchecked 例外的設計取捨，並以邊緣驗證、統一錯誤表示與資源釋放設計清楚的錯誤邊界。', 55, 'function-call'),
   programFromBlueprint('PL10', '說明 lexer 在編譯／直譯流程中的位置，把字元切成帶有種類、原文與位置的 token，用狀態轉移迴圈（有限狀態機）寫出 lexer，以最長匹配區分 >= 與 >、關鍵字與識別字，比較正規表示式寫法的順序陷阱，並跳過空白與註解、對非法字元回報行號與欄號。', 55, 'variable-state'),
+  // Batch 3 (2026-11-20): parsing and interpreting, then concurrency (BATCH_3_PLAN.md).
+  programFromBlueprint('PL11', '讀懂 BNF／EBNF 描述的運算式文法並手動推導，把每條規則寫成一個函式、以遞迴下降把 token 串列解析成 AST，用 expr／term／factor 的層次表達先乘除後加減，以迴圈做左結合、遞迴做右結合，比較具體語法樹與 AST，辨識歧義文法與懸置 else，並對語法錯誤回報出錯 token 的欄號。', 55, 'tree-traversal'),
+  programFromBlueprint('PL12', '以後序走訪對 AST 求值，用帶 parent 鏈的環境表實作變數綁定與巢狀作用域（對應 PL06 的作用域鏈），為小語言加上 set、if、while 與建立新環境的函式呼叫，分辨 parser 發現的語法錯誤與走訪到節點才發生的執行期錯誤，寫出保留環境的 REPL，並比較直譯與編譯在啟動、執行速度與除錯上的取捨。', 55, 'recursion-trace'),
+  programFromBlueprint('PL13', '區分並行與平行，比較共享記憶體執行緒、事件迴圈非同步與 actor／訊息傳遞三種模型並依情境選擇，用可重現的排程模擬在時間軸上重現兩個執行緒「讀—加—寫」的遺失更新並列舉所有交錯的結果，說明 C++ std::thread、Java 執行緒與 ExecutorService、Python GIL 下的執行緒與 JavaScript 單執行緒事件迴圈的差異。', 55, 'variable-state'),
+  programFromBlueprint('PL14', '用互斥鎖（std::mutex＋lock_guard、synchronized、threading.Lock）與原子操作（std::atomic、AtomicInteger、Atomics）保護共享計數器並分辨可見性與原子性，以等待圖說明死結的四個條件、用固定鎖順序與 std::scoped_lock 避開它，用條件變數（在 while 迴圈中等待）或 BlockingQueue／queue.Queue 寫出有界緩衝區的生產者—消費者，並比較 C++ std::thread、Java synchronized 與虛擬執行緒、Python threading 與 JavaScript 單執行緒事件迴圈的同步方式。', 60, 'stack-queue'),
+  programFromBlueprint('PL15', '追蹤 JavaScript 事件迴圈中呼叫堆疊、任務佇列與微任務佇列的變化，準確預測同步程式、Promise、await 與 setTimeout 混合時的輸出順序，把巢狀回呼改寫成 Promise／Future 與 async／await，用 Promise.all、asyncio.gather 同時等待多個工作並在 await 處處理錯誤，以 generator 與協程說明函式如何暫停與恢復，並比較 JavaScript、Python asyncio、Java CompletableFuture 與 C++ std::future 的執行模型。', 60, 'stack-queue'),
 ];
 
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */

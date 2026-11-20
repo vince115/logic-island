@@ -35,7 +35,7 @@ describe('lesson catalog (F.0)', () => {
     // F.1d: the database island is written to the end; DB19 keeps its blueprint gap (cloud platforms) once written.
     expect(getCatalogLesson('DB20')).toMatchObject({ islandId: 'databases', lessonStatus: 'complete', href: '/curriculum/database-applications-capstone', activity: 'challenge-stages' });
     expect(getCatalogLesson('DB19')?.gaps).toEqual(['cloud-platforms']);
-    // Course production publishes PL in batches (PL01–PL10 so far); PL20, the island's capstone, is written last.
+    // Course production publishes PL in batches (PL01–PL15 so far); PL20, the island's capstone, is written last.
     expect(getCatalogLesson('PL01')).toMatchObject({ islandId: 'programming-languages', lessonStatus: 'complete', href: '/curriculum/programming-paradigms' });
     expect(getCatalogLesson('PL20')).toMatchObject({ islandId: 'programming-languages', lessonStatus: 'planned' });
     expect(getCatalogLesson('PL20')?.href).toBeUndefined();

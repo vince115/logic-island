@@ -54,8 +54,8 @@
 | 批次 | 課程 | 理由 |
 |---|---|---|
 | 1（已發布，PR #30） | PL01–PL05 | 程式語言基礎；先修只有已開放的基礎程式島課；完全重用 `program-code` 與共用視覺化；補上已開放的 DB16 所要求的 PL02 |
-| 2（本批） | PL06–PL10 | 同一條路線連續：作用域與閉包、記憶體模型、垃圾回收、錯誤處理、詞法分析 |
-| 3 | PL11–PL15 | 語法分析、直譯器、並行模型；需要評估 AST 與並行時間軸的共用元件 |
+| 2（已發布，PR #31） | PL06–PL10 | 同一條路線連續：作用域與閉包、記憶體模型、垃圾回收、錯誤處理、詞法分析 |
+| 3（本批，見 [BATCH_3_PLAN](BATCH_3_PLAN.md)） | PL11–PL15 | 語法分析、直譯器、並行模型；AST 與並行時間軸以既有的樹、框架、容器與表格面板表達，新引擎列入 [INTERACTIVE_LAB_ROADMAP](INTERACTIVE_LAB_ROADMAP.md) |
 | 之後 | CN、LNX 起步課 | 先完成 §4 的 capability（網路協定、終端機），再開課 |
 
 進度記錄在 [COURSE_PRODUCTION_PROGRESS](COURSE_PRODUCTION_PROGRESS.md)。

@@ -16,10 +16,17 @@
 | PL08 | 記憶體管理與垃圾回收<br>`memory-management-and-gc` | 中級 | 55 分 | PL07 | 圖的走訪 | 5 段、4 範例、7 題、練習「標記與清除：哪些物件會被回收」（10 組測資） | **完整 v1.0.0** |
 | PL09 | 錯誤處理模型<br>`error-handling-models` | 中級 | 55 分 | PL02、PL07 | 函式呼叫追蹤 | 5 段、5 範例、7 題、練習「設定檔的錯誤邊界」（7 組測資） | **完整 v1.0.0** |
 | PL10 | 詞法分析：從字元到 Token<br>`lexical-analysis` | 中級 | 55 分 | PL01、D03 | 變數狀態追蹤 | 5 段、4 範例、7 題、練習「把一行程式切成 token」（14 組測資） | **完整 v1.0.0** |
+| PL11 | 語法分析與抽象語法樹<br>`parsing-and-ast` | 中級 | 55 分 | PL10、D13 | 樹的走訪 | 6 段、4 範例、9 題、練習「解析四則運算並輸出 AST」（26 組測資） | **完整 v1.0.0** |
+| PL12 | 直譯器：走訪 AST 求值<br>`tree-walking-interpreters` | 中級 | 55 分 | PL11、PL06 | 遞迴呼叫堆疊 | 7 段、5 範例、8 題、練習「執行一個有變數、條件與迴圈的小語言」（21 組測資） | **完整 v1.0.0** |
+| PL13 | 並行模型<br>`concurrency-models` | 中級 | 55 分 | PL07 | 變數狀態追蹤 | 4 段、5 範例、8 題、練習「列舉所有交錯的最終值」（15 組測資） | **完整 v1.0.0** |
+| PL14 | 執行緒與同步<br>`threads-and-synchronization` | 進階 | 60 分 | PL13 | 堆疊與佇列 | 5 段、4 範例、7 題、練習「模擬上鎖並偵測死結」（7 組測資） | **完整 v1.0.0** |
+| PL15 | 非同步：Promise、async／await 與事件迴圈<br>`async-await-and-event-loops` | 進階 | 60 分 | PL13、PL06 | 堆疊與佇列 | 6 段、5 範例、8 題、練習「模擬事件迴圈」（11 組測資） | **完整 v1.0.0** |
 
 大綱上的活動 `type-checker`、`memory-model` 尚未實作：PL04、PL05 不放替代的互動元件，改用比較表格與逐步說明（視覺化 `none`）；PL02 以函式呼叫追蹤呈現經由基底參考的動態分派。
 
 第二批（PL06–PL10）的大綱活動 `scope-chain`、`memory-model`、`gc-visualizer`、`compiler-pipeline` 也尚未實作，改用已實作的共用視覺化：PL06 追蹤閉包工廠的呼叫框架、PL07 追蹤呼叫框架並以表格列出堆積物件與參考者、PL09 追蹤例外穿過呼叫堆疊時的回溯與清理（以上為函式呼叫追蹤）；PL08 以圖的走訪呈現 mark-and-sweep 從根集合標記與清除（步驟由課內程式產生）；PL10 以變數狀態追蹤狀態轉移式 lexer 的狀態、位置與目前字元。
+
+第三批（PL11–PL15）的大綱活動 `ast-explorer`、`concurrency-timeline` 尚未實作（見 [INTERACTIVE_LAB_ROADMAP](INTERACTIVE_LAB_ROADMAP.md)），改用共用追蹤的多面板：PL11 以樹面板呈現 AST 隨遞迴下降函式回傳逐步長出、框架面板呈現解析函式的呼叫堆疊；PL12 以遞迴呼叫堆疊呈現 `run(node, env)`，同時在樹上標出目前節點、以表格列出環境；PL13 以變數狀態與時間軸表格追蹤兩個執行緒的排程模擬；PL14 以佇列容器呈現有界緩衝區與鎖的持有者；PL15 以呼叫堆疊、微任務佇列與任務佇列追蹤一段 JavaScript 程式的事件迴圈。步驟都由課內程式實際執行產生；真實的執行緒交錯不可重現，範例只印確定的結果，交錯以排程模擬呈現。
 
 ## 單元
 
@@ -28,14 +35,15 @@
 | 程式設計典範與抽象 | PL01–PL03 |
 | 型別與多型 | PL04–PL05 |
 | 作用域、記憶體與錯誤處理 | PL06–PL09 |
-| 語言處理 | PL10 |
+| 語言處理 | PL10–PL12 |
+| 並行與非同步 | PL13–PL15 |
 
-其餘 10 堂（PL11–PL20）仍是規劃中，依 [COURSE_CONTENT_SPECIFICATION](COURSE_CONTENT_SPECIFICATION.md) §7 的佇列分批撰寫。
+其餘 5 堂（PL16–PL20）仍是規劃中，依 [COURSE_CONTENT_SPECIFICATION](COURSE_CONTENT_SPECIFICATION.md) §7 的佇列分批撰寫。
 
 ## 與其他島的關係
 
 - 先修只依賴已開放的課：基礎程式島（F02、F13、F14、F15、F18）、資料結構島（D03）與本島前面的課。
-- 已開放的資料庫島 DB16（ORM 與驅動程式）以 PL02 為先修；DB14～DB16 建議 PL09（第二批已開放）、PL13、PL14（規劃中）。
+- 已開放的資料庫島 DB16（ORM 與驅動程式）以 PL02 為先修；DB14～DB16 建議 PL09、PL13、PL14（皆已開放）。
 
 ## 3D 世界
 
