@@ -4,7 +4,7 @@
 
 > **第一批之後（2026-11-20）**：PL01–PL05 發布，已發布 **85**、規劃中 **435**（CS 85／160；PL 5/20，程式語言島從「規劃中」變成「部分開放」）。
 > **第二批之後（2026-11-20）**：PL06–PL10 發布，已發布 **90**、規劃中 **430**（CS 90／160；PL 10/20，地景仍為規劃中）。
-> **第四批之後（2026-11-20）**：PL16–PL19 發布，已發布 **99**、規劃中 **421**（CS 99／160；PL 19/20，只剩綜合挑戰 PL20；地景仍為規劃中）。尚未實作的互動活動見 [INTERACTIVE_LAB_ROADMAP](INTERACTIVE_LAB_ROADMAP.md)。下面 §1–§5 保留 Phase 0 盤點當時的數字；之後的數字以產生的 [COURSE_PRODUCTION_PROGRESS](COURSE_PRODUCTION_PROGRESS.md) 為準。
+> **第五批之後（2026-11-20）**：PL20 發布，程式語言島 20 堂全部開放；已發布 **100**、規劃中 **420**（CS 100／160；地景仍為規劃中）。尚未實作的互動活動見 [INTERACTIVE_LAB_ROADMAP](INTERACTIVE_LAB_ROADMAP.md)。下面 §1–§5 保留 Phase 0 盤點當時的數字；之後的數字以產生的 [COURSE_PRODUCTION_PROGRESS](COURSE_PRODUCTION_PROGRESS.md) 為準。
 
 ## 1. 總數
 

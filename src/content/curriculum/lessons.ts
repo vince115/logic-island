@@ -328,7 +328,7 @@ function programFromBlueprint(lessonId: string, summary: string, minutes: number
     minutes, prerequisites: b.prerequisites as LessonId[], recommended: b.recommended as AnyLessonId[], apcs, visualization,
     status: 'complete', version: '1.0.0', extraLanguages: ['JavaScript'], capabilities: ['program-code'], blueprintId: lessonId };
 }
-/** Batches 1–4: the programming-languages island's written lessons. Its capstone PL20 stays planned in src/content/world. */
+/** Batches 1–5: the programming-languages island's written lessons, PL20 its capstone. */
 const programmingLanguages: Outline[] = [
   programFromBlueprint('PL01', '用同一個「偶數平方和」問題比較命令式、程序式、物件導向與函數式寫法，認識宣告式的 SQL 與邏輯式的 Prolog，看懂 C++、Java、Python、JavaScript 各自支援的典範組合，並依可讀性與可變狀態選擇合適的風格。', 45, 'variable-state'),
   programFromBlueprint('PL02', '用類別把狀態與行為包在一起、以私有欄位守住不變條件，比較 C++、Java、Python、JavaScript 的存取權限、繼承、介面與抽象類別（含 JavaScript 的 prototype 鏈），追蹤 virtual／override 的動態分派在執行時選到哪個方法，並判斷何時該用組合而非繼承。', 55, 'function-call'),
@@ -351,6 +351,7 @@ const programmingLanguages: Outline[] = [
   programFromBlueprint('PL17', '把運算式與迴圈編譯成的位元組碼交給堆疊式 VM，以取指—解碼—執行迴圈逐條追蹤 pc、運算元堆疊與區域變數槽，比較堆疊式與暫存器式 VM（JVM、CPython 與 Lua、Dalvik），說明 Java（javac、.class、HotSpot 直譯器與 C1／C2）、CPython（.pyc 與直譯器迴圈）、V8（Ignition 與 TurboFan）與 C++ AOT 的執行路徑，用呼叫計數與型別守衛的確定性模擬說明 JIT 的熱點、型別回饋與去最佳化，並分析 AOT、直譯與 JIT 在啟動時間、峰值效能、記憶體與暖機上的取捨。', 60, 'stack-queue'),
   programFromBlueprint('PL18', '用反射在執行期列出類別的欄位與方法並依名稱呼叫（Java Class、getDeclaredMethods 與 setAccessible 在模組系統下的限制、Python getattr／vars／inspect、JavaScript Reflect，C++ 沒有執行期反射），寫出在定義時套用的 Python 裝飾器並追蹤疊加時「套用由下往上、呼叫由外往內」的順序與 functools.wraps，以 @Retention(RUNTIME) 的 Java 註解搭配反射做計時處理，用 C++ 模板遞迴、constexpr 與 static_assert 在編譯期計算，以 Proxy 的 get／set／apply 陷阱攔截物件操作，並評估反射、Proxy、程式碼產生、巨集與 eval 對可讀性、除錯、效能與安全的影響。', 60, 'function-call'),
   programFromBlueprint('PL19', '從安全、效能、表達力與學習成本比較 C++、Java、Python、JavaScript 的設計選擇，以四語程式看出 null 處理（std::optional、Optional、None、?. 與 ??）、預設可變與淺層的 const／final／tuple／Object.freeze、記憶體管理、整數溢位與相等比較的後果，讀懂 Java record、Python match、ES2020 ?? 等新版本特性解決了什麼、沒有解決什麼，並以硬性限制加權重的方法為專案情境選語言、寫出理由與代價。', 55, 'none'),
+  programFromBlueprint('PL20', '把 PL10 的 lexer、PL11 的遞迴下降 parser 與 PL12 的樹走訪直譯器接成一個能執行的迷你語言：用帶 parent 鏈的環境實作 let、遞迴與捕捉環境的閉包，在每個運算做動態型別檢查並以「error line N: …」回報第一個語法、名稱或型別錯誤，以瞄準規則的測試證明作用域、遞迴與錯誤行為，並說明動態檢查、急切求值、整數除法與全域重新綁定這些設計取捨的代價。', 120, 'challenge-stages'),
 ];
 
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */

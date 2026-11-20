@@ -56,8 +56,8 @@
 | 1（已發布，PR #30） | PL01–PL05 | 程式語言基礎；先修只有已開放的基礎程式島課；完全重用 `program-code` 與共用視覺化；補上已開放的 DB16 所要求的 PL02 |
 | 2（已發布，PR #31） | PL06–PL10 | 同一條路線連續：作用域與閉包、記憶體模型、垃圾回收、錯誤處理、詞法分析 |
 | 3（已發布，PR #34） | PL11–PL15 | 語法分析、直譯器、並行模型；AST 與並行時間軸以既有的樹、框架、容器與表格面板表達，新引擎列入 [INTERACTIVE_LAB_ROADMAP](INTERACTIVE_LAB_ROADMAP.md) |
-| 4（本批，見 [BATCH_4_PLAN](BATCH_4_PLAN.md)） | PL16–PL19 | 編譯流程、虛擬機與 JIT、超程式設計、語言設計取捨；CFG 以圖面板、VM 以堆疊容器、裝飾器以呼叫框架表達，語言設計以比較表格；`compiler-pipeline`、`ast-explorer`、`case-study-board` 列入 [INTERACTIVE_LAB_ROADMAP](INTERACTIVE_LAB_ROADMAP.md) |
-| 5 | PL20 | 程式語言島綜合挑戰（`challenge-stages`）：四語各寫含閉包與型別檢查的迷你語言，篇幅最大，單獨一批 |
+| 4（已發布，PR #37） | PL16–PL19 | 編譯流程、虛擬機與 JIT、超程式設計、語言設計取捨；CFG 以圖面板、VM 以堆疊容器、裝飾器以呼叫框架表達，語言設計以比較表格；`compiler-pipeline`、`ast-explorer`、`case-study-board` 列入 [INTERACTIVE_LAB_ROADMAP](INTERACTIVE_LAB_ROADMAP.md) |
+| 5（本批，見 [BATCH_5_PLAN](BATCH_5_PLAN.md)） | PL20 | 程式語言島綜合挑戰（`challenge-stages`）：四語各寫含閉包與型別檢查的迷你語言，篇幅最大，單獨一批 |
 | 之後 | CN、LNX 起步課 | 先完成 §4 的 capability（網路協定、終端機），再開課 |
 
 進度記錄在 [COURSE_PRODUCTION_PROGRESS](COURSE_PRODUCTION_PROGRESS.md)。
