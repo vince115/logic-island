@@ -1,4 +1,4 @@
-import type { IslandId, LessonId } from './schema';
+import type { IslandId, LessonId, LessonPrefixWritten } from './schema';
 
 /**
  * 2026-11-01: each island is a subject area; its 20 lessons fall into units (科目), shown when an island is chosen on
@@ -7,7 +7,7 @@ import type { IslandId, LessonId } from './schema';
  */
 export interface CurriculumUnit { title: string; summary: string; lessonIds: LessonId[] }
 
-const range = (prefix: 'F' | 'D' | 'A' | 'DB', from: number, to: number) =>
+const range = (prefix: LessonPrefixWritten, from: number, to: number) =>
   Array.from({ length: to - from + 1 }, (_, i) => `${prefix}${String(from + i).padStart(2, '0')}` as LessonId);
 
 export const UNITS: Record<IslandId, CurriculumUnit[]> = {
@@ -41,5 +41,12 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '效能與資料庫程式', summary: 'B+ 樹索引、查詢計畫與調校；檢視表、預存程序與觸發器', lessonIds: range('DB', 11, 13) },
     { title: '交易、應用程式與安全', summary: 'ACID、隔離等級與並行控制；驅動程式、ORM 與 N+1；SQL injection 與最小權限', lessonIds: range('DB', 14, 17) },
     { title: '資料模型、架構與綜合挑戰', summary: 'NoSQL 與 CAP；備份、複寫與分片；從需求到安全串接的完整應用', lessonIds: range('DB', 18, 20) },
+  ],
+  // 2026-11-20 (course production, batch 1): the written lessons only; the island's other units come with their lessons.
+  'programming-languages': [
+    { title: '程式設計典範與抽象', summary: '命令式、程序式、物件導向、函數式與宣告式的比較；封裝、繼承與介面；純函式與函式組合', lessonIds: range('PL', 1, 3) },
+    { title: '型別與多型', summary: '靜態與動態、強與弱型別、型別推論；多載、覆寫與泛型', lessonIds: range('PL', 4, 5) },
+    { title: '作用域、記憶體與錯誤處理', summary: '名稱綁定、作用域鏈與閉包；堆疊與堆積、值與參考；RAII、參考計數與垃圾回收；例外、Result 與錯誤邊界', lessonIds: range('PL', 6, 9) },
+    { title: '語言處理', summary: '從字元到 token：詞法分析、最長匹配與有限狀態機', lessonIds: range('PL', 10, 10) },
   ],
 };

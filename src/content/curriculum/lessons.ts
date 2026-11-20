@@ -19,6 +19,8 @@ type Outline = {
   /** Phase F.1b: a database lesson's activity (the blueprint's). */
   activity?: LessonActivity;
   recommended?: AnyLessonId[];
+  /** The blueprint's id of an outline built from it: the lesson's place in the list must give the same id. */
+  blueprintId?: string;
 };
 const B = 'Beginner', I = 'Intermediate', A = 'Advanced';
 
@@ -285,7 +287,7 @@ function fromBlueprint(lessonId: string, summary: string, minutes: number, capab
     minutes, prerequisites: b.prerequisites as LessonId[], recommended: b.recommended as AnyLessonId[], apcs: ['none'],
     // F.1d: the blueprint's shared-visualization activities (ds-comparison, challenge-stages) are the lesson's visualization.
     visualization: (DATABASE_VISUALIZATIONS as readonly string[]).includes(b.activity) ? b.activity as VisualizationType : 'none',
-    status: 'complete', version: '1.0.0', activity: b.activity as LessonActivity, capabilities };
+    status: 'complete', version: '1.0.0', activity: b.activity as LessonActivity, capabilities, blueprintId: lessonId };
 }
 const databases: Outline[] = [
   fromBlueprint('DB01', '為什麼應用程式需要資料庫管理系統（DBMS）：綱要與實例、資料獨立性、DBMS 的各種功能，並在 SQL 練習場執行第一個查詢。', 40, ['sql']),
@@ -313,13 +315,50 @@ const databases: Outline[] = [
   fromBlueprint('DB20', '綜合挑戰：以一家小店的訂單系統貫穿五個關卡，從需求畫出 ER 圖、正規化到 3NF 並寫出有約束的 DDL，完成主要功能的查詢、檢視表與交易，依查詢計畫加上複合索引並前後量測，再以參數化查詢、交易與最小權限安全地接上程式。', 120, ['sql', 'er-diagram', 'normalization', 'query-plan', 'driver-code', 'visualization']),
 ];
 
+/**
+ * 2026-11-20 (course production): a program-language lesson of a planned island, written from its blueprint outline the
+ * way the database lessons are (fromBlueprint): slug, title, objectives, concepts, difficulty and prerequisites are the
+ * blueprint's. The blueprint's activity may be one that is not built yet (type-checker, memory-model); the lesson then
+ * shows one of the implemented shared visualizations instead (`visualization`), never a stand-in.
+ */
+function programFromBlueprint(lessonId: string, summary: string, minutes: number, visualization: VisualizationType, apcs: ApcsRelevance[] = ['none']): Outline {
+  const b = planning.plannedLessons.find(l => l.lessonId === lessonId);
+  if (!b) throw new Error(`${lessonId} is not in the blueprint`);
+  return { slug: b.slug, title: b.title, summary, objectives: b.learningObjectives, concepts: b.concepts, difficulty: b.difficulty as Difficulty,
+    minutes, prerequisites: b.prerequisites as LessonId[], recommended: b.recommended as AnyLessonId[], apcs, visualization,
+    status: 'complete', version: '1.0.0', extraLanguages: ['JavaScript'], capabilities: ['program-code'], blueprintId: lessonId };
+}
+/** Batches 1 and 2: the programming-languages island's written lessons. Its other 10 stay planned in src/content/world. */
+const programmingLanguages: Outline[] = [
+  programFromBlueprint('PL01', '用同一個「偶數平方和」問題比較命令式、程序式、物件導向與函數式寫法，認識宣告式的 SQL 與邏輯式的 Prolog，看懂 C++、Java、Python、JavaScript 各自支援的典範組合，並依可讀性與可變狀態選擇合適的風格。', 45, 'variable-state'),
+  programFromBlueprint('PL02', '用類別把狀態與行為包在一起、以私有欄位守住不變條件，比較 C++、Java、Python、JavaScript 的存取權限、繼承、介面與抽象類別（含 JavaScript 的 prototype 鏈），追蹤 virtual／override 的動態分派在執行時選到哪個方法，並判斷何時該用組合而非繼承。', 55, 'function-call'),
+  programFromBlueprint('PL03', '分辨純函式與副作用、用不可變資料避免意外修改，以 lambda 與 map、filter、reduce 把可變狀態的迴圈改寫成函式組合，並比較遞迴與 reduce 的限制，說明參照透明為什麼讓測試更簡單。', 50, 'function-call'),
+  programFromBlueprint('PL04', '區分「什麼時候檢查」的靜態／動態型別與「會不會自動轉型」的強／弱型別，預測 "5" + 1 這類運算在 C++、Java、Python、JavaScript 中是編譯錯誤、執行期錯誤還是悄悄轉型，追蹤 auto 與 var 的型別推論，比較名義與結構型別，並把寬鬆的隱式轉型改寫成嚴格驗證的輸入解析。', 50, 'none'),
+  programFromBlueprint('PL05', '區分多載、覆寫與泛型三種多型，用 C++ 模板、Java 有界泛型、Python TypeVar 與 Protocol 寫出帶約束的通用函式，並比較模板實例化與型別擦除的代價與限制。', 60, 'none'),
+  // Batch 2 (2026-11-20): scope, memory, errors and the first step of language processing.
+  programFromBlueprint('PL06', '分辨名稱綁定與環境、比較詞法作用域與動態作用域並畫出作用域鏈，追蹤閉包如何捕捉外層變數並在呼叫結束後繼續存活，修正 JavaScript var 與 Python late binding 在迴圈中捕捉錯值的 bug，並比較 C++ lambda 的值捕捉、參考捕捉與 Java 只能捕捉 effectively final 變數的規則。', 55, 'function-call'),
+  programFromBlueprint('PL07', '畫出函式呼叫時的堆疊框架與堆積物件，預測 C++ 值複製、指標與參考，以及 Java、Python、JavaScript 共用參考時「改了誰」，比較四種語言的參數傳遞（含傳遞參考的值與重新賦值的差別）與物件生命週期，並辨識懸空指標、記憶體洩漏與越界存取。', 55, 'function-call'),
+  programFromBlueprint('PL08', '比較手動 new/delete、RAII 與 unique_ptr／shared_ptr／weak_ptr、參考計數與追蹤式 GC 由誰在何時釋放物件，看出循環參考為什麼讓參考計數失效、weak_ptr 與 Python 的循環收集器如何補救，在物件圖上模擬 mark-and-sweep 從根集合標記可達物件，並說明世代式 GC 的弱世代假說與停頓對程式的影響。', 55, 'graph-traversal'),
+  programFromBlueprint('PL09', '比較錯誤碼、例外與 Result／Optional 三種錯誤表示，用 C++ 的 std::optional、Java 的 Optional、Python 的 None 與 JavaScript 的 { ok, value } 寫同一個解析函式，追蹤例外穿過多層呼叫時的堆疊回溯與 finally／RAII 清理順序，說明 Java checked 與 unchecked 例外的設計取捨，並以邊緣驗證、統一錯誤表示與資源釋放設計清楚的錯誤邊界。', 55, 'function-call'),
+  programFromBlueprint('PL10', '說明 lexer 在編譯／直譯流程中的位置，把字元切成帶有種類、原文與位置的 token，用狀態轉移迴圈（有限狀態機）寫出 lexer，以最長匹配區分 >= 與 >、關鍵字與識別字，比較正規表示式寫法的順序陷阱，並跳過空白與註解、對非法字元回報行號與欄號。', 55, 'variable-state'),
+];
+
+/** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */
+function idAt(islandId: (typeof ISLAND_IDS)[number], index: number, blueprintId?: string): LessonId {
+  const id = `${ISLAND_PREFIX[islandId]}${String(index + 1).padStart(2, '0')}` as LessonId;
+  if (blueprintId && blueprintId !== id) throw new Error(`${blueprintId} is listed in the place of ${id}`);
+  return id;
+}
 /** F, D and A are taught in the program languages: every lesson there declares program-code. */
 const program = (list: Omit<Outline, 'capabilities'>[]): Outline[] => list.map(o => ({ ...o, capabilities: ['program-code'] }));
 const outlines: Record<(typeof ISLAND_IDS)[number], Outline[]> = {
-  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases };
+  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages };
+
+/** Every lesson the blueprint outlines, written or not (validateCurriculum's recommended-lesson check). */
+export const outlinedLessonIds: readonly string[] = planning.plannedLessons.map(l => l.lessonId);
 
 export const lessons: LessonMeta[] = ISLAND_IDS.flatMap(islandId => outlines[islandId].map((o, index): LessonMeta => ({
-  lessonId: `${ISLAND_PREFIX[islandId]}${String(index + 1).padStart(2, '0')}` as LessonId,
+  lessonId: idAt(islandId, index, o.blueprintId),
   islandId, slug: o.slug, title: o.title, summary: o.summary, learningObjectives: o.objectives, difficulty: o.difficulty,
   estimatedMinutes: o.minutes, prerequisites: o.prerequisites, concepts: o.concepts, apcsRelevance: o.apcs,
   supportedLanguages: o.capabilities.includes('program-code') ? [...LANGUAGES, ...(o.extraLanguages ?? [])] : [], visualizationType: o.visualization, lessonStatus: o.status ?? 'planned',

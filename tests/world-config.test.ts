@@ -68,8 +68,9 @@ describe('island configuration (F.0)', () => {
     expect(validateIslandLinks(entry, worldPages()).join('\n')).toMatch(/leads to \/curriculum#island-networks, which does not exist/);
     const bridge = clone(); island(bridge, 'algorithms').links.push({ to: 'programming-languages', kind: 'bridge' });
     expect(validateIslandLinks(bridge, worldPages()).join('\n')).toMatch(/bridge to programming-languages: planned islands are not on the map/);
-    const page = clone(); island(page, 'structures').entryPoints.push({ id: 'pl', label: 'PL', target: '/curriculum/programming-paradigms' });
-    expect(validateIslandLinks(page, worldPages()).join('\n')).toMatch(/programming-paradigms, which does not exist/);
+    // A planned lesson has no page (PL is published in batches; PL20, its capstone, is written last).
+    const page = clone(); island(page, 'structures').entryPoints.push({ id: 'pl', label: 'PL', target: '/curriculum/programming-languages-capstone' });
+    expect(validateIslandLinks(page, worldPages()).join('\n')).toMatch(/programming-languages-capstone, which does not exist/);
     const locked = clone(); island(locked, 'structures').unlock = { completedIslands: ['foundations'] };
     expect(validateIslandLinks(locked, worldPages()).join('\n')).toMatch(/structures: subject islands are never locked/);
     const unknown = clone(); island(unknown, 'labs').unlock = { completedLessons: ['F99' as 'F01'] };

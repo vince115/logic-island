@@ -41,7 +41,9 @@ export const lessonIdsOfIsland = (islandId: string) => lessons.filter(l => l.isl
  * of the 3D map) and the lab island. Planned islands have no model and no picture, and get none.
  */
 export const islandPreviews = (): Record<string, IslandPreview> => Object.fromEntries([
-  ...curriculumIslands.map(i => [i.id, preview(i.id, 'island', lessonIdsOfIsland(i.id))] as const),
+  // 2026-11-20: an island with written lessons but no 3D model yet (programming-languages) has no picture: it gets no
+  // card here, and the sidebar shows the world's.
+  ...curriculumIslands.filter(i => mapIsland(i.id)).map(i => [i.id, preview(i.id, 'island', lessonIdsOfIsland(i.id))] as const),
   [labIsland.id, preview(labIsland.id, 'tool')] as const,
 ]);
 

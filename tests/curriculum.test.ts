@@ -12,7 +12,9 @@ const ids = (prefix: string, n: number) => Array.from({ length: n }, (_, i) => `
 const ALGORITHMS_DONE = 20;
 /** Phase F.1a: the database island's written lessons (the rest of its 20 are planned in src/content/world). */
 const DATABASES_DONE = lessons.filter(l => l.islandId === 'databases').length;
-const COMPLETE = [...ids('F', 20), ...ids('D', 20), ...ids('A', ALGORITHMS_DONE), ...ids('DB', DATABASES_DONE)];
+/** 2026-11-20 (course production): the programming-languages island's written lessons, PL01 onwards, before databases. */
+const PL_DONE = lessons.filter(l => l.islandId === 'programming-languages').length;
+const COMPLETE = [...ids('F', 20), ...ids('D', 20), ...ids('A', ALGORITHMS_DONE), ...ids('PL', PL_DONE), ...ids('DB', DATABASES_DONE)];
 // F.1b: lessons are told apart by the capabilities they declare, never by a missing field.
 const programLessons = lessons.filter(l => hasCapability(l, 'program-code'));
 type TraceConfig = Extract<VisualizationConfig, { steps: unknown }>;
@@ -25,10 +27,12 @@ describe('curriculum (E.1)', () => {
 
   it('has the 60 lessons of F, D and A (20 each) and the written database lessons, with unique IDs and slugs', () => {
     for (const island of ['foundations', 'structures', 'algorithms']) expect(lessons.filter(l => l.islandId === island), island).toHaveLength(20);
-    expect(programLessons).toHaveLength(60);
+    expect(programLessons).toHaveLength(60 + PL_DONE);
+    expect(PL_DONE).toBeGreaterThanOrEqual(5);
+    expect(lessons.filter(l => l.islandId === 'programming-languages').map(l => l.lessonId)).toEqual(ids('PL', PL_DONE));
     expect(DATABASES_DONE).toBeGreaterThan(0);
     expect(lessons.filter(l => l.islandId === 'databases').map(l => l.lessonId)).toEqual(ids('DB', DATABASES_DONE));
-    expect(lessons).toHaveLength(60 + DATABASES_DONE);
+    expect(lessons).toHaveLength(60 + PL_DONE + DATABASES_DONE);
     expect(new Set(lessons.map(l => l.lessonId)).size).toBe(lessons.length);
     expect(new Set(lessons.map(l => l.slug)).size).toBe(lessons.length);
   });
@@ -49,7 +53,7 @@ describe('curriculum (E.1)', () => {
   it('capabilities (F.1b): F, D and A are program-code; database lessons declare what they use; the blueprint\'s activity fits', () => {
     const blueprint = new Map(planning.plannedLessons.map(l => [l.lessonId, l.activity]));
     expect(programLessons.map(l => l.lessonId)).toEqual(lessons.filter(l => l.islandId !== 'databases').map(l => l.lessonId));
-    expect(programLessons).toHaveLength(60);
+    expect(programLessons).toHaveLength(60 + PL_DONE);
     for (const l of programLessons) expect([l.capabilities, l.activity, l.queryLanguage], l.lessonId).toEqual([['program-code'], undefined, undefined]);
     for (const l of lessons.filter(l => l.islandId === 'databases')) {
       expect(l, l.lessonId).toMatchObject({ supportedLanguages: [] });
@@ -101,13 +105,19 @@ describe('curriculum (E.1)', () => {
   });
 
   it('complete lessons use only implemented visualizations; the six labs are linked from their lessons', () => {
-    for (const l of programLessons.filter(l => l.lessonStatus === 'complete')) expect(curriculum.visualizations[l.visualizationType].status, l.lessonId).toBe('implemented');
+    // A complete program lesson shows an implemented visualization, or none by choice (CONTENT_AUTHORING_GUIDE §6: tables
+    // and step-by-step text instead of a stand-in; PL04, PL05, whose blueprint activity type-checker is not built yet).
+    for (const l of programLessons.filter(l => l.lessonStatus === 'complete'))
+      expect(l.visualizationType === 'none' || curriculum.visualizations[l.visualizationType].status === 'implemented', `${l.lessonId} ${l.visualizationType}`).toBe(true);
+    expect(programLessons.filter(l => l.visualizationType === 'none').map(l => l.lessonId)).toEqual(['PL04', 'PL05']);
     expect(lessons.flatMap(l => l.labs ?? []).sort()).toEqual(['array', 'array', 'bfs', 'binary-search', 'bubble-sort', 'queue', 'stack']);
   });
 
   it('the curriculum documents list every lesson', () => {
     const doc = readFileSync('docs/curriculum/PHASE_E_CURRICULUM.md', 'utf8');
-    for (const l of programLessons) expect(doc, l.lessonId).toContain(`| ${l.lessonId} |`);
+    for (const l of programLessons.filter(l => l.islandId !== 'programming-languages')) expect(doc, l.lessonId).toContain(`| ${l.lessonId} |`);
+    const pl = readFileSync('docs/curriculum/PROGRAMMING_LANGUAGES_ISLAND.md', 'utf8');
+    for (const l of lessons.filter(l => l.islandId === 'programming-languages')) expect(pl, l.lessonId).toContain(`| ${l.lessonId} |`);
     const db = readFileSync('docs/curriculum/DATABASE_ISLAND.md', 'utf8');
     for (const l of lessons.filter(l => l.islandId === 'databases')) expect(db, l.lessonId).toContain(`| ${l.lessonId} |`);
   });

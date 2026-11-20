@@ -60,9 +60,10 @@ export function CurriculumCatalog() {
     <Link href="/regions/cs" className={overview.regionLink}>{cs.name}總覽<ArrowRight size={13} aria-hidden/></Link>
     <RegionExams region="cs"/>
     <div className={overview.grid}>{islands.map(island => {
-      const own = lessons.filter(l => l.islandId === island.id), card = previews[island.id];
-      return <article key={island.id} className={overview.card} style={{ '--island-accent': card.accent } as CSSProperties} aria-labelledby={`card-${island.id}`}>
-        <a href={`#island-${island.id}`} className={overview.image} tabIndex={-1} aria-hidden><Image src={card.image} alt="" width={480} height={270} sizes="(max-width: 700px) 100vw, 300px" unoptimized/></a>
+      // 2026-11-20: an island without a 3D model yet has no picture and no 3D link (its accent is the registry's).
+      const own = lessons.filter(l => l.islandId === island.id), card = previews[island.id] as typeof previews[string] | undefined;
+      return <article key={island.id} className={overview.card} style={{ '--island-accent': card?.accent ?? getIsland(island.id)?.theme.accent } as CSSProperties} aria-labelledby={`card-${island.id}`}>
+        {card && <a href={`#island-${island.id}`} className={overview.image} tabIndex={-1} aria-hidden><Image src={card.image} alt="" width={480} height={270} sizes="(max-width: 700px) 100vw, 300px" unoptimized/></a>}
         <div className={overview.body}>
           <small>{island.englishName}</small>
           <h3 id={`card-${island.id}`}>{island.name}</h3>
@@ -70,7 +71,7 @@ export function CurriculumCatalog() {
           <IslandProgress name="我的進度" lessonIds={own.filter(l => l.lessonStatus === 'complete').map(l => l.lessonId)} completeText={`${island.name}全部完成！`}/>
           <div className={overview.actions}>
             <a href={`#island-${island.id}`}>查看課程<ArrowRight size={14} aria-hidden/></a>
-            <Link href={card.mapHref}><MapIcon size={14} aria-hidden/>3D 島嶼</Link>
+            {card && <Link href={card.mapHref}><MapIcon size={14} aria-hidden/>3D 島嶼</Link>}
           </div>
         </div>
       </article>;

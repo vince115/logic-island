@@ -142,7 +142,8 @@ export function validateIslandLinks(world: WorldConfig, pages: WorldPages): stri
       const to = islands.get(link.to);
       if (!to) { fail(at, `link to unknown island ${link.to}`); continue; }
       if (to.id === at) fail(at, 'links to itself');
-      if (link.kind === 'bridge' && (island.status === 'planned' || to.status === 'planned')) fail(at, `bridge to ${link.to}: planned islands are not on the map`);
+      // 2026-11-20: "on the map" is the map state; an island can open lessons and still be drawn as a planned island.
+      if (link.kind === 'bridge' && (island.mapState === 'planned' || to.mapState === 'planned')) fail(at, `bridge to ${link.to}: planned islands are not on the map`);
     }
     if (island.unlock) {
       if (island.kind === 'subject') fail(at, 'subject islands are never locked');

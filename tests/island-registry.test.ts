@@ -42,7 +42,8 @@ describe('Island Registry: one entry per island, nothing stored twice (P9 S1)', 
       expect(Object.keys(e).sort(), e.islandId).toEqual(['assetSpec', 'interactionSpec', 'islandId', 'kind', 'lessons', 'publicationStatus', 'regionId', 'visualSpec'].filter(k => k in e).sort());
       expect(JSON.stringify({ ...e, visualSpec: undefined, interactionSpec: undefined }), e.islandId).not.toContain(record.name);
     }
-    expect(registry.reduce((n, e) => n + e.lessons.published, 0)).toBe(80);
+    // 80 lessons, then course production batches 1 and 2 (PL01–PL10).
+    expect(registry.reduce((n, e) => n + e.lessons.published, 0)).toBe(90);
     expect(registry.reduce((n, e) => n + e.lessons.planned, 0)).toBe(subjectIslands.reduce((n, i) => n + i.lessonCount, 0));
     expect(getIslandEntry('no-such-island')).toBeUndefined();
   });
@@ -68,7 +69,8 @@ describe('S0 decisions 1 and 5: the foundations island is a CS island, drawn and
     expect(WORLD_MAP.hub.islandId).toBe('labs');
     const summaries = regionSummaries();
     expect(summaries.reduce((n, r) => n + r.islands, 0)).toBe(29);
-    expect(summaries.find(r => r.id === 'cs')).toMatchObject({ islands: 8, open: 4, planned: 4 });
+    // Open: an island with published lessons (F, DS, AL, DB, and PL since batch 1, whose map stays planned).
+    expect(summaries.find(r => r.id === 'cs')).toMatchObject({ islands: 8, open: 5, planned: 3 });
     // On the world overview every island is drawn exactly once, as part of its own region's outline.
     for (const shape of SHAPES) {
       const drawn = overviewOutlines(WORLD_MAP, REGION_LAYOUTS, shape).flatMap(o => o.world.settlements.map(s => [s.islandId, o.id] as const));
@@ -117,16 +119,24 @@ describe('World, Region and Island share one island (P9 S1 contract)', () => {
   it('status: published or planned is the same answer at every level', () => {
     for (const region of orderedRegions.map(r => r.id)) {
       const entries = regionEntries(region), planned = entries.filter(e => e.publicationStatus === 'planned').map(e => e.islandId).sort();
+      // 2026-11-20 (course production): lessons and landscape are two answers. Whether an island's lessons are open is
+      // its publication status; how the 3D maps draw it is its map state, set by hand in the world registry.
+      const drawnPlanned = entries.filter(e => getIsland(e.islandId)!.mapState === 'planned').map(e => e.islandId).sort();
       const layout = regionLayout(region).layout;
-      // Region page data, the map's own planned settlements, the island's visual status, the overview's summary and LOD.
+      // Lessons: the region page data and the overview's summary.
       expect(regionIslands(region).filter(i => i.planned).map(i => i.id).sort(), `${region} page`).toEqual(planned);
-      expect(layout.world.settlements.filter(s => s.planned).map(s => s.islandId).sort(), `${region} map`).toEqual(planned);
-      for (const e of entries) expect(islandVisual(e.islandId).state, e.islandId).toBe(e.publicationStatus === 'planned' ? 'planned' : 'open');
       expect(regionSummaries().find(r => r.id === region)).toMatchObject({ islands: entries.length, planned: planned.length, open: entries.length - planned.length });
+      // Landscape: the map's own planned settlements, the island's visual status and the overview's LOD.
+      expect(layout.world.settlements.filter(s => s.planned).map(s => s.islandId).sort(), `${region} map`).toEqual(drawnPlanned);
+      for (const e of entries) expect(islandVisual(e.islandId).state, e.islandId).toBe(drawnPlanned.includes(e.islandId) ? 'planned' : 'open');
       const outline = overviewOutlines(WORLD_MAP, REGION_LAYOUTS, 'wide').find(o => o.id === region)!;
-      expect(islandLods(outline).filter(l => l.planned).map(l => l.islandId).sort(), `${region} lod`).toEqual(planned);
+      expect(islandLods(outline).filter(l => l.planned).map(l => l.islandId).sort(), `${region} lod`).toEqual(drawnPlanned);
+      // A planned island is never drawn built: the map can lag the lessons, never lead them.
+      for (const id of planned) expect(drawnPlanned, `${region} ${id}`).toContain(id);
     }
-    expect(registry.filter(e => e.publicationStatus !== 'planned').map(e => e.islandId)).toEqual(['foundations', 'structures', 'algorithms', 'databases', 'labs']);
+    expect(registry.filter(e => e.publicationStatus !== 'planned').map(e => e.islandId)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'labs']);
+    // The one island whose lessons opened before its landscape: PL keeps the planned landscape it had (no GLB, no remodel).
+    expect(registry.filter(e => e.publicationStatus !== 'planned' && e.visualSpec.state === 'planned').map(e => e.islandId)).toEqual(['programming-languages']);
   });
 
   it('topology: bridges join islands of one region; the world\'s ring, hub links and relation bridges join registry regions', () => {
@@ -196,8 +206,9 @@ describe('asset and fallback specs follow the registries (P9 S1)', () => {
     expect(registry.filter(e => e.assetSpec.glb).map(e => e.islandId)).toEqual(['foundations']);
     expect(registry.filter(e => e.assetSpec.declared).map(e => [e.islandId, e.assetSpec.declared!.id])).toEqual([['databases', 'databases-island'], ['large-language-models', 'llm-island']]);
     expect(getIslandEntry('databases')!.assetSpec.fallback).toBe('transitional-art');
-    for (const e of registry.filter(x => x.publicationStatus === 'planned')) expect(e.assetSpec.fallback, e.islandId).toBe('planned-marker');
-    for (const e of registry) expect(e.visualSpec.tier, e.islandId).toBe(e.assetSpec.glb ? 'glb' : e.publicationStatus === 'planned' ? 'outline' : 'landmark');
+    // The art follows the map state, not the lessons (an island with open lessons and a planned map keeps its marker).
+    for (const e of registry.filter(x => x.visualSpec.state === 'planned')) expect(e.assetSpec.fallback, e.islandId).toBe('planned-marker');
+    for (const e of registry) expect(e.visualSpec.tier, e.islandId).toBe(e.assetSpec.glb ? 'glb' : e.visualSpec.state === 'planned' ? 'outline' : 'landmark');
   });
 
   it('the fallback art list is exactly what the landmark components draw', () => {
