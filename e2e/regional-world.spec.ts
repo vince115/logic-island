@@ -304,10 +304,12 @@ test.describe('regional world: flag on', () => {
     await expect(page.getByRole('region', { name: '計算機網路島教材入口' })).toContainText('規劃中');
     await expect(page.getByRole('region', { name: '計算機網路島教材入口' }).getByRole('link')).toHaveCount(1);
     await expect(page.getByRole('region', { name: '計算機網路島教材入口' }).locator('a[href^="/curriculum/"]')).toHaveCount(0);
-    // 程式語言島 has published lessons (batch 1): its panel links them, and only lessons that exist.
+    // 程式語言島 has published lessons (batch 1): it is listed as open, not planned, and links no outline-only lesson.
+    // (Its subjects open in the panel over the 3D map, which this no-WebGL list does not have, as for 資料庫應用島.)
     await chooseIsland(page, '程式語言島').click();
-    await expect(page.getByRole('region', { name: '程式語言島教材入口' }).locator('a[href="/curriculum/programming-paradigms"]')).toHaveCount(1);
-    await expect(page.getByRole('region', { name: '程式語言島教材入口' }).locator('a[href="/curriculum/binding-scope-and-closures"]')).toHaveCount(0);
+    await expect(page.getByRole('region', { name: '程式語言島教材入口' })).toBeVisible();
+    await expect(page.getByRole('region', { name: '程式語言島教材入口' })).not.toContainText('規劃中');
+    await expect(page.locator('a[href="/curriculum/binding-scope-and-closures"]')).toHaveCount(0);
     await chooseIsland(page, '資料庫應用島').click();
     await expect(page).toHaveURL(/island=databases$/);
     // With no map there is no label to wait for: Escape puts the focus on the island's list entry.

@@ -348,6 +348,9 @@ const program = (list: Omit<Outline, 'capabilities'>[]): Outline[] => list.map(o
 const outlines: Record<(typeof ISLAND_IDS)[number], Outline[]> = {
   foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages };
 
+/** Every lesson the blueprint outlines, written or not (validateCurriculum's recommended-lesson check). */
+export const outlinedLessonIds: readonly string[] = planning.plannedLessons.map(l => l.lessonId);
+
 export const lessons: LessonMeta[] = ISLAND_IDS.flatMap(islandId => outlines[islandId].map((o, index): LessonMeta => ({
   lessonId: idAt(islandId, index, o.blueprintId),
   islandId, slug: o.slug, title: o.title, summary: o.summary, learningObjectives: o.objectives, difficulty: o.difficulty,

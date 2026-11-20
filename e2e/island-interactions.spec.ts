@@ -13,7 +13,8 @@ const poi = (page: Page, island: string, node: string) => places(page, island).l
 
 test('every published island\'s syllabus anchor exists on /curriculum and lands on its heading', async ({ page }) => {
   const published = (['cs', 'ai', 'design', 'web', 'sys'] as const).flatMap(r => islandsInRegion(r)).filter(i => i.status !== 'planned');
-  expect(published.map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'databases']);
+  // programming-languages: PL01–PL05 published in course production batch 1.
+  expect(published.map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases']);
   for (const island of published) {
     await page.goto(`/curriculum#island-${island.id}`);
     const heading = page.locator(`#island-${island.id}`);

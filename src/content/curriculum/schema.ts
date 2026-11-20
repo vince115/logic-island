@@ -1,5 +1,4 @@
 import type { Language } from '@/content/courses';
-import planning from '@/content/world/planning-data.json';
 import type { AlgorithmId } from '@/lib/engine';
 import { parseLessonId, type AnyLessonId, type LessonNumber } from '@/content/world/lesson-id';
 import { DATASET_IDS, type DatasetId } from '@/lib/sql/datasets';
@@ -14,8 +13,6 @@ import type { SequenceStrategy } from '@/lib/sql/sequence';
 import type { BackupPlan, ReplicationScenario } from '@/lib/ops/sim';
 import type { OpsTask } from '@/lib/ops/check';
 import type { SqlValue } from '@/lib/sql/engine';
-/** Every lesson the blueprint outlines, written or not (the recommended-lesson check of islands written in batches). */
-const OUTLINED = new Set<string>(planning.plannedLessons.map(l => l.lessonId));
 
 /*
  * Phase E curriculum: the shape of the 60 lessons and of a lesson's full content, and the checks every lesson must
@@ -444,6 +441,12 @@ export interface Curriculum {
   contents: Partial<Record<LessonId, LessonContent>>;
   visualizations: Record<VisualizationType, { status: 'implemented' | 'planned' | 'not-available' }>;
   labs: readonly string[];
+  /**
+   * 2026-11-20 (course production): every lesson the blueprint outlines, written or not, for the recommended-lesson
+   * check of islands written in batches. Passed in (lessons.ts reads the blueprint) so that this module, which client
+   * code imports, never bundles the planning data.
+   */
+  outlined?: readonly string[];
 }
 
 export const MIN_OBJECTIVES = 3;
@@ -458,7 +461,8 @@ const SEMVER = /^\d+\.\d+\.\d+$/;
  * lesson can be reached), the three base languages in every program lesson (SQL lessons: none, SQL content instead),
  * references to visualizations, labs and examples, and content that is complete exactly when the lesson says so.
  */
-export function validateCurriculum({ islands, lessons, contents, visualizations, labs }: Curriculum): string[] {
+export function validateCurriculum({ islands, lessons, contents, visualizations, labs, outlined = [] }: Curriculum): string[] {
+  const OUTLINED = new Set<string>(outlined);
   const problems: string[] = [];
   const fail = (where: string, what: string) => problems.push(`${where}: ${what}`);
   const order = new Map(lessons.map((lesson, index) => [lesson.lessonId, index]));

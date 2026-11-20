@@ -84,13 +84,13 @@ import { DB17 } from './content/DB17';
 import { DB18 } from './content/DB18';
 import { DB19 } from './content/DB19';
 import { DB20 } from './content/DB20';
-import { lessons } from './lessons';
+import { lessons, outlinedLessonIds } from './lessons';
 import { islands, visualizations } from './registry';
 import type { Curriculum, LessonContent, LessonId } from './schema';
 
 /** The curriculum (Phase E, and from Phase F.1a the database island's written lessons), as one value the validator and the pages both read. */
 export const curriculum: Curriculum = {
-  islands, lessons, visualizations, labs: algorithmIds,
+  islands, lessons, visualizations, labs: algorithmIds, outlined: outlinedLessonIds,
   contents: { F01, F02, F03, F04, F05, F06, F07, F08, F09, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20,
     D01, D02, D03, D04, D05, D06, D07, D08, D09, D10,
     D11, D12, D13, D14, D15,

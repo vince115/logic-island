@@ -117,7 +117,8 @@ test('目錄：資料庫應用島 20 堂全部開放（F.1d），最後一堂不
   await region.getByRole('link', { name: DB01.title }).click();
   await expect(page).toHaveURL(`/curriculum/${DB01.slug}`);
   // A lesson of a planned island has no page.
-  const planned = lessonsOfIsland('programming-languages')[0];
+  // (PL01–PL05 are published since course production batch 1: the first PL lesson still in outline.)
+  const planned = lessonsOfIsland('programming-languages').find(l => l.lessonStatus === 'planned')!;
   expect((await page.request.get(`/curriculum/${planned.slug}`)).status()).toBe(404);
   await page.goto(`/curriculum/${last.slug}`);
   await expect(page.locator('a[rel="next"]')).toHaveCount(0);

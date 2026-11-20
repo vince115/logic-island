@@ -30,10 +30,11 @@ const DB_PLANNED = lessonsOfIsland('databases').filter(l => l.lessonStatus === '
 const PLANNED = catalogLessons.filter(l => l.lessonStatus === 'planned').length;
 const plannedEntries = (page: Page) => page.locator('main ol').getByText('規劃中', { exact: true });
 
-test('課綱目錄：四座島，F／D／A 各 20 堂，資料庫應用島 20 堂中已開放的可點、其餘標示規劃中', async ({ page }) => {
+test('課綱目錄：五座島，F／D／A／DB 各 20 堂，程式語言島 20 堂中已開放的可點、其餘標示規劃中', async ({ page }) => {
   await page.goto('/curriculum');
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(`${lessons.length} 堂課，四座島。`);
-  for (const island of ['基礎程式島', '資料結構島', '演算法島', '資料庫應用島']) {
+  // Course production batch 1 added 程式語言島 (PL01–PL05 written, PL06–PL20 listed as planned).
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(`${lessons.length} 堂課，五座島。`);
+  for (const island of ['基礎程式島', '資料結構島', '演算法島', '程式語言島', '資料庫應用島']) {
     const list = page.getByRole('region', { name: new RegExp(island) }).getByRole('listitem');
     await expect(list, island).toHaveCount(20);
   }
@@ -794,12 +795,12 @@ test('課綱全部完成：A20 是演算法島最後一堂，不接到 DB01（F.
   await expect(page.locator('a[rel="next"]')).toHaveCount(0);
   await page.goto(`/curriculum/${db[0].slug}`);
   await expect(page.locator('a[rel="prev"]')).toHaveCount(0);
-  await page.evaluate(() => {
+  // Every open lesson, from the curriculum (F, D, A, DB and, since course production batch 1, PL01–PL05).
+  await page.evaluate(ids => {
     const at = '2026-11-01T10:00:00.000Z', lessons: Record<string, unknown> = {};
-    for (const p of ['F', 'D', 'A']) for (let i = 1; i <= 20; i++) lessons[`${p}${String(i).padStart(2, '0')}`] = { startedAt: at, readAt: at, quiz: { correct: 5, total: 5, at }, completedAt: at };
-    for (let i = 1; i <= 20; i++) lessons[`DB${String(i).padStart(2, '0')}`] = { startedAt: at, readAt: at, quiz: { correct: 5, total: 5, at }, completedAt: at };
+    for (const id of ids) lessons[id] = { startedAt: at, readAt: at, quiz: { correct: 5, total: 5, at }, completedAt: at };
     localStorage.setItem('logic-island.progress', JSON.stringify({ version: 1, lessons }));
-  });
+  }, lessons.filter(l => l.lessonStatus === 'complete').map(l => l.lessonId));
   await page.goto('/curriculum');
   await expect(page.getByText('完整教材', { exact: true })).toHaveCount(all);
   await expect(page.getByText(`全部課程：已完成 ${all}／${all} 堂`)).toBeVisible();
