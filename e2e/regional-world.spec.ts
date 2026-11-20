@@ -12,7 +12,7 @@ import { ON, REVIEW, expectLabelsClear, islandWidths, openRegion, phone, test, t
  * P8.3: the world's topology and the phone acceptance checks are in world-topology.spec.ts.
  */
 const CS = ['基礎程式島', '資料結構島', '演算法島', '程式語言島', '資料庫應用島', '計算機網路島', '系統分析與設計島', '管理資訊系統島'];
-// Islands whose lessons are all planned. 程式語言島 opened PL01–PL05 in course production batch 1: its label and panel are a
+// Islands whose lessons are all planned. 程式語言島 opened PL01–PL10 in course production batches 1 and 2: its label and panel are a
 // written island's, while its landscape stays the planned-island one (the map state, tests/regional-world.test.ts).
 const CS_PLANNED = new Set(['計算機網路島', '系統分析與設計島', '管理資訊系統島']);
 const label = (page: Page, name: string) => page.getByRole('button', { name: `聚焦${name}${CS_PLANNED.has(name) ? '（規劃中）' : ''}`, exact: true });
@@ -52,7 +52,7 @@ test.describe('regional world: flag on', () => {
     if (!phone()) for (const [id, w] of Object.entries(await islandWidths(page, 'cs'))) expect(w, id).toBeGreaterThanOrEqual(180);
     const list = page.getByRole('group', { name: '選擇學習島嶼' });
     await expect(list.getByRole('button')).toHaveCount(8);
-    await expect(list.getByRole('button').nth(3)).toContainText('程式語言島5 堂課 · 2 個科目');
+    await expect(list.getByRole('button').nth(3)).toContainText('程式語言島10 堂課 · 4 個科目');
     await expect(list.getByRole('button').nth(5)).toContainText('計算機網路島規劃中 預計 20 堂');
     await expect(list.getByRole('button').nth(4)).toContainText('資料庫應用島20 堂課 · 6 個科目');
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
@@ -309,7 +309,7 @@ test.describe('regional world: flag on', () => {
     await chooseIsland(page, '程式語言島').click();
     await expect(page.getByRole('region', { name: '程式語言島教材入口' })).toBeVisible();
     await expect(page.getByRole('region', { name: '程式語言島教材入口' })).not.toContainText('規劃中');
-    await expect(page.locator('a[href="/curriculum/binding-scope-and-closures"]')).toHaveCount(0);
+    await expect(page.locator('a[href="/curriculum/programming-languages-capstone"]')).toHaveCount(0);
     await chooseIsland(page, '資料庫應用島').click();
     await expect(page).toHaveURL(/island=databases$/);
     // With no map there is no label to wait for: Escape puts the focus on the island's list entry.
