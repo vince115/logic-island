@@ -3,10 +3,9 @@
 import { Component, Fragment, useEffect, useLayoutEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { usePathname } from 'next/navigation';
-import { Canvas, useThree } from '@react-three/fiber';
 import { PCFShadowMap, type OrthographicCamera } from 'three';
 import type { Vec3 } from '@/lib/islands/stage-pose';
-import { canvasSlot } from '../islands/hex-world/canvas-slot';
+import { canvasSlot, type SharedFiber } from '../islands/hex-world/canvas-slot';
 
 /*
  * P9.8c (LOGIC_ISLAND_P9_SHARED_CANVAS=1): the one canvas the P9 world (`/`) and the CS region page (`/cs`) draw in.
@@ -26,6 +25,9 @@ import { canvasSlot } from '../islands/hex-world/canvas-slot';
  * Context loss: the canvas stops (it is unmounted, so no frozen picture stays), the slot is marked lost and the page
  * shows its own way without 3D (the world's guide, the region's island list); a new canvas comes only when the user asks
  * (canvasSlot.retry), never by itself.
+ *
+ * R3F itself (Canvas, useThree) comes from the scenes through the slot (canvas-slot.ts SharedFiber), so this chunk does
+ * not carry a copy of R3F's entry module next to the scenes' own; the canvas is made once the first scene registers.
  */
 const SHARED_PATHS = new Set(['/', '/cs']);
 /**
@@ -41,7 +43,7 @@ function SlotContent() {
 }
 
 /** The canvas's size follows its stage at once (R3F would follow a frame later, measuring by itself). */
-function StageSize() {
+function StageSize({ useThree }: Pick<SharedFiber, 'useThree'>) {
   const setSize = useThree(state => state.setSize), invalidate = useThree(state => state.invalidate);
   const stage = useSyncExternalStore(canvasSlot.subscribe, () => canvasSlot.entry()?.stage ?? null, () => null);
   useLayoutEffect(() => {
@@ -54,7 +56,7 @@ function StageSize() {
 }
 
 /** The camera as a pose in the host's common space, for the scene that comes next (canvasSlot.release); the canvas's name; its context loss. */
-function Lifecycle() {
+function Lifecycle({ useThree }: Pick<SharedFiber, 'useThree'>) {
   const get = useThree(state => state.get);
   const label = useSyncExternalStore(canvasSlot.subscribe, () => canvasSlot.entry()?.label ?? '', () => '');
   useLayoutEffect(() => {
@@ -101,6 +103,7 @@ export default function P9SharedStage() {
   const client = useSyncExternalStore(noSubscription, () => true, () => false);
   const stage = useSyncExternalStore(canvasSlot.subscribe, () => canvasSlot.entry()?.stage ?? null, () => null);
   const lost = useSyncExternalStore(canvasSlot.subscribe, canvasSlot.lost, () => false);
+  const fiber = useSyncExternalStore(canvasSlot.subscribe, canvasSlot.fiber, () => null);
   // Made once on the client and never by React: moving it between stages cannot remount what it holds.
   const [container] = useState(() => {
     if (typeof document === 'undefined') return null;
@@ -117,12 +120,13 @@ export default function P9SharedStage() {
   // A retry asks for a new canvas (a new WebGL context): a new key.
   const [generation, setGeneration] = useState(0), [wasLost, setWasLost] = useState(lost);
   if (wasLost !== lost) { setWasLost(lost); if (!lost) setGeneration(n => n + 1); }
-  if (!drawing || !container) return null;
+  if (!drawing || !container || !fiber) return null;
+  const { Canvas, useThree } = fiber;
   return createPortal(<CanvasBoundary key={generation}>
     <Canvas orthographic frameloop="demand" dpr={[1, 1.5]} shadows={SHADOWS} camera={{ position: [0, 40, 60], zoom: 10, near: .1, far: 500 }}
       gl={{ antialias: true, alpha: false, powerPreference: 'low-power' }}>
-      <Lifecycle/>
-      <StageSize/>
+      <Lifecycle useThree={useThree}/>
+      <StageSize useThree={useThree}/>
       <SlotContent/>
     </Canvas>
   </CanvasBoundary>, container);

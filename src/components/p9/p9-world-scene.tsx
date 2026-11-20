@@ -295,6 +295,8 @@ export interface P9WorldTarget {
 const COMPACT_BELOW = 720;
 
 const IDENTITY_FRAME = { scale: 1, offset: [0, 0, 0] as const };
+/** R3F for the shared canvas's host (canvas-slot.ts SharedFiber). */
+const FIBER = { Canvas, useThree };
 
 export default function P9WorldScene({ targets, insetRight, label, shape, environmentId, accents, onReady, onUnavailable, sharedCanvas = false }: {
   targets: P9WorldTarget[]; insetRight: number; label: string; shape: OverviewShape;
@@ -438,7 +440,7 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
   // P9.8c (shared canvas): the scene goes to the shared canvas with every render, as it would to a canvas of its own.
   useLayoutEffect(() => {
     if (!sharedCanvas || !wrap.current) return;
-    canvasSlot.register({ id: 'p9-world', stage: wrap.current, content: scene, frame: IDENTITY_FRAME, label, onUnavailable });
+    canvasSlot.register({ id: 'p9-world', stage: wrap.current, content: scene, frame: IDENTITY_FRAME, label, onUnavailable, fiber: FIBER });
   });
   return <div ref={wrap} className={styles.canvasWrap} style={hovered && target(hovered)?.onOpen ? { cursor: 'pointer' } : undefined} data-shape={shape} data-compact={compact ? 'true' : undefined} data-p9-world={drawn}
     data-view={`${shown_view.k.toFixed(3)},${shown_view.dx.toFixed(1)},${shown_view.dy.toFixed(1)}`} data-fly={isReturning ? 'returning' : fly.state} data-fly-target={fly.target ?? undefined}

@@ -303,6 +303,7 @@ export function HexCanvasShell({options={},label,onUnavailable,pointer,handover,
  * handover is the pose the scene before it left (the world, or this map before the list), measured here on this
  * stage; else the page's own (`cameraHandover`). A canvas already lost sends the page to its list at once.
  */
+const FIBER={Canvas,useThree};
 function SharedHexScene({sharedCanvas,...props}:HexSceneProps&{sharedCanvas:{frame:SceneFrame}}) {
   const stage=useRef<HTMLDivElement>(null);
   const [pointer,setPointer]=useState(false),[handedOver,setHandedOver]=useState(false);
@@ -318,7 +319,7 @@ function SharedHexScene({sharedCanvas,...props}:HexSceneProps&{sharedCanvas:{fra
       handover.current={pose:pose?handoverFor(pose,{left:box.left,top:box.top,width:box.width,height:box.height},sharedCanvas.frame):undefined};
     }
     const cameraHandover=handover.current.pose??props.cameraHandover;
-    canvasSlot.register({id:'hex-map',stage:element,frame:sharedCanvas.frame,label:props.label,onUnavailable,
+    canvasSlot.register({id:'hex-map',stage:element,frame:sharedCanvas.frame,label:props.label,onUnavailable,fiber:FIBER,
       content:<HexWorldContent {...props} cameraHandover={cameraHandover} onPointerChange={setPointer} onCameraHandover={()=>setHandedOver(true)}/>});
   });
   useLayoutEffect(()=>{
