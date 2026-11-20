@@ -44,7 +44,9 @@
       ],
       "commit": "3831212",
       "tests": "驗證器、發布閘門 95/95、PL11–PL15 四語程式測試 120（含 Java）、Vitest 2412、E2E 桌機＋手機（旗標關、P9＋區域世界旗標開）、測驗 40 題逐題複核、洩漏掃描",
-      "notes": "ast-explorer、concurrency-timeline 未實作（INTERACTIVE_LAB_ROADMAP）；以共用追蹤的樹、框架、容器與表格面板表達；執行緒交錯只以排程模擬呈現；PL 地景維持規劃中"
+      "notes": "ast-explorer、concurrency-timeline 未實作（INTERACTIVE_LAB_ROADMAP）；以共用追蹤的樹、框架、容器與表格面板表達；執行緒交錯只以排程模擬呈現；PL 地景維持規劃中",
+      "pr": "#34",
+      "merged": "3092455"
     }
   ]
 }
