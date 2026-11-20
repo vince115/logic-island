@@ -258,6 +258,35 @@ plain.describe('P9.8c shared canvas: a lost WebGL context', () => {
     expect(errors).toEqual([]);
   });
 
+  plain('focus in the map moves to the notice that replaces it (Tab then reaches retry); a page that opens lost leaves focus alone', async ({ page }) => {
+    const errors = errorsBesidesContextLoss(page);
+    const retryButton = { name: '重新載入 3D 地圖' };
+    // The world: a region's label has focus when the context goes.
+    await openWorld(page);
+    await page.locator('[data-target="cs"]').focus();
+    await loseContext(page);
+    const worldNotice = page.locator('[role="status"]').filter({ hasText: '3D 場景無法使用' });
+    await expect(worldNotice, 'focus moves to the world\'s notice').toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(worldNotice.getByRole('button', retryButton)).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('canvas')).toHaveCount(1, { timeout: 30_000 });
+    // CS (reached in the page, so Back stays in it): an island's button in the map has focus when the context goes.
+    await page.waitForFunction(() => (label => Boolean(label) && label!.style.visibility !== 'hidden')(document.querySelector<HTMLElement>('[data-target="cs"]')), null, { timeout: 30_000 });
+    await flyToCs(page);
+    await page.locator('button[aria-label^="聚焦"]').first().focus();
+    await loseContext(page);
+    const csNotice = page.locator('[role="status"]').filter({ hasText: '3D 地圖已停止' });
+    await expect(csNotice, 'focus moves to the CS notice').toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(csNotice.getByRole('button', retryButton)).toBeFocused();
+    // Back to the world, which opens with the canvas already lost: its notice shows, focus is not moved to it.
+    await page.goBack();
+    await expect(worldNotice).toBeVisible();
+    await expect(worldNotice).not.toBeFocused();
+    expect(errors).toEqual([]);
+  });
+
   plain('a context lost on CS is lost for the world too: Back shows the guide, not an empty stage', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('canvas')).toBeVisible({ timeout: 30_000 });

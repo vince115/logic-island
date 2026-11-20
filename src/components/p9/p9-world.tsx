@@ -16,6 +16,7 @@ import status from '../islands/island-status.module.css';
 import styles from '../world/world.module.css';
 import type { P9WorldTarget } from './p9-world-scene';
 import { loadWorldScene } from './p9-scene-loaders';
+import { useFocusOnLoss } from './use-focus-on-loss';
 
 const Scene = dynamic(loadWorldScene, { ssr: false, loading: () => <div className={styles.loading} role="status">正在準備世界群島…</div> });
 const WIDE = '(min-width: 781px)';
@@ -43,6 +44,7 @@ export function P9World({ regions, hub, accents, sharedCanvas = false }: { regio
   const sharedLost = useSyncExternalStore(canvasSlot.subscribe, () => sharedCanvas && canvasSlot.lost(), () => false);
   const available = ownAvailable && !sharedLost;
   const retry = useCallback(() => { canvasSlot.retry(); setAvailable(true); }, []);
+  const lostNotice = useFocusOnLoss<HTMLDivElement>(Boolean(sharedLost));
   const unavailable = useCallback(() => setAvailable(false), []);
   const ready = useCallback(() => {}, []);
   const wide = useSyncExternalStore(subscribe, () => matchMedia(WIDE).matches, () => false);
@@ -62,7 +64,7 @@ export function P9World({ regions, hub, accents, sharedCanvas = false }: { regio
       {available ? <SceneBoundary onUnavailable={unavailable}>
         <Scene targets={targets} insetRight={wide ? 360 : 0} shape={wide ? 'wide' : 'tall'} environmentId={time} accents={accents} onReady={ready} onUnavailable={unavailable}
           label={`Logic Island 互動學習群島（${SITE_TIME_LABELS[time]}）：中央樞紐與 ${regions.length} 個群島（${names}）各自的島嶼、橋樑與地標，亦可使用清單導航`} sharedCanvas={sharedCanvas}/>
-      </SceneBoundary> : <div className={styles.fallbackNotice} role="status">
+      </SceneBoundary> : <div ref={lostNotice} className={styles.fallbackNotice} role="status" tabIndex={-1}>
         <p>此裝置的 3D 場景無法使用，已切換至清單導航：請使用下方的「世界導覽」進入各群島。</p>
         {/* P9.8c: a shared canvas whose context was lost comes back only when asked (never by itself). */}
         {sharedLost && <button type="button" onClick={retry}>重新載入 3D 地圖</button>}

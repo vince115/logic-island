@@ -19,6 +19,7 @@ import { HexWorldExplorer } from '../islands/hex-world/hex-world-explorer';
 import { HEADER_TOOLS_ID } from '../islands/hex-world/islands-world-explorer';
 import { SCENE_PRESETS, sceneOptions } from '../islands/hex-world/hex-scene-presets';
 import styles from '../world/world.module.css';
+import { useFocusOnLoss } from './use-focus-on-loss';
 
 /*
  * P9.1 visual prototype: the CS region's map (/p9/cs), the region page of /world/cs with the prototype's layout. The
@@ -131,6 +132,7 @@ export function P9RegionExplorer({ regionId, regionName, regionNameEn, islands, 
   const lost = useSyncExternalStore(canvasSlot.subscribe, () => sharedCanvas && canvasSlot.lost(), () => false);
   const [attempt, setAttempt] = useState(0);
   const retry = useCallback(() => { canvasSlot.retry(); setAttempt(n => n + 1); }, []);
+  const lostNotice = useFocusOnLoss<HTMLDivElement>(Boolean(lost));
   // The way back to the world is one canvas too: its scene's code is loaded ahead when the way back is about to be taken
   // (a pointer on, or focus on, a link to the world, or Escape), as the world loads this map's on the way here (P9.6),
   // so the canvas goes from this map to the world without a moment between with nothing to draw. Coming from the world
@@ -138,7 +140,7 @@ export function P9RegionExplorer({ regionId, regionName, regionNameEn, islands, 
   const towardWorld = useCallback(() => { if (sharedCanvas) void loadWorldScene(); }, [sharedCanvas]);
   return <>
     <BackToWorld onIntent={towardWorld}/>
-    {lost && <div className={styles.fallbackNotice} role="status"><p>3D 地圖已停止（WebGL 失效），島嶼清單與課程連結仍可使用。</p><button type="button" onClick={retry}>重新載入 3D 地圖</button></div>}
+    {lost && <div ref={lostNotice} className={styles.fallbackNotice} role="status" tabIndex={-1}><p>3D 地圖已停止（WebGL 失效），島嶼清單與課程連結仍可使用。</p><button type="button" onClick={retry}>重新載入 3D 地圖</button></div>}
     <HexWorldExplorer key={attempt} islands={islands} sharedCanvas={shared} world={layout.world} options={options} poiPanel captionAbove controlsBelow
       layout="fullscreen" modeSwitchTarget={HEADER_TOOLS_ID} selectedId={selectedId} onSelectedChange={change}
       baseAzimuth={P9_REGION_BASE_AZIMUTH} cameraHandover={handover}
