@@ -1,7 +1,7 @@
 # P9.8c：Progressive Shared Canvas（CS-only）
 
 > 2026-11-20，分支 `p9/8c-shared-canvas-cs`（從 `main@3092455`，含 P9.8a #29、P9.8b #32、課程 #30/#31/#34），worktree `../logic-island-p98c`。
-> - **整合（Release Readiness）**：已合併最新 `main@fd01b1d`（課程 Batch 4 #37，PL16–PL19），合併 commit `d541fbc`，無衝突；Batch 5 尚未合併，整合基準即 `fd01b1d`。所有數據與測試在整合後的程式碼上重做，見第 11 節。
+> - **整合（Release Readiness）**：已合併最新 `main@709c9fc`（課程 Batch 4 #37、Batch 5 #39、worktree 規範 #41）。合併 commit 為 `d541fbc`（`fd01b1d`）與 `a7403a4`（`709c9fc`），都沒有衝突。所有測試與量測都在整合後的程式碼上重做，見第 11 節。
 > - 只在 `LOGIC_ISLAND_P9_PROTOTYPE=1` 與新的 `LOGIC_ISLAND_P9_SHARED_CANVAS=1` 同時設定時生效。
 > - 沒有修改 Vercel、Production、旗標設定、GLB、座標、Exam Engine 或題庫。
 > - P9.7 原型只作參考，沒有合併或 cherry-pick。
@@ -102,7 +102,7 @@ app/layout.tsx（root layout，換頁時保留）
 
 ## 6. 往返資源與 Bundle（Phase F；整合後重新量測）
 
-量測環境：整合後的程式碼（`main@fd01b1d` 之上；30 次往返先在 `1af8c7c` 量兩次桌機與一次手機，最終程式碼 `754221e` 再量一次桌機，數字相同到 0.1 MB），同一台 Mac、headless Chromium（`--use-angle=metal`），load average 約 1–7，沒有其他建置或 E2E 同時執行。比較對象是**同一份程式碼**只關閉 Shared 旗標的建置（即 P9.8b 行為）。World → CS（飛行）→ World（瀏覽器 Back）為一次往返。
+量測環境：整合後的程式碼（`main@fd01b1d`／`709c9fc` 之上；P9 程式碼在兩次合併之間沒有變化；30 次往返先在 `1af8c7c` 量兩次桌機與一次手機，最終程式碼 `754221e` 再量一次桌機，數字相同到 0.1 MB），同一台 Mac、headless Chromium（`--use-angle=metal`），load average 約 1–7，沒有其他建置或 E2E 同時執行。比較對象是**同一份程式碼**只關閉 Shared 旗標的建置（即 P9.8b 行為）。World → CS（飛行）→ World（瀏覽器 Back）為一次往返。
 
 ### 6.1 WebGL 資源（30 次往返；桌機兩次獨立量測、手機一次，三次結果一致）
 
@@ -147,7 +147,7 @@ app/layout.tsx（root layout，換頁時保留）
   沒有看到 three 物件、React fiber、DOM 節點或 WebGL 資源的累積。
 - **結論**：暖機後 Shared 開啟沒有應用程式層級的持續累積。但 heap 讀數仍以每次約 25 KB 緩慢增加（引擎與瀏覽器的部分），所以不宣稱「完全平坦」。這是在**桌機 Chromium** 上的結果；Safari 的 JIT 與 Performance Timeline 不同，需要實機觀察。
 
-### 6.3 JS Bundle（decoded／gzip，KB；`next start` 的 gzip 傳輸量；最終程式碼 `754221e`）
+### 6.3 JS Bundle（decoded／gzip，KB；`next start` 的 gzip 傳輸量；`754221e` 與 `a7403a4` 量到的數字相同）
 
 **A. Shared 開啟 vs 關閉（同一份程式碼；Shared Canvas 本身的成本）**
 
@@ -160,7 +160,7 @@ app/layout.tsx（root layout，換頁時保留）
 | 直接開 `/cs` 載入時 | 602.0 / 192.0 | 602.0 / 192.0 | 0 |
 | 直接開 `/cs` 含 3D | 1890.0 / 564.7 | 1893.3 / 566.6 | +3.3 / +1.9（**+0.17% / +0.34%**） |
 
-**B. 對 `main@fd01b1d`（P9.8b，P9 開啟）**
+**B. 對 `main`（P9.8b，P9 開啟；`fd01b1d` 與 `709c9fc` 相同）**
 
 | | `main`（P9.8b） | P9.8c Shared 開啟 | 差異 |
 |---|---|---|---|
@@ -170,7 +170,7 @@ app/layout.tsx（root layout，換頁時保留）
 | 直接開 `/cs` 載入時 | 595.8 / 190.3 | 602.0 / 192.0 | +6.2 / +1.7（**+1.04%** / +0.89%） |
 | 直接開 `/cs` 含 3D | 1884.1 / 562.4 | 1893.3 / 566.6 | +9.2 / +4.2（**+0.49% / +0.75%**） |
 
-**C. P9 關閉的正式頁面（Production 組合），對 `main@fd01b1d`**
+**C. P9 關閉的正式頁面（Production 組合），對 `main`（`fd01b1d` 與 `709c9fc` 相同）**
 
 | 頁面 | `main` | P9.8c | 差異 |
 |---|---|---|---|
@@ -196,7 +196,7 @@ app/layout.tsx（root layout，換頁時保留）
 | Click → Scene Ready（8 個名牌都有內容） | 957／934 ms | **856／830 ms** |
 | 第一幀完整（無 pop-in） | 10/10 | 10/10 |
 
-## 7. 測試結果（Phase G；整合後的最終程式碼 `754221e`）
+## 7. 測試結果（Phase G；最終程式碼 `a7403a4`，含 `main@709c9fc`）
 
 load average 約 2–7，沒有其他大型建置或 E2E 同時執行；E2E 以 1 個 worker 執行。
 
@@ -204,15 +204,15 @@ load average 約 2–7，沒有其他大型建置或 E2E 同時執行；E2E 以 
 |---|---|
 | TypeScript（strict） | 0 錯誤 |
 | ESLint（全專案） | 0 錯誤 |
-| Vitest（含 Java：以 IntelliJ 內附 JDK 執行） | 91 個檔案，**2509 通過、9 跳過、0 失敗** |
+| Vitest（含 Java：以 IntelliJ 內附 JDK 執行） | 91 個檔案，**2529 通過、9 跳過、0 失敗**（`754221e` 為 2509，差異是 Batch 5 的測試） |
 | Production build | P9 ON / Shared ON、P9 ON / Shared OFF、P9 OFF、Regional World 四種都成功 |
 | E2E，**P9 ON / Shared ON** | **275 通過、33 跳過、0 失敗** |
 | E2E，**P9 ON / Shared OFF**（P9.8b 行為） | **257 通過、51 跳過、0 失敗** |
-| E2E，**P9 OFF**（Production 組合；另加 `curriculum`、`player`、`islands-acceptance`、`home-databases`） | **313 通過、139 跳過、0 失敗**；P9 路由 404 |
+| E2E，**P9 OFF**（Production 組合；另加 `curriculum`、`player`、`islands-acceptance`、`home-databases`） | **315 通過、139 跳過、0 失敗**；P9 路由 404（`754221e` 為 313，差異是 Batch 5 的課程 E2E） |
 | E2E，**Regional World**（`regional-world`、`world-topology`、`island-interactions`） | **70 通過、22 跳過、0 失敗**（第一次因 port 3147 被占用沒有執行，換 port 後重跑） |
 | 其中 Hex Map（`hex-world` 22、`hex-camera` 28、`hex-scale` 30、`hex-environment` 21，P9 三種模式都有） | 全部通過 |
 | 其中 Navigation（`navigation` 28，P9 三種模式都有） | 全部通過 |
-| 已發布課程 | 99 堂（`main@fd01b1d`，含 Batch 4 的 PL16–PL19），課程 E2E 87 個通過 |
+| 已發布課程 | 100 堂（`main@709c9fc`，含 Batch 4 的 PL16–PL19 與 Batch 5 的 PL20），課程 E2E 89 個通過 |
 | `IslandConfig.mapState` 與課程狀態 | 未修改：本 PR 沒有碰課程資料、world registry 或 `mapState`；合併 `main` 時這些檔案直接取自 `main`（無衝突） |
 | Leak scan | 見 PR（commit 範圍與各 `.next`） |
 
@@ -280,10 +280,10 @@ E2E 清單在各模式相同：`p9-prototype`、`p9-continuity`、`p9-shared-can
 
 | 項目 | 內容 |
 |---|---|
-| 整合基準 | `main@fd01b1d`（課程 Batch 4 #37）；Batch 5 尚未合併，不等待 |
-| 合併 | `d541fbc`（merge commit，無衝突；P9.8c 與 Batch 4 沒有共同修改的檔案） |
+| 整合基準 | `main@709c9fc`：課程 Batch 4 #37、Batch 5 #39（在整合期間合併）、worktree 規範 #41 |
+| 合併 | `d541fbc`（`fd01b1d`）、`a7403a4`（`709c9fc`）；都沒有衝突，P9.8c 與課程批次、文件沒有共同修改的檔案 |
 | 整合後的 commit | `dd74271`：host 不再帶第二份 R3F 入口模組（−13.8 KB）<br>`1af8c7c`：context loss 時焦點移到提示，E2E 涵蓋<br>`754221e`：世界場景 loader 獨立成模組，修正 P9 關閉時正式頁面多 20 KB 的問題 |
-| 重新驗證 | 四種旗標模式的建置與 E2E、Vitest、TypeScript、ESLint 都在 `754221e` 上執行（第 7 節） |
+| 重新驗證 | 四種旗標模式的建置與 E2E、Vitest、TypeScript、ESLint：在 `754221e`（`fd01b1d` 為基準）與 `a7403a4`（`709c9fc` 為基準）各執行一次，0 失敗（第 7 節） |
 | 資源 | 30 次往返（另加 60 次）重新量測（6.1、6.2 節） |
 | Bundle | 三種比較（6.3 節） |
 | Context loss 驗收 | 無凍結畫面；世界導覽可用；CS 島嶼清單可用；鍵盤可進入已發布課程；重新載入按鈕有效；不會自動重建；失效後 Back 回到世界與再回到 CS 都不留下失效的 Canvas（Forward 的往返另由一般的快速 Back／Forward 測試涵蓋）；其他四個區域不受影響（E2E）。焦點管理已修正；`role="status"`；Reduced Motion（E2E 預設 reduce）；觸控與 360／390 px 版面只在模擬中驗證 |
