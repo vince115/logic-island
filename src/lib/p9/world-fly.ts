@@ -37,6 +37,14 @@ function viewCentredOn(p: [number, number], k: number, s: Stage, insetRight: num
   const [cx, cy] = [s.width / 2, s.height / 2], [fx, fy] = freeCentre(s, insetRight);
   return { k, dx: fx - cx - k * (p[0] - cx), dy: fy - cy - k * (p[1] - cy) };
 }
+/**
+ * P9.8a: the view at zoom k that draws the stage point `at` (at rest) at the stage point `to`: p' = c + k (p − c) + d
+ * (world-view.ts) solved for d.
+ */
+export function viewPlacing(at: readonly [number, number], to: readonly [number, number], k: number, s: Stage): WorldView {
+  const [cx, cy] = [s.width / 2, s.height / 2];
+  return { k, dx: to[0] - cx - k * (at[0] - cx), dy: to[1] - cy - k * (at[1] - cy) };
+}
 /** The rest-space point a view shows in the middle of the free stage. */
 function centreOf(v: WorldView, s: Stage, insetRight: number): [number, number] {
   const [cx, cy] = [s.width / 2, s.height / 2], [fx, fy] = freeCentre(s, insetRight);

@@ -4,17 +4,17 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type
 import { Vector3 } from 'three';
 import { Canvas, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
-import { hexCorner, hexToWorld } from '@/lib/islands/hex';
-import { tileTop } from '@/lib/islands/hex-terrain';
+import { hexToWorld } from '@/lib/islands/hex';
 import { WATER_LEVEL, settlementFrames, worldCenter, type HexWorld } from '@/lib/islands/hex-world';
 import { ENVIRONMENTS, PREVIEW_NOON, type EnvironmentId } from '@/lib/islands/environments';
 import { pageInteractions } from '@/lib/islands/island-interactions';
 import type { IslandDefinition } from '@/lib/islands/types';
 import { HexCamera, VIEW, viewAt, type CameraView, type ExploreView, type StageRoom } from './hex-camera';
+import { captionPoint, fitPoints } from '@/lib/islands/hex-framing';
 import { HexTiles, WATER_Y } from './hex-tiles';
 import { HexTerrainMesh, type TerrainStyle } from './hex-terrain-mesh';
 import { HexBridges, HexRoads } from './hex-routes';
-import { hexGlbSettlements, placementPose, type HexGlbSettlement } from '@/lib/islands/hex-buildings';
+import { hexGlbSettlements, type HexGlbSettlement } from '@/lib/islands/hex-buildings';
 import type { WorldLayout } from '@/lib/islands/hex-layout';
 import type { ForestPatch } from '@/lib/islands/hex-nature-data';
 import type { ModelSource } from '../glb-island-model';
@@ -110,50 +110,6 @@ export interface HexSceneOptions {
    * Reduced motion shows them at once; unset, they show on selection as before.
    */
   panelsOnArrival?: boolean;
-}
-type CaptionSide='left'|'right'|'above'|'below';
-/**
- * Where a compact caption goes: just off the coast on the side of the settlement facing away from the rest
- * of the world, and which screen side that is, so the caption can hang outward instead of over the island.
- */
-function captionPoint(world:HexWorld,settlement:HexWorld['settlements'][number],reach=1.2,view=VIEW):{point:[number,number];side:CaptionSide} {
-  const [wx,wz]=worldCenter(world),[sx,sz]=hexToWorld(settlement.center,world.size);
-  const length=Math.hypot(sx-wx,sz-wz)||1,out=[(sx-wx)/length,(sz-wz)/length];
-  const far=settlement.tiles.reduce((best,t)=>{const [x,z]=hexToWorld(t,world.size),[bx,bz]=hexToWorld(best,world.size);
-    return x*out[0]+z*out[1]>bx*out[0]+bz*out[1]?t:best;},settlement.tiles[0]);
-  const [fx,fz]=hexToWorld(far,world.size);
-  // Screen right and up for a ground direction, from the camera view (the fixed hex view unless the free camera turned).
-  const right=new Vector3().crossVectors(new Vector3(0,1,0),view).normalize(),up=new Vector3().crossVectors(view,right);
-  const r=right.x*out[0]+right.z*out[1],u=up.x*out[0]+up.z*out[1];
-  const side:CaptionSide=Math.abs(r)>Math.abs(u)?(r>0?'right':'left'):(u>0?'above':'below');
-  return {point:[fx+out[0]*world.size*reach,fz+out[1]*world.size*reach],side};
-}
-/** Points the camera must keep in view, in scene space: tile corners, the shore just beyond them, building tops. */
-function fitPoints(world:HexWorld,layouts:HexGlbSettlement[],[ox,oz]:[number,number],captions:boolean,reach?:number,view=VIEW) {
-  const byId:Record<string,Vector3[]>={};
-  for(const settlement of world.settlements){
-    const points:Vector3[]=[];
-    for(const tile of settlement.tiles){
-      const [cx,cz]=hexToWorld(tile,world.size);
-      for(let i=0;i<6;i++){
-        const [x,z]=hexCorner(tile,world.size,i);
-        points.push(new Vector3(x-ox,tileTop(tile),z-oz),new Vector3(cx+(x-cx)*1.5-ox,WATER_LEVEL,cz+(z-cz)*1.5-oz));
-      }
-    }
-    for(const layout of layouts.filter(l=>l.islandId===settlement.islandId)) for(const placement of layout.placements){
-      const [x,y,z]=placementPose(world,layout.islandId,placement).position;
-      points.push(new Vector3(x-ox,y+2.7,z-oz));
-    }
-    byId[settlement.islandId]=points;
-  }
-  // The overview also keeps the island captions in view (only the overview shows them); a caption hangs
-  // outward from its point, so keep about a caption's width beyond it.
-  // M3.1: with `reach` (regional world), only captions hanging sideways on screen get it; above and below keep 4.2.
-  const labels=captions?world.settlements.map(s=>{
-    const sideways=reach!==undefined&&['left','right'].includes(captionPoint(world,s,1.2,view).side);
-    const {point:[x,z]}=captionPoint(world,s,sideways?reach:4.2);return new Vector3(x-ox,WATER_LEVEL,z-oz);
-  }):[];
-  return {all:[...Object.values(byId).flat(),...labels],byId};
 }
 // Prototype-only measurement and review hooks; loaded only when `perfProbe` is on, so production never downloads it.
 const PerfProbe=lazy(()=>import('./hex-perf-probe'));

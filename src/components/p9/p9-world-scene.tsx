@@ -9,11 +9,13 @@ import { WATER_LEVEL, worldCenter } from '@/lib/islands/hex-world';
 import { placeLabels, type LabelSpot, type StageBox, type StageLand, type StageLine } from '@/lib/islands/regions/overview-labels';
 import { LINK_THEME } from '@/lib/islands/regions/region-themes';
 import type { LabelSide, OverviewShape } from '@/lib/islands/regions/schema';
-import { LINK_WIDTH, frameOverview, overviewLinks, overviewOutlines, stageLands, stageLines, type OverviewLink, type OverviewOutline } from '@/lib/islands/regions/world-overview-geometry';
+import { LINK_WIDTH, frameOverview, overviewLinks, overviewOutlines, stageLands, stageLines, type OverviewFrame, type OverviewLink, type OverviewOutline } from '@/lib/islands/regions/world-overview-geometry';
 import { WORLD_MAP } from '@/lib/islands/regions/world-map';
 import { regionScene, sceneLayouts, scenePlacement, type SceneId } from '@/lib/p9/region-scene';
 import { P9_WORLD_MAP } from '@/lib/p9/world-map';
 import { FLY_MS, FLY_SAFETY_MS, flightView, flyTarget, type FlyState } from '@/lib/p9/world-fly';
+import { regionStage } from '@/lib/p9/region-layout';
+import { openingWorldView, regionOpening } from '@/lib/p9/region-opening';
 import { useRouter } from 'next/navigation';
 import { REGION_IDS } from '@/content/world/types';
 import { DRAG_THRESHOLD, HOME_VIEW, clampView, isHome, panBy, project, wheelFactor, zoomAt, type Stage, type WorldView } from '@/lib/p9/world-view';
@@ -23,6 +25,7 @@ import { GlowProvider, HexEnvironment, STATIC_SHADOW_MAP } from '../islands/hex-
 import { OCEAN } from '../islands/hex-world/hex-ocean';
 import styles from '../world/world.module.css';
 import { P9RegionMiniature } from './p9-region-miniature';
+import { loadLandscapes, preloadRegionModels } from './p9-scene-loaders';
 
 /*
  * P9.1b: the world overview is the five regions' own scenes, drawn small around the hub. Each region is its Region
@@ -73,7 +76,9 @@ function useWorld(shape: OverviewShape) {
   }, [shape]);
 }
 
-interface Framed { extents: StageBox[]; lines: StageLine[]; lands: StageLand[] }
+interface Framed { extents: StageBox[]; lines: StageLine[]; lands: StageLand[];
+  /** P9.8a: the framing at rest itself, for the flight that ends on a region page's opening view. */
+  frame: OverviewFrame }
 /**
  * The P8 overview's fixed orthographic framing, unchanged: every outline fits with room for its label, left of
  * `insetRight`. P9.4: the view (zoom k and pan) is applied on top, as an orthographic camera would: zoom about the
@@ -83,7 +88,7 @@ function Framing({ outlines, links, shape, insetRight, view, onFramed }: { outli
   const { size, invalidate, get } = useThree();
   const frame = useMemo(() => frameOverview(outlines, shape, size, insetRight), [outlines, shape, size, insetRight]);
   useLayoutEffect(() => {
-    onFramed({ extents: frame.boxes, lines: stageLines(frame, links, shape), lands: stageLands(frame, outlines) });
+    onFramed({ extents: frame.boxes, lines: stageLines(frame, links, shape), lands: stageLands(frame, outlines), frame });
   }, [frame, links, shape, outlines, onFramed]);
   useLayoutEffect(() => {
     const camera = get().camera, center = new Vector3(...frame.center), zoom = frame.zoom * view.k;
@@ -171,7 +176,7 @@ const warmRegionScene = () => {
   if (sceneWarmed) return;
   sceneWarmed = true;
   void import('../islands/hex-world/hex-world-scene');
-  void import('./p9-landscapes');
+  void loadLandscapes();
 };
 
 /**
@@ -182,6 +187,9 @@ const warmRegionScene = () => {
  * opens the region. The route is prefetched when the flight starts.
  * P9.6: `prepare(id, href)` prefetches the route and the region scene's code before a click (hover, focus); Escape
  * cancels a flight as a wheel does.
+ * P9.8a: start(id, to, go) flies to the view `to` (the region page's opening view, or the region's extent), from the
+ * view on screen (`view` clamped); a flight starting also preloads the region's GLB models. A cancelled flight's view
+ * is brought back within the limits a pan or zoom keeps (the flight itself may pass them).
  */
 function useFlyTo(stage: Stage, insetRight: number, view: WorldView, setView: React.Dispatch<React.SetStateAction<WorldView>>) {
   const router = useRouter();
@@ -195,9 +203,9 @@ function useFlyTo(stage: Stage, insetRight: number, view: WorldView, setView: Re
   useEffect(() => stop, [stop]);
   const cancel = useCallback(() => {
     if (live.current.state !== 'flying') return;
-    stop(); set('cancelled'); setTarget(null);
+    stop(); set('cancelled'); setTarget(null); setView(v => clampView(v, stage));
     setTimeout(() => { if (live.current.state === 'cancelled') set('idle'); }, 0);
-  }, [stop, set]);
+  }, [stop, set, setView, stage]);
   const prepared = useRef(new Set<string>());
   const prepare = useCallback((id: string, href?: string) => {
     if (!href || prepared.current.has(href)) return;
@@ -211,19 +219,24 @@ function useFlyTo(stage: Stage, insetRight: number, view: WorldView, setView: Re
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
   }, [state, cancel]);
-  const start = useCallback((id: string, box: { x0: number; y0: number; x1: number; y1: number } | undefined, go: () => void, href?: string) => {
+  const start = useCallback((id: string, to: WorldView | undefined, go: () => void, href?: string) => {
     if (live.current.state === 'flying' || live.current.state === 'navigating') return;
     const arrive = () => { stop(); if (live.current.state === 'navigating') return; set('navigating'); go(); };
     prepare(id, href);
+    if (FLY_TO.includes(id)) preloadRegionModels(id as SceneId);
     const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduced || !box || !stage.width || !FLY_TO.includes(id)) { setTarget(id); arrive(); return; }
-    const from = viewNow.current, to = flyTarget(box, stage, insetRight), t0 = performance.now();
+    if (reduced || !to || !stage.width || !FLY_TO.includes(id)) { setTarget(id); arrive(); return; }
+    const from = clampView(viewNow.current, stage), t0 = performance.now();
     setTarget(id); set('flying');
+    // P9.8a: the page changes once the flight's last view has been drawn. The canvas draws a new view in a frame of its
+    // own (R3F commits and renders after this one), so navigating with the last view still pending would leave the
+    // frame before it on screen, short of the region page's opening view: two frames later, unless cancelled meanwhile.
+    const settle = (frames: number) => () => { if (live.current.state !== 'flying') return; if (frames) live.current.frame = requestAnimationFrame(settle(frames - 1)); else arrive(); };
     const tick = () => {
       if (live.current.state !== 'flying') return;
       const t = (performance.now() - t0) / FLY_MS;
       setView(flightView(from, to, t, stage, insetRight));
-      if (t >= 1) arrive(); else live.current.frame = requestAnimationFrame(tick);
+      live.current.frame = requestAnimationFrame(t >= 1 ? settle(1) : tick);
     };
     live.current.frame = requestAnimationFrame(tick);
     live.current.timer = setTimeout(() => { if (live.current.state === 'flying') arrive(); }, FLY_MS + FLY_SAFETY_MS);
@@ -231,20 +244,45 @@ function useFlyTo(stage: Stage, insetRight: number, view: WorldView, setView: Re
   return { state, target, start, cancel, prepare };
 }
 
+/** The small viewport height (CSS 100svh: the screen with the browser's bars shown), by which the region page sizes its map. */
+function smallViewportHeight() {
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;top:0;height:100svh;visibility:hidden;pointer-events:none';
+  document.body.append(probe);
+  const height = probe.getBoundingClientRect().height;
+  probe.remove();
+  return height || innerHeight;
+}
+
 /** The open sea, in the Region's deep colour and the environment's tint. */
 function Sea({ tint }: { tint: string }) {
   const color = useMemo(() => new Color(OCEAN.deep).multiply(new Color(tint)), [tint]);
   return <mesh rotation-x={-Math.PI / 2} position-y={-.012} receiveShadow raycast={noRaycast} renderOrder={2}><planeGeometry args={[600, 600]}/><meshStandardMaterial color={color} roughness={.55} metalness={0}/></mesh>;
 }
-/** Review hook: `canvas.__p9Render()` draws one frame now, waits for the GPU and returns how long it took (ms). */
-function Probe() {
+type ProbeCanvas = HTMLCanvasElement & { __p9Render?: () => number; __p9Project?: (id: string, x: number, y: number, z: number) => [number, number] | null; __p9Unit?: (id: string) => number | null };
+/**
+ * Review hooks: `canvas.__p9Render()` draws one frame now, waits for the GPU and returns how long it took (ms).
+ * P9.8a: `__p9Project(region, x, y, z)` is where a point of that region's map (the coordinates its page's
+ * `__hexProject` takes) is drawn now, in viewport px, and `__p9Unit(region)` how many px one map unit is, so a test can
+ * compare the overview's last frame with the region page's first.
+ */
+function Probe({ placements }: { placements: { id: string; placement: { scale: number; position: readonly number[] } }[] }) {
   const get = useThree(state => state.get);
   useEffect(() => {
     // Read when called, so the frame is the scene and camera of that moment.
-    const canvas = get().gl.domElement as HTMLCanvasElement & { __p9Render?: () => number };
+    const canvas = get().gl.domElement as ProbeCanvas;
+    const find = (id: string) => placements.find(p => p.id === id)?.placement;
     canvas.__p9Render = () => { const { gl, scene, camera } = get(), t = performance.now(); gl.render(scene, camera); gl.getContext().finish(); return performance.now() - t; };
-    return () => { delete canvas.__p9Render; };
-  }, [get]);
+    canvas.__p9Project = (id, x, y, z) => {
+      const placement = find(id);
+      if (!placement) return null;
+      const { camera } = get(), [px, py, pz] = placement.position, s = placement.scale, box = canvas.getBoundingClientRect();
+      const v = new Vector3(px + s * x, py + s * y, pz + s * z).project(camera);
+      return [box.left + (v.x + 1) / 2 * box.width, box.top + (1 - v.y) / 2 * box.height];
+    };
+    canvas.__p9Unit = id => { const placement = find(id); return placement ? (get().camera as { zoom: number }).zoom * placement.scale : null; };
+    return () => { delete canvas.__p9Render; delete canvas.__p9Project; delete canvas.__p9Unit; };
+  }, [get, placements]);
   return null;
 }
 
@@ -290,9 +328,12 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
   const compact = stage.width > 0 && stage.width - insetRight < COMPACT_BELOW;
   // P9.4: the map's zoom and pan (world-view.ts); a new stage size keeps the view inside its limits.
   const [view, setView] = useState<WorldView>(HOME_VIEW);
-  const shown_view = useMemo(() => stage.width ? clampView(view, stage) : view, [view, stage]);
   // P9.5: the camera flight to a region (world-fly.ts), one controller for every target; a wheel or drag cancels it.
-  const fly = useFlyTo(stage, insetRight, shown_view, setView);
+  const fly = useFlyTo(stage, insetRight, view, setView);
+  // P9.8a: a flight's frames are drawn as they are: its end, the region page's opening view, may lie past the limits a
+  // pan or a zoom keeps (a region at the map's edge, framed for a page laid out differently). Otherwise as before.
+  const flying = fly.state === 'flying' || fly.state === 'navigating';
+  const shown_view = useMemo(() => stage.width && !flying ? clampView(view, stage) : view, [view, stage, flying]);
   useWorldGestures(wrap, stage, setView, fly.cancel);
   const step = (factor: number) => setView(v => zoomAt(v, stage, factor, stage.width / 2 - (stage.width > 780 ? insetRight / 2 : 0), stage.height / 2));
   const [spots, setSpots] = useState<LabelSpot[] | null>(null);
@@ -304,12 +345,27 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
   }, [framed, sides, stage.width, stage.height, insetRight, compact]);
   useEffect(() => () => { hub?.dispose(); relation?.dispose(); }, [hub, relation]);
   const target = (id: string) => targets.find(t => t.id === id);
-  /** Opens a target by flying to it first: its extent at rest is the flight's goal; a target without one opens at once. */
+  /**
+   * P9.8a: where a flight to region `id` ends: the view that draws the region's map where its page will open it, at the
+   * same size (region-opening.ts), so the switch to the page's own canvas keeps the map in place. Worked out when the
+   * flight starts, from this screen: the viewport, the header and where this canvas sits.
+   */
+  const openingView = (id: string): WorldView | undefined => {
+    const part = parts.find(p => p.id === id), element = wrap.current, frame = framed?.frame;
+    if (!part || !FLY_TO.includes(id) || !element || !frame || !stage.width) return undefined;
+    const root = document.documentElement, at = element.getBoundingClientRect();
+    const region = regionStage(root.clientWidth, smallViewportHeight(), parseFloat(getComputedStyle(root).getPropertyValue('--header-h')) || 0);
+    return openingWorldView(regionOpening(part.id, region, innerWidth), part.placement, part.scene.region.layout.world, frame, stage, region, [at.left, at.top]);
+  };
+  /**
+   * Opens a target by flying to it first: to the region page's opening view (P9.8a), or else to its extent at rest; a
+   * target without either opens at once.
+   */
   const open = (id: string) => {
     const t = target(id), i = shown.findIndex(s => s.id === id), box = framed?.extents[i];
     if (!t?.onOpen) return undefined;
     const go = t.onOpen;
-    return () => fly.start(id, box, go, t.href);
+    return () => fly.start(id, openingView(id) ?? (box && stage.width ? flyTarget(box, stage, insetRight) : undefined), go, t.href);
   };
   // What was drawn, for the review tools and tests: every scene's source, scale and counts, the links, the time of day.
   const drawn = useMemo(() => JSON.stringify({
@@ -329,7 +385,7 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
         onReady();
       }}>
       <HexEnvironment environment={environment} shadowExtent={reach} staticShadows/>
-      <Probe/>
+      <Probe placements={parts}/>
       <GlowProvider value={environment}>
         <Sea tint={environment.sea.tint}/>
         {parts.map(p => <P9RegionMiniature key={p.id} scene={p.scene} placement={p.placement} seaTint={environment.sea.tint} accents={accents} order={p.order + 1}
