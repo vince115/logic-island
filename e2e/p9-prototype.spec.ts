@@ -408,6 +408,29 @@ test.describe('P9.5 Region → Island', () => {
   });
 });
 
+test.describe('P9.8b region map content: labels after the page is shown again', () => {
+  test.skip(!P9, 'needs a build with LOGIC_ISLAND_P9_PROTOTYPE=1');
+  test('World → CS, Back, Forward three times: all eight island labels come back filled each time', async ({ page }) => {
+    const labels = page.locator('button[aria-label^="聚焦"]');
+    const empty = () => page.evaluate(() => {
+      const host = document.querySelector('canvas')?.parentElement?.parentElement;
+      return [...(host?.querySelectorAll(':scope > div') ?? [])].filter(d => (d as HTMLElement).style.transform.startsWith('translate3d') && !d.children.length).length;
+    });
+    await openMap(page, '/');
+    await page.locator('[data-target="cs"]').evaluate(button => (button as HTMLElement).click());
+    for (let round = 1; round <= 3; round++) {
+      await expect(page).toHaveURL(/:\d+\/cs$/);
+      await expect(labels, `round ${round}`).toHaveCount(8, { timeout: 30_000 });
+      for (const button of await labels.all()) await expect(button).toBeVisible();
+      await expect.poll(empty, { message: `round ${round}: empty overlays` }).toBe(0);
+      await page.goBack();
+      await expect(page).toHaveURL(/:\d+\/$/);
+      await expect(page.locator('canvas')).toBeVisible({ timeout: 30_000 });
+      await page.goForward();
+    }
+  });
+});
+
 test.describe('P9.6 navigation: interrupting, going back, reduced motion, phones', () => {
   test.skip(!P9, 'needs a build with LOGIC_ISLAND_P9_PROTOTYPE=1');
   test.use({ reducedMotion: 'no-preference' });
@@ -430,9 +453,18 @@ test.describe('P9.6 navigation: interrupting, going back, reduced motion, phones
     await expect.poll(() => zoom(page)).toBe(1);
     await page.locator('[data-target="design"]').click();
     await expect(stage(page)).toHaveAttribute('data-fly', 'flying');
-    const box = (await stage(page).boundingBox())!;
-    await page.mouse.move(box.x + 300, box.y + 300); await page.mouse.down();
-    for (let i = 1; i <= 6; i++) await page.mouse.move(box.x + 300 + i * 8, box.y + 300);
+    // The drag starts on the map itself: the labels move with the flight, and a press on one is not a drag of the map
+    // (P9.8b: a fixed point was sometimes under a passing label, and the flight went on).
+    const [x0, y0] = await page.evaluate(() => {
+      const box = document.querySelector('[data-view]')!.getBoundingClientRect();
+      for (let y = 300; y < box.height - 100; y += 40) for (let x = 300; x < box.width - 420; x += 40) {
+        const hit = document.elementFromPoint(box.left + x, box.top + y);
+        if (hit?.tagName === 'CANVAS') return [box.left + x, box.top + y];
+      }
+      return [box.left + 300, box.top + 300];
+    });
+    await page.mouse.move(x0, y0); await page.mouse.down();
+    for (let i = 1; i <= 6; i++) await page.mouse.move(x0 + i * 8, y0);
     await page.mouse.up();
     await expect(stage(page)).toHaveAttribute('data-fly', 'idle');
     await page.waitForTimeout(1200);
