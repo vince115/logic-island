@@ -10,6 +10,7 @@ import { WORLD_MAP, bridgedRegions } from '@/lib/islands/regions/world-map';
 import { regionTrialEntries } from '@/content/trials';
 import { RegionTrials } from '@/components/trials/region-trials';
 import { trialsEnabled } from '@/lib/trials/flag';
+import { mapPopulation } from '@/lib/presence/map-population';
 
 /*
  * M3.1 regional world prototype: a region's map, /world/cs and /world/ai, with the focused island in `?island=`.
@@ -32,10 +33,13 @@ export default async function RegionPage({ params }: { params: Promise<{ region:
   const { region } = await params;
   if (!regionalWorldEnabled() || !isMappedRegion(region)) notFound();
   const record = { ...getRegion(region)!, id: region };
+  const islands = regionIslands(record.id);
   return <main id="main"><h1 className="visually-hidden">{record.name}</h1>
     {/* The focused island lives in the URL (?island=), read on the client; the map and list render around it. */}
     {/* T.1: the archipelago's trial entries go below the map, only in a build that also has LOGIC_ISLAND_TRIALS=1. */}
-    <div className="home-world"><Suspense><RegionalWorldExplorer regionId={record.id} regionName={record.name} regionNameEn={record.nameEn} islands={regionIslands(record.id)} review={worldReviewEnabled()}
+    <div className="home-world"><Suspense><RegionalWorldExplorer regionId={record.id} regionName={record.name} regionNameEn={record.nameEn} islands={islands} review={worldReviewEnabled()}
+      // Dynamic Island Population (LOGIC_ISLAND_POPULATION_NPC): the region's visitors as figures on its islands and bridges.
+      population={mapPopulation(islands.map(island => island.id))}
       hub={hubSummary().lab}
       // P8.3 (D7): the regions a relation bridge joins to this one; the rest are reached through the world overview.
       neighbours={bridgedRegions(WORLD_MAP, record.id).filter(isMappedRegion).map(id => ({ id, name: getRegion(id)!.name }))}

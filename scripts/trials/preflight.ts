@@ -4,7 +4,8 @@ import { playableQuestions, trialBank } from '@/content/trials';
 import { trialContext } from '@/content/trials/context';
 import { mockBlueprints } from '@/content/trials/mock-exams';
 import { validateTrials } from '@/content/trials/schema';
-import { allowedTrialRoutes, dataChecks, exposureNeedles, leakCheck, routeCheck, type Check } from '@/lib/trials/preflight';
+import { ALLOWED_HANDLERS, PRESENCE_HANDLER, allowedTrialRoutes, dataChecks, exposureNeedles, leakCheck, presenceAnswerProblems, routeCheck, type Check } from '@/lib/trials/preflight';
+import { presenceEnabled } from '@/lib/presence/flag';
 import { ROOT } from './ledger-io';
 import { preflightInput } from './preflight-input';
 
@@ -17,6 +18,10 @@ import { preflightInput } from './preflight-input';
  *
  * --build scans a finished `next build` (client chunks, prerendered pages, route manifests); --probe asks a running
  * server on this machine for the trial routes. Without them those checks are reported as skipped, not passed.
+ *
+ * A build may hold no route handler (API). The one exception is the presence API in a presence build: run the
+ * preflight with LOGIC_ISLAND_PRESENCE=1, as the build was made (src/lib/trials/preflight.ts ALLOWED_HANDLERS). Then
+ * the handler's own files are scanned too, and the probe checks what it answers.
  */
 const args = process.argv.slice(2);
 const opt = (name: string) => args.includes(name) ? args[args.indexOf(name) + 1] : undefined;
@@ -48,7 +53,16 @@ const scanned = build ? [
 checks.push(leakCheck(scanned, needles));
 const routes = build ? Object.keys(JSON.parse(readFileSync(path.join(build, 'prerender-manifest.json'), 'utf8')).routes) : undefined;
 const handlers = build ? Object.keys(JSON.parse(readFileSync(path.join(build, 'server/app-paths-manifest.json'), 'utf8'))).filter(r => r.endsWith('/route')) : undefined;
-checks.push(routeCheck(routes, handlers, allowed, needles));
+const presence = presenceEnabled();
+/** The files an allowed handler runs: the chunks its trace lists, without the packages (they hold no content of ours). */
+const handlerFiles = (handler: string) => {
+  const entry = path.join(build!, 'server/app', `${handler}.js`), trace = `${entry}.nft.json`;
+  if (!existsSync(entry) || !existsSync(trace)) return [];
+  const traced = (JSON.parse(readFileSync(trace, 'utf8')).files as string[]).filter(f => !f.includes('node_modules')).map(f => path.resolve(path.dirname(entry), f));
+  return [entry, ...traced].filter(f => existsSync(f) && statSync(f).isFile()).map(f => ({ path: path.relative(build!, f), text: readFileSync(f, 'utf8') }));
+};
+checks.push(routeCheck(routes, handlers, allowed, needles, { presence,
+  sources: build ? Object.fromEntries((handlers ?? []).filter(h => ALLOWED_HANDLERS.includes(h)).map(h => [h, handlerFiles(h)])) : undefined }));
 
 const probe = opt('--probe');
 if (probe) {
@@ -61,12 +75,21 @@ if (probe) {
     ...[...allowed].map(u => [u, 200] as [string, number]),
     ...hidden.flatMap(e => [`/trials/${e}`, ...unready.map(id => `/trials/${e}/${id}`), ...unready.map(id => `/trials/${e}/${id}/result`)]).map(u => [u, 404] as [string, number]),
     ['/api/trials', 404],
+    // No other API answers, in any build: beside the presence API, under it, or in the trial pages' own space.
+    ['/api', 404], ['/api/presence/sessions', 404], ['/api/presence/route', 404], ['/trials/api', 404],
+    // The presence API itself answers only in a presence build.
+    [PRESENCE_HANDLER.replace(/\/route$/, ''), presence ? 200 : 404],
   ];
   for (const [u, want] of urls) {
     const res = await fetch(new URL(u, origin), { redirect: 'manual' }), body = await res.text();
     if (res.status !== want) fails.push(`${u}: ${res.status}, expected ${want}`);
     const hit = needles.find(n => body.includes(n));
     if (hit) fails.push(`${u}: response holds "${hit}"`);
+    // A presence build: the API's answer is aggregate numbers under known keys, and it sets no cookie on a read.
+    if (presence && want === 200 && u === PRESENCE_HANDLER.replace(/\/route$/, '')) {
+      fails.push(...presenceAnswerProblems(body, needles).map(problem => `${u}: ${problem}`));
+      if (res.headers.get('set-cookie')) fails.push(`${u}: a read sets a cookie`);
+    }
   }
   info.push(`${urls.length} routes asked at ${origin.origin}`);
   checks.push({ id: 'probe', title: 'Runtime route probe', status: fails.length ? 'fail' : 'pass', details: [...fails, ...info] });

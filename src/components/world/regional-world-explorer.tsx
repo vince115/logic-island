@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
@@ -12,7 +12,11 @@ import type { HexGlbSettlement } from '@/lib/islands/hex-buildings';
 import { HexWorldExplorer } from '../islands/hex-world/hex-world-explorer';
 import { HEADER_TOOLS_ID } from '../islands/hex-world/islands-world-explorer';
 import { SCENE_PRESETS, sceneOptions } from '../islands/hex-world/hex-scene-presets';
+import type { PopulationConfig } from '@/lib/presence/population';
 import styles from './world.module.css';
+
+// Dynamic Island Population: the map's figures, downloaded only by a page whose build chose a population source.
+const PopulationLayer = lazy(() => import('@/components/presence/population-layer'));
 
 /** A region one relation bridge away on the world overview. */
 export interface RegionNeighbour { id: RegionId; name: string }
@@ -101,10 +105,12 @@ function RegionMore({ regionId, regionName, islandCount, hub, neighbours, onLeav
  * label, or its list entry when the map is unavailable), and leaving the region tells the overview which region to
  * focus, so the keyboard keeps its place across the three levels.
  */
-export function RegionalWorldExplorer({ regionId, regionName, regionNameEn, islands, hub, neighbours = [], footer, review = false }: { regionId: RegionId; regionName: string; regionNameEn: string; islands: LearningIsland[];
+export function RegionalWorldExplorer({ regionId, regionName, regionNameEn, islands, hub, neighbours = [], footer, review = false, population }: { regionId: RegionId; regionName: string; regionNameEn: string; islands: LearningIsland[];
   hub: { name: string; href: string; labs: number }; neighbours?: RegionNeighbour[]; footer?: ReactNode;
   /** P1-37: decided by the server at build time (worldReviewEnabled); without it `?stress=` has no effect. */
-  review?: boolean }) {
+  review?: boolean;
+  /** Dynamic Island Population: draw the region's online population as walking figures (src/lib/presence/map-population.ts). Unset: none. */
+  population?: PopulationConfig }) {
   const router = useRouter(), path = usePathname(), params = useSearchParams();
   const requested = params.get('island');
   const selectedId = requested && islands.some(i => i.id === requested) ? requested : null;
@@ -154,7 +160,9 @@ export function RegionalWorldExplorer({ regionId, regionName, regionNameEn, isla
   const { layout, camera } = regionLayout(regionId);
   const pins = useSyncExternalStore(subscribePins, () => matchMedia(PINS).matches, () => false);
   const base = useMemo(() => regionSceneOptions(regionId, pins), [regionId, pins]);
-  const sceneOptions = useMemo(() => stress ? { ...base, glbLayouts: [...(base.glbLayouts ?? []), ...stressLayouts(regionId)] } : base, [stress, base, regionId]);
+  // The figures go in through the scene's `extras` (the map's own group); the load test's stand-in models have no footprints, so it draws none.
+  const sceneOptions = useMemo(() => stress ? { ...base, glbLayouts: [...(base.glbLayouts ?? []), ...stressLayouts(regionId)] }
+    : population ? { ...base, extras: <Suspense fallback={null}><PopulationLayer layout={layout} population={population}/></Suspense> } : base, [stress, base, regionId, population, layout]);
   const open = islands.filter(i => !i.planned).length, planned = islands.length - open;
   return <>
     <BackToWorld onLeave={leave}/>

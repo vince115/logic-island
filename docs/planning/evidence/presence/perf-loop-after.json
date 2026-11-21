@@ -1,0 +1,617 @@
+{
+ "build": "after",
+ "commit": "b161d20",
+ "date": "2026-11-21",
+ "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M6)",
+ "flags": "LOGIC_ISLAND_PRESENCE=1 LOGIC_ISLAND_POPULATION_NPC=mock",
+ "method": "docs/planning/evidence/presence/tools/npc-loop-perf.mjs; before and after measured in alternating runs minutes apart; each scenario 20 s (hidden, still: 10 s; orbit: 8 s). cpu: CPU seconds of all browser processes per second of wall clock, in percent of one core.",
+ "runs": {
+  "desktop": {
+   "hiddenTab_40online": [
+    {
+     "run": "h1",
+     "frames": 1,
+     "fps": 0.1,
+     "cpu": 1.7,
+     "mainThread": 0.5
+    }
+   ],
+   "orbit_40online": [
+    {
+     "run": "h1",
+     "frames": 481,
+     "fps": 60.1,
+     "cpu": 71.9,
+     "mainThread": 16.8,
+     "frameMs": 16.7,
+     "frameP95": 16.8,
+     "draws": 69,
+     "triangles": 49545,
+     "shadowDraws": 0
+    }
+   ],
+   "orbit_noNpc": [
+    {
+     "run": "h1",
+     "frames": 481,
+     "fps": 60.1,
+     "cpu": 55.4,
+     "mainThread": 12.4,
+     "frameMs": 16.7,
+     "frameP95": 16.7,
+     "draws": 66,
+     "triangles": 49113,
+     "shadowDraws": 0
+    }
+   ],
+   "reducedMotion_40online": [
+    {
+     "run": "h1",
+     "frames": 0,
+     "fps": 0,
+     "cpu": 1.9,
+     "mainThread": 0.5
+    }
+   ],
+   "idle_noNpc": [
+    {
+     "run": "r2",
+     "frames": 0,
+     "fps": 0,
+     "cpu": 1.7,
+     "mainThread": 0.5
+    },
+    {
+     "run": "r3",
+     "frames": 0,
+     "fps": 0,
+     "cpu": 1.6,
+     "mainThread": 0.4
+    }
+   ],
+   "overview_1online": [
+    {
+     "run": "r2",
+     "figures": 1,
+     "loop": "run:8",
+     "frames": 127,
+     "fps": 6.3,
+     "cpu": 7.7,
+     "mainThread": 1.9,
+     "frameMs": 133.3,
+     "frameP95": 133.4,
+     "draws": 69,
+     "triangles": 49167,
+     "shadowDraws": 0
+    },
+    {
+     "run": "r3",
+     "figures": 1,
+     "loop": "run:8",
+     "frames": 107,
+     "fps": 5.3,
+     "cpu": 6.9,
+     "mainThread": 1.8,
+     "frameMs": 133.2,
+     "frameP95": 133.4,
+     "draws": 69,
+     "triangles": 49167,
+     "shadowDraws": 0
+    }
+   ],
+   "overview_3online": [
+    {
+     "run": "r2",
+     "figures": 3,
+     "loop": "run:8",
+     "frames": 148,
+     "fps": 7.4,
+     "cpu": 7.9,
+     "mainThread": 2,
+     "frameMs": 133.2,
+     "frameP95": 133.4,
+     "draws": 69,
+     "triangles": 49275,
+     "shadowDraws": 0
+    },
+    {
+     "run": "r3",
+     "figures": 3,
+     "loop": "run:8",
+     "frames": 160,
+     "fps": 8,
+     "cpu": 8.3,
+     "mainThread": 2.2,
+     "frameMs": 133.2,
+     "frameP95": 133.4,
+     "draws": 69,
+     "triangles": 49275,
+     "shadowDraws": 0
+    }
+   ],
+   "overview_40online": [
+    {
+     "run": "r2",
+     "figures": 8,
+     "loop": "run:8",
+     "frames": 160,
+     "fps": 8,
+     "cpu": 8.1,
+     "mainThread": 2.1,
+     "frameMs": 116.8,
+     "frameP95": 133.4,
+     "draws": 69,
+     "triangles": 49545,
+     "shadowDraws": 0
+    },
+    {
+     "run": "r3",
+     "figures": 8,
+     "loop": "run:8",
+     "frames": 160,
+     "fps": 8,
+     "cpu": 8,
+     "mainThread": 2.1,
+     "frameMs": 116.8,
+     "frameP95": 133.4,
+     "draws": 69,
+     "triangles": 49545,
+     "shadowDraws": 0
+    }
+   ],
+   "nearbyIsland_40online": [
+    {
+     "run": "r2",
+     "zoom": 63.91670688695476,
+     "loop": "run:20",
+     "foundationsInView": true,
+     "frames": 479,
+     "fps": 23.9,
+     "cpu": 16.5,
+     "mainThread": 3.6,
+     "frameMs": 50,
+     "frameP95": 50.1,
+     "draws": 30,
+     "triangles": 40959,
+     "shadowDraws": 0
+    },
+    {
+     "run": "r3",
+     "zoom": 63.91671191736497,
+     "loop": "run:20",
+     "foundationsInView": true,
+     "frames": 479,
+     "fps": 23.9,
+     "cpu": 16.7,
+     "mainThread": 3.7,
+     "frameMs": 50,
+     "frameP95": 50.1,
+     "draws": 30,
+     "triangles": 40959,
+     "shadowDraws": 0
+    }
+   ],
+   "focused_40online": [
+    {
+     "run": "r2",
+     "zoom": 60.160017223869524,
+     "loop": "run:19",
+     "frames": 457,
+     "fps": 22.8,
+     "cpu": 17.9,
+     "mainThread": 4.2,
+     "frameMs": 50,
+     "frameP95": 66.7,
+     "draws": 42,
+     "triangles": 48733,
+     "shadowDraws": 0
+    },
+    {
+     "run": "r3",
+     "zoom": 60.159925775211775,
+     "loop": "run:19",
+     "frames": 457,
+     "fps": 22.8,
+     "cpu": 17.7,
+     "mainThread": 4.2,
+     "frameMs": 50,
+     "frameP95": 66.7,
+     "draws": 42,
+     "triangles": 48733,
+     "shadowDraws": 0
+    },
+    {
+     "run": "e1",
+     "zoom": 60.159903390010896,
+     "loop": "run:19",
+     "frames": 458,
+     "fps": 22.9,
+     "cpu": 17.5,
+     "mainThread": 4.1,
+     "frameMs": 50,
+     "frameP95": 66.7,
+     "draws": 42,
+     "triangles": 48733,
+     "shadowDraws": 0
+    },
+    {
+     "run": "e2",
+     "zoom": 60.15989455940094,
+     "loop": "run:19",
+     "frames": 458,
+     "fps": 22.9,
+     "cpu": 17.5,
+     "mainThread": 4.1,
+     "frameMs": 50,
+     "frameP95": 66.7,
+     "draws": 42,
+     "triangles": 48733,
+     "shadowDraws": 0
+    }
+   ],
+   "outOfView_40online": [
+    {
+     "run": "e1",
+     "zoom": 64.93666257306755,
+     "loop": "quiet",
+     "foundationsInView": false,
+     "frames": 119,
+     "fps": 5.9,
+     "cpu": 6,
+     "mainThread": 1.4,
+     "frameMs": 16.7,
+     "frameP95": 16.7,
+     "draws": 32,
+     "triangles": 42696,
+     "shadowDraws": 0
+    },
+    {
+     "run": "e2",
+     "zoom": 64.93669186678123,
+     "loop": "quiet",
+     "foundationsInView": false,
+     "frames": 119,
+     "fps": 5.9,
+     "cpu": 6.2,
+     "mainThread": 1.4,
+     "frameMs": 16.7,
+     "frameP95": 16.7,
+     "draws": 32,
+     "triangles": 42696,
+     "shadowDraws": 0
+    }
+   ]
+  },
+  "phone": {
+   "hiddenTab_40online": [
+    {
+     "run": "h1",
+     "frames": 1,
+     "fps": 0.1,
+     "cpu": 1.7,
+     "mainThread": 0.5
+    }
+   ],
+   "orbit_40online": [
+    {
+     "run": "h1",
+     "frames": 480,
+     "fps": 60,
+     "cpu": 41.3,
+     "mainThread": 11.5,
+     "frameMs": 16.7,
+     "frameP95": 16.7,
+     "draws": 69,
+     "triangles": 37139,
+     "shadowDraws": 0
+    }
+   ],
+   "orbit_noNpc": [
+    {
+     "run": "h1",
+     "frames": 481,
+     "fps": 60.1,
+     "cpu": 36.5,
+     "mainThread": 9.7,
+     "frameMs": 16.7,
+     "frameP95": 16.7,
+     "draws": 66,
+     "triangles": 36923,
+     "shadowDraws": 0
+    }
+   ],
+   "reducedMotion_40online": [
+    {
+     "run": "h1",
+     "frames": 0,
+     "fps": 0,
+     "cpu": 1.9,
+     "mainThread": 0.5
+    }
+   ],
+   "idle_noNpc": [
+    {
+     "run": "r2",
+     "frames": 0,
+     "fps": 0,
+     "cpu": 1.7,
+     "mainThread": 0.5
+    },
+    {
+     "run": "r3",
+     "frames": 0,
+     "fps": 0,
+     "cpu": 1.7,
+     "mainThread": 0.5
+    }
+   ],
+   "overview_1online": [
+    {
+     "run": "r2",
+     "figures": 1,
+     "loop": "run:6",
+     "frames": 72,
+     "fps": 3.6,
+     "cpu": 5,
+     "mainThread": 1.4,
+     "frameMs": 166.7,
+     "frameP95": 166.8,
+     "draws": 69,
+     "triangles": 36977,
+     "shadowDraws": 0
+    },
+    {
+     "run": "r3",
+     "figures": 1,
+     "loop": "run:6",
+     "frames": 72,
+     "fps": 3.6,
+     "cpu": 5,
+     "mainThread": 1.4,
+     "frameMs": 166.7,
+     "frameP95": 166.7,
+     "draws": 69,
+     "triangles": 36977,
+     "shadowDraws": 0
+    }
+   ],
+   "overview_3online": [
+    {
+     "run": "r2",
+     "figures": 3,
+     "loop": "run:6",
+     "frames": 73,
+     "fps": 3.6,
+     "cpu": 4.5,
+     "mainThread": 1.3,
+     "frameMs": 166.7,
+     "frameP95": 166.7,
+     "draws": 69,
+     "triangles": 37085,
+     "shadowDraws": 0
+    },
+    {
+     "run": "r3",
+     "figures": 3,
+     "loop": "run:6",
+     "frames": 72,
+     "fps": 3.6,
+     "cpu": 4.5,
+     "mainThread": 1.3,
+     "frameMs": 166.7,
+     "frameP95": 166.8,
+     "draws": 69,
+     "triangles": 37085,
+     "shadowDraws": 0
+    }
+   ],
+   "overview_40online": [
+    {
+     "run": "r2",
+     "figures": 4,
+     "loop": "run:6",
+     "frames": 101,
+     "fps": 5,
+     "cpu": 5,
+     "mainThread": 1.5,
+     "frameMs": 166.7,
+     "frameP95": 166.7,
+     "draws": 69,
+     "triangles": 37139,
+     "shadowDraws": 0
+    },
+    {
+     "run": "r3",
+     "figures": 4,
+     "loop": "run:6",
+     "frames": 101,
+     "fps": 5,
+     "cpu": 4.9,
+     "mainThread": 1.5,
+     "frameMs": 166.7,
+     "frameP95": 166.8,
+     "draws": 69,
+     "triangles": 37139,
+     "shadowDraws": 0
+    }
+   ],
+   "nearbyIsland_40online": [
+    {
+     "run": "r2",
+     "zoom": 23.07339934750862,
+     "loop": "run:6",
+     "foundationsInView": true,
+     "frames": 208,
+     "fps": 10.4,
+     "cpu": 7,
+     "mainThread": 1.8,
+     "frameMs": 166.6,
+     "frameP95": 166.7,
+     "draws": 35,
+     "triangles": 40811,
+     "shadowDraws": 0
+    },
+    {
+     "run": "r3",
+     "zoom": 23.073396472591952,
+     "loop": "run:6",
+     "foundationsInView": true,
+     "frames": 208,
+     "fps": 10.4,
+     "cpu": 6.9,
+     "mainThread": 1.8,
+     "frameMs": 166.6,
+     "frameP95": 166.7,
+     "draws": 35,
+     "triangles": 40811,
+     "shadowDraws": 0
+    }
+   ],
+   "focused_40online": [
+    {
+     "run": "r2",
+     "zoom": 21.717215698800242,
+     "loop": "run:6",
+     "frames": 205,
+     "fps": 10.2,
+     "cpu": 8.3,
+     "mainThread": 2.3,
+     "frameMs": 166.6,
+     "frameP95": 166.7,
+     "draws": 50,
+     "triangles": 46702,
+     "shadowDraws": 0
+    },
+    {
+     "run": "r3",
+     "zoom": 21.71721633684694,
+     "loop": "run:6",
+     "frames": 204,
+     "fps": 10.2,
+     "cpu": 8.3,
+     "mainThread": 2.3,
+     "frameMs": 166.6,
+     "frameP95": 166.7,
+     "draws": 50,
+     "triangles": 46702,
+     "shadowDraws": 0
+    },
+    {
+     "run": "e1",
+     "zoom": 21.717506115122966,
+     "loop": "run:6",
+     "frames": 183,
+     "fps": 9.1,
+     "cpu": 7.5,
+     "mainThread": 2,
+     "frameMs": 166.6,
+     "frameP95": 166.7,
+     "draws": 50,
+     "triangles": 46702,
+     "shadowDraws": 0
+    },
+    {
+     "run": "e2",
+     "zoom": 21.717506119031235,
+     "loop": "run:6",
+     "frames": 164,
+     "fps": 8.2,
+     "cpu": 6.7,
+     "mainThread": 1.8,
+     "frameMs": 16.8,
+     "frameP95": 166.7,
+     "draws": 50,
+     "triangles": 46702,
+     "shadowDraws": 0
+    }
+   ],
+   "outOfView_40online": [
+    {
+     "run": "e1",
+     "zoom": 23.44164950647642,
+     "loop": "quiet",
+     "foundationsInView": false,
+     "frames": 97,
+     "fps": 4.8,
+     "cpu": 4.7,
+     "mainThread": 1.1,
+     "frameMs": 16.7,
+     "frameP95": 16.7,
+     "draws": 39,
+     "triangles": 41756,
+     "shadowDraws": 0
+    },
+    {
+     "run": "e2",
+     "zoom": 23.44158597284643,
+     "loop": "quiet",
+     "foundationsInView": false,
+     "frames": 99,
+     "fps": 4.9,
+     "cpu": 4.7,
+     "mainThread": 1.1,
+     "frameMs": 16.7,
+     "frameP95": 16.8,
+     "draws": 39,
+     "triangles": 41756,
+     "shadowDraws": 0
+    }
+   ]
+  }
+ },
+ "orbitAlternating": {
+  "note": "one page, the camera turning the whole time, the population alternating every 19 s; 10 s windows",
+  "desktop": [
+   {
+    "online": 0,
+    "figures": "0",
+    "fps": 60.1,
+    "cpu": 66.4
+   },
+   {
+    "online": 40,
+    "figures": "8",
+    "fps": 60.1,
+    "cpu": 66.9
+   },
+   {
+    "online": 0,
+    "figures": "0",
+    "fps": 60.1,
+    "cpu": 65.4
+   },
+   {
+    "online": 40,
+    "figures": "8",
+    "fps": 60.1,
+    "cpu": 68.5
+   },
+   {
+    "online": 0,
+    "figures": "0",
+    "fps": 60,
+    "cpu": 65.9
+   },
+   {
+    "online": 40,
+    "figures": "8",
+    "fps": 60,
+    "cpu": 67.2
+   }
+  ]
+ },
+ "focusWithNoFigures": {
+  "note": "camera on the structures island, no figures anywhere, 20 s: the frames the map draws by itself",
+  "desktop": {
+   "frames": 0,
+   "seconds": 20.006,
+   "loop": "quiet"
+  },
+  "phone": {
+   "frames": 0,
+   "seconds": 20.004,
+   "loop": "quiet"
+  }
+ },
+ "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M6, Unspecified Version)"
+}
