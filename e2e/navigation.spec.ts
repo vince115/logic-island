@@ -238,8 +238,8 @@ test('AI 群島入口：首頁「更多學習群島」→ 群島總覽，七座�
     const more = page.getByRole('navigation', { name: '更多學習群島' });
     if (!await more.isVisible()) await page.getByRole('button', { name: /清單/ }).first().click();
     await expect(more.getByRole('link')).toHaveCount(4); // ai, design, web and (P6) sys
-    // AIF-1 (2026-11-22): the AI foundations island opened its first five lessons.
-    await expect(more.getByRole('link', { name: /AI 人工智慧群島/ })).toContainText('已開放 5／160 堂');
+    // AIF-1 (2026-11-22): the AI foundations island opened its first five lessons; AIF-2 five more.
+    await expect(more.getByRole('link', { name: /AI 人工智慧群島/ })).toContainText('已開放 10／160 堂');
     await more.getByRole('link', { name: /AI 人工智慧群島/ }).click();
   }
   await expect(page).toHaveURL('/regions/ai');
