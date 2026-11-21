@@ -13,6 +13,8 @@
 | `packet-journey`、`network-sequence`（CN-0） | 計算機網路島（尚未撰寫） | `network-protocol` 能力已實作：固定情境的訊息順序、由外到內的各層標頭、節點表格與從情境讀出的練習 | 學習者自己改變參數（遺失、延遲、視窗大小）並重新模擬 | `src/lib/network/model.ts` 的情境資料 |
 | `routing-table`、`subnet-calculator` | CN03、CN05、CN07、CN19 | 這幾堂以 `network-protocol` 情境的節點表格（路由表、MAC 表）與子網路練習（答案由 `subnetOf` 計算）呈現 | 可編輯的路由表與最長前綴比對、輸入任意位址的子網路計算器 | `subnetOf`、情境的節點表格 |
 | `search-tree`、`game-tree`、`probability-explorer`、`bayes-net`、`mdp-gridworld`、`knowledge-graph`、`logic-proof`（AIF-0） | AI 基礎島（尚未撰寫） | `python-code` 課以共用追蹤呈現：樹的走訪、圖的走訪、遞迴樹、動態規劃表、變數狀態 | 學習者自己改起點、啟發函數、機率或報酬，重新執行並比較 | 共用追蹤面板、課內的 Python 程式 |
+| `terminal-sim`（LNX-0） | Linux 系統島（尚未撰寫） | `terminal` 能力已實作：課內的機器資料、重播的指令紀錄、嵌入式終端機與以結果檢查的練習；指令只有 P7 實驗的 14 個 | 引擎階段 E1–E9：更多檔案指令、管線與重新導向、使用者與群組、行程、套件、systemd 與日誌、SSH、有界的 Bash 直譯器、cron（見 [LNX0_TERMINAL_CAPABILITY](LNX0_TERMINAL_CAPABILITY.md)） | `src/lib/terminal` 的檔案系統與 Shell（指令組由 profile 選用） |
+| `case-study-board`（LNX01） | Linux 系統島（尚未撰寫） | LNX01 改用 `terminal-sim`（在模擬機器上查看發行版資訊與目錄） | 依需求比較發行版並記錄取捨的分析板 | 無 |
 | `case-study-board` | PL19 | 無（比較表格與逐步說明） | 依情境需求逐項比較語言並記錄取捨的分析板 | 無 |
 | `concurrency-timeline` | PL13、PL14、PL15 | 變數狀態＋時間軸表格、堆疊與佇列容器（固定範例） | 拖曳或選擇排程，看交錯、死結與事件迴圈 | 交易時間軸（`transaction-timeline`）的排程模型 |
 

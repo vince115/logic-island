@@ -14,6 +14,7 @@ import type { BackupPlan, ReplicationScenario } from '@/lib/ops/sim';
 import type { OpsTask } from '@/lib/ops/check';
 import { checkNetworkAnswer, expectedNetworkAnswer, LAYER_MODELS, networkSceneProblems, type NetworkScene, type NetworkTask } from '@/lib/network/model';
 import type { SqlValue } from '@/lib/sql/engine';
+import { terminalContentProblems, type TerminalLessonContent } from '@/lib/terminal/lesson';
 
 /*
  * Phase E curriculum: the shape of the 60 lessons and of a lesson's full content, and the checks every lesson must
@@ -52,17 +53,18 @@ export const ISLAND_IDS = ['foundations', 'structures', 'algorithms', 'programmi
  * ISLAND_IDS together with its first written lesson (as the database and programming-languages islands joined).
  */
 // AIF-0 (2026-11-22): the AI foundations island, written with the python-code capability.
-export const PREPARED_ISLAND_IDS = [] as const;
+// LNX-0 (2026-11-22): the Linux systems island, written with the terminal capability.
+export const PREPARED_ISLAND_IDS = ['linux-systems'] as const;
 export type IslandId = typeof ISLAND_IDS[number] | typeof PREPARED_ISLAND_IDS[number];
 /**
  * F = 基礎程式島, D = 資料結構島, A = 演算法島, then a two-digit position (F01..F20). Phase F.0: the number is two digits in
  * the type too (it was any string, so DB01 or AG01 type-checked as a D or A lesson); IDs of every island, planned ones
  * included, are AnyLessonId in src/content/world/lesson-id.ts and are always parsed with their whole prefix.
  */
-export type LessonPrefixWritten = 'F' | 'D' | 'A' | 'DB' | 'PL' | 'CN' | 'AIF';
+export type LessonPrefixWritten = 'F' | 'D' | 'A' | 'DB' | 'PL' | 'CN' | 'AIF' | 'LNX';
 export type LessonId = `${LessonPrefixWritten}${LessonNumber}`;
 /** 2026-11-20 (course production, batch 1): the programming-languages island (PL) joins with its first written lessons. */
-export const ISLAND_PREFIX: Record<IslandId, LessonPrefixWritten> = { foundations: 'F', structures: 'D', algorithms: 'A', databases: 'DB', 'programming-languages': 'PL', networks: 'CN', 'ai-foundations': 'AIF' };
+export const ISLAND_PREFIX: Record<IslandId, LessonPrefixWritten> = { foundations: 'F', structures: 'D', algorithms: 'A', databases: 'DB', 'programming-languages': 'PL', networks: 'CN', 'ai-foundations': 'AIF', 'linux-systems': 'LNX' };
 
 /**
  * Phase F.1a: a lesson taught in a query language instead of the four programming languages. A SQL lesson has no program
@@ -75,7 +77,7 @@ export type QueryLanguage = typeof QUERY_LANGUAGES[number];
  * with an activity is a database lesson: no program tabs; Phase F.1b adds the ER builder and the normalization steps.
  */
 export const LESSON_ACTIVITIES = ['sql-playground', 'erd-builder', 'normalization-steps', 'query-plan', 'transaction-timeline',
-  'protocol-sequence', 'architecture-diagram', 'ds-comparison', 'challenge-stages', 'packet-journey', 'network-sequence'] as const;
+  'protocol-sequence', 'architecture-diagram', 'ds-comparison', 'challenge-stages', 'packet-journey', 'network-sequence', 'terminal-sim'] as const;
 export type LessonActivity = typeof LESSON_ACTIVITIES[number];
 
 /**
@@ -94,10 +96,12 @@ export type LessonActivity = typeof LESSON_ACTIVITIES[number];
  * network scenes (nodes, messages with their headers by layer, node tables) and exercises answered from them
  * (`content.network`, src/lib/network/model.ts). It is its own capability: protocol-sequence keeps meaning the SQL round
  * trips of the database lessons. AIF-0 adds python-code: a program lesson in Python only (supportedLanguages ['Python']),
- * for the islands whose blueprint exercises are code-python; program-code keeps requiring C++, Java and Python.
+ * for the islands whose blueprint exercises are code-python; program-code keeps requiring C++, Java and Python. LNX-0
+ * adds terminal: small machines as data, transcripts replayed on them and exercises checked by replaying the learner's
+ * commands in the simulated shell (`content.terminal`, src/lib/terminal/lesson.ts).
  */
 export const LESSON_CAPABILITIES = ['program-code', 'sql', 'er-diagram', 'normalization', 'query-plan', 'transaction-timeline',
-  'driver-code', 'protocol-sequence', 'architecture-diagram', 'visualization', 'network-protocol', 'python-code'] as const;
+  'driver-code', 'protocol-sequence', 'architecture-diagram', 'visualization', 'network-protocol', 'python-code', 'terminal'] as const;
 export type LessonCapability = typeof LESSON_CAPABILITIES[number];
 export const hasCapability = (lesson: Pick<LessonMeta, 'capabilities'>, capability: LessonCapability) => lesson.capabilities.includes(capability);
 /**
@@ -110,7 +114,9 @@ const CAPABILITY_ACTIVITY: Record<LessonActivity, LessonCapability> = { 'sql-pla
   'query-plan': 'query-plan', 'transaction-timeline': 'transaction-timeline', 'protocol-sequence': 'protocol-sequence',
   'architecture-diagram': 'architecture-diagram', 'ds-comparison': 'visualization', 'challenge-stages': 'visualization',
   // CN-0: a network lesson's packets through the layers and its message sequences are both drawn from network scenes.
-  'packet-journey': 'network-protocol', 'network-sequence': 'network-protocol' };
+  'packet-journey': 'network-protocol', 'network-sequence': 'network-protocol',
+  // LNX-0: a Linux lesson's commands run in the simulated terminal.
+  'terminal-sim': 'terminal' };
 /** The shared visualizations a database lesson may show (with the visualization capability). */
 export const DATABASE_VISUALIZATIONS = ['ds-comparison', 'challenge-stages'] as const;
 
@@ -464,6 +470,8 @@ export interface LessonContent {
   ops?: OpsLessonContent;
   /** CN-0: network scenes (shown in sections by id) and their exercises. */
   network?: NetworkLessonContent;
+  /** LNX-0: machines, transcripts replayed on them (shown in sections by id) and exercises checked in the simulated shell. */
+  terminal?: TerminalLessonContent;
 }
 
 export interface IslandMeta { id: IslandId; name: string; englishName: string; summary: string }
@@ -587,7 +595,9 @@ export function validateCurriculum({ islands, lessons, contents, visualizations,
  * reference answers are well formed, and no program code. Whether the SQL runs and the answers pass their own checks is
  * tests/curriculum-sql.test.ts and tests/curriculum-db.test.ts. CN-0: the same checks serve every lesson without program
  * code, so a network lesson's scenes count as examples (each consistent, networkSceneProblems) and its exercises as
- * exercises (answer derivable from the scenes, typical mistakes rejected); tests/network-capability.test.ts.
+ * exercises (answer derivable from the scenes, typical mistakes rejected); tests/network-capability.test.ts. LNX-0: a
+ * terminal lesson's transcripts count as examples and its terminal exercises as exercises; terminalContentProblems
+ * replays both (tests/terminal-capability.test.ts).
  */
 export function validateDatabaseContent(lesson: LessonMeta, content: LessonContent): string[] {
   const problems: string[] = [];
@@ -611,11 +621,12 @@ export function validateDatabaseContent(lesson: LessonMeta, content: LessonConte
     if (!sql.presets.length) fail('the playground needs preset queries');
     for (const p of sql.presets) if (!p.label.trim() || !p.sql.trim()) fail('a preset needs a label and SQL');
   }
-  const { driverCode, sequences, ops, network } = content;
+  const { driverCode, sequences, ops, network, terminal } = content;
   const examples = [...sql?.examples ?? [], ...er?.diagrams ?? [], ...normalization?.examples ?? [],
     ...queryPlan?.trees ?? [], ...transactions?.timelines ?? [], ...transactions?.schedules ?? [],
-    ...driverCode?.examples ?? [], ...sequences ?? [], ...ops?.replication ?? [], ...ops?.backups ?? [], ...network?.scenes ?? []];
+    ...driverCode?.examples ?? [], ...sequences ?? [], ...ops?.replication ?? [], ...ops?.backups ?? [], ...network?.scenes ?? [], ...terminal?.examples ?? []];
   for (const scene of network?.scenes ?? []) for (const p of networkSceneProblems(scene)) fail(p);
+  if (terminal) for (const p of terminalContentProblems(terminal)) fail(p);
   for (const e of driverCode?.examples ?? []) {
     const langs = Object.keys(e.code);
     if (!langs.length || langs.some(l => !(DRIVER_LANGUAGES as readonly string[]).includes(l))) fail(`driver example ${e.id} uses ${DRIVER_LANGUAGES.join(', ')} only`);
@@ -653,7 +664,7 @@ export function validateDatabaseContent(lesson: LessonMeta, content: LessonConte
     if (!Number.isInteger(question.answer) || question.answer < 0 || question.answer >= question.options.length) fail(`quiz ${question.id} answer out of range`);
     if (!question.explanation.trim()) fail(`quiz ${question.id} has no explanation`);
   }
-  const exercises = [...sql?.exercises ?? [], ...er?.exercises ?? [], ...normalization?.exercises ?? [], ...transactions?.exercises ?? [], ...ops?.exercises ?? [], ...network?.exercises ?? []];
+  const exercises = [...sql?.exercises ?? [], ...er?.exercises ?? [], ...normalization?.exercises ?? [], ...transactions?.exercises ?? [], ...ops?.exercises ?? [], ...network?.exercises ?? [], ...terminal?.exercises ?? []];
   // CN-0: each network exercise's answer comes from the scenes (or is computed), and each typical mistake is rejected.
   for (const exercise of network?.exercises ?? []) {
     try {
@@ -712,7 +723,7 @@ export function validateContent(lesson: LessonMeta, content: LessonContent, visu
   // Phase F.1b: each declared capability has its content, and no content appears without its capability.
   const parts: [LessonCapability, boolean][] = [['sql', !!content.sql], ['er-diagram', !!content.er], ['normalization', !!content.normalization],
     ['query-plan', !!content.queryPlan], ['transaction-timeline', !!content.transactions], ['driver-code', !!content.driverCode],
-    ['protocol-sequence', !!content.sequences], ['architecture-diagram', !!content.ops], ['network-protocol', !!content.network]];
+    ['protocol-sequence', !!content.sequences], ['architecture-diagram', !!content.ops], ['network-protocol', !!content.network], ['terminal', !!content.terminal]];
   // A database lesson shows a shared visualization only with the visualization capability (program lessons always may).
   if (!hasProgramCode(lesson) && hasCapability(lesson, 'visualization') !== !!content.visualization)
     fail(content.visualization ? 'has a visualization without the visualization capability' : 'the visualization capability needs a visualization');

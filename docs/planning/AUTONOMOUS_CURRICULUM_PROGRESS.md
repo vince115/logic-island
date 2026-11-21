@@ -25,9 +25,9 @@
 
 ## 下一批（自動選擇）
 
-目前沒有能力已備妥、先修已滿足的島嶼；先處理「能力缺口」的第一項。
+**Linux 系統島（LNX）**：LNX01 Linux 概論與發行版、LNX02 終端機與 Shell 基礎、LNX03 Linux 檔案系統階層、LNX04 檔案與目錄操作、LNX05 文字處理、管線與重新導向。島嶼能力：已備妥（可開始撰寫）；這幾堂解鎖其他島的 67 堂。
 
-能力缺口中最優先的是 **Linux 系統島（LNX）**：需要 terminal (the /learn/linux-terminal engine as a lesson capability with per-lesson file systems and checked tasks)；先修已滿足、可依序撰寫的有 15 堂，前 5 堂解鎖其他島的 67 堂。
+能力缺口中最優先的是 **大型語言模型島（LLM）**：需要 python-code + token, sampling and prompt explorers on recorded outputs (T3)；先修已滿足、可依序撰寫的有 3 堂，前 3 堂解鎖其他島的 58 堂。
 
 選擇規則：島嶼的課程能力已可用或已備妥 → 先修已滿足（編號即位置，只能從下一個未發布的編號連續往後）→ 解鎖其他島的課程較多 → 區域與島嶼順序。
 
@@ -58,7 +58,7 @@
 | 網頁與應用開發群島 | 前端開發島（FE） | 0／15 | web-code + state-flow trace | 缺少 | — | 缺少課程能力；FE01 需要尚未發布的 WEB09 |
 | 網頁與應用開發群島 | 響應式設計島（RWD） | 0／12 | web-code + responsive simulator (the standalone lab exists) | 缺少 | — | 缺少課程能力；RWD01 需要尚未發布的 WEB06 |
 | 網頁與應用開發群島 | 行動應用島（MOB） | 0／13 | web-code + case-analysis | 缺少 | — | 缺少課程能力；MOB01 需要尚未發布的 RWD01 |
-| 系統與雲端工程群島 | Linux 系統島（LNX） | 0／15 | terminal (the /learn/linux-terminal engine as a lesson capability with per-lesson file systems and checked tasks) | 缺少 | LNX01–LNX15（15 堂） | 缺少課程能力 |
+| 系統與雲端工程群島 | Linux 系統島（LNX） | 0／15 | terminal (machines as data, transcripts replayed to their exact output, exercises checked by replaying the learner's commands in the simulated shell) | 已備妥（可開始撰寫） | LNX01–LNX15（15 堂） | — |
 | 系統與雲端工程群島 | Docker 容器島（DKR） | 0／15 | container simulation | 缺少 | — | 缺少課程能力；DKR01 需要尚未發布的 LNX08 |
 | 系統與雲端工程群島 | 網路與伺服器島（SRV） | 0／14 | request-path simulation + terminal | 缺少 | — | 缺少課程能力；SRV01 需要尚未發布的 LNX02 |
 | 系統與雲端工程群島 | 雲端基礎設施島（CLD） | 0／15 | architecture simulation | 缺少 | CLD01–CLD02（2 堂） | 缺少課程能力；CLD03 需要尚未發布的 LNX12 |
@@ -71,7 +71,6 @@
 
 | 島嶼 | 需要的能力 | 可依序撰寫 | 解鎖其他島 | 備註 |
 |---|---|---|---|---|
-| Linux 系統島（LNX） | terminal (the /learn/linux-terminal engine as a lesson capability with per-lesson file systems and checked tasks) | 15 | 67 | engine exists; shell covers pwd, ls, cd, mkdir, touch, cat, cp, mv, rm, chmod, echo, whoami |
 | 大型語言模型島（LLM） | python-code + token, sampling and prompt explorers on recorded outputs (T3) | 3 | 58 | — |
 | 網頁基礎島（WEB） | web-code (HTML, CSS and DOM in a sandboxed frame, checked by DOM queries) | 15 | 40 | — |
 | 機器學習島（ML） | python-code + data-explorer (fixed datasets, metrics computed in the browser) | 25 | 39 | — |
@@ -660,21 +659,21 @@
 
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
-| LNX01 | Linux 概論與發行版 | 待能力 | — | case-study-board | 課程能力 |
-| LNX02 | 終端機與 Shell 基礎 | 待能力 | LNX01 | terminal-sim | 課程能力、先修 LNX01 |
-| LNX03 | Linux 檔案系統階層 | 待能力 | LNX02 | terminal-sim | 課程能力、先修 LNX02 |
-| LNX04 | 檔案與目錄操作 | 待能力 | LNX03 | terminal-sim | 課程能力、先修 LNX03 |
-| LNX05 | 文字處理、管線與重新導向 | 待能力 | LNX04 | terminal-sim | 課程能力、先修 LNX04 |
-| LNX06 | 使用者與群組 | 待能力 | LNX04 | terminal-sim | 課程能力、先修 LNX04 |
-| LNX07 | Linux 權限與 chmod | 待能力 | LNX06 | terminal-sim | 課程能力、先修 LNX06 |
-| LNX08 | Process 管理與訊號 | 待能力 | LNX05 | terminal-sim | 課程能力、先修 LNX05 |
-| LNX09 | 套件管理 | 待能力 | LNX06 | terminal-sim | 課程能力、先修 LNX06 |
-| LNX10 | systemd 與服務管理 | 待能力 | LNX08 | terminal-sim | 課程能力、先修 LNX08 |
-| LNX11 | 日誌與 journalctl | 待能力 | LNX05、LNX10 | terminal-sim | 課程能力、先修 LNX05、LNX10 |
-| LNX12 | SSH 遠端連線與金鑰 | 待能力 | LNX07 | protocol-sequence | 課程能力、先修 LNX07 |
-| LNX13 | Bash Script 撰寫 | 待能力 | LNX05、LNX07 | terminal-sim | 課程能力、先修 LNX05、LNX07 |
-| LNX14 | 排程：cron 與 systemd timer | 待能力 | LNX10、LNX13 | terminal-sim | 課程能力、先修 LNX10、LNX13 |
-| LNX15 | Linux 系統島綜合專題：維護一台伺服器 | 待能力 | LNX09、LNX11、LNX12、LNX14 | challenge-stages | 課程能力、先修 LNX09、LNX11、LNX12、LNX14 |
+| LNX01 | Linux 概論與發行版 | 大綱 | — | case-study-board | — |
+| LNX02 | 終端機與 Shell 基礎 | 待先修 | LNX01 | terminal-sim | 先修 LNX01 |
+| LNX03 | Linux 檔案系統階層 | 待先修 | LNX02 | terminal-sim | 先修 LNX02 |
+| LNX04 | 檔案與目錄操作 | 待先修 | LNX03 | terminal-sim | 先修 LNX03 |
+| LNX05 | 文字處理、管線與重新導向 | 待先修 | LNX04 | terminal-sim | 先修 LNX04 |
+| LNX06 | 使用者與群組 | 待先修 | LNX04 | terminal-sim | 先修 LNX04 |
+| LNX07 | Linux 權限與 chmod | 待先修 | LNX06 | terminal-sim | 先修 LNX06 |
+| LNX08 | Process 管理與訊號 | 待先修 | LNX05 | terminal-sim | 先修 LNX05 |
+| LNX09 | 套件管理 | 待先修 | LNX06 | terminal-sim | 先修 LNX06 |
+| LNX10 | systemd 與服務管理 | 待先修 | LNX08 | terminal-sim | 先修 LNX08 |
+| LNX11 | 日誌與 journalctl | 待先修 | LNX05、LNX10 | terminal-sim | 先修 LNX05、LNX10 |
+| LNX12 | SSH 遠端連線與金鑰 | 待先修 | LNX07 | protocol-sequence | 先修 LNX07 |
+| LNX13 | Bash Script 撰寫 | 待先修 | LNX05、LNX07 | terminal-sim | 先修 LNX05、LNX07 |
+| LNX14 | 排程：cron 與 systemd timer | 待先修 | LNX10、LNX13 | terminal-sim | 先修 LNX10、LNX13 |
+| LNX15 | Linux 系統島綜合專題：維護一台伺服器 | 待先修 | LNX09、LNX11、LNX12、LNX14 | challenge-stages | 先修 LNX09、LNX11、LNX12、LNX14 |
 
 ### 系統與雲端工程群島 · Docker 容器島（DKR）
 

@@ -1,0 +1,74 @@
+/* LNX-0 terminal capability: transcripts, machine trees and the exercise console. The terminal keeps a dark screen in
+   both themes, as the P7 lab does (terminal-lab.module.css): text #e2e8f0 14.48:1, errors #fca5a5 9.41:1, prompt
+   #86efac 12.71:1 on #0f172a. Nothing animates (no transitions, no smooth scrolling). Long lines wrap inside their box
+   and wide trees scroll inside theirs, so the page never scrolls sideways on a phone. */
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 12px;
+  margin-top: 10px;
+}
+@media (max-width: 760px) {
+  .split { grid-template-columns: minmax(0, 1fr); }
+}
+.figure { margin: 0; min-width: 0; }
+.figure figcaption { font-size: var(--text-sm); font-weight: 650; margin-bottom: 6px; }
+
+.transcript {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #1e293b;
+  background: #0f172a;
+  color: #e2e8f0;
+  font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.prompt { color: #86efac; font: inherit; font-weight: 600; }
+.command { color: #f8fafc; }
+.output { color: #e2e8f0; }
+
+.tree {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre;
+  overflow: auto;
+  max-height: 320px;
+}
+
+.terminal { border-radius: 10px; overflow: hidden; background: #0f172a; color: #e2e8f0; border: 1px solid #1e293b; min-width: 0; }
+.screen { height: 240px; overflow: auto; padding: 12px 14px; font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.line { white-space: pre-wrap; overflow-wrap: anywhere; }
+.line[data-kind='err'] { color: #fca5a5; }
+.line[data-kind='cmd'] { color: #f8fafc; }
+.inputRow { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-top: 1px solid #1e293b; font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.inputRow label { flex: none; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inputRow input {
+  flex: 1; min-width: 0; min-height: 44px; padding: 0 8px; border-radius: 6px; border: 1px solid #334155;
+  background: #020617; color: #f8fafc; font: inherit; font-size: 16px;
+}
+.inputRow input:focus-visible,
+.inputRow button:focus-visible { outline: 2px solid #86efac; outline-offset: 1px; }
+.inputRow button { flex: none; min-height: 44px; padding: 0 14px; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: #f8fafc; font-weight: 650; }
+/* Phones: the prompt takes its own line so the input keeps a usable width. */
+@media (max-width: 520px) {
+  .inputRow { flex-wrap: wrap; }
+  .inputRow label { flex-basis: 100%; max-width: 100%; }
+}
+
+.help { font-size: var(--text-xs); color: var(--cur-muted, var(--muted)); margin: 8px 0 0; }
+.current { margin-top: 10px; font-size: var(--text-sm); }
+.current summary { cursor: pointer; font-weight: 650; min-height: 32px; }
+.current .tree { margin-top: 6px; }
+
+.checks { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; font-size: var(--text-sm); }
+.checks li { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 6px; align-items: start; overflow-wrap: anywhere; }
+.checks li > svg { margin-top: 3px; }
+.checks li[data-ok='true'] > svg { color: var(--cur-ok); }
+.checks li[data-ok='false'] > svg { color: var(--cur-bad); }
