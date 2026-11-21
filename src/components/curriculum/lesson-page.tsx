@@ -13,6 +13,7 @@ import { highlight, highlightAll } from '@/lib/highlight/server';
 import { IslandProgress, LessonCompletion, ProgressBadge } from './progress';
 import { Quiz } from './quiz';
 import { Rich } from './rich';
+import { shownText } from './pre-text';
 import { DatabaseLessonBody, databaseExamples } from './database-lesson';
 import { ChallengeStages, Complexity, ConditionalBranch, DsComparison, Trace } from './visualizations';
 import styles from './curriculum.module.css';
@@ -190,8 +191,8 @@ function BlockView({ block, examples, activityExamples }: { block: Block; exampl
  * A test's text as shown on the page: large generated tests (up to hundreds of kilobytes, used by the automated
  * three-language check) show their first lines and say how big they are, so the page stays light.
  */
-function TestText({ text }: { text: string }) {
-  const lines = text.split('\n');
+function TestText({ text: raw }: { text: string }) {
+  const text = shownText(raw), lines = text.split('\n');
   if (text.length <= 600 && lines.length <= 20) return <pre>{text}</pre>;
   const head = lines.slice(0, 8).map(l => l.length > 80 ? `${l.slice(0, 80)}…` : l).join('\n');
   return <><pre>{head}{'\n'}…</pre><p className={styles.muted}>大型測資：共 {lines.length.toLocaleString('en-US')} 行、{text.length.toLocaleString('en-US')} 個字元，只顯示開頭；完整內容在自動驗證中使用。</p></>;
@@ -208,7 +209,7 @@ function ExerciseView({ exercise }: { exercise: Exercise }) {
       <dt>限制</dt><dd><ul>{exercise.constraints.map(c => <li key={c}>{c}</li>)}</ul></dd>
     </dl>
     <h4>範例</h4>
-    {exercise.samples.map((s, i) => <div key={i} className={styles.sample}><div><span>輸入</span><pre>{s.input}</pre></div><div><span>輸出</span><pre>{s.output}</pre></div><p className={styles.muted}>{s.note}</p></div>)}
+    {exercise.samples.map((s, i) => <div key={i} className={styles.sample}><div><span>輸入</span><pre>{shownText(s.input)}</pre></div><div><span>輸出</span><pre>{shownText(s.output)}</pre></div><p className={styles.muted}>{s.note}</p></div>)}
     {exercise.starter && <><h4>起始程式碼</h4><CodeTabs code={exercise.starter} tokens={highlightAll(exercise.starter)} label={`${exercise.title} 起始程式碼`}/></>}
     <details className={styles.details}><summary>提示（{exercise.hints.length}）</summary><ul>{exercise.hints.map(h => <li key={h}><Rich text={h}/></li>)}</ul></details>
     <details className={styles.details}><summary>測資（{exercise.tests.length} 組：一般、邊界{exercise.tests.some(t => t.kind === 'error') ? '、錯誤輸入' : ''}）</summary>
