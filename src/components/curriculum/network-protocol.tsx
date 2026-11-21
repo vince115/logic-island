@@ -87,7 +87,17 @@ export function NetworkExerciseBox({ exercise, scenes }: { exercise: NetworkExer
   const set = (k: string, v: string) => { setValues(old => ({ ...old, [k]: v })); setResult(undefined); };
   const model = exercise.task === 'layer' ? scenes.find(s => s.id === exercise.scene)?.model : undefined;
   return <div className={activities.builder}>
-    {model ? <fieldset className={styles.choices}><legend>{fields.layer}</legend>
+    {exercise.task === 'firewall' ? <>
+      <div className={styles.tableWrap}><table className={styles.table}>
+        <caption>用來檢查規則的封包（依序判斷，第一條符合的規則決定）</caption>
+        <thead><tr>{['封包', '協定', '來源', '目的', '目的埠', '連線狀態'].map(h => <th key={h} scope="col">{h}</th>)}</tr></thead>
+        <tbody>{exercise.packets.map(p => <tr key={p.label}><th scope="row">{p.label}</th><td>{p.protocol}</td><td>{p.src}</td><td>{p.dst}</td><td>{p.port ?? '—'}</td><td>{p.state === 'established' ? '已建立' : '新連線'}</td></tr>)}</tbody>
+      </table></div>
+      <label className={styles.rulesLabel}>{fields.rules}
+        <textarea className={styles.rules} rows={7} value={values.rules ?? ''} spellCheck={false} autoCapitalize="off"
+          placeholder={'default deny\nallow tcp from any to 203.0.113.10 port 443'} onChange={e => set('rules', e.target.value)}/></label>
+    </>
+      : model ? <fieldset className={styles.choices}><legend>{fields.layer}</legend>
       {LAYER_MODELS[model].layers.map(l => <label key={l.id}><input type="radio" name={name} value={l.id} checked={values.layer === l.id} onChange={() => set('layer', l.id)}/>{l.name}（{l.en}）</label>)}
     </fieldset>
       : <div className={activities.row}>{Object.entries(fields).map(([k, label]) => <label key={k}>{label}

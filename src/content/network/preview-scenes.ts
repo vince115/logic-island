@@ -140,4 +140,15 @@ export const previewExercises: NetworkExercise[] = [
     hints: ['/26 的遮罩是 255.255.255.192，最後一個位元組的區塊大小是 64。', '130 落在 128–191 這一塊。'],
     explanation: '區塊大小 64：130 落在 128–191，所以網路位址 192.0.2.128、廣播位址 192.0.2.191，主機位元 6 個，可用主機 2⁶ − 2 = 62。',
     mistakes: [{ answer: { network: '192.0.2.0', broadcast: '192.0.2.255', hosts: '254' }, why: '把 /26 當成 /24：前綴長度決定主機位元有幾個，/26 只剩 6 個。' }] },
+  { id: 'preview-firewall', task: 'firewall', title: '只開放網站的防火牆',
+    reference: 'default deny\nallow tcp from any to 203.0.113.80 port 443\nallow tcp from any to any established',
+    packets: [
+      { label: '外部連 HTTPS', protocol: 'tcp', src: '198.51.100.7', dst: '203.0.113.80', port: 443, state: 'new' },
+      { label: '外部連 SSH', protocol: 'tcp', src: '198.51.100.7', dst: '203.0.113.80', port: 22, state: 'new' },
+      { label: '回應封包', protocol: 'tcp', src: '198.51.100.7', dst: '203.0.113.80', port: 51000, state: 'established' },
+    ],
+    statement: '網頁伺服器 203.0.113.80 只對外提供 HTTPS。寫出防火牆規則：預設擋下，只放行連到它 443 埠的新連線，以及已建立連線的回應封包。',
+    hints: ['先寫 default deny，再一條一條放行需要的服務。', '回應封包屬於已建立的連線，可以用 established 放行。'],
+    explanation: 'default deny 讓沒寫到的都被擋下；allow tcp from any to 203.0.113.80 port 443 放行 HTTPS；allow tcp from any to any established 放行已建立連線的封包。規則的順序或寫法不同也可以，只要每個封包的結果相同。',
+    mistakes: [{ answer: { rules: 'default allow' }, why: '預設放行：SSH 這類沒打算開放的服務也會被放行。' }] },
 ];
