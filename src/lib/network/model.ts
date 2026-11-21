@@ -55,25 +55,42 @@ export interface NetworkScene { id: string; title: string; description: string; 
 /**
  * field: the value of one header field of one message (an ACK number, a destination MAC after a router, a TTL).
  * layer: which layer of the scene's model carries a protocol's header. subnet: an address and prefix length give the
- * network address, the broadcast address and the number of usable hosts, computed by subnetOf.
+ * network address, the broadcast address and the number of usable hosts, computed by subnetOf. delay: a packet of
+ * `bytes` on a link of `bandwidth` bits per second and `distance` metres (signal speed `speed` m/s, 2×10⁸ in copper and
+ * fibre when omitted) gives the transmission, propagation and total delay in milliseconds, computed by delayOf.
  */
 export type NetworkTask =
   | { task: 'field'; scene: string; message: string; layer: LayerId; field: string }
   | { task: 'layer'; scene: string; protocol: string }
-  | { task: 'subnet'; address: string; prefix: number };
+  | { task: 'subnet'; address: string; prefix: number }
+  | { task: 'delay'; bytes: number; bandwidth: number; distance: number; speed?: number };
 
 export const NETWORK_FIELDS: Record<NetworkTask['task'], Record<string, string>> = {
   field: { value: '欄位的值' },
   layer: { layer: '所在的層' },
   subnet: { network: '網路位址', broadcast: '廣播位址', hosts: '可用主機數' },
+  delay: { transmission: '傳輸延遲（毫秒）', propagation: '傳播延遲（毫秒）', total: '總延遲（毫秒）' },
 };
+/** Numeric answers (delay) are compared as numbers to this many milliseconds, so 0.8 and 0.800 are the same answer. */
+export const DELAY_TOLERANCE = 0.0005;
 const HINTS: Record<string, string> = {
   value: '找到這一步的訊息，從外層往內一層一層看標頭：只有屬於題目那一層的標頭才有這個欄位。',
   layer: '想一想這個協定負責什麼：在兩個程式之間（應用）、兩端的行程之間（傳輸）、跨網路找路（網路）、還是同一段鏈路上的下一站（鏈結）。',
   network: '網路位址是把位址與遮罩做 AND：主機位元全部變成 0。',
   broadcast: '廣播位址是網路位址的主機位元全部變成 1。',
   hosts: '主機位元有 32 − 前綴長度 個；扣掉全 0 的網路位址與全 1 的廣播位址（/31 與 /32 例外）。',
+  transmission: '傳輸延遲是把整個封包推上線路的時間：位元數 ÷ 頻寬（位元組要先乘以 8）。',
+  propagation: '傳播延遲是訊號走完線路的時間：距離 ÷ 訊號速度，和封包大小無關。',
+  total: '總延遲是傳輸延遲加傳播延遲（這裡不計排隊與處理延遲）。',
 };
+
+/** Transmission, propagation and total delay in milliseconds (rounded to the microsecond), or undefined for bad input. */
+export function delayOf(bytes: number, bandwidth: number, distance: number, speed = 2e8): { transmission: number; propagation: number; total: number } | undefined {
+  if (![bytes, bandwidth, distance, speed].every(Number.isFinite) || bytes <= 0 || bandwidth <= 0 || distance < 0 || speed <= 0) return undefined;
+  const round = (ms: number) => Math.round(ms * 1000) / 1000;
+  const transmission = bytes * 8 / bandwidth * 1000, propagation = distance / speed * 1000;
+  return { transmission: round(transmission), propagation: round(propagation), total: round(transmission + propagation) };
+}
 
 // ---- IPv4 ------------------------------------------------------------------------------------------------------
 const QUAD = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
@@ -117,6 +134,11 @@ export function expectedNetworkAnswer(t: NetworkTask, scenes: readonly NetworkSc
       if (!s) throw new Error(`invalid subnet ${t.address}/${t.prefix}`);
       return { network: s.network, broadcast: s.broadcast, hosts: String(s.hosts) };
     }
+    case 'delay': {
+      const d = delayOf(t.bytes, t.bandwidth, t.distance, t.speed);
+      if (!d) throw new Error(`invalid delay ${t.bytes} B, ${t.bandwidth} bit/s, ${t.distance} m`);
+      return { transmission: String(d.transmission), propagation: String(d.propagation), total: String(d.total) };
+    }
   }
 }
 /** Compared case-insensitively with spaces removed (MAC addresses, hex and flags are written in different cases). */
@@ -125,8 +147,9 @@ export function checkNetworkAnswer(t: NetworkTask, scenes: readonly NetworkScene
   const expected = expectedNetworkAnswer(t, scenes), messages: string[] = [];
   for (const [field, value] of Object.entries(expected)) {
     const got = answer[field];
+    const numeric = t.task === 'delay', number = Number(got?.trim());
     if (!got?.trim()) messages.push(`還沒有填「${NETWORK_FIELDS[t.task][field]}」。`);
-    else if (normalize(got) !== normalize(value)) messages.push(`「${NETWORK_FIELDS[t.task][field]}」不對：${HINTS[field]}`);
+    else if (numeric ? !(Math.abs(number - Number(value)) <= DELAY_TOLERANCE) : normalize(got) !== normalize(value)) messages.push(`「${NETWORK_FIELDS[t.task][field]}」不對：${HINTS[field]}`);
   }
   return { ok: !messages.length, messages };
 }

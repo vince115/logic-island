@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkNetworkAnswer, expectedNetworkAnswer, networkSceneProblems, parseIpv4, subnetOf, type NetworkScene } from '@/lib/network/model';
+import { checkNetworkAnswer, delayOf, expectedNetworkAnswer, networkSceneProblems, parseIpv4, subnetOf, type NetworkScene } from '@/lib/network/model';
 import { httpThroughRouter, previewScenes, switchLearning, tcpHandshake } from '@/content/network/preview-scenes';
 
 /* CN-0: the network-protocol capability's data model (src/lib/network/model.ts): scenes, exercise answers, IPv4. */
@@ -21,6 +21,24 @@ describe('IPv4 and subnets', () => {
     expect(subnetOf('192.0.2.5', 32)).toEqual({ network: '192.0.2.5', broadcast: '192.0.2.5', hosts: 1 });
     expect(subnetOf('192.0.2.5', 0)).toEqual({ network: '0.0.0.0', broadcast: '255.255.255.255', hosts: 2 ** 32 - 2 });
     for (const [a, p] of [['192.0.2.5', 33], ['192.0.2.5', -1], ['192.0.2.5', 24.5], ['300.0.0.1', 24]] as const) expect(subnetOf(a, p), `${a}/${p}`).toBeUndefined();
+  });
+});
+
+describe('delay', () => {
+  it('computes transmission, propagation and total delay in milliseconds', () => {
+    // 1500 B on 100 Mbit/s over 2000 km: 0.12 ms on the wire, 10 ms of travel.
+    expect(delayOf(1500, 100e6, 2_000_000)).toEqual({ transmission: 0.12, propagation: 10, total: 10.12 });
+    expect(delayOf(1_000_000, 8e6, 0)).toEqual({ transmission: 1000, propagation: 0, total: 1000 });
+    expect(delayOf(100, 1e9, 300, 3e8)).toEqual({ transmission: 0.001, propagation: 0.001, total: 0.002 });
+    for (const bad of [[0, 1e6, 1], [100, 0, 1], [100, 1e6, -1], [100, 1e6, 1, 0], [NaN, 1e6, 1]]) expect(delayOf(...bad as [number, number, number, number?]), String(bad)).toBeUndefined();
+  });
+  it('checks delay answers as numbers', () => {
+    const t = { task: 'delay', bytes: 1500, bandwidth: 100e6, distance: 2_000_000 } as const;
+    expect(expectedNetworkAnswer(t, [])).toEqual({ transmission: '0.12', propagation: '10', total: '10.12' });
+    expect(checkNetworkAnswer(t, [], { transmission: '0.120', propagation: '10.0', total: ' 10.12 ' }).ok).toBe(true);
+    expect(checkNetworkAnswer(t, [], { transmission: '0.015', propagation: '10', total: '10.015' }).messages).toEqual([expect.stringMatching(/傳輸延遲（毫秒）」不對/), expect.stringMatching(/總延遲（毫秒）」不對/)]);
+    expect(checkNetworkAnswer(t, [], { transmission: 'abc', propagation: '10', total: '10.12' }).ok).toBe(false);
+    expect(() => expectedNetworkAnswer({ task: 'delay', bytes: 0, bandwidth: 1, distance: 1 }, [])).toThrow(/invalid delay/);
   });
 });
 

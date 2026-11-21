@@ -74,6 +74,12 @@ describe('NetworkExerciseBox', () => {
     fireEvent.click(screen.getByRole('button', { name: '檢查答案' }));
     expect(screen.getByText('正確。')).toBeTruthy();
   });
+  it('takes delay answers as numbers', () => {
+    render(<NetworkExerciseBox exercise={{ id: 'd', title: 'd', statement: 's', hints: [], explanation: 'e', mistakes: [], task: 'delay', bytes: 1500, bandwidth: 100e6, distance: 2_000_000 }} scenes={previewScenes}/>);
+    for (const [name, value] of [['傳輸延遲（毫秒）', '0.12'], ['傳播延遲（毫秒）', '10'], ['總延遲（毫秒）', '10.120']]) fireEvent.change(screen.getByRole('textbox', { name }), { target: { value } });
+    fireEvent.click(screen.getByRole('button', { name: '檢查答案' }));
+    expect(screen.getByText('正確。')).toBeTruthy();
+  });
   it('takes the three subnet values', () => {
     render(<NetworkExerciseBox exercise={previewExercises[2]} scenes={previewScenes}/>);
     for (const [name, value] of [['網路位址', '192.0.2.128'], ['廣播位址', '192.0.2.191'], ['可用主機數', '62']]) fireEvent.change(screen.getByRole('textbox', { name }), { target: { value } });

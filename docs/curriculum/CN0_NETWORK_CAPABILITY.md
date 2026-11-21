@@ -57,7 +57,7 @@ graph LR
 |---|---|---|
 | 資料模型 | `src/lib/network/model.ts` | 情境 `NetworkScene`：模型（`tcp-ip` 四層或 `osi` 七層）、節點（主機、伺服器、路由器、交換器、無線基地台、DNS 伺服器）、依序的訊息。每則訊息有來源、目的、名稱、各層標頭（由上層往下，一層一個）、資料、說明、遺失與否，以及這一步之後節點的表格（MAC 表、ARP 快取、NAT 表、路由表；標出新增或更新的列） |
 | 驗證 | `networkSceneProblems` | 節點與訊息 id 不重複、至少兩個節點、訊息的節點存在且不送給自己、標頭依模型的層序且每層一個、欄位不重複不空白、表格不參差、標記的列存在 |
-| 練習 | `expectedNetworkAnswer`、`checkNetworkAnswer` | `field`：某一步某一層的某個欄位；`layer`：協定的標頭在情境模型的哪一層；`subnet`：網路位址、廣播位址、可用主機數，由 `subnetOf` 計算（含 /31、/32）。答案只從情境讀出或計算，不另外寫在課程裡；比對忽略大小寫與空白。每個練習要有「常見錯誤」，驗證器確認常見錯誤真的不會通過 |
+| 練習 | `expectedNetworkAnswer`、`checkNetworkAnswer` | `field`：某一步某一層的某個欄位；`layer`：協定的標頭在情境模型的哪一層；`subnet`：網路位址、廣播位址、可用主機數，由 `subnetOf` 計算（含 /31、/32）。`delay`：封包大小、頻寬、距離（與訊號速度）得到傳輸、傳播與總延遲（毫秒），由 `delayOf` 計算，答案以數字比對（容許 0.0005 毫秒）。答案只從情境讀出或計算，不另外寫在課程裡；比對忽略大小寫與空白。每個練習要有「常見錯誤」，驗證器確認常見錯誤真的不會通過 |
 | 課程內容 | `LessonContent.network` | `{ scenes, exercises }`；情境以 `{ type: 'example', id }` 放在段落中，計入範例數 |
 | 元件 | `src/components/curriculum/network-protocol.tsx` | 同一步的三種呈現：訊息順序（寬螢幕畫成節點之間的箭頭，手機改為文字）、目前訊息由外到內的標頭與資料、節點表格。共用的逐步控制（按鈕、方向鍵、Home／End）或直接選訊息；目前步驟以 `aria-current` 標示，說明以 `aria-live` 宣告；遺失以文字「（遺失）」說明，不只靠虛線；只有在使用者沒有要求減少動態時才有轉場 |
 | 課程大綱 | `networkFromBlueprint`（`lessons.ts`） | 標題、目標、概念、難度、先修取自藍圖。活動：`packet-journey` 保持；藍圖的 `protocol-sequence` 改為 `network-sequence`；尚未建置的 `routing-table`、`subnet-calculator` 以情境呈現（活動記為 `packet-journey`），留在 [INTERACTIVE_LAB_ROADMAP](INTERACTIVE_LAB_ROADMAP.md)；綜合挑戰加上 `visualization`（`challenge-stages`） |
@@ -91,7 +91,7 @@ graph LR
 | 課程 | 藍圖活動 → 課程活動 | 呈現方式 |
 |---|---|---|
 | CN01 網路分層模型 | packet-journey → packet-journey | HTTP 請求經過路由器的封裝與拆封；`layer` 練習 |
-| CN02 實體層與網路效能 | packet-journey → packet-journey | 傳輸延遲與傳播延遲的情境（說明中計算）；`field` 練習 |
+| CN02 實體層與網路效能 | packet-journey → packet-journey | 傳輸延遲與傳播延遲的情境；`delay` 練習（答案由 `delayOf` 計算） |
 | CN03 資料鏈結層、Ethernet 與交換器 | routing-table → packet-journey | 交換器學習 MAC 位址（節點表格） |
 | CN04 Wi-Fi 與行動網路基礎 | protocol-sequence → network-sequence | 與基地台的關聯與驗證時序 |
 | CN05 IP 位址與子網路 | subnet-calculator → packet-journey | `subnet` 練習（答案由 `subnetOf` 計算） |
