@@ -252,7 +252,7 @@ test('AI 群島入口：首頁「更多學習群島」→ 群島總覽，七座�
   const paths = main.locator('section[aria-labelledby="region-paths"] li');
   await expect(paths).toHaveCount(3);
   // A path's length is lessons to take, never lessons written: the open and planned counts are spelled out (R7).
-  await expect(paths.filter({ hasText: 'AI 架構' })).toContainText('路線共 66 堂 · 已開放 13 堂 · 其餘 53 堂規劃中');
+  await expect(paths.filter({ hasText: 'AI 架構' })).toContainText('路線共 66 堂 · 已開放 14 堂 · 其餘 52 堂規劃中');
   await page.goto('/regions/web');
   await expect(page.locator('section[aria-labelledby="region-paths"] li')).toHaveText([/前端工程.*路線共 62 堂 · 已開放 7 堂 · 其餘 55 堂規劃中/]);
   await page.goto('/regions/ai');
