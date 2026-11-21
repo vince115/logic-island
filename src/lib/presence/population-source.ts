@@ -27,7 +27,9 @@ export function watchPopulation(source: PopulationSource, onChange: Listener): (
   const ask = async () => {
     if (stopped || document.visibilityState !== 'visible') return;
     try {
-      const response = await fetch(PRESENCE.endpoint, { credentials: 'omit' });
+      // No cookie goes with it (the answer is the same for everyone), and the browser's own copy is not reused: the
+      // map asks as often as an answer may be shared, so the CDN's copy is the one to take.
+      const response = await fetch(PRESENCE.endpoint, { credentials: 'omit', cache: 'no-cache' });
       const snapshot = response.ok ? parseSnapshot(await response.json()) : null;
       if (snapshot && !stopped) onChange(snapshot);
     } catch { /* offline: keep the last numbers */ }

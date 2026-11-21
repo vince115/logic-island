@@ -10,8 +10,9 @@ import { HUB_KEY, npcCountFor, tierCap, type DeviceTier } from './population';
  * regional world, a P9 region scene) and gives its zones; nothing here names an island, and no island has code of its
  * own. A zone is a walk network with a cap and the key of the number that fills it:
  *
- *   island   one per island that has a road to walk: the island's own roads (npc-paths.ts walkNetwork), filled by the
- *            island's online count (snapshot.islands[id]);
+ *   island   one per open island that has a road to walk: the island's own roads (npc-paths.ts walkNetwork), filled by
+ *            the island's online count (snapshot.islands[id]). An island that is not open (`closed`: planned in the
+ *            registry) has no zone: no figure stands on it, and its number fills no other zone (P6-B);
  *   commons  one per region on the map: the bridges between that region's islands (npc-paths.ts bridgeNetwork),
  *            filled by the region's visitors who are on no island (snapshot.commons[region]). A bridge belongs to no
  *            island, so a visitor of the region is never drawn as a visitor of one of its islands. A bridge that
@@ -46,6 +47,8 @@ export interface ZoneOptions {
   footprints?: readonly KeepOutCircle[];
   /** Caps set by hand, by island id; every other zone's follows from how much road it has (capFor). */
   caps?: Readonly<Record<string, number>>;
+  /** P6-B: islands that are not open (population.ts PopulationConfig.closed): they get no zone. */
+  closed?: readonly string[];
 }
 
 /** Caps set by hand. The foundations island keeps the prototype's eight. */
@@ -71,9 +74,10 @@ export function capFor(network: WalkNetwork, kind: NpcZone['kind']): number {
   return Math.min(max, Math.max(min, Math.floor(walkLength(network) / WALK_PER_FIGURE)));
 }
 
-export function npcZones(layout: WorldLayout, { regions = {}, obstacles = [], footprints: own, caps = ISLAND_CAPS }: ZoneOptions = {}): NpcZone[] {
+export function npcZones(layout: WorldLayout, { regions = {}, obstacles = [], footprints: own, caps = ISLAND_CAPS, closed = [] }: ZoneOptions = {}): NpcZone[] {
   const { world, natural } = layout, footprints = [...(own ?? natural?.keepOut ?? []), ...obstacles], zones: NpcZone[] = [];
   for (const settlement of world.settlements) {
+    if (closed.includes(settlement.islandId)) continue;
     const [cx, cz] = hexToWorld(settlement.center, world.size);
     const plaza = natural?.plazas.find(p => p.islandId === settlement.islandId);
     const network = walkNetwork(world, settlement.islandId, {

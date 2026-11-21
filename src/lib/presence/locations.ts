@@ -14,6 +14,11 @@ import type { PlaceClaim } from './place';
  *
  * so a location is always one consistent Region → Island → Course chain, and a reference the registry does not know
  * resolves to the hub instead of to whatever the client asked for.
+ *
+ * P6-B: only an open island is a place to be counted on. An island the registry has as planned (no lesson written
+ * for it yet) has nothing to be on: a visitor looking at it on a map is a visitor of its region, on none of the
+ * region's islands, and is counted so (the region's total and its commons). Nobody is ever counted on a planned
+ * island, and nobody who looks at one is counted on another island instead.
  */
 export const HUB = 'hub';
 export type PresenceRegion = RegionId | typeof HUB;
@@ -31,11 +36,17 @@ export const PRESENCE_REGIONS: readonly PresenceRegion[] = [...REGION_IDS, HUB];
 
 const lessonBySlug = new Map(lessons.map(lesson => [lesson.slug, lesson]));
 
-function ofIsland(id: string, course: string | null = null): PresenceLocation | undefined {
+/** An island's region in the registry (the hub for the tool island), open or not; undefined for an id the registry does not have. */
+export function islandRegion(id: string): PresenceRegion | undefined {
   const island = getIsland(id);
-  if (!island) return undefined;
   // A subject island lives in its region; the tool island (the labs) stands at the hub.
-  return { region: island.kind === 'subject' && island.regionId ? island.regionId : HUB, island: island.id, course };
+  return island ? (island.kind === 'subject' && island.regionId ? island.regionId : HUB) : undefined;
+}
+
+function ofIsland(id: string, course: string | null = null): PresenceLocation | undefined {
+  const region = islandRegion(id);
+  if (region === undefined) return undefined;
+  return islandOpen(id) ? { region, island: id, course } : { region, island: null, course: null };
 }
 
 export function resolvePlace(claim: PlaceClaim): PresenceLocation {
@@ -53,10 +64,20 @@ export function resolvePlace(claim: PlaceClaim): PresenceLocation {
   }
 }
 
+/**
+ * P6-B: whether an island is open, by the world registry alone (src/content/world/islands.ts): a subject island is
+ * open once the curriculum has a written lesson for it (`status` available or complete), and planned until then; the
+ * Interactive Lab Island is open. Visitors are counted, and drawn as figures (map-population.ts), on open islands only.
+ */
+export function islandOpen(id: string): boolean {
+  const island = getIsland(id);
+  return island !== undefined && island.status !== 'planned';
+}
+
 /** Whether a stored location still names things the registry has (a store may outlive a deploy that removed an island). */
 export function knownLocation(location: PresenceLocation): boolean {
   if (!(PRESENCE_REGIONS as readonly string[]).includes(location.region)) return false;
   if (location.island === null) return location.course === null;
   const expected = ofIsland(location.island);
-  return expected !== undefined && expected.region === location.region;
+  return expected !== undefined && expected.region === location.region && expected.island === location.island;
 }

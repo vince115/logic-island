@@ -99,13 +99,20 @@ async function write(request: Request, deps: { store: PresenceStore; secret: str
   return json({ ok: true, counted: true, next: PRESENCE.heartbeatMs });
 }
 
+/**
+ * The population. Nothing of the request is read (no cookie, no header, no query): the answer is the same for every
+ * visitor at a given moment, which is what lets a CDN keep it for `snapshotCacheSeconds` and hand it to anyone. It
+ * never sets a cookie, and anything but the count itself (an error, the flag off) is `no-store`.
+ */
 export async function handlePresenceGet(_request: Request, deps: PresenceDeps = defaults()): Promise<Response> {
   if (!presenceEnabled()) return refuse(404, 'not-found');
   if (!deps.store) return refuse(503, 'unconfigured');
   const now = deps.now();
   const cache = `public, max-age=${PRESENCE.snapshotCacheSeconds}, s-maxage=${PRESENCE.snapshotCacheSeconds}`;
   try {
-    return json(publicSnapshot(await deps.store.counts(now), now), 200, { 'cache-control': cache });
+    // Which kind of store counted (memory or shared): the same for every visitor, and what a deployment's check reads
+    // to know that its instances really share their sessions (docs/planning/PRESENCE_PREVIEW_VALIDATION.md).
+    return json(publicSnapshot(await deps.store.counts(now), now), 200, { 'cache-control': cache, ...(deps.store.kind ? { 'x-presence-store': deps.store.kind } : {}) });
   } catch {
     return unavailable();
   }

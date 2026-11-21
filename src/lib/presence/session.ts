@@ -17,13 +17,15 @@ const sign = (secret: string | Buffer, sid: string, issued: string) => b64(creat
 const holder = globalThis as typeof globalThis & { __logicIslandPresenceSecret?: Buffer };
 /**
  * The signing secret: LOGIC_ISLAND_PRESENCE_SECRET (at least 32 characters). Without one, a random secret made for
- * this process, so sessions last until the server restarts: fine for local review, but not for several instances, so
- * a Vercel Production build without the variable gets none and the API answers 503.
+ * this process, so sessions last until the server restarts: fine for local review, but not for several instances
+ * (a cookie one instance signed would be refused by the next, and every visitor would keep starting over). So a
+ * Vercel deployment without the variable gets none and the API answers 503: Production, and Preview too (P6-E: a
+ * Preview that counts wrongly without saying so validates nothing).
  */
 export function presenceSecret(): string | Buffer | undefined {
   const configured = process.env.LOGIC_ISLAND_PRESENCE_SECRET;
   if (configured && configured.length >= 32) return configured;
-  if (process.env.VERCEL_ENV === 'production') return undefined;
+  if (process.env.VERCEL_ENV === 'production' || process.env.VERCEL_ENV === 'preview') return undefined;
   return (holder.__logicIslandPresenceSecret ??= randomBytes(32));
 }
 

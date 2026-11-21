@@ -246,7 +246,7 @@ export default function PopulationLayer({ layout, population, obstacles, footpri
   const snapshot = usePopulation(population.source);
   const tier: DeviceTier = useMediaQuery(TIER_QUERY) ? 'low' : 'full';
   const still = useMediaQuery('(prefers-reduced-motion: reduce)');
-  const zones = useMemo(() => npcZones(layout, { regions: population.regions, footprints, obstacles: [...mapObstacles(layout), ...(obstacles ?? [])] }), [layout, population.regions, obstacles, footprints]);
+  const zones = useMemo(() => npcZones(layout, { regions: population.regions, closed: population.closed, footprints, obstacles: [...mapObstacles(layout), ...(obstacles ?? [])] }), [layout, population.regions, population.closed, obstacles, footprints]);
   const targets = useMemo(() => zoneTargets(zones, snapshot, tier), [zones, snapshot, tier]);
   return zones.length ? <Figures zones={zones} targets={targets} tier={tier} still={still} probe={population.source === 'mock'}/> : null;
 }

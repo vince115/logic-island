@@ -5,6 +5,7 @@ import type { WorldLayout } from '../src/lib/islands/hex-layout';
 import { islandsHomeWorld } from '../src/lib/islands/islands-world';
 import { regionLayout } from '../src/lib/islands/regions/region-layouts';
 import { regionScene } from '../src/lib/p9/region-scene';
+import { islandOpen } from '../src/lib/presence/locations';
 
 /*
  * Dynamic Island Population (docs/planning/PRESENCE_POPULATION_SYSTEM.md). Three kinds of build, told apart by the
@@ -17,9 +18,10 @@ import { regionScene } from '../src/lib/p9/region-scene';
  *   LOGIC_ISLAND_POPULATION_NPC=mock with LOGIC_ISLAND_P9_PROTOTYPE=1   the figures on the P9 region maps (/<region>).
  *
  * The presence tests count visitors on one server, so run this file alone and with one worker
- * (`playwright test e2e/presence.spec.ts --workers=1`): other specs' pages are visitors too. Each test uses islands
- * no other test of this file uses, and every test's pages say goodbye when it ends (they leave for about:blank), so
- * the same test in the next project starts from an empty island.
+ * (`playwright test e2e/presence.spec.ts --workers=1`): other specs' pages are visitors too. Visitors are counted on
+ * open islands only (P6-B: a planned island's visitor is counted in its region), and there are few of those, so tests
+ * share them: each test first waits for its islands to be empty, and every test's pages say goodbye when it ends
+ * (they leave for about:blank), so the next test, and the same test in the next project, starts from an empty island.
  */
 const PRESENCE = process.env.LOGIC_ISLAND_PRESENCE === '1';
 const NPC = PRESENCE || process.env.LOGIC_ISLAND_POPULATION_NPC === 'mock' ? process.env.LOGIC_ISLAND_POPULATION_NPC : undefined;
@@ -95,26 +97,37 @@ test.describe('presence: on', () => {
   test.skip(!PRESENCE, 'built without LOGIC_ISLAND_PRESENCE=1');
 
   test('a visitor is counted on the island of the page, and moves with every navigation', async ({ page, request }) => {
-    await empty(request, 'programming-languages', 'linux-systems', 'docker-containers');
+    await empty(request, 'programming-languages', 'databases', 'structures');
     // A lesson page: the server finds its island and region.
     await page.goto(`/curriculum/${slugOf('PL03')}`);
     await expectOnline(request, 'programming-languages', 1);
     expect((await population(request)).regions.cs).toBeGreaterThanOrEqual(1);
     // The syllabus names an island only in its hash; the home map in a query parameter.
-    await page.goto(syllabus('linux-systems'));
-    await expectOnline(request, 'linux-systems', 1);
+    await page.goto(syllabus('databases'));
+    await expectOnline(request, 'databases', 1);
     await expectOnline(request, 'programming-languages', 0);
-    const sys = (await population(request)).regions.sys;
-    await page.evaluate(() => { location.hash = '#island-docker-containers'; });
-    await expectOnline(request, 'docker-containers', 1);
-    await expectOnline(request, 'linux-systems', 0);
+    const cs = (await population(request)).regions.cs;
+    await page.evaluate(() => { location.hash = '#island-structures'; });
+    await expectOnline(request, 'structures', 1);
+    await expectOnline(request, 'databases', 0);
     // Same region, another island: the region's count did not change.
-    expect((await population(request)).regions.sys).toBe(sys);
-    // A region's own page names no island: the visitor stays in the region, on no island.
+    expect((await population(request)).regions.cs).toBe(cs);
+    // P6-B. A planned island is no place to be counted on: the visitor is in its region, on none of its islands,
+    // and on no other island either.
+    const before = await population(request);
+    await page.evaluate(() => { location.hash = '#island-linux-systems'; });
+    await expectOnline(request, 'structures', 0);
+    await expect.poll(async () => (await population(request)).commons.sys).toBe(before.commons.sys + 1);
+    const planned = await population(request);
+    expect(planned.islands['linux-systems']).toBeUndefined();
+    expect(planned.regions.sys).toBe(before.regions.sys + 1);
+    expect(planned.regions.cs).toBe(before.regions.cs - 1);
+    expect(Object.values(planned.islands).reduce((sum, n) => sum + n, 0)).toBe(Object.values(before.islands).reduce((sum, n) => sum + n, 0) - 1);
+    // A region's own page names no island: the same place, as the count sees it.
     await page.goto('/regions/sys');
-    await expectOnline(request, 'docker-containers', 0);
     // (While the new page loads the old one has said goodbye: the count is back once the new page reports.)
-    await expect.poll(async () => (await population(request)).regions.sys).toBe(sys);
+    await expect.poll(async () => (await population(request)).commons.sys).toBe(planned.commons.sys);
+    expect((await population(request)).regions.sys).toBe(planned.regions.sys);
   });
 
   test('client-side navigation moves the visitor too', async ({ page, request }) => {
@@ -129,101 +142,108 @@ test.describe('presence: on', () => {
   });
 
   test('two tabs of one browser are one visitor, where the tab used last is', async ({ page, context, request }) => {
-    await empty(request, 'ui-design', 'ux-research', 'interaction-design');
-    await page.goto(syllabus('ui-design'));
-    await expectOnline(request, 'ui-design', 1);
+    await empty(request, 'foundations', 'structures', 'databases');
+    await page.goto(syllabus('foundations'));
+    await expectOnline(request, 'foundations', 1);
     const second = await context.newPage();
-    await second.goto(syllabus('ux-research'));
-    await expectOnline(request, 'ux-research', 1);
-    await expectOnline(request, 'ui-design', 0);
+    await second.goto(syllabus('structures'));
+    await expectOnline(request, 'structures', 1);
+    await expectOnline(request, 'foundations', 0);
     // Both tabs keep reporting for a while: still one visitor, still where the newer tab is.
     await page.waitForTimeout(4_000);
-    expect(await online(request, 'ui-design') + await online(request, 'ux-research')).toBe(1);
+    expect(await online(request, 'foundations') + await online(request, 'structures')).toBe(1);
     // The visitor goes on in the first tab: the session follows.
-    await page.evaluate(() => { location.hash = '#island-interaction-design'; });
-    await expectOnline(request, 'interaction-design', 1);
-    await expectOnline(request, 'ux-research', 0);
+    await page.evaluate(() => { location.hash = '#island-databases'; });
+    await expectOnline(request, 'databases', 1);
+    await expectOnline(request, 'structures', 0);
   });
 
   test('a second browser is a second visitor', async ({ page, browser, baseURL, request }) => {
-    await empty(request, 'design-systems');
-    await page.goto(syllabus('design-systems'));
-    await expectOnline(request, 'design-systems', 1);
+    await empty(request, 'algorithms');
+    await page.goto(syllabus('algorithms'));
+    await expectOnline(request, 'algorithms', 1);
     const other = await newVisitor(browser, baseURL);
-    await other.page.goto(syllabus('design-systems'));
-    await expectOnline(request, 'design-systems', 2);
+    await other.page.goto(syllabus('algorithms'));
+    await expectOnline(request, 'algorithms', 2);
     await other.leave();
-    await expectOnline(request, 'design-systems', 1);
+    await expectOnline(request, 'algorithms', 1);
   });
 
   test('a reload keeps the visitor, counted once', async ({ page, request }) => {
-    await empty(request, 'web-foundations');
-    await page.goto(syllabus('web-foundations'));
-    await expectOnline(request, 'web-foundations', 1);
+    await empty(request, 'databases');
+    await page.goto(syllabus('databases'));
+    await expectOnline(request, 'databases', 1);
     const seen: number[] = [];
-    const sampling = setInterval(() => { void online(request, 'web-foundations').then(n => seen.push(n)).catch(() => {}); }, 150);
+    const sampling = setInterval(() => { void online(request, 'databases').then(n => seen.push(n)).catch(() => {}); }, 150);
     await page.reload();
     await page.waitForTimeout(3_000);
     clearInterval(sampling);
-    await expectOnline(request, 'web-foundations', 1);
+    await expectOnline(request, 'databases', 1);
     expect(Math.max(...seen), 'never two during the reload').toBeLessThanOrEqual(1);
   });
 
   test('a background tab stops counting at once and sends nothing; back in front it counts again', async ({ page, request }) => {
-    await empty(request, 'frontend');
-    await page.goto(syllabus('frontend'));
-    await expectOnline(request, 'frontend', 1);
+    await empty(request, 'structures');
+    await page.goto(syllabus('structures'));
+    await expectOnline(request, 'structures', 1);
     // A heartbeat is a fetch with a JSON body; the goodbye is a beacon, whose body the test cannot read.
     const sent: (string | null)[] = [];
     page.on('request', r => { if (r.method() === 'POST' && new URL(r.url()).pathname === API) sent.push(r.postData()); });
     await setHidden(page, true);
-    await expectOnline(request, 'frontend', 0, 5_000);
+    await expectOnline(request, 'structures', 0, 5_000);
     await page.waitForTimeout(3_000);
     // One goodbye, no heartbeat.
     expect(sent.filter(body => body?.includes('"place"'))).toEqual([]);
     expect(sent).toHaveLength(1);
     await setHidden(page, false);
-    await expectOnline(request, 'frontend', 1, 5_000);
+    await expectOnline(request, 'structures', 1, 5_000);
   });
 
   test('a visitor who goes silent is dropped after the timeout', async ({ page, context, request }) => {
     test.setTimeout(150_000);
-    await empty(request, 'mobile-apps');
-    await page.goto(syllabus('mobile-apps'));
-    await expectOnline(request, 'mobile-apps', 1);
+    await empty(request, 'programming-languages');
+    await page.goto(syllabus('programming-languages'));
+    await expectOnline(request, 'programming-languages', 1);
     // The network goes away with the tab still open: no heartbeat arrives, and no goodbye either.
     await context.setOffline(true);
     await page.waitForTimeout(60_000);
-    expect(await online(request, 'mobile-apps'), 'still counted inside the timeout').toBe(1);
-    await expectOnline(request, 'mobile-apps', 0, 60_000);
+    expect(await online(request, 'programming-languages'), 'still counted inside the timeout').toBe(1);
+    await expectOnline(request, 'programming-languages', 0, 60_000);
     await context.setOffline(false);
   });
 
   test('the server decides the place: unknown references are the hub, malformed ones are refused', async ({ page, request }) => {
-    await empty(request, 'responsive-design');
-    await page.goto(syllabus('responsive-design'));
-    await expectOnline(request, 'responsive-design', 1);
+    await empty(request, 'programming-languages');
+    await page.goto(syllabus('programming-languages'));
+    await expectOnline(request, 'programming-languages', 1);
     const send = (body: unknown) => page.evaluate(async data => (await fetch('/api/presence', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(data) })).status, body);
     const beat = (place: unknown) => ({ v: 1, tab: 'eeeeeeee00000009', since: Date.now(), place });
-    for (const place of [{ region: 'ai', island: 'responsive-design' }, { t: 'island', id: 'responsive-design', island: 'frontend' }, 'responsive-design', { t: 'island', id: '../x' }])
+    for (const place of [{ region: 'ai', island: 'programming-languages' }, { t: 'island', id: 'programming-languages', island: 'databases' }, 'programming-languages', { t: 'island', id: '../x' }])
       expect(await send(beat(place)), JSON.stringify(place)).toBe(400);
     // An island that does not exist: accepted, and the visitor is on no island.
     expect(await send(beat({ t: 'island', id: 'atlantis' }))).toBe(200);
-    await expectOnline(request, 'responsive-design', 0);
+    await expectOnline(request, 'programming-languages', 0);
     expect((await population(request)).islands.atlantis).toBeUndefined();
-    // A web island claimed "in the AI region" is counted in the web region.
+    // A planned island (P6-B): accepted too, and the visitor is in the island's own region, on no island, whatever
+    // region the claim names.
+    const atHub = await population(request);
+    expect(await send(beat({ t: 'island', id: 'responsive-design', r: 'cs' }))).toBe(200);
+    await expect.poll(async () => (await population(request)).commons.web).toBe(atHub.commons.web + 1);
+    expect((await population(request)).islands['responsive-design']).toBeUndefined();
+    expect((await population(request)).regions.cs).toBe(atHub.regions.cs);
+    // A CS island claimed "in the AI region" is counted in the CS region.
     const before = await population(request);
-    expect(await send(beat({ t: 'island', id: 'responsive-design', r: 'ai' }))).toBe(200);
-    await expectOnline(request, 'responsive-design', 1);
+    expect(await send(beat({ t: 'island', id: 'programming-languages', r: 'ai' }))).toBe(200);
+    await expectOnline(request, 'programming-languages', 1);
     const after = await population(request);
     expect(after.regions.ai).toBe(before.regions.ai);
-    expect(after.regions.web).toBe(before.regions.web + 1);
+    expect(after.regions.cs).toBe(before.regions.cs + 1);
   });
 
   test('the API gives out totals only; the session cookie is not readable or reusable elsewhere', async ({ page, context, request }) => {
-    await empty(request, 'network-servers', 'cloud-infrastructure');
-    await page.goto(syllabus('network-servers'));
-    await expectOnline(request, 'network-servers', 1);
+    await empty(request, 'algorithms', 'databases');
+    await page.goto(syllabus('algorithms'));
+    await expectOnline(request, 'algorithms', 1);
     const response = await request.get(API), text = await response.text();
     expect(Object.keys(JSON.parse(text)).sort()).toEqual(['at', 'commons', 'hub', 'islands', 'regions', 'total', 'ttlMs', 'v']);
     expect(response.headers()['x-content-type-options']).toBe('nosniff');
@@ -236,24 +256,24 @@ test.describe('presence: on', () => {
     for (const part of cookie.value.split('.').slice(1)) expect(text).not.toContain(part);
     // A request that is not from a page of this site is refused, with or without the cookie.
     expect((await request.post(API, { data: { v: 1, tab: 'aaaaaaaa00000001', since: Date.now(), place: { t: 'hub' } } })).status()).toBe(403);
-    expect((await request.post(API, { headers: { origin: 'https://example.com', cookie: `li_presence=${cookie.value}` }, data: { v: 1, tab: 'aaaaaaaa00000001', since: Date.now(), place: { t: 'island', id: 'cloud-infrastructure' } } })).status()).toBe(403);
-    expect(await online(request, 'cloud-infrastructure')).toBe(0);
+    expect((await request.post(API, { headers: { origin: 'https://example.com', cookie: `li_presence=${cookie.value}` }, data: { v: 1, tab: 'aaaaaaaa00000001', since: Date.now(), place: { t: 'island', id: 'databases' } } })).status()).toBe(403);
+    expect(await online(request, 'databases')).toBe(0);
     // The site's own pages and storage hold no identifier.
     expect(await page.evaluate(() => JSON.stringify([Object.keys(localStorage), Object.keys(sessionStorage)]))).not.toMatch(/presence|session|visitor/i);
   });
 
   test('a browser that asks not to be tracked is not counted and gets no cookie', async ({ browser, baseURL, request }) => {
-    await empty(request, 'ux-research');
+    await empty(request, 'structures');
     // The server's side: the request carries Global Privacy Control, the page's script does not know.
     const header = await browser.newContext({ baseURL, extraHTTPHeaders: { 'Sec-GPC': '1' } });
     const first = await header.newPage(), answers: unknown[] = [];
     first.on('response', async response => { if (new URL(response.url()).pathname === API && response.request().method() === 'POST') answers.push(await response.json().catch(() => null)); });
-    await first.goto(syllabus('ux-research'));
+    await first.goto(syllabus('structures'));
     await expect.poll(() => answers.length, { timeout: 10_000 }).toBeGreaterThan(0);
     expect(answers[0]).toMatchObject({ ok: true, counted: false });
     await first.waitForTimeout(4_000);
     expect((await header.cookies()).map(c => c.name)).not.toContain('li_presence');
-    expect(await online(request, 'ux-research')).toBe(0);
+    expect(await online(request, 'structures')).toBe(0);
     await header.close();
     // The browser's side: the page sees the signal and never asks. Do Not Track works the same way.
     for (const signal of ['globalPrivacyControl', 'doNotTrack'] as const) {
@@ -261,13 +281,13 @@ test.describe('presence: on', () => {
       await context.addInitScript(name => Object.defineProperty(Navigator.prototype, name, { configurable: true, get: () => (name === 'doNotTrack' ? '1' : true) }), signal);
       const page = await context.newPage(), posts: string[] = [];
       page.on('request', r => { if (new URL(r.url()).pathname === API && r.method() === 'POST') posts.push(r.url()); });
-      await page.goto(syllabus('ux-research'));
+      await page.goto(syllabus('structures'));
       await page.waitForTimeout(4_000);
       expect(posts, signal).toEqual([]);
       expect((await context.cookies()).map(c => c.name), signal).not.toContain('li_presence');
-      expect(await online(request, 'ux-research'), signal).toBe(0);
+      expect(await online(request, 'structures'), signal).toBe(0);
       // The page itself works as ever.
-      await expect(page.locator('#island-ux-research')).toBeVisible();
+      await expect(page.locator('#island-structures')).toBeVisible();
       await context.close();
     }
   });
@@ -310,13 +330,22 @@ function landOf(layout: WorldLayout) {
   return (x: number, z: number, islandId?: string) => { const tile = owner.get(hexKey(worldToHex(x, z, layout.world.size))); return islandId === undefined ? Boolean(tile) : tile?.islandId === islandId && !tile.forest; };
 }
 const tierOf = (cap: number) => (phone() ? Math.max(1, Math.ceil(cap / 2)) : cap);
-/** Every zone of a map filled to its cap: islands' figures on their own island's land, commons' figures on no land. */
+/**
+ * Every zone of a map filled to its cap: islands' figures on their own island's land, commons' figures on no land.
+ * P6-B: only open islands have a zone. A planned island has none, and a crowd reported for it is drawn nowhere.
+ */
 async function expectZonesWalked(page: Page, layout: WorldLayout, region?: string) {
   await expect.poll(() => loopState(page), { timeout: 30_000 }).not.toBeNull();
-  const { zones } = await zonesOf(page), islands = layout.world.settlements.map(s => s.islandId);
+  const { zones } = await zonesOf(page), all = layout.world.settlements.map(s => s.islandId), islands = all.filter(islandOpen), planned = all.filter(id => !islandOpen(id));
   expect(zones.filter(z => z.kind === 'island').map(z => z.id)).toEqual(islands);
   if (region) expect(zones.filter(z => z.kind === 'commons').map(z => [z.id, z.key])).toEqual([[`commons-${region}`, region]]);
-  await setAll(page, Object.fromEntries(islands.map(id => [id, 1_000])), Object.fromEntries(zones.filter(z => z.kind === 'commons').map(z => [z.key, 1_000])));
+  // A crowd on the planned islands alone: not one figure anywhere on the map.
+  if (planned.length) {
+    await setAll(page, Object.fromEntries(planned.map(id => [id, 1_000])));
+    await expect.poll(async () => (await zonesOf(page)).zones.reduce((sum, z) => sum + z.figures, 0), { timeout: 15_000 }).toBe(0);
+    for (const id of planned) expect(await zoneCount(page, id), `planned island ${id}`).toBeNull();
+  }
+  await setAll(page, Object.fromEntries(all.map(id => [id, 1_000])), Object.fromEntries(zones.filter(z => z.kind === 'commons').map(z => [z.key, 1_000])));
   const budget = phone() ? 16 : 40, wanted = zones.reduce((sum, z) => sum + tierOf(z.cap), 0);
   await expect.poll(async () => (await zonesOf(page)).zones.reduce((sum, z) => sum + z.figures, 0), { timeout: 15_000 }).toBe(Math.min(budget, wanted));
   const on = landOf(layout);
@@ -409,7 +438,7 @@ test.describe('population figures: mock data', () => {
 test.describe('population figures: the five region maps (mock data)', () => {
   test.skip(NPC !== 'mock' || !WORLD, 'built without LOGIC_ISLAND_POPULATION_NPC=mock and LOGIC_ISLAND_REGIONAL_WORLD=1');
 
-  for (const region of REGIONS) test(`/world/${region}: every island and the region's bridges have their figures`, async ({ page }) => {
+  for (const region of REGIONS) test(`/world/${region}: every open island and the region's bridges have their figures, planned islands none`, async ({ page }) => {
     await page.goto(`/world/${region}`);
     await expectZonesWalked(page, regionLayout(region).layout, region);
   });
@@ -418,7 +447,7 @@ test.describe('population figures: the five region maps (mock data)', () => {
 test.describe('population figures: the five P9 region maps (mock data)', () => {
   test.skip(NPC !== 'mock' || !P9, 'built without LOGIC_ISLAND_POPULATION_NPC=mock and LOGIC_ISLAND_P9_PROTOTYPE=1');
 
-  for (const region of REGIONS) test(`/${region}: every island and the region's bridges have their figures`, async ({ page }) => {
+  for (const region of REGIONS) test(`/${region}: every open island and the region's bridges have their figures, planned islands none`, async ({ page }) => {
     await page.goto(`/${region}`);
     await expectZonesWalked(page, regionScene(region).region.layout, region);
   });

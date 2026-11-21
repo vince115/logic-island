@@ -8,7 +8,7 @@ import { LAND_TOP, findTile, portPoint, tileHeight } from '@/lib/islands/hex-wor
 import { islandsHomeWorld } from '@/lib/islands/islands-world';
 import { regionLayout } from '@/lib/islands/regions/region-layouts';
 import { regionScene } from '@/lib/p9/region-scene';
-import { resolvePlace } from '@/lib/presence/locations';
+import { islandOpen, islandRegion } from '@/lib/presence/locations';
 import { mapPopulation } from '@/lib/presence/map-population';
 import { BRIDGE_MARGIN, DECK_TOP, LANE, RING, RING_TIGHT, bridgeNetwork, networkBounds, walkNetwork, type KeepOutCircle } from '@/lib/presence/npc-paths';
 import { createCrowd, fillCrowd, stepCrowd, targetPose } from '@/lib/presence/npc-sim';
@@ -25,15 +25,13 @@ import { HUB } from '@/lib/presence/locations';
  * island's land, its woods, its buildings' footprints, its bridges' decks.
  */
 
-const regionsOf = (layout: WorldLayout) => Object.fromEntries(layout.world.settlements.flatMap(s => {
-  const location = resolvePlace({ t: 'island', id: s.islandId });
-  return location.island === s.islandId ? [[s.islandId, location.region]] : [];
-}));
+const regionsOf = (layout: WorldLayout) => Object.fromEntries(layout.world.settlements.flatMap(s => { const region = islandRegion(s.islandId); return region ? [[s.islandId, region]] : []; }));
 
-interface MapCase { name: string; layout: WorldLayout; zones: NpcZone[]; footprints: KeepOutCircle[] }
+interface MapCase { name: string; layout: WorldLayout; zones: NpcZone[]; footprints: KeepOutCircle[]; own?: KeepOutCircle[]; all: NpcZone[] }
 function mapCase(name: string, layout: WorldLayout, own?: KeepOutCircle[]): MapCase {
-  const obstacles = mapObstacles(layout);
-  return { name, layout, footprints: [...(own ?? layout.natural?.keepOut ?? []), ...obstacles], zones: npcZones(layout, { regions: regionsOf(layout), obstacles, footprints: own }) };
+  // Built without `closed`: every island the layout can carry figures on, open or not (the geometry tests walk them all).
+  const obstacles = mapObstacles(layout), zones = npcZones(layout, { regions: regionsOf(layout), obstacles, footprints: own });
+  return { name, layout, footprints: [...(own ?? layout.natural?.keepOut ?? []), ...obstacles], zones, own, all: zones };
 }
 const HOME = mapCase('home', islandsHomeWorld);
 const P8 = REGION_IDS.map(id => mapCase(`world/${id}`, regionLayout(id).layout));
@@ -356,14 +354,83 @@ describe('mapPopulation: what a page hands its map', () => {
     vi.stubEnv('LOGIC_ISLAND_POPULATION_NPC', 'mock');
     vi.stubEnv('VERCEL_ENV', 'preview');
     expect(mapPopulation(['foundations', 'structures', 'algorithms', 'labs', 'databases', 'atlantis'])).toEqual({ source: 'mock',
-      regions: { foundations: 'cs', structures: 'cs', algorithms: 'cs', labs: HUB_KEY, databases: 'cs' } });
+      regions: { foundations: 'cs', structures: 'cs', algorithms: 'cs', labs: HUB_KEY, databases: 'cs' },
+      // An island the registry does not have is not an open island: nothing is drawn on it either.
+      closed: ['atlantis'] });
     vi.stubEnv('LOGIC_ISLAND_POPULATION_NPC', 'live');
     vi.stubEnv('LOGIC_ISLAND_PRESENCE', '1');
     for (const id of REGION_IDS) {
       const ids = regionLayout(id).layout.world.settlements.map(s => s.islandId), config = mapPopulation(ids)!;
       expect(config.source).toBe('live');
+      // Every island keeps its region, open or not: its bridges are the region's commons either way.
       expect(Object.keys(config.regions).sort()).toEqual([...ids].sort());
       expect(new Set(Object.values(config.regions))).toEqual(new Set([id]));
+      expect([...(config.closed ?? [])].sort()).toEqual(ids.filter(island => !islandOpen(island)).sort());
     }
+  });
+});
+
+/*
+ * P6-B: figures only on open islands. Which islands are open is the registry's word (a lesson written for them);
+ * the page hands the map the ones that are not (`closed`), and the map draws nobody there.
+ */
+describe('open and planned islands (P6-B)', () => {
+  afterEach(() => vi.unstubAllEnvs());
+  const pageMaps = () => {
+    vi.stubEnv('LOGIC_ISLAND_POPULATION_NPC', 'mock');
+    vi.stubEnv('VERCEL_ENV', 'preview');
+    return MAPS.map(map => {
+      const config = mapPopulation(map.layout.world.settlements.map(s => s.islandId))!;
+      return { ...map, config, zones: npcZones(map.layout, { regions: config.regions, closed: config.closed, obstacles: mapObstacles(map.layout), footprints: map.own }) };
+    });
+  };
+
+  it('gives every open island with a road a zone and no planned island one, on every map', () => {
+    const open = new Set<string>(), planned = new Set<string>();
+    for (const map of pageMaps()) {
+      const all = new Map(map.all.map(zone => [zone.id, zone]));
+      for (const settlement of map.layout.world.settlements) {
+        const id = settlement.islandId, zone = map.zones.find(z => z.id === id);
+        if (islandOpen(id)) { open.add(id); expect(zone, `${map.name} ${id}`).toEqual(all.get(id)); expect(zone, `${map.name} ${id}`).toBeDefined(); }
+        else { planned.add(id); expect(zone, `${map.name} ${id}`).toBeUndefined(); }
+      }
+      // Nothing else changes: the commons are the same bridges, with the same caps.
+      expect(map.zones.filter(zone => zone.kind === 'commons')).toEqual(map.all.filter(zone => zone.kind === 'commons'));
+    }
+    // The registry as it is today (2026-11-21): five open islands of the CS archipelago and the Interactive Lab Island; every other subject island is planned.
+    expect([...open].sort()).toEqual(['algorithms', 'databases', 'foundations', 'labs', 'programming-languages', 'structures']);
+    expect(planned.size).toBe(subjectIslands.length - 5);
+  });
+
+  it('keeps every region its commons, also a region none of whose islands is open yet', () => {
+    for (const map of pageMaps().filter(map => map.name !== 'home')) {
+      const region = map.name.split('/')[1], commons = map.zones.filter(zone => zone.kind === 'commons');
+      expect(commons.map(zone => zone.key), map.name).toEqual([region]);
+      const targets = zoneTargets(map.zones, mockSnapshot(0, {}, { [region]: 3 }), 'full');
+      expect(targets.reduce((sum, n) => sum + n, 0), map.name).toBe(3);
+      expect(targets[map.zones.indexOf(commons[0])], map.name).toBe(3);
+    }
+    const home = pageMaps()[0];
+    expect(home.zones.filter(zone => zone.kind === 'commons').map(zone => zone.key).sort()).toEqual(['cs', HUB_KEY]);
+  });
+
+  it('draws a number held for a planned island nowhere: not there, not on an open island, not in the commons', () => {
+    for (const map of pageMaps()) {
+      const closed = map.config.closed ?? [];
+      const crowd = Object.fromEntries(closed.map(id => [id, 50]));
+      for (const tier of ['full', 'low'] as const) expect(zoneTargets(map.zones, mockSnapshot(0, crowd, {}), tier).every(n => n === 0), `${map.name} ${tier}`).toBe(true);
+      // And with visitors on the open islands and in the commons, those are exactly what is drawn.
+      const open = map.zones.filter(zone => zone.kind === 'island').map(zone => zone.id);
+      const mixed = { ...crowd, ...Object.fromEntries(open.map(id => [id, 1])) };
+      const targets = zoneTargets(map.zones, mockSnapshot(0, mixed, {}), 'full');
+      for (const [i, zone] of map.zones.entries()) expect(targets[i], `${map.name} ${zone.id}`).toBe(zone.kind === 'island' ? 1 : 0);
+    }
+  });
+
+  it('does not depend on the API to leave planned islands empty, and without `closed` draws what it is given', () => {
+    const map = P8[1], ids = map.layout.world.settlements.map(s => s.islandId);
+    // The zones test's own maps are built without `closed`: every island with a road has a zone (the layout can carry them).
+    expect(map.zones.filter(zone => zone.kind === 'island').map(zone => zone.id).sort()).toEqual(ids.filter(id => map.zones.some(z => z.id === id)).sort());
+    expect(npcZones(map.layout, { regions: regionsOf(map.layout), closed: ids }).every(zone => zone.kind === 'commons')).toBe(true);
   });
 });

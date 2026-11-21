@@ -11,7 +11,17 @@ import type { PopulationSnapshot } from './engine';
 export const HUB_KEY = 'hub';
 
 /** What a page hands its map to draw the population: where the numbers come from, and each island's region (or the hub). */
-export interface PopulationConfig { source: 'mock' | 'live'; regions: Readonly<Record<string, string>> }
+export interface PopulationConfig {
+  source: 'mock' | 'live';
+  regions: Readonly<Record<string, string>>;
+  /**
+   * P6-B: the map's islands that are not open (the registry has them as planned): no figures are drawn on them,
+   * whatever number a snapshot holds for them, and such a number is drawn nowhere else either. (The API has none:
+   * it counts a visitor who looks at a planned island in the region's commons, locations.ts.) Unset or empty: every
+   * island of the map is open.
+   */
+  closed?: readonly string[];
+}
 
 /**
  * `low`: phones and other touch-first or narrow screens. Half the figures an island, a lower frame-rate cap, longer

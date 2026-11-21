@@ -3,7 +3,7 @@ import { courses } from '@/content/courses';
 import { lessons } from '@/content/curriculum/lessons';
 import { LAB_ISLAND_ID, getIsland, subjectIslands } from '@/content/world';
 import { REGION_IDS } from '@/content/world/types';
-import { HUB, HUB_LOCATION, knownLocation, resolvePlace } from '@/lib/presence/locations';
+import { HUB, HUB_LOCATION, islandOpen, islandRegion, knownLocation, resolvePlace } from '@/lib/presence/locations';
 import { parsePlace, placeOf, type PlaceClaim } from '@/lib/presence/place';
 
 /*
@@ -70,8 +70,33 @@ describe('resolvePlace: the registry decides Region → Island → Course', () =
   });
 
   it('puts every subject island in its region, and all five regions are reachable', () => {
-    for (const island of subjectIslands) expect(resolvePlace({ t: 'island', id: island.id })).toEqual({ region: island.regionId, island: island.id, course: null });
+    for (const island of subjectIslands) expect(resolvePlace({ t: 'island', id: island.id }).region, island.id).toBe(island.regionId);
     for (const region of REGION_IDS) expect(resolvePlace({ t: 'region', id: region })).toEqual({ region, island: null, course: null });
+  });
+
+  // P6-B: the registry says which islands are open (a lesson written for them); only those are places to be counted on.
+  it('counts a visitor on an open island there, and one who looks at a planned island in its region, on no island', () => {
+    const open = subjectIslands.filter(island => island.status !== 'planned'), planned = subjectIslands.filter(island => island.status === 'planned');
+    // The registry as it is today: the test must not pass on an empty list.
+    expect(open.length).toBeGreaterThan(0);
+    expect(planned.length).toBeGreaterThan(0);
+    for (const island of open) {
+      expect(islandOpen(island.id), island.id).toBe(true);
+      expect(resolvePlace({ t: 'island', id: island.id })).toEqual({ region: island.regionId, island: island.id, course: null });
+    }
+    for (const island of planned) {
+      expect(islandOpen(island.id), island.id).toBe(false);
+      // Whatever page the claim came from: the island's own region, and never an island (this one or another).
+      for (const r of [undefined, island.regionId, 'cs', 'mars']) expect(resolvePlace({ t: 'island', id: island.id, ...(r ? { r } : {}) }), island.id).toEqual({ region: island.regionId, island: null, course: null });
+      expect(islandRegion(island.id)).toBe(island.regionId);
+      expect(knownLocation({ region: island.regionId!, island: island.id, course: null }), island.id).toBe(false);
+    }
+    // An island is open exactly when the curriculum has a lesson written for it; every lesson page is on an open island.
+    for (const island of subjectIslands) expect(islandOpen(island.id), island.id).toBe(lessons.some(lesson => lesson.islandId === island.id));
+    expect(islandOpen(LAB_ISLAND_ID)).toBe(true);
+    expect(islandOpen('atlantis')).toBe(false);
+    expect(islandRegion(LAB_ISLAND_ID)).toBe(HUB);
+    expect(islandRegion('atlantis')).toBeUndefined();
   });
 
   it('keeps the labs at the central hub: the tool island has no region', () => {

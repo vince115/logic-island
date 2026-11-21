@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { lessons } from '@/content/curriculum/lessons';
+import { subjectIslands } from '@/content/world';
 import { PRESENCE, PRESENCE_COOKIE } from '@/lib/presence/config';
 import { populationNpcSource, presenceEnabled } from '@/lib/presence/flag';
 import type { PlaceClaim } from '@/lib/presence/place';
@@ -93,6 +94,25 @@ describe('feature flags', () => {
     vi.stubEnv('LOGIC_ISLAND_PRESENCE_SECRET', SECRET);
     expect(presenceSecret()).toBe(SECRET);
   });
+
+  it('asks a Vercel Preview deployment for the secret too: its instances must agree on the cookies they sign (P6-E)', async () => {
+    vi.stubEnv('LOGIC_ISLAND_PRESENCE_SECRET', '');
+    vi.stubEnv('VERCEL_ENV', 'preview');
+    expect(presenceSecret()).toBeUndefined();
+    deps = { ...deps, secret: presenceSecret() };
+    const refused = await post(heartbeat(F01));
+    expect(refused.status).toBe(503);
+    expect(await refused.json()).toEqual({ ok: false, error: 'unconfigured' });
+    expect(refused.headers.get('set-cookie')).toBeNull();
+    vi.stubEnv('LOGIC_ISLAND_PRESENCE_SECRET', SECRET);
+    expect(presenceSecret()).toBe(SECRET);
+    // A server of one's own (no Vercel environment) makes do with a secret of its own, for as long as it runs.
+    vi.stubEnv('LOGIC_ISLAND_PRESENCE_SECRET', '');
+    vi.stubEnv('VERCEL_ENV', '');
+    const local = presenceSecret();
+    expect(Buffer.isBuffer(local) && local.length).toBe(32);
+    expect(presenceSecret()).toBe(local);
+  });
 });
 
 describe('the session cookie', () => {
@@ -148,11 +168,32 @@ describe('counting visitors', () => {
     await visitor.arrive(F01);
     expect((await population()).islands).toEqual({ foundations: 1 });
     now += 4_000;
-    await visitor.send(heartbeat({ t: 'island', id: 'machine-learning', r: 'ai' }));
-    expect(await population()).toMatchObject({ total: 1, regions: { cs: 0, ai: 1 }, islands: { 'machine-learning': 1 } });
+    await visitor.send(heartbeat({ t: 'region', id: 'ai' }));
+    expect(await population()).toMatchObject({ total: 1, regions: { cs: 0, ai: 1 }, islands: {}, commons: { ai: 1, cs: 0 } });
     now += 4_000;
     await visitor.send(heartbeat({ t: 'hub' }));
     expect(await population()).toMatchObject({ total: 1, hub: 1, regions: { cs: 0, ai: 0 }, islands: {} });
+  });
+
+  it('counts nobody on a planned island: whoever looks at one is in its region\'s commons, never on another island (P6-B)', async () => {
+    const planned = subjectIslands.filter(island => island.status === 'planned'), ai = planned.find(island => island.regionId === 'ai')!, cs = planned.find(island => island.regionId === 'cs')!;
+    const onPage = browser(), onPlanned = browser(), onPlannedCs = browser(), onOpen = browser();
+    await onPage.arrive({ t: 'region', id: 'ai' }, 'aaaaaaaa00000001');
+    await onPlanned.arrive({ t: 'island', id: ai.id, r: 'ai' }, 'bbbbbbbb00000002');
+    await onPlannedCs.arrive({ t: 'island', id: cs.id, r: 'cs' }, 'cccccccc00000003');
+    await onOpen.arrive({ t: 'island', id: 'foundations', r: 'cs' }, 'dddddddd00000004');
+    const snapshot = await population();
+    // Everybody is counted, once, in their own region; the only island with anybody on it is the open one.
+    expect(snapshot).toMatchObject({ total: 4, hub: 0, regions: { ai: 2, cs: 2 }, islands: { foundations: 1 }, commons: { ai: 2, cs: 1 } });
+    expect(Object.keys(snapshot.islands)).toEqual(['foundations']);
+    for (const island of planned) expect(snapshot.islands[island.id], island.id).toBeUndefined();
+    // The visitor moves from the planned island to an open one and back: one visitor, wherever they are.
+    now += 1_000;
+    await onPlannedCs.send(heartbeat({ t: 'island', id: 'structures', r: 'cs' }, 'cccccccc00000003'));
+    expect(await population()).toMatchObject({ total: 4, islands: { foundations: 1, structures: 1 }, commons: { cs: 0 } });
+    now += 1_000;
+    await onPlannedCs.send(heartbeat({ t: 'island', id: cs.id, r: 'ai' }, 'cccccccc00000003'));
+    expect(await population()).toMatchObject({ total: 4, regions: { ai: 2, cs: 2 }, islands: { foundations: 1 }, commons: { ai: 2, cs: 1 } });
   });
 
   it('counts two tabs of one browser as one visitor, where the newer tab is', async () => {
@@ -319,12 +360,49 @@ describe('what the API tells the outside', () => {
     const visitor = browser();
     await visitor.arrive(F01, 'aaaaaaaa00000001');
     const response = await handlePresenceGet(new Request(`${ORIGIN}/api/presence`), deps);
-    expect(response.headers.get('cache-control')).toBe('public, max-age=5, s-maxage=5');
+    expect(response.headers.get('cache-control')).toBe('public, max-age=15, s-maxage=15');
     expect(response.headers.get('set-cookie')).toBeNull();
     const text = await response.text(), snapshot = JSON.parse(text);
     expect(Object.keys(snapshot).sort()).toEqual(['at', 'commons', 'hub', 'islands', 'regions', 'total', 'ttlMs', 'v']);
     const sid = visitor.cookie!.split('.')[1];
     for (const secret of [sid, 'aaaaaaaa00000001', 'F01', slugOf('F01'), 'course', 'session']) expect(text).not.toContain(secret);
+  });
+
+  it('lets a CDN hand one answer to everyone for 15 seconds: it is the same whoever asks, and sets no cookie (P6-D)', async () => {
+    const a = browser(), b = browser();
+    await a.arrive(F01, 'aaaaaaaa00000001');
+    await b.arrive(DB01, 'bbbbbbbb00000002');
+    const ask = (headers: Record<string, string> = {}, query = '') => handlePresenceGet(new Request(`${ORIGIN}/api/presence${query}`, { headers }), deps);
+    const plain = await ask(), text = await plain.text();
+    expect(JSON.parse(text)).toMatchObject({ total: 2, islands: { foundations: 1, databases: 1 } });
+    expect(PRESENCE.snapshotCacheSeconds).toBe(15);
+    expect(PRESENCE.pollMs).toBe(PRESENCE.snapshotCacheSeconds * 1000);
+    // A browser sends its presence cookie with this GET too (the cookie's path is the API's): the answer must not
+    // depend on it, or one visitor's answer would be served to the next from the CDN's copy.
+    const askers: [Record<string, string>, string?][] = [[{ cookie: a.cookie! }], [{ cookie: b.cookie! }], [{ cookie: `${PRESENCE_COOKIE}=v1.forged.x.y` }], [{ 'sec-gpc': '1', dnt: '1' }],
+      [{ authorization: 'Bearer something', 'x-forwarded-for': '203.0.113.9', 'user-agent': 'Googlebot/2.1', origin: 'https://evil.example' }], [{}, '?island=foundations&tab=aaaaaaaa00000001'], [{ 'accept-language': 'en' }]];
+    for (const [headers, query] of askers) {
+      const response = await ask(headers, query);
+      expect(await response.text(), JSON.stringify(headers)).toBe(text);
+      expect(response.headers.get('cache-control')).toBe('public, max-age=15, s-maxage=15');
+      expect(response.headers.get('set-cookie')).toBeNull();
+      expect(response.headers.get('vary')).toBeNull();
+    }
+    expect([...plain.headers.keys()].sort()).toEqual(['cache-control', 'content-type', 'x-content-type-options', 'x-presence-store']);
+    expect(plain.headers.get('x-presence-store')).toBe('memory');
+    // Nothing else the API says may ever be kept by anyone: every answer to a POST, and every GET that is no count.
+    const posts = [await a.send(heartbeat(F01)), await browser().send(heartbeat(F01)), await a.send({ v: 1, tab: 'aaaaaaaa00000001', leave: true, at: now }),
+      await post({ nonsense: true }), await post(heartbeat(F01), { headers: { origin: 'https://evil.example' } }), await post(heartbeat(F01), { headers: { 'sec-gpc': '1' } }),
+      await post(heartbeat(F01), { headers: { 'user-agent': 'curl/8.7.1' } })];
+    expect(posts.map(response => response.status)).toEqual([200, 200, 200, 400, 403, 200, 200]);
+    for (const response of posts) expect(response.headers.get('cache-control')).toBe('no-store');
+    const failing: PresenceStore = { touch: async () => { throw new Error('down'); }, leave: async () => { throw new Error('down'); }, counts: async () => { throw new Error('down'); } };
+    const down = await handlePresenceGet(new Request(`${ORIGIN}/api/presence`), { ...deps, store: failing });
+    const unconfigured = await handlePresenceGet(new Request(`${ORIGIN}/api/presence`), { ...deps, store: undefined });
+    vi.stubEnv('LOGIC_ISLAND_PRESENCE', '');
+    const off = await ask();
+    expect([down.status, unconfigured.status, off.status]).toEqual([503, 503, 404]);
+    for (const response of [down, unconfigured, off]) expect(response.headers.get('cache-control')).toBe('no-store');
   });
 
   it('never puts a session id in a response body, and never caches a heartbeat', async () => {

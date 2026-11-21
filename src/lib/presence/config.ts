@@ -29,9 +29,18 @@ export const PRESENCE = {
   maxBodyBytes: 512,
   /** The memory store refuses new sessions beyond this many. */
   maxSessions: 50_000,
-  /** How often the map asks for the population (ms), and for how long the CDN may reuse an answer (s). */
+  /**
+   * How often the map asks for the population (ms), and for how long an answer may be reused (s): by the CDN and by
+   * a browser (the GET's Cache-Control), and by a server instance for its own count of the shared store. The same 15
+   * seconds as the map's own rhythm (P6-D): however many maps are open, a CDN region asks a server at most four times
+   * a minute and an instance reads the store at most as often. A figure on a map is therefore up to half a minute
+   * behind the count (an instance's reuse, then the CDN's), against a session timeout of 90 seconds.
+   *
+   * The answer is safe to share between visitors: it is the same for everyone (service.ts handlePresenceGet reads
+   * nothing of the request), holds totals only, and never sets a cookie.
+   */
   pollMs: 15_000,
-  snapshotCacheSeconds: 5,
+  snapshotCacheSeconds: 15,
   /**
    * A browser that sends Global Privacy Control (`Sec-GPC: 1`) or Do Not Track (`DNT: 1`) is not counted: its tracker
    * never starts, and the server gives a request that carries either signal no cookie and no session
