@@ -151,14 +151,26 @@ export function bridgeNetwork(world: HexWorld, bridges: readonly HexBridge[], id
   return { islandId: id, center: first ? [(first[0][0] + first[1][0]) / 2, (first[0][1] + first[1][1]) / 2, (first[0][2] + first[1][2]) / 2] : [0, 0, 0], ring: 0, platform: null, roads };
 }
 
-/** A sphere (map coordinates) that holds every place a network's figures can be, head included: for view culling. */
-export function networkBounds(network: WalkNetwork): { center: Vec3; radius: number } {
-  const points: Vec3[] = [];
-  for (const road of network.roads) for (let s = road.start; s <= road.end + 1e-9; s += 0.25) points.push(roadPoint(road, Math.min(s, road.end)).point);
-  if (network.ring > 0 && network.roads.length) for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) points.push([network.center[0] + dx * (network.ring + RING_LANE), network.center[1], network.center[2] + dz * (network.ring + RING_LANE)]);
-  if (!points.length) return { center: network.center, radius: 0 };
-  const min = [0, 1, 2].map(i => Math.min(...points.map(p => p[i]))), max = [0, 1, 2].map(i => Math.max(...points.map(p => p[i])));
-  const center: Vec3 = [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2];
-  // A lane's width and a figure's height beyond the centrelines.
-  return { center, radius: Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]) / 2 + 0.6 };
+/** A sphere in map coordinates. */
+export interface BoundingSphere { center: Vec3; radius: number }
+/** A lane's width and a figure's height beyond the centrelines. */
+const BOUNDS_MARGIN = 0.6;
+
+/**
+ * Spheres (map coordinates) that together hold every place a network's figures can be, head included: one a road
+ * (its usable stretch) and one for the ring. For view culling: a network is in the camera's view when any of them is.
+ * One sphere round the whole network would reach far beyond an island with long roads, and keep it "in view" from
+ * the next island's close-up.
+ */
+export function networkBounds(network: WalkNetwork): BoundingSphere[] {
+  const spheres: BoundingSphere[] = [];
+  for (const road of network.roads) {
+    const points: Vec3[] = [];
+    for (let s = road.start; s < road.end; s += 0.25) points.push(roadPoint(road, s).point);
+    points.push(roadPoint(road, road.end).point);
+    const min = [0, 1, 2].map(i => Math.min(...points.map(p => p[i]))), max = [0, 1, 2].map(i => Math.max(...points.map(p => p[i])));
+    spheres.push({ center: [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2], radius: Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]) / 2 + BOUNDS_MARGIN });
+  }
+  if (network.ring > 0 && network.roads.length) spheres.push({ center: network.center, radius: network.ring + RING_LANE + BOUNDS_MARGIN });
+  return spheres;
 }

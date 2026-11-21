@@ -89,11 +89,11 @@ function Figures({ zones, targets, tier, still, probe }: { zones: readonly NpcZo
     if (!gate.current.framed || !group) return zones.map(() => true);
     const { frustum, view, sphere } = scratch;
     frustum.setFromProjectionMatrix(view.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
-    return zones.map(zone => {
-      sphere.center.set(...zone.bounds.center).applyMatrix4(group.matrixWorld);
-      sphere.radius = zone.bounds.radius;
+    return zones.map(zone => zone.bounds.some(({ center, radius }) => {
+      sphere.center.set(...center).applyMatrix4(group.matrixWorld);
+      sphere.radius = radius;
       return frustum.intersectsSphere(sphere);
-    });
+    }));
   }, [zones, camera, scratch]);
 
   const write = useCallback(() => {
@@ -222,7 +222,7 @@ function Figures({ zones, targets, tier, still, probe }: { zones: readonly NpcZo
     hooks.__npcLoop = () => {
       const views = look();
       return { state: loop.current.state, zoom: camera.zoom, zones: zones.map((zone, i) => ({ id: zone.id, kind: zone.kind, key: zone.key, cap: zone.cap, target: goal.current[i], inView: views[i],
-        roads: zone.network.roads.map(road => road.id), figures: runs.get(zone.id)!.crowd.npcs.length, center: zone.bounds.center })) };
+        roads: zone.network.roads.map(road => road.id), figures: runs.get(zone.id)!.crowd.npcs.length })) };
     };
     Object.assign(canvas, hooks);
     return () => { for (const key of Object.keys(hooks)) Reflect.deleteProperty(canvas, key); };

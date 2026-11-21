@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
  * and after the change. Run from the repository root (or set ROOT), against a server you started yourself with
  * LOGIC_ISLAND_POPULATION_NPC=mock:
  *
- *   BASE=http://127.0.0.1:3151 [PERF_GPU=metal] [WINDOW_MS=60000] [ONLY=overview,focus,hidden,orbit,still] [PROFILES=desktop,phone] node docs/planning/evidence/presence/tools/npc-loop-perf.mjs
+ *   BASE=http://127.0.0.1:3151 [PERF_GPU=metal] [WINDOW_MS=60000] [ONLY=overview,focus,hidden,orbit,still] [PROFILES=desktop,phone] [ELSEWHERE=<island the camera goes to>] node docs/planning/evidence/presence/tools/npc-loop-perf.mjs
  *
  * Per scenario: frames drawn and their rate, the interval between frames, draw calls and triangles per frame (the
  * D.3-0 instrument, perf/instrument.mjs), and CPU: seconds of CPU all of the browser's processes used (renderer, GPU
@@ -81,7 +81,7 @@ for (const [name, options] of Object.entries(profiles)) {
   if (wanted('focus')) {
     await setPop({ foundations: 40 }); await nudge(); await page.waitForTimeout(9000);
     // The camera on another island: the figures are outside the picture.
-    await focus('algorithms');
+    await focus(process.env.ELSEWHERE ?? 'algorithms');
     r.elsewhere_40online = { zoom: await page.evaluate(() => document.querySelector('canvas').__npcLoop?.().zoom), loop: await loop(),
       foundationsInView: await page.evaluate(() => document.querySelector('canvas').__npcLoop?.().zones.find(z => z.id === 'foundations')?.inView), ...await measure(Math.min(windowMs, 30_000)) };
     await focus(null);

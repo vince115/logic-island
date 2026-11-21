@@ -277,15 +277,21 @@ describe('walkable paths: nothing a figure can stand on is sea, woods or a build
     expect(rings[RING]).toBeGreaterThan(50);
   });
 
-  it('holds every figure inside its zone\'s bounds', () => {
+  it('holds every figure, head included, inside one of its zone\'s bounding spheres', () => {
+    let tight = 0, zones = 0;
     for (const map of MAPS) for (const zone of map.zones) {
       expect(zone.bounds).toEqual(networkBounds(zone.network));
-      const { center, radius } = zone.bounds;
-      for (const [index, road] of zone.network.roads.entries()) for (const s of [road.start, (road.start + road.end) / 2, road.end]) for (const dir of [1, -1] as const) {
-        const pose = targetPose(zone.network, { mode: 'road', road: index, s, dir, angle: 0, toRoad: 0, arc: 1 } as never);
-        expect(Math.hypot(pose.x - center[0], pose.y + 0.45 - center[1], pose.z - center[2]), `${map.name} ${zone.id}`).toBeLessThanOrEqual(radius);
-      }
+      expect(zone.bounds).toHaveLength(zone.network.roads.length + (zone.network.ring > 0 ? 1 : 0));
+      const inside = (pose: { x: number; y: number; z: number }) => [0, 0.45].every(up => zone.bounds.some(({ center, radius }) => Math.hypot(pose.x - center[0], pose.y + up - center[1], pose.z - center[2]) <= radius));
+      for (const [index, road] of zone.network.roads.entries()) for (let s = road.start; s <= road.end + 1e-9; s += 0.1) for (const dir of [1, -1] as const)
+        expect(inside(targetPose(zone.network, { mode: 'road', road: index, s: Math.min(s, road.end), dir, angle: 0, toRoad: 0, arc: 1 } as never)), `${map.name} ${zone.id} ${road.id} at ${s.toFixed(1)}`).toBe(true);
+      if (zone.network.ring > 0) for (let a = 0; a < Math.PI * 2; a += 0.2) for (const arc of [1, -1] as const)
+        expect(inside(targetPose(zone.network, { mode: 'ring', road: 0, s: 0, dir: 1, angle: a, toRoad: 0, arc } as never)), `${map.name} ${zone.id} ring`).toBe(true);
+      // Tight: no sphere is much larger than the road it holds (one sphere round a whole island would reach the next island).
+      zones++;
+      if (zone.bounds.every(({ radius }) => radius <= 5)) tight++;
     }
+    expect(tight).toBe(zones);
   });
 });
 

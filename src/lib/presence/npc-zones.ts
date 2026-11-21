@@ -1,9 +1,8 @@
 import type { WorldLayout } from '@/lib/islands/hex-layout';
 import { hexToWorld } from '@/lib/islands/hex';
 import type { HexBridge } from '@/lib/islands/hex-world';
-import type { Vec3 } from '@/lib/islands/types';
 import type { PopulationSnapshot } from './engine';
-import { PLATFORM_HEIGHT, bridgeNetwork, networkBounds, walkNetwork, type KeepOutCircle, type WalkNetwork } from './npc-paths';
+import { PLATFORM_HEIGHT, bridgeNetwork, networkBounds, walkNetwork, type BoundingSphere, type KeepOutCircle, type WalkNetwork } from './npc-paths';
 import { HUB_KEY, npcCountFor, tierCap, type DeviceTier } from './population';
 
 /**
@@ -31,8 +30,8 @@ export interface NpcZone {
   network: WalkNetwork;
   /** The most figures the zone draws (desktop; phones draw half, population.ts tierCap). */
   cap: number;
-  /** A sphere (map coordinates) around everywhere its figures can be: for view culling. */
-  bounds: { center: Vec3; radius: number };
+  /** Spheres (map coordinates) that hold everywhere its figures can be: in the camera's view when any of them is. */
+  bounds: readonly BoundingSphere[];
 }
 
 export interface ZoneOptions {

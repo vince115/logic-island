@@ -6,7 +6,9 @@ const { chromium, devices } = require('@playwright/test');
 const A = process.env.BASE_A ?? 'http://127.0.0.1:3148', B = process.env.BASE_B ?? 'http://127.0.0.1:3147';
 const browser = await chromium.launch();
 const profiles = { desktop: { viewport: { width: 1440, height: 1000 } }, phone: { ...devices['iPhone 13'] } };
-const paths = ['/', '/?island=foundations', '/?island=databases', '/curriculum', '/curriculum/programs-and-algorithms', '/learn', '/learn/bubble-sort', '/regions/cs', '/islands/candidate'];
+// PATHS (comma separated) checks only those pages; REPEAT runs each pair that many times (a difference that comes and goes is the renderer's, not the build's).
+const paths = process.env.PATHS?.split(',') ?? ['/', '/?island=foundations', '/?island=databases', '/curriculum', '/curriculum/programs-and-algorithms', '/learn', '/learn/bubble-sort', '/regions/cs', '/islands/candidate'];
+const repeat = Number(process.env.REPEAT ?? 1);
 const style = '.skip-link{visibility:hidden!important}';
 async function shot(base, options, path) {
   const context = await browser.newContext({ reducedMotion: 'reduce', ...options });
@@ -36,7 +38,7 @@ async function diff(a, b) {
     return { pixels: p.width * p.height, different: n, max };
   }, [a.toString('base64'), b.toString('base64')]);
 }
-for (const [name, options] of Object.entries(profiles)) for (const path of paths) {
+for (const [name, options] of Object.entries(profiles)) for (const path of paths) for (let round = 0; round < repeat; round++) {
   const a = await shot(A, options, path), b = await shot(B, options, path);
   const d = await diff(a.png, b.png);
   console.log(name.padEnd(8), path.padEnd(40), JSON.stringify(d), 'static requests', a.requests, 'vs', b.requests, 'dom', a.html, 'vs', b.html);
