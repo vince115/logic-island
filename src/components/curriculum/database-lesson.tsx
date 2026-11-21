@@ -1,11 +1,13 @@
 import { islands, lessons } from '@/content/curriculum';
-import { hasCapability, type DriverExample, type ErDiagramExample, type LessonCode, type ErExercise, type LessonContent, type LessonMeta, type NfExercise, type OpsExercise, type TxExercise } from '@/content/curriculum/schema';
+import { hasCapability, type DriverExample, type ErDiagramExample, type LessonCode, type ErExercise, type LessonContent, type LessonMeta, type NetworkExercise, type NfExercise, type OpsExercise, type TxExercise } from '@/content/curriculum/schema';
+import type { NetworkScene } from '@/lib/network/model';
 import { highlightAll } from '@/lib/highlight/server';
 import { buildModel } from '@/lib/er/model';
 import { analyzeDecomposition, showSet } from '@/lib/normalization/fd';
 import { highlight } from '@/lib/highlight/server';
 import { BackupPlanner, BPlusExplorer, ErBuilder, NfExerciseBox, NfExplorer, OpsExerciseBox, ReplicationExplorer, ScheduleExplorer, SequenceExplorer, TimelineExplorer, TxExerciseBox } from './db-lazy';
 import { CodeTabs, LessonLanguages } from './code';
+import { NetworkExerciseBox, NetworkSceneView } from './network-protocol';
 import { ChallengeStages, DsComparison } from './visualizations';
 import { ErDiagram, ErLegend } from './er-diagram';
 import { DecompositionSummary, NfStepsView, PartAnalysis, RelationHeader } from './normalization-view';
@@ -36,6 +38,7 @@ export function databaseExamples(content: LessonContent): Map<string, React.Reac
     ...(content.sequences ?? []).map(e => [e.id, <SequenceExplorer key={e.id} example={e}/>] as const),
     ...(content.ops?.replication ?? []).map(e => [e.id, <ReplicationExplorer key={e.id} example={e}/>] as const),
     ...(content.ops?.backups ?? []).map(e => [e.id, <BackupPlanner key={e.id} example={e}/>] as const),
+    ...(content.network?.scenes ?? []).map(s => [s.id, <NetworkSceneView key={s.id} scene={s}/>] as const),
   ]);
 }
 
@@ -131,6 +134,17 @@ function OpsExerciseView({ exercise }: { exercise: OpsExercise }) {
   </article>;
 }
 
+function NetworkExerciseView({ exercise, scenes }: { exercise: NetworkExercise; scenes: NetworkScene[] }) {
+  return <article className={styles.exercise} aria-labelledby={`${exercise.id}-title`}>
+    <h3 id={`${exercise.id}-title`}>{exercise.title}</h3>
+    <p><Rich text={exercise.statement}/></p>
+    <NetworkExerciseBox exercise={exercise} scenes={scenes}/>
+    <Hints hints={exercise.hints}/>
+    <details className={styles.details}><summary>常見錯誤（{exercise.mistakes.length}）</summary><ul>{exercise.mistakes.map(m => <li key={m.why}><Rich text={m.why}/></li>)}</ul></details>
+    <details className={styles.details}><summary>參考解答</summary><p><Rich text={exercise.explanation}/></p></details>
+  </article>;
+}
+
 export function DatabaseLessonBody({ lesson, content, renderSection }: {
   lesson: LessonMeta; content: LessonContent; renderSection: (section: LessonContent['sections'][number]) => React.ReactNode;
 }) {
@@ -141,8 +155,9 @@ export function DatabaseLessonBody({ lesson, content, renderSection }: {
   const normalization = hasCapability(lesson, 'normalization') ? content.normalization : undefined;
   const transactions = hasCapability(lesson, 'transaction-timeline') ? content.transactions : undefined;
   const ops = hasCapability(lesson, 'architecture-diagram') ? content.ops : undefined;
+  const network = hasCapability(lesson, 'network-protocol') ? content.network : undefined;
   const viz = hasCapability(lesson, 'visualization') ? content.visualization : undefined;
-  const onlySql = !er?.exercises.length && !normalization?.exercises.length && !transactions?.exercises.length && !ops?.exercises.length;
+  const onlySql = !er?.exercises.length && !normalization?.exercises.length && !transactions?.exercises.length && !ops?.exercises.length && !network?.exercises.length;
   return <>
     <nav className={styles.toc} aria-label="本課內容">
       <ol>{content.sections.map(s => <li key={s.id}><a href={`#${s.id}`}>{s.title}</a></li>)}
@@ -178,6 +193,7 @@ export function DatabaseLessonBody({ lesson, content, renderSection }: {
         normalization?.exercises.length ? '正規化練習依條件檢查（鍵的閉包與最小性；分解後每張表的正規形式、是否無損、是否保留相依），任何符合條件的答案都會通過。' : '',
         transactions?.exercises.length ? '交易練習的答案由模擬器算出（日誌復原、鎖或 MVCC 的實際執行），再和你的答案比對。' : '',
         ops?.exercises.length ? '備份與複寫練習的答案由模擬器算出（還原步驟、複本延遲、切換時遺失的寫入），再和你的答案比對。' : '',
+        network?.exercises.length ? '網路練習的答案從課內的網路情境讀出（某一步某一層的標頭欄位、協定所在的層）或計算（子網路位址），再和你的答案比對；大小寫與空白不影響結果。課程不連線到任何真實網路。' : '',
         sql?.exercises.some(e => e.plan || e.probes?.some(p => p.plan)) ? '有些 SQL 練習還會檢查查詢計畫（EXPLAIN QUERY PLAN）：只看是否用上索引、是否還要額外排序，不看索引的名稱。' : '',
         '網站不會上傳或儲存你的答案；練習不計入學習進度。',
       ].join('')}</p>
@@ -186,6 +202,7 @@ export function DatabaseLessonBody({ lesson, content, renderSection }: {
       {normalization?.exercises.map(e => <NfExerciseView key={e.id} exercise={e}/>)}
       {transactions?.exercises.map(e => <TxExerciseView key={e.id} exercise={e}/>)}
       {ops?.exercises.map(e => <OpsExerciseView key={e.id} exercise={e}/>)}
+      {network?.exercises.map(e => <NetworkExerciseView key={e.id} exercise={e} scenes={network.scenes}/>)}
     </section>
     <LessonCompletion lessonId={lesson.lessonId} quizTotal={content.quiz.length}
       island={{ name: island.name, lessonIds: lessons.filter(l => l.islandId === lesson.islandId && l.lessonStatus === 'complete').map(l => l.lessonId) }}/>

@@ -10,6 +10,8 @@
 | `gc-visualizer` | PL08 | 圖的走訪（mark-and-sweep 步驟由課內程式產生） | 自己建物件圖並執行 mark-and-sweep、參考計數、世代 | 圖的走訪引擎 |
 | `compiler-pipeline` | PL10、PL16 | 變數狀態追蹤（lexer）；PL16 以圖的走訪呈現控制流程圖、表格列出三位址碼 | 原始碼 → token → AST → 執行的分段檢視 | lexer 與 parser 的課內程式 |
 | `ast-explorer` | PL11、PL12、PL18 | 樹面板＋呼叫框架（固定範例）；PL18 以函式呼叫追蹤呈現裝飾器的包裝呼叫鏈 | 自己輸入算式，即時解析並逐步求值 | 樹面板、PL11／PL12 的解析器與直譯器 |
+| `packet-journey`、`network-sequence`（CN-0） | 計算機網路島（尚未撰寫） | `network-protocol` 能力已實作：固定情境的訊息順序、由外到內的各層標頭、節點表格與從情境讀出的練習 | 學習者自己改變參數（遺失、延遲、視窗大小）並重新模擬 | `src/lib/network/model.ts` 的情境資料 |
+| `routing-table`、`subnet-calculator` | CN03、CN05、CN07、CN19 | 這幾堂以 `network-protocol` 情境的節點表格（路由表、MAC 表）與子網路練習（答案由 `subnetOf` 計算）呈現 | 可編輯的路由表與最長前綴比對、輸入任意位址的子網路計算器 | `subnetOf`、情境的節點表格 |
 | `case-study-board` | PL19 | 無（比較表格與逐步說明） | 依情境需求逐項比較語言並記錄取捨的分析板 | 無 |
 | `concurrency-timeline` | PL13、PL14、PL15 | 變數狀態＋時間軸表格、堆疊與佇列容器（固定範例） | 拖曳或選擇排程，看交錯、死結與事件迴圈 | 交易時間軸（`transaction-timeline`）的排程模型 |
 

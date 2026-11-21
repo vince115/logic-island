@@ -14,7 +14,7 @@ type Of<K> = Extract<VisualizationConfig, { kind: K }>;
 const MARKS: Record<Mark, string> = { read: '讀取', write: '寫入', bad: '越界', removed: '已移除', visited: '已拜訪', found: '找到', current: '目前', pending: '待處理' };
 
 /** Step buttons shared by the step-through visualizations; every button says what it does. */
-function Stepper({ at, count, set, unit = '步驟' }: { at: number; count: number; set: (n: number) => void; unit?: string }) {
+export function Stepper({ at, count, set, unit = '步驟' }: { at: number; count: number; set: (n: number) => void; unit?: string }) {
   // With focus on any of the buttons, the arrow keys step too (Home / End jump to the first / last step).
   const key = (e: KeyboardEvent) => {
     const to = { ArrowLeft: at - 1, ArrowRight: at + 1, Home: 0, End: count - 1 }[e.key];

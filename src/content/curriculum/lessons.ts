@@ -328,6 +328,24 @@ function programFromBlueprint(lessonId: string, summary: string, minutes: number
     minutes, prerequisites: b.prerequisites as LessonId[], recommended: b.recommended as AnyLessonId[], apcs, visualization,
     status: 'complete', version: '1.0.0', extraLanguages: ['JavaScript'], capabilities: ['program-code'], blueprintId: lessonId };
 }
+/**
+ * CN-0 (2026-11-21): a network lesson written from its blueprint outline. Slug, title, objectives, concepts, difficulty
+ * and prerequisites are the blueprint's. Its body is the network-protocol capability (scenes and their exercises); the
+ * activity it names is what that capability draws: packet-journey stays packet-journey, and the blueprint's
+ * protocol-sequence becomes network-sequence (on the database island protocol-sequence means SQL round trips, and keeps
+ * that meaning). An activity not built yet (routing-table, subnet-calculator) stays in INTERACTIVE_LAB_ROADMAP: the lesson
+ * shows network scenes (packet-journey) instead, never a stand-in. A capstone adds the challenge-stages visualization.
+ */
+export function networkFromBlueprint(lessonId: string, summary: string, minutes: number): Outline {
+  const b = planning.plannedLessons.find(l => l.lessonId === lessonId);
+  if (!b || b.islandId !== 'networks') throw new Error(`${lessonId} is not a network lesson of the blueprint`);
+  const capstone = b.activity === 'challenge-stages';
+  const activity: LessonActivity = capstone ? 'challenge-stages' : b.activity === 'protocol-sequence' ? 'network-sequence' : 'packet-journey';
+  return { slug: b.slug, title: b.title, summary, objectives: b.learningObjectives, concepts: b.concepts, difficulty: b.difficulty as Difficulty,
+    minutes, prerequisites: b.prerequisites as LessonId[], recommended: b.recommended as AnyLessonId[], apcs: ['none'],
+    visualization: capstone ? 'challenge-stages' : 'none', status: 'complete', version: '1.0.0', activity,
+    capabilities: capstone ? ['network-protocol', 'visualization'] : ['network-protocol'], blueprintId: lessonId };
+}
 /** Batches 1–5: the programming-languages island's written lessons, PL20 its capstone. */
 const programmingLanguages: Outline[] = [
   programFromBlueprint('PL01', '用同一個「偶數平方和」問題比較命令式、程序式、物件導向與函數式寫法，認識宣告式的 SQL 與邏輯式的 Prolog，看懂 C++、Java、Python、JavaScript 各自支援的典範組合，並依可讀性與可變狀態選擇合適的風格。', 45, 'variable-state'),
