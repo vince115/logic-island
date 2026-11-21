@@ -106,6 +106,8 @@ const PLANNED: Record<string, [ActivityTier, ActivityInput[]]> = {
   'process-model': ['T1', ['diagram']], 'requirements-board': ['T1', ['diagram', 'text']], 'case-study-board': ['T1', ['text']],
   'ast-explorer': ['T1', ['preset', 'text']], 'type-checker': ['T1', ['preset', 'text']], 'compiler-pipeline': ['T1', ['preset', 'text']],
   'subnet-calculator': ['T1', ['custom-values']], 'routing-table': ['T1', ['preset', 'parameters']],
+  // CN-0: the network-protocol capability draws fixed scenes (packets through the layers, message sequences, node tables).
+  'packet-journey': ['T1', ['preset']], 'network-sequence': ['T1', ['preset']],
   // Multi-archipelago v2 (P1b): design and web activities, all deterministic in the browser. The contrast lab computes
   // WCAG ratios from the learner's colors; the layout playgrounds set style values on prepared boxes, never run the
   // learner's CSS; the accessibility checker reads prepared snippets only.
@@ -138,6 +140,9 @@ const IMPLEMENTED_TEXT: Record<string, string> = {
   // P7: the Linux Terminal Simulator, /learn/linux-terminal.
   'terminal-sim': '終端機輸出是 role="log" 的文字；家目錄以含權限與目前位置的文字樹呈現；完成的任務以 aria-live 宣告',
   'architecture-diagram': '架構圖有文字說明；複本讀到的值、是否過時、切換時遺失的寫入、還原步驟與資料損失都以表格與文字寫出（aria-live）',
+  // CN-0: network scenes (src/components/curriculum/network-protocol.tsx).
+  'packet-journey': '每則訊息以文字列出（第幾步、從哪個節點到哪個節點、名稱、是否遺失），各層標頭是由外到內的欄位清單，節點的表格是真正的表格；目前這一步的說明以 aria-live 宣告',
+  'network-sequence': '訊息時序以文字列出（第幾步、從哪個節點到哪個節點、名稱、是否遺失），每一步的標頭欄位以清單呈現；目前這一步的說明以 aria-live 宣告',
 };
 const existing = new Set(visualizationEntries.map(v => v.id));
 const plannedEntries: ActivityMeta[] = [...new Set(catalogLessons.map(l => l.activity))]

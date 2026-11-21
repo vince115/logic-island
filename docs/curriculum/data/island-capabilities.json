@@ -1,0 +1,124 @@
+{
+  "about": "The lesson capability each subject island's lessons need before they can be published, and whether it exists. status: ready (lessons can be written and published now), prepared (the capability exists and the island is registered for authoring; its first lessons can be written), missing (a shared capability must be built first). Read by scripts/curriculum-queue.ts; counts and order come from the catalog, never from here.",
+  "islands": {
+    "foundations": {
+      "capability": "program-code",
+      "status": "ready"
+    },
+    "structures": {
+      "capability": "program-code",
+      "status": "ready"
+    },
+    "algorithms": {
+      "capability": "program-code",
+      "status": "ready"
+    },
+    "programming-languages": {
+      "capability": "program-code",
+      "status": "ready"
+    },
+    "databases": {
+      "capability": "sql, er-diagram, normalization, query-plan, transaction-timeline, driver-code, protocol-sequence, architecture-diagram",
+      "status": "ready"
+    },
+    "networks": {
+      "capability": "network-protocol (packets through the layers, message sequences, node tables; field, layer and subnet exercises)",
+      "status": "prepared",
+      "note": "CN-0: the capability and the prepared island; lessons publish in id order from CN01"
+    },
+    "systems-analysis": {
+      "capability": "model-diagram (UML, DFD, BPMN, state and sequence models, checked by structure)",
+      "status": "missing"
+    },
+    "information-systems": {
+      "capability": "case-analysis (scenario data, decision tables, KPI calculations checked by value)",
+      "status": "missing"
+    },
+    "ai-foundations": {
+      "capability": "python-code (Python-only program lessons; search, probability and game trees on the shared trace panels)",
+      "status": "missing",
+      "note": "program-code requires C++, Java and Python; 12 of 20 exercises are code-python"
+    },
+    "machine-learning": {
+      "capability": "python-code + data-explorer (fixed datasets, metrics computed in the browser)",
+      "status": "missing"
+    },
+    "deep-learning": {
+      "capability": "python-code + precomputed training curves (T3)",
+      "status": "missing"
+    },
+    "large-language-models": {
+      "capability": "python-code + token, sampling and prompt explorers on recorded outputs (T3)",
+      "status": "missing"
+    },
+    "generative-ai": {
+      "capability": "precomputed pipeline steps (T3)",
+      "status": "missing"
+    },
+    "ai-agents": {
+      "capability": "agent trace (tool calls and memory as fixed transcripts)",
+      "status": "missing"
+    },
+    "ai-engineering": {
+      "capability": "pipeline and deployment simulation",
+      "status": "missing"
+    },
+    "ui-design": {
+      "capability": "design-lab (color contrast exists as a standalone lab; visual hierarchy and grid)",
+      "status": "missing"
+    },
+    "ux-research": {
+      "capability": "case-analysis + model-diagram",
+      "status": "missing"
+    },
+    "interaction-design": {
+      "capability": "case-analysis + a11y checks",
+      "status": "missing"
+    },
+    "design-systems": {
+      "capability": "design-token board",
+      "status": "missing"
+    },
+    "web-foundations": {
+      "capability": "web-code (HTML, CSS and DOM in a sandboxed frame, checked by DOM queries)",
+      "status": "missing"
+    },
+    "frontend": {
+      "capability": "web-code + state-flow trace",
+      "status": "missing"
+    },
+    "responsive-design": {
+      "capability": "web-code + responsive simulator (the standalone lab exists)",
+      "status": "missing"
+    },
+    "mobile-apps": {
+      "capability": "web-code + case-analysis",
+      "status": "missing"
+    },
+    "linux-systems": {
+      "capability": "terminal (the /learn/linux-terminal engine as a lesson capability with per-lesson file systems and checked tasks)",
+      "status": "missing",
+      "note": "engine exists; shell covers pwd, ls, cd, mkdir, touch, cat, cp, mv, rm, chmod, echo, whoami"
+    },
+    "docker-containers": {
+      "capability": "container simulation",
+      "status": "missing"
+    },
+    "network-servers": {
+      "capability": "request-path simulation + terminal",
+      "status": "missing"
+    },
+    "cloud-infrastructure": {
+      "capability": "architecture simulation",
+      "status": "missing"
+    },
+    "devops-cicd": {
+      "capability": "pipeline simulation",
+      "status": "missing"
+    },
+    "kubernetes-reliability": {
+      "capability": "cluster simulation",
+      "status": "missing"
+    }
+  }
+}

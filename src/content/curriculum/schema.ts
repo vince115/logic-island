@@ -12,6 +12,7 @@ import type { TxAnswer, TxTask } from '@/lib/txn/check';
 import type { SequenceStrategy } from '@/lib/sql/sequence';
 import type { BackupPlan, ReplicationScenario } from '@/lib/ops/sim';
 import type { OpsTask } from '@/lib/ops/check';
+import { checkNetworkAnswer, expectedNetworkAnswer, LAYER_MODELS, networkSceneProblems, type NetworkScene, type NetworkTask } from '@/lib/network/model';
 import type { SqlValue } from '@/lib/sql/engine';
 
 /*
@@ -36,16 +37,23 @@ export type LessonCode = Record<Language, string> & Partial<Record<'JavaScript',
 // 2026-11-20: the islands with written lessons, in the world registry's order (programming-languages is the CS region's
 // fourth island, databases its fifth), so a database lesson may require a programming-languages one (DB16 → PL02).
 export const ISLAND_IDS = ['foundations', 'structures', 'algorithms', 'programming-languages', 'databases'] as const;
-export type IslandId = typeof ISLAND_IDS[number];
+/**
+ * CN-0 (2026-11-21): islands registered for authoring before their first lesson is written. Their prefix and lesson
+ * capability are known (so their lessons can be written and validated), but they are not curriculum islands yet: no
+ * catalog section, no unit, no page, and validateCurriculum rejects a lesson of theirs until the island moves to
+ * ISLAND_IDS together with its first written lesson (as the database and programming-languages islands joined).
+ */
+export const PREPARED_ISLAND_IDS = ['networks'] as const;
+export type IslandId = typeof ISLAND_IDS[number] | typeof PREPARED_ISLAND_IDS[number];
 /**
  * F = 基礎程式島, D = 資料結構島, A = 演算法島, then a two-digit position (F01..F20). Phase F.0: the number is two digits in
  * the type too (it was any string, so DB01 or AG01 type-checked as a D or A lesson); IDs of every island, planned ones
  * included, are AnyLessonId in src/content/world/lesson-id.ts and are always parsed with their whole prefix.
  */
-export type LessonPrefixWritten = 'F' | 'D' | 'A' | 'DB' | 'PL';
+export type LessonPrefixWritten = 'F' | 'D' | 'A' | 'DB' | 'PL' | 'CN';
 export type LessonId = `${LessonPrefixWritten}${LessonNumber}`;
 /** 2026-11-20 (course production, batch 1): the programming-languages island (PL) joins with its first written lessons. */
-export const ISLAND_PREFIX: Record<IslandId, LessonPrefixWritten> = { foundations: 'F', structures: 'D', algorithms: 'A', databases: 'DB', 'programming-languages': 'PL' };
+export const ISLAND_PREFIX: Record<IslandId, LessonPrefixWritten> = { foundations: 'F', structures: 'D', algorithms: 'A', databases: 'DB', 'programming-languages': 'PL', networks: 'CN' };
 
 /**
  * Phase F.1a: a lesson taught in a query language instead of the four programming languages. A SQL lesson has no program
@@ -58,7 +66,7 @@ export type QueryLanguage = typeof QUERY_LANGUAGES[number];
  * with an activity is a database lesson: no program tabs; Phase F.1b adds the ER builder and the normalization steps.
  */
 export const LESSON_ACTIVITIES = ['sql-playground', 'erd-builder', 'normalization-steps', 'query-plan', 'transaction-timeline',
-  'protocol-sequence', 'architecture-diagram', 'ds-comparison', 'challenge-stages'] as const;
+  'protocol-sequence', 'architecture-diagram', 'ds-comparison', 'challenge-stages', 'packet-journey', 'network-sequence'] as const;
 export type LessonActivity = typeof LESSON_ACTIVITIES[number];
 
 /**
@@ -73,16 +81,21 @@ export type LessonActivity = typeof LESSON_ACTIVITIES[number];
  * Phase F.1d adds driver-code (application code in Python and JavaScript, run by the tests, and Java, compiled:
  * `content.driverCode`), protocol-sequence (the round trips an application makes: `content.sequences`),
  * architecture-diagram (backup, replication and failover simulations: `content.ops`) and visualization (one of the
- * shared visualizations, ds-comparison or challenge-stages: `content.visualization`).
+ * shared visualizations, ds-comparison or challenge-stages: `content.visualization`). CN-0 adds network-protocol: fixed
+ * network scenes (nodes, messages with their headers by layer, node tables) and exercises answered from them
+ * (`content.network`, src/lib/network/model.ts). It is its own capability: protocol-sequence keeps meaning the SQL round
+ * trips of the database lessons.
  */
 export const LESSON_CAPABILITIES = ['program-code', 'sql', 'er-diagram', 'normalization', 'query-plan', 'transaction-timeline',
-  'driver-code', 'protocol-sequence', 'architecture-diagram', 'visualization'] as const;
+  'driver-code', 'protocol-sequence', 'architecture-diagram', 'visualization', 'network-protocol'] as const;
 export type LessonCapability = typeof LESSON_CAPABILITIES[number];
 export const hasCapability = (lesson: Pick<LessonMeta, 'capabilities'>, capability: LessonCapability) => lesson.capabilities.includes(capability);
 /** The activity each database capability's lessons may name (the blueprint's `activity`). */
 const CAPABILITY_ACTIVITY: Record<LessonActivity, LessonCapability> = { 'sql-playground': 'sql', 'erd-builder': 'er-diagram', 'normalization-steps': 'normalization',
   'query-plan': 'query-plan', 'transaction-timeline': 'transaction-timeline', 'protocol-sequence': 'protocol-sequence',
-  'architecture-diagram': 'architecture-diagram', 'ds-comparison': 'visualization', 'challenge-stages': 'visualization' };
+  'architecture-diagram': 'architecture-diagram', 'ds-comparison': 'visualization', 'challenge-stages': 'visualization',
+  // CN-0: a network lesson's packets through the layers and its message sequences are both drawn from network scenes.
+  'packet-journey': 'network-protocol', 'network-sequence': 'network-protocol' };
 /** The shared visualizations a database lesson may show (with the visualization capability). */
 export const DATABASE_VISUALIZATIONS = ['ds-comparison', 'challenge-stages'] as const;
 
@@ -407,6 +420,9 @@ export interface ReplicationExample { id: string; title: string; description: st
 export interface BackupExample { id: string; title: string; description: string; plan: BackupPlan; failureAt: number }
 /** A backup or replication exercise; its answer is computed by src/lib/ops/check.ts, never written here. */
 export type OpsExercise = OpsTask & { id: string; title: string; statement: string; hints: string[]; explanation: string; mistakes: { answer: Record<string, number>; why: string }[] };
+/** CN-0: an exercise answered from the lesson's scenes (or computed, subnet); a typical mistake must fail the check. */
+export type NetworkExercise = NetworkTask & { id: string; title: string; statement: string; hints: string[]; explanation: string; mistakes: { answer: Record<string, string>; why: string }[] };
+export interface NetworkLessonContent { scenes: NetworkScene[]; exercises: NetworkExercise[] }
 export interface OpsLessonContent { replication: ReplicationExample[]; backups: BackupExample[]; exercises: OpsExercise[] }
 export type { Anomaly };
 
@@ -431,6 +447,8 @@ export interface LessonContent {
   driverCode?: { examples: DriverExample[] };
   sequences?: SequenceExample[];
   ops?: OpsLessonContent;
+  /** CN-0: network scenes (shown in sections by id) and their exercises. */
+  network?: NetworkLessonContent;
 }
 
 export interface IslandMeta { id: IslandId; name: string; englishName: string; summary: string }
@@ -487,6 +505,8 @@ export function validateCurriculum({ islands, lessons, contents, visualizations,
     seen.slugs.add(lesson.slug);
     if (!SLUG.test(lesson.slug)) fail(at, `slug ${lesson.slug} is not kebab-case`);
     if (parseLessonId(at)?.prefix !== ISLAND_PREFIX[lesson.islandId]) fail(at, `does not belong to ${lesson.islandId}`);
+    // CN-0: an island prepared for authoring publishes nothing until it joins ISLAND_IDS with its first written lesson.
+    if (!(ISLAND_IDS as readonly string[]).includes(lesson.islandId)) fail(at, `${lesson.islandId} is prepared for authoring, not a curriculum island yet: move it to ISLAND_IDS with its first written lesson`);
     for (const [field, value] of [['title', lesson.title], ['summary', lesson.summary]] as const) if (!value.trim()) fail(at, `empty ${field}`);
     if (lesson.learningObjectives.length < MIN_OBJECTIVES) fail(at, `needs at least ${MIN_OBJECTIVES} learning objectives`);
     if (!lesson.concepts.length) fail(at, 'needs concepts');
@@ -548,7 +568,9 @@ export function validateCurriculum({ islands, lessons, contents, visualizations,
  * MIN_EXAMPLES examples in all (SQL examples, ER diagrams, normalization steps; each shown in a section by id), at least
  * one exercise, SQL exercises with hints and hidden checks on known datasets, ER and normalization exercises whose
  * reference answers are well formed, and no program code. Whether the SQL runs and the answers pass their own checks is
- * tests/curriculum-sql.test.ts and tests/curriculum-db.test.ts.
+ * tests/curriculum-sql.test.ts and tests/curriculum-db.test.ts. CN-0: the same checks serve every lesson without program
+ * code, so a network lesson's scenes count as examples (each consistent, networkSceneProblems) and its exercises as
+ * exercises (answer derivable from the scenes, typical mistakes rejected); tests/network-capability.test.ts.
  */
 export function validateDatabaseContent(lesson: LessonMeta, content: LessonContent): string[] {
   const problems: string[] = [];
@@ -572,10 +594,11 @@ export function validateDatabaseContent(lesson: LessonMeta, content: LessonConte
     if (!sql.presets.length) fail('the playground needs preset queries');
     for (const p of sql.presets) if (!p.label.trim() || !p.sql.trim()) fail('a preset needs a label and SQL');
   }
-  const { driverCode, sequences, ops } = content;
+  const { driverCode, sequences, ops, network } = content;
   const examples = [...sql?.examples ?? [], ...er?.diagrams ?? [], ...normalization?.examples ?? [],
     ...queryPlan?.trees ?? [], ...transactions?.timelines ?? [], ...transactions?.schedules ?? [],
-    ...driverCode?.examples ?? [], ...sequences ?? [], ...ops?.replication ?? [], ...ops?.backups ?? []];
+    ...driverCode?.examples ?? [], ...sequences ?? [], ...ops?.replication ?? [], ...ops?.backups ?? [], ...network?.scenes ?? []];
+  for (const scene of network?.scenes ?? []) for (const p of networkSceneProblems(scene)) fail(p);
   for (const e of driverCode?.examples ?? []) {
     const langs = Object.keys(e.code);
     if (!langs.length || langs.some(l => !(DRIVER_LANGUAGES as readonly string[]).includes(l))) fail(`driver example ${e.id} uses ${DRIVER_LANGUAGES.join(', ')} only`);
@@ -613,7 +636,19 @@ export function validateDatabaseContent(lesson: LessonMeta, content: LessonConte
     if (!Number.isInteger(question.answer) || question.answer < 0 || question.answer >= question.options.length) fail(`quiz ${question.id} answer out of range`);
     if (!question.explanation.trim()) fail(`quiz ${question.id} has no explanation`);
   }
-  const exercises = [...sql?.exercises ?? [], ...er?.exercises ?? [], ...normalization?.exercises ?? [], ...transactions?.exercises ?? [], ...ops?.exercises ?? []];
+  const exercises = [...sql?.exercises ?? [], ...er?.exercises ?? [], ...normalization?.exercises ?? [], ...transactions?.exercises ?? [], ...ops?.exercises ?? [], ...network?.exercises ?? []];
+  // CN-0: each network exercise's answer comes from the scenes (or is computed), and each typical mistake is rejected.
+  for (const exercise of network?.exercises ?? []) {
+    try {
+      expectedNetworkAnswer(exercise, network!.scenes);
+      if (!exercise.mistakes.length) fail(`exercise ${exercise.id} needs at least one typical mistake`);
+      for (const m of exercise.mistakes) if (checkNetworkAnswer(exercise, network!.scenes, m.answer).ok) fail(`exercise ${exercise.id}: the typical mistake "${m.why}" passes the check`);
+      if (exercise.task === 'layer') {
+        const model = network!.scenes.find(s => s.id === exercise.scene)!.model;
+        if (!LAYER_MODELS[model].layers.some(l => l.id === expectedNetworkAnswer(exercise, network!.scenes).layer)) fail(`exercise ${exercise.id}: the answer is not a layer of the ${model} model`);
+      }
+    } catch (e) { fail(`exercise ${exercise.id}: ${(e as Error).message}`); }
+  }
   if (!exercises.length) fail('needs at least one exercise');
   for (const exercise of exercises) {
     unique(exercise.id);
@@ -660,7 +695,7 @@ export function validateContent(lesson: LessonMeta, content: LessonContent, visu
   // Phase F.1b: each declared capability has its content, and no content appears without its capability.
   const parts: [LessonCapability, boolean][] = [['sql', !!content.sql], ['er-diagram', !!content.er], ['normalization', !!content.normalization],
     ['query-plan', !!content.queryPlan], ['transaction-timeline', !!content.transactions], ['driver-code', !!content.driverCode],
-    ['protocol-sequence', !!content.sequences], ['architecture-diagram', !!content.ops]];
+    ['protocol-sequence', !!content.sequences], ['architecture-diagram', !!content.ops], ['network-protocol', !!content.network]];
   // A database lesson shows a shared visualization only with the visualization capability (program lessons always may).
   if (!hasCapability(lesson, 'program-code') && hasCapability(lesson, 'visualization') !== !!content.visualization)
     fail(content.visualization ? 'has a visualization without the visualization capability' : 'the visualization capability needs a visualization');
