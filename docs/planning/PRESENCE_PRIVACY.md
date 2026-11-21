@@ -1,6 +1,6 @@
 # Presence 隱私說明草案與 GPC／DNT 評估（P5）
 
-> 日期：2026-11-21（P5）；同日 P6-D 核對並更新 §1、§2，新增 §1.1 ｜ 分支：`presence/visitor-population` ｜ 狀態：**草案，尚未放上網站**
+> 日期：2026-11-21（P5）；同日 P6-D 核對並更新 §1、§2，新增 §1.1；P7 再次核對（心跳 60 秒、逾時 150 秒、共用儲存的「脈衝」） ｜ 分支：`presence/visitor-population` ｜ 狀態：**草案，尚未放上網站**
 >
 > 這份文件不是法律意見。§2 的文字要不要放、放在哪裡、是否需要同意機制，由使用者決定（必要時請教專業人士）。
 
@@ -11,12 +11,12 @@
 | 資料 | 在哪裡 | 內容 | 保留多久 |
 |---|---|---|---|
 | Session Cookie `li_presence` | 訪客的瀏覽器 | 伺服器產生的隨機 ID、簽發時間、簽章。`HttpOnly`、`SameSite=Strict`、只送給 `/api/presence`、沒有到期日 | 關閉瀏覽器即消失；超過 12 小時由伺服器換新 |
-| Session 記錄 | 伺服器（記憶體或共用儲存） | 隨機 ID、目前位置（群島／島嶼／課程代號）、幾個時間戳、分頁的隨機標籤與各分頁離開的時間（最多 6 筆，P6-A）、限流計數 | 最後一次心跳後 90 秒不再計入。刪除時間：記憶體版在之後的下一次請求清除（清理至少間隔 10 秒）；共用儲存在有其他訪客活動時最晚再 10 分鐘，完全沒有訪客時隨整組資料在 24 小時內消失 |
+| Session 記錄 | 伺服器（記憶體或共用儲存） | 隨機 ID、目前位置（群島／島嶼／課程代號）、幾個時間戳、分頁的隨機標籤與各分頁離開的時間（最多 6 筆，P6-A）、限流計數。共用儲存另外在記錄旁保留該 Session「最近一次沒有新內容的回報」（脈衝，P7）：分頁的隨機標籤、時間、位置、限流計數，都是記錄裡本來就有的同類資料，沒有新增任何種類 | 最後一次心跳後 150 秒不再計入（P7 起；原為 90 秒）。刪除時間：記憶體版在之後的下一次請求清除（清理至少間隔 10 秒）；共用儲存在有其他訪客活動時最晚再 10 分鐘，完全沒有訪客時隨整組資料在 24 小時內消失 |
 | 公開的人口數字 | `GET /api/presence` | 總人數、各群島、各**已開放**島嶼、各群島的公共區域人數；另有一個標頭說明計數來自記憶體或共用儲存 | 即時計算；CDN、瀏覽器與伺服器各可重用 15 秒（P6-D）。回應對所有人相同，不讀取請求的任何內容，也不設 Cookie |
 
 **本系統的程式不處理的資料**：IP 位址（不讀取、不儲存）、User-Agent（只用來排除自稱爬蟲的請求，不儲存）、姓名、帳號、電子郵件、裝置指紋、瀏覽歷程（只知道「現在在哪」，不留下過去在哪）、跨網站的任何識別。程式本身不寫任何記錄檔。
 
-**主機服務商那一側**：和任何網站一樣，Vercel 處理連線時會看到訪客的 IP，也有自己的存取記錄；如果依建議在 Vercel Firewall 為 `/api/presence` 設限流（[PRESENCE_P6_PRODUCTION_READINESS.md](PRESENCE_P6_PRODUCTION_READINESS.md) §6.3），限流是平台以 IP 為單位執行的。這些都不經過本系統的程式，也不進入 Presence 的資料，但隱私說明不應該寫成「沒有任何人看得到 IP」。
+**主機服務商那一側**：和任何網站一樣，Vercel 處理連線時會看到訪客的 IP，也有自己的存取記錄；如果依建議在 Vercel Firewall 為 `/api/presence` 設限流（[PRESENCE_P7_PREVIEW_LAUNCH_GATE.md](PRESENCE_P7_PREVIEW_LAUNCH_GATE.md) §4.6），限流是平台以 IP 為單位執行的。這些都不經過本系統的程式，也不進入 Presence 的資料，但隱私說明不應該寫成「沒有任何人看得到 IP」。
 
 課程層級的人數只留在伺服器，不對外公開：「某一堂課有 1 個人」對單一訪客透露的資訊多於地圖所需。
 
@@ -29,12 +29,27 @@
 | Cookie 名稱與屬性 | `li_presence`；`Path=/api/presence`、`HttpOnly`、`SameSite=Strict`、HTTPS 下 `Secure`、沒有 `Expires`／`Max-Age`（關閉瀏覽器即消失） | `src/lib/presence/session.ts` `sessionCookie`；`tests/presence-api.test.ts`「is a session cookie only the presence API gets」；瀏覽器測試檢查實際的 Cookie 屬性 |
 | Cookie 內容 | `v1.<隨機 16 位元組>.<簽發時間>.<HMAC-SHA256 簽章>`。沒有 IP、User-Agent 或任何關於訪客的資料；簽發超過 12 小時由伺服器換新 | `session.ts` `mintToken`／`verifyToken` |
 | 誰拿得到 Cookie | 只有瀏覽器送回 Cookie、過了 2 秒暖機的訪客才建立 Session。不留 Cookie 的用戶端、自稱爬蟲、送出 GPC／DNT 的瀏覽器都不會拿到 Cookie，也不佔伺服器記憶體 | `service.ts`；`tests/presence-api.test.ts`「holds no memory for clients that keep no cookie」等 |
-| 分頁標籤 | 每次載入頁面產生的 8 位元組亂數，只存在該頁的記憶體，**不寫入** `localStorage`、`sessionStorage` 或 Cookie；伺服器只用它分辨同一個 Session 的分頁 | `client.ts`；瀏覽器測試檢查兩種 storage 都沒有識別碼 |
-| 伺服器端的記錄 | 欄位正好是：`location`、`seen`、`tab`、`since`、`ownerSeen`、`away`、`left`（有分頁告別後才有）、`windowStart`、`writes` | `tests/presence-redis-store.test.ts`「stores a session's place and times, and nothing about the visitor」逐欄比對 |
+| 分頁標籤 | 每次載入頁面產生的 8 位元組亂數，只存在該頁的記憶體，**不寫入** `localStorage`、`sessionStorage` 或 Cookie；伺服器只用它分辨同一個 Session 的分頁。分頁之間的通知（P7，`BroadcastChannel`）只傳一個固定的字「left」，不含分頁標籤或任何識別碼，不離開瀏覽器，也不保存 | `client.ts`；瀏覽器測試檢查兩種 storage 都沒有識別碼 |
+| 伺服器端的記錄 | 欄位正好是：`location`、`seen`、`tab`、`since`、`ownerSeen`、`away`、`left`（有分頁告別後才有）、`windowStart`、`writes`；共用儲存多一個 `written`（這筆記錄最後寫入的伺服器時間）。脈衝的欄位正好是 `tab`、`since`、`location`、`at`、`windowStart`、`writes`（P7） | `tests/presence-redis-store.test.ts`「stores a session's place and times, and nothing about the visitor」逐欄比對 |
 | 對外公開的內容 | 欄位正好是 `v`、`at`、`ttlMs`、`total`、`hub`、`regions`、`islands`、`commons`；不含任何 Session ID、分頁標籤、課程代號或個別訪客的時間 | `tests/presence-api.test.ts`「publishes aggregate numbers only」；release preflight 的 `presenceAnswerProblems` 在建置後再檢查一次 |
 | 快取 | 人口數字可被共用 15 秒，且對所有人相同（帶誰的 Cookie、帶不帶隱私訊號、帶什麼查詢字串都一樣）；其餘回應一律 `no-store` | `tests/presence-api.test.ts`「lets a CDN hand one answer to everyone for 15 seconds」 |
 | 隱私訊號 | GPC 或 DNT 任一：追蹤器不啟動；請求仍到伺服器時不設 Cookie、不建立 Session | §3.3；`PRESENCE.honorPrivacySignals` 仍為 `true`（P6 未更動） |
 | 規劃中的島嶼 | 不公布任何「規劃中島嶼」的人數；看它的訪客計入所屬群島的公共區域（P6-B） | `locations.ts`；`tests/presence-api.test.ts`「counts nobody on a planned island」 |
+
+### 1.2 P7 核對：改了什麼、沒改什麼
+
+| 項目 | P7 的變動 | 對隱私說明的影響 |
+|---|---|---|
+| 心跳間隔 | 30 秒 → 60 秒 | §2 的文字由「每 30 秒」改為「每分鐘」 |
+| 逾時 | 90 秒 → 150 秒 | §2 的文字由「90 秒」改為「兩分半鐘」；沒有告別就消失的訪客（當機、斷線）多被計入最多 60 秒 |
+| 共用儲存的脈衝 | 新增一個欄位，內容是記錄裡已有的同類資料（上表） | 沒有新的資料種類；刪除時間與記錄相同（一起清除，有測試） |
+| Cookie | 名稱、屬性、內容、簽發與換新規則都沒有動 | 無 |
+| GPC／DNT | `PRESENCE.honorPrivacySignals` 仍為 `true`，行為沒有動 | 無 |
+| 對外公開的內容 | 欄位沒有動；`ttlMs` 的值由 90000 變為 150000 | 無 |
+| 儲存連不上時 | API 3 秒內回 503，不設 Cookie、不洩漏儲存位址；地圖在 150 秒後不再顯示舊的人影 | 無 |
+| 分頁之間的通知 | 一個分頁告別時通知同一個瀏覽器的其他分頁（`BroadcastChannel`，同源、只在瀏覽器內）。內容是一個固定的字；分頁在背景時不開通道；送出 GPC／DNT 的瀏覽器不開；不寫入任何儲存（瀏覽器測試檢查 `localStorage` 與 `sessionStorage` 仍是空的） | 無新的資料；§2 的文字不必改 |
+
+依據：`tests/presence-redis-store.test.ts`「stores a session's place and times, and nothing about the visitor」（逐欄比對記錄與脈衝）、「gives up on a store that does not answer in time…」；`tests/presence-api.test.ts` 的 Cookie、GPC／DNT、快取測試全數未修改且通過。
 
 ## 2. 隱私說明草案
 
@@ -46,9 +61,9 @@
 >
 > **我們怎麼計算**
 >
-> - 您開著本站的分頁時，瀏覽器每 30 秒會告訴我們「這個分頁現在在哪一座島」。分頁切到背景或關閉時就停止。
+> - 您開著本站的分頁時，瀏覽器每分鐘會告訴我們「這個分頁現在在哪一座島」（換頁時也會說一次）。分頁切到背景或關閉時就停止。
 > - 為了不把同一個人算成很多人，我們會在您的瀏覽器放一個暫時的 Cookie，裡面只有一組隨機號碼。它不含您的身分，關閉瀏覽器就消失。
-> - 超過 90 秒沒有收到回報，您就不再被計入；相關記錄隨後刪除（通常在十幾分鐘內，最遲一天）。
+> - 超過兩分半鐘沒有收到回報，您就不再被計入；相關記錄隨後刪除（通常在十幾分鐘內，最遲一天）。
 >
 > **我們不做的事**
 >
@@ -90,7 +105,7 @@
 |---|---|
 | 瀏覽器帶有任一訊號 | 追蹤器不啟動：不送任何請求、不掛任何事件監聽 |
 | 帶訊號的請求仍然送到伺服器（例如舊版頁面） | 回 200 `counted: false`，**不設 Cookie、不建立 Session**，並請對方 10 分鐘內不要再問 |
-| 訪客中途開啟訊號 | 之後的心跳不再生效；原有的 Session 在 90 秒後逾時消失 |
+| 訪客中途開啟訊號 | 之後的心跳不再生效；原有的 Session 在 150 秒後逾時消失 |
 | 帶訊號的訪客看地圖 | 照常看得到人影。讀取總人數不涉及追蹤任何人 |
 | 帶訊號但請求本身有問題（跨站、格式錯誤） | 照常拒絕。訊號不是繞過檢查的方法 |
 

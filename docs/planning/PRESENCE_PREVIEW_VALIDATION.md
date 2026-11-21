@@ -49,6 +49,13 @@ openssl rand -base64 48
 
 第二輪想看區域地圖上的 NPC 時，再加 `LOGIC_ISLAND_REGIONAL_WORLD` = `1`（Preview）。想先看假資料的動畫而不接儲存時，把 `LOGIC_ISLAND_POPULATION_NPC` 設為 `mock` 即可（不需要 ①，但仍需要 ② 的金鑰）。
 
+### 3.1 P7 的補充
+
+- 建立 Upstash 資料庫之前要知道的計費條件、Free 額度、超額後的行為與上限設定方式，在 [PRESENCE_P7_PREVIEW_LAUNCH_GATE.md](PRESENCE_P7_PREVIEW_LAUNCH_GATE.md) §6.2；只接這個分支的 Preview 的做法在該文件 §6.3。
+- 心跳現在是 60 秒、逾時 150 秒。自動驗收的「斷線的訪客」會讀 API 自己回報的逾時，不必改參數；人工清單的時間已更新。
+- 驗收時順便確認兩件官方文件沒有寫明的事（P7 文件 §4.6）：Firewall 的限流規則是否套用在 Preview 網址；由 CDN 快取回應的 GET 是否計入限流。
+- 「儲存失效」不必在 Preview 上演練：本機的 `store-outage-check.mjs` 已經驗過（P7 文件 §4.5）。想在 Preview 上看一次的話，暫時把 `KV_REST_API_TOKEN` 改成錯的值再重新部署即可，API 會回 503、地圖沒有人影、其餘正常。
+
 ## 4. 自動驗收
 
 工具：[`evidence/presence/tools/preview-validate.mjs`](evidence/presence/tools/preview-validate.mjs)。它用真的瀏覽器從外面檢查一個已部署的 build，會拒絕對 Production 網域執行。
@@ -71,7 +78,7 @@ ROOT="$PWD" BASE="https://<preview 網址>" BYPASS="<步驟 ④ 的密鑰>" OUT=
 | `store.agreement` | 靜置 20 秒後同時送 24 個請求：所有回應的計數相同 | Redis Shared Store（多 instance） |
 | `npc.source`、`npc.live` | 首頁地圖有 NPC 圖層；第一位訪客在基礎程式島時，另一位訪客的地圖上該島正好一個人影 | NPC Live |
 | `count.goodbye` | 第一位訪客關掉頁面：計數歸零，人影離開 | 告別 |
-| `count.timeout` | 第二位訪客斷網：90 秒內仍計入，之後消失（約兩分半；`SKIP_TTL=1` 可略過） | 過期 |
+| `count.timeout` | 第二位訪客斷網：先仍計入，逾時（150 秒）加上數字的延遲之內消失（最多約四分鐘；`SKIP_TTL=1` 可略過） | 過期 |
 | `count.clean` | 結束時人口回到開始時的數字 | 清理 |
 
 - 計數都以「與開始時的差」判斷，並且每一項都等到成立為止（人口數字在 CDN 最多舊 15 秒、在 instance 再 15 秒），所以 Preview 上有少數其他訪客也不會誤判；最好在沒有別人使用時執行。
@@ -102,7 +109,7 @@ ROOT="$PWD" BASE="https://<preview 網址>" BYPASS="<步驟 ④ 的密鑰>" OUT=
 | D3 | 兩個視窗並排，同時最小化 | 兩分鐘後地圖上沒有殘留的人影（P1-44） |
 | D4 | 開 AI 群島的頁面、再點一座規劃中的島 | 首頁地圖沒有變化（AI 不在首頁地圖上）；`/api/presence` 的 `commons.ai` 為 1，`islands` 沒有那座島 |
 | D5 | 開發者工具 → Application | Cookie 只有 `li_presence`（HttpOnly、Strict、Path `/api/presence`）；Local／Session Storage 沒有識別碼 |
-| D6 | 開發者工具 → Network，停在首頁 5 分鐘 | 每 30 秒一個 POST、每 15 秒一個 GET；分頁切到背景後兩者都停 |
+| D6 | 開發者工具 → Network，停在首頁 5 分鐘 | 每 60 秒一個 POST、每 15 秒一個 GET；分頁切到背景後兩者都停 |
 | D7 | 開著首頁地圖，看工作管理員的 CPU | 沒有人影在動時接近閒置；有人影時明顯低於旋轉地圖時 |
 
 ### 5.3 手機（真機，至少一支 iPhone 與一支 Android）

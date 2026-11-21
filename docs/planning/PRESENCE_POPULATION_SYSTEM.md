@@ -44,7 +44,7 @@
 瀏覽器（每個分頁）                         伺服器（Next.js route handler）              首頁地圖
 PresenceTracker ──POST /api/presence──▶  service.ts ─ session.ts（簽章 Cookie）
   place.ts：網址 → 單一位置參照               │         locations.ts（registry 解析 Region→Island→Course）
-  可見時每 30 秒一次、切頁立即、背景時告別      ▼
+  可見時每 60 秒一次（P7 前為 30 秒）、切頁立即、背景時告別      ▼
                                           store.ts（PresenceStore；目前為記憶體）
                                               │  engine.ts（一個 Session 一個位置、逾時、聚合）
 PopulationLayer ◀──GET /api/presence──────────┘  只回傳聚合數字
@@ -98,7 +98,7 @@ API 的 route 檔名是 `route.presence.ts`：`next.config.ts` 只有在 `LOGIC_
 | 回應 | 意義 |
 |---|---|
 | `200 {ok:true, counted:false, retryMs}`＋`Set-Cookie` | 第一次接觸：發出 Session Cookie，尚不計入；瀏覽器依 `retryMs` 帶 Cookie 再送 |
-| `200 {ok:true, counted:true, next:30000}` | 已計入；30 秒後下一次心跳 |
+| `200 {ok:true, counted:true, next:60000}` | 已計入；60 秒後下一次心跳（P7 前為 30 秒） |
 | `400`／`403`／`413`／`429`／`503` | 格式錯誤／非本站頁面發出／body 過大／單一 Session 寫入過多／Production 未設金鑰 |
 
 ### GET：聚合人口
@@ -115,9 +115,9 @@ API 的 route 檔名是 `route.presence.ts`：`next.config.ts` 只有在 `LOGIC_
 | 需求 | 做法 |
 |---|---|
 | 暫時性匿名識別碼 | 伺服器簽發的 Session Cookie `li_presence`：隨機 16 bytes＋簽發時間＋HMAC-SHA256。`HttpOnly`、`SameSite=Strict`、`Path=/api/presence`、沒有到期時間（瀏覽器關閉即消失）；12 小時後伺服器換發 |
-| Heartbeat 30 秒、逾時 90 秒 | `src/lib/presence/config.ts`；分頁可見時才送心跳 |
+| Heartbeat 60 秒、逾時 150 秒（P7；原為 30／90 秒） | `src/lib/presence/config.ts`；分頁可見時才送心跳。理由與量測見 `PRESENCE_P7_PREVIEW_LAUNCH_GATE.md` §3 |
 | 同一 Session 不重複計入 | 一個 Session 只有一筆紀錄、一個位置；同瀏覽器的所有分頁共用 Cookie |
-| 多分頁 | 位置屬於「最後被使用的分頁」（`since`＝該分頁變為活躍的時間）；其他可見分頁只延長存活、不移動位置；擁有位置的分頁 45 秒沒消息則由其他分頁接手 |
+| 多分頁 | 位置屬於「最後被使用的分頁」（`since`＝該分頁變為活躍的時間）；其他可見分頁只延長存活、不移動位置；擁有位置的分頁 90 秒沒消息則由其他分頁接手（P7；原為 45 秒）。P7：分頁告別時會通知同一個瀏覽器的其他分頁，還在前景的分頁 1.5 秒後自己回報，訪客立刻算在它那裡 |
 | 切換頁面 | 追蹤器跟隨路徑、`?island=` 與 hash，0.6 秒去抖後回報 |
 | 背景分頁 | 進入背景立刻送告別並停止心跳；只有擁有位置的分頁能讓 Session 離線；回到前景立刻恢復 |
 | 不儲存個資 | API 不讀取 IP 與轉送標頭；User-Agent 只用來比對一次爬蟲名單、不儲存；儲存內容只有隨機 Session id、位置與時間 |

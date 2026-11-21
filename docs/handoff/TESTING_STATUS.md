@@ -10,6 +10,23 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## Dynamic Island Population P7：Preview Launch Gate（2026-11-22，同分支，Draft PR #44，未合併）
+
+報告：`docs/planning/PRESENCE_P7_PREVIEW_LAUNCH_GATE.md` §5、§7；證據：`docs/planning/evidence/presence/p7/`。**只有本機隔離副本與 PR 的 CI，不是 Preview、不是 Production，也不是真機。沒有建立任何雲端資源，沒有修改任何環境變數。** 除另外註明外，是併入 `main` `b36c565` 之後的結果。
+
+- Typecheck 0、ESLint 0（全專案）、Vitest **105 個檔案、2,883 通過／10 略過／0 失敗**。Presence 9 個檔案 291 項：設了 `PRESENCE_TEST_REDIS_URL` 時 290 通過／1 略過，沒設時 250 通過／41 略過。24 小時成本模擬另以專用的 `redis-server` 執行（`PRESENCE_COST_REDIS_URL`），12 個情境真 Redis 的指令統計與替身的帳單逐一相同。
+- 併入 `b36c565` 後第一次執行有 1 項失敗：`tests/presence-zones.test.ts` 把「已開放的島」寫死，而 `main` 讓電腦網路島開放了。已改為由 registry 取得名單。**往後有島嶼開放時，這類測試不應該再寫死名單。**
+- 瀏覽器（headless Chromium 桌機＋iPhone 13 模擬）：
+  - `PRESENCE=1`＋`NPC=mock`＋`REGIONAL_WORLD=1`：`e2e/presence.spec.ts` **56 通過／18 略過／0 失敗**。新增「關掉正在使用的分頁，另一個分頁立刻被算回來」。逾時由 90 秒改為 150 秒後，兩個測試要配合：「斷線的訪客」改為讀取 API 自己回報的 `ttlMs`；用假分頁回報的測試要讓假分頁自己告別，否則它的 Session 會留到手機專案的第一個測試。
+  - `NPC=mock`＋`P9_PROTOTYPE=1`：10／10；再加 `P9_SHARED_CANVAS=1`：10／10。
+  - `PRESENCE=1`＋`NPC=live`：4／4；`preview-validate.mjs` 對本機 live build **14 通過／0 失敗／1 略過**；`store-outage-check.mjs`（儲存位址沒有東西在聽）**10／10**。
+  - 預設（旗標全關）：全套 E2E 三次執行為 437／2、437／2、438／3 失敗。`candidate-integration.spec.ts:179`、`:264` 是 `main` 既有的 P1-43（在 `main` `b36c565` 自己的 build 上同樣失敗）；第三次多出的 `hex-camera.spec.ts:313` 是負載相依（當時負載約 15，另有工作階段在跑 3D 測試），單獨重跑 `main` 與本分支都通過。`app-paths-manifest.json` 沒有 route handler。
+  - 與 `main`（`b36c565`）9 頁 × 桌機／手機 18 組逐像素 **0 差異**。比對基準要固定在分支併入的那個 commit：其他工作階段更新 `origin/main` 時，直接用 `origin/main` 會把別人的新內容算成差異（實際發生過）。另有 18–55 個像素的偶發差異，`main` 對 `main` 也會出現，是截圖雜訊。
+- Release preflight：預設 build `--build` 通過、0 個 handler；含 Presence 的 build 在宣告 `LOGIC_ISLAND_PRESENCE=1` 時通過，沒宣告時 `routes` 失敗（符合設計）。本機 `--probe` 因為沒有設 `LOGIC_ISLAND_TRIALS=1` 而回報 `/trials` 404，與 P6 相同。
+- **`trials-ci`（PR #44 的 `gates`）**：`c58d033` 通過；`887e40d` 沒有執行（PR 與前進的 `main` 衝突時 GitHub 不啟動工作流程）；`a530d96`（併入 `fe3c344`）通過；`f1ed07f`（併入 `b36c565`）通過（12 分 45 秒）；之後只有文件的 commit，結果見 PR 頁面。`main` 仍在前進（其他工作階段的課程批次），PR 落後時 CI 以當時最新的 `main` 驗證合併結果。
+- 私有題庫洩漏掃描（追蹤檔案、`origin/main..HEAD`）：clean。
+- 沒有做：Vercel Preview、Production、真機、iOS Safari、真正的 Upstash。Vercel 專案仍回 403。
+
 ## Dynamic Island Population P6：Production Readiness 與 Preview 驗收準備（2026-11-21，同分支，未合併）
 
 報告：`docs/planning/PRESENCE_P6_PRODUCTION_READINESS.md` §8（另有 `PRESENCE_PREVIEW_VALIDATION.md`、`PRESENCE_SHARED_STORE.md` §5–§6）；證據：`docs/planning/evidence/presence/p6/`。**只有本機隔離副本的結果，不是 Preview、不是 Production，也不是真機。沒有建立任何雲端資源，沒有修改任何環境變數。**

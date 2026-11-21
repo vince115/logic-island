@@ -4,6 +4,7 @@
 > 狀態：**P6-A～P6-E 完成本機自動化驗證；所有旗標仍預設關閉**。沒有建立任何雲端資源、沒有修改任何環境變數或 Firewall 設定、沒有部署、沒有合併 `main`。
 > 前兩輪的記錄：[PRESENCE_POPULATION_SYSTEM.md](PRESENCE_POPULATION_SYSTEM.md)、[PRESENCE_ROUND2.md](PRESENCE_ROUND2.md)。本文件更新其中三件事：P1-44 已修正；NPC 只畫在已開放的島（第二輪寫的「29 座島都有 NPC」不再成立）；共用儲存的費用估算改為實測值（第二輪低估約 4 倍）。
 > 需要使用者決定或動手的事項集中在 §9。
+> **後續**：P7（[PRESENCE_P7_PREVIEW_LAUNCH_GATE.md](PRESENCE_P7_PREVIEW_LAUNCH_GATE.md)）把心跳改為 60 秒、逾時 150 秒，並把沒有新內容的回報改成一個指令的「脈衝」。本文件 §4 的命令數與費用是 P6 當時的實測，目前的數字約為它的四到六成；文中的「30 秒」「90 秒」也是當時的設定。
 
 ## 1. 本輪範圍與結果
 
