@@ -43,7 +43,7 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '資料模型、架構與綜合挑戰', summary: 'NoSQL 與 CAP；備份、複寫與分片；從需求到安全串接的完整應用', lessonIds: range('DB', 18, 20) },
   ],
   // 2026-11-20 (course production, batch 1): the written lessons only; the island's other units come with their lessons.
-  // AIF-1 to AIF-3: the first fifteen lessons; later batches add their units.
+  // AIF-1 to AIF-4: AIF01–AIF19; the capstone (AIF-5) joins the last unit.
   'ai-foundations': [
     { title: 'AI 的定義與歷史', summary: 'AI 的四種定義、理性代理人與圖靈測試；從達特茅斯會議、專家系統與 AI 寒冬到深度學習與基礎模型', lessonIds: range('AIF', 1, 2) },
     { title: '代理人與搜尋', summary: 'PEAS、環境性質與代理人類型；問題形式化、無資訊搜尋、啟發式搜尋與 A*', lessonIds: range('AIF', 3, 5) },
@@ -51,6 +51,8 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '限制滿足與知識表示', summary: 'CSP、回溯、前向檢查、AC-3 與 MRV／LCV；語意網路、框架、本體論與知識圖譜', lessonIds: range('AIF', 9, 10) },
     { title: '邏輯與推論', summary: '命題邏輯的模型檢查、推論規則、CNF 與歸結、Horn 子句的前向與後向鏈結；一階邏輯的量詞、合一與前向鏈結', lessonIds: range('AIF', 11, 12) },
     { title: '機率與貝氏推論', summary: '聯合分布、邊際化、條件機率與條件獨立；貝氏定理、基本比率與單純貝氏；貝氏網路的因式分解、d-分離、枚舉、變數消去與抽樣', lessonIds: range('AIF', 13, 15) },
+    { title: '時序機率與序列決策', summary: '馬可夫鏈、穩態分布與隱馬可夫模型的濾波與 Viterbi；期望效用、風險態度與資訊價值；MDP、貝爾曼方程、價值迭代與策略迭代', lessonIds: range('AIF', 16, 18) },
+    { title: '負責任的 AI', summary: '傷害來源、分組混淆矩陣與公平性指標的取捨、隱私保護、可解釋性、人類監督與治理', lessonIds: range('AIF', 19, 19) },
   ],
   // CN-1 to CN-5: the whole island, CN01–CN20.
   networks: [
