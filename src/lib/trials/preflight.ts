@@ -283,16 +283,66 @@ export function leakCheck(files: { path: string; text: string }[] | undefined, n
 }
 
 /**
- * The routes a build exposes: every /trials route is one of the allowed (an available exam, a built paper), and the
- * app has no route handler (an API) at all.
+ * The one route handler a build may hold, and what a build must say to hold it (docs/exam-system/22 §2, Presence API
+ * exception). The rule stays "no route handler (API) at all"; this is its single, narrow exception:
+ *
+ *   - the handler is exactly PRESENCE_HANDLER, compared as a whole string: no prefix, pattern or folder is allowed, so
+ *     /api/presence/<anything>/route, /api/trials/route and every other handler still fail;
+ *   - only in a build declared a presence build (`presence`: the preflight is run with LOGIC_ISLAND_PRESENCE=1, the
+ *     same variable the build was made with). Without the declaration the presence handler fails like any other, so
+ *     the default build and CI keep the rule with no exception at all;
+ *   - only when the files the handler runs were given and none of them holds unpublished content (the needles the
+ *     client bundle is scanned for): an API that could serve a question is refused whatever its path. No files given
+ *     is a failure too (fail closed).
+ *
+ * Adding a second handler means editing this list and its tests; nothing a build or an environment says can widen it.
  */
-export function routeCheck(routes: string[] | undefined, handlers: string[] | undefined, allowed: Set<string>, needles: string[]): Check {
+export const PRESENCE_HANDLER = '/api/presence/route';
+export const ALLOWED_HANDLERS: readonly string[] = [PRESENCE_HANDLER];
+export interface HandlerPolicy {
+  /** The build is a presence build (LOGIC_ISLAND_PRESENCE=1). */
+  presence?: boolean;
+  /** By handler: the files it runs (its own traced server chunks; node_modules left out). */
+  sources?: Readonly<Record<string, readonly { path: string; text: string }[]>>;
+}
+
+/**
+ * The routes a build exposes: every /trials route is one of the allowed (an available exam, a built paper), and the
+ * app has no route handler (an API) at all, but for the one exception above.
+ */
+export function routeCheck(routes: string[] | undefined, handlers: string[] | undefined, allowed: Set<string>, needles: string[], policy: HandlerPolicy = {}): Check {
   if (!routes) return { id: 'routes', title: 'Runtime route exposure', status: 'skip', details: ['no build directory given (--build .next)'] };
-  const fails: string[] = [];
+  const fails: string[] = [], info: string[] = [];
   for (const r of routes.filter(x => x === '/trials' || x.startsWith('/trials/'))) if (!allowed.has(r)) fails.push(`${r}: built, but not an available exam or paper`);
   for (const r of routes) { const n = needles.find(x => r.includes(x)); if (n) fails.push(`${r}: route names unpublished ${n}`); }
-  for (const h of handlers ?? []) fails.push(`${h}: a route handler (API) is built`);
-  return check('routes', 'Runtime route exposure', fails, [], [`${routes.length} prerendered routes, ${routes.filter(x => x.startsWith('/trials')).length} under /trials`]);
+  for (const h of handlers ?? []) {
+    if (!ALLOWED_HANDLERS.includes(h)) { fails.push(`${h}: a route handler (API) is built`); continue; }
+    if (policy.presence !== true) { fails.push(`${h}: a route handler (API) is built, and this is not a presence build (LOGIC_ISLAND_PRESENCE=1)`); continue; }
+    const files = policy.sources?.[h];
+    if (!files?.length) { fails.push(`${h}: its files were not given, so what it can serve is not shown`); continue; }
+    const leaks = files.flatMap(f => { const hit = needles.find(n => f.text.includes(n)); return hit ? [`${h}: ${f.path} holds "${hit}"`] : []; });
+    fails.push(...leaks);
+    if (!leaks.length) info.push(`${h}: the presence API, the one handler a presence build may have (${files.length} files scanned for ${needles.length} needles)`);
+  }
+  return check('routes', 'Runtime route exposure', fails, [], [`${routes.length} prerendered routes, ${routes.filter(x => x.startsWith('/trials')).length} under /trials`, ...info]);
+}
+
+/** What the presence API may answer a GET with: the keys of the public snapshot (src/lib/presence/engine.ts), all numbers and counts. */
+export const PRESENCE_SNAPSHOT_KEYS: readonly string[] = ['v', 'at', 'ttlMs', 'total', 'hub', 'regions', 'islands', 'commons'];
+/** The runtime probe's rule for a presence API's answer: aggregate numbers under known keys, nothing else. */
+export function presenceAnswerProblems(body: string, needles: string[]): string[] {
+  const problems: string[] = [];
+  const hit = needles.find(n => body.includes(n));
+  if (hit) problems.push(`response holds "${hit}"`);
+  let value: unknown;
+  try { value = JSON.parse(body); } catch { return [...problems, 'answer is not JSON']; }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return [...problems, 'answer is not an object'];
+  const numbers = (x: unknown): boolean => typeof x === 'number' ? Number.isFinite(x) : Boolean(x) && typeof x === 'object' && !Array.isArray(x) && Object.values(x as object).every(n => typeof n === 'number' && Number.isFinite(n));
+  for (const [key, entry] of Object.entries(value)) {
+    if (!PRESENCE_SNAPSHOT_KEYS.includes(key)) problems.push(`answer has an unknown key "${key}"`);
+    else if (!numbers(entry)) problems.push(`"${key}" is not a number or a record of numbers`);
+  }
+  return problems;
 }
 
 /** The /trials routes the bank allows: the hall, the review book, each available exam, each paper and its result. */

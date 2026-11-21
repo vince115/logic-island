@@ -96,7 +96,7 @@
 | Volatile review dates | 易變題都有 `reviewBy`；30 天內到期列為警告 | 已發布的易變題過期，或有試卷的考試版本過期 |
 | Official brochure version | 官方規格模式的時間、題數、總分與及格分數等於科目的官方格式；及格依據寫明簡章版本（115.04） | 任何不一致；來源超過 180 天未查證時只列警告 |
 | Client bundle leakage（`--build`） | 掃描 `.next/static` 與預先產生的頁面，檢查是否含未發布題的 ID、題幹片段、未就緒試卷的 ID 或審核檔名 | 任何命中 |
-| Runtime route exposure（`--build`） | 預先產生的 `/trials` 路由只限於可用的考試與試卷；不得有 route handler | 多出的路由或 API |
+| Runtime route exposure（`--build`） | 預先產生的 `/trials` 路由只限於可用的考試與試卷；不得有 route handler（唯一例外見 §2.3） | 多出的路由或 API |
 | Runtime probe（`--probe`） | 向本機伺服器請求允許的路由（應為 200）與未就緒的 iPAS 路由（應為 404），並檢查回應內容 | 狀態碼不符，或回應含有洩漏字串 |
 
 ### 2.1 本輪執行結果
@@ -111,6 +111,21 @@
 - 比對字串由題庫自動產生：未發布題的 ID、每題題幹第 8 到 24 字，以及未就緒試卷的 ID。
 - 已發布題的題幹或選項含有的字串會先剔除，避免把已公開的內容誤判為洩漏。
 - 目前共 406 個比對字串。
+
+### 2.3 Route handler 禁令的唯一例外：Presence API（2026-11-21，分支 `presence/visitor-population`，未合併）
+
+「build 內不得有任何 route handler」這條規則**沒有移除**。`routeCheck` 多了一個範圍最小的例外，三個條件必須同時成立：
+
+| 條件 | 內容 | 不成立時 |
+|---|---|---|
+| 路徑完全相等 | handler 必須**正好**是 `/api/presence/route`（`ALLOWED_HANDLERS`，整個字串比對，不是前綴、樣式或資料夾） | `/api/presence/sessions/route`、`/api/presence/[id]/route`、`/api/trials/route` 等一律失敗 |
+| 明確宣告為 Presence build | 執行 preflight 時環境要有 `LOGIC_ISLAND_PRESENCE=1`，與該 build 建置時相同 | 預設 build 與 CI 沒有這個變數：`/api/presence/route` 一樣判定失敗，等於完全沒有例外 |
+| handler 的檔案不含未發布內容 | 掃描該 handler 實際執行的伺服器檔案（依它的 trace，不含套件），比對與 client bundle 相同的洩漏字串 | 任何命中即失敗；沒有提供檔案也失敗（fail closed） |
+
+- Runtime probe 同步加嚴：任何 build 都會檢查 `/api`、`/api/presence/sessions`、`/api/presence/route`、`/trials/api`、`/api/trials` 回 404。`/api/presence` 在預設 build 必須是 404；在 Presence build 必須是 200，且回應只能是已知欄位底下的數字（`PRESENCE_SNAPSHOT_KEYS`），讀取不得設 Cookie。
+- 要再開放第二個 handler，只能修改 `ALLOWED_HANDLERS` 與它的測試；環境變數或 build 內容都無法擴大例外。
+- 回歸測試：`tests/trials-preflight-routes.test.ts`（預設 build 下所有 handler 都失敗；Presence build 下 22 種相似路徑仍失敗；handler 檔案含洩漏字串失敗；未提供檔案失敗）。
+- CI workflow 沒有修改：CI 的 build 沒有 Presence 旗標，所以照舊是「零 route handler」。
 
 ## 3. CI 安全關卡（A3）
 
