@@ -8,8 +8,8 @@ import { islands, lessons } from '@/content/curriculum';
 import { APCS_LABELS, DIFFICULTY_LABELS } from '@/content/curriculum/registry';
 import { DIFFICULTIES } from '@/content/curriculum/schema';
 import { catalogCounts, lessonsOfIsland } from '@/content/world/catalog';
-import { getIsland, getRegion, orderedRegions, regionCountZh } from '@/content/world';
-import { PlannedIslandsOf, PlannedRegion, RegionExams, RegionStrip } from './region-overview';
+import { getIsland, orderedRegions, regionCountZh } from '@/content/world';
+import { PlannedIslandsOf, PlannedRegion, REGION_ACCENT, RegionExams, RegionStrip } from './region-overview';
 import { IslandProgress, ProgressBadge } from './progress';
 import styles from './curriculum.module.css';
 import overview from './catalog-overview.module.css';
@@ -24,11 +24,13 @@ const NUMERALS = ['零', '一', '二', '三', '四', '五', '六', '七', '八',
  * map screenshot, levels and progress) and lists each island's lessons by level, so no island is a single long list.
  * Multi-archipelago v2 (P2): the four regions open the page; the islands with written lessons (程式與資訊群島) follow
  * as before, then every planned island, region by region, as outlines marked 規劃中 and never linked.
+ * AIF-1: a region with open islands (程式與資訊群島, AI 人工智慧群島) lists them under its own heading.
  */
 export function CurriculumCatalog() {
   const complete = lessons.filter(l => l.lessonStatus === 'complete').length, first = lessons.find(l => l.lessonId === 'F01');
   const db = islands.find(i => i.id === 'databases'), dbOpen = lessons.filter(l => l.islandId === 'databases').length;
-  const previews = islandPreviews(), counts = catalogCounts(), cs = getRegion('cs')!;
+  const previews = islandPreviews(), counts = catalogCounts();
+  const openRegions = orderedRegions.filter(r => islands.some(i => getIsland(i.id)?.regionId === r.id));
   return <main id="main" className={`container ${styles.catalog}`}>
     <Breadcrumbs items={[{ label: '探索群島', href: '/' }, { label: '完整課綱' }]}/>
     <span className="eyebrow">THE CURRICULUM · PHASE E</span>
@@ -56,60 +58,65 @@ export function CurriculumCatalog() {
       {DIFFICULTIES.map(d => <div key={d}><dt>{DIFFICULTY_LABELS[d]}</dt><dd>{lessons.filter(l => l.difficulty === d).length} 堂</dd></div>)}
     </dl>
     <IslandProgress name="全部課程" lessonIds={lessons.filter(l => l.lessonStatus === 'complete').map(l => l.lessonId)} completeText={`${lessons.length} 堂課全部完成！`}/>
-    <h2 id="region-cs" className={`${overview.heading} ${overview.regionHeading}`}>{cs.name}<span>{cs.nameEn} · 已開放的主題島</span></h2>
-    <Link href="/regions/cs" className={overview.regionLink}>{cs.name}總覽<ArrowRight size={13} aria-hidden/></Link>
-    <RegionExams region="cs"/>
-    <div className={overview.grid}>{islands.map(island => {
-      // 2026-11-20: an island without a 3D model yet has no picture and no 3D link (its accent is the registry's).
-      const own = lessons.filter(l => l.islandId === island.id), card = previews[island.id] as typeof previews[string] | undefined;
-      return <article key={island.id} className={overview.card} style={{ '--island-accent': card?.accent ?? getIsland(island.id)?.theme.accent } as CSSProperties} aria-labelledby={`card-${island.id}`}>
-        {card && <a href={`#island-${island.id}`} className={overview.image} tabIndex={-1} aria-hidden><Image src={card.image} alt="" width={480} height={270} sizes="(max-width: 700px) 100vw, 300px" unoptimized/></a>}
-        <div className={overview.body}>
-          <small>{island.englishName}</small>
-          <h3 id={`card-${island.id}`}>{island.name}</h3>
-          <p className={overview.levels}>{DIFFICULTIES.map(d => ({ d, n: own.filter(l => l.difficulty === d).length })).filter(x => x.n).map(x => `${DIFFICULTY_LABELS[x.d]} ${x.n}`).join(' · ')} 堂</p>
-          <IslandProgress name="我的進度" lessonIds={own.filter(l => l.lessonStatus === 'complete').map(l => l.lessonId)} completeText={`${island.name}全部完成！`}/>
-          <div className={overview.actions}>
-            <a href={`#island-${island.id}`}>查看課程<ArrowRight size={14} aria-hidden/></a>
-            {card && <Link href={card.mapHref}><MapIcon size={14} aria-hidden/>3D 島嶼</Link>}
+    {/* AIF-1 (2026-11-22): the open islands are listed under their own region (程式與資訊群島, then AI 人工智慧群島), each
+        region followed by its planned islands; a region with no open island is all outline. */}
+    {openRegions.map((region, n) => { const open = islands.filter(i => getIsland(i.id)?.regionId === region.id);
+      return <section key={region.id} id={`region-${region.id}`} className={n ? overview.regionSection : overview.openRegion} style={n ? { '--island-accent': REGION_ACCENT[region.id] } as CSSProperties : undefined} aria-labelledby={`region-${region.id}-title`}>
+      <h2 id={`region-${region.id}-title`} className={`${overview.heading} ${overview.regionHeading}`}>{region.name}<span>{region.nameEn} · 已開放的主題島</span></h2>
+      <Link href={`/regions/${region.id}`} className={overview.regionLink}>{region.name}總覽<ArrowRight size={13} aria-hidden/></Link>
+      <RegionExams region={region.id}/>
+      <div className={overview.grid}>{open.map(island => {
+        // 2026-11-20: an island without a 3D model yet has no picture and no 3D link (its accent is the registry's).
+        const own = lessons.filter(l => l.islandId === island.id), card = previews[island.id] as typeof previews[string] | undefined;
+        return <article key={island.id} className={overview.card} style={{ '--island-accent': card?.accent ?? getIsland(island.id)?.theme.accent } as CSSProperties} aria-labelledby={`card-${island.id}`}>
+          {card && <a href={`#island-${island.id}`} className={overview.image} tabIndex={-1} aria-hidden><Image src={card.image} alt="" width={480} height={270} sizes="(max-width: 700px) 100vw, 300px" unoptimized/></a>}
+          <div className={overview.body}>
+            <small>{island.englishName}</small>
+            <h3 id={`card-${island.id}`}>{island.name}</h3>
+            <p className={overview.levels}>{DIFFICULTIES.map(d => ({ d, n: own.filter(l => l.difficulty === d).length })).filter(x => x.n).map(x => `${DIFFICULTY_LABELS[x.d]} ${x.n}`).join(' · ')} 堂</p>
+            <IslandProgress name="我的進度" lessonIds={own.filter(l => l.lessonStatus === 'complete').map(l => l.lessonId)} completeText={`${island.name}全部完成！`}/>
+            <div className={overview.actions}>
+              <a href={`#island-${island.id}`}>查看課程<ArrowRight size={14} aria-hidden/></a>
+              {card && <Link href={card.mapHref}><MapIcon size={14} aria-hidden/>3D 島嶼</Link>}
+            </div>
           </div>
-        </div>
-      </article>;
-    })}</div>
-    {islands.map(island => <section key={island.id} className={`${styles.island} ${overview.section}`} aria-labelledby={`island-${island.id}`}>
-      <h2 id={`island-${island.id}`}>{island.name}<span>{island.englishName}</span></h2>
-      <p className={styles.muted}>{island.summary}</p>
-      {lessonsOfIsland(island.id).some(l => l.lessonStatus === 'planned') && <p className={styles.islandOpen}>
-        已開放 {lessons.filter(l => l.islandId === island.id).length}／{lessonsOfIsland(island.id).length} 堂，{lessonsOfIsland(island.id).filter(l => l.lessonStatus === 'planned').length} 堂規劃中（尚未開放，不能點選）。</p>}
-      {lessons.some(l => l.islandId === island.id && l.lessonStatus === 'complete') &&
-        <IslandProgress name={island.name} lessonIds={lessons.filter(l => l.islandId === island.id && l.lessonStatus === 'complete').map(l => l.lessonId)}/>}
-      {DIFFICULTIES.map(level => ({ level, own: lessons.filter(l => l.islandId === island.id && l.difficulty === level) })).filter(g => g.own.length).map(({ level, own }) => <div key={level} className={overview.level}>
-      <h3 id={`island-${island.id}-${level.toLowerCase()}`}>{DIFFICULTY_LABELS[level]}<span>{own.length} 堂</span></h3>
-      <ol className={styles.lessonList}>
-        {own.map(l => <li key={l.lessonId} data-status={l.lessonStatus}>
-          <span className={styles.lessonId}>{l.lessonId}</span>
-          <div className={styles.lessonMain}>
-            <Link href={`/curriculum/${l.slug}`}>{l.title}</Link>
-            <span className={styles.lessonMeta}>{l.estimatedMinutes} 分鐘 · {l.apcsRelevance.map(r => APCS_LABELS[r]).join('、')}</span>
-          </div>
-          <span className={styles.statusTag} data-status={l.lessonStatus}>{l.lessonStatus === 'complete' ? '完整教材' : '規劃中'}</span>
-          {l.lessonStatus === 'complete' ? <ProgressBadge lessonId={l.lessonId}/> : <span className={styles.progressPlaceholder} aria-hidden/>}
-        </li>)}
-      </ol>
-      </div>)}
-      {lessonsOfIsland(island.id).some(l => l.lessonStatus === 'planned') && <ol className={styles.lessonList}>
-        {lessonsOfIsland(island.id).filter(l => l.lessonStatus === 'planned').map(l => <li key={l.lessonId} data-status="planned">
-          <span className={styles.lessonId}>{l.lessonId}</span>
-          <div className={styles.lessonMain}>
-            <span className={styles.plannedTitle}>{l.title}</span>
-            <span className={styles.lessonMeta}>{DIFFICULTY_LABELS[l.difficulty]} · {l.titleEn}</span>
-          </div>
-          <span className={styles.statusTag} data-status="planned">規劃中</span>
-          <span className={styles.progressPlaceholder} aria-hidden/>
-        </li>)}
-      </ol>}
-    </section>)}
-    <PlannedIslandsOf region="cs"/>
-    {orderedRegions.filter(r => r.id !== 'cs').map(r => <PlannedRegion key={r.id} region={r}/>)}
+        </article>;
+      })}</div>
+      {open.map(island => <section key={island.id} className={`${styles.island} ${overview.section}`} aria-labelledby={`island-${island.id}`}>
+        <h2 id={`island-${island.id}`}>{island.name}<span>{island.englishName}</span></h2>
+        <p className={styles.muted}>{island.summary}</p>
+        {lessonsOfIsland(island.id).some(l => l.lessonStatus === 'planned') && <p className={styles.islandOpen}>
+          已開放 {lessons.filter(l => l.islandId === island.id).length}／{lessonsOfIsland(island.id).length} 堂，{lessonsOfIsland(island.id).filter(l => l.lessonStatus === 'planned').length} 堂規劃中（尚未開放，不能點選）。</p>}
+        {lessons.some(l => l.islandId === island.id && l.lessonStatus === 'complete') &&
+          <IslandProgress name={island.name} lessonIds={lessons.filter(l => l.islandId === island.id && l.lessonStatus === 'complete').map(l => l.lessonId)}/>}
+        {DIFFICULTIES.map(level => ({ level, own: lessons.filter(l => l.islandId === island.id && l.difficulty === level) })).filter(g => g.own.length).map(({ level, own }) => <div key={level} className={overview.level}>
+        <h3 id={`island-${island.id}-${level.toLowerCase()}`}>{DIFFICULTY_LABELS[level]}<span>{own.length} 堂</span></h3>
+        <ol className={styles.lessonList}>
+          {own.map(l => <li key={l.lessonId} data-status={l.lessonStatus}>
+            <span className={styles.lessonId}>{l.lessonId}</span>
+            <div className={styles.lessonMain}>
+              <Link href={`/curriculum/${l.slug}`}>{l.title}</Link>
+              <span className={styles.lessonMeta}>{l.estimatedMinutes} 分鐘 · {l.apcsRelevance.map(r => APCS_LABELS[r]).join('、')}</span>
+            </div>
+            <span className={styles.statusTag} data-status={l.lessonStatus}>{l.lessonStatus === 'complete' ? '完整教材' : '規劃中'}</span>
+            {l.lessonStatus === 'complete' ? <ProgressBadge lessonId={l.lessonId}/> : <span className={styles.progressPlaceholder} aria-hidden/>}
+          </li>)}
+        </ol>
+        </div>)}
+        {lessonsOfIsland(island.id).some(l => l.lessonStatus === 'planned') && <ol className={styles.lessonList}>
+          {lessonsOfIsland(island.id).filter(l => l.lessonStatus === 'planned').map(l => <li key={l.lessonId} data-status="planned">
+            <span className={styles.lessonId}>{l.lessonId}</span>
+            <div className={styles.lessonMain}>
+              <span className={styles.plannedTitle}>{l.title}</span>
+              <span className={styles.lessonMeta}>{DIFFICULTY_LABELS[l.difficulty]} · {l.titleEn}</span>
+            </div>
+            <span className={styles.statusTag} data-status="planned">規劃中</span>
+            <span className={styles.progressPlaceholder} aria-hidden/>
+          </li>)}
+        </ol>}
+      </section>)}
+      <PlannedIslandsOf region={region.id}/>
+    </section>; })}
+    {orderedRegions.filter(r => !openRegions.includes(r)).map(r => <PlannedRegion key={r.id} region={r}/>)}
   </main>;
 }

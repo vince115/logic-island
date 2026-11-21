@@ -144,8 +144,10 @@ test('規劃中的群島與課程看得到但不能點：側欄停用列與完�
   await page.goto('/curriculum');
   await expect(page.getByRole('navigation', { name: '五大群島' }).getByRole('link')).toHaveCount(5);
   const ai = page.locator('#region-ai');
-  await expect(ai.getByRole('heading', { level: 2 })).toContainText('AI 人工智慧群島');
+  await expect(ai.locator('#region-ai-title')).toContainText('AI 人工智慧群島');
+  // AIF-1 (2026-11-22): AI 基礎島 is open, so the region lists its card and lessons, then its six planned islands.
   await expect(ai.locator('article')).toHaveCount(7);
+  await expect(ai.getByRole('heading', { level: 2, name: /^AI 基礎島/ })).toBeVisible();
   await expect(ai.locator('details a')).toHaveCount(0);
   const tree = page.locator('#site-sidebar').getByRole('navigation', { name: '學習群島目錄' });
   await tree.getByRole('button', { name: /^AI 人工智慧群島/ }).click();

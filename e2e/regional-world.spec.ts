@@ -211,7 +211,12 @@ test.describe('regional world: flag on', () => {
       await expectLabelsClear(page);
       const list = page.getByRole('group', { name: '選擇學習島嶼' });
       await expect(list.getByRole('button')).toHaveCount(islands.length);
-      await expect(list.getByRole('button').first()).toContainText(`${islands[0].name}規劃中 預計 ${islands[0].lessonCount} 堂`);
+      // AIF-1 (2026-11-22): an open island (AI 基礎島) lists its written lessons; a planned one says 規劃中 and its count.
+      for (const [i, island] of islands.entries()) {
+        const choice = list.getByRole('button').nth(i), open = catalogLessons.filter(l => l.islandId === island.id && l.lessonStatus === 'complete').length;
+        if (island.status === 'planned') await expect(choice).toContainText(`${island.name}規劃中 預計 ${island.lessonCount} 堂`);
+        else { await expect(choice).toContainText(`${island.name}${open} 堂課`); await expect(choice).not.toContainText('規劃中'); }
+      }
       // The lab island is offered as the shared hub, not as one of the region's islands; the 2D overview is the other way.
       const more = page.getByRole('navigation', { name: `${region.name}以外` });
       await expect(more).toContainText(`${region.name}共 ${islands.length} 座學科島`);
