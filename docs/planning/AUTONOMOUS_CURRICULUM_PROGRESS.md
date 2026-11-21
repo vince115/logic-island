@@ -13,11 +13,11 @@
 
 ## 總覽
 
-已發布 **119／520**（22.9%）；規劃中 401。
+已發布 **120／520**（23.1%）；規劃中 400。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
-| 程式與資訊群島 | 119 | 41 | 74.4% |
+| 程式與資訊群島 | 120 | 40 | 75.0% |
 | AI 人工智慧群島 | 0 | 160 | 0.0% |
 | 數位設計群島 | 0 | 56 | 0.0% |
 | 網頁與應用開發群島 | 0 | 55 | 0.0% |
@@ -25,7 +25,7 @@
 
 ## 下一批（自動選擇）
 
-**計算機網路島（CN）**：CN20 計算機網路島綜合挑戰：追蹤並打造一個網路服務。島嶼能力：可用；這幾堂解鎖其他島的 0 堂。
+目前沒有能力已備妥、先修已滿足的島嶼；先處理「能力缺口」的第一項。
 
 能力缺口中最優先的是 **AI 基礎島（AIF）**：需要 python-code (Python-only program lessons; search, probability and game trees on the shared trace panels)；先修已滿足、可依序撰寫的有 20 堂，前 5 堂解鎖其他島的 140 堂。
 
@@ -40,7 +40,7 @@
 | 程式與資訊群島 | 演算法島（AL） | 20／20 | program-code | 可用 | 全島完成 | — |
 | 程式與資訊群島 | 程式語言島（PL） | 20／20 | program-code | 可用 | 全島完成 | — |
 | 程式與資訊群島 | 資料庫應用島（DB） | 20／20 | sql, er-diagram, normalization, query-plan, transaction-timeline, driver-code, protocol-sequence, architecture-diagram | 可用 | 全島完成 | — |
-| 程式與資訊群島 | 計算機網路島（CN） | 19／20 | network-protocol (packets through the layers, message sequences, node tables; field, layer, table, subnet and delay exercises) | 可用 | CN20–CN20（1 堂） | — |
+| 程式與資訊群島 | 計算機網路島（CN） | 20／20 | network-protocol (packets through the layers, message sequences, node tables; field, layer, table, subnet and delay exercises) | 可用 | 全島完成 | — |
 | 程式與資訊群島 | 系統分析與設計島（SA） | 0／20 | model-diagram (UML, DFD, BPMN, state and sequence models, checked by structure) | 缺少 | SA01–SA20（20 堂） | 缺少課程能力 |
 | 程式與資訊群島 | 管理資訊系統島（MIS） | 0／20 | case-analysis (scenario data, decision tables, KPI calculations checked by value) | 缺少 | MIS01–MIS20（20 堂） | 缺少課程能力 |
 | AI 人工智慧群島 | AI 基礎島（AIF） | 0／20 | python-code (Python-only program lessons; search, probability and game trees on the shared trace panels) | 缺少 | AIF01–AIF20（20 堂） | 缺少課程能力 |
@@ -89,7 +89,7 @@
 |---|---|---|
 | APCS／資訊科學基礎 | 60／60 | 是 |
 | 軟體工程 | 66／86 | 否 |
-| 網路與系統 | 53／54 | 否 |
+| 網路與系統 | 54／54 | 是 |
 | 企業資訊系統 | 44／84 | 否 |
 | AI 研究 | 37／142 | 否 |
 | AI 應用工程 | 26／89 | 否 |
@@ -256,7 +256,7 @@
 | CN17 | 網路除錯工具 | 已發布（閘門通過） | CN07、CN12 | packet-journey | — |
 | CN18 | 網路安全基礎 | 已發布（閘門通過） | CN13 | packet-journey | — |
 | CN19 | 防火牆、VPN 與零信任 | 已發布（閘門通過） | CN18、CN07 | packet-journey | — |
-| CN20 | 計算機網路島綜合挑戰：追蹤並打造一個網路服務 | 大綱 | CN14、CN17、CN18 | challenge-stages | — |
+| CN20 | 計算機網路島綜合挑戰：追蹤並打造一個網路服務 | 已發布（閘門通過） | CN14、CN17、CN18 | challenge-stages | — |
 
 ### 程式與資訊群島 · 系統分析與設計島（SA）
 
