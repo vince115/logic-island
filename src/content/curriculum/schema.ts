@@ -43,7 +43,8 @@ export const PYTHON_LANGUAGES = ['Python'] as const satisfies readonly Language[
 // 2026-11-20: the islands with written lessons, in the world registry's order (programming-languages is the CS region's
 // fourth island, databases its fifth), so a database lesson may require a programming-languages one (DB16 → PL02).
 // CN-1 (2026-11-22): the computer-networks island joins with CN01–CN05 (it was prepared for authoring in CN-0).
-export const ISLAND_IDS = ['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks'] as const;
+// AIF-1 (2026-11-22): the AI foundations island joins with AIF01–AIF05 (prepared in AIF-0).
+export const ISLAND_IDS = ['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations'] as const;
 /**
  * CN-0 (2026-11-21): islands registered for authoring before their first lesson is written. Their prefix and lesson
  * capability are known (so their lessons can be written and validated), but they are not curriculum islands yet: no
@@ -51,7 +52,7 @@ export const ISLAND_IDS = ['foundations', 'structures', 'algorithms', 'programmi
  * ISLAND_IDS together with its first written lesson (as the database and programming-languages islands joined).
  */
 // AIF-0 (2026-11-22): the AI foundations island, written with the python-code capability.
-export const PREPARED_ISLAND_IDS = ['ai-foundations'] as const;
+export const PREPARED_ISLAND_IDS = [] as const;
 export type IslandId = typeof ISLAND_IDS[number] | typeof PREPARED_ISLAND_IDS[number];
 /**
  * F = 基礎程式島, D = 資料結構島, A = 演算法島, then a two-digit position (F01..F20). Phase F.0: the number is two digits in

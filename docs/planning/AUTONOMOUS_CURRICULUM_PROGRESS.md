@@ -13,19 +13,19 @@
 
 ## 總覽
 
-已發布 **120／520**（23.1%）；規劃中 400。
+已發布 **125／520**（24.0%）；規劃中 395。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
 | 程式與資訊群島 | 120 | 40 | 75.0% |
-| AI 人工智慧群島 | 0 | 160 | 0.0% |
+| AI 人工智慧群島 | 5 | 155 | 3.1% |
 | 數位設計群島 | 0 | 56 | 0.0% |
 | 網頁與應用開發群島 | 0 | 55 | 0.0% |
 | 系統與雲端工程群島 | 0 | 89 | 0.0% |
 
 ## 下一批（自動選擇）
 
-**AI 基礎島（AIF）**：AIF01 AI 是什麼、AIF02 AI 的發展史與主要方法、AIF03 智慧代理人、AIF04 問題形式化與無資訊搜尋、AIF05 啟發式搜尋與 A*。島嶼能力：已備妥（可開始撰寫）；這幾堂解鎖其他島的 140 堂。
+**AI 基礎島（AIF）**：AIF06 區域搜尋與最佳化、AIF07 對抗搜尋與 Minimax、AIF08 Alpha-Beta 剪枝與遊戲 AI、AIF09 限制滿足問題、AIF10 知識表示。島嶼能力：可用；這幾堂解鎖其他島的 0 堂。
 
 能力缺口中最優先的是 **Linux 系統島（LNX）**：需要 terminal (the /learn/linux-terminal engine as a lesson capability with per-lesson file systems and checked tasks)；先修已滿足、可依序撰寫的有 15 堂，前 5 堂解鎖其他島的 67 堂。
 
@@ -43,12 +43,12 @@
 | 程式與資訊群島 | 計算機網路島（CN） | 20／20 | network-protocol (packets through the layers, message sequences, node tables; field, layer, table, subnet and delay exercises) | 可用 | 全島完成 | — |
 | 程式與資訊群島 | 系統分析與設計島（SA） | 0／20 | model-diagram (UML, DFD, BPMN, state and sequence models, checked by structure) | 缺少 | SA01–SA20（20 堂） | 缺少課程能力 |
 | 程式與資訊群島 | 管理資訊系統島（MIS） | 0／20 | case-analysis (scenario data, decision tables, KPI calculations checked by value) | 缺少 | MIS01–MIS20（20 堂） | 缺少課程能力 |
-| AI 人工智慧群島 | AI 基礎島（AIF） | 0／20 | python-code (Python-only program lessons; search, games, logic and probability on the shared traces) | 已備妥（可開始撰寫） | AIF01–AIF20（20 堂） | — |
-| AI 人工智慧群島 | 機器學習島（ML） | 0／25 | python-code + data-explorer (fixed datasets, metrics computed in the browser) | 缺少 | — | 缺少課程能力；ML01 需要尚未發布的 AIF01 |
+| AI 人工智慧群島 | AI 基礎島（AIF） | 5／20 | python-code (Python-only program lessons; search, games, logic and probability on the shared traces) | 可用 | AIF06–AIF20（15 堂） | — |
+| AI 人工智慧群島 | 機器學習島（ML） | 0／25 | python-code + data-explorer (fixed datasets, metrics computed in the browser) | 缺少 | ML01–ML09（9 堂） | 缺少課程能力；ML10 需要尚未發布的 AIF13 |
 | AI 人工智慧群島 | 深度學習島（DL） | 0／25 | python-code + precomputed training curves (T3) | 缺少 | — | 缺少課程能力；DL01 需要尚未發布的 ML09 |
-| AI 人工智慧群島 | 大型語言模型島（LLM） | 0／25 | python-code + token, sampling and prompt explorers on recorded outputs (T3) | 缺少 | — | 缺少課程能力；LLM01 需要尚未發布的 AIF01 |
-| AI 人工智慧群島 | 生成式 AI 島（GEN） | 0／20 | precomputed pipeline steps (T3) | 缺少 | — | 缺少課程能力；GEN01 需要尚未發布的 AIF01 |
-| AI 人工智慧群島 | AI 代理島（AG） | 0／25 | agent trace (tool calls and memory as fixed transcripts) | 缺少 | — | 缺少課程能力；AG01 需要尚未發布的 AIF03、LLM10 |
+| AI 人工智慧群島 | 大型語言模型島（LLM） | 0／25 | python-code + token, sampling and prompt explorers on recorded outputs (T3) | 缺少 | LLM01–LLM03（3 堂） | 缺少課程能力；LLM04 需要尚未發布的 DL18 |
+| AI 人工智慧群島 | 生成式 AI 島（GEN） | 0／20 | precomputed pipeline steps (T3) | 缺少 | GEN01–GEN01（1 堂） | 缺少課程能力；GEN02 需要尚未發布的 LLM01 |
+| AI 人工智慧群島 | AI 代理島（AG） | 0／25 | agent trace (tool calls and memory as fixed transcripts) | 缺少 | — | 缺少課程能力；AG01 需要尚未發布的 LLM10 |
 | AI 人工智慧群島 | AI 工程與 MLOps 島（OPS） | 0／20 | pipeline and deployment simulation | 缺少 | — | 缺少課程能力；OPS01 需要尚未發布的 SA01、LLM01 |
 | 數位設計群島 | UI 設計島（UI） | 0／15 | design-lab (color contrast exists as a standalone lab; visual hierarchy and grid) | 缺少 | UI01–UI15（15 堂） | 缺少課程能力 |
 | 數位設計群島 | UX 研究島（UX） | 0／15 | case-analysis + model-diagram | 缺少 | UX01–UX15（15 堂） | 缺少課程能力 |
@@ -72,10 +72,13 @@
 | 島嶼 | 需要的能力 | 可依序撰寫 | 解鎖其他島 | 備註 |
 |---|---|---|---|---|
 | Linux 系統島（LNX） | terminal (the /learn/linux-terminal engine as a lesson capability with per-lesson file systems and checked tasks) | 15 | 67 | engine exists; shell covers pwd, ls, cd, mkdir, touch, cat, cp, mv, rm, chmod, echo, whoami |
+| 大型語言模型島（LLM） | python-code + token, sampling and prompt explorers on recorded outputs (T3) | 3 | 58 | — |
 | 網頁基礎島（WEB） | web-code (HTML, CSS and DOM in a sandboxed frame, checked by DOM queries) | 15 | 40 | — |
+| 機器學習島（ML） | python-code + data-explorer (fixed datasets, metrics computed in the browser) | 9 | 39 | — |
 | 系統分析與設計島（SA） | model-diagram (UML, DFD, BPMN, state and sequence models, checked by structure) | 20 | 20 | — |
 | DevOps 與 CI/CD 島（CICD） | pipeline simulation | 3 | 7 | — |
 | 管理資訊系統島（MIS） | case-analysis (scenario data, decision tables, KPI calculations checked by value) | 20 | 0 | — |
+| 生成式 AI 島（GEN） | precomputed pipeline steps (T3) | 1 | 0 | — |
 | UI 設計島（UI） | design-lab (color contrast exists as a standalone lab; visual hierarchy and grid) | 15 | 0 | — |
 | UX 研究島（UX） | case-analysis + model-diagram | 15 | 0 | — |
 | 互動設計島（IXD） | case-analysis + a11y checks | 14 | 0 | — |
@@ -90,13 +93,13 @@
 | 軟體工程 | 66／86 | 否 |
 | 網路與系統 | 54／54 | 是 |
 | 企業資訊系統 | 44／84 | 否 |
-| AI 研究 | 37／142 | 否 |
-| AI 應用工程 | 26／89 | 否 |
+| AI 研究 | 42／142 | 否 |
+| AI 應用工程 | 28／89 | 否 |
 | 前端工程 | 7／62 | 否 |
 | 產品設計 | 0／56 | 否 |
-| AI 架構 | 18／66 | 否 |
+| AI 架構 | 20／66 | 否 |
 | 全端部署 | 16／62 | 否 |
-| AI 基礎設施 | 12／60 | 否 |
+| AI 基礎設施 | 13／60 | 否 |
 | 雲端與 DevOps 基礎 | 5／48 | 否 |
 
 ## 先修依賴檢查
@@ -311,32 +314,32 @@
 
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
-| AIF01 | AI 是什麼 | 大綱 | F01 | case-study-board | — |
-| AIF02 | AI 的發展史與主要方法 | 待先修 | AIF01 | case-study-board | 先修 AIF01 |
-| AIF03 | 智慧代理人 | 待先修 | AIF01 | agent-workflow | 先修 AIF01 |
-| AIF04 | 問題形式化與無資訊搜尋 | 待先修 | AIF03、A14、A15 | search-tree | 先修 AIF03 |
-| AIF05 | 啟發式搜尋與 A* | 待先修 | AIF04、A16 | search-tree | 先修 AIF04 |
-| AIF06 | 區域搜尋與最佳化 | 待先修 | AIF04 | gradient-descent | 先修 AIF04 |
-| AIF07 | 對抗搜尋與 Minimax | 待先修 | AIF04 | game-tree | 先修 AIF04 |
+| AIF01 | AI 是什麼 | 已發布（閘門通過） | F01 | conditional-branch | — |
+| AIF02 | AI 的發展史與主要方法 | 已發布（閘門通過） | AIF01 | none | — |
+| AIF03 | 智慧代理人 | 已發布（閘門通過） | AIF01 | array-index | — |
+| AIF04 | 問題形式化與無資訊搜尋 | 已發布（閘門通過） | AIF03、A14、A15 | tree-traversal | — |
+| AIF05 | 啟發式搜尋與 A* | 已發布（閘門通過） | AIF04、A16 | graph-traversal | — |
+| AIF06 | 區域搜尋與最佳化 | 大綱 | AIF04 | gradient-descent | — |
+| AIF07 | 對抗搜尋與 Minimax | 大綱 | AIF04 | game-tree | — |
 | AIF08 | Alpha-Beta 剪枝與遊戲 AI | 待先修 | AIF07 | game-tree | 先修 AIF07 |
-| AIF09 | 限制滿足問題 | 待先修 | AIF04、A12 | search-tree | 先修 AIF04 |
-| AIF10 | 知識表示 | 待先修 | AIF03 | knowledge-graph | 先修 AIF03 |
+| AIF09 | 限制滿足問題 | 大綱 | AIF04、A12 | search-tree | — |
+| AIF10 | 知識表示 | 大綱 | AIF03 | knowledge-graph | — |
 | AIF11 | 命題邏輯與推論 | 待先修 | AIF10、F06 | logic-proof | 先修 AIF10 |
 | AIF12 | 一階邏輯 | 待先修 | AIF11 | logic-proof | 先修 AIF11 |
-| AIF13 | AI 的機率基礎 | 待先修 | AIF01 | probability-explorer | 先修 AIF01 |
+| AIF13 | AI 的機率基礎 | 大綱 | AIF01 | probability-explorer | — |
 | AIF14 | 貝氏定理與機率推論 | 待先修 | AIF13 | probability-explorer | 先修 AIF13 |
 | AIF15 | 貝氏網路 | 待先修 | AIF14 | bayes-net | 先修 AIF14 |
 | AIF16 | 馬可夫鏈與隱馬可夫模型 | 待先修 | AIF14 | probability-explorer | 先修 AIF14 |
-| AIF17 | 決策理論與效用 | 待先修 | AIF13、AIF03 | decision-simulation | 先修 AIF13、AIF03 |
+| AIF17 | 決策理論與效用 | 待先修 | AIF13、AIF03 | decision-simulation | 先修 AIF13 |
 | AIF18 | 馬可夫決策過程入門 | 待先修 | AIF17 | mdp-gridworld | 先修 AIF17 |
-| AIF19 | 負責任的 AI | 待先修 | AIF03 | decision-simulation | 先修 AIF03 |
-| AIF20 | AI 基礎島綜合專題 | 待先修 | AIF05、AIF08、AIF18 | challenge-stages | 先修 AIF05、AIF08、AIF18 |
+| AIF19 | 負責任的 AI | 大綱 | AIF03 | decision-simulation | — |
+| AIF20 | AI 基礎島綜合專題 | 待先修 | AIF05、AIF08、AIF18 | challenge-stages | 先修 AIF08、AIF18 |
 
 ### AI 人工智慧群島 · 機器學習島（ML）
 
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
-| ML01 | 機器學習工作流程 | 待能力 | AIF01 | pipeline-diagram | 課程能力、先修 AIF01 |
+| ML01 | 機器學習工作流程 | 待能力 | AIF01 | pipeline-diagram | 課程能力 |
 | ML02 | NumPy 與 pandas 資料處理 | 待能力 | ML01、F12 | data-explorer | 課程能力、先修 ML01 |
 | ML03 | 探索式資料分析 EDA | 待能力 | ML02 | data-explorer | 課程能力、先修 ML02 |
 | ML04 | 資料前處理與資料切分 | 待能力 | ML03 | data-explorer | 課程能力、先修 ML03 |
@@ -396,7 +399,7 @@
 
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
-| LLM01 | 大型語言模型概觀 | 待能力 | AIF01 | sampling-explorer | 課程能力、先修 AIF01 |
+| LLM01 | 大型語言模型概觀 | 待能力 | AIF01 | sampling-explorer | 課程能力 |
 | LLM02 | Tokenization 斷詞 | 待能力 | LLM01 | token-explorer | 課程能力、先修 LLM01 |
 | LLM03 | 嵌入向量 | 待能力 | LLM02 | embedding-space | 課程能力、先修 LLM02 |
 | LLM04 | 用 Transformer 做語言模型 | 待能力 | LLM03、DL18 | attention-explorer | 課程能力、先修 LLM03、DL18 |
@@ -426,7 +429,7 @@
 
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
-| GEN01 | 生成模型概觀 | 待能力 | AIF01 | sampling-explorer | 課程能力、先修 AIF01 |
+| GEN01 | 生成模型概觀 | 待能力 | AIF01 | sampling-explorer | 課程能力 |
 | GEN02 | 自回歸生成模型 | 待能力 | GEN01、LLM01 | sampling-explorer | 課程能力、先修 GEN01、LLM01 |
 | GEN03 | 自編碼器與 VAE | 待能力 | GEN01、DL01 | latent-space | 課程能力、先修 GEN01、DL01 |
 | GEN04 | GAN 生成對抗網路 | 待能力 | GEN01、DL03 | training-curves | 課程能力、先修 GEN01、DL03 |
@@ -451,7 +454,7 @@
 
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
-| AG01 | Agent 架構 | 待能力 | AIF03、LLM10 | agent-workflow | 課程能力、先修 AIF03、LLM10 |
+| AG01 | Agent 架構 | 待能力 | AIF03、LLM10 | agent-workflow | 課程能力、先修 LLM10 |
 | AG02 | LLM 作為推理核心 | 待能力 | AG01 | prompt-lab | 課程能力、先修 AG01 |
 | AG03 | 工具呼叫 | 待能力 | AG01、LLM12 | tool-call-trace | 課程能力、先修 AG01、LLM12 |
 | AG04 | 工具介面設計 | 待能力 | AG03 | tool-call-trace | 課程能力、先修 AG03 |

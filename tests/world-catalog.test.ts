@@ -11,7 +11,7 @@ import { BLUEPRINT, readJson } from '../scripts/planning-data.mjs';
 const mutate = (id: string, change: Partial<CatalogLesson>) => catalogLessons.map(l => l.lessonId === id ? { ...l, ...change } : l);
 
 /** Islands whose lessons the curriculum writes from the blueprint's outlines (F.1a; course production batch 1 for PL). */
-const FROM_BLUEPRINT = ['databases', 'programming-languages', 'networks'];
+const FROM_BLUEPRINT = ['databases', 'programming-languages', 'networks', 'ai-foundations'];
 
 describe('lesson catalog (F.0)', () => {
   it('passes its own rules and the world rules', () => {

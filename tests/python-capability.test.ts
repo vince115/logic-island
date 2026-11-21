@@ -59,10 +59,11 @@ describe('the python-code capability', () => {
     expect(swap({ capabilities: ['python-code', 'visualization'], supportedLanguages: ['Python'] })).toMatch(/A14: python-code stands alone/);
     expect(swap({ supportedLanguages: ['Python'] })).toMatch(/A14: supportedLanguages must include C\+\+, Java, Python/);
   });
-  it('changes no published lesson and keeps the curriculum valid', () => {
+  it('keeps every other lesson as it was and the curriculum valid', () => {
     expect(validateCurriculum(curriculum)).toEqual([]);
     for (const l of lessons) {
-      expect(l.capabilities, l.lessonId).not.toContain('python-code');
+      // AIF-1: only the AI foundations island's lessons are python-code.
+      expect(l.capabilities.includes('python-code'), l.lessonId).toBe(l.islandId === 'ai-foundations');
       if (l.capabilities.includes('program-code')) expect(l.supportedLanguages.slice(0, 3), l.lessonId).toEqual(['C++', 'Java', 'Python']);
       const c = curriculum.contents[l.lessonId];
       if (c) expect(publishProblems(l, c), l.lessonId).toEqual([]);
@@ -70,16 +71,16 @@ describe('the python-code capability', () => {
   });
 });
 
-describe('the ai-foundations island is prepared, not published', () => {
-  it('has its prefix but no lesson, page or catalog section yet', () => {
-    expect(PREPARED_ISLAND_IDS).toContain('ai-foundations');
+describe('the ai-foundations island: prepared in AIF-0, written in batches from AIF-1', () => {
+  it('is a curriculum island with its first lessons written in id order; the rest stay planned outlines without a page', () => {
+    expect(PREPARED_ISLAND_IDS).not.toContain('ai-foundations');
     expect(ISLAND_PREFIX['ai-foundations']).toBe('AIF');
-    expect(ISLAND_IDS).not.toContain('ai-foundations');
-    expect(lessons.filter(l => (l.islandId as string) === 'ai-foundations')).toEqual([]);
-    expect(lessonsOfIsland('ai-foundations').every(l => l.lessonStatus === 'planned' && !l.href)).toBe(true);
-    expect(getIsland('ai-foundations')).toMatchObject({ status: 'planned' });
-    expect(validateCurriculum({ ...curriculum, lessons: [...lessons, meta], contents: { ...curriculum.contents, [meta.lessonId]: content() } }).join('\n'))
-      .toMatch(/AIF04: ai-foundations is prepared for authoring, not a curriculum island yet/);
+    expect(ISLAND_IDS).toContain('ai-foundations');
+    const written = lessons.filter(l => l.islandId === 'ai-foundations');
+    expect(written.map(l => l.lessonId)).toEqual(written.map((_, i) => `AIF${String(i + 1).padStart(2, '0')}`));
+    expect(written.length).toBeGreaterThanOrEqual(5);
+    expect(lessonsOfIsland('ai-foundations').slice(written.length).every(l => l.lessonStatus === 'planned' && !l.href)).toBe(true);
+    expect(getIsland('ai-foundations')).toMatchObject({ status: written.length < 20 ? 'available' : 'complete', mapState: 'planned' });
   });
 });
 

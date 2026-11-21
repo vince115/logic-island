@@ -99,6 +99,11 @@ import { CN17 } from './content/CN17';
 import { CN18 } from './content/CN18';
 import { CN19 } from './content/CN19';
 import { CN20 } from './content/CN20';
+import { AIF01 } from './content/AIF01';
+import { AIF02 } from './content/AIF02';
+import { AIF03 } from './content/AIF03';
+import { AIF04 } from './content/AIF04';
+import { AIF05 } from './content/AIF05';
 import { DB01 } from './content/DB01';
 import { DB02 } from './content/DB02';
 import { DB03 } from './content/DB03';
@@ -138,7 +143,8 @@ export const curriculum: Curriculum = {
     DB01, DB02, DB03, DB04, DB05, DB06, DB07, DB08, DB09, DB10,
     DB11, DB12, DB13, DB14, DB15, DB16, DB17, DB18, DB19, DB20,
     CN01, CN02, CN03, CN04, CN05, CN06, CN07, CN08, CN09, CN10,
-    CN11, CN12, CN13, CN14, CN15, CN16, CN17, CN18, CN19, CN20 },
+    CN11, CN12, CN13, CN14, CN15, CN16, CN17, CN18, CN19, CN20,
+    AIF01, AIF02, AIF03, AIF04, AIF05 },
 };
 
 export const getLessonBySlug = (slug: string) => lessons.find(l => l.slug === slug);

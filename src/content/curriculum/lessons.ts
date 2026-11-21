@@ -416,6 +416,15 @@ export function pythonFromBlueprint(lessonId: string, summary: string, minutes: 
     status: 'complete', version: '1.0.0', capabilities: ['python-code'], blueprintId: lessonId };
 }
 
+/** AIF-1 (2026-11-22): the AI foundations island's first lessons, Python only (python-code, AIF0_PYTHON_CAPABILITY.md). */
+const aiFoundations: Outline[] = [
+  pythonFromBlueprint('AIF01', '用 AI 的四種定義、理性代理人與圖靈測試判斷什麼算 AI，比較狹義 AI 與通用 AI、符號式與資料驅動兩條路線，並以明確的規則把日常系統分類為規則式程式或 AI 系統。', 45, 'conditional-branch'),
+  pythonFromBlueprint('AIF02', '從 1956 年達特茅斯會議、早期符號 AI、MYCIN 與 XCON 等專家系統和兩次 AI 寒冬，到感知器與 XOR、1986 年普及的反向傳播、2012 年的 AlexNet 與 2017 年 Transformer 之後的基礎模型，比較符號主義、連結主義與統計學習，說明運算力、資料與演算法如何推動每一波興起，並以 Python 實作前向鏈結專家系統、學會 AND 卻學不會 XOR 的整數感知器，以及依時期分組的 AI 時間軸。', 45, 'none'),
+  pythonFromBlueprint('AIF03', '以 PEAS 描述任務、分類環境並比較五種代理人，再用 Python 寫出在格子世界中吸塵的反射型代理人。', 50, 'array-index'),
+  pythonFromBlueprint('AIF04', '把問題形式化為狀態、動作、轉移模型、目標測試與路徑成本，在同一個搜尋框架中比較 BFS、UCS、DFS 與迭代加深搜尋的完備性、最佳性與展開節點數。', 60, 'tree-traversal'),
+  pythonFromBlueprint('AIF05', '依估計的剩餘成本引導搜尋：貪婪最佳優先、A* 的 f = g + h、可接受與一致的啟發函數，以及格子尋路。', 60, 'graph-traversal'),
+];
+
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */
 function idAt(islandId: (typeof ISLAND_IDS)[number], index: number, blueprintId?: string): LessonId {
   const id = `${ISLAND_PREFIX[islandId]}${String(index + 1).padStart(2, '0')}` as LessonId;
@@ -425,7 +434,7 @@ function idAt(islandId: (typeof ISLAND_IDS)[number], index: number, blueprintId?
 /** F, D and A are taught in the program languages: every lesson there declares program-code. */
 const program = (list: Omit<Outline, 'capabilities'>[]): Outline[] => list.map(o => ({ ...o, capabilities: ['program-code'] }));
 const outlines: Record<(typeof ISLAND_IDS)[number], Outline[]> = {
-  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages, networks };
+  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages, networks, 'ai-foundations': aiFoundations };
 
 /** Every lesson the blueprint outlines, written or not (validateCurriculum's recommended-lesson check). */
 export const outlinedLessonIds: readonly string[] = planning.plannedLessons.map(l => l.lessonId);

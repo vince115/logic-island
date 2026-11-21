@@ -36,7 +36,7 @@ test.describe('regional world: flag on', () => {
     for (const name of [...orderedRegions.map(r => `進入${r.name}`), '前往中央樞紐：互動實驗島']) await expect(page.getByRole('button', { name, exact: true })).toBeVisible({ timeout: 30_000 });
     const guide = page.getByRole('navigation', { name: '世界導覽' });
     await expect(guide.getByRole('link', { name: /程式與資訊群島.*8 座學科島 · 6 座已開放 · 2 座規劃中/ })).toHaveAttribute('href', '/world/cs');
-    await expect(guide.getByRole('link', { name: /AI 人工智慧群島.*7 座學科島 · 全部規劃中/ })).toHaveAttribute('href', '/world/ai');
+    await expect(guide.getByRole('link', { name: /AI 人工智慧群島.*7 座學科島 · 1 座已開放 · 6 座規劃中/ })).toHaveAttribute('href', '/world/ai');
     await expect(guide).toContainText('規劃中中央挑戰島');
     await expect(page.locator('a[href*="challenge"]')).toHaveCount(0);
     if (phone()) await page.getByRole('button', { name: '進入程式與資訊群島', exact: true }).tap(); else await page.getByRole('button', { name: '進入程式與資訊群島', exact: true }).click();
@@ -62,9 +62,10 @@ test.describe('regional world: flag on', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   });
 
-  test('AI region: seven planned islands, labels clear, islands at least 180 px wide on desktop', async ({ page }) => {
+  test('AI region: seven islands (AI 基礎島 open since AIF-1, six planned), labels clear, islands at least 180 px wide on desktop', async ({ page }) => {
     await openRegion(page, '/world/ai');
-    const names = ['AI 基礎島', '機器學習島', '深度學習島', '大型語言模型島', '生成式 AI 島', 'AI 代理島', 'AI 工程與 MLOps 島'];
+    await expect(page.getByRole('button', { name: '聚焦AI 基礎島', exact: true })).toBeVisible();
+    const names = ['機器學習島', '深度學習島', '大型語言模型島', '生成式 AI 島', 'AI 代理島', 'AI 工程與 MLOps 島'];
     for (const name of names) await expect(page.getByRole('button', { name: `聚焦${name}（規劃中）`, exact: true })).toBeVisible();
     await expectLabelsClear(page);
     // Desktop: 180 px in the overview. Phones: world-topology.spec.ts (P8.3), with no lowered floor here.
@@ -136,12 +137,13 @@ test.describe('regional world: flag on', () => {
   });
 
   test('a planned island: its description and「規劃中」, no lesson link, no progress, no「已開放」', async ({ page }) => {
-    await openRegion(page, '/world/ai?island=large-language-models');
-    const detail = page.getByRole('region', { name: '大型語言模型島教材入口' });
-    await expect(detail).toContainText('規劃中預計 25 堂，尚未開放課程');
+    // A region whose islands are all outlines (the design region; the AI region opened AI 基礎島 in AIF-1).
+    await openRegion(page, '/world/design?island=ui-design');
+    const detail = page.getByRole('region', { name: 'UI 設計島教材入口' });
+    await expect(detail).toContainText('規劃中預計 15 堂，尚未開放課程');
     // P8.2 (D4): its one link is its outline on the region's 2D overview; no lesson page exists to link to.
     await expect(detail.getByRole('link')).toHaveCount(1);
-    await expect(detail.getByRole('link', { name: '查看課程大綱' })).toHaveAttribute('href', '/regions/ai#island-large-language-models');
+    await expect(detail.getByRole('link', { name: '查看課程大綱' })).toHaveAttribute('href', '/regions/design#island-ui-design');
     for (const text of ['已開放', '已完成', '進行中']) await expect(page.getByText(text)).toHaveCount(0);
     // (The site header's 開始學習 links F01; the map and its list link nothing.)
     await expect(page.locator('main a[href^="/curriculum/"]')).toHaveCount(0);

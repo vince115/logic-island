@@ -222,7 +222,7 @@ test('Linux Terminal Simulator：指令改變虛擬檔案系統、任務依結�
 
 // R6: AI 人工智慧群島 has a way in from the home map, /curriculum and the sidebar; its overview shows the seven islands
 // under their three groups, every one 規劃中, and links to no lesson.
-test('AI 群島入口：首頁「更多學習群島」→ 群島總覽，七座島三個主題都是規劃中且沒有課程連結；側欄標示目前群島', async ({ page }, info) => {
+test('AI 群島入口：首頁「更多學習群島」→ 群島總覽，七座島三個主題，AI 基礎島部分開放、其餘六座規劃中；側欄標示目前群島', async ({ page }, info) => {
   const phone = info.project.name.startsWith('mobile');
   await page.goto('/');
   if (P9) {
@@ -236,7 +236,8 @@ test('AI 群島入口：首頁「更多學習群島」→ 群島總覽，七座�
     const more = page.getByRole('navigation', { name: '更多學習群島' });
     if (!await more.isVisible()) await page.getByRole('button', { name: /清單/ }).first().click();
     await expect(more.getByRole('link')).toHaveCount(4); // ai, design, web and (P6) sys
-    await expect(more.getByRole('link', { name: /AI 人工智慧群島/ })).toContainText('規劃中');
+    // AIF-1 (2026-11-22): the AI foundations island opened its first five lessons.
+    await expect(more.getByRole('link', { name: /AI 人工智慧群島/ })).toContainText('已開放 5／160 堂');
     await more.getByRole('link', { name: /AI 人工智慧群島/ }).click();
   }
   await expect(page).toHaveURL('/regions/ai');
@@ -244,15 +245,18 @@ test('AI 群島入口：首頁「更多學習群島」→ 群島總覽，七座�
   const main = page.locator('main');
   for (const group of ['AI 原理與模型', '生成式 AI 與大型語言模型', 'AI 應用與系統工程']) await expect(main.getByRole('heading', { level: 2, name: new RegExp(`^${group}`) })).toBeVisible();
   await expect(main.locator('article')).toHaveCount(7);
-  // Each card's own tag (its folded outline marks every lesson 規劃中 as well: 160 more).
-  await expect(main.locator('article > div:first-child').getByText('規劃中', { exact: true })).toHaveCount(7);
-  await expect(main.locator('article details').getByText('規劃中', { exact: true })).toHaveCount(160);
+  // The open island's card says 部分開放 and leads to its syllabus; each planned card's own tag says 規劃中 (its folded
+  // outline marks every lesson 規劃中 as well: 140 more). No card links a lesson page directly.
+  await expect(main.getByRole('article', { name: /AI 基礎島/ })).toContainText('部分開放');
+  await expect(main.getByRole('article', { name: /AI 基礎島/ }).getByRole('link')).toHaveAttribute('href', '/curriculum#island-ai-foundations');
+  await expect(main.locator('article > div:first-child').getByText('規劃中', { exact: true })).toHaveCount(6);
+  await expect(main.locator('article details').getByText('規劃中', { exact: true })).toHaveCount(140);
   await expect(main.locator('a[href^="/curriculum/"]')).toHaveCount(0);
   // The learning paths through the region, path J (AI 架構) among them, still 規劃中.
   const paths = main.locator('section[aria-labelledby="region-paths"] li');
   await expect(paths).toHaveCount(3);
   // A path's length is lessons to take, never lessons written: the open and planned counts are spelled out (R7).
-  await expect(paths.filter({ hasText: 'AI 架構' })).toContainText('路線共 66 堂 · 已開放 18 堂 · 其餘 48 堂規劃中');
+  await expect(paths.filter({ hasText: 'AI 架構' })).toContainText('路線共 66 堂 · 已開放 20 堂 · 其餘 46 堂規劃中');
   await page.goto('/regions/web');
   await expect(page.locator('section[aria-labelledby="region-paths"] li')).toHaveText([/前端工程.*路線共 62 堂 · 已開放 7 堂 · 其餘 55 堂規劃中/]);
   await page.goto('/regions/ai');

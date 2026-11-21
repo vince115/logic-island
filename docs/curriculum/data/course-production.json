@@ -146,7 +146,22 @@
       ],
       "commit": "abb6614",
       "tests": "驗證器、發布閘門 120/120、Vitest 2684（含 CN20 四語程式測試）、E2E 桌機＋手機旗標關 435（候選頁 2 個像素比對失敗為 main 既有回歸 #36）、網路預覽＋P9＋區域世界旗標開 252、測驗 8 題逐題複核、洩漏掃描",
-      "notes": "CN-5：計算機網路島綜合挑戰（四語程式課＋challenge-stages 六關：端到端追蹤、API 設計、處理器、快取與存取控制、除錯、HTTPS 與防火牆設定）；計算機網路島 20/20 完成，mapState 維持 planned；學習路線 C（網路與系統）成為可完整學完"
+      "notes": "CN-5：計算機網路島綜合挑戰（四語程式課＋challenge-stages 六關：端到端追蹤、API 設計、處理器、快取與存取控制、除錯、HTTPS 與防火牆設定）；計算機網路島 20/20 完成，mapState 維持 planned；學習路線 C（網路與系統）成為可完整學完",
+      "pr": "#51"
+    },
+    {
+      "id": 11,
+      "date": "2026-11-22",
+      "lessons": [
+        "AIF01",
+        "AIF02",
+        "AIF03",
+        "AIF04",
+        "AIF05"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "AIF-1：AI 基礎島首批，以 python-code 能力（AIF-0）撰寫，只用 Python 標準函式庫、兩個雜湊種子下輸出相同；AI 群島第一次有已開放的課（區域狀態 available），AI 基礎島 mapState 維持 planned；以 AI 群島當「全部規劃中」範例的測試改用數位設計群島"
     }
   ]
 }
