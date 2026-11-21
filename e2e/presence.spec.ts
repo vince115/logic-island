@@ -62,7 +62,7 @@ const newVisitor = async (browser: { newContext: (options?: object) => Promise<B
   return { context, page: await context.newPage(), leave: async () => { await goodbye(context); await context.close(); } };
 };
 /** The islands a test counts on are empty when it starts (a session an earlier run left behind times out by itself). */
-const empty = async (request: APIRequestContext, ...islands: string[]) => { for (const id of islands) await expectOnline(request, id, 0, 100_000); };
+const empty = async (request: APIRequestContext, ...islands: string[]) => { for (const id of islands) await expectOnline(request, id, 0, 170_000); };
 
 test.describe('presence: off (default build)', () => {
   test.skip(PRESENCE, 'this build has the presence API');
@@ -158,6 +158,23 @@ test.describe('presence: on', () => {
     await expectOnline(request, 'structures', 0);
   });
 
+  test('closing the tab in use counts the visitor on the tab that is left, at once (P7)', async ({ page, context, request }) => {
+    await empty(request, 'foundations', 'structures');
+    await page.goto(syllabus('foundations'));
+    await expectOnline(request, 'foundations', 1);
+    const second = await context.newPage();
+    await second.goto(syllabus('structures'));
+    await expectOnline(request, 'structures', 1);
+    await expectOnline(request, 'foundations', 0);
+    // The second tab leaves (its goodbye takes the session away: it was the tab in use). Nothing is done in the
+    // first tab: it hears that the other one left and reports by itself, long before its next report is due (a minute).
+    await second.goto('about:blank');
+    await expectOnline(request, 'structures', 0, 5_000);
+    await expectOnline(request, 'foundations', 1, 8_000);
+    // The line between the tabs carries no identity and nothing is kept in the browser for it.
+    expect(await page.evaluate(() => [localStorage.length, sessionStorage.length])).toEqual([0, 0]);
+  });
+
   test('a second browser is a second visitor', async ({ page, browser, baseURL, request }) => {
     await empty(request, 'algorithms');
     await page.goto(syllabus('algorithms'));
@@ -200,15 +217,17 @@ test.describe('presence: on', () => {
   });
 
   test('a visitor who goes silent is dropped after the timeout', async ({ page, context, request }) => {
-    test.setTimeout(150_000);
+    // The timeout is the server's own (the answer says it: 150 s since P7), counted from the visitor's last report.
+    const { ttlMs } = await (await request.get(API)).json() as { ttlMs: number };
+    test.setTimeout(ttlMs + 150_000);
     await empty(request, 'programming-languages');
     await page.goto(syllabus('programming-languages'));
     await expectOnline(request, 'programming-languages', 1);
     // The network goes away with the tab still open: no heartbeat arrives, and no goodbye either.
     await context.setOffline(true);
-    await page.waitForTimeout(60_000);
+    await page.waitForTimeout(Math.min(60_000, ttlMs / 2));
     expect(await online(request, 'programming-languages'), 'still counted inside the timeout').toBe(1);
-    await expectOnline(request, 'programming-languages', 0, 60_000);
+    await expectOnline(request, 'programming-languages', 0, ttlMs);
     await context.setOffline(false);
   });
 
@@ -238,6 +257,10 @@ test.describe('presence: on', () => {
     const after = await population(request);
     expect(after.regions.ai).toBe(before.regions.ai);
     expect(after.regions.cs).toBe(before.regions.cs + 1);
+    // The made-up tab owns the session now, and the page's own goodbye would not take it away: it says its own, or
+    // the session would stay on this island for the whole timeout, into the tests that follow.
+    expect(await send({ v: 1, tab: 'eeeeeeee00000009', leave: true, at: Date.now() })).toBe(200);
+    await expectOnline(request, 'programming-languages', 0);
   });
 
   test('the API gives out totals only; the session cookie is not readable or reusable elsewhere', async ({ page, context, request }) => {
