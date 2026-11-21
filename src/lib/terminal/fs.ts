@@ -7,10 +7,15 @@
  * of a Unix mode. LNX-0 (2026-11-22): a node may name its group (default: its owner, like a user private group) and a
  * state may name the user's groups (default: only the user's own); the group bits decide only for a user in the node's
  * group, so with the defaults (the lab: one learner and root) they never decide anything, exactly as before.
+ *
+ * Engine stage E1 (docs/curriculum/LNX0_TERMINAL_CAPABILITY.md §9): a node may be a symbolic link (kind 'link' with the
+ * target text exactly as written), and a state may describe its system (uname) and its mount table (df). The lab never
+ * has either: only the E1 profile can create a link, and only a lesson machine on that profile may declare them.
  */
 
 export interface FsNode {
-  kind: 'dir' | 'file';
+  /** E1: 'link' is a symbolic link (the lab never has one). */
+  kind: 'dir' | 'file' | 'link';
   /** Permission bits, e.g. 0o755. */
   mode: number;
   owner: string;
@@ -18,6 +23,35 @@ export interface FsNode {
   group?: string;
   /** Files only. */
   content?: string;
+  /** E1, links only: where the link points, as written (relative targets are relative to the link's folder). */
+  target?: string;
+}
+
+/** E1: what uname prints; every field has a default (DEFAULT_SYSTEM). No dates: the kernel version is a fixed string. */
+export interface SystemInfo {
+  /** uname -s, e.g. Linux. */
+  kernel: string;
+  /** uname -r, e.g. 6.8.0-45-generic. */
+  release: string;
+  /** uname -v, e.g. #45-Ubuntu SMP PREEMPT_DYNAMIC (fixed text, never a clock). */
+  version: string;
+  /** uname -m, e.g. x86_64 or aarch64. */
+  machine: string;
+  /** uname -o, e.g. GNU/Linux. */
+  os: string;
+}
+export const DEFAULT_SYSTEM: SystemInfo = { kernel: 'Linux', release: '6.8.0-sim', version: '#1 SMP PREEMPT_DYNAMIC', machine: 'x86_64', os: 'GNU/Linux' };
+
+/** E1: one mounted file system for df. Sizes are in 1K blocks (KiB) and fixed: they do not follow the simulated files. */
+export interface Mount {
+  /** The mount point, a folder of the machine. */
+  path: string;
+  /** The Filesystem column, e.g. /dev/sda1 or tmpfs. */
+  device: string;
+  /** The file system type (df -T), e.g. ext4. */
+  type: string;
+  size: number;
+  used: number;
 }
 
 export interface FsState {
@@ -29,6 +63,10 @@ export interface FsState {
   host?: string;
   /** LNX-0: the groups the user belongs to; when absent, only the group named after the user. */
   groups?: readonly string[];
+  /** E1: uname's fields over DEFAULT_SYSTEM. */
+  system?: Partial<SystemInfo>;
+  /** E1: the mount table df reads, in the order df lists it. */
+  mounts?: readonly Mount[];
 }
 
 export const DEFAULT_HOST = 'logic-island';
@@ -114,11 +152,53 @@ export function can(node: FsNode, user: string, access: Access, groups: readonly
   return (bits & BIT[access]) !== 0;
 }
 
-/** rwxr-xr-x for 0o755, with the leading d or -. */
+/** rwxr-xr-x for 0o755, with the leading d, l (E1: a symbolic link) or -. */
 export function modeString(node: FsNode): string {
   const triad = (bits: number) => `${bits & 4 ? 'r' : '-'}${bits & 2 ? 'w' : '-'}${bits & 1 ? 'x' : '-'}`;
-  return (node.kind === 'dir' ? 'd' : '-') + triad((node.mode >> 6) & 7) + triad((node.mode >> 3) & 7) + triad(node.mode & 7);
+  return (node.kind === 'dir' ? 'd' : node.kind === 'link' ? 'l' : '-') + triad((node.mode >> 6) & 7) + triad((node.mode >> 3) & 7) + triad(node.mode & 7);
 }
 
 /** A valid file or folder name: not empty, no slash, not . or .., at most LIMITS.nameLength characters. */
 export const validName = (name: string) => !!name && name !== '.' && name !== '..' && !name.includes('/') && name.length <= LIMITS.nameLength;
+
+/** E1: Linux follows at most 40 symbolic links while resolving one path (MAXSYMLINKS); more is ELOOP. */
+export const MAX_LINK_HOPS = 40;
+
+/** E1: the absolute, normalized path a link's target names (relative to the folder that holds the link; ~ is not special). */
+export const linkTarget = (folder: string, target: string) => resolvePath({ cwd: '/', home: '/' }, target.startsWith('/') ? target : `${folder}/${target}`);
+
+/**
+ * E1: the path with each symbolic link on the way replaced by where it points (the last part too when `follow`). Parts
+ * that do not exist are kept as written, and nothing checks permissions: this only names the real node a command works
+ * on. Without links (the lab) it returns the path unchanged.
+ */
+export function physicalPath(nodes: ReadonlyMap<string, FsNode>, path: string, follow = false): string {
+  const rest = path.split('/').filter(Boolean);
+  let at = '/', hops = 0;
+  while (rest.length) {
+    const next = joinPath(at, rest.shift()!), node = nodes.get(next);
+    if (node?.kind === 'link' && (rest.length || follow) && hops < MAX_LINK_HOPS) {
+      hops++;
+      rest.unshift(...linkTarget(at, node.target ?? '').split('/').filter(Boolean));
+      at = '/';
+      continue;
+    }
+    at = next;
+  }
+  return at;
+}
+
+/**
+ * E1: a size the way GNU ls -h, df -h and du -h print it: powers of 1024, rounded up, one decimal below 10
+ * (4096 → 4.0K, 1536 → 1.5K, 12288 → 12K, 1000 → 1000).
+ */
+export function humanSize(bytes: number): string {
+  if (bytes < 1024) return String(bytes);
+  const units = ['K', 'M', 'G', 'T', 'P'];
+  let e = 0, unit = 1024;
+  while (bytes >= unit * 1024 && e < units.length - 1) { unit *= 1024; e++; }
+  const tenths = Math.ceil(bytes * 10 / unit);
+  if (tenths < 100) return `${Math.floor(tenths / 10)}.${tenths % 10}${units[e]}`;
+  const whole = Math.ceil(bytes / unit);
+  return whole < 1024 || e === units.length - 1 ? `${whole}${units[e]}` : `1.0${units[e + 1]}`;
+}
