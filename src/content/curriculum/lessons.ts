@@ -346,6 +346,29 @@ export function networkFromBlueprint(lessonId: string, summary: string, minutes:
     visualization: capstone ? 'challenge-stages' : 'none', status: 'complete', version: '1.0.0', activity,
     capabilities: capstone ? ['network-protocol', 'visualization'] : ['network-protocol'], blueprintId: lessonId };
 }
+/**
+ * LNX-0 (2026-11-22): a Linux lesson written from its blueprint outline. Slug, title, objectives, concepts, difficulty
+ * and prerequisites are the blueprint's. Its body is the terminal capability (machines, replayed transcripts, exercises
+ * checked in the simulated shell). Activities: terminal-sim stays; the overview's case-study-board is not built (it stays
+ * in INTERACTIVE_LAB_ROADMAP) and the lesson uses the terminal instead; SSH's protocol-sequence becomes network-sequence
+ * with network scenes beside the terminal (protocol-sequence keeps meaning the database lessons' SQL round trips); the
+ * capstone adds the challenge-stages visualization.
+ */
+export function terminalFromBlueprint(lessonId: string, summary: string, minutes: number): Outline {
+  const b = planning.plannedLessons.find(l => l.lessonId === lessonId);
+  if (!b || b.islandId !== 'linux-systems') throw new Error(`${lessonId} is not a Linux systems lesson of the blueprint`);
+  const shape: Record<string, Pick<Outline, 'activity' | 'capabilities' | 'visualization'>> = {
+    'terminal-sim': { activity: 'terminal-sim', capabilities: ['terminal'], visualization: 'none' },
+    'case-study-board': { activity: 'terminal-sim', capabilities: ['terminal'], visualization: 'none' },
+    'protocol-sequence': { activity: 'network-sequence', capabilities: ['terminal', 'network-protocol'], visualization: 'none' },
+    'challenge-stages': { activity: 'challenge-stages', capabilities: ['terminal', 'visualization'], visualization: 'challenge-stages' },
+  };
+  const s = shape[b.activity];
+  if (!s) throw new Error(`${lessonId}: no terminal lesson shape for the blueprint activity ${b.activity}`);
+  return { slug: b.slug, title: b.title, summary, objectives: b.learningObjectives, concepts: b.concepts, difficulty: b.difficulty as Difficulty,
+    minutes, prerequisites: b.prerequisites as LessonId[], recommended: b.recommended as AnyLessonId[], apcs: ['none'],
+    status: 'complete', version: '1.0.0', ...s, blueprintId: lessonId };
+}
 /** Batches 1–5: the programming-languages island's written lessons, PL20 its capstone. */
 const programmingLanguages: Outline[] = [
   programFromBlueprint('PL01', '用同一個「偶數平方和」問題比較命令式、程序式、物件導向與函數式寫法，認識宣告式的 SQL 與邏輯式的 Prolog，看懂 C++、Java、Python、JavaScript 各自支援的典範組合，並依可讀性與可變狀態選擇合適的風格。', 45, 'variable-state'),

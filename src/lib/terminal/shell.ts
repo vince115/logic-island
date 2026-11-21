@@ -1,6 +1,6 @@
 import {
-  baseName, can, childrenOf, depthOf, isInside, joinPath, LIMITS, modeString, parentOf, resolvePath, subtreeOf, validName,
-  type Access, type FsNode, type FsState,
+  baseName, can, childrenOf, DEFAULT_HOST, depthOf, groupOf, groupsOf, isInside, joinPath, LIMITS, modeString, parentOf, resolvePath,
+  subtreeOf, validName, type Access, type FsNode, type FsState,
 } from './fs';
 
 /*
@@ -8,28 +8,40 @@ import {
  * fs.ts; anything else is "command not found". There is no eval, no process, no network and no access to the host:
  * the input is only split into words and matched against the table. Messages follow GNU coreutils and bash so they
  * look like a real terminal.
+ *
+ * LNX-0 (2026-11-22): the commands a session may use are a profile. LAB_PROFILE is today's table, and run() uses it by
+ * default, so the lab and every existing caller behave exactly as before. Later engine stages (docs/curriculum/
+ * LNX0_TERMINAL_CAPABILITY.md: E1 more file commands, E2 pipes and redirection…) add their commands in a profile of their
+ * own, which a lesson opts into; nothing a stage adds reaches a profile that does not list it.
  */
 
 export interface Line { text: string; kind: 'out' | 'err' }
 export interface RunResult { state: FsState; lines: Line[]; clear?: true }
 
 export const COMMANDS = ['pwd', 'ls', 'cd', 'mkdir', 'touch', 'cat', 'cp', 'mv', 'rm', 'chmod', 'echo', 'whoami', 'clear', 'help'] as const;
+export type CommandName = typeof COMMANDS[number];
 
-const HELP = [
-  '可用的指令（模擬環境，不會執行真實的 Shell）：',
-  '  pwd                    顯示目前所在的目錄',
-  '  ls [-l] [-a] [路徑]     列出目錄內容；-l 顯示權限，-a 顯示隱藏項目',
-  '  cd [路徑]               切換目錄；~ 是家目錄，.. 是上一層',
-  '  mkdir [-p] 目錄…        建立目錄；-p 一併建立中間的目錄',
-  '  touch 檔案…             建立空檔案',
-  '  cat 檔案…               顯示檔案內容',
-  '  echo 文字 [> 或 >> 檔案]  輸出文字，或寫入（>）、附加（>>）到檔案',
-  '  cp [-r] 來源 目的地       複製；複製目錄要加 -r',
-  '  mv 來源 目的地           移動或改名',
-  '  rm [-r] [-f] 路徑…       刪除；刪除目錄要加 -r（無法復原）',
-  '  chmod 模式 路徑…         修改權限，例如 chmod 644 a.txt、chmod u+x run.sh',
-  '  whoami、clear、help',
+/** LNX-0: the commands a session may run. */
+export interface ShellProfile { readonly id: string; readonly commands: readonly CommandName[] }
+/** The P7 lab's table: every command above, no pipes. run() uses it when no profile is given. */
+export const LAB_PROFILE: ShellProfile = { id: 'lab', commands: COMMANDS };
+
+/** Each help line with the command it describes (null: the heading); a profile prints the lines of its own commands. */
+const HELP: [CommandName | null, string][] = [
+  [null, '可用的指令（模擬環境，不會執行真實的 Shell）：'],
+  ['pwd', '  pwd                    顯示目前所在的目錄'],
+  ['ls', '  ls [-l] [-a] [路徑]     列出目錄內容；-l 顯示權限，-a 顯示隱藏項目'],
+  ['cd', '  cd [路徑]               切換目錄；~ 是家目錄，.. 是上一層'],
+  ['mkdir', '  mkdir [-p] 目錄…        建立目錄；-p 一併建立中間的目錄'],
+  ['touch', '  touch 檔案…             建立空檔案'],
+  ['cat', '  cat 檔案…               顯示檔案內容'],
+  ['echo', '  echo 文字 [> 或 >> 檔案]  輸出文字，或寫入（>）、附加（>>）到檔案'],
+  ['cp', '  cp [-r] 來源 目的地       複製；複製目錄要加 -r'],
+  ['mv', '  mv 來源 目的地           移動或改名'],
+  ['rm', '  rm [-r] [-f] 路徑…       刪除；刪除目錄要加 -r（無法復原）'],
+  ['chmod', '  chmod 模式 路徑…         修改權限，例如 chmod 644 a.txt、chmod u+x run.sh'],
 ];
+const HELP_LAST: CommandName[] = ['whoami', 'clear', 'help'];
 
 type Fail = { error: 'ENOENT' | 'ENOTDIR' | 'EACCES' };
 type Found = { node: FsNode | undefined };
@@ -44,7 +56,7 @@ function walk(state: FsState, path: string): Fail | Found {
     const node = state.nodes.get(at);
     if (!node) return { error: 'ENOENT' };
     if (node.kind !== 'dir') return { error: 'ENOTDIR' };
-    if (!can(node, state.user, 'x')) return { error: 'EACCES' };
+    if (!can(node, state.user, 'x', groupsOf(state))) return { error: 'EACCES' };
     at = joinPath(at, part);
   }
   return { node: state.nodes.get(path) };
@@ -107,8 +119,11 @@ export function applyMode(mode: number, spec: string): number | undefined {
   return next;
 }
 
-/** Runs one command line against the state and returns the new state and what the terminal prints. */
-export function run(state: FsState, input: string): RunResult {
+/**
+ * Runs one command line against the state and returns the new state and what the terminal prints. Only the profile's
+ * commands run (default: LAB_PROFILE, the lab's whole table); any other is "command not found".
+ */
+export function run(state: FsState, input: string, profile: ShellProfile = LAB_PROFILE): RunResult {
   const out: Line[] = [];
   const print = (text: string) => out.push({ text, kind: 'out' });
   const fail = (text: string) => out.push({ text, kind: 'err' });
@@ -127,7 +142,7 @@ export function run(state: FsState, input: string): RunResult {
   const commit = (cwd = state.cwd): RunResult => done({ ...state, nodes, cwd });
   const resolve = (p: string) => resolvePath(state, p);
   const shown = (p: string) => p;
-  const allowed = (node: FsNode, access: Access) => can(node, state.user, access);
+  const allowed = (node: FsNode, access: Access) => can(node, state.user, access, groupsOf(state));
   /** The folder a new entry goes into must exist, be a folder, and be writable and searchable. */
   const writableParent = (path: string): 'ENOENT' | 'ENOTDIR' | 'EACCES' | null => {
     const w = walk({ ...state, nodes }, parentOf(path));
@@ -139,8 +154,14 @@ export function run(state: FsState, input: string): RunResult {
   const room = (count: number) => nodes.size + count <= LIMITS.nodes;
   const tooDeep = (path: string) => depthOf(path) > LIMITS.depth;
 
-  switch (cmd) {
-    case 'help': HELP.forEach(print); return done();
+  const known = (profile.commands as readonly string[]).includes(cmd);
+  switch (known ? cmd as CommandName : undefined) {
+    case 'help': {
+      HELP.filter(([c]) => !c || profile.commands.includes(c)).forEach(([, line]) => print(line));
+      const last = HELP_LAST.filter(c => profile.commands.includes(c));
+      if (last.length) print(`  ${last.join('、')}`);
+      return done();
+    }
     case 'whoami': print(state.user); return done();
     case 'clear': return { state, lines: [], clear: true };
     case 'pwd': print(state.cwd); return done();
@@ -163,7 +184,8 @@ export function run(state: FsState, input: string): RunResult {
       }
       const content = (args[at] === '>>' ? w.node?.content ?? '' : '') + text + '\n';
       if (content.length > LIMITS.fileLength) { fail(`bash: ${shown(target)}: File too large（模擬環境上限 ${LIMITS.fileLength} 字元）`); return done(); }
-      nodes.set(path, { kind: 'file', mode: w.node?.mode ?? 0o644, owner: w.node?.owner ?? state.user, content });
+      // An existing file keeps its mode, owner and group; a new one is the user's.
+      nodes.set(path, w.node ? { ...w.node, content } : { kind: 'file', mode: 0o644, owner: state.user, content });
       return commit();
     }
 
@@ -184,7 +206,7 @@ export function run(state: FsState, input: string): RunResult {
       // Folders end in / (like ls -F) so the listing reads without colours; . and .. stay as they are.
       const label = (name: string, node: FsNode) => node.kind === 'dir' && name !== '.' && name !== '..' ? `${name}/` : name;
       const entry = (name: string, node: FsNode) => long
-        ? `${modeString(node)} ${node.owner.padEnd(7)} ${node.owner.padEnd(7)} ${String(node.kind === 'dir' ? 4096 : byteLength(node.content ?? '')).padStart(5)} ${label(name, node)}`
+        ? `${modeString(node)} ${node.owner.padEnd(7)} ${groupOf(node).padEnd(7)} ${String(node.kind === 'dir' ? 4096 : byteLength(node.content ?? '')).padStart(5)} ${label(name, node)}`
         : label(name, node);
       targets.forEach((target, i) => {
         const path = resolve(target), w = walk(state, path);
@@ -285,7 +307,8 @@ export function run(state: FsState, input: string): RunResult {
       for (const p of tree) {
         const node = state.nodes.get(p)!;
         if (cmd === 'mv') nodes.delete(p);
-        nodes.set(dest + p.slice(src.length), cmd === 'cp' ? { ...node, owner: state.user } : node);
+        // A copy belongs to the user (and, LNX-0, to the user's own group); a move keeps the node as it was.
+        nodes.set(dest + p.slice(src.length), cmd === 'cp' ? copyOf(node, state.user) : node);
       }
       return commit(moved ? dest + state.cwd.slice(src.length) : state.cwd);
     }
@@ -329,13 +352,20 @@ export function run(state: FsState, input: string): RunResult {
     }
 
     default:
-      fail(`bash: ${cmd}: command not found（模擬環境支援：${COMMANDS.join('、')}）`);
+      fail(`bash: ${cmd}: command not found（模擬環境支援：${profile.commands.join('、')}）`);
       return done();
   }
 }
 
-/** The prompt, e.g. learner@logic-island:~/projects$ */
+/** A copied node: the same kind, mode and content, owned by the user, in the user's own group (no group field). */
+function copyOf(node: FsNode, user: string): FsNode {
+  const { group: _group, ...rest } = node;
+  void _group;
+  return { ...rest, owner: user };
+}
+
+/** The prompt, e.g. learner@logic-island:~/projects$ (LNX-0: the state's host when it has one; # for root, as in bash). */
 export function prompt(state: FsState): string {
   const where = isInside(state.cwd, state.home) ? '~' + state.cwd.slice(state.home.length) : state.cwd;
-  return `${state.user}@logic-island:${where}$`;
+  return `${state.user}@${state.host ?? DEFAULT_HOST}:${where}${state.user === 'root' ? '#' : '$'}`;
 }
