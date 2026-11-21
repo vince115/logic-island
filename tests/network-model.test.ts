@@ -91,6 +91,7 @@ describe('exercise answers come from the scenes', () => {
     expect(expectedNetworkAnswer(t, previewScenes)).toEqual({ cell: '2' });
     expect(checkNetworkAnswer(t, previewScenes, { cell: '2' }).ok).toBe(true);
     expect(checkNetworkAnswer(t, previewScenes, { cell: '1' }).messages).toEqual([expect.stringMatching(/表格中的值」不對/)]);
+    expect(checkNetworkAnswer({ task: 'field', scene: 'preview-tcp-handshake', message: 'syn-ack', layer: 'transport', field: '旗標' }, previewScenes, { value: 'syn、ack' }).ok).toBe(true);
     // B's address is not in the table before B has sent anything, and the key column is not an answer.
     expect(() => expectedNetworkAnswer({ ...t, message: 'arp-req' }, previewScenes)).toThrow(/no cell/);
     expect(() => expectedNetworkAnswer({ ...t, column: 'MAC 位址' }, previewScenes)).toThrow(/no cell/);

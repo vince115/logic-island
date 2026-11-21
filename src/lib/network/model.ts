@@ -151,8 +151,11 @@ export function expectedNetworkAnswer(t: NetworkTask, scenes: readonly NetworkSc
     }
   }
 }
-/** Compared case-insensitively with spaces removed (MAC addresses, hex and flags are written in different cases). */
-const normalize = (text: string) => text.replace(/\s+/g, '').toLowerCase();
+/**
+ * Compared case-insensitively with spaces removed (MAC addresses, hex and flags are written in different cases), and
+ * with the Chinese list marks 、 and ， read as commas (「1、3、4」 is 「1,3,4」).
+ */
+const normalize = (text: string) => text.replace(/\s+/g, '').replace(/[、，]/g, ',').toLowerCase();
 export function checkNetworkAnswer(t: NetworkTask, scenes: readonly NetworkScene[], answer: Record<string, string>): { ok: boolean; messages: string[] } {
   const expected = expectedNetworkAnswer(t, scenes), messages: string[] = [];
   for (const [field, value] of Object.entries(expected)) {
