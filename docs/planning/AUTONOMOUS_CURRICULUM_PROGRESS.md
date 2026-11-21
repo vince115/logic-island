@@ -13,11 +13,11 @@
 
 ## 總覽
 
-已發布 **105／520**（20.2%）；規劃中 415。
+已發布 **110／520**（21.2%）；規劃中 410。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
-| 程式與資訊群島 | 105 | 55 | 65.6% |
+| 程式與資訊群島 | 110 | 50 | 68.8% |
 | AI 人工智慧群島 | 0 | 160 | 0.0% |
 | 數位設計群島 | 0 | 56 | 0.0% |
 | 網頁與應用開發群島 | 0 | 55 | 0.0% |
@@ -25,7 +25,7 @@
 
 ## 下一批（自動選擇）
 
-**計算機網路島（CN）**：CN06 ARP、DHCP 與 NAT、CN07 路由與轉送、CN08 路由協定：距離向量與鏈路狀態、CN09 TCP 與 UDP、CN10 TCP 可靠傳輸、流量控制與壅塞控制。島嶼能力：可用；這幾堂解鎖其他島的 60 堂。
+**計算機網路島（CN）**：CN11 Socket 網路程式設計、CN12 DNS 與 HTTP、CN13 HTTPS 與 TLS、CN14 REST API 與 JSON、CN15 快取、CDN 與 HTTP/2、HTTP/3。島嶼能力：可用；這幾堂解鎖其他島的 60 堂。
 
 能力缺口中最優先的是 **AI 基礎島（AIF）**：需要 python-code (Python-only program lessons; search, probability and game trees on the shared trace panels)；先修已滿足、可依序撰寫的有 20 堂，前 5 堂解鎖其他島的 140 堂。
 
@@ -40,7 +40,7 @@
 | 程式與資訊群島 | 演算法島（AL） | 20／20 | program-code | 可用 | 全島完成 | — |
 | 程式與資訊群島 | 程式語言島（PL） | 20／20 | program-code | 可用 | 全島完成 | — |
 | 程式與資訊群島 | 資料庫應用島（DB） | 20／20 | sql, er-diagram, normalization, query-plan, transaction-timeline, driver-code, protocol-sequence, architecture-diagram | 可用 | 全島完成 | — |
-| 程式與資訊群島 | 計算機網路島（CN） | 5／20 | network-protocol (packets through the layers, message sequences, node tables; field, layer, table, subnet and delay exercises) | 可用 | CN06–CN20（15 堂） | — |
+| 程式與資訊群島 | 計算機網路島（CN） | 10／20 | network-protocol (packets through the layers, message sequences, node tables; field, layer, table, subnet and delay exercises) | 可用 | CN11–CN20（10 堂） | — |
 | 程式與資訊群島 | 系統分析與設計島（SA） | 0／20 | model-diagram (UML, DFD, BPMN, state and sequence models, checked by structure) | 缺少 | SA01–SA20（20 堂） | 缺少課程能力 |
 | 程式與資訊群島 | 管理資訊系統島（MIS） | 0／20 | case-analysis (scenario data, decision tables, KPI calculations checked by value) | 缺少 | MIS01–MIS20（20 堂） | 缺少課程能力 |
 | AI 人工智慧群島 | AI 基礎島（AIF） | 0／20 | python-code (Python-only program lessons; search, probability and game trees on the shared trace panels) | 缺少 | AIF01–AIF20（20 堂） | 缺少課程能力 |
@@ -89,16 +89,16 @@
 |---|---|---|
 | APCS／資訊科學基礎 | 60／60 | 是 |
 | 軟體工程 | 66／86 | 否 |
-| 網路與系統 | 39／54 | 否 |
+| 網路與系統 | 44／54 | 否 |
 | 企業資訊系統 | 44／84 | 否 |
-| AI 研究 | 34／142 | 否 |
-| AI 應用工程 | 21／89 | 否 |
+| AI 研究 | 35／142 | 否 |
+| AI 應用工程 | 22／89 | 否 |
 | 前端工程 | 7／62 | 否 |
 | 產品設計 | 0／56 | 否 |
-| AI 架構 | 13／66 | 否 |
+| AI 架構 | 14／66 | 否 |
 | 全端部署 | 16／62 | 否 |
-| AI 基礎設施 | 9／60 | 否 |
-| 雲端與 DevOps 基礎 | 3／48 | 否 |
+| AI 基礎設施 | 10／60 | 否 |
+| 雲端與 DevOps 基礎 | 4／48 | 否 |
 
 ## 先修依賴檢查
 
@@ -242,20 +242,20 @@
 | CN03 | 資料鏈結層、Ethernet 與交換器 | 已發布（閘門通過） | CN01 | packet-journey | — |
 | CN04 | Wi-Fi 與行動網路基礎 | 已發布（閘門通過） | CN03 | network-sequence | — |
 | CN05 | IP 位址與子網路 | 已發布（閘門通過） | CN01 | packet-journey | — |
-| CN06 | ARP、DHCP 與 NAT | 大綱 | CN05、CN03 | protocol-sequence | — |
-| CN07 | 路由與轉送 | 大綱 | CN05 | routing-table | — |
-| CN08 | 路由協定：距離向量與鏈路狀態 | 待先修 | CN07、A16 | graph-traversal | 先修 CN07 |
-| CN09 | TCP 與 UDP | 大綱 | CN05 | protocol-sequence | — |
-| CN10 | TCP 可靠傳輸、流量控制與壅塞控制 | 待先修 | CN09 | protocol-sequence | 先修 CN09 |
-| CN11 | Socket 網路程式設計 | 待先修 | CN09 | protocol-sequence | 先修 CN09 |
-| CN12 | DNS 與 HTTP | 待先修 | CN09 | packet-journey | 先修 CN09 |
+| CN06 | ARP、DHCP 與 NAT | 已發布（閘門通過） | CN05、CN03 | network-sequence | — |
+| CN07 | 路由與轉送 | 已發布（閘門通過） | CN05 | packet-journey | — |
+| CN08 | 路由協定：距離向量與鏈路狀態 | 已發布（閘門通過） | CN07、A16 | packet-journey | — |
+| CN09 | TCP 與 UDP | 已發布（閘門通過） | CN05 | network-sequence | — |
+| CN10 | TCP 可靠傳輸、流量控制與壅塞控制 | 已發布（閘門通過） | CN09 | network-sequence | — |
+| CN11 | Socket 網路程式設計 | 大綱 | CN09 | protocol-sequence | — |
+| CN12 | DNS 與 HTTP | 大綱 | CN09 | packet-journey | — |
 | CN13 | HTTPS 與 TLS | 待先修 | CN12 | protocol-sequence | 先修 CN12 |
 | CN14 | REST API 與 JSON | 待先修 | CN12 | protocol-sequence | 先修 CN12 |
 | CN15 | 快取、CDN 與 HTTP/2、HTTP/3 | 待先修 | CN12 | architecture-diagram | 先修 CN12 |
 | CN16 | WebSocket 與即時通訊 | 待先修 | CN11、CN12 | protocol-sequence | 先修 CN11、CN12 |
-| CN17 | 網路除錯工具 | 待先修 | CN07、CN12 | packet-journey | 先修 CN07、CN12 |
+| CN17 | 網路除錯工具 | 待先修 | CN07、CN12 | packet-journey | 先修 CN12 |
 | CN18 | 網路安全基礎 | 待先修 | CN13 | packet-journey | 先修 CN13 |
-| CN19 | 防火牆、VPN 與零信任 | 待先修 | CN18、CN07 | routing-table | 先修 CN18、CN07 |
+| CN19 | 防火牆、VPN 與零信任 | 待先修 | CN18、CN07 | routing-table | 先修 CN18 |
 | CN20 | 計算機網路島綜合挑戰：追蹤並打造一個網路服務 | 待先修 | CN14、CN17、CN18 | challenge-stages | 先修 CN14、CN17、CN18 |
 
 ### 程式與資訊群島 · 系統分析與設計島（SA）
