@@ -13,6 +13,11 @@
 | AIF03 | 智慧代理人<br>`intelligent-agents` | 入門 | 50 分 | AIF01 | 陣列與字串（格子世界的吸塵代理人） | 6 段、4 個範例（兩格吸塵世界、PEAS、模型式代理人、績效度量比較）、練習「格子世界的反射型吸塵器」（20 組測資）、8 題 | **完整 v1.0.0** |
 | AIF04 | 問題形式化與無資訊搜尋<br>`problem-formulation-and-uninformed-search` | 中級 | 60 分 | AIF03、A14、A15 | 樹的走訪（BFS 搜尋樹與邊界佇列） | 6 段、5 個範例（通用問題類別、樹搜尋與圖搜尋、BFS 與 UCS、迭代加深、八數碼）、練習「以 BFS、UCS、IDS 搜尋路徑」（34 組測資）、8 題 | **完整 v1.0.0** |
 | AIF05 | 啟發式搜尋與 A*<br>`informed-search` | 中級 | 60 分 | AIF04、A16 | 圖的走訪（A* 的 open、closed 與 g、h、f） | 6 段、5 個範例（貪婪與 A*、不可接受的啟發函數、格子尋路、八數碼的兩種啟發、有效分支因子）、練習「格子地圖上的 A*」（15 組測資）、8 題 | **完整 v1.0.0** |
+| AIF06 | 區域搜尋與最佳化<br>`local-search-and-optimization` | 中級 | 55 分 | AIF04 | 陣列與字串（8 皇后的最陡下降，每步的衝突數） | 6 段、5 個範例（一維地形的最陡上升與橫移、8 皇后最陡下降、隨機重啟、模擬退火的接受機率與降溫、基因演算法的突變率）、練習「確定規則的 N 皇后最陡下降」（21 組測資）、8 題 | **完整 v1.0.0** |
+| AIF07 | 對抗搜尋與 Minimax<br>`minimax-adversarial-search` | 中級 | 55 分 | AIF04 | 遞迴樹（從葉節點把 minimax 值倒推回根） | 6 段、5 個範例（教科書兩層遊戲樹、數出井字遊戲完整遊戲樹、井字遊戲的最佳走法、驗證 minimax AI 不會輸、深度限制與評估函數）、練習「井字遊戲的 minimax 對手」（22 組測資）、7 題 | **完整 v1.0.0** |
+| AIF08 | Alpha-Beta 剪枝與遊戲 AI<br>`alpha-beta-pruning` | 中級 | 55 分 | AIF07 | 遞迴樹（每個節點的 α、β 與被剪掉的分支） | 6 段、4 個範例（同一棵樹的 minimax 與 alpha-beta 節點數、行動排序、以分數計算的 expectiminimax、固定種子的 MCTS 取石子遊戲）、練習「alpha-beta 剪枝報告」（20 組測資）、8 題 | **完整 v1.0.0** |
+| AIF09 | 限制滿足問題<br>`constraint-satisfaction-problems` | 中級 | 60 分 | AIF04、A12 | 遞迴樹（澳洲地圖回溯＋前向檢查的搜尋樹與值域表） | 6 段、5 個範例（考試排程的 CSP、三種回溯的指定次數、AC-3、MRV 與 LCV 的順序、4 × 4 數獨）、練習「地圖著色解題器：前向檢查＋MRV」（25 組測資）、8 題 | **完整 v1.0.0** |
+| AIF10 | 知識表示<br>`knowledge-representation` | 中級 | 50 分 | AIF03 | 圖的走訪（只沿指定述詞做 BFS 的校園知識圖譜） | 7 段、5 個範例（以 dict 表示框架、三元組樣式查詢、本體論的類別階層與定義域、繼承與企鵝的例外、多步查詢）、練習「校園知識圖譜的查詢器」（14 組測資）、8 題 | **完整 v1.0.0** |
 
 ## 單元
 
@@ -20,9 +25,11 @@
 |---|---|
 | AI 的定義與歷史 | AIF01–AIF02 |
 | 代理人與搜尋 | AIF03–AIF05 |
+| 區域搜尋與賽局 | AIF06–AIF08 |
+| 限制滿足與知識表示 | AIF09–AIF10 |
 
 ## 後續批次
 
-其餘 15 堂依編號連續發布（AIF06–AIF10、AIF11–AIF15、AIF16–AIF19、AIF20），理由見 [AIF0_PYTHON_CAPABILITY](AIF0_PYTHON_CAPABILITY.md) §5。
+AIF-2 發布 AIF06–AIF10；其餘 10 堂依編號連續發布（AIF11–AIF15、AIF16–AIF19、AIF20），理由見 [AIF0_PYTHON_CAPABILITY](AIF0_PYTHON_CAPABILITY.md) §5。
 
 課程狀態與 3D 地景分離：AI 基礎島的 `mapState` 仍是 `'planned'`，地景要另行授權的建模階段才會改變。AI 群島因此第一次有已開放的課（區域狀態 available），其他六座島仍是大綱。

@@ -416,13 +416,18 @@ export function pythonFromBlueprint(lessonId: string, summary: string, minutes: 
     status: 'complete', version: '1.0.0', capabilities: ['python-code'], blueprintId: lessonId };
 }
 
-/** AIF-1 (2026-11-22): the AI foundations island's first lessons, Python only (python-code, AIF0_PYTHON_CAPABILITY.md). */
+/** AIF-1 (2026-11-22): the AI foundations island's first lessons, Python only (python-code, AIF0_PYTHON_CAPABILITY.md); AIF-2 adds AIF06–AIF10. */
 const aiFoundations: Outline[] = [
   pythonFromBlueprint('AIF01', '用 AI 的四種定義、理性代理人與圖靈測試判斷什麼算 AI，比較狹義 AI 與通用 AI、符號式與資料驅動兩條路線，並以明確的規則把日常系統分類為規則式程式或 AI 系統。', 45, 'conditional-branch'),
   pythonFromBlueprint('AIF02', '從 1956 年達特茅斯會議、早期符號 AI、MYCIN 與 XCON 等專家系統和兩次 AI 寒冬，到感知器與 XOR、1986 年普及的反向傳播、2012 年的 AlexNet 與 2017 年 Transformer 之後的基礎模型，比較符號主義、連結主義與統計學習，說明運算力、資料與演算法如何推動每一波興起，並以 Python 實作前向鏈結專家系統、學會 AND 卻學不會 XOR 的整數感知器，以及依時期分組的 AI 時間軸。', 45, 'none'),
   pythonFromBlueprint('AIF03', '以 PEAS 描述任務、分類環境並比較五種代理人，再用 Python 寫出在格子世界中吸塵的反射型代理人。', 50, 'array-index'),
   pythonFromBlueprint('AIF04', '把問題形式化為狀態、動作、轉移模型、目標測試與路徑成本，在同一個搜尋框架中比較 BFS、UCS、DFS 與迭代加深搜尋的完備性、最佳性與展開節點數。', 60, 'tree-traversal'),
   pythonFromBlueprint('AIF05', '依估計的剩餘成本引導搜尋：貪婪最佳優先、A* 的 f = g + h、可接受與一致的啟發函數，以及格子尋路。', 60, 'graph-traversal'),
+  pythonFromBlueprint('AIF06', '以目標函數地形說明區域最大、高原與山脊，用 Python 在 8 皇后上實作最陡上升、橫移與隨機重啟、模擬退火的 exp(Δ/T) 接受機率與溫度排程，以及基因演算法的選擇、交配與突變，並以固定種子比較各方法的成功率與步數。', 55, 'array-index'),
+  pythonFromBlueprint('AIF07', '把雙人零和、完全資訊遊戲寫成遊戲樹，讓 MAX 與 MIN 輪流取最大與最小值倒推出 minimax 值，數出井字遊戲完整遊戲樹的 549,946 個節點與 5,478 個盤面，說明深度限制、評估函數與地平線效應，並以 Python 實作不會輸的井字遊戲 AI。', 55, 'recursion-tree'),
+  pythonFromBlueprint('AIF08', '在 minimax 上加入 alpha 與 beta 剪掉不影響結果的分支，量測行動排序省下的節點數，並以 expectiminimax 處理機率節點、以 UCB1 的蒙地卡羅樹搜尋選擇走法。', 55, 'recursion-tree'),
+  pythonFromBlueprint('AIF09', '把地圖著色、考試排程與數獨寫成變數、值域與限制，以回溯搜尋加上前向檢查與 AC-3 弧一致性縮小值域，用 MRV、degree 與 LCV 決定順序，並以 Python 寫出解地圖著色與 4 × 4 數獨的 CSP 解題器。', 60, 'recursion-tree'),
+  pythonFromBlueprint('AIF10', '比較規則、語意網路、框架與本體論，用主詞—述詞—受詞三元組建立校園知識圖譜，以類別階層、繼承與企鵝的例外說明預設推理，並以 Python 寫出直接查詢、繼承查詢與沿指定述詞做 BFS 的多步關係查詢，再和 ER 模型比較表達能力。', 50, 'graph-traversal'),
 ];
 
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */

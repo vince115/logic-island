@@ -85,7 +85,8 @@ describe('the ai-foundations island: prepared in AIF-0, written in batches from 
 });
 
 /** The Python code of every python-code lesson: examples, solutions, starters and the trace. */
-const pythonCode = () => lessons.filter(l => l.capabilities.includes('python-code')).flatMap(l => {
+const pythonLessons = lessons.filter(l => l.capabilities.includes('python-code')).map(l => l.lessonId);
+const pythonCode = (lessonId: string) => [lessonId].flatMap(id => lessons.filter(l => l.lessonId === id)).flatMap(l => {
   const c = curriculum.contents[l.lessonId]!;
   return [...c.examples.map(e => [`${l.lessonId} ${e.id}`, e.code.Python, e.stdin ?? ''] as const),
     ...c.exercises.flatMap(x => [[`${l.lessonId} ${x.id}`, x.solution.Python, x.tests[0]?.input ?? ''] as const, ...x.starter ? [[`${l.lessonId} ${x.id} starter`, x.starter.Python, ''] as const] : []])];
@@ -110,10 +111,15 @@ describe('Python lessons are deterministic and use the standard library only', (
     expect(new Set(['0', '1'].map(seed => runPython(`print(sorted(${unordered.slice(6, -1)}))`, '', seed))).size).toBe(1);
     expect(imported('import numpy as np\nfrom collections import deque\nimport heapq, math').filter(m => !stdlib!.has(m))).toEqual(['numpy']);
   });
-  it.skipIf(!stdlib)('every python-code lesson prints the same output under two hash seeds and imports only the standard library', () => {
-    for (const [at, code, stdin] of pythonCode()) {
-      expect(imported(code).filter(m => !stdlib!.has(m)), at).toEqual([]);
-      expect(runPython(code, stdin, '0'), at).toBe(runPython(code, stdin, '1'));
-    }
+  // AIF-2 (2026-11-22): one test per program (example, solution or starter), so each run gets the usual time however
+  // many Python lessons there are.
+  const programs = pythonLessons.flatMap(pythonCode);
+  it.skipIf(!stdlib).each(programs)('%s prints the same output under two hash seeds and imports only the standard library', (at, code, stdin) => {
+    expect(imported(code).filter(m => !stdlib!.has(m)), at).toEqual([]);
+    expect(runPython(code, stdin, '0'), at).toBe(runPython(code, stdin, '1'));
+  });
+  it('covers every python-code lesson', () => {
+    expect(pythonLessons.length).toBeGreaterThanOrEqual(5);
+    for (const id of pythonLessons) expect(programs.filter(([at]) => at.startsWith(`${id} `)).length, id).toBeGreaterThan(0);
   });
 });

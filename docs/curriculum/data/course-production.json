@@ -162,7 +162,22 @@
       ],
       "commit": "8e4e3e5",
       "tests": "驗證器、發布閘門 125/125、Vitest 2718（含 AIF01–AIF05 Python 程式測試與雙雜湊種子輸出比對）、E2E 桌機＋手機旗標關 434（候選頁 2 個像素比對失敗為 main 既有回歸 #36；課綱頁群島分組修正後相關 spec 重跑通過）、網路預覽＋P9＋區域世界旗標開 252、測驗 40 題逐題複核、洩漏掃描",
-      "notes": "AIF-1：AI 基礎島首批，以 python-code 能力（AIF-0）撰寫，只用 Python 標準函式庫、兩個雜湊種子下輸出相同；AI 群島第一次有已開放的課（區域狀態 available），AI 基礎島 mapState 維持 planned；以 AI 群島當「全部規劃中」範例的測試改用數位設計群島；/curriculum 改為依群島列出已開放的島（AI 基礎島列在 AI 人工智慧群島下，不再列在程式與資訊群島標題下）"
+      "notes": "AIF-1：AI 基礎島首批，以 python-code 能力（AIF-0）撰寫，只用 Python 標準函式庫、兩個雜湊種子下輸出相同；AI 群島第一次有已開放的課（區域狀態 available），AI 基礎島 mapState 維持 planned；以 AI 群島當「全部規劃中」範例的測試改用數位設計群島；/curriculum 改為依群島列出已開放的島（AI 基礎島列在 AI 人工智慧群島下，不再列在程式與資訊群島標題下）",
+      "pr": "#53"
+    },
+    {
+      "id": 12,
+      "date": "2026-11-22",
+      "lessons": [
+        "AIF06",
+        "AIF07",
+        "AIF08",
+        "AIF09",
+        "AIF10"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "AIF-2：區域搜尋與最佳化（8 皇后的爬山、模擬退火、基因演算法）、對抗搜尋與 minimax（井字遊戲完整遊戲樹 549,946 節點）、alpha-beta 剪枝、expectiminimax 與 MCTS、限制滿足問題（前向檢查、AC-3、MRV／LCV）、知識表示（框架、三元組、繼承與例外）；藍圖的 game-tree、search-tree、knowledge-graph 活動尚未建置，改用已實作的追蹤視覺化（array-index、recursion-tree、graph-traversal），步驟由課內程式產生"
     }
   ]
 }
