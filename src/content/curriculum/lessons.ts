@@ -416,7 +416,7 @@ export function pythonFromBlueprint(lessonId: string, summary: string, minutes: 
     status: 'complete', version: '1.0.0', capabilities: ['python-code'], blueprintId: lessonId };
 }
 
-/** AIF-1 (2026-11-22): the AI foundations island's first lessons, Python only (python-code, AIF0_PYTHON_CAPABILITY.md); AIF-2 adds AIF06–AIF10, AIF-3 AIF11–AIF15. */
+/** AIF-1 (2026-11-22): the AI foundations island's first lessons, Python only (python-code, AIF0_PYTHON_CAPABILITY.md); AIF-2 adds AIF06–AIF10, AIF-3 AIF11–AIF15, AIF-4 AIF16–AIF19. */
 const aiFoundations: Outline[] = [
   pythonFromBlueprint('AIF01', '用 AI 的四種定義、理性代理人與圖靈測試判斷什麼算 AI，比較狹義 AI 與通用 AI、符號式與資料驅動兩條路線，並以明確的規則把日常系統分類為規則式程式或 AI 系統。', 45, 'conditional-branch'),
   pythonFromBlueprint('AIF02', '從 1956 年達特茅斯會議、早期符號 AI、MYCIN 與 XCON 等專家系統和兩次 AI 寒冬，到感知器與 XOR、1986 年普及的反向傳播、2012 年的 AlexNet 與 2017 年 Transformer 之後的基礎模型，比較符號主義、連結主義與統計學習，說明運算力、資料與演算法如何推動每一波興起，並以 Python 實作前向鏈結專家系統、學會 AND 卻學不會 XOR 的整數感知器，以及依時期分組的 AI 時間軸。', 45, 'none'),
@@ -433,6 +433,10 @@ const aiFoundations: Outline[] = [
   pythonFromBlueprint('AIF13', '從代理人為何需要以機率表示信念談起，以隨機變數與完整聯合分布做邊際化、條件機率、乘法規則與連鎖規則，用列舉與正規化 α 回答查詢，說明獨立與條件獨立如何把指數大小的表格縮小，並以 Fraction 精確計算、以固定種子的模擬估計機率。', 50, 'dp-table'),
   pythonFromBlueprint('AIF14', '從乘法規則推導貝氏定理，區分先驗、概似、證據與後驗，以醫療檢測的精確分數說明基本比率謬誤，用正規化與枚舉從聯合分布回答查詢，在條件獨立下逐一更新多個證據，並以 Python 寫出加上 Laplace 平滑與對數機率的單純貝氏文字分類器。', 50, 'variable-state'),
   pythonFromBlueprint('AIF15', '以有向無環圖與條件機率表建立警報情境的貝氏網路，用因式分解比較參數數量，從鏈、分叉與對撞讀出條件獨立與 d-分離，以枚舉推論算出兩通電話後闖空門的精確後驗，再以變數消去重複使用因子，並用固定種子的拒絕抽樣與似然加權近似同一個答案。', 60, 'recursion-tree'),
+  pythonFromBlueprint('AIF16', '以馬可夫性質與轉移矩陣描述隨時間變化的狀態，用 Fraction 計算 n 步分布並解出精確的穩態分布、說明它存在、唯一與收斂的條件，以固定種子模擬馬可夫鏈，再以隱馬可夫模型區分隱藏狀態與觀察，用前向演算法加正規化做濾波、以 log 機率與 backpointer 的 Viterbi 找最可能的狀態序列，並說明 Baum–Welch 如何學習參數。', 60, 'dp-table'),
+  pythonFromBlueprint('AIF17', '從理性代理人最大化期望效用談起，以效用函數與樂透表達偏好，用凹效用、確定等值與風險貼水說明風險態度，以決策表套用最大期望效用原則，用決策樹倒推與決策網路結合機率、決策與效用節點，計算完美與不完美資訊的價值，並簡述 von Neumann–Morgenstern 公理與 Allais 悖論。', 50, 'variable-state'),
+  pythonFromBlueprint('AIF18', '以狀態、動作、轉移機率、獎勵與折扣因子定義地板會滑的格子世界 MDP，說明隨機轉移下為什麼需要策略而不是一條計畫，計算折扣報酬並推導貝爾曼方程，用 Python 實作同步價值迭代與 δ < θ 的停止規則、依固定順序處理平手取出最佳策略，比較策略迭代的評估與改進，觀察折扣因子與生存獎勵如何改變策略，並說明模型未知時的強化學習與 Q-learning。', 60, 'dp-table'),
+  pythonFromBlueprint('AIF19', '從資料、標籤、代理變數、回饋迴圈與部署情境找出 AI 系統的傷害來源，以分組混淆矩陣計算選取率、真陽性率、偽陽性率與精確率並說明基本比率不同時這些公平性指標無法同時相等，用資料最小化、k-匿名與 Laplace 機制的差分隱私保護個人資料，再以可解釋性、穩健性、人類監督、文件化、影響評估與歐盟 AI 法的風險分級，為自動審核系統做風險評估。', 50, 'dp-table'),
 ];
 
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */

@@ -42,8 +42,8 @@ describe('Island Registry: one entry per island, nothing stored twice (P9 S1)', 
       expect(Object.keys(e).sort(), e.islandId).toEqual(['assetSpec', 'interactionSpec', 'islandId', 'kind', 'lessons', 'publicationStatus', 'regionId', 'visualSpec'].filter(k => k in e).sort());
       expect(JSON.stringify({ ...e, visualSpec: undefined, interactionSpec: undefined }), e.islandId).not.toContain(record.name);
     }
-    // 80 lessons, then course production batches 1–5 (PL01–PL20), CN-1 to CN-5 (CN01–CN20) and AIF-1 to AIF-3 (AIF01–AIF15).
-    expect(registry.reduce((n, e) => n + e.lessons.published, 0)).toBe(135);
+    // 80 lessons, then course production batches 1–5 (PL01–PL20), CN-1 to CN-5 (CN01–CN20) and AIF-1 to AIF-4 (AIF01–AIF19).
+    expect(registry.reduce((n, e) => n + e.lessons.published, 0)).toBe(139);
     expect(registry.reduce((n, e) => n + e.lessons.planned, 0)).toBe(subjectIslands.reduce((n, i) => n + i.lessonCount, 0));
     expect(getIslandEntry('no-such-island')).toBeUndefined();
   });

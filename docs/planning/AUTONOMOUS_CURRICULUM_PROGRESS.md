@@ -13,19 +13,19 @@
 
 ## 總覽
 
-已發布 **135／520**（26.0%）；規劃中 385。
+已發布 **139／520**（26.7%）；規劃中 381。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
 | 程式與資訊群島 | 120 | 40 | 75.0% |
-| AI 人工智慧群島 | 15 | 145 | 9.4% |
+| AI 人工智慧群島 | 19 | 141 | 11.9% |
 | 數位設計群島 | 0 | 56 | 0.0% |
 | 網頁與應用開發群島 | 0 | 55 | 0.0% |
 | 系統與雲端工程群島 | 0 | 89 | 0.0% |
 
 ## 下一批（自動選擇）
 
-**AI 基礎島（AIF）**：AIF16 馬可夫鏈與隱馬可夫模型、AIF17 決策理論與效用、AIF18 馬可夫決策過程入門、AIF19 負責任的 AI、AIF20 AI 基礎島綜合專題。島嶼能力：可用；這幾堂解鎖其他島的 2 堂。
+**AI 基礎島（AIF）**：AIF20 AI 基礎島綜合專題。島嶼能力：可用；這幾堂解鎖其他島的 0 堂。
 
 能力缺口中最優先的是 **Linux 系統島（LNX）**：需要 terminal (the /learn/linux-terminal engine as a lesson capability with per-lesson file systems and checked tasks)；先修已滿足、可依序撰寫的有 15 堂，前 5 堂解鎖其他島的 67 堂。
 
@@ -43,7 +43,7 @@
 | 程式與資訊群島 | 計算機網路島（CN） | 20／20 | network-protocol (packets through the layers, message sequences, node tables; field, layer, table, subnet and delay exercises) | 可用 | 全島完成 | — |
 | 程式與資訊群島 | 系統分析與設計島（SA） | 0／20 | model-diagram (UML, DFD, BPMN, state and sequence models, checked by structure) | 缺少 | SA01–SA20（20 堂） | 缺少課程能力 |
 | 程式與資訊群島 | 管理資訊系統島（MIS） | 0／20 | case-analysis (scenario data, decision tables, KPI calculations checked by value) | 缺少 | MIS01–MIS20（20 堂） | 缺少課程能力 |
-| AI 人工智慧群島 | AI 基礎島（AIF） | 15／20 | python-code (Python-only program lessons; search, games, logic and probability on the shared traces) | 可用 | AIF16–AIF20（5 堂） | — |
+| AI 人工智慧群島 | AI 基礎島（AIF） | 19／20 | python-code (Python-only program lessons; search, games, logic and probability on the shared traces) | 可用 | AIF20–AIF20（1 堂） | — |
 | AI 人工智慧群島 | 機器學習島（ML） | 0／25 | python-code + data-explorer (fixed datasets, metrics computed in the browser) | 缺少 | ML01–ML25（25 堂） | 缺少課程能力 |
 | AI 人工智慧群島 | 深度學習島（DL） | 0／25 | python-code + precomputed training curves (T3) | 缺少 | — | 缺少課程能力；DL01 需要尚未發布的 ML09 |
 | AI 人工智慧群島 | 大型語言模型島（LLM） | 0／25 | python-code + token, sampling and prompt explorers on recorded outputs (T3) | 缺少 | LLM01–LLM03（3 堂） | 缺少課程能力；LLM04 需要尚未發布的 DL18 |
@@ -93,7 +93,7 @@
 | 軟體工程 | 66／86 | 否 |
 | 網路與系統 | 54／54 | 是 |
 | 企業資訊系統 | 44／84 | 否 |
-| AI 研究 | 52／142 | 否 |
+| AI 研究 | 56／142 | 否 |
 | AI 應用工程 | 28／89 | 否 |
 | 前端工程 | 7／62 | 否 |
 | 產品設計 | 0／56 | 否 |
@@ -329,11 +329,11 @@
 | AIF13 | AI 的機率基礎 | 已發布（閘門通過） | AIF01 | dp-table | — |
 | AIF14 | 貝氏定理與機率推論 | 已發布（閘門通過） | AIF13 | variable-state | — |
 | AIF15 | 貝氏網路 | 已發布（閘門通過） | AIF14 | recursion-tree | — |
-| AIF16 | 馬可夫鏈與隱馬可夫模型 | 大綱 | AIF14 | probability-explorer | — |
-| AIF17 | 決策理論與效用 | 大綱 | AIF13、AIF03 | decision-simulation | — |
-| AIF18 | 馬可夫決策過程入門 | 待先修 | AIF17 | mdp-gridworld | 先修 AIF17 |
-| AIF19 | 負責任的 AI | 大綱 | AIF03 | decision-simulation | — |
-| AIF20 | AI 基礎島綜合專題 | 待先修 | AIF05、AIF08、AIF18 | challenge-stages | 先修 AIF18 |
+| AIF16 | 馬可夫鏈與隱馬可夫模型 | 已發布（閘門通過） | AIF14 | dp-table | — |
+| AIF17 | 決策理論與效用 | 已發布（閘門通過） | AIF13、AIF03 | variable-state | — |
+| AIF18 | 馬可夫決策過程入門 | 已發布（閘門通過） | AIF17 | dp-table | — |
+| AIF19 | 負責任的 AI | 已發布（閘門通過） | AIF03 | dp-table | — |
+| AIF20 | AI 基礎島綜合專題 | 大綱 | AIF05、AIF08、AIF18 | challenge-stages | — |
 
 ### AI 人工智慧群島 · 機器學習島（ML）
 
@@ -447,7 +447,7 @@
 | GEN16 | 視覺語言模型 | 待能力 | GEN08、LLM10 | multimodal-pipeline | 課程能力、先修 GEN08、LLM10 |
 | GEN17 | 生成結果評估 | 待能力 | GEN09、LLM20 | eval-dashboard | 課程能力、先修 GEN09、LLM20 |
 | GEN18 | 生成式創作工作流程 | 待能力 | GEN12、GEN16 | pipeline-diagram | 課程能力、先修 GEN12、GEN16 |
-| GEN19 | 著作權、倫理與浮水印 | 待能力 | GEN01、AIF19 | case-study-board | 課程能力、先修 GEN01、AIF19 |
+| GEN19 | 著作權、倫理與浮水印 | 待能力 | GEN01、AIF19 | case-study-board | 課程能力、先修 GEN01 |
 | GEN20 | 生成式 AI 島綜合專題 | 待能力 | GEN17、GEN18、GEN19 | challenge-stages | 課程能力、先修 GEN17、GEN18、GEN19 |
 
 ### AI 人工智慧群島 · AI 代理島（AG）

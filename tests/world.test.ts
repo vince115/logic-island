@@ -122,7 +122,7 @@ describe('world registry (F.0)', () => {
     // Course production batch 5 published PL20, the last of 20: every PL lesson is written, but its map stays planned
     // (an island's 3D look is set by hand in IslandConfig.mapState, never by its lessons).
     // CN-5 published CN20, the last of 20: the computer-networks island is complete; its map stays planned too.
-    // AIF-1 to AIF-3 published AIF01–AIF15 of 20: the AI foundations island is open (available), its map planned.
+    // AIF-1 to AIF-4 published AIF01–AIF19 of 20: the AI foundations island is open (available), its map planned.
     expect(subjectIslands.filter(i => i.status === 'available').map(i => i.id)).toEqual(['ai-foundations']);
     expect(getIsland('ai-foundations')).toMatchObject({ status: 'available', mapState: 'planned' });
     expect(getIsland('programming-languages')).toMatchObject({ status: 'complete', mapState: 'planned' });
