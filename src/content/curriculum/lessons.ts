@@ -416,7 +416,7 @@ export function pythonFromBlueprint(lessonId: string, summary: string, minutes: 
     status: 'complete', version: '1.0.0', capabilities: ['python-code'], blueprintId: lessonId };
 }
 
-/** AIF-1 (2026-11-22): the AI foundations island's first lessons, Python only (python-code, AIF0_PYTHON_CAPABILITY.md); AIF-2 adds AIF06–AIF10. */
+/** AIF-1 (2026-11-22): the AI foundations island's first lessons, Python only (python-code, AIF0_PYTHON_CAPABILITY.md); AIF-2 adds AIF06–AIF10, AIF-3 AIF11–AIF15. */
 const aiFoundations: Outline[] = [
   pythonFromBlueprint('AIF01', '用 AI 的四種定義、理性代理人與圖靈測試判斷什麼算 AI，比較狹義 AI 與通用 AI、符號式與資料驅動兩條路線，並以明確的規則把日常系統分類為規則式程式或 AI 系統。', 45, 'conditional-branch'),
   pythonFromBlueprint('AIF02', '從 1956 年達特茅斯會議、早期符號 AI、MYCIN 與 XCON 等專家系統和兩次 AI 寒冬，到感知器與 XOR、1986 年普及的反向傳播、2012 年的 AlexNet 與 2017 年 Transformer 之後的基礎模型，比較符號主義、連結主義與統計學習，說明運算力、資料與演算法如何推動每一波興起，並以 Python 實作前向鏈結專家系統、學會 AND 卻學不會 XOR 的整數感知器，以及依時期分組的 AI 時間軸。', 45, 'none'),
@@ -428,6 +428,11 @@ const aiFoundations: Outline[] = [
   pythonFromBlueprint('AIF08', '在 minimax 上加入 alpha 與 beta 剪掉不影響結果的分支，量測行動排序省下的節點數，並以 expectiminimax 處理機率節點、以 UCB1 的蒙地卡羅樹搜尋選擇走法。', 55, 'recursion-tree'),
   pythonFromBlueprint('AIF09', '把地圖著色、考試排程與數獨寫成變數、值域與限制，以回溯搜尋加上前向檢查與 AC-3 弧一致性縮小值域，用 MRV、degree 與 LCV 決定順序，並以 Python 寫出解地圖著色與 4 × 4 數獨的 CSP 解題器。', 60, 'recursion-tree'),
   pythonFromBlueprint('AIF10', '比較規則、語意網路、框架與本體論，用主詞—述詞—受詞三元組建立校園知識圖譜，以類別階層、繼承與企鵝的例外說明預設推理，並以 Python 寫出直接查詢、繼承查詢與沿指定述詞做 BFS 的多步關係查詢，再和 ER 模型比較表達能力。', 50, 'graph-traversal'),
+  pythonFromBlueprint('AIF11', '以命題、連接詞與真值表定義語法和語意，用列舉模型的模型檢查判斷蘊涵、可滿足性與有效性，以真值表說明 modus ponens 等推論規則的可靠性，把語句轉成 CNF 以歸結反證，並以 Python 對 Horn 子句實作前向鏈結與後向鏈結。', 60, 'dp-table'),
+  pythonFromBlueprint('AIF12', '說明命題邏輯為何不夠，以物件、述詞、函數與常數描述家族關係，正確使用全稱與存在量詞翻譯中文敘述並避開 ∀ 配 ∧、∃ 配 ⇒ 的錯誤，用 Python 實作含 occurs check 的合一與一階前向鏈結推導隱含的親屬關係，再說明一階歸結的半可判定性並和知識圖譜查詢比較。', 60, 'variable-state'),
+  pythonFromBlueprint('AIF13', '從代理人為何需要以機率表示信念談起，以隨機變數與完整聯合分布做邊際化、條件機率、乘法規則與連鎖規則，用列舉與正規化 α 回答查詢，說明獨立與條件獨立如何把指數大小的表格縮小，並以 Fraction 精確計算、以固定種子的模擬估計機率。', 50, 'dp-table'),
+  pythonFromBlueprint('AIF14', '從乘法規則推導貝氏定理，區分先驗、概似、證據與後驗，以醫療檢測的精確分數說明基本比率謬誤，用正規化與枚舉從聯合分布回答查詢，在條件獨立下逐一更新多個證據，並以 Python 寫出加上 Laplace 平滑與對數機率的單純貝氏文字分類器。', 50, 'variable-state'),
+  pythonFromBlueprint('AIF15', '以有向無環圖與條件機率表建立警報情境的貝氏網路，用因式分解比較參數數量，從鏈、分叉與對撞讀出條件獨立與 d-分離，以枚舉推論算出兩通電話後闖空門的精確後驗，再以變數消去重複使用因子，並用固定種子的拒絕抽樣與似然加權近似同一個答案。', 60, 'recursion-tree'),
 ];
 
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */

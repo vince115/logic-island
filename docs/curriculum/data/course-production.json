@@ -178,7 +178,23 @@
       ],
       "commit": "8b8837c",
       "tests": "驗證器、發布閘門 130/130、Vitest 2746（含 AIF06–AIF10 Python 程式測試；雙種子比對改為每支程式一個測試後 63 個全過）、E2E 桌機＋手機旗標關 435（候選頁 2 個像素比對失敗為 main 既有回歸 #36）、網路預覽＋P9＋區域世界旗標開 252、測驗 39 題逐題複核、洩漏掃描",
-      "notes": "AIF-2：區域搜尋與最佳化（8 皇后的爬山、模擬退火、基因演算法）、對抗搜尋與 minimax（井字遊戲完整遊戲樹 549,946 節點）、alpha-beta 剪枝、expectiminimax 與 MCTS、限制滿足問題（前向檢查、AC-3、MRV／LCV）、知識表示（框架、三元組、繼承與例外）；藍圖的 game-tree、search-tree、knowledge-graph 活動尚未建置，改用已實作的追蹤視覺化（array-index、recursion-tree、graph-traversal），步驟由課內程式產生"
+      "notes": "AIF-2：區域搜尋與最佳化（8 皇后的爬山、模擬退火、基因演算法）、對抗搜尋與 minimax（井字遊戲完整遊戲樹 549,946 節點）、alpha-beta 剪枝、expectiminimax 與 MCTS、限制滿足問題（前向檢查、AC-3、MRV／LCV）、知識表示（框架、三元組、繼承與例外）；藍圖的 game-tree、search-tree、knowledge-graph 活動尚未建置，改用已實作的追蹤視覺化（array-index、recursion-tree、graph-traversal），步驟由課內程式產生",
+      "pr": "#54",
+      "merged": "abbf3cc"
+    },
+    {
+      "id": 13,
+      "date": "2026-11-22",
+      "lessons": [
+        "AIF11",
+        "AIF12",
+        "AIF13",
+        "AIF14",
+        "AIF15"
+      ],
+      "commit": "dbe08e0",
+      "tests": "驗證器、發布閘門 135/135、Vitest 2865（含 AIF11–AIF15 Python 程式測試與逐支程式的雙種子比對）、E2E 桌機＋手機旗標關 435（候選頁 2 個像素比對失敗為 main 既有回歸 #36）、網路預覽＋P9＋區域世界旗標開 251＋1（網路預覽鍵盤測試在撰寫者同時執行時失敗一次，單獨重跑兩次皆通過，未放寬）、測驗 40 題逐題複核、洩漏掃描",
+      "notes": "AIF-3：命題邏輯（模型檢查、推論規則、CNF 與歸結、Horn 子句的前向與後向鏈結）、一階邏輯（量詞翻譯、含 occurs check 的合一、一階前向鏈結、半可判定性）、AI 的機率基礎（聯合分布、邊際化、列舉與 α、條件獨立）、貝氏定理（基本比率、逐次更新、單純貝氏與 Laplace 平滑）、貝氏網路（因式分解、d-分離、枚舉、變數消去、拒絕抽樣與似然加權）；藍圖的 logic-proof、probability-explorer、bayes-net 活動尚未建置，改用 dp-table、variable-state、recursion-tree 追蹤，步驟由課內程式產生；機率一律以 Fraction 精確計算，抽樣固定種子"
     }
   ]
 }
