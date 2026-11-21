@@ -35,7 +35,7 @@ test.describe('regional world: flag on', () => {
     await page.goto('/world');
     for (const name of [...orderedRegions.map(r => `進入${r.name}`), '前往中央樞紐：互動實驗島']) await expect(page.getByRole('button', { name, exact: true })).toBeVisible({ timeout: 30_000 });
     const guide = page.getByRole('navigation', { name: '世界導覽' });
-    await expect(guide.getByRole('link', { name: /程式與資訊群島.*8 座學科島 · 5 座已開放 · 3 座規劃中/ })).toHaveAttribute('href', '/world/cs');
+    await expect(guide.getByRole('link', { name: /程式與資訊群島.*8 座學科島 · 6 座已開放 · 2 座規劃中/ })).toHaveAttribute('href', '/world/cs');
     await expect(guide.getByRole('link', { name: /AI 人工智慧群島.*7 座學科島 · 全部規劃中/ })).toHaveAttribute('href', '/world/ai');
     await expect(guide).toContainText('規劃中中央挑戰島');
     await expect(page.locator('a[href*="challenge"]')).toHaveCount(0);
