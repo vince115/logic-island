@@ -1,0 +1,486 @@
+{
+ "measured": "2026-11-21",
+ "billing": "a plain command 1; a script 1 + one for every command it runs",
+ "rows": [
+  {
+   "visitors": 2,
+   "instances": 1,
+   "watched": false,
+   "simulatedHours": 24,
+   "sessionsPerDay": 298,
+   "requestsPerDay": {
+    "firstContact": 298,
+    "heartbeat": 6628,
+    "goodbye": 296,
+    "count": 0
+   },
+   "billedPerDay": {
+    "firstContact": 0,
+    "heartbeat": 20735,
+    "goodbye": 893,
+    "count": 0,
+    "total": 21628
+   },
+   "billedPerMonth": 648840,
+   "perHeartbeat": 3.128,
+   "perGoodbye": 3.017,
+   "perCount": null,
+   "commands": {
+    "pexpire": 4,
+    "hset": 6916,
+    "eval": 6916,
+    "hget": 298,
+    "hlen": 298,
+    "hdel": 138,
+    "hgetall": 142,
+    "hmget": 6916
+   },
+   "bytesPerDay": {
+    "in": 14408669,
+    "out": 87503
+   },
+   "heldAtEnd": 5,
+   "memoryBytesAtEnd": 1916
+  },
+  {
+   "visitors": 2,
+   "instances": 1,
+   "watched": true,
+   "simulatedHours": 24,
+   "sessionsPerDay": 298,
+   "requestsPerDay": {
+    "firstContact": 298,
+    "heartbeat": 6628,
+    "goodbye": 296,
+    "count": 5760
+   },
+   "billedPerDay": {
+    "firstContact": 0,
+    "heartbeat": 20603,
+    "goodbye": 891,
+    "count": 6618,
+    "total": 28112
+   },
+   "billedPerMonth": 843360,
+   "perHeartbeat": 3.108,
+   "perGoodbye": 3.01,
+   "perCount": 1.149,
+   "commands": {
+    "pexpire": 4,
+    "hset": 6916,
+    "eval": 7202,
+    "hget": 298,
+    "hlen": 298,
+    "hdel": 290,
+    "hgetall": 6188,
+    "hmget": 6916
+   },
+   "bytesPerDay": {
+    "in": 14837135,
+    "out": 3947603
+   },
+   "heldAtEnd": 3,
+   "memoryBytesAtEnd": 1176
+  },
+  {
+   "visitors": 2,
+   "instances": 3,
+   "watched": false,
+   "simulatedHours": 24,
+   "sessionsPerDay": 293,
+   "requestsPerDay": {
+    "firstContact": 293,
+    "heartbeat": 6553,
+    "goodbye": 291,
+    "count": 0
+   },
+   "billedPerDay": {
+    "firstContact": 0,
+    "heartbeat": 26990,
+    "goodbye": 1176,
+    "count": 0,
+    "total": 28166
+   },
+   "billedPerMonth": 844980,
+   "perHeartbeat": 4.119,
+   "perGoodbye": 4.041,
+   "perCount": null,
+   "commands": {
+    "pexpire": 4,
+    "hset": 6842,
+    "eval": 7334,
+    "hget": 6077,
+    "hlen": 293,
+    "hdel": 140,
+    "hgetall": 142,
+    "hmget": 7334
+   },
+   "bytesPerDay": {
+    "in": 15729591,
+    "out": 1517178
+   },
+   "heldAtEnd": 4,
+   "memoryBytesAtEnd": 1546
+  },
+  {
+   "visitors": 2,
+   "instances": 3,
+   "watched": true,
+   "simulatedHours": 24,
+   "sessionsPerDay": 296,
+   "requestsPerDay": {
+    "firstContact": 296,
+    "heartbeat": 6632,
+    "goodbye": 294,
+    "count": 5760
+   },
+   "billedPerDay": {
+    "firstContact": 0,
+    "heartbeat": 27156,
+    "goodbye": 1186,
+    "count": 6624,
+    "total": 34966
+   },
+   "billedPerMonth": 1048980,
+   "perHeartbeat": 4.095,
+   "perGoodbye": 4.034,
+   "perCount": 1.15,
+   "commands": {
+    "pexpire": 4,
+    "hset": 6926,
+    "eval": 7690,
+    "hget": 6169,
+    "hlen": 296,
+    "hdel": 288,
+    "hgetall": 6191,
+    "hmget": 7402
+   },
+   "bytesPerDay": {
+    "in": 16306611,
+    "out": 5388670
+   },
+   "heldAtEnd": 4,
+   "memoryBytesAtEnd": 1546
+  },
+  {
+   "visitors": 10,
+   "instances": 1,
+   "watched": false,
+   "simulatedHours": 24,
+   "sessionsPerDay": 1443,
+   "requestsPerDay": {
+    "firstContact": 1443,
+    "heartbeat": 33055,
+    "goodbye": 1434,
+    "count": 0
+   },
+   "billedPerDay": {
+    "firstContact": 0,
+    "heartbeat": 102254,
+    "goodbye": 4318,
+    "count": 0,
+    "total": 106572
+   },
+   "billedPerMonth": 3197160,
+   "perHeartbeat": 3.093,
+   "perGoodbye": 3.011,
+   "perCount": null,
+   "commands": {
+    "pexpire": 4,
+    "hset": 34465,
+    "eval": 34465,
+    "hget": 1443,
+    "hlen": 1443,
+    "hdel": 143,
+    "hgetall": 144,
+    "hmget": 34465
+   },
+   "bytesPerDay": {
+    "in": 71845172,
+    "out": 423825
+   },
+   "heldAtEnd": 15,
+   "memoryBytesAtEnd": 5169
+  },
+  {
+   "visitors": 10,
+   "instances": 1,
+   "watched": true,
+   "simulatedHours": 24,
+   "sessionsPerDay": 1443,
+   "requestsPerDay": {
+    "firstContact": 1443,
+    "heartbeat": 33055,
+    "goodbye": 1434,
+    "count": 5760
+   },
+   "billedPerDay": {
+    "firstContact": 0,
+    "heartbeat": 102136,
+    "goodbye": 4311,
+    "count": 9582,
+    "total": 116029
+   },
+   "billedPerMonth": 3480870,
+   "perHeartbeat": 3.09,
+   "perGoodbye": 3.006,
+   "perCount": 1.664,
+   "commands": {
+    "pexpire": 4,
+    "hset": 34465,
+    "eval": 35739,
+    "hget": 1443,
+    "hlen": 1443,
+    "hdel": 1292,
+    "hgetall": 7178,
+    "hmget": 34465
+   },
+   "bytesPerDay": {
+    "in": 72746020,
+    "out": 18009216
+   },
+   "heldAtEnd": 11,
+   "memoryBytesAtEnd": 3689
+  },
+  {
+   "visitors": 10,
+   "instances": 3,
+   "watched": false,
+   "simulatedHours": 24,
+   "sessionsPerDay": 1444,
+   "requestsPerDay": {
+    "firstContact": 1444,
+    "heartbeat": 33017,
+    "goodbye": 1434,
+    "count": 0
+   },
+   "billedPerDay": {
+    "firstContact": 0,
+    "heartbeat": 134590,
+    "goodbye": 5796,
+    "count": 0,
+    "total": 140386
+   },
+   "billedPerMonth": 4211580,
+   "perHeartbeat": 4.076,
+   "perGoodbye": 4.042,
+   "perCount": null,
+   "commands": {
+    "pexpire": 4,
+    "hset": 34430,
+    "eval": 36738,
+    "hget": 30745,
+    "hlen": 1444,
+    "hdel": 143,
+    "hgetall": 144,
+    "hmget": 36738
+   },
+   "bytesPerDay": {
+    "in": 78890760,
+    "out": 7625853
+   },
+   "heldAtEnd": 16,
+   "memoryBytesAtEnd": 5443
+  },
+  {
+   "visitors": 10,
+   "instances": 3,
+   "watched": true,
+   "simulatedHours": 24,
+   "sessionsPerDay": 1452,
+   "requestsPerDay": {
+    "firstContact": 1452,
+    "heartbeat": 33056,
+    "goodbye": 1442,
+    "count": 5760
+   },
+   "billedPerDay": {
+    "firstContact": 0,
+    "heartbeat": 134596,
+    "goodbye": 5837,
+    "count": 9549,
+    "total": 149982
+   },
+   "billedPerMonth": 4499460,
+   "perHeartbeat": 4.072,
+   "perGoodbye": 4.048,
+   "perCount": 1.658,
+   "commands": {
+    "pexpire": 4,
+    "hset": 34481,
+    "eval": 37970,
+    "hget": 30917,
+    "hlen": 1452,
+    "hdel": 1284,
+    "hgetall": 7167,
+    "hmget": 36707
+   },
+   "bytesPerDay": {
+    "in": 79725110,
+    "out": 25250070
+   },
+   "heldAtEnd": 11,
+   "memoryBytesAtEnd": 3657
+  },
+  {
+   "visitors": 100,
+   "instances": 1,
+   "watched": false,
+   "simulatedHours": 24,
+   "sessionsPerDay": 14412,
+   "requestsPerDay": {
+    "firstContact": 14412,
+    "heartbeat": 329897,
+    "goodbye": 14312,
+    "count": 0
+   },
+   "billedPerDay": {
+    "firstContact": 0,
+    "heartbeat": 1018258,
+    "goodbye": 42948,
+    "count": 0,
+    "total": 1061206
+   },
+   "billedPerMonth": 31836180,
+   "perHeartbeat": 3.087,
+   "perGoodbye": 3.001,
+   "perCount": null,
+   "commands": {
+    "pexpire": 4,
+    "hset": 344031,
+    "eval": 344031,
+    "hget": 14411,
+    "hlen": 14411,
+    "hdel": 143,
+    "hgetall": 144,
+    "hmget": 344031
+   },
+   "bytesPerDay": {
+    "in": 717560342,
+    "out": 4203471
+   },
+   "heldAtEnd": 205,
+   "memoryBytesAtEnd": 69710
+  },
+  {
+   "visitors": 100,
+   "instances": 1,
+   "watched": true,
+   "simulatedHours": 24,
+   "sessionsPerDay": 14412,
+   "requestsPerDay": {
+    "firstContact": 14412,
+    "heartbeat": 329897,
+    "goodbye": 14312,
+    "count": 5760
+   },
+   "billedPerDay": {
+    "firstContact": 0,
+    "heartbeat": 1018206,
+    "goodbye": 42945,
+    "count": 21480,
+    "total": 1082631
+   },
+   "billedPerMonth": 32478930,
+   "perHeartbeat": 3.086,
+   "perGoodbye": 3.001,
+   "perCount": 3.729,
+   "commands": {
+    "pexpire": 4,
+    "hset": 344031,
+    "eval": 349271,
+    "hget": 14411,
+    "hlen": 14411,
+    "hdel": 5328,
+    "hgetall": 11144,
+    "hmget": 344031
+   },
+   "bytesPerDay": {
+    "in": 720344142,
+    "out": 176396629
+   },
+   "heldAtEnd": 117,
+   "memoryBytesAtEnd": 37150
+  },
+  {
+   "visitors": 100,
+   "instances": 3,
+   "watched": false,
+   "simulatedHours": 24,
+   "sessionsPerDay": 14352,
+   "requestsPerDay": {
+    "firstContact": 14352,
+    "heartbeat": 329997,
+    "goodbye": 14252,
+    "count": 0
+   },
+   "billedPerDay": {
+    "firstContact": 0,
+    "heartbeat": 1343158,
+    "goodbye": 57512,
+    "count": 0,
+    "total": 1400670
+   },
+   "billedPerMonth": 42020100,
+   "perHeartbeat": 4.07,
+   "perGoodbye": 4.035,
+   "perCount": null,
+   "commands": {
+    "pexpire": 4,
+    "hset": 344095,
+    "eval": 367098,
+    "hget": 307737,
+    "hlen": 14351,
+    "hdel": 143,
+    "hgetall": 144,
+    "hmget": 367098
+   },
+   "bytesPerDay": {
+    "in": 788996147,
+    "out": 76280279
+   },
+   "heldAtEnd": 220,
+   "memoryBytesAtEnd": 75260
+  },
+  {
+   "visitors": 100,
+   "instances": 3,
+   "watched": true,
+   "simulatedHours": 24,
+   "sessionsPerDay": 14448,
+   "requestsPerDay": {
+    "firstContact": 14448,
+    "heartbeat": 330262,
+    "goodbye": 14348,
+    "count": 5760
+   },
+   "billedPerDay": {
+    "firstContact": 0,
+    "heartbeat": 1344333,
+    "goodbye": 57971,
+    "count": 21366,
+    "total": 1423670
+   },
+   "billedPerMonth": 42710100,
+   "perHeartbeat": 4.071,
+   "perGoodbye": 4.04,
+   "perCount": 3.709,
+   "commands": {
+    "pexpire": 4,
+    "hset": 344468,
+    "eval": 372115,
+    "hget": 309330,
+    "hlen": 14448,
+    "hdel": 5286,
+    "hgetall": 11106,
+    "hmget": 366913
+   },
+   "bytesPerDay": {
+    "in": 791481894,
+    "out": 248777110
+   },
+   "heldAtEnd": 116,
+   "memoryBytesAtEnd": 36524
+  }
+ ]
+}

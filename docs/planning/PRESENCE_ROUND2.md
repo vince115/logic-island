@@ -4,6 +4,8 @@
 > 狀態：**P2–P5 完成本機自動化驗證；所有旗標仍預設關閉**。沒有建立任何雲端資源、沒有修改任何環境變數、沒有部署、沒有合併 `main`。
 > 第一輪的記錄在 [PRESENCE_POPULATION_SYSTEM.md](PRESENCE_POPULATION_SYSTEM.md)；本文件取代其中 §7「已知限制」第 5、7、8 項與 §8 的 D1、D3、D4、D6。
 > 需要使用者決定的事項集中在 §7。
+>
+> **2026-11-21 P6 更新**（[PRESENCE_P6_PRODUCTION_READINESS.md](PRESENCE_P6_PRODUCTION_READINESS.md)）：§3 的覆蓋率改為「只有已開放的島有 NPC」（目前 6 座）；§4 與 [PRESENCE_SHARED_STORE.md](PRESENCE_SHARED_STORE.md) 的費用估算低估約 4 倍，已改為實測值；§5 記為未處理的兩分頁競態（P1-44）已修正；§7 的 R9（快取改 15 秒）已完成。
 
 ## 1. 本輪範圍
 

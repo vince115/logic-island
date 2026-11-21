@@ -10,6 +10,27 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## Dynamic Island Population P6：Production Readiness 與 Preview 驗收準備（2026-11-21，同分支，未合併）
+
+報告：`docs/planning/PRESENCE_P6_PRODUCTION_READINESS.md` §8（另有 `PRESENCE_PREVIEW_VALIDATION.md`、`PRESENCE_SHARED_STORE.md` §5–§6）；證據：`docs/planning/evidence/presence/p6/`。**只有本機隔離副本的結果，不是 Preview、不是 Production，也不是真機。沒有建立任何雲端資源，沒有修改任何環境變數。**
+
+- 基線是併入 `main` `f36ba39` 之後的分支（merge commit `fc611b5`）。做法與第二輪相同：worktree 的 rsync 副本，直接呼叫 node CLI。
+- Typecheck 0、ESLint 0（全專案）、Vitest **101 個檔案、2,750 通過／10 略過／0 失敗**。Presence 與 preflight 相關 10 個檔案 222 項：設了 `PRESENCE_TEST_REDIS_URL`（本機 `redis-server`）時 221 通過／1 略過，沒設時 201 通過／21 略過。剩下那 1 項是 24 小時成本模擬，要另設 `PRESENCE_COST_REDIS_URL` 指向**一台沒有別人在用的** `redis-server`：它比對整台伺服器的指令統計，和其他測試檔共用一台會互相干擾（實際發生過）。
+- `tests/presence-redis-store.test.ts` 的真 Redis 測試會執行 `CONFIG RESETSTAT`，只能指向測試自己的本機伺服器（測試會拒絕非本機位址）。
+- P6-A 新增的測試在修正前的程式上有 21 項失敗（把 `engine.ts`、`store.ts`、`redis-store.ts`、`client.ts` 換回 `fc611b5` 的版本執行）。
+- E2E：
+  - 預設（旗標全關）：全套 **437 通過／359 略過／2 失敗**；兩項失敗是 `main` 既有的 P1-43，與前兩輪相同。
+  - `LOGIC_ISLAND_PRESENCE=1 LOGIC_ISLAND_POPULATION_NPC=mock LOGIC_ISLAND_REGIONAL_WORLD=1`：`e2e/presence.spec.ts` **54 通過／18 略過／0 失敗**。
+  - `LOGIC_ISLAND_POPULATION_NPC=mock LOGIC_ISLAND_P9_PROTOTYPE=1`：P9 區域地圖 10／10；再加 `LOGIC_ISLAND_P9_SHARED_CANVAS=1` 也是 10／10。
+  - `LOGIC_ISLAND_PRESENCE=1 LOGIC_ISLAND_POPULATION_NPC=live`：live 測試 4／4。
+- `e2e/presence.spec.ts` 現在在**已開放的島**上計數（規劃中的島沒有自己的人數）。開放的島只有 6 座，所以各測試共用它們：每個測試先等自己要用的島歸零，結束時頁面會告別。仍然要單獨跑且 `--workers=1`。
+- **`e2e/presence.spec.ts` 不能直接對 Vercel Preview 執行**：它假設計數立即可見，而 Preview 上人口數字在 CDN 與 instance 各可能舊 15 秒。Preview 用 `docs/planning/evidence/presence/tools/preview-validate.mjs`；它已對本機的 live build 執行：14 通過／0 失敗／1 略過（CDN 命中，本機沒有 CDN）。
+- Release preflight：預設 build 0 個 handler、`--build` 通過；CI 的旗標 `--build --probe` 通過（43 個網址）；加 `LOGIC_ISLAND_PRESENCE=1` 且 preflight 也帶旗標時通過；同一個 build 不帶旗標時 `routes` 與 `probe` 失敗（符合設計）。**`trials-ci` 沒有跑過本分支**（沒有 PR）。
+- 旗標全關對 `main` 的逐像素比對：最終版本 18 組全部 0 差異。過程中有一次在 `/curriculum/programs-and-algorithms`（桌機）出現 55 個像素的差異，單獨重拍 4 次為 18 個像素一次、0 三次，不重現。
+- 私有題庫洩漏掃描（追蹤檔案、`origin/main..HEAD`）：clean。
+- E2E 與 preflight 之後還有一個只影響 Vercel Preview 的改動（沒有金鑰時回 503）；之後只重跑 typecheck、ESLint 與單元測試全套。
+- 沒有做：Vercel Preview、Production、真機、iOS Safari、螢幕閱讀器、真正的 Upstash 服務。
+
 ## Dynamic Island Population 第二輪：效能、五大群島、共用儲存、安全整合（2026-11-21，同分支，未合併）
 
 報告：`docs/planning/PRESENCE_ROUND2.md`（另有 `PRESENCE_SHARED_STORE.md`、`PRESENCE_PRIVACY.md`）；證據與工具：`docs/planning/evidence/presence/`。**只有本機隔離副本的結果，不是 Preview、不是 Production，也不是真機。沒有建立任何雲端資源，沒有修改任何環境變數。**
