@@ -32,6 +32,14 @@ export const PRESENCE = {
   /** How often the map asks for the population (ms), and for how long the CDN may reuse an answer (s). */
   pollMs: 15_000,
   snapshotCacheSeconds: 5,
+  /**
+   * A browser that sends Global Privacy Control (`Sec-GPC: 1`) or Do Not Track (`DNT: 1`) is not counted: its tracker
+   * never starts, and the server gives a request that carries either signal no cookie and no session
+   * (docs/planning/PRESENCE_PRIVACY.md §3). Such a visitor still sees the map's figures; reading totals tracks nobody.
+   */
+  honorPrivacySignals: true,
+  /** How long a tracker that was told it is not counted (a privacy signal, a full store) waits before it asks again. */
+  quietMs: 10 * 60_000,
 } as const;
 
 /** The name of the session cookie; scoped to the API's path, HttpOnly, SameSite=Strict, no expiry (a session cookie). */

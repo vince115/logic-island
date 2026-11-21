@@ -3,7 +3,8 @@ import { lessons } from '@/content/curriculum/lessons';
 import { PRESENCE, PRESENCE_COOKIE } from '@/lib/presence/config';
 import { populationNpcSource, presenceEnabled } from '@/lib/presence/flag';
 import type { PlaceClaim } from '@/lib/presence/place';
-import { handlePresenceGet, handlePresencePost, type PresenceDeps } from '@/lib/presence/service';
+import { handlePresenceGet, handlePresencePost, privacySignal, type PresenceDeps } from '@/lib/presence/service';
+import type { PresenceStore } from '@/lib/presence/store';
 import { mintToken, presenceSecret, readCookie, sessionCookie, verifyToken } from '@/lib/presence/session';
 import { MemoryPresenceStore } from '@/lib/presence/store';
 
@@ -277,7 +278,7 @@ describe('what the API tells the outside', () => {
     expect(response.headers.get('cache-control')).toBe('public, max-age=5, s-maxage=5');
     expect(response.headers.get('set-cookie')).toBeNull();
     const text = await response.text(), snapshot = JSON.parse(text);
-    expect(Object.keys(snapshot).sort()).toEqual(['at', 'hub', 'islands', 'regions', 'total', 'ttlMs', 'v']);
+    expect(Object.keys(snapshot).sort()).toEqual(['at', 'commons', 'hub', 'islands', 'regions', 'total', 'ttlMs', 'v']);
     const sid = visitor.cookie!.split('.')[1];
     for (const secret of [sid, 'aaaaaaaa00000001', 'F01', slugOf('F01'), 'course', 'session']) expect(text).not.toContain(secret);
   });
@@ -299,5 +300,159 @@ describe('what the API tells the outside', () => {
     expect((await population()).total).toBe(1);
     // Nothing the store holds contains the address.
     expect(JSON.stringify([...((deps.store as unknown as { sessions: Map<string, unknown> }).sessions)])).not.toContain('203.0.113');
+  });
+});
+
+describe('security: what an attacker can and cannot do', () => {
+  it('ignores a cookie it did not sign: forged, tampered, of another deployment, or oversized', async () => {
+    const real = browser();
+    await real.arrive(F01);
+    const [v, sid, issued, signature] = real.cookie!.split('=')[1].split('.');
+    const other = mintToken('another-secret-another-secret-another!!', now).token;
+    const forged = [`${v}.${sid}.${issued}.${signature.slice(0, -2)}AA`, `${v}.AAAAAAAAAAAAAAAAAAAAAA.${issued}.${signature}`, `v2.${sid}.${issued}.${signature}`, other,
+      `${v}.${sid}.${(now + 3_600_000).toString(36)}.${signature}`, 'x'.repeat(4_000), `${v}.${sid}.${issued}`, '', '....'];
+    for (const token of forged) {
+      const response = await post(heartbeat(DB01, 'bbbbbbbb00000002'), { cookie: `${PRESENCE_COOKIE}=${token}` });
+      expect(response.status, token.slice(0, 30)).toBe(200);
+      // Treated as a first contact: a fresh cookie, nothing counted, and the real session untouched.
+      expect(await response.json(), token.slice(0, 30)).toMatchObject({ counted: false });
+      expect(response.headers.get('set-cookie'), token.slice(0, 30)).toContain(`${PRESENCE_COOKIE}=v1.`);
+    }
+    expect(await population()).toMatchObject({ total: 1, islands: { foundations: 1 } });
+  });
+
+  it('counts one session once, however many clients replay its cookie', async () => {
+    const visitor = browser();
+    await visitor.arrive(F01);
+    const replays = await Promise.all(Array.from({ length: 20 }, (_, i) => post(heartbeat(i % 2 ? F01 : DB01, `cccccccc000000${String(i).padStart(2, '0')}`, now + i), { cookie: visitor.cookie })));
+    expect(replays.every(r => r.status === 200)).toBe(true);
+    expect((await population()).total).toBe(1);
+  });
+
+  it('gives two first requests that race two different sessions, and counts neither until one comes back', async () => {
+    const [a, b] = await Promise.all([post(heartbeat(F01)), post(heartbeat(F01))]);
+    const cookies = [a, b].map(r => r.headers.get('set-cookie')!.split(';')[0]);
+    expect(cookies[0]).not.toBe(cookies[1]);
+    expect((await population()).total).toBe(0);
+    // The browser kept one of them (the last it was given); the other id is never heard of again.
+    now += PRESENCE.warmupMs + 500;
+    await post(heartbeat(F01), { cookie: cookies[1] });
+    expect((await population()).total).toBe(1);
+    expect((deps.store as MemoryPresenceStore).size).toBe(1);
+  });
+
+  it('holds no memory for clients that keep no cookie, however many requests they send', async () => {
+    for (let i = 0; i < 300; i++) await post(heartbeat(F01, `dddddddd${String(i).padStart(8, '0')}`));
+    expect((deps.store as MemoryPresenceStore).size).toBe(0);
+    expect((await population()).total).toBe(0);
+  });
+
+  it('refuses look-alike origins', async () => {
+    for (const origin of ['https://logic-island.test.evil.example', 'https://evil-logic-island.test', 'https://logic-island.test:8443', 'null', 'https://', 'javascript:alert(1)', 'https://logic-island.test@evil.example'])
+      expect((await post(heartbeat(F01), { headers: { origin } })).status, origin).toBe(403);
+    // A browser's own word (Sec-Fetch-Site) wins over a matching Origin header.
+    expect((await post(heartbeat(F01), { headers: { 'sec-fetch-site': 'cross-site', origin: ORIGIN } })).status).toBe(403);
+    expect((await post(heartbeat(F01), { headers: { 'sec-fetch-site': 'none' } })).status).toBe(403);
+  });
+
+  it('takes ids as ids: names of object properties, paths and markup change nothing', async () => {
+    const visitor = browser();
+    await visitor.arrive(F01);
+    for (const id of ['constructor', 'tostring', 'hasownproperty', 'valueof']) {
+      for (const place of [{ t: 'island', id }, { t: 'region', id }, { t: 'lesson', id }, { t: 'lab', id }, { t: 'island', id: 'foundations', r: id }] as PlaceClaim[]) {
+        expect((await visitor.send(heartbeat(place))).status, JSON.stringify(place)).toBe(200);
+        now += 2_000;
+      }
+    }
+    const counts = await population();
+    expect(counts.total).toBe(1);
+    expect(Object.keys(counts.regions).sort()).toEqual(['ai', 'cs', 'design', 'sys', 'web']);
+    for (const id of ['__proto__', 'Constructor', '<script>', '../x', 'a b', 'a'.repeat(65), '', 'ｆoundations'])
+      expect((await visitor.send({ v: 1, tab: 'aaaaaaaa00000001', since: now, place: { t: 'island', id } })).status, id).toBe(400);
+    // A body that tries to reach the prototype is just a body with an unknown key.
+    expect((await post(null, { raw: `{"__proto__":{"polluted":1},"v":1,"tab":"aaaaaaaa00000001","since":${now},"place":{"t":"hub"}}` })).status).toBe(400);
+    expect((await post(null, { raw: `{"v":1,"tab":"aaaaaaaa00000001","since":${now},"place":{"t":"hub","__proto__":{"t":"island"}}}` })).status).toBe(400);
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+
+  it('answers with JSON nobody can read across origins or mistake for a page', async () => {
+    const visitor = browser();
+    const responses = [await visitor.send(heartbeat(F01)), await handlePresenceGet(new Request(`${ORIGIN}/api/presence?callback=alert(1)&x=<script>`, { headers: { origin: 'https://evil.example' } }), deps),
+      await post(heartbeat(F01), { headers: { origin: 'https://evil.example' } }), await post(null, { raw: '<script>alert(1)</script>' })];
+    for (const response of responses) {
+      expect(response.headers.get('content-type')).toBe('application/json; charset=utf-8');
+      expect(response.headers.get('x-content-type-options')).toBe('nosniff');
+      for (const header of ['access-control-allow-origin', 'access-control-allow-credentials']) expect(response.headers.get(header)).toBeNull();
+      const text = await response.text();
+      expect(text).not.toContain('alert');
+      expect(text).not.toContain('<');
+      expect(() => JSON.parse(text)).not.toThrow();
+    }
+  });
+
+  it('says only that it is unavailable when the store fails, and nothing about why', async () => {
+    const broken: PresenceStore = { touch: async () => { throw new Error('ECONNREFUSED redis://user:hunter2@10.0.0.5:6379'); }, leave: async () => { throw new Error('boom'); }, counts: async () => { throw new Error('boom at /var/task/store.ts:12'); } };
+    const visitor = browser();
+    await visitor.arrive(F01);
+    deps = { ...deps, store: broken };
+    const responses = [await visitor.send(heartbeat(F01)), await visitor.send({ v: 1, tab: 'aaaaaaaa00000001', leave: true }), await handlePresenceGet(new Request(`${ORIGIN}/api/presence`), deps)];
+    for (const response of responses) {
+      expect(response.status).toBe(503);
+      expect(response.headers.get('cache-control')).toBe('no-store');
+      expect(Number(response.headers.get('retry-after'))).toBeGreaterThan(0);
+      expect(await response.json()).toEqual({ ok: false, error: 'unavailable' });
+    }
+  });
+
+  it('takes a goodbye\'s time only when it is a plausible time, and nothing else beside it', async () => {
+    const visitor = browser();
+    await visitor.arrive(F01);
+    const bye = { v: 1, tab: 'aaaaaaaa00000001', leave: true };
+    for (const body of [{ ...bye, at: 'now' }, { ...bye, at: now - 3 * 86_400_000 }, { ...bye, at: 1.5 }, { ...bye, at: now, since: now }, { ...bye, at: now, place: { t: 'hub' } }, { ...heartbeat(F01), at: now }])
+      expect((await visitor.send(body)).status, JSON.stringify(body)).toBe(400);
+    expect((await population()).total).toBe(1);
+    expect((await visitor.send({ ...bye, at: now })).status).toBe(200);
+    expect((await population()).total).toBe(0);
+  });
+});
+
+describe('privacy signals: Global Privacy Control and Do Not Track', () => {
+  it('reads either signal, and only a clear one', () => {
+    const request = (headers: Record<string, string>) => new Request(`${ORIGIN}/api/presence`, { headers });
+    expect(privacySignal(request({ 'sec-gpc': '1' }))).toBe(true);
+    expect(privacySignal(request({ dnt: '1' }))).toBe(true);
+    for (const headers of [{}, { 'sec-gpc': '0' }, { dnt: '0' }, { dnt: 'unspecified' }, { 'sec-gpc': 'true' }] as Record<string, string>[]) expect(privacySignal(request(headers)), JSON.stringify(headers)).toBe(false);
+    expect(PRESENCE.honorPrivacySignals).toBe(true);
+  });
+
+  it('gives a browser that sends one no cookie and no session, and tells it to stay quiet', async () => {
+    for (const headers of [{ 'sec-gpc': '1' }, { dnt: '1' }] as Record<string, string>[]) {
+      const response = await post(heartbeat(F01), { headers });
+      expect(response.status).toBe(200);
+      expect(response.headers.get('set-cookie')).toBeNull();
+      expect(await response.json()).toEqual({ ok: true, counted: false, next: PRESENCE.quietMs });
+    }
+    expect((deps.store as MemoryPresenceStore).size).toBe(0);
+    expect((await population()).total).toBe(0);
+  });
+
+  it('stops counting a visitor who turns the signal on, and lets them read the totals all the same', async () => {
+    const visitor = browser();
+    await visitor.arrive(F01);
+    expect((await population()).total).toBe(1);
+    // The signal is on from now: heartbeats change nothing, and the session ends with its timeout.
+    now += 30_000;
+    expect(await (await visitor.send(heartbeat(DB01), { headers: { 'sec-gpc': '1' } })).json()).toMatchObject({ counted: false });
+    expect(await population()).toMatchObject({ total: 1, islands: { foundations: 1 } });
+    now += PRESENCE.ttlMs;
+    expect((await population()).total).toBe(0);
+    const read = await handlePresenceGet(new Request(`${ORIGIN}/api/presence`, { headers: { 'sec-gpc': '1', dnt: '1' } }), deps);
+    expect(read.status).toBe(200);
+    expect(read.headers.get('set-cookie')).toBeNull();
+  });
+
+  it('still refuses what it refuses anyone: the signal is no way round the checks', async () => {
+    expect((await post(heartbeat(F01), { headers: { 'sec-gpc': '1', origin: 'https://evil.example' } })).status).toBe(403);
+    expect((await post({ v: 9 }, { headers: { dnt: '1' } })).status).toBe(400);
   });
 });

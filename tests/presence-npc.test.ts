@@ -5,7 +5,8 @@ import { islandsHomeWorld } from '@/lib/islands/islands-world';
 import { validateHexWorld } from '@/lib/islands/hex-world';
 import { PLATFORM_HEIGHT, RING, roadPoint, walkNetwork, type WalkNetwork } from '@/lib/presence/npc-paths';
 import { ROSTER_STEP_SECONDS, createCrowd, fillCrowd, stepCrowd, targetPose } from '@/lib/presence/npc-sim';
-import { MOCK_STEP_MS, NPC_ISLANDS, mockSnapshot, npcCountFor, onlineOf, parseSnapshot, tierCap, tierFps } from '@/lib/presence/population';
+import { MOCK_STEP_MS, mockSnapshot, npcCountFor, onlineOf, parseSnapshot, tierCap, tierFps } from '@/lib/presence/population';
+import { ISLAND_CAPS } from '@/lib/presence/npc-zones';
 
 /*
  * Dynamic Island Population: from an online count to figures, the roads they may walk, and the walk itself. The walk
@@ -69,7 +70,7 @@ describe('npcCountFor: population and figures are different numbers', () => {
     expect(tierCap(8, 'low')).toBe(4);
     expect(tierCap(1, 'low')).toBe(1);
     expect(tierFps('low')).toBeLessThan(tierFps('full'));
-    expect(npcCountFor(1_000, tierCap(NPC_ISLANDS.foundations.cap, 'low'))).toBe(4);
+    expect(npcCountFor(1_000, tierCap(ISLAND_CAPS.foundations, 'low'))).toBe(4);
   });
 });
 

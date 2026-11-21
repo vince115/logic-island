@@ -6,6 +6,7 @@ import { REGION_IDS, type RegionId } from '@/content/world/types';
 import { P9RegionExplorer } from '@/components/p9/p9-region-explorer';
 import { p9PrototypeEnabled } from '@/lib/p9/flag';
 import { hubSummary, regionIslands } from '@/lib/world/learning-islands';
+import { mapPopulation } from '@/lib/presence/map-population';
 
 /*
  * P9: a region's map at the site's top level (/cs, /ai, /design, /web, /sys), the focused island in `?island=`. Built
@@ -27,8 +28,10 @@ export async function generateMetadata({ params }: { params: Promise<{ region: s
 export default async function P9RegionPage({ params }: { params: Promise<{ region: string }> }) {
   const { region } = await params;
   if (!p9PrototypeEnabled() || !isRegion(region)) notFound();
-  const record = getRegion(region)!;
+  const record = getRegion(region)!, islands = regionIslands(region);
   return <main id="main"><h1 className="visually-hidden">{record.name}</h1>
-    <div className="home-world"><Suspense><P9RegionExplorer regionId={region} regionName={record.name} regionNameEn={record.nameEn} islands={regionIslands(region)} hub={hubSummary().lab}/></Suspense></div>
+    <div className="home-world"><Suspense><P9RegionExplorer regionId={region} regionName={record.name} regionNameEn={record.nameEn} islands={islands} hub={hubSummary().lab}
+      // Dynamic Island Population (LOGIC_ISLAND_POPULATION_NPC): the region's visitors as figures on its islands and bridges.
+      population={mapPopulation(islands.map(island => island.id))}/></Suspense></div>
   </main>;
 }

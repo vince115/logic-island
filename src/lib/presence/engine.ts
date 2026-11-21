@@ -21,12 +21,16 @@ export interface SessionRecord {
   ownerSeen: number;
   /** The owning tab left or went to the background; no heartbeat since. */
   away: boolean;
+  /** When the owning tab said so, by its own clock (unset: an older tracker, or the session never left). */
+  leftAt?: number;
   /** Writes in the current rate window. */
   windowStart: number;
   writes: number;
 }
 
 export interface Heartbeat { tab: string; since: number; location: PresenceLocation }
+/** A tab's goodbye: `at` is when it left, by the browser's clock (the same clock as its heartbeats' `since`). */
+export interface Leave { tab: string; at?: number }
 
 export const isActive = (record: SessionRecord, now: number) => !record.away && now - record.seen <= PRESENCE.ttlMs;
 export const isExpired = (record: SessionRecord, now: number) => now - record.seen > PRESENCE.ttlMs;
@@ -46,39 +50,61 @@ export function applyHeartbeat(record: SessionRecord | undefined, beat: Heartbea
       windowStart: record?.windowStart ?? now, writes: record?.writes ?? 0 };
   }
   const owner = beat.tab === record.tab;
+  // Requests of one tab can arrive out of order (a slow heartbeat overtaken by the next report, or by the goodbye):
+  //  - a heartbeat the owning tab sent before it left does not bring the session back: only a report made after the
+  //    goodbye does (the tab became visible again, so its `since` is later), or another tab's;
+  //  - an older report of the owning tab keeps the session alive but does not move it back to where the tab was.
+  if (owner && record.away && record.leftAt !== undefined && beat.since < record.leftAt) return record;
+  if (owner && !record.away && beat.since < record.since) return { ...record, seen: now, ownerSeen: now };
   const takesOver = owner || record.away || beat.since >= record.since || now - record.ownerSeen > PRESENCE.ownerSilenceMs;
   if (!takesOver) return { ...record, seen: now };
-  // The owner's `since` never goes back (a late, older report of its own); a new owner brings its own.
-  return { ...record, location: beat.location, seen: now, tab: beat.tab, since: owner ? Math.max(record.since, beat.since) : beat.since,
+  // The owner's `since` never goes back; a new owner brings its own.
+  const { leftAt: _leftAt, ...kept } = record;
+  void _leftAt;
+  return { ...kept, location: beat.location, seen: now, tab: beat.tab, since: owner ? Math.max(record.since, beat.since) : beat.since,
     ownerSeen: now, away: false };
 }
 
-/** The record after a tab said it left or went to the background: only the owning tab takes the session away. */
-export function applyLeave(record: SessionRecord, tab: string): SessionRecord {
-  return tab === record.tab ? { ...record, away: true } : record;
+/**
+ * The record after a tab said it left or went to the background: only the owning tab takes the session away, and
+ * only a goodbye that is not older than the tab's own latest report (a goodbye overtaken by the heartbeat of the tab
+ * coming back must not take the session away again).
+ */
+export function applyLeave(record: SessionRecord, leave: Leave | string): SessionRecord {
+  const { tab, at } = typeof leave === 'string' ? { tab: leave, at: undefined } : leave;
+  if (tab !== record.tab) return record;
+  if (at !== undefined && at < record.since) return record;
+  // Two goodbyes of one tab landing in the wrong order: the later one stands.
+  const leftAt = at === undefined ? record.leftAt : record.away && record.leftAt !== undefined ? Math.max(record.leftAt, at) : at;
+  return { ...record, away: true, ...(leftAt !== undefined ? { leftAt } : {}) };
 }
 
 /** The online population by region, island and course. Counts only; nothing of a session leaves this function. */
 export interface PopulationCounts {
   total: number;
   regions: Record<PresenceRegion, number>;
+  /** Of `regions`: the visitors on none of the region's islands (a region's own page; at the hub, any page that is no island's). */
+  commons: Record<PresenceRegion, number>;
   islands: Record<string, number>;
   courses: Record<string, number>;
 }
 
 export function aggregate(records: Iterable<SessionRecord>, now: number): PopulationCounts {
-  const regions = Object.fromEntries(PRESENCE_REGIONS.map(region => [region, 0])) as Record<PresenceRegion, number>;
-  const islands: Record<string, number> = {}, courses: Record<string, number> = {};
+  const zero = () => Object.fromEntries(PRESENCE_REGIONS.map(region => [region, 0])) as Record<PresenceRegion, number>;
+  const regions = zero(), commons = zero();
+  // No prototype: an id is only ever a key here, whatever it spells.
+  const islands: Record<string, number> = Object.create(null), courses: Record<string, number> = Object.create(null);
   let total = 0;
   for (const record of records) {
     if (!isActive(record, now)) continue;
     const { region, island, course } = record.location;
     total += 1;
-    regions[region in regions ? region : HUB] += 1;
-    if (island) islands[island] = (islands[island] ?? 0) + 1;
+    const key = Object.hasOwn(regions, region) ? region : HUB;
+    regions[key] += 1;
+    if (island) islands[island] = (islands[island] ?? 0) + 1; else commons[key] += 1;
     if (course) courses[course] = (courses[course] ?? 0) + 1;
   }
-  return { total, regions, islands, courses };
+  return { total, regions, commons, islands: { ...islands }, courses: { ...courses } };
 }
 
 /**
@@ -96,9 +122,15 @@ export interface PopulationSnapshot {
   regions: Record<string, number>;
   /** Islands with at least one visitor. */
   islands: Record<string, number>;
+  /**
+   * Per region (and `hub`): the visitors of that region who are on none of its islands. A map draws them in the
+   * region's shared places (its bridges), never on an island: an island's figures are its own visitors only. The same
+   * number as `regions[r]` minus the region's islands, published so no client has to know which islands a region has.
+   */
+  commons?: Record<string, number>;
 }
 
 export function publicSnapshot(counts: PopulationCounts, now: number): PopulationSnapshot {
   const { [HUB]: hub, ...regions } = counts.regions;
-  return { v: PRESENCE.version, at: now, ttlMs: PRESENCE.ttlMs, total: counts.total, hub, regions, islands: counts.islands };
+  return { v: PRESENCE.version, at: now, ttlMs: PRESENCE.ttlMs, total: counts.total, hub, regions, islands: counts.islands, commons: { ...counts.commons } };
 }

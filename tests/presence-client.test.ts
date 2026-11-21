@@ -96,7 +96,7 @@ describe('PresenceTracker', () => {
     await tick(0);
     p.setVisibility('hidden');
     await tick(0);
-    expect(p.beacons).toEqual([{ v: 1, tab: 'tab0000000000001', leave: true }]);
+    expect(p.beacons).toEqual([{ v: 1, tab: 'tab0000000000001', leave: true, at: expect.any(Number) }]);
     await tick(PRESENCE.heartbeatMs * 10);
     expect(p.requests).toHaveLength(1);
     // Leaving the page while already in the background does not say goodbye twice.
@@ -153,7 +153,7 @@ describe('PresenceTracker', () => {
     await tick(0);
     p.setVisibility('hidden');
     await tick(0);
-    expect(p.requests).toEqual([expect.objectContaining({ place: { t: 'hub' } }), { v: 1, tab: 'tab0000000000001', leave: true }]);
+    expect(p.requests).toEqual([expect.objectContaining({ place: { t: 'hub' } }), { v: 1, tab: 'tab0000000000001', leave: true, at: expect.any(Number) }]);
   });
 
   it('waits and tries again after a failure, and gives up when the API is not there', async () => {
@@ -185,5 +185,38 @@ describe('PresenceTracker', () => {
     expect(p.beacons).toHaveLength(1);
     await tick(PRESENCE.heartbeatMs * 2);
     expect(p.requests).toHaveLength(1);
+  });
+});
+
+describe('privacy signals', () => {
+  it('never starts for a browser that asks not to be tracked: no request, no goodbye, no listener', async () => {
+    const p = page();
+    const tracker = new PresenceTracker({ ...p.env, optedOut: () => true });
+    tracker.setPlace({ t: 'island', id: 'foundations' });
+    tracker.start();
+    await tick(5 * 60_000);
+    p.setVisibility('hidden');
+    p.fire('pagehide');
+    tracker.stop();
+    await tick(1_000);
+    expect(p.requests).toEqual([]);
+    expect(p.beacons).toEqual([]);
+    expect(p.listenerCount()).toBe(0);
+  });
+
+  it('reports as usual for a browser that sends no signal', async () => {
+    const p = page();
+    new PresenceTracker({ ...p.env, optedOut: () => false }).start();
+    await tick(10);
+    expect(p.requests).toHaveLength(1);
+  });
+
+  it('says when it left, so a heartbeat still on its way cannot bring the session back', async () => {
+    const p = page();
+    new PresenceTracker(p.env).start();
+    await tick(10);
+    p.setVisibility('hidden');
+    await tick(10);
+    expect(p.beacons).toEqual([{ v: 1, tab: 'tab0000000000001', leave: true, at: Date.now() - 10 }]);
   });
 });

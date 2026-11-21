@@ -17,6 +17,8 @@ export interface TrackerEnvironment {
   window: Pick<Window, 'addEventListener' | 'removeEventListener' | 'setTimeout' | 'clearTimeout'>;
   now: () => number;
   randomId: () => string;
+  /** The browser asks not to be tracked (Global Privacy Control or Do Not Track); unset: it does not. */
+  optedOut?: () => boolean;
 }
 
 export function browserEnvironment(): TrackerEnvironment {
@@ -25,6 +27,7 @@ export function browserEnvironment(): TrackerEnvironment {
     beacon: typeof navigator.sendBeacon === 'function' ? (url, data) => navigator.sendBeacon(url, data) : undefined,
     document, window, now: Date.now,
     randomId: () => Array.from(crypto.getRandomValues(new Uint8Array(8)), byte => byte.toString(16).padStart(2, '0')).join(''),
+    optedOut: () => (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl === true || navigator.doNotTrack === '1',
   };
 }
 
@@ -78,7 +81,8 @@ export class PresenceTracker {
     this.timer = undefined;
     if (this.left || this.stopped) return;
     this.left = true;
-    const body = JSON.stringify({ v: PRESENCE.version, tab: this.tab, leave: true });
+    // `at`: when this tab left, so a heartbeat it sent just before, arriving late, does not bring the session back.
+    const body = JSON.stringify({ v: PRESENCE.version, tab: this.tab, leave: true, at: this.env.now() });
     // A beacon outlives the page; where there is none, a keepalive request does the same.
     if (this.env.beacon?.(PRESENCE.endpoint, new Blob([body], { type: 'application/json' }))) return;
     void this.env.fetch(PRESENCE.endpoint, { method: 'POST', credentials: 'same-origin', keepalive: true, headers: { 'content-type': 'application/json' }, body }).catch(() => {});
@@ -102,6 +106,8 @@ export class PresenceTracker {
 
   start() {
     if (this.started) return;
+    // A browser that asks not to be tracked is never reported: no request, no cookie, no listener.
+    if (PRESENCE.honorPrivacySignals && this.env.optedOut?.()) { this.stopped = true; return; }
     this.started = true;
     this.env.document.addEventListener('visibilitychange', this.onVisibility);
     this.env.window.addEventListener('focus', this.onFocus);

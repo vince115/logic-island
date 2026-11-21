@@ -7,14 +7,23 @@ import type { PopulationSnapshot } from './engine';
  * does not depend on traffic.
  */
 
-/** The islands that draw figures, and the most each draws. The prototype: the foundations island only. */
-export const NPC_ISLANDS: Readonly<Record<string, { cap: number }>> = { foundations: { cap: 8 } };
+/** The key of the hub in a snapshot's `commons` (the same word as the server's hub region, locations.ts HUB). */
+export const HUB_KEY = 'hub';
 
-/** `low`: phones and other touch-first or narrow screens draw half the figures at a lower frame rate. */
+/** What a page hands its map to draw the population: where the numbers come from, and each island's region (or the hub). */
+export interface PopulationConfig { source: 'mock' | 'live'; regions: Readonly<Record<string, string>> }
+
+/**
+ * `low`: phones and other touch-first or narrow screens. Half the figures an island, a lower frame-rate cap, longer
+ * rests at a road's end and an earlier stop when nobody touches the screen (npc-schedule.ts).
+ */
 export type DeviceTier = 'full' | 'low';
 export const TIER_QUERY = '(max-width: 780px), (pointer: coarse)';
 export const tierCap = (cap: number, tier: DeviceTier) => (tier === 'low' ? Math.max(1, Math.ceil(cap / 2)) : cap);
-export const tierFps = (tier: DeviceTier) => (tier === 'low' ? 20 : 30);
+/** The most frames a second the figures ever ask for (the rate actually used follows the zoom: npc-schedule.ts motionFps). */
+export const tierFps = (tier: DeviceTier) => (tier === 'low' ? 15 : 30);
+/** How much longer than REST (npc-sim.ts) figures stand at a road's end. */
+export const tierRest = (tier: DeviceTier) => (tier === 'low' ? 1.6 : 1);
 
 /**
  * Figures for an online count: one each up to three visitors, then one more each time the count doubles
@@ -32,26 +41,43 @@ export const onlineOf = (snapshot: PopulationSnapshot | null, islandId: string) 
 /**
  * Mock presence data (LOGIC_ISLAND_POPULATION_NPC=mock): the same shape the API publishes, from the clock alone, so
  * the whole flow (numbers arriving, figures coming and going, the cap) can be reviewed with no server and no
- * visitors. The foundations island steps through quiet, busy and empty every `MOCK_STEP_MS`.
+ * visitors. The foundations island steps through quiet, busy and empty every `MOCK_STEP_MS`; an island or two of
+ * every region and every region's commons have visitors too, so each region's map has something to show.
  */
 export const MOCK_STEP_MS = 8_000;
 const MOCK_FOUNDATIONS = [1, 3, 6, 12, 40, 12, 3, 0];
-export function mockSnapshot(now: number, override?: Readonly<Record<string, number>>): PopulationSnapshot {
+const MOCK_REGIONS = ['cs', 'ai', 'design', 'web', 'sys'] as const;
+/** The mock's islands by region (ids of the world registry); an island it does not name counts for `cs`. */
+const MOCK_ISLANDS: Readonly<Record<(typeof MOCK_REGIONS)[number] | typeof HUB_KEY, (step: number) => Record<string, number>>> = {
+  cs: step => ({ foundations: MOCK_FOUNDATIONS[step % MOCK_FOUNDATIONS.length], structures: 2 + (step % 3), databases: step % 2, networks: (step + 1) % 2 }),
+  ai: step => ({ 'machine-learning': 1, 'ai-agents': step % 3, 'large-language-models': 5 }),
+  design: step => ({ 'ui-design': 2, 'ux-research': step % 2 }),
+  web: step => ({ frontend: 1 + (step % 3), 'web-foundations': 4 }),
+  sys: step => ({ 'linux-systems': 1 + (step % 4), 'docker-containers': 2, 'kubernetes-reliability': step % 2 }),
+  hub: step => ({ labs: 1 + (step % 2) }),
+};
+const MOCK_COMMONS = (step: number): Record<string, number> => ({ cs: 1 + (step % 3), ai: step % 2, design: 1, web: (step + 1) % 2, sys: 2, hub: 1 + (step % 2) });
+const MOCK_REGION_OF = new Map(Object.entries(MOCK_ISLANDS).flatMap(([region, islands]) => Object.keys(islands(0)).map(id => [id, region] as const)));
+
+/** `override`: the islands' counts (review and tests); `commons`: the regions' with them, none when left out. */
+export function mockSnapshot(now: number, override?: Readonly<Record<string, number>>, commonsOverride?: Readonly<Record<string, number>>): PopulationSnapshot {
   const step = Math.floor(now / MOCK_STEP_MS);
-  const islands: Record<string, number> = override ? { ...override } : {
-    foundations: MOCK_FOUNDATIONS[step % MOCK_FOUNDATIONS.length], structures: 2 + (step % 3), databases: step % 2, 'machine-learning': 1,
-  };
+  const islands: Record<string, number> = override ? { ...override } : Object.assign({}, ...Object.values(MOCK_ISLANDS).map(of => of(step)));
   for (const id of Object.keys(islands)) if (!(islands[id] > 0)) delete islands[id];
-  const ai = islands['machine-learning'] ?? 0, cs = Object.values(islands).reduce((sum, n) => sum + n, 0) - ai;
-  return { v: 1, at: now, ttlMs: 90_000, total: cs + ai + 1, hub: 1, regions: { cs, ai, design: 0, web: 0, sys: 0 }, islands };
+  const commons: Record<string, number> = Object.fromEntries([...MOCK_REGIONS, HUB_KEY].map(region => [region, Math.max(0, Math.floor((override ? commonsOverride : MOCK_COMMONS(step))?.[region] ?? 0))]));
+  const all = { ...commons };
+  for (const [id, count] of Object.entries(islands)) all[MOCK_REGION_OF.get(id) ?? 'cs'] += count;
+  const { [HUB_KEY]: hub, ...regions } = all;
+  return { v: 1, at: now, ttlMs: 90_000, total: hub + Object.values(regions).reduce((sum, n) => sum + n, 0), hub, regions, islands, commons };
 }
 
 /** A snapshot from untrusted JSON (the API's answer), or null when it is not one. */
 export function parseSnapshot(value: unknown): PopulationSnapshot | null {
   if (!value || typeof value !== 'object') return null;
-  const { v, at, ttlMs, total, hub, regions, islands } = value as Record<string, unknown>;
+  const { v, at, ttlMs, total, hub, regions, islands, commons } = value as Record<string, unknown>;
   const counts = (record: unknown): record is Record<string, number> => Boolean(record) && typeof record === 'object'
     && Object.values(record as object).every(n => typeof n === 'number' && Number.isFinite(n) && n >= 0);
   if (typeof v !== 'number' || typeof at !== 'number' || typeof ttlMs !== 'number' || typeof total !== 'number' || typeof hub !== 'number') return null;
-  return counts(regions) && counts(islands) ? { v, at, ttlMs, total, hub, regions, islands } : null;
+  if (!counts(regions) || !counts(islands) || (commons !== undefined && !counts(commons))) return null;
+  return { v, at, ttlMs, total, hub, regions, islands, ...(commons ? { commons } : {}) };
 }

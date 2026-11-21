@@ -1,6 +1,6 @@
 import { hexKey, worldToHex } from '@/lib/islands/hex';
 import { roadProfiles } from '@/lib/islands/hex-terrain';
-import { settlementRoads, type HexWorld } from '@/lib/islands/hex-world';
+import { LAND_TOP, findTile, portPoint, settlementRoads, tileHeight, type HexBridge, type HexWorld } from '@/lib/islands/hex-world';
 import type { Vec3 } from '@/lib/islands/types';
 
 /**
@@ -23,10 +23,15 @@ export interface WalkRoad {
   entry: number;
   /** Ends at the coast (a dock or a bridge head): where newcomers arrive. */
   gateway: boolean;
+  /** How far above the road's points a figure's feet are; unset: a road's paving (ROAD_SURFACE). A bridge's deck. */
+  lift?: number;
+  /** Open at both ends (a bridge): newcomers arrive at either. Unset: at the far end only, away from the centre. */
+  through?: true;
 }
 export interface WalkNetwork {
   islandId: string;
   center: Vec3;
+  /** The radius of the ring round the centre; 0: no ring (a bridge network: each road is walked end to end). */
   ring: number;
   /** A raised plaza around the centre: its radius and the height of its paving above the tile. */
   platform: { radius: number; height: number } | null;
@@ -38,6 +43,10 @@ export type KeepOutCircle = readonly [x: number, z: number, radius: number];
 export const LANE = 0.13;
 /** The ring's radius around the centre: outside a plaza's guidepost plinth (0.34), inside its paving (1.0). */
 export const RING = 0.7;
+/** The ring an island gets when something stands in the way of the usual one (a landmark beside its centre). */
+export const RING_TIGHT = 0.5;
+/** How far to either side of the ring's radius figures walk round it (npc-sim.ts). */
+export const RING_LANE = 0.11;
 /** Clear ground a figure keeps around itself: to a coast or the woods, and to a building's footprint. */
 export const BODY_CLEARANCE = 0.2;
 const BUILDING_CLEARANCE = 0.12;
@@ -80,28 +89,76 @@ export function walkNetwork(world: HexWorld, islandId: string, { keepOut = [], p
   };
   const plans = settlementRoads(world), profiles = roadProfiles(world);
   const roads: WalkRoad[] = [];
-  let center: Vec3 | undefined;
+  // Every road of an island starts at its centre tile.
+  const center: Vec3 | undefined = profiles.find(profile => profile.islandId === islandId && profile.points.length >= 2)?.points[0];
+  /** Both lanes of a ring of this radius are on walkable land and off every building. */
+  const ringClear = (radius: number) => {
+    if (!center) return false;
+    for (let k = 0; k < 48; k++) for (const lane of [-RING_LANE, RING_LANE]) {
+      const a = (k / 48) * Math.PI * 2, x = center[0] + Math.cos(a) * (radius + lane), z = center[2] + Math.sin(a) * (radius + lane);
+      if (!onLand(x, z) || keepOut.some(([cx, cz, r]) => Math.hypot(x - cx, z - cz) < r + BUILDING_CLEARANCE)) return false;
+    }
+    return true;
+  };
+  // The usual ring, a tighter one when a landmark stands beside the centre, or none: then each road is walked end to end.
+  const ring = [RING, RING_TIGHT].find(ringClear) ?? 0, RING_START = ring || RING_TIGHT;
   profiles.forEach((profile, index) => {
     if (profile.islandId !== islandId || profile.points.length < 2) return;
-    center ??= profile.points[0];
     const cumulative = [0];
     for (let i = 1; i < profile.points.length; i++) {
       const [a, b] = [profile.points[i - 1], profile.points[i]];
       cumulative.push(cumulative[i - 1] + Math.hypot(b[0] - a[0], b[2] - a[2]));
     }
     const road = { points: profile.points, cumulative }, total = cumulative.at(-1)!;
-    if (total <= RING) return;
+    if (total <= RING_START) return;
     // Walk outward from the ring; the road is usable up to the last sample that is safe.
-    let end = RING;
-    for (let s = RING; s <= total + 1e-9; s += SAMPLE) {
+    let end = RING_START;
+    for (let s = RING_START; s <= total + 1e-9; s += SAMPLE) {
       const { point, direction } = roadPoint(road, s);
       if (!safe(point, direction)) break;
       end = s;
     }
-    if (end - RING < 0.5) return;
-    const at = roadPoint(road, RING).point;
-    roads.push({ id: profile.routeId, ...road, start: RING, end, entry: Math.atan2(at[2] - profile.points[0][2], at[0] - profile.points[0][0]),
+    if (end - RING_START < 0.5) return;
+    const at = roadPoint(road, RING_START).point;
+    roads.push({ id: profile.routeId, ...road, start: RING_START, end, entry: Math.atan2(at[2] - profile.points[0][2], at[0] - profile.points[0][0]),
       gateway: plans[index].port !== undefined });
   });
-  return { islandId, center: center ?? [0, 0, 0], ring: RING, platform, roads };
+  return { islandId, center: center ?? [0, 0, 0], ring, platform, roads };
+}
+
+/** A bridge's deck above its ports' land (hex-route-parts.ts bridgeParts: the planks' and the slab's top face). */
+export const DECK_TOP = { wood: 0.05, stone: 0.06 } as const;
+/** How far from a bridge's ends its figures stay: off the land's edge, where an island's own figures do not come. */
+export const BRIDGE_MARGIN = 0.3;
+/** The shortest bridge figures walk (its usable stretch). */
+const BRIDGE_MIN = 1;
+
+/**
+ * The walk network of a set of bridges: one road a bridge, along its deck from port to port (the same two points, at
+ * the same heights, the bridge is drawn between), no ring. Both lanes are inside the rails (0.4 either side, LANE is
+ * 0.13). Figures arrive at either end, walk across, stand a while and walk back: a bridge belongs to no island.
+ */
+export function bridgeNetwork(world: HexWorld, bridges: readonly HexBridge[], id: string): WalkNetwork {
+  const roads: WalkRoad[] = bridges.flatMap(bridge => {
+    const from = findTile(world, bridge.from.islandId, bridge.from.tile), to = findTile(world, bridge.to.islandId, bridge.to.tile);
+    if (!from || !to) return [];
+    const a = portPoint(world, bridge.from), b = portPoint(world, bridge.to), length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (length - BRIDGE_MARGIN * 2 < BRIDGE_MIN) return [];
+    return [{ id: bridge.id, points: [[a[0], LAND_TOP + tileHeight(from), a[1]], [b[0], LAND_TOP + tileHeight(to), b[1]]] as Vec3[], cumulative: [0, length],
+      start: BRIDGE_MARGIN, end: length - BRIDGE_MARGIN, entry: 0, gateway: true, through: true as const, lift: DECK_TOP[bridge.kind] + 0.005 }];
+  });
+  const first = roads[0]?.points;
+  return { islandId: id, center: first ? [(first[0][0] + first[1][0]) / 2, (first[0][1] + first[1][1]) / 2, (first[0][2] + first[1][2]) / 2] : [0, 0, 0], ring: 0, platform: null, roads };
+}
+
+/** A sphere (map coordinates) that holds every place a network's figures can be, head included: for view culling. */
+export function networkBounds(network: WalkNetwork): { center: Vec3; radius: number } {
+  const points: Vec3[] = [];
+  for (const road of network.roads) for (let s = road.start; s <= road.end + 1e-9; s += 0.25) points.push(roadPoint(road, Math.min(s, road.end)).point);
+  if (network.ring > 0 && network.roads.length) for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) points.push([network.center[0] + dx * (network.ring + RING_LANE), network.center[1], network.center[2] + dz * (network.ring + RING_LANE)]);
+  if (!points.length) return { center: network.center, radius: 0 };
+  const min = [0, 1, 2].map(i => Math.min(...points.map(p => p[i]))), max = [0, 1, 2].map(i => Math.max(...points.map(p => p[i])));
+  const center: Vec3 = [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2];
+  // A lane's width and a figure's height beyond the centrelines.
+  return { center, radius: Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]) / 2 + 0.6 };
 }

@@ -9,7 +9,7 @@ import { IslandsWorldExplorer } from '@/components/islands/hex-world/islands-wor
 import { MoreRegions } from '@/components/regions/more-regions';
 import { P9Home } from '@/components/p9/p9-home';
 import { p9PrototypeEnabled } from '@/lib/p9/flag';
-import { populationNpcSource } from '@/lib/presence/flag';
+import { mapPopulation } from '@/lib/presence/map-population';
 import type { Metadata } from 'next';
 
 // P9 builds name the home page after the product; the default build keeps the layout's title.
@@ -36,6 +36,7 @@ units:UNITS[island.id as IslandId]?.map(unit=>({title:unit.title,summary:unit.su
 // 互動實驗島: the labs of /learn, grouped by course category in course order.
 labGroups:island.id===labIsland.id?[...new Set(courses.map(c=>c.category))].map(title=>({title,
   labs:courses.filter(c=>c.category===title).map(c=>({slug:c.slug,title:c.title,subtitle:c.subtitle}))})):undefined}));
-// Dynamic Island Population: with LOGIC_ISLAND_POPULATION_NPC=mock|live the map draws an island's online visitors as figures (src/lib/presence/flag.ts).
+// Dynamic Island Population: with LOGIC_ISLAND_POPULATION_NPC=mock|live the map draws its islands' online visitors as figures (src/lib/presence/flag.ts).
+const population=mapPopulation(learningIslands.map(island=>island.id));
 // P9: in a build made with LOGIC_ISLAND_P9_PROTOTYPE=1 (never a Vercel Production build) the home page is the P9 world overview.
-export default function Home(){if(p9PrototypeEnabled()) return <P9Home/>;return <main id="main"><h1 className="visually-hidden">Logic Island 程式邏輯島</h1><div className="home-world"><IslandsWorldExplorer islands={learningIslands} layout="fullscreen" islandInAddress listMore={<MoreRegions/>} population={populationNpcSource()??undefined}/></div></main>;}
+export default function Home(){if(p9PrototypeEnabled()) return <P9Home/>;return <main id="main"><h1 className="visually-hidden">Logic Island 程式邏輯島</h1><div className="home-world"><IslandsWorldExplorer islands={learningIslands} layout="fullscreen" islandInAddress listMore={<MoreRegions/>} population={population}/></div></main>;}

@@ -1,5 +1,6 @@
 import { PRESENCE } from './config';
-import { aggregate, allowWrite, applyHeartbeat, applyLeave, isExpired, type Heartbeat, type PopulationCounts, type SessionRecord } from './engine';
+import { aggregate, allowWrite, applyHeartbeat, applyLeave, isExpired, type Heartbeat, type Leave, type PopulationCounts, type SessionRecord } from './engine';
+import { RedisPresenceStore, sharedStoreConfig, upstashRest } from './redis-store';
 
 /**
  * Where sessions are kept. The interface is asynchronous and holds only whole operations (no read-then-write from
@@ -8,14 +9,16 @@ import { aggregate, allowWrite, applyHeartbeat, applyLeave, isExpired, type Hear
  *
  * The memory store keeps everything in this server process. That is right for `next start`, local review and tests.
  * On a platform that runs several instances or restarts them (Vercel Functions), each instance would count only its
- * own visitors: going live there needs a shared store (docs/planning/PRESENCE_POPULATION_SYSTEM.md §8).
+ * own visitors: there the shared store (redis-store.ts) takes its place, and a Vercel Production deployment without
+ * one has no store at all (the API answers 503) rather than numbers that are quietly wrong
+ * (docs/planning/PRESENCE_SHARED_STORE.md).
  */
 export type TouchResult = 'counted' | 'rate-limited' | 'full';
 export interface PresenceStore {
   /** A heartbeat of session `sid`. */
   touch(sid: string, beat: Heartbeat, now: number): Promise<TouchResult>;
-  /** Tab `tab` of session `sid` left or went to the background. */
-  leave(sid: string, tab: string, now: number): Promise<void>;
+  /** A tab of session `sid` left or went to the background (a tab id alone: a goodbye with no time of its own). */
+  leave(sid: string, leave: Leave | string, now: number): Promise<void>;
   counts(now: number): Promise<PopulationCounts>;
 }
 
@@ -53,11 +56,11 @@ export class MemoryPresenceStore implements PresenceStore {
     return 'counted';
   }
 
-  async leave(sid: string, tab: string, now: number): Promise<void> {
+  async leave(sid: string, leave: Leave | string, now: number): Promise<void> {
     const current = this.sessions.get(sid);
     if (!current || isExpired(current, now)) return;
     if (!allowWrite(current, now)) return;
-    this.sessions.set(sid, applyLeave(current, tab));
+    this.sessions.set(sid, applyLeave(current, leave));
   }
 
   async counts(now: number): Promise<PopulationCounts> {
@@ -67,5 +70,18 @@ export class MemoryPresenceStore implements PresenceStore {
 }
 
 /** One store per server process; kept on globalThis so a dev server's module reloads do not empty it. */
-const holder = globalThis as typeof globalThis & { __logicIslandPresenceStore?: MemoryPresenceStore };
-export const presenceStore = (): PresenceStore => (holder.__logicIslandPresenceStore ??= new MemoryPresenceStore());
+const holder = globalThis as typeof globalThis & { __logicIslandPresenceStore?: MemoryPresenceStore; __logicIslandPresenceShared?: { key: string; store: RedisPresenceStore } };
+/**
+ * The deployment's store: the shared one when its address and token are configured (redis-store.ts sharedStoreConfig),
+ * otherwise this process's memory, except in a Vercel Production deployment, which gets none without a shared store.
+ */
+export function presenceStore(env: Record<string, string | undefined> = process.env): PresenceStore | undefined {
+  const shared = sharedStoreConfig(env);
+  if (shared) {
+    if (holder.__logicIslandPresenceShared?.key !== shared.url) holder.__logicIslandPresenceShared = { key: shared.url,
+      store: new RedisPresenceStore(upstashRest(shared.url, shared.token), { countsCacheMs: PRESENCE.snapshotCacheSeconds * 1000 }) };
+    return holder.__logicIslandPresenceShared.store;
+  }
+  if (env.VERCEL_ENV === 'production') return undefined;
+  return (holder.__logicIslandPresenceStore ??= new MemoryPresenceStore());
+}

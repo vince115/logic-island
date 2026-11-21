@@ -1,7 +1,10 @@
 import { test as base, expect, type APIRequestContext, type BrowserContext, type Page } from '@playwright/test';
 import { lessons } from '../src/content/curriculum/lessons';
 import { hexKey, worldToHex } from '../src/lib/islands/hex';
+import type { WorldLayout } from '../src/lib/islands/hex-layout';
 import { islandsHomeWorld } from '../src/lib/islands/islands-world';
+import { regionLayout } from '../src/lib/islands/regions/region-layouts';
+import { regionScene } from '../src/lib/p9/region-scene';
 
 /*
  * Dynamic Island Population (docs/planning/PRESENCE_POPULATION_SYSTEM.md). Three kinds of build, told apart by the
@@ -10,6 +13,8 @@ import { islandsHomeWorld } from '../src/lib/islands/islands-world';
  *   default build                                   only the "off" tests run: no API, no cookie, no figures.
  *   LOGIC_ISLAND_PRESENCE=1                         the presence tests: real browsers, the real API.
  *   … and LOGIC_ISLAND_POPULATION_NPC=mock | live   the figures on the home map, from mock data or from the API.
+ *   … and LOGIC_ISLAND_REGIONAL_WORLD=1             the figures on the five region maps (/world/<region>), mock data.
+ *   LOGIC_ISLAND_POPULATION_NPC=mock with LOGIC_ISLAND_P9_PROTOTYPE=1   the figures on the P9 region maps (/<region>).
  *
  * The presence tests count visitors on one server, so run this file alone and with one worker
  * (`playwright test e2e/presence.spec.ts --workers=1`): other specs' pages are visitors too. Each test uses islands
@@ -19,6 +24,8 @@ import { islandsHomeWorld } from '../src/lib/islands/islands-world';
 const PRESENCE = process.env.LOGIC_ISLAND_PRESENCE === '1';
 const NPC = PRESENCE || process.env.LOGIC_ISLAND_POPULATION_NPC === 'mock' ? process.env.LOGIC_ISLAND_POPULATION_NPC : undefined;
 const API = '/api/presence';
+const WORLD = process.env.LOGIC_ISLAND_REGIONAL_WORLD === '1', P9 = process.env.LOGIC_ISLAND_P9_PROTOTYPE === '1';
+const REGIONS = ['cs', 'ai', 'design', 'web', 'sys'] as const;
 
 const test = base.extend<{ consoleGuard: void }>({
   consoleGuard: [async ({ page }, use) => {
@@ -37,7 +44,7 @@ const phone = () => test.info().project.name.startsWith('mobile');
 const slugOf = (lessonId: string) => lessons.find(l => l.lessonId === lessonId)!.slug;
 const syllabus = (islandId: string) => `/curriculum#island-${islandId}`;
 
-interface Snapshot { total: number; hub: number; regions: Record<string, number>; islands: Record<string, number> }
+interface Snapshot { total: number; hub: number; regions: Record<string, number>; islands: Record<string, number>; commons: Record<string, number> }
 const population = async (request: APIRequestContext): Promise<Snapshot> => (await request.get(API)).json();
 const online = async (request: APIRequestContext, islandId: string) => (await population(request)).islands[islandId] ?? 0;
 /** Waits until an island's online count is `count` (a new session needs its warm-up, about three seconds). */
@@ -218,7 +225,9 @@ test.describe('presence: on', () => {
     await page.goto(syllabus('network-servers'));
     await expectOnline(request, 'network-servers', 1);
     const response = await request.get(API), text = await response.text();
-    expect(Object.keys(JSON.parse(text)).sort()).toEqual(['at', 'hub', 'islands', 'regions', 'total', 'ttlMs', 'v']);
+    expect(Object.keys(JSON.parse(text)).sort()).toEqual(['at', 'commons', 'hub', 'islands', 'regions', 'total', 'ttlMs', 'v']);
+    expect(response.headers()['x-content-type-options']).toBe('nosniff');
+    expect(response.headers()['access-control-allow-origin']).toBeUndefined();
     expect(response.headers()['set-cookie']).toBeUndefined();
     const cookie = (await context.cookies()).find(c => c.name === 'li_presence')!;
     expect(cookie).toMatchObject({ path: '/api/presence', httpOnly: true, sameSite: 'Strict', expires: -1 });
@@ -231,6 +240,41 @@ test.describe('presence: on', () => {
     expect(await online(request, 'cloud-infrastructure')).toBe(0);
     // The site's own pages and storage hold no identifier.
     expect(await page.evaluate(() => JSON.stringify([Object.keys(localStorage), Object.keys(sessionStorage)]))).not.toMatch(/presence|session|visitor/i);
+  });
+
+  test('a browser that asks not to be tracked is not counted and gets no cookie', async ({ browser, baseURL, request }) => {
+    await empty(request, 'ux-research');
+    // The server's side: the request carries Global Privacy Control, the page's script does not know.
+    const header = await browser.newContext({ baseURL, extraHTTPHeaders: { 'Sec-GPC': '1' } });
+    const first = await header.newPage(), answers: unknown[] = [];
+    first.on('response', async response => { if (new URL(response.url()).pathname === API && response.request().method() === 'POST') answers.push(await response.json().catch(() => null)); });
+    await first.goto(syllabus('ux-research'));
+    await expect.poll(() => answers.length, { timeout: 10_000 }).toBeGreaterThan(0);
+    expect(answers[0]).toMatchObject({ ok: true, counted: false });
+    await first.waitForTimeout(4_000);
+    expect((await header.cookies()).map(c => c.name)).not.toContain('li_presence');
+    expect(await online(request, 'ux-research')).toBe(0);
+    await header.close();
+    // The browser's side: the page sees the signal and never asks. Do Not Track works the same way.
+    for (const signal of ['globalPrivacyControl', 'doNotTrack'] as const) {
+      const context = await browser.newContext({ baseURL });
+      await context.addInitScript(name => Object.defineProperty(Navigator.prototype, name, { configurable: true, get: () => (name === 'doNotTrack' ? '1' : true) }), signal);
+      const page = await context.newPage(), posts: string[] = [];
+      page.on('request', r => { if (new URL(r.url()).pathname === API && r.method() === 'POST') posts.push(r.url()); });
+      await page.goto(syllabus('ux-research'));
+      await page.waitForTimeout(4_000);
+      expect(posts, signal).toEqual([]);
+      expect((await context.cookies()).map(c => c.name), signal).not.toContain('li_presence');
+      expect(await online(request, 'ux-research'), signal).toBe(0);
+      // The page itself works as ever.
+      await expect(page.locator('#island-ux-research')).toBeVisible();
+      await context.close();
+    }
+  });
+
+  test('only GET and POST are answered, and nothing else lives under the API', async ({ request }) => {
+    for (const method of ['put', 'patch', 'delete'] as const) expect((await request[method](API, { data: {} })).status(), method).toBe(405);
+    for (const path of ['/api', '/api/presence/sessions', '/api/presence/route', '/api/trials', '/api/presence/..%2Ftrials']) expect((await request.get(path)).status(), path).toBe(404);
   });
 
   test('courses, labs and the trial pages keep working with the tracker on', async ({ page }) => {
@@ -252,6 +296,40 @@ interface Figure { id: number; x: number; y: number; z: number; presence: number
 const figures = (page: Page) => page.evaluate(() => (document.querySelector('canvas') as unknown as { __npcs_foundations: () => Figure[] }).__npcs_foundations());
 const drawn = (page: Page) => page.evaluate(() => document.querySelector('canvas')?.getAttribute('data-npc-foundations') ?? null);
 const setPopulation = (page: Page, islands: Record<string, number> | null) => page.evaluate(value => (window as unknown as { __logicIslandPopulation: { set: (v: unknown) => void } }).__logicIslandPopulation.set(value), islands);
+/** Any zone's drawn count, the loop's state, and the layer's own account of itself (mock builds). */
+const zoneCount = (page: Page, id: string) => page.evaluate(name => document.querySelector('canvas')?.getAttribute(name) ?? null, `data-npc-${id}`);
+const loopState = (page: Page) => page.evaluate(() => document.querySelector('canvas')?.getAttribute('data-npc-loop') ?? null);
+interface ZoneInfo { id: string; kind: 'island' | 'commons'; key: string; cap: number; target: number; inView: boolean; figures: number; roads: string[] }
+const zonesOf = (page: Page) => page.evaluate(() => (document.querySelector('canvas') as unknown as { __npcLoop: () => { state: string; zoom: number; zones: ZoneInfo[] } }).__npcLoop());
+const figuresOf = (page: Page, id: string) => page.evaluate(name => (document.querySelector('canvas') as unknown as Record<string, () => Figure[]>)[name](), `__npcs_${id}`);
+const setAll = (page: Page, islands: Record<string, number>, commons: Record<string, number> = {}) =>
+  page.evaluate(([i, c]) => (window as unknown as { __logicIslandPopulation: { set: (islands: unknown, commons: unknown) => void } }).__logicIslandPopulation.set(i, c), [islands, commons]);
+/** Whether a map point is on open land of the given island, or (no island) on any island's land at all. */
+function landOf(layout: WorldLayout) {
+  const owner = new Map(layout.world.settlements.flatMap(s => s.tiles.map(t => [hexKey(t), { islandId: s.islandId, forest: t.terrain === 'forest' }] as const)));
+  return (x: number, z: number, islandId?: string) => { const tile = owner.get(hexKey(worldToHex(x, z, layout.world.size))); return islandId === undefined ? Boolean(tile) : tile?.islandId === islandId && !tile.forest; };
+}
+const tierOf = (cap: number) => (phone() ? Math.max(1, Math.ceil(cap / 2)) : cap);
+/** Every zone of a map filled to its cap: islands' figures on their own island's land, commons' figures on no land. */
+async function expectZonesWalked(page: Page, layout: WorldLayout, region?: string) {
+  await expect.poll(() => loopState(page), { timeout: 30_000 }).not.toBeNull();
+  const { zones } = await zonesOf(page), islands = layout.world.settlements.map(s => s.islandId);
+  expect(zones.filter(z => z.kind === 'island').map(z => z.id)).toEqual(islands);
+  if (region) expect(zones.filter(z => z.kind === 'commons').map(z => [z.id, z.key])).toEqual([[`commons-${region}`, region]]);
+  await setAll(page, Object.fromEntries(islands.map(id => [id, 1_000])), Object.fromEntries(zones.filter(z => z.kind === 'commons').map(z => [z.key, 1_000])));
+  const budget = phone() ? 16 : 40, wanted = zones.reduce((sum, z) => sum + tierOf(z.cap), 0);
+  await expect.poll(async () => (await zonesOf(page)).zones.reduce((sum, z) => sum + z.figures, 0), { timeout: 15_000 }).toBe(Math.min(budget, wanted));
+  const on = landOf(layout);
+  for (const zone of (await zonesOf(page)).zones) {
+    expect(zone.figures, zone.id).toBeGreaterThan(0);
+    expect(zone.figures, zone.id).toBeLessThanOrEqual(tierOf(zone.cap));
+    for (const figure of await figuresOf(page, zone.id)) {
+      const where = `${zone.id} figure ${figure.id} at ${figure.x.toFixed(2)}, ${figure.z.toFixed(2)}`;
+      if (zone.kind === 'island') expect(on(figure.x, figure.z, zone.id), where).toBe(true);
+      else expect(on(figure.x, figure.z), `${where} (on land)`).toBe(false);
+    }
+  }
+}
 async function openHome(page: Page, path = '/') {
   await page.goto(path);
   await expect(page.getByRole('button', { name: /^聚焦(資料結構島|基礎程式島)$/ }).first()).toHaveAttribute('data-model-source', /glb|geometry/, { timeout: 30_000 });
@@ -297,6 +375,52 @@ test.describe('population figures: mock data', () => {
     await page.getByRole('button', { name: '聚焦資料結構島', exact: true }).click();
     await expect(page).toHaveURL(/\?island=structures$/);
     expect(await drawn(page)).toBe(String(phone() ? 4 : 8));
+  });
+
+  test('every island of the home map draws its own visitors under its own cap, and the bridges draw the regions\' own', async ({ page }) => {
+    await openHome(page);
+    // Reduced motion: no frames are asked for at all.
+    expect(await loopState(page)).toBe('still');
+    await expectZonesWalked(page, islandsHomeWorld);
+    const { zones } = await zonesOf(page);
+    expect(zones.map(z => z.id)).toEqual(['foundations', 'structures', 'algorithms', 'labs', 'databases', 'commons-cs', 'commons-hub']);
+    // Caps are each zone's own.
+    expect(new Set(zones.map(z => z.cap)).size).toBeGreaterThan(2);
+    expect(Object.fromEntries(zones.filter(z => z.kind === 'commons').map(z => [z.key, z.roads.slice().sort()])))
+      .toEqual({ cs: ['foundations-structures', 'structures-algorithms', 'structures-databases'], hub: ['algorithms-labs'] });
+  });
+
+  test('visitors who are in a region but on no island walk its bridges, never an island', async ({ page }) => {
+    await openHome(page);
+    await setAll(page, {}, { cs: 1_000, hub: 1_000 });
+    const { zones } = await zonesOf(page);
+    for (const zone of zones) await expect.poll(() => zoneCount(page, zone.id), { message: zone.id }).toBe(String(zone.kind === 'commons' ? tierOf(zone.cap) : 0));
+    const on = landOf(islandsHomeWorld);
+    for (const zone of zones.filter(z => z.kind === 'commons')) for (const figure of await figuresOf(page, zone.id)) expect(on(figure.x, figure.z), `${zone.id} at ${figure.x.toFixed(2)}, ${figure.z.toFixed(2)}`).toBe(false);
+    // An island's visitors are its own: one island busy, the bridges and the other islands empty.
+    await setAll(page, { labs: 1_000 });
+    for (const zone of zones) await expect.poll(() => zoneCount(page, zone.id), { message: zone.id }).toBe(String(zone.id === 'labs' ? tierOf(zone.cap) : 0));
+    // Other archipelagos' visitors are not on this map at all.
+    await setAll(page, { 'machine-learning': 1_000, frontend: 1_000 }, { ai: 1_000, web: 1_000, design: 1_000, sys: 1_000 });
+    for (const zone of zones) await expect.poll(() => zoneCount(page, zone.id), { message: zone.id }).toBe('0');
+  });
+});
+
+test.describe('population figures: the five region maps (mock data)', () => {
+  test.skip(NPC !== 'mock' || !WORLD, 'built without LOGIC_ISLAND_POPULATION_NPC=mock and LOGIC_ISLAND_REGIONAL_WORLD=1');
+
+  for (const region of REGIONS) test(`/world/${region}: every island and the region's bridges have their figures`, async ({ page }) => {
+    await page.goto(`/world/${region}`);
+    await expectZonesWalked(page, regionLayout(region).layout, region);
+  });
+});
+
+test.describe('population figures: the five P9 region maps (mock data)', () => {
+  test.skip(NPC !== 'mock' || !P9, 'built without LOGIC_ISLAND_POPULATION_NPC=mock and LOGIC_ISLAND_P9_PROTOTYPE=1');
+
+  for (const region of REGIONS) test(`/${region}: every island and the region's bridges have their figures`, async ({ page }) => {
+    await page.goto(`/${region}`);
+    await expectZonesWalked(page, regionScene(region).region.layout, region);
   });
 });
 
@@ -348,6 +472,88 @@ test.describe('population figures: mock data, with motion', () => {
   });
 });
 
+test.describe('the figures\' render loop (mock data, with motion)', () => {
+  test.skip(NPC !== 'mock', 'built without LOGIC_ISLAND_POPULATION_NPC=mock');
+  test.use({ reducedMotion: 'no-preference' });
+
+  /** How many times the figures of a zone were drawn differently in `ms`: the frames the map drew for them. */
+  const framesOf = (page: Page, id: string, ms: number) => page.evaluate(async ([name, duration]) => {
+    const read = () => JSON.stringify((document.querySelector('canvas') as unknown as Record<string, () => { x: number; z: number; presence: number }[]>)[name as string]().map(f => [f.x, f.z, f.presence]));
+    let frames = 0, last = read();
+    for (const end = performance.now() + (duration as number); performance.now() < end;) {
+      await new Promise(requestAnimationFrame);
+      const now = read();
+      if (now !== last) { frames++; last = now; }
+    }
+    return frames;
+  }, [`__npcs_${id}`, ms] as const);
+
+  test('asks for no frames on an empty map, and only as many as the figures\' movement needs', async ({ page }) => {
+    test.setTimeout(90_000);
+    await openHome(page);
+    await setAll(page, {});
+    await expect.poll(() => loopState(page), { timeout: 20_000 }).toBe('quiet');
+    await setAll(page, { foundations: 1_000 });
+    await expect.poll(() => loopState(page)).toMatch(/^run:\d+$/);
+    await expect.poll(() => drawn(page), { timeout: 20_000 }).toBe(String(phone() ? 4 : 8));
+    const fps = Number((await loopState(page))!.split(':')[1]);
+    expect(fps).toBeGreaterThanOrEqual(phone() ? 6 : 8);
+    expect(fps).toBeLessThanOrEqual(phone() ? 15 : 30);
+    // The overview is far away: a walking figure crosses a few px a second, so the map draws well under 30 frames a second.
+    expect(fps).toBeLessThanOrEqual(12);
+    const frames = await framesOf(page, 'foundations', 3_000);
+    expect(frames).toBeGreaterThan(0);
+    expect(frames).toBeLessThanOrEqual((fps + 2) * 3);
+  });
+
+  test('stops for figures the camera does not see, and goes on when they are back in the picture', async ({ page }) => {
+    test.setTimeout(90_000);
+    await openHome(page);
+    // Only the lab island, in the south, has visitors; the camera goes to the database island, in the north.
+    await setAll(page, { labs: 1_000 });
+    await expect.poll(() => zoneCount(page, 'labs'), { timeout: 20_000 }).toBe(String(tierOf(2)));
+    await page.getByRole('button', { name: /^聚焦資料庫應用島/ }).click();
+    await expect(page).toHaveURL(/\?island=databases$/);
+    await expect.poll(async () => (await zonesOf(page)).zones.find(z => z.id === 'labs')!.inView, { timeout: 15_000 }).toBe(false);
+    await expect.poll(() => loopState(page), { timeout: 10_000 }).toBe('quiet');
+    expect(await framesOf(page, 'labs', 1_500)).toBe(0);
+    // A population change out of sight is simply there, with no frames spent on walking it in.
+    await setAll(page, { labs: 1 });
+    await expect.poll(() => zoneCount(page, 'labs')).toBe('1');
+    expect(await loopState(page)).toBe('quiet');
+    await setAll(page, { labs: 1_000 });
+    await page.getByRole('button', { name: '返回全景' }).click();
+    await expect.poll(async () => (await zonesOf(page)).zones.find(z => z.id === 'labs')!.inView, { timeout: 15_000 }).toBe(true);
+    await expect.poll(() => loopState(page), { timeout: 30_000 }).toMatch(/^(run:\d+|rest)$/);
+    await expect.poll(() => framesOf(page, 'labs', 1_000), { timeout: 40_000 }).toBeGreaterThan(0);
+  });
+
+  test('a background tab asks for nothing; a visible one picks up where it stopped', async ({ page }) => {
+    await openHome(page);
+    await setAll(page, { foundations: 1_000 });
+    await expect.poll(() => loopState(page)).toMatch(/^run:\d+$/);
+    await setHidden(page, true);
+    await expect.poll(() => loopState(page)).toBe('hidden');
+    expect(await framesOf(page, 'foundations', 1_500)).toBe(0);
+    await setHidden(page, false);
+    await expect.poll(() => loopState(page)).toMatch(/^run:\d+$/);
+    await expect.poll(() => framesOf(page, 'foundations', 1_000), { timeout: 15_000 }).toBeGreaterThan(0);
+  });
+
+  test('a lone figure rests, and the map draws nothing while it stands', async ({ page }) => {
+    test.setTimeout(120_000);
+    await openHome(page);
+    await setAll(page, { databases: 1 });
+    await expect.poll(() => zoneCount(page, 'databases'), { timeout: 20_000 }).toBe('1');
+    // It walks its road and stands at the end of it: the loop then waits for it instead of running.
+    await expect.poll(() => loopState(page), { timeout: 60_000, intervals: [200] }).toBe('rest');
+    expect((await figuresOf(page, 'databases'))[0].mode).toBe('pause');
+    expect(await framesOf(page, 'databases', 500)).toBe(0);
+    // And it walks on by itself.
+    await expect.poll(() => loopState(page), { timeout: 30_000, intervals: [200] }).toMatch(/^run:\d+$/);
+  });
+});
+
 test.describe('population figures: live', () => {
   test.skip(NPC !== 'live', 'built without LOGIC_ISLAND_PRESENCE=1 and LOGIC_ISLAND_POPULATION_NPC=live');
 
@@ -365,5 +571,22 @@ test.describe('population figures: live', () => {
     await expectOnline(request, 'foundations', 0);
     await expect.poll(() => drawn(page), { timeout: 40_000 }).toBe('0');
     await learner.leave();
+  });
+
+  test('a visitor on a region\'s own page appears on that region\'s bridges, and on no island', async ({ page, browser, baseURL, request }) => {
+    test.setTimeout(120_000);
+    await expect.poll(async () => (await population(request)).commons.cs, { timeout: 100_000 }).toBe(0);
+    await openHome(page);
+    await expect.poll(() => zoneCount(page, 'commons-cs'), { timeout: 40_000 }).toBe('0');
+    const learner = await newVisitor(browser, baseURL);
+    await learner.page.goto('/regions/cs');
+    await expect.poll(async () => (await population(request)).commons.cs, { timeout: 15_000 }).toBe(1);
+    const counts = await population(request);
+    // The same number the regions and islands already told: nothing new about anyone.
+    expect(counts.commons.cs).toBe(counts.regions.cs - ['foundations', 'structures', 'algorithms', 'databases', 'programming-languages', 'networks', 'systems-analysis', 'information-systems'].reduce((sum, id) => sum + (counts.islands[id] ?? 0), 0));
+    await expect.poll(() => zoneCount(page, 'commons-cs'), { timeout: 40_000 }).toBe('1');
+    for (const id of ['foundations', 'structures', 'algorithms', 'databases']) expect(await zoneCount(page, id), id).toBe(String(counts.islands[id] ?? 0));
+    await learner.leave();
+    await expect.poll(() => zoneCount(page, 'commons-cs'), { timeout: 40_000 }).toBe('0');
   });
 });
