@@ -120,7 +120,8 @@
       "commit": "2ec7bee",
       "tests": "驗證器、發布閘門 115/115、Vitest 2631（含 CN11、CN14 四語程式測試，Java 未略過）、E2E 桌機＋手機旗標關 435（候選頁 2 個像素比對失敗為 main 既有回歸 #36）、網路預覽＋P9＋區域世界旗標開 252、測驗 40 題逐題複核、洩漏掃描",
       "notes": "CN-3：CN11（socket）與 CN14（REST、JSON）的結果是程式，以 program-code 四語撰寫，socket 只用本機迴路、練習讀固定輸入；CN12 DNS 與 HTTP、CN13 TLS、CN15 快取與 HTTP/2、HTTP/3 以網路情境呈現",
-      "pr": "#49"
+      "pr": "#49",
+      "merged": "50a163a"
     },
     {
       "id": 9,
@@ -131,8 +132,8 @@
         "CN18",
         "CN19"
       ],
-      "commit": "TBD",
-      "tests": "TBD",
+      "commit": "3a587ae",
+      "tests": "驗證器、發布閘門 119/119、Vitest 2660（含 CN16 四語程式測試與 firewall 練習單元／DOM 測試）、E2E 桌機＋手機旗標關 435（候選頁 2 個像素比對失敗為 main 既有回歸 #36）、網路預覽＋P9＋區域世界旗標開 252（含預覽頁的防火牆練習）、測驗 32 題逐題複核、洩漏掃描",
       "notes": "CN-4：CN16 WebSocket 為四語程式課；CN17 除錯工具、CN18 安全基礎、CN19 防火牆／VPN／零信任為網路情境；network-protocol 新增 firewall 練習（學習者寫規則、以封包逐一判斷，寫法不同結果相同也算對）"
     }
   ]
