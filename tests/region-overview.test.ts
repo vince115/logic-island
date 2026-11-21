@@ -9,7 +9,7 @@ import { isRegionId, pathRegion, regionEntries, regionHref, regionOverview } fro
 describe('region overview', () => {
   it('AI 人工智慧群島: seven islands under its three groups, 160 outlined lessons; AIF open since AIF-1, the rest planned', () => {
     const ai = regionOverview('ai');
-    expect(ai).toMatchObject({ name: 'AI 人工智慧群島', status: 'available', islandCount: 7, lessonCount: 160, published: 10, ungrouped: [] });
+    expect(ai).toMatchObject({ name: 'AI 人工智慧群島', status: 'available', islandCount: 7, lessonCount: 160, published: 15, ungrouped: [] });
     expect(ai.groups.map(g => [g.label, g.islands.map(i => i.code)])).toEqual([
       ['AI 原理與模型', ['AIF', 'ML', 'DL']], ['生成式 AI 與大型語言模型', ['LLM', 'GEN']], ['AI 應用與系統工程', ['AG', 'OPS']]]);
     for (const island of ai.groups.flatMap(g => g.islands)) {
