@@ -4,7 +4,7 @@
 
 > **第一批之後（2026-11-20）**：PL01–PL05 發布，已發布 **85**、規劃中 **435**（CS 85／160；PL 5/20，程式語言島從「規劃中」變成「部分開放」）。
 > **第二批之後（2026-11-20）**：PL06–PL10 發布，已發布 **90**、規劃中 **430**（CS 90／160；PL 10/20，地景仍為規劃中）。
-> **CN-2 之後（2026-11-22）**：計算機網路島 CN01–CN10 發布（`network-protocol` 能力，CN-0）；已發布 **110**、規劃中 **410**（CS 110／160；程式語言島與計算機網路島的地景仍為規劃中）。之後的數字以 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 與 [COURSE_PRODUCTION_PROGRESS](COURSE_PRODUCTION_PROGRESS.md) 為準。尚未實作的互動活動見 [INTERACTIVE_LAB_ROADMAP](INTERACTIVE_LAB_ROADMAP.md)。下面 §1–§5 保留 Phase 0 盤點當時的數字；之後的數字以產生的 [COURSE_PRODUCTION_PROGRESS](COURSE_PRODUCTION_PROGRESS.md) 為準。
+> **CN-3 之後（2026-11-22）**：計算機網路島 CN01–CN15 發布（`network-protocol` 能力，CN-0；CN11、CN14 為四語程式課）；已發布 **115**、規劃中 **405**（CS 115／160；程式語言島與計算機網路島的地景仍為規劃中）。之後的數字以 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 與 [COURSE_PRODUCTION_PROGRESS](COURSE_PRODUCTION_PROGRESS.md) 為準。尚未實作的互動活動見 [INTERACTIVE_LAB_ROADMAP](INTERACTIVE_LAB_ROADMAP.md)。下面 §1–§5 保留 Phase 0 盤點當時的數字；之後的數字以產生的 [COURSE_PRODUCTION_PROGRESS](COURSE_PRODUCTION_PROGRESS.md) 為準。
 
 ## 1. 總數
 
