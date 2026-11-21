@@ -117,13 +117,15 @@ describe('world registry (F.0)', () => {
     expect(labIslandConfig.labs).toEqual(['array', 'stack', 'queue', 'binary-search', 'bubble-sort', 'bfs']);
   });
 
-  it('marks the three existing islands, the database island (F.1d) and PL (course production batches 1–5) complete and the other twenty-four planned', () => {
+  it('marks the three existing islands, the database island (F.1d) and PL (course production batches 1–5) complete, CN available (CN-1) and the other twenty-three planned', () => {
     expect(subjectIslands.filter(i => i.status === 'complete').map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases']);
     // Course production batch 5 published PL20, the last of 20: every PL lesson is written, but its map stays planned
     // (an island's 3D look is set by hand in IslandConfig.mapState, never by its lessons).
-    expect(subjectIslands.filter(i => i.status === 'available').map(i => i.id)).toEqual([]);
+    // CN-1 published CN01–CN05 of 20: the computer-networks island is open (available); its map stays planned too.
+    expect(subjectIslands.filter(i => i.status === 'available').map(i => i.id)).toEqual(['networks']);
     expect(getIsland('programming-languages')).toMatchObject({ status: 'complete', mapState: 'planned' });
-    expect(subjectIslands.filter(i => i.status === 'planned')).toHaveLength(24);
+    expect(getIsland('networks')).toMatchObject({ status: 'available', mapState: 'planned' });
+    expect(subjectIslands.filter(i => i.status === 'planned')).toHaveLength(23);
     expect(regionStatus('design')).toBe('planned');
     expect(regionStatus('sys')).toBe('planned');
     expect(regionStatus('web')).toBe('planned');
@@ -141,8 +143,8 @@ describe('world registry (F.0)', () => {
     }
   });
 
-  it('gives the curriculum the same three islands as before, then the database island (F.1a) and PL in world order (batch 1)', () => {
-    expect(curriculumIslands.map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases']);
+  it('gives the curriculum the same three islands as before, then the database island (F.1a), PL (batch 1) and CN (CN-1)', () => {
+    expect(curriculumIslands.map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks']);
     expect(curriculumIslands.find(i => i.id === 'databases')).toMatchObject({ name: '資料庫應用島', englishName: 'Database Applications', summary: planning.islands.databases.description });
     expect(curriculumIslands.find(i => i.id === 'programming-languages')).toMatchObject({ name: planning.islands['programming-languages'].name, summary: planning.islands['programming-languages'].description });
     expect(curriculumIslands.slice(0, 3)).toEqual([

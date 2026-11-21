@@ -21,9 +21,9 @@ describe('region overview', () => {
       else expect(island.href).toBeUndefined();
     }
     const cs = regionOverview('cs');
-    // 80 lessons, then PL01–PL20 (course production batches 1–5): PL links to its syllabus like the other open islands.
-    expect(cs).toMatchObject({ status: 'available', islandCount: 8, lessonCount: 160, published: 100 });
-    expect(cs.ungrouped.filter(i => i.href).map(i => i.code)).toEqual(['F', 'DS', 'AL', 'PL', 'DB']);
+    // 80 lessons, then PL01–PL20 (course production batches 1–5) and CN01–CN05 (CN-1): PL and CN link to their syllabus like the other open islands.
+    expect(cs).toMatchObject({ status: 'available', islandCount: 8, lessonCount: 160, published: 105 });
+    expect(cs.ungrouped.filter(i => i.href).map(i => i.code)).toEqual(['F', 'DS', 'AL', 'PL', 'DB', 'CN']);
   });
 
   it('counts agree with the catalog for every region (520 lessons, 80 open; P6 adds sys)', () => {
@@ -37,7 +37,8 @@ describe('region overview', () => {
     expect(regionOverview('ai').paths.map(p => p.id)).toEqual(['E-ai-research', 'F-ai-application-engineering', 'J-ai-architecture']);
     const j = regionOverview('ai').paths.find(p => p.id === 'J-ai-architecture')!;
     // Its open lessons are the CS prerequisites it requires; every AI lesson on it is still planned, so it is not learnable.
-    expect(j).toMatchObject({ title: 'AI 架構', lessonCount: 66, publishedLessons: 11, learnable: false });
+    // CN-1 opened two of its CN lessons (CN01, CN05).
+    expect(j).toMatchObject({ title: 'AI 架構', lessonCount: 66, publishedLessons: 13, learnable: false });
     expect(getLearningPath('J-ai-architecture')!.lessons.filter(l => getCatalogLesson(l)?.lessonStatus === 'complete').every(l => islandOfLesson(l)?.regionId === 'cs')).toBe(true);
     expect(pathRegion(['F01', 'DS01', 'LLM01'])).toBe('cs');
     // R7: the design and web regions each have their own path.

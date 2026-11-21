@@ -30,11 +30,11 @@ const DB_PLANNED = lessonsOfIsland('databases').filter(l => l.lessonStatus === '
 const PLANNED = catalogLessons.filter(l => l.lessonStatus === 'planned').length;
 const plannedEntries = (page: Page) => page.locator('main ol').getByText('規劃中', { exact: true });
 
-test('課綱目錄：五座島，F／D／A／DB 各 20 堂，程式語言島 20 堂中已開放的可點、其餘標示規劃中', async ({ page }) => {
+test('課綱目錄：六座島，F／D／A／PL／DB 各 20 堂，計算機網路島 20 堂中已開放的可點、其餘標示規劃中', async ({ page }) => {
   await page.goto('/curriculum');
-  // Course production added 程式語言島 in five batches (PL01–PL20, all written by batch 5).
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(`${lessons.length} 堂課，五座島。`);
-  for (const island of ['基礎程式島', '資料結構島', '演算法島', '程式語言島', '資料庫應用島']) {
+  // Course production added 程式語言島 in five batches (PL01–PL20, all written by batch 5) and 計算機網路島 from CN-1.
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(`${lessons.length} 堂課，六座島。`);
+  for (const island of ['基礎程式島', '資料結構島', '演算法島', '程式語言島', '資料庫應用島', '計算機網路島']) {
     const list = page.getByRole('region', { name: new RegExp(island) }).getByRole('listitem');
     await expect(list, island).toHaveCount(20);
   }
