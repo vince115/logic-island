@@ -7,13 +7,13 @@ import { isRegionId, pathRegion, regionEntries, regionHref, regionOverview } fro
 
 /* R6 (2026-11-12): the region overviews (/regions/<id>) are read from the registry; nothing planned reads as learnable. */
 describe('region overview', () => {
-  it('AI 人工智慧群島: seven islands under its three groups, 160 outlined lessons; AIF open since AIF-1, the rest planned', () => {
+  it('AI 人工智慧群島: seven islands under its three groups, 160 outlined lessons; AIF complete since AIF-5, the rest planned', () => {
     const ai = regionOverview('ai');
-    expect(ai).toMatchObject({ name: 'AI 人工智慧群島', status: 'available', islandCount: 7, lessonCount: 160, published: 19, ungrouped: [] });
+    expect(ai).toMatchObject({ name: 'AI 人工智慧群島', status: 'available', islandCount: 7, lessonCount: 160, published: 20, ungrouped: [] });
     expect(ai.groups.map(g => [g.label, g.islands.map(i => i.code)])).toEqual([
       ['AI 原理與模型', ['AIF', 'ML', 'DL']], ['生成式 AI 與大型語言模型', ['LLM', 'GEN']], ['AI 應用與系統工程', ['AG', 'OPS']]]);
     for (const island of ai.groups.flatMap(g => g.islands)) {
-      if (island.code === 'AIF') { expect(island.status).toBe('available'); expect(island.href).toBe('/curriculum#island-ai-foundations'); }
+      if (island.code === 'AIF') { expect(island.status).toBe('complete'); expect(island.href).toBe('/curriculum#island-ai-foundations'); }
       else { expect(island.status, island.code).toBe('planned'); expect(island).not.toHaveProperty('href'); }
     }
     // A region whose islands are all outlines (the design region) still reads as planned, with no links.
