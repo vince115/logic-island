@@ -4,7 +4,7 @@ import { Breadcrumbs } from '@/components/nav/breadcrumbs';
 import { getCourse } from '@/content/courses';
 import { getContent, islands, lessons, visualizations } from '@/content/curriculum';
 import { APCS_LABELS, DIFFICULTY_LABELS } from '@/content/curriculum/registry';
-import { hasCapability, type Block, type CodeExample, type Exercise, type LessonContent, type LessonMeta } from '@/content/curriculum/schema';
+import { hasProgramCode, hasCapability, type Block, type CodeExample, type Exercise, type LessonContent, type LessonMeta } from '@/content/curriculum/schema';
 import { getCatalogLesson } from '@/content/world/catalog';
 import { lessonNavigation, type LessonNavigation } from '@/content/world/navigation';
 import { lessonPlace } from '@/lib/nav/site-nav';
@@ -22,7 +22,7 @@ export function LessonPage({ lesson }: { lesson: LessonMeta }) {
   const island = islands.find(i => i.id === lesson.islandId)!, place = lessonPlace(lesson.lessonId);
   const content = getContent(lesson.lessonId);
   // Phase F.1b: the declared capabilities pick the body: program code, or the database activities (SQL, ER, normalization).
-  const programCode = hasCapability(lesson, 'program-code');
+  const programCode = hasProgramCode(lesson);
   const activityExamples = content && !programCode ? databaseExamples(content) : undefined;
   // Phase F.1b: previous and next stay inside the island; a planned next lesson is named without a link.
   const nav = lessonNavigation(lesson.lessonId), { previous, next, plannedNext } = nav;

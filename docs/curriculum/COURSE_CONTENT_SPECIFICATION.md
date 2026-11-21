@@ -61,7 +61,9 @@
 | 4（已發布，PR #37） | PL16–PL19 | 編譯流程、虛擬機與 JIT、超程式設計、語言設計取捨；CFG 以圖面板、VM 以堆疊容器、裝飾器以呼叫框架表達，語言設計以比較表格；`compiler-pipeline`、`ast-explorer`、`case-study-board` 列入 [INTERACTIVE_LAB_ROADMAP](INTERACTIVE_LAB_ROADMAP.md) |
 | 5（已發布，PR #39） | PL20 | 程式語言島綜合挑戰（`challenge-stages`）：四語各寫含閉包與型別檢查的迷你語言，篇幅最大，單獨一批 |
 | CN-0（架構，PR #46） | — | `network-protocol` capability、計算機網路島登錄為預備島嶼（[CN0_NETWORK_CAPABILITY](CN0_NETWORK_CAPABILITY.md)） |
-| CN-1（PR #47）、CN-2（PR #48）、CN-3（PR #49）、CN-4（PR #50）、CN-5（本批），見 [NETWORKS_ISLAND](NETWORKS_ISLAND.md) | CN01–CN05、CN06–CN10、CN11–CN15、CN16–CN19、CN20 | 課程編號即位置，只能依序連續發布；同島先修都排在前面，所以依編號就是拓樸順序 |
+| CN-1（PR #47）、CN-2（PR #48）、CN-3（PR #49）、CN-4（PR #50）、CN-5，見 [NETWORKS_ISLAND](NETWORKS_ISLAND.md) | CN01–CN05、CN06–CN10、CN11–CN15、CN16–CN19、CN20 | 課程編號即位置，只能依序連續發布；同島先修都排在前面，所以依編號就是拓樸順序 |
+| AIF-0（架構） | — | `python-code` 能力、AI 基礎島登錄為預備島嶼（[AIF0_PYTHON_CAPABILITY](AIF0_PYTHON_CAPABILITY.md)） |
+| AIF-1 至 AIF-5 | AIF01–05、06–10、11–15、16–19、20 | 依編號連續發布 |
 | 之後 | 依 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 自動選擇 | 先修已滿足、能力已備妥、解鎖其他島最多的島優先；缺少的共用能力先做最小可用版本 |
 
 進度記錄在 [COURSE_PRODUCTION_PROGRESS](COURSE_PRODUCTION_PROGRESS.md)。

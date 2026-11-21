@@ -35,9 +35,9 @@
       "status": "missing"
     },
     "ai-foundations": {
-      "capability": "python-code (Python-only program lessons; search, probability and game trees on the shared trace panels)",
-      "status": "missing",
-      "note": "program-code requires C++, Java and Python; 12 of 20 exercises are code-python"
+      "capability": "python-code (Python-only program lessons; search, games, logic and probability on the shared traces)",
+      "status": "prepared",
+      "note": "AIF-0 built the capability; lessons publish in id order from AIF01"
     },
     "machine-learning": {
       "capability": "python-code + data-explorer (fixed datasets, metrics computed in the browser)",

@@ -1,5 +1,5 @@
 import { visualizations } from '@/content/curriculum/registry';
-import { LESSON_ACTIVITIES, MIN_EXAMPLES, MIN_OBJECTIVES, MIN_QUIZ, type LessonContent, type LessonMeta } from '@/content/curriculum/schema';
+import { hasProgramCode, LESSON_ACTIVITIES, MIN_EXAMPLES, MIN_OBJECTIVES, MIN_QUIZ, type LessonContent, type LessonMeta } from '@/content/curriculum/schema';
 
 /*
  * 2026-11-20 (course production): the publish gate. A lesson may be marked complete (published) only if this returns no
@@ -59,7 +59,7 @@ export function publishProblems(meta: LessonMeta, content: LessonContent | undef
   // Sections: each has substance.
   for (const s of content.sections) { const length = strings(s).join('').length; if (length < MIN_SECTION) fail(`section "${s.title}" has ${length} characters`); }
   // Examples, quiz and exercises: as many as the curriculum asks (program and SQL lessons count theirs differently).
-  const program = meta.capabilities.includes('program-code');
+  const program = hasProgramCode(meta);
   if (program && content.examples.length < MIN_EXAMPLES) fail(`${content.examples.length} examples`);
   if (content.quiz.length < MIN_QUIZ) fail(`${content.quiz.length} quiz questions`);
   for (const q of content.quiz) {

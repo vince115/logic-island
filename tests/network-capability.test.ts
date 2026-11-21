@@ -84,7 +84,7 @@ describe('isolation from the database capabilities', () => {
 
 describe('the networks island: prepared in CN-0, written in batches from CN-1', () => {
   it('is a curriculum island with its first lessons written in id order; the rest stay planned outlines without a page', () => {
-    expect(PREPARED_ISLAND_IDS).toEqual([]);
+    expect(PREPARED_ISLAND_IDS).not.toContain('networks');
     expect(ISLAND_PREFIX.networks).toBe('CN');
     expect(ISLAND_IDS).toContain('networks');
     expect(islands.map(i => i.id)).toEqual([...ISLAND_IDS]);
