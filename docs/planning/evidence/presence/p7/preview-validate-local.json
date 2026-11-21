@@ -1,0 +1,88 @@
+{
+ "base": "127.0.0.1:3154",
+ "checked": "2026-11-21T18:02:44.316Z",
+ "expect": {
+  "store": "memory",
+  "npc": "live"
+ },
+ "passed": 14,
+ "failed": 0,
+ "skipped": 1,
+ "results": [
+  {
+   "id": "api.get",
+   "status": "PASS",
+   "detail": "total 0, cache-control \"public, max-age=15, s-maxage=15\""
+  },
+  {
+   "id": "api.store",
+   "status": "PASS",
+   "detail": "memory"
+  },
+  {
+   "id": "api.cdn",
+   "status": "SKIP",
+   "detail": "not behind the Vercel CDN"
+  },
+  {
+   "id": "api.refusals",
+   "status": "PASS",
+   "detail": "cross-origin 403, other methods 405, nothing else under /api"
+  },
+  {
+   "id": "count.visitor",
+   "status": "PASS",
+   "detail": "counted once; session cookie HttpOnly, SameSite=Strict, path /api/presence"
+  },
+  {
+   "id": "count.two-tabs",
+   "status": "PASS",
+   "detail": "one visitor, following the tab in use"
+  },
+  {
+   "id": "count.region",
+   "status": "PASS",
+   "detail": "a region's page counts in the region's commons, on no island"
+  },
+  {
+   "id": "count.planned-island",
+   "status": "PASS",
+   "detail": "nobody is counted on a planned island ({\"total\":2,\"islands\":{\"foundations\":1},\"commons\":{\"ai\":1}})"
+  },
+  {
+   "id": "count.privacy-signal",
+   "status": "PASS",
+   "detail": "not counted, no cookie"
+  },
+  {
+   "id": "store.agreement",
+   "status": "PASS",
+   "detail": "24 simultaneous requests, one count (2/{\"foundations\":1})"
+  },
+  {
+   "id": "npc.source",
+   "status": "PASS",
+   "detail": "figures from live data"
+  },
+  {
+   "id": "npc.live",
+   "status": "PASS",
+   "detail": "one visitor on the island, one figure on the map"
+  },
+  {
+   "id": "count.goodbye",
+   "status": "PASS",
+   "detail": "a closed page is no longer counted (and its figure leaves the map)"
+  },
+  {
+   "id": "count.timeout",
+   "status": "PASS",
+   "detail": "kept for a while, then dropped within the timeout (150 s) and the answer's lag"
+  },
+  {
+   "id": "count.clean",
+   "status": "PASS",
+   "detail": "the population is back where it was"
+  }
+ ]
+}
