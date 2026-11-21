@@ -323,6 +323,7 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
   const [stage, setStage] = useState({ width: 0, height: 0 });
   const buttons = useRef<(HTMLElement | null)[]>([]);
   const wrap = useRef<HTMLDivElement>(null);
+  const controls = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const element = wrap.current;
     if (!element) return;
@@ -354,9 +355,12 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
   const step = (factor: number) => setView(v => zoomAt(v, stage, factor, stage.width / 2 - (stage.width > 780 ? insetRight / 2 : 0), stage.height / 2));
   const [spots, setSpots] = useState<LabelSpot[] | null>(null);
   useLayoutEffect(() => {
-    const list = buttons.current.slice(0, sides.length);
+    const list = buttons.current.slice(0, sides.length), buttonsBox = controls.current;
     if (!framed || framed.extents.length !== sides.length || !stage.width || list.length < sides.length || list.some(b => !b)) return;
-    const next = placeLabels(framed.extents, sides, list.map(b => [b!.offsetWidth, b!.offsetHeight]), { left: 4, right: stage.width - insetRight - 4, top: 4, bottom: stage.height - 4 }, framed);
+    // The zoom and reset buttons sit over the map (bottom left) and take taps: on phones a label placed under them could
+    // not be tapped at the home view, so the labels keep clear of them as of each other.
+    const keepClear = buttonsBox ? [{ x: buttonsBox.offsetLeft, y: buttonsBox.offsetTop, width: buttonsBox.offsetWidth, height: buttonsBox.offsetHeight }] : [];
+    const next = placeLabels(framed.extents, sides, list.map(b => [b!.offsetWidth, b!.offsetHeight]), { left: 4, right: stage.width - insetRight - 4, top: 4, bottom: stage.height - 4 }, { ...framed, keepClear });
     setSpots(current => current?.length === next.length && current.every((s, i) => s.x === next[i].x && s.y === next[i].y && s.side === next[i].side) ? current : next);
   }, [framed, sides, stage.width, stage.height, insetRight, compact]);
   useEffect(() => () => { hub?.dispose(); relation?.dispose(); }, [hub, relation]);
@@ -474,7 +478,7 @@ export default function P9WorldScene({ targets, insetRight, label, shape, enviro
         onPointerDown={() => fly.prepare(t.id, t.href)} onClick={open(t.id)}>{t.name}</button>)}
     </nav>}
     {/* P9.4: zoom buttons and 重設視角, for those without a wheel or a pinch; reset frames all five regions again in place (no reload, same address). */}
-    <div className={styles.worldControls} data-world-controls role="group" aria-label="世界地圖視角">
+    <div ref={controls} className={styles.worldControls} data-world-controls role="group" aria-label="世界地圖視角">
       <button type="button" aria-label="放大" onClick={() => step(1.4)} disabled={shown_view.k >= 4 - 1e-6}><Plus size={16}/></button>
       <button type="button" aria-label="縮小" onClick={() => step(1 / 1.4)} disabled={shown_view.k <= 1 + 1e-6}><Minus size={16}/></button>
       <button type="button" onClick={() => setView(HOME_VIEW)} disabled={isHome(shown_view)}><RotateCcw size={15}/><span>重設視角</span></button>

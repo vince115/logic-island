@@ -57,9 +57,11 @@ const OTHER_SIDE = 48;
  * has no such spot nearby. If nothing within reach is free it takes the spot that breaks the least: a label never covers
  * another label if it can cover land instead, never leaves the stage or covers land if it can cross a link instead.
  * The result is always defined, and a label is always between the stage's sides.
+ * `keepClear` (P9 phone fix): boxes drawn over the stage that take taps, such as the map's zoom buttons; a label keeps
+ * clear of them as it does of another label, so it is never under a control that would take its tap.
  */
-export function placeLabels(extents: StageBox[], sides: LabelSide[], sizes: [number, number][], room: StageRoom, { lines = [], lands = [] }: { lines?: StageLine[]; lands?: StageLand[] } = {}): LabelSpot[] {
-  const placed: Box[] = [], out: LabelSpot[] = [];
+export function placeLabels(extents: StageBox[], sides: LabelSide[], sizes: [number, number][], room: StageRoom, { lines = [], lands = [], keepClear = [] }: { lines?: StageLine[]; lands?: StageLand[]; keepClear?: Box[] } = {}): LabelSpot[] {
+  const placed: Box[] = [...keepClear], out: LabelSpot[] = [];
   const STEP = 6, SLIDE = 24, OUT = 12;
   for (const [i, extent] of extents.entries()) {
     let best: { box: Box; side: LabelSide; cost: number } | null = null;

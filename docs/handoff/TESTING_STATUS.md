@@ -10,6 +10,16 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## P9 手機版面修正（2026-11-20，分支 `p9/phone-layout-fix`）
+
+報告：`docs/planning/P9_PHONE_LAYOUT_FIX.md`；截圖：`docs/planning/evidence/p9-phone-layout/`。**只有本機隔離建置的結果，不是 Preview，也不是真機。**
+
+- 修正手機首頁「網頁與應用開發」標籤被縮放按鈕擋住，以及區域頁頁首內容超出 88 px（P9.8a 報告第 8 節列出的兩項）。
+- Typecheck 0、ESLint 0、Vitest **2413 通過／9 略過／0 失敗**（91 個檔案）；旗標開啟、關閉、Regional World 三種建置成功。
+- E2E：旗標開啟 237／37／4（4 個桌機飛行計時測試在高負載下失敗，1 worker 重跑通過）；旗標關閉 158／119／1（`hex-camera` D.3-5b 與 Vitest 同時執行時失敗，單獨重跑通過）；Regional World 62／20／0。
+- 新測試：`e2e/p9-prototype.spec.ts`「P9 phone layout」（以 `tap()` 點標籤、頁首在 320–780 px 的排列）；`p9-continuity.spec.ts` 的手機改用真正的 `tap()`。
+- Leak scan：兩份 `.next`、追蹤檔案、分支歷史皆 clean。
+
 ## P9 S1 引擎通用化（2026-11-19，分支 `p9/s1-1` 至 `p9/s1-4`，未合併）
 
 報告：`docs/planning/P9_S1_ENGINE_GENERALIZATION.md`；證據與工具：`docs/planning/evidence/p9-s1/`。**只有本機隔離建置的結果，不是 Preview，也不是真機。**

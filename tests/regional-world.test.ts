@@ -489,6 +489,14 @@ describe('world overview labels (P8.3)', () => {
     expect(stuck.x).toBeGreaterThanOrEqual(0);
     expect(stuck.x + 60).toBeLessThanOrEqual(64);
   });
+  it('a label keeps clear of the boxes it is given (the map\'s buttons), as of another label', () => {
+    const extent = { x0: 100, y0: 100, x1: 160, y1: 140 }, room = { left: 0, right: 400, top: 0, bottom: 400 };
+    // The buttons sit where the label would hang below its outline: it moves off them, and nothing else changes.
+    const buttons: Box = { x: 60, y: 140, width: 140, height: 44 };
+    const [spot] = placeLabels([extent], ['below'], [[60, 20]], room, { keepClear: [buttons] });
+    expect(boxesOverlap({ x: spot.x, y: spot.y, width: 60, height: 20 }, buttons)).toBe(false);
+    expect(placeLabels([extent], ['below'], [[60, 20]], room, { keepClear: [] })).toEqual(placeLabels([extent], ['below'], [[60, 20]], room));
+  });
 });
 
 describe('lattice region maps (P8.2)', () => {

@@ -89,10 +89,10 @@ function compare(world: Frame, region: Frame) {
   return { jump, scale: unit(region.affine) / unit(world.affine) };
 }
 
-/** Opens a region from the overview by its label (on phones a tap; the web label sits under the zoom buttons there, so it is clicked as a screen reader would). */
+/** Opens a region from the overview by its label: a tap on phones (every label at the home view is clear of the zoom buttons), a click on desktops. */
 async function openFromLabel(page: Page, id: string) {
   const label = page.locator(`[data-target="${id}"]`);
-  if (phone()) await label.evaluate(button => (button as HTMLElement).click()); else await label.click();
+  if (phone()) await label.tap(); else await label.click();
   await expect(page).toHaveURL(new RegExp(`/${id}$`));
 }
 async function openWorld(page: Page) {

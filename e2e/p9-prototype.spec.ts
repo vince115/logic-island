@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { devices, expect, type Page } from '@playwright/test';
 import { ON, phone, test } from './world-helpers';
 
 /*
@@ -625,5 +625,75 @@ test.describe('P9.6 Region → Island: the panel opens once the camera arrives',
     await label(page).click();
     await expect(sheet(page)).toBeVisible({ timeout: 1_000 });
     await expect(sheet(page)).not.toHaveAttribute('data-arrival', /./);
+  });
+});
+
+test.describe('P9 phone layout: home labels clear of the map buttons, the region pages\' header inside its 88 px', () => {
+  test.skip(!P9, 'needs a build with LOGIC_ISLAND_P9_PROTOTYPE=1');
+  /** The shown labels' boxes, the map buttons' box, and what a tap at the middle of each label reaches. */
+  const homeLabels = (page: Page) => page.evaluate(() => {
+    const box = (e: Element) => { const r = e.getBoundingClientRect(); return { x0: r.left, y0: r.top, x1: r.right, y1: r.bottom }; };
+    const controls = box(document.querySelector('[data-world-controls]')!);
+    const labels = [...document.querySelectorAll<HTMLElement>('[data-target]')].filter(e => getComputedStyle(e).visibility !== 'hidden').map(e => {
+      const b = box(e), hit = document.elementFromPoint((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2);
+      return { id: e.dataset.target!, ...b, reached: hit?.closest('[data-target]')?.getAttribute('data-target') ?? hit?.closest('[data-world-controls]')?.tagName ?? null };
+    });
+    return { controls, labels };
+  });
+  const PHONES = [['iPhone 13', { ...devices['iPhone 13'] }], ['360 px', { viewport: { width: 360, height: 740 }, isMobile: true, hasTouch: true }],
+    ['320 px', { viewport: { width: 320, height: 640 }, isMobile: true, hasTouch: true }]] as const;
+  for (const [name, device] of PHONES) test(`${name}: at the home view every region label is clear of the zoom buttons, and 網頁與應用開發 opens with a tap`, async ({ browser, isMobile }) => {
+    test.skip(!isMobile, 'phones');
+    const context = await browser.newContext({ ...device, reducedMotion: 'reduce' });
+    const page = await context.newPage();
+    await openMap(page, '/');
+    await expect(page.locator('[data-target="web"]')).toBeVisible();
+    await expect.poll(async () => (await homeLabels(page)).labels.length).toBe(6);
+    const { controls, labels } = await homeLabels(page);
+    for (const l of labels) {
+      expect(l.x0 < controls.x1 && controls.x0 < l.x1 && l.y0 < controls.y1 && controls.y0 < l.y1, `${name}: ${l.id} clear of the zoom buttons`).toBe(false);
+      expect(l.reached, `${name}: a tap on ${l.id} reaches it`).toBe(l.id);
+    }
+    // A real touch tap (Playwright checks that the label itself receives it), not a script click.
+    await page.locator('[data-target="web"]').tap();
+    await expect(page).toHaveURL(/:\d+\/web$/, { timeout: 10_000 });
+    await context.close();
+  });
+
+  /** The header's first row (the brand, the tool slot's back link and 清單, the time button, 開始學習 where shown) and its menu. */
+  const header = (page: Page) => page.evaluate(() => {
+    const head = document.querySelector('header.site-header')!;
+    const box = (e: Element) => { const r = e.getBoundingClientRect(); return r.width ? { name: (e.getAttribute('aria-label') ?? e.textContent ?? '').trim().slice(0, 10), x0: r.left, y0: r.top, x1: r.right, y1: r.bottom } : null; };
+    const all = (selector: string) => [...head.querySelectorAll(selector)].map(box).filter(b => b !== null);
+    return { header: box(head)!, brand: box(head.querySelector('.brand')!)!, tools: all('.header-tools a, .header-tools button, .header-actions > button, .header-start'), menu: all('nav a'),
+      width: innerWidth, scrollWidth: document.documentElement.scrollWidth };
+  });
+  test('region pages, 320–780 px: the brand and every header tool share the first row, the menu the second, all inside the 88 px header', async ({ browser, isMobile }) => {
+    test.skip(!isMobile, 'phones');
+    const context = await browser.newContext({ viewport: { width: 390, height: 664 }, isMobile: true, hasTouch: true });
+    const page = await context.newPage();
+    const cases = [...REGIONS.map(region => [`/${region}`, 390] as const), ...[320, 360, 375, 431, 480, 600, 780].map(width => ['/cs', width] as const)];
+    for (const [path, width] of cases) {
+      await page.setViewportSize({ width, height: 700 });
+      await page.goto(path);
+      await expect(page.locator('.header-tools a[aria-label="返回世界總覽"]')).toBeVisible();
+      await expect(page.locator('.header-tools button')).toBeVisible();
+      // Measured once the page has loaded and laid out the filled tool slot (the slot is filled after hydration).
+      await page.waitForLoadState('load');
+      await page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
+      const h = await header(page), at = `${path} at ${width} px`;
+      expect(h.header.y1 - h.header.y0, at).toBe(88);
+      expect(h.tools.length, `${at}: back link, 清單 and the time button`).toBeGreaterThanOrEqual(3);
+      const menuTop = Math.min(...h.menu.map(m => m.y0));
+      for (const b of [h.brand, ...h.tools]) {
+        expect(b.y0, `${at}: ${b.name} below the header's top`).toBeGreaterThanOrEqual(h.header.y0);
+        expect(b.y1, `${at}: ${b.name} above the menu`).toBeLessThanOrEqual(menuTop + .5);
+        expect(b.x1, `${at}: ${b.name} on the screen`).toBeLessThanOrEqual(width);
+      }
+      for (const t of h.tools) expect(t.y0 < h.brand.y1 && h.brand.y0 < t.y1, `${at}: ${t.name} on the brand's row`).toBe(true);
+      for (const m of h.menu) expect(m.y1, `${at}: ${m.name} inside the header`).toBeLessThanOrEqual(h.header.y1 + .5);
+      expect(h.scrollWidth, `${at}: nothing widens the page`).toBe(width);
+    }
+    await context.close();
   });
 });
