@@ -42,8 +42,8 @@ describe('Island Registry: one entry per island, nothing stored twice (P9 S1)', 
       expect(Object.keys(e).sort(), e.islandId).toEqual(['assetSpec', 'interactionSpec', 'islandId', 'kind', 'lessons', 'publicationStatus', 'regionId', 'visualSpec'].filter(k => k in e).sort());
       expect(JSON.stringify({ ...e, visualSpec: undefined, interactionSpec: undefined }), e.islandId).not.toContain(record.name);
     }
-    // 80 lessons, then course production batches 1–5 (PL01–PL20).
-    expect(registry.reduce((n, e) => n + e.lessons.published, 0)).toBe(100);
+    // 80 lessons, then course production batches 1–5 (PL01–PL20) and CN-1 (CN01–CN05).
+    expect(registry.reduce((n, e) => n + e.lessons.published, 0)).toBe(105);
     expect(registry.reduce((n, e) => n + e.lessons.planned, 0)).toBe(subjectIslands.reduce((n, i) => n + i.lessonCount, 0));
     expect(getIslandEntry('no-such-island')).toBeUndefined();
   });
@@ -55,8 +55,9 @@ describe('Island Registry: one entry per island, nothing stored twice (P9 S1)', 
     expect(validateIslandRegistry(change('foundations', e => ({ ...e, kind: 'tool' })))).toEqual(expect.arrayContaining([expect.stringMatching(/^foundations is drawn on cs; it belongs on hub alone/)]));
     expect(validateIslandRegistry([...registry, registry[0]])).toEqual(expect.arrayContaining(['an island is listed twice']));
     expect(validateIslandRegistry(registry.filter(e => e.islandId !== 'networks'))).toEqual(expect.arrayContaining([expect.stringMatching(/^networks is drawn on cs but is not in the registry/)]));
-    expect(validateIslandRegistry(change('networks', e => ({ ...e, interactionSpec: { islandId: 'networks', targets: [{ interactionId: 'gate', label: '入口', action: { type: 'route', to: { kind: 'syllabus', islandId: 'networks' } } }] } }))))
-      .toEqual(expect.arrayContaining(['networks: a planned island has a route']));
+    // A planned island (systems analysis, still an outline; CN opened in CN-1).
+    expect(validateIslandRegistry(change('systems-analysis', e => ({ ...e, interactionSpec: { islandId: 'systems-analysis', targets: [{ interactionId: 'gate', label: '入口', action: { type: 'route', to: { kind: 'syllabus', islandId: 'systems-analysis' } } }] } }))))
+      .toEqual(expect.arrayContaining(['systems-analysis: a planned island has a route']));
     expect(validateIslandRegistry(change('structures', e => ({ ...e, visualSpec: { ...e.visualSpec, state: 'planned' } })))).toEqual(expect.arrayContaining([expect.stringMatching(/^structures: visual state/)]));
   });
 });
@@ -69,8 +70,8 @@ describe('S0 decisions 1 and 5: the foundations island is a CS island, drawn and
     expect(WORLD_MAP.hub.islandId).toBe('labs');
     const summaries = regionSummaries();
     expect(summaries.reduce((n, r) => n + r.islands, 0)).toBe(29);
-    // Open: an island with published lessons (F, DS, AL, DB, and PL since batch 1, whose map stays planned).
-    expect(summaries.find(r => r.id === 'cs')).toMatchObject({ islands: 8, open: 5, planned: 3 });
+    // Open: an island with published lessons (F, DS, AL, DB, PL since batch 1 and CN since CN-1, whose maps stay planned).
+    expect(summaries.find(r => r.id === 'cs')).toMatchObject({ islands: 8, open: 6, planned: 2 });
     // On the world overview every island is drawn exactly once, as part of its own region's outline.
     for (const shape of SHAPES) {
       const drawn = overviewOutlines(WORLD_MAP, REGION_LAYOUTS, shape).flatMap(o => o.world.settlements.map(s => [s.islandId, o.id] as const));
@@ -134,9 +135,9 @@ describe('World, Region and Island share one island (P9 S1 contract)', () => {
       // A planned island is never drawn built: the map can lag the lessons, never lead them.
       for (const id of planned) expect(drawnPlanned, `${region} ${id}`).toContain(id);
     }
-    expect(registry.filter(e => e.publicationStatus !== 'planned').map(e => e.islandId)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'labs']);
-    // The one island whose lessons opened before its landscape: PL keeps the planned landscape it had (no GLB, no remodel).
-    expect(registry.filter(e => e.publicationStatus !== 'planned' && e.visualSpec.state === 'planned').map(e => e.islandId)).toEqual(['programming-languages']);
+    expect(registry.filter(e => e.publicationStatus !== 'planned').map(e => e.islandId)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'labs']);
+    // The islands whose lessons opened before their landscape: PL and CN keep the planned landscape they had (no GLB, no remodel).
+    expect(registry.filter(e => e.publicationStatus !== 'planned' && e.visualSpec.state === 'planned').map(e => e.islandId)).toEqual(['programming-languages', 'networks']);
   });
 
   it('topology: bridges join islands of one region; the world\'s ring, hub links and relation bridges join registry regions', () => {

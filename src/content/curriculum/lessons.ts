@@ -372,6 +372,15 @@ const programmingLanguages: Outline[] = [
   programFromBlueprint('PL20', '把 PL10 的 lexer、PL11 的遞迴下降 parser 與 PL12 的樹走訪直譯器接成一個能執行的迷你語言：用帶 parent 鏈的環境實作 let、遞迴與捕捉環境的閉包，在每個運算做動態型別檢查並以「error line N: …」回報第一個語法、名稱或型別錯誤，以瞄準規則的測試證明作用域、遞迴與錯誤行為，並說明動態檢查、急切求值、整數除法與全域重新綁定這些設計取捨的代價。', 120, 'challenge-stages'),
 ];
 
+/** CN-1 (2026-11-22): the computer-networks island's first lessons, written with the network-protocol capability (CN0_NETWORK_CAPABILITY.md). */
+const networks: Outline[] = [
+  networkFromBlueprint('CN01', '說明網路為什麼分層、每層只使用下一層的服務，對照 OSI 七層與 TCP/IP 四層及各層代表協定，在固定情境中追蹤 HTTP 請求經過交換器與路由器時由上而下封裝成訊框、在接收端由下而上解封裝，並以 DNS 查詢比較 UDP 與 TCP 標頭，區分訊息、區段／資料包、封包、訊框與位元等各層 PDU。', 45),
+  networkFromBlueprint('CN02', '把位元看成在雙絞線、光纖與空氣中傳送的電、光與無線電訊號並比較三種媒介，分清頻寬、吞吐量與延遲，逐步算出傳輸延遲與傳播延遲、RTT 與頻寬延遲乘積，並在多段路徑上找出決定吞吐量的瓶頸鏈路。', 50),
+  networkFromBlueprint('CN03', '拆開 Ethernet 訊框的前導碼、MAC 位址、EtherType、酬載與 FCS，認識 48 位元 MAC 位址、OUI 與廣播位址，比較同位元、檢查碼與 CRC 如何偵測（而不修正）錯誤，依一串訊框模擬交換器學習 MAC 位址表並判斷轉送、泛洪、過濾與老化，區分集線器、交換器與路由器的工作層級，並以 802.1Q 標籤看 VLAN 如何切開廣播網域。', 50),
+  networkFromBlueprint('CN04', '從 Wi-Fi 的 SSID、BSSID 與 2.4／5／6 GHz 頻段和通道出發，逐步看手機掃描、關聯並完成 WPA2 四向交握，比較 CSMA/CD 與 CSMA/CA、用 RTS/CTS 與 NAV 解決隱藏終端，追蹤手機邊下載邊在兩座 5G 基地台之間換手，並用訊號強度、干擾、距離與速率調整解釋 Wi-Fi 為什麼會變慢、提出改善做法。', 50),
+  networkFromBlueprint('CN05', '把 IPv4 位址在二進位與點分十進位之間轉換，以子網路遮罩與 CIDR 用 AND 算出網路位址、廣播位址與可用主機數，判斷目的地在同一子網路還是交給預設閘道，依部門人數由大到小、對齊邊界把 192.168.10.0/24 切成子網路並寫出每段範圍，再認識私有位址、特殊用途位址與 IPv6 的壓縮寫法。', 55),
+];
+
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */
 function idAt(islandId: (typeof ISLAND_IDS)[number], index: number, blueprintId?: string): LessonId {
   const id = `${ISLAND_PREFIX[islandId]}${String(index + 1).padStart(2, '0')}` as LessonId;
@@ -381,7 +390,7 @@ function idAt(islandId: (typeof ISLAND_IDS)[number], index: number, blueprintId?
 /** F, D and A are taught in the program languages: every lesson there declares program-code. */
 const program = (list: Omit<Outline, 'capabilities'>[]): Outline[] => list.map(o => ({ ...o, capabilities: ['program-code'] }));
 const outlines: Record<(typeof ISLAND_IDS)[number], Outline[]> = {
-  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages };
+  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages, networks };
 
 /** Every lesson the blueprint outlines, written or not (validateCurriculum's recommended-lesson check). */
 export const outlinedLessonIds: readonly string[] = planning.plannedLessons.map(l => l.lessonId);

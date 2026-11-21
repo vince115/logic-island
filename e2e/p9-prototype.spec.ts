@@ -10,10 +10,11 @@ const P9 = process.env.LOGIC_ISLAND_P9_PROTOTYPE === '1';
 const REGIONS = ['cs', 'ai', 'design', 'web', 'sys'] as const;
 // Islands with no published lesson. programming-languages opened PL01–PL05 in course production batch 1 (its prototype
 // landscape is unchanged; only its words and panel are a written island's).
-const PLANNED = ['networks', 'systems-analysis', 'information-systems'] as const;
+// CN-1 opened the networks island (its map stays planned): the CS islands still planned are SA and MIS.
+const PLANNED = ['systems-analysis', 'information-systems'] as const;
 const drawn = (page: Page) => page.locator('[data-p9-world]').getAttribute('data-p9-world').then(text => JSON.parse(text!) as {
   time: string; regions: { id: string; source: string; scale: number; islands: string[]; bridges: string[]; landmarks: string[]; trees: number }[]; links: { id: string; kind: string }[] });
-const CS_ISLANDS = ['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', ...PLANNED].sort();
+const CS_ISLANDS = ['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', ...PLANNED].sort();
 const TIMES = ['morning', 'noon', 'sunset', 'dusk'] as const;
 const TIME_LABELS = { morning: '清晨', noon: '中午', sunset: '黃昏', dusk: '傍晚' } as const;
 /** The header's time button (the site's own): its name says the current time. */
@@ -170,7 +171,7 @@ test.describe('P9.1b prototype: one geography and one time of day on every level
 
 test.describe('P9.1 prototype: CS region and island', () => {
   test.skip(!P9, 'needs a build with LOGIC_ISLAND_P9_PROTOTYPE=1');
-  test('lists eight islands, three of them planned, and a planned island opens no lesson', async ({ page }) => {
+  test('lists eight islands, two of them planned, and a planned island opens no lesson', async ({ page }) => {
     await openMap(page, '/cs');
     // No mist: a planned island is drawn as an island; that it is planned is said in words, on the map and in the list.
     await expect(page.locator('button[aria-label^="聚焦"]')).toHaveCount(8, { timeout: 30_000 });

@@ -122,8 +122,8 @@ describe('regional world panel data and flag (M3.1)', () => {
       expect(island.outlineHref, island.id).toBe(`/regions/ai#island-${island.id}`);
     }
     const cs = regionIslands('cs');
-    // PL opened its first lessons in course production batch 1: its page data is a written island's (its map stays planned).
-    expect(cs.filter(i => i.planned).map(i => i.id)).toEqual(['networks', 'systems-analysis', 'information-systems']);
+    // PL (batch 1) and CN (CN-1) opened their first lessons: their page data is a written island's (their maps stay planned).
+    expect(cs.filter(i => i.planned).map(i => i.id)).toEqual(['systems-analysis', 'information-systems']);
     // The written islands get what the home page gives them: the database island's units and written-lesson count.
     const db = cs.find(i => i.id === 'databases')!;
     expect(db.published).toEqual({ open: 20, total: 20 });
@@ -186,10 +186,10 @@ describe('multi-region world data model (P8.2)', async () => {
     expect(JSON.stringify(WORLD_MAP)).not.toMatch(/lesson|堂|島/);
   });
 
-  it('CS: eight subject islands, five with lessons and three planned, each with its registry record; the lab island is the shared hub', () => {
+  it('CS: eight subject islands, six with lessons and two planned, each with its registry record; the lab island is the shared hub', () => {
     const cs = regionIslands('cs');
     expect(cs.map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'systems-analysis', 'information-systems']);
-    expect(cs.filter(i => !i.planned).map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases']);
+    expect(cs.filter(i => !i.planned).map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks']);
     for (const island of cs) expect(getIsland(island.id)!.regionId, island.id).toBe('cs');
     expect(labIslandConfig.kind).toBe('tool');
     expect(labIslandConfig.regionId).toBeUndefined();

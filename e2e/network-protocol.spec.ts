@@ -11,8 +11,8 @@ const phone = () => test.info().project.name.startsWith('mobile');
 const noOverflow = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 const scene = (page: Page, id: string) => page.locator(`[data-network-scene="${id}"]`);
 
-test('計算機網路島仍是規劃中：每堂課都沒有頁面，預覽頁只在預覽建置存在', async ({ page }) => {
-  for (const l of lessonsOfIsland('networks').filter((_, i) => i % 5 === 0)) expect((await page.request.get(`/curriculum/${l.slug}`)).status(), l.slug).toBe(404);
+test('計算機網路島：已撰寫的課有頁面，其餘仍是大綱、沒有頁面；預覽頁只在預覽建置存在', async ({ page }) => {
+  for (const l of lessonsOfIsland('networks')) expect((await page.request.get(`/curriculum/${l.slug}`)).status(), l.slug).toBe(l.lessonStatus === 'complete' ? 200 : 404);
   expect((await page.request.get('/preview/network-protocol')).status()).toBe(PREVIEW ? 200 : 404);
 });
 
