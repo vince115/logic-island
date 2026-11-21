@@ -22,11 +22,40 @@
 - 審核佇列（`REVIEW_QUEUES`）與易變題登記（`VOLATILITY_REGISTERS`）的路徑都相對於私人題庫。題庫中沒有某考試的題目時，不要求那份登記；有題目卻沒有登記時，照樣失敗。
 - 衝突題組（`conflictPairs`）在沒有私人題庫時，只保留兩題都在題庫中的組合。
 
-取得私人題庫：
+### 固定路徑（2026-11-21 起）
+
+私人題庫只有一份 checkout，放在所有 worktree 之外、與主工作目錄同層的固定位置：
+
+```text
+../logic-island-private/question-bank        （從任何同層的 logic-island* 目錄看）
+```
+
+第一次取得（目錄權限設為只有本人可讀）：
 
 ```bash
-git clone https://github.com/vince115/logic-island-question-bank.git private/question-bank
+mkdir -m 700 ../logic-island-private
+git clone https://github.com/vince115/logic-island-question-bank.git ../logic-island-private/question-bank
 ```
+
+使用方式：
+
+- **CLI**（`trials:leak-scan`、`trials:integrity`、`trials:quality`、`trials:import`、`trials:ledger`、`trials:review` 等）：在指令前加上 `LOGIC_ISLAND_PRIVATE_BANK=<固定路徑的絕對路徑>`。相對路徑以執行指令的目錄為準，在 `.claude/worktrees/*` 或 scratch 副本中不會指到同一處，所以一律用絕對路徑。
+- **私人模式的 Vitest 與 Fixture E2E**：`vitest.config.mts` 只認 `<cwd>/private/question-bank/tests`，所以在隔離副本中把題庫的工作檔複製進去（不含 `.git`），跑完隨副本一起丟棄：
+
+  ```bash
+  rsync -a --exclude .git <固定路徑>/ <隔離副本>/private/question-bank/
+  ```
+
+- **題庫的 commit 與 push 只在固定路徑進行。** 匯入器會寫入題庫的 `generated/` 與 manifest；有第二份可寫的 checkout，兩份就會分歧。
+
+不要做的事：
+
+- 不把題庫 clone 進 worktree 的 `private/`：`git worktree remove` 會連同被忽略的檔案一起刪除（見 [WORKTREE_LIFECYCLE](../handoff/WORKTREE_LIFECYCLE.md) 第 2 節）。
+- 不把 `LOGIC_ISLAND_PRIVATE_BANK` 寫進 shell 設定檔、被追蹤的檔案、`.env*` 或 Vercel：全域設定會讓每個本機 build 與測試都變成私人模式，和公開 CI 的結果不再一致；CI 的「No private bank in this checkout」步驟也要求這個變數沒有設定。
+
+題庫版本要和公開端的程式碼對得上：題庫自帶的測試會 import 公開 repository 的模組，題庫比程式碼新時，那些測試會因為找不到模組而失敗（2026-11-21：題庫 `c3ee9fd` 的 `trials-ccarf-bank.test.ts` 需要 `trials/mvp` 上的 `src/lib/trials/structural`，`main` 還沒有）。外洩掃描不受影響，一律用最新的題庫。
+
+2026-11-21 建立固定路徑時的驗證：新 clone 的 HEAD 與 Private GitHub 的 `main` 相同、`git fsck` 無錯誤；16 個批次、380 題，與前一份 checkout 的檔案逐位元組相同；在 `origin/main` 的隔離 checkout 以新舊兩個路徑各掃描追蹤檔案與完整歷史，報告逐位元組相同且皆為 clean；題庫自帶的 21 個測試檔，連同公開端的 `tests/trials-public-bank.test.ts`（共 22 個檔案、304 個測試），在 `trials/mvp` 的隔離副本全部通過。
 
 ## 3. 測試的兩種模式
 
@@ -56,7 +85,7 @@ git clone https://github.com/vince115/logic-island-question-bank.git private/que
 
 1. **發布私人題目的流程還沒定**：題目發布後要從私人題庫搬到公開的 `generated/`（與 manifest 條目一起）。現在的檢查是 fail closed：公開 CI 會要求每個已發布雜湊都對得到公開題目，否則失敗。
 2. **私人題庫沒有自己的 CI**：私人模式的測試與品質關卡目前只在本機執行。
-3. **Fixture E2E**：`e2e/fixtures/*` 會把審核中的題目改為已發布再建置，所以需要私人題庫。在隔離副本中要另外複製 `private/question-bank`，或設定 `LOGIC_ISLAND_PRIVATE_BANK`。
+3. **Fixture E2E**：`e2e/fixtures/*` 會把審核中的題目改為已發布再建置，所以需要私人題庫。在隔離副本中要另外複製 `private/question-bank`，或設定 `LOGIC_ISLAND_PRIVATE_BANK`（來源見第 2 節的固定路徑）。
 4. **Theme Session**：Theme 的變更要另外 cherry-pick 到公開分支。它的 commit 不能直接從本機 `trials/mvp` 推送；pre-push hook 會拒絕。
 5. 被搬走的 docs 13–18、21、26–29 仍出現在公開文件與佇列的連結中。這些連結在公開端會失效，內容要到私人題庫的 `docs/` 查看。
 
