@@ -2,7 +2,7 @@
 
 > 2026-11-22 起分批撰寫（自主課程生產，見 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md)）。大綱（標題、目標、概念、先修）取自藍圖 `docs/planning/data/curriculum-blueprint.json`，由 `lessons.ts` 的 `networkFromBlueprint` 讀入。
 
-教學方式是 `network-protocol` 能力（[CN0_NETWORK_CAPABILITY](CN0_NETWORK_CAPABILITY.md)）；結果是一支程式的課（CN11 socket、CN14 REST 客戶端）則用 `program-code`，C++、Java、Python、JavaScript 四語的範例與練習都由 `tests/curriculum-code.test.ts` 實際執行（socket 範例只用本機迴路，練習讀固定的輸入，不連到外部網路）：
+教學方式是 `network-protocol` 能力（[CN0_NETWORK_CAPABILITY](CN0_NETWORK_CAPABILITY.md)）；結果是一支程式的課（CN11 socket、CN14 REST 客戶端、CN16 WebSocket）則用 `program-code`，C++、Java、Python、JavaScript 四語的範例與練習都由 `tests/curriculum-code.test.ts` 實際執行（socket 範例只用本機迴路，練習讀固定的輸入，不連到外部網路）：
 - 固定的網路情境，逐步看訊息的順序、由外到內的各層標頭與節點的表格；
 - 練習答案從情境讀出（標頭欄位、協定所在的層、節點表格的一格），或由程式計算（子網路、延遲），再和學習者的答案比對；
 - 不連線到任何真實網路，位址都用 RFC 5737 與 RFC 1918 的範例範圍。
@@ -26,6 +26,10 @@
 | CN13 | HTTPS 與 TLS<br>`https-and-tls` | 進階 | 60 分 | CN12 | network-sequence | 6 段、3 個情境（TLS 1.3 交握與金鑰、憑證信任鏈與過期、HSTS）、5 個練習、8 題 | **完整 v1.0.0** |
 | CN14 | REST API 與 JSON<br>`rest-apis-and-json` | 中級 | 60 分 | CN12 | 變數狀態追蹤；`program-code` 四語 | 6 段、5 個四語範例（組出請求、解析 JSON、大整數 id、解析回應、冪等重送）、練習「解析待辦事項 API 的回應」（22 組測資）、8 題 | **完整 v1.0.0** |
 | CN15 | 快取、CDN 與 HTTP/2、HTTP/3<br>`web-caching-cdn-and-modern-http` | 中級 | 55 分 | CN12 | packet-journey（藍圖 architecture-diagram 屬資料庫能力，以網路情境呈現） | 6 段、4 個情境（瀏覽器快取與 304、CDN 命中與回源、HTTP/2 隊頭阻塞、QUIC 逐串流復原）、5 個練習、8 題 | **完整 v1.0.0** |
+| CN16 | WebSocket 與即時通訊<br>`websockets-and-real-time-communication` | 中級 | 60 分 | CN11、CN12 | 變數狀態追蹤；`program-code` 四語 | 6 段、5 個四語範例（輪詢成本、Sec-WebSocket-Accept、訊框編解碼、聊天室廣播、心跳與退避重連）、練習「解碼客戶端送來的 WebSocket 訊框」（26 組測資）、8 題 | **完整 v1.0.0** |
+| CN17 | 網路除錯工具<br>`network-troubleshooting-tools` | 中級 | 55 分 | CN07、CN12 | packet-journey | 6 段、5 個情境（ping、traceroute、dig、連線被拒與逾時、502）、5 個練習、8 題 | **完整 v1.0.0** |
+| CN18 | 網路安全基礎<br>`network-security-basics` | 中級 | 55 分 | CN13 | packet-journey | 6 段、3 個情境（ARP 偽冒與 TLS 擋下偽造憑證、SYN flood 與 SYN cookies、仿冒網域釣魚與通行金鑰）、5 個練習、8 題 | **完整 v1.0.0** |
+| CN19 | 防火牆、VPN 與零信任<br>`firewalls-vpns-and-zero-trust` | 進階 | 60 分 | CN18、CN07 | packet-journey（藍圖 routing-table 未建置；防火牆練習由學習者寫規則，以封包逐一判斷） | 6 段、4 個情境（狀態檢查、DMZ、站對站 VPN、零信任存取代理）、4 個練習（2 個寫防火牆規則）、8 題 | **完整 v1.0.0** |
 
 ## 單元
 
@@ -37,9 +41,11 @@
 | 傳輸層 | CN09–CN10 |
 | 網路程式與應用層 | CN11–CN12 |
 | Web 安全、API 與效能 | CN13–CN15 |
+| 即時通訊與除錯 | CN16–CN17 |
+| 網路安全與防護 | CN18–CN19 |
 
 ## 後續批次
 
-其餘 5 堂依編號連續發布（CN16–CN19、CN20），理由見 [CN0_NETWORK_CAPABILITY](CN0_NETWORK_CAPABILITY.md) §2。
+最後一堂 CN20 綜合挑戰單獨一批，理由見 [CN0_NETWORK_CAPABILITY](CN0_NETWORK_CAPABILITY.md) §2。
 
 課程狀態與 3D 地景分離：計算機網路島的 `mapState` 仍是 `'planned'`，地景要另行授權的建模階段才會改變。

@@ -43,7 +43,7 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '資料模型、架構與綜合挑戰', summary: 'NoSQL 與 CAP；備份、複寫與分片；從需求到安全串接的完整應用', lessonIds: range('DB', 18, 20) },
   ],
   // 2026-11-20 (course production, batch 1): the written lessons only; the island's other units come with their lessons.
-  // CN-1 to CN-3: the first fifteen lessons; later batches add their units.
+  // CN-1 to CN-4: CN01–CN19; the capstone CN20 adds its own unit.
   networks: [
     { title: '分層模型與實體層', summary: '網路為什麼分層、OSI 與 TCP/IP、封裝與 PDU；訊號與媒介、頻寬、延遲、吞吐量與頻寬延遲乘積', lessonIds: range('CN', 1, 2) },
     { title: '區域網路與 IP 定址', summary: 'Ethernet 訊框、MAC 位址與交換器學習、VLAN；Wi-Fi、CSMA/CA 與換手；IPv4、子網路切割、私有位址與 IPv6', lessonIds: range('CN', 3, 5) },
@@ -51,6 +51,8 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '傳輸層', summary: '連接埠、TCP 與 UDP、三向交握與連線關閉；滑動視窗、逾時重送、流量控制與壅塞控制', lessonIds: range('CN', 9, 10) },
     { title: '網路程式與應用層', summary: 'socket、訊息框架與並行伺服器；DNS 解析、HTTP 請求與回應、Cookie', lessonIds: range('CN', 11, 12) },
     { title: 'Web 安全、API 與效能', summary: 'TLS 1.3、憑證與 HSTS；REST、JSON、冪等性與 CORS；HTTP 快取、CDN、HTTP/2 與 HTTP/3', lessonIds: range('CN', 13, 15) },
+    { title: '即時通訊與除錯', summary: '輪詢、SSE 與 WebSocket；ping、traceroute、dig、curl 與封包擷取的分層除錯', lessonIds: range('CN', 16, 17) },
+    { title: '網路安全與防護', summary: 'CIA、中間人、偽冒、DoS 與釣魚；封包過濾、狀態檢查、DMZ、VPN 與零信任', lessonIds: range('CN', 18, 19) },
   ],
   'programming-languages': [
     { title: '程式設計典範與抽象', summary: '命令式、程序式、物件導向、函數式與宣告式的比較；封裝、繼承與介面；純函式與函式組合', lessonIds: range('PL', 1, 3) },
