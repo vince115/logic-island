@@ -224,7 +224,7 @@ test('Linux Terminal Simulator：指令改變虛擬檔案系統、任務依結�
 
 // R6: AI 人工智慧群島 has a way in from the home map, /curriculum and the sidebar; its overview shows the seven islands
 // under their three groups, every one 規劃中, and links to no lesson.
-test('AI 群島入口：首頁「更多學習群島」→ 群島總覽，七座島三個主題，AI 基礎島部分開放、其餘六座規劃中；側欄標示目前群島', async ({ page }, info) => {
+test('AI 群島入口：首頁「更多學習群島」→ 群島總覽，七座島三個主題，AI 基礎島全部開放、其餘六座規劃中；側欄標示目前群島', async ({ page }, info) => {
   const phone = info.project.name.startsWith('mobile');
   await page.goto('/');
   if (P9) {
@@ -238,8 +238,8 @@ test('AI 群島入口：首頁「更多學習群島」→ 群島總覽，七座�
     const more = page.getByRole('navigation', { name: '更多學習群島' });
     if (!await more.isVisible()) await page.getByRole('button', { name: /清單/ }).first().click();
     await expect(more.getByRole('link')).toHaveCount(4); // ai, design, web and (P6) sys
-    // AIF-1 (2026-11-22): the AI foundations island opened its first five lessons; AIF-2 to AIF-4 fourteen more.
-    await expect(more.getByRole('link', { name: /AI 人工智慧群島/ })).toContainText('已開放 19／160 堂');
+    // AIF-1 (2026-11-22): the AI foundations island opened its first five lessons; AIF-2 to AIF-5 the other fifteen.
+    await expect(more.getByRole('link', { name: /AI 人工智慧群島/ })).toContainText('已開放 20／160 堂');
     await more.getByRole('link', { name: /AI 人工智慧群島/ }).click();
   }
   await expect(page).toHaveURL('/regions/ai');
@@ -247,9 +247,10 @@ test('AI 群島入口：首頁「更多學習群島」→ 群島總覽，七座�
   const main = page.locator('main');
   for (const group of ['AI 原理與模型', '生成式 AI 與大型語言模型', 'AI 應用與系統工程']) await expect(main.getByRole('heading', { level: 2, name: new RegExp(`^${group}`) })).toBeVisible();
   await expect(main.locator('article')).toHaveCount(7);
-  // The open island's card says 部分開放 and leads to its syllabus; each planned card's own tag says 規劃中 (its folded
+  // AIF-5: the complete island's card says 已開放 (部分開放 before AIF20) and leads to its syllabus; each planned card's own tag says 規劃中 (its folded
   // outline marks every lesson 規劃中 as well: 140 more). No card links a lesson page directly.
-  await expect(main.getByRole('article', { name: /AI 基礎島/ })).toContainText('部分開放');
+  await expect(main.getByRole('article', { name: /AI 基礎島/ })).toContainText('已開放');
+  await expect(main.getByRole('article', { name: /AI 基礎島/ })).not.toContainText('部分開放');
   await expect(main.getByRole('article', { name: /AI 基礎島/ }).getByRole('link')).toHaveAttribute('href', '/curriculum#island-ai-foundations');
   await expect(main.locator('article > div:first-child').getByText('規劃中', { exact: true })).toHaveCount(6);
   await expect(main.locator('article details').getByText('規劃中', { exact: true })).toHaveCount(140);

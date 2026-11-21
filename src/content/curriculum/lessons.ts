@@ -416,7 +416,7 @@ export function pythonFromBlueprint(lessonId: string, summary: string, minutes: 
     status: 'complete', version: '1.0.0', capabilities: ['python-code'], blueprintId: lessonId };
 }
 
-/** AIF-1 (2026-11-22): the AI foundations island's first lessons, Python only (python-code, AIF0_PYTHON_CAPABILITY.md); AIF-2 adds AIF06–AIF10, AIF-3 AIF11–AIF15, AIF-4 AIF16–AIF19. */
+/** AIF-1 (2026-11-22): the AI foundations island's first lessons, Python only (python-code, AIF0_PYTHON_CAPABILITY.md); AIF-2 adds AIF06–AIF10, AIF-3 AIF11–AIF15, AIF-4 AIF16–AIF19, AIF-5 the capstone AIF20. */
 const aiFoundations: Outline[] = [
   pythonFromBlueprint('AIF01', '用 AI 的四種定義、理性代理人與圖靈測試判斷什麼算 AI，比較狹義 AI 與通用 AI、符號式與資料驅動兩條路線，並以明確的規則把日常系統分類為規則式程式或 AI 系統。', 45, 'conditional-branch'),
   pythonFromBlueprint('AIF02', '從 1956 年達特茅斯會議、早期符號 AI、MYCIN 與 XCON 等專家系統和兩次 AI 寒冬，到感知器與 XOR、1986 年普及的反向傳播、2012 年的 AlexNet 與 2017 年 Transformer 之後的基礎模型，比較符號主義、連結主義與統計學習，說明運算力、資料與演算法如何推動每一波興起，並以 Python 實作前向鏈結專家系統、學會 AND 卻學不會 XOR 的整數感知器，以及依時期分組的 AI 時間軸。', 45, 'none'),
@@ -437,6 +437,7 @@ const aiFoundations: Outline[] = [
   pythonFromBlueprint('AIF17', '從理性代理人最大化期望效用談起，以效用函數與樂透表達偏好，用凹效用、確定等值與風險貼水說明風險態度，以決策表套用最大期望效用原則，用決策樹倒推與決策網路結合機率、決策與效用節點，計算完美與不完美資訊的價值，並簡述 von Neumann–Morgenstern 公理與 Allais 悖論。', 50, 'variable-state'),
   pythonFromBlueprint('AIF18', '以狀態、動作、轉移機率、獎勵與折扣因子定義地板會滑的格子世界 MDP，說明隨機轉移下為什麼需要策略而不是一條計畫，計算折扣報酬並推導貝爾曼方程，用 Python 實作同步價值迭代與 δ < θ 的停止規則、依固定順序處理平手取出最佳策略，比較策略迭代的評估與改進，觀察折扣因子與生存獎勵如何改變策略，並說明模型未知時的強化學習與 Q-learning。', 60, 'dp-table'),
   pythonFromBlueprint('AIF19', '從資料、標籤、代理變數、回饋迴圈與部署情境找出 AI 系統的傷害來源，以分組混淆矩陣計算選取率、真陽性率、偽陽性率與精確率並說明基本比率不同時這些公平性指標無法同時相等，用資料最小化、k-匿名與 Laplace 機制的差分隱私保護個人資料，再以可解釋性、穩健性、人類監督、文件化、影響評估與歐盟 AI 法的風險分級，為自動審核系統做風險評估。', 50, 'dp-table'),
+  pythonFromBlueprint('AIF20', '把整座島接成一個迷宮對戰代理人：以 A* 與可接受的曼哈頓距離規劃三條穿越路線，用深度限制的 alpha-beta 與 BFS 評估函數判斷守衛是最佳對手時何時能穿越，以隱馬可夫模型的前向演算法從雜訊讀數濾出守衛的位置並以期望效用選路，用價值迭代解出「穿越或等待」的 MDP 並與 minimax 規則比較，最後以固定種子的模擬分開報告成功、被抓與交給人類的比例，設計決策紀錄與人類監督，寫出含風險分級的設計報告。', 120, 'challenge-stages'),
 ];
 
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */

@@ -37,7 +37,7 @@
     "ai-foundations": {
       "capability": "python-code (Python-only program lessons; search, games, logic and probability on the shared traces)",
       "status": "ready",
-      "note": "AIF-0 built the capability; AIF-1 published AIF01–AIF05, AIF-2 AIF06–AIF10, AIF-3 AIF11–AIF15, AIF-4 AIF16–AIF19; later lessons publish in id order"
+      "note": "AIF-0 built the capability; AIF-1 published AIF01–AIF05, AIF-2 AIF06–AIF10, AIF-3 AIF11–AIF15, AIF-4 AIF16–AIF19, AIF-5 the capstone AIF20: the island is complete"
     },
     "machine-learning": {
       "capability": "python-code + data-explorer (fixed datasets, metrics computed in the browser)",

@@ -4,6 +4,7 @@ exports[`route contract (multi-archipelago v2) > generates the same pages in the
 {
   "[region]": [],
   "curriculum/[slug]": [
+    "ai-foundations-capstone",
     "ai-history-and-approaches",
     "algorithm-analysis",
     "algorithms-challenge",
@@ -180,6 +181,7 @@ exports[`route contract (multi-archipelago v2) > generates the same pages with b
 {
   "[region]": [],
   "curriculum/[slug]": [
+    "ai-foundations-capstone",
     "ai-history-and-approaches",
     "algorithm-analysis",
     "algorithms-challenge",
