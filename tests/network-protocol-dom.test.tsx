@@ -87,3 +87,19 @@ describe('NetworkExerciseBox', () => {
     expect(screen.getByText('正確。')).toBeTruthy();
   });
 });
+
+describe('NetworkExerciseBox (CN-4 firewall)', () => {
+  it('lists the test packets, takes rules in a text area and judges them by their decisions', () => {
+    const fw = previewExercises.find(e => e.task === 'firewall')!;
+    render(<NetworkExerciseBox exercise={fw} scenes={previewScenes}/>);
+    expect(within(screen.getByRole('table', { name: /用來檢查規則的封包/ })).getAllByRole('row')).toHaveLength(4);
+    const box = screen.getByRole('textbox', { name: '防火牆規則（每行一條）' });
+    expect(box.tagName).toBe('TEXTAREA');
+    fireEvent.change(box, { target: { value: 'default allow' } });
+    fireEvent.click(screen.getByRole('button', { name: '檢查答案' }));
+    expect(screen.getByText(/封包「外部連 SSH」應該擋下/)).toBeTruthy();
+    fireEvent.change(box, { target: { value: 'allow tcp from any to any established\nallow tcp from any to 203.0.113.80 port 443' } });
+    fireEvent.click(screen.getByRole('button', { name: '檢查答案' }));
+    expect(screen.getByText('正確。')).toBeTruthy();
+  });
+});

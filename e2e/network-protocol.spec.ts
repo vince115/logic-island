@@ -80,4 +80,13 @@ test('網路協定練習：欄位、所在層與子網路的答案從情境讀�
   await subnet.getByRole('textbox', { name: '可用主機數' }).fill('62');
   await subnet.getByRole('button', { name: '檢查答案' }).click();
   await expect(subnet).toContainText('正確。');
+  // CN-4: firewall rules are written by the learner and judged by what they decide for the listed packets.
+  const fw = page.getByRole('article').filter({ hasText: '只開放網站的防火牆' });
+  await expect(fw.getByRole('table', { name: /用來檢查規則的封包/ }).getByRole('row')).toHaveCount(4);
+  await fw.getByRole('textbox', { name: '防火牆規則（每行一條）' }).fill('default allow');
+  await fw.getByRole('button', { name: '檢查答案' }).click();
+  await expect(fw).toContainText('封包「外部連 SSH」應該擋下');
+  await fw.getByRole('textbox', { name: '防火牆規則（每行一條）' }).fill('allow tcp from any to any established\nallow tcp from any to 203.0.113.80 port 443');
+  await fw.getByRole('button', { name: '檢查答案' }).click();
+  await expect(fw).toContainText('正確。');
 });

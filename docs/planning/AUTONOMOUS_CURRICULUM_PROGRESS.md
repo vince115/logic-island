@@ -13,11 +13,11 @@
 
 ## 總覽
 
-已發布 **115／520**（22.1%）；規劃中 405。
+已發布 **119／520**（22.9%）；規劃中 401。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
-| 程式與資訊群島 | 115 | 45 | 71.9% |
+| 程式與資訊群島 | 119 | 41 | 74.4% |
 | AI 人工智慧群島 | 0 | 160 | 0.0% |
 | 數位設計群島 | 0 | 56 | 0.0% |
 | 網頁與應用開發群島 | 0 | 55 | 0.0% |
@@ -25,7 +25,7 @@
 
 ## 下一批（自動選擇）
 
-**計算機網路島（CN）**：CN16 WebSocket 與即時通訊、CN17 網路除錯工具、CN18 網路安全基礎、CN19 防火牆、VPN 與零信任、CN20 計算機網路島綜合挑戰：追蹤並打造一個網路服務。島嶼能力：可用；這幾堂解鎖其他島的 5 堂。
+**計算機網路島（CN）**：CN20 計算機網路島綜合挑戰：追蹤並打造一個網路服務。島嶼能力：可用；這幾堂解鎖其他島的 0 堂。
 
 能力缺口中最優先的是 **AI 基礎島（AIF）**：需要 python-code (Python-only program lessons; search, probability and game trees on the shared trace panels)；先修已滿足、可依序撰寫的有 20 堂，前 5 堂解鎖其他島的 140 堂。
 
@@ -40,7 +40,7 @@
 | 程式與資訊群島 | 演算法島（AL） | 20／20 | program-code | 可用 | 全島完成 | — |
 | 程式與資訊群島 | 程式語言島（PL） | 20／20 | program-code | 可用 | 全島完成 | — |
 | 程式與資訊群島 | 資料庫應用島（DB） | 20／20 | sql, er-diagram, normalization, query-plan, transaction-timeline, driver-code, protocol-sequence, architecture-diagram | 可用 | 全島完成 | — |
-| 程式與資訊群島 | 計算機網路島（CN） | 15／20 | network-protocol (packets through the layers, message sequences, node tables; field, layer, table, subnet and delay exercises) | 可用 | CN16–CN20（5 堂） | — |
+| 程式與資訊群島 | 計算機網路島（CN） | 19／20 | network-protocol (packets through the layers, message sequences, node tables; field, layer, table, subnet and delay exercises) | 可用 | CN20–CN20（1 堂） | — |
 | 程式與資訊群島 | 系統分析與設計島（SA） | 0／20 | model-diagram (UML, DFD, BPMN, state and sequence models, checked by structure) | 缺少 | SA01–SA20（20 堂） | 缺少課程能力 |
 | 程式與資訊群島 | 管理資訊系統島（MIS） | 0／20 | case-analysis (scenario data, decision tables, KPI calculations checked by value) | 缺少 | MIS01–MIS20（20 堂） | 缺少課程能力 |
 | AI 人工智慧群島 | AI 基礎島（AIF） | 0／20 | python-code (Python-only program lessons; search, probability and game trees on the shared trace panels) | 缺少 | AIF01–AIF20（20 堂） | 缺少課程能力 |
@@ -89,13 +89,13 @@
 |---|---|---|
 | APCS／資訊科學基礎 | 60／60 | 是 |
 | 軟體工程 | 66／86 | 否 |
-| 網路與系統 | 49／54 | 否 |
+| 網路與系統 | 53／54 | 否 |
 | 企業資訊系統 | 44／84 | 否 |
 | AI 研究 | 37／142 | 否 |
-| AI 應用工程 | 25／89 | 否 |
+| AI 應用工程 | 26／89 | 否 |
 | 前端工程 | 7／62 | 否 |
 | 產品設計 | 0／56 | 否 |
-| AI 架構 | 17／66 | 否 |
+| AI 架構 | 18／66 | 否 |
 | 全端部署 | 16／62 | 否 |
 | AI 基礎設施 | 12／60 | 否 |
 | 雲端與 DevOps 基礎 | 5／48 | 否 |
@@ -252,11 +252,11 @@
 | CN13 | HTTPS 與 TLS | 已發布（閘門通過） | CN12 | network-sequence | — |
 | CN14 | REST API 與 JSON | 已發布（閘門通過） | CN12 | variable-state | — |
 | CN15 | 快取、CDN 與 HTTP/2、HTTP/3 | 已發布（閘門通過） | CN12 | packet-journey | — |
-| CN16 | WebSocket 與即時通訊 | 大綱 | CN11、CN12 | protocol-sequence | — |
-| CN17 | 網路除錯工具 | 大綱 | CN07、CN12 | packet-journey | — |
-| CN18 | 網路安全基礎 | 大綱 | CN13 | packet-journey | — |
-| CN19 | 防火牆、VPN 與零信任 | 待先修 | CN18、CN07 | routing-table | 先修 CN18 |
-| CN20 | 計算機網路島綜合挑戰：追蹤並打造一個網路服務 | 待先修 | CN14、CN17、CN18 | challenge-stages | 先修 CN17、CN18 |
+| CN16 | WebSocket 與即時通訊 | 已發布（閘門通過） | CN11、CN12 | variable-state | — |
+| CN17 | 網路除錯工具 | 已發布（閘門通過） | CN07、CN12 | packet-journey | — |
+| CN18 | 網路安全基礎 | 已發布（閘門通過） | CN13 | packet-journey | — |
+| CN19 | 防火牆、VPN 與零信任 | 已發布（閘門通過） | CN18、CN07 | packet-journey | — |
+| CN20 | 計算機網路島綜合挑戰：追蹤並打造一個網路服務 | 大綱 | CN14、CN17、CN18 | challenge-stages | — |
 
 ### 程式與資訊群島 · 系統分析與設計島（SA）
 
@@ -469,7 +469,7 @@
 | AG15 | 多 Agent 系統 | 待能力 | AG14 | multi-agent-board | 課程能力、先修 AG14 |
 | AG16 | 人機協作與審批 | 待能力 | AG14 | agent-workflow | 課程能力、先修 AG14 |
 | AG17 | Agent 護欄 | 待能力 | AG06、LLM12 | guardrail-sim | 課程能力、先修 AG06、LLM12 |
-| AG18 | 提示注入與防禦 | 待能力 | AG17、CN18 | guardrail-sim | 課程能力、先修 AG17、CN18 |
+| AG18 | 提示注入與防禦 | 待能力 | AG17、CN18 | guardrail-sim | 課程能力、先修 AG17 |
 | AG19 | 沙箱與權限：程式與電腦操作 Agent | 待能力 | AG18 | guardrail-sim | 課程能力、先修 AG18 |
 | AG20 | Agent 評估 | 待能力 | AG06、LLM20 | eval-dashboard | 課程能力、先修 AG06、LLM20 |
 | AG21 | Agent 基準測試 | 待能力 | AG20 | eval-dashboard | 課程能力、先修 AG20 |
@@ -498,7 +498,7 @@
 | OPS14 | 資料漂移與品質監控 | 待能力 | OPS13 | monitoring-dashboard | 課程能力、先修 OPS13 |
 | OPS15 | 上線後評估管線 | 待能力 | OPS13、LLM20 | eval-dashboard | 課程能力、先修 OPS13、LLM20 |
 | OPS16 | AI 成本最佳化 | 待能力 | OPS03 | cost-calculator | 課程能力、先修 OPS03 |
-| OPS17 | AI 系統安全與法規遵循 | 待能力 | OPS11、CN18 | case-study-board | 課程能力、先修 OPS11、CN18 |
+| OPS17 | AI 系統安全與法規遵循 | 待能力 | OPS11、CN18 | case-study-board | 課程能力、先修 OPS11 |
 | OPS18 | AI 系統事故應變 | 待能力 | OPS06、OPS13 | decision-simulation | 課程能力、先修 OPS06、OPS13 |
 | OPS19 | SLO 與容量規劃 | 待能力 | OPS08、OPS13 | monitoring-dashboard | 課程能力、先修 OPS08、OPS13 |
 | OPS20 | AI 工程島綜合專題：上線一個 AI 系統 | 待能力 | OPS15、OPS17、OPS18 | challenge-stages | 課程能力、先修 OPS15、OPS17、OPS18 |

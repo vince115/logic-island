@@ -372,7 +372,7 @@ const programmingLanguages: Outline[] = [
   programFromBlueprint('PL20', '把 PL10 的 lexer、PL11 的遞迴下降 parser 與 PL12 的樹走訪直譯器接成一個能執行的迷你語言：用帶 parent 鏈的環境實作 let、遞迴與捕捉環境的閉包，在每個運算做動態型別檢查並以「error line N: …」回報第一個語法、名稱或型別錯誤，以瞄準規則的測試證明作用域、遞迴與錯誤行為，並說明動態檢查、急切求值、整數除法與全域重新綁定這些設計取捨的代價。', 120, 'challenge-stages'),
 ];
 
-/** CN-1 to CN-3 (2026-11-22): the computer-networks island's lessons, written with the network-protocol capability (CN0_NETWORK_CAPABILITY.md). */
+/** CN-1 to CN-4 (2026-11-22): the computer-networks island's lessons, written with the network-protocol capability (CN0_NETWORK_CAPABILITY.md). */
 const networks: Outline[] = [
   networkFromBlueprint('CN01', '說明網路為什麼分層、每層只使用下一層的服務，對照 OSI 七層與 TCP/IP 四層及各層代表協定，在固定情境中追蹤 HTTP 請求經過交換器與路由器時由上而下封裝成訊框、在接收端由下而上解封裝，並以 DNS 查詢比較 UDP 與 TCP 標頭，區分訊息、區段／資料包、封包、訊框與位元等各層 PDU。', 45),
   networkFromBlueprint('CN02', '把位元看成在雙絞線、光纖與空氣中傳送的電、光與無線電訊號並比較三種媒介，分清頻寬、吞吐量與延遲，逐步算出傳輸延遲與傳播延遲、RTT 與頻寬延遲乘積，並在多段路徑上找出決定吞吐量的瓶頸鏈路。', 50),
@@ -392,6 +392,12 @@ const networks: Outline[] = [
   networkFromBlueprint('CN13', '分清對稱加密、非對稱加密與雜湊在 TLS 中的分工，讀懂 X.509 憑證的主體、SAN、簽發者、有效期間與公鑰，從葉憑證經中繼憑證走到信任儲存區的根憑證驗證信任鏈，逐步追蹤 TLS 1.3 的 ClientHello、ServerHello 與加密的 EncryptedExtensions、Certificate、CertificateVerify、Finished（外層內容類型 23）以及兩端金鑰的導出，說明 (EC)DHE 如何提供前向保密，辨識憑證過期、名稱不符與混合內容警告的風險，並以 HSTS 與預載清單防止降級，說清楚 HTTPS 保護與不保護的資訊。', 60),
   programFromBlueprint('CN14', '用資源與 HTTP 方法設計待辦事項 API 的端點與分頁，組出帶 Authorization 標頭與 JSON 本文的請求，解析 JSON 並驗證它的形狀（C++ 與 Java 以手寫的子集解析器示範），看懂 JavaScript double 對大整數 id 的捨入，依 200、201、204、401、403、404、409、422、429 等狀態碼與錯誤物件處理回應，以重送實驗說明 PUT、DELETE 的冪等性與 POST 的 Idempotency-Key，並分辨 API 金鑰與 Bearer token、401 與 403，以及由瀏覽器執行的 CORS 預檢。', 60, 'variable-state'),
   networkFromBlueprint('CN15', '以 Cache-Control 的 max-age、no-cache、no-store、private／public 與 immutable 決定瀏覽器與 CDN 何時重用快取，用 ETag 與 If-None-Match 換得 304 Not Modified，以雜湊檔名讓靜態檔放心快取一年，在固定情境中追蹤 CDN 邊緣節點的命中與回源，依「命中率 × 邊緣 RTT +（1 − 命中率）×（邊緣 RTT + 來源 RTT）」算出期望延遲，並比較 HTTP/1.1 的隊頭阻塞、HTTP/2 在一條 TCP 連線上的多工與 HPACK，以及 HTTP/3 以 QUIC 在 UDP 上做到逐串流的遺失復原、1-RTT 交握與連線遷移。', 55),
+  // CN-4 (2026-11-22): WebSocket is a program lesson (frames and the handshake key run in the tests); debugging tools,
+  // security basics and firewalls are network scenes; CN19's firewall exercises are rules the learner writes.
+  programFromBlueprint('CN16', '比較輪詢、長輪詢、Server-Sent Events（text/event-stream）與全雙工的 WebSocket 在請求數、延遲與標頭成本上的差異，追蹤 HTTP/1.1 的 Upgrade 交握與 101 Switching Protocols 並以 base64(SHA-1(key + GUID)) 算出 Sec-WebSocket-Accept，逐位元拆解 RFC 6455 訊框的 FIN、opcode、MASK、7／16／64 位元長度與遮罩金鑰的 XOR，寫出以連線表廣播訊息的簡易聊天室伺服器，並用 ping／pong 心跳偵測半開連線、以 close 狀態碼關閉，再以指數退避加抖動重連，說明聊天室為何選擇 WebSocket 而非輪詢。', 60, 'variable-state'),
+  networkFromBlueprint('CN17', '用 ping 的 ICMP Echo 與回覆 TTL、traceroute 的 TTL 遞增與 Time Exceeded、dig 的 status 與 @解析器比較、curl -v 的連線與 TLS 階段和封包擷取的 SYN／RST，依分層除錯判斷「網站打不開」是 DNS、路由、連接埠還是應用層的問題。', 55),
+  networkFromBlueprint('CN18', '以機密性、完整性與可用性分析網路威脅，逐步追蹤咖啡店區域網路上的 ARP 偽冒如何形成中間人、TLS 的憑證檢查如何以 unknown_ca 擋下偽造的憑證，看懂 IP、MAC、DNS 與電子郵件寄件者的偽冒與對應防護，在固定情境中看偽冒來源的 SYN flood 塞滿半開佇列、SYN cookies 如何不占佇列完成交握，比較流量型與反射放大攻擊及速率限制、CDN 與清洗、anycast 的防護，辨識仿冒網域與有效憑證的釣魚網站、說明鎖頭為什麼不證明網站身分與通行金鑰為什麼能抵抗釣魚，並認識封包過濾防火牆的能力與限制。', 55),
+  networkFromBlueprint('CN19', '分清無狀態封包過濾與狀態檢查，讀懂連線追蹤表如何讓回應進來而不開放入站埠，以預設拒絕、最小權限與「第一條符合的規則決定結果」寫出防火牆規則並預測每個封包的結果，用 DMZ 與網段隔離限制被攻破的伺服器能走的路，追蹤站對站 VPN 把內層封包加密後裝進外層 UDP 封包的封裝、比較遠端存取 VPN 並說明 VPN 保護與不保護的範圍，最後以身分感知的存取代理與微分段比較城堡與護城河和零信任。', 60),
 ];
 
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */

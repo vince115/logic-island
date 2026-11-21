@@ -16,8 +16,8 @@ const DATABASES_DONE = lessons.filter(l => l.islandId === 'databases').length;
 const PL_DONE = lessons.filter(l => l.islandId === 'programming-languages').length;
 // CN-1 (2026-11-22): the computer-networks island is written in batches with the network-protocol capability.
 const NETWORKS_DONE = lessons.filter(l => l.islandId === 'networks').length;
-// CN-3: the networks island's lessons whose outcome is code (sockets, a REST client) are program lessons.
-const NETWORK_PROGRAMS = ['CN11', 'CN14'].filter(id => lessons.some(l => l.lessonId === id));
+// CN-3, CN-4: the networks island's lessons whose outcome is code (sockets, a REST client, WebSocket) are program lessons.
+const NETWORK_PROGRAMS = ['CN11', 'CN14', 'CN16'].filter(id => lessons.some(l => l.lessonId === id));
 const COMPLETE = [...ids('F', 20), ...ids('D', 20), ...ids('A', ALGORITHMS_DONE), ...ids('PL', PL_DONE), ...ids('DB', DATABASES_DONE), ...ids('CN', NETWORKS_DONE)];
 // F.1b: lessons are told apart by the capabilities they declare, never by a missing field.
 const programLessons = lessons.filter(l => hasCapability(l, 'program-code'));
