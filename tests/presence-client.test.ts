@@ -219,4 +219,29 @@ describe('privacy signals', () => {
     await tick(10);
     expect(p.beacons).toEqual([{ v: 1, tab: 'tab0000000000001', leave: true, at: Date.now() - 10 }]);
   });
+
+  it('orders its own times strictly: a return is later than the goodbye, in the same millisecond and on a clock set back', async () => {
+    const p = page(), tracker = new PresenceTracker(p.env);
+    tracker.start();
+    await tick(0);
+    const first = p.requests[0].since as number;
+    // Hidden and shown again without the clock moving at all.
+    p.setVisibility('hidden');
+    p.setVisibility('visible');
+    await tick(0);
+    const left = p.beacons[0].at as number, back = p.requests[1].since as number;
+    expect(left).toBeGreaterThanOrEqual(first);
+    expect(back).toBeGreaterThan(left);
+    // The computer's clock is set back an hour: the tab's times still only go forward.
+    vi.setSystemTime(1_800_000_000_000 - 3_600_000);
+    p.setVisibility('hidden');
+    p.setVisibility('visible');
+    await tick(0);
+    const leftAgain = p.beacons[1].at as number, backAgain = p.requests[2].since as number;
+    expect(leftAgain).toBeGreaterThanOrEqual(back);
+    expect(backAgain).toBeGreaterThan(leftAgain);
+    tracker.setPlace({ t: 'island', id: 'foundations' });
+    await tick(PRESENCE.placeDebounceMs);
+    expect(p.requests[3].since as number).toBeGreaterThanOrEqual(backAgain);
+  });
 });

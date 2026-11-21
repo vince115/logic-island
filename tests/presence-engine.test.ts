@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { PRESENCE } from '@/lib/presence/config';
-import { aggregate, applyHeartbeat, applyLeave, isActive, publicSnapshot, type Heartbeat, type SessionRecord } from '@/lib/presence/engine';
+import { MAX_LEFT, aggregate, applyHeartbeat, applyLeave, isActive, leaveFirst, publicSnapshot, type Heartbeat, type SessionRecord } from '@/lib/presence/engine';
 import { HUB_LOCATION, type PresenceLocation } from '@/lib/presence/locations';
 import { MemoryPresenceStore } from '@/lib/presence/store';
-import { presenceStoreContract } from './helpers/presence-store-contract';
+import { presenceOrderingContract, presenceStoreContract } from './helpers/presence-store-contract';
 
 /*
  * Dynamic Island Population: the population engine and its memory store. One session is in one place; several tabs,
@@ -170,6 +170,7 @@ describe('the memory store', () => {
 
 // P5: the same contract the shared store runs (races between tabs and sessions, expiry, cleanup).
 presenceStoreContract('the memory store (contract)', max => { const store = new MemoryPresenceStore(max); return { store, held: () => store.size }; });
+presenceOrderingContract('the memory store (contract)', () => { const store = new MemoryPresenceStore(); return { instances: [store], held: () => store.size }; });
 
 describe('requests that arrive out of order', () => {
   const P1: PresenceLocation = F, P2: PresenceLocation = DB, P3: PresenceLocation = ML;
@@ -184,7 +185,7 @@ describe('requests that arrive out of order', () => {
     const back = applyHeartbeat(record, beat('taba0001', 31, P2), T0 + 200);
     expect(isActive(back, T0 + 200)).toBe(true);
     expect(back.location).toEqual(P2);
-    expect(back.leftAt).toBeUndefined();
+    expect(back.left).toBeUndefined();
     // Another tab of the session is a visitor too, whatever its clock says.
     expect(isActive(applyHeartbeat(record, beat('tabb0002', 5, P3), T0 + 200), T0 + 200)).toBe(true);
   });
@@ -197,7 +198,7 @@ describe('requests that arrive out of order', () => {
     expect(applyLeave(record, { tab: 'taba0001', at: 40 }).away).toBe(true);
     // A tracker that sends no time (an older page) is taken at its word, as before.
     expect(applyLeave(record, 'taba0001').away).toBe(true);
-    expect(applyLeave(record, { tab: 'taba0001' }).leftAt).toBeUndefined();
+    expect(applyLeave(record, { tab: 'taba0001' }).left).toBeUndefined();
   });
 
   it('does not move a session back to where its tab was', () => {
@@ -256,6 +257,158 @@ describe('requests that arrive out of order', () => {
         expect(['taba0001', 'tabb0002']).toContain(record.tab);
       }
     }
+  });
+});
+
+describe('several tabs, requests in any order (P6-A, KNOWN_ISSUES P1-44)', () => {
+  const A = 'taba0001', B = 'tabb0002', C = 'tabc0003';
+  type Event = { tab: string; kind: 'beat'; since: number; place: PresenceLocation } | { tab: string; kind: 'leave'; at: number };
+  const b = (tab: string, since: number, place: PresenceLocation): Event => ({ tab, kind: 'beat', since, place });
+  const l = (tab: string, at: number): Event => ({ tab, kind: 'leave', at });
+  /** What a store does with the events, in the order given (store.ts): a goodbye with no session is remembered. */
+  const deliver = (events: Event[]) => {
+    let record: SessionRecord | undefined;
+    events.forEach((event, i) => {
+      if (event.kind === 'beat') record = applyHeartbeat(record, beat(event.tab, event.since, event.place), T0 + i);
+      else record = record ? applyLeave(record, { tab: event.tab, at: event.at }) : leaveFirst({ tab: event.tab, at: event.at }, T0 + i);
+    });
+    return record;
+  };
+  const counted = (record: SessionRecord | undefined) => record ? aggregate([record], T0 + 1_000).total : 0;
+  function* permutations<T>(list: T[]): Generator<T[]> {
+    if (list.length <= 1) { yield list; return; }
+    for (let i = 0; i < list.length; i++) for (const rest of permutations([...list.slice(0, i), ...list.slice(i + 1)])) yield [list[i], ...rest];
+  }
+
+  it('keeps a session away when the tab that did not own it left too, and that tab\'s heartbeat lands last (P1-44)', () => {
+    // Two windows of one session, B in front. Both are hidden together; A's last heartbeat is still on its way.
+    let record = applyHeartbeat(undefined, beat(A, 10, F), T0);
+    record = applyHeartbeat(record, beat(B, 20, DB), T0 + 100);
+    record = applyLeave(record, { tab: A, at: 30 });
+    // A's goodbye does not take the session away (B is in front), but it is remembered.
+    expect(isActive(record, T0 + 200)).toBe(true);
+    expect(record.left).toEqual({ [A]: 30 });
+    record = applyLeave(record, { tab: B, at: 31 });
+    expect(isActive(record, T0 + 300)).toBe(false);
+    const late = applyHeartbeat(record, beat(A, 10, F), T0 + 400);
+    expect(late).toBe(record);
+    expect(counted(late)).toBe(0);
+    // A really comes back: later than its goodbye.
+    const back = applyHeartbeat(record, beat(A, 40, ML), T0 + 500);
+    expect(isActive(back, T0 + 500)).toBe(true);
+    expect(back.location).toEqual(ML);
+    expect(back.left).toEqual({ [B]: 31 });
+  });
+
+  it('remembers a goodbye that overtook its session\'s first heartbeat, and counts nobody for it', () => {
+    const first = leaveFirst({ tab: A, at: 30 }, T0)!;
+    expect(counted(first)).toBe(0);
+    expect(first.location).toEqual(HUB_LOCATION);
+    // The heartbeat sent before the goodbye lands: still nobody. One sent after it: the visitor is back.
+    expect(applyHeartbeat(first, beat(A, 20, F), T0 + 50)).toBe(first);
+    expect(counted(applyHeartbeat(first, beat(A, 31, F), T0 + 50))).toBe(1);
+    // Another tab of the session is a visitor, whatever the first one did.
+    expect(applyHeartbeat(first, beat(B, 5, DB), T0 + 50).location).toEqual(DB);
+    // A goodbye with no time cannot be put in order: it starts nothing.
+    expect(leaveFirst({ tab: A }, T0)).toBeUndefined();
+    expect(leaveFirst(A, T0)).toBeUndefined();
+  });
+
+  it('takes a heartbeat that carries its goodbye\'s own time as sent before it (the tracker makes every later one later)', () => {
+    let record = applyHeartbeat(undefined, beat(A, 30, F), T0);
+    record = applyLeave(record, { tab: A, at: 30 });
+    expect(record.away).toBe(true);
+    expect(applyHeartbeat(record, beat(A, 30, F), T0 + 10)).toBe(record);
+    expect(applyHeartbeat(record, beat(A, 31, F), T0 + 10).away).toBe(false);
+  });
+
+  it('never counts a session whose tabs have all left, in every order of their requests', () => {
+    const two = [b(A, 10, F), b(A, 10, F), b(B, 20, DB), b(B, 20, DB), l(A, 30), l(B, 31)];
+    const three = [b(A, 10, F), b(B, 20, DB), b(C, 25, ML), b(B, 20, DB), l(A, 30), l(B, 31), l(C, 32)];
+    // A tab that left, came back and left again; the other one left in between.
+    const again = [b(A, 10, F), l(A, 15), b(A, 22, AI), b(B, 20, DB), l(B, 24), l(A, 30)];
+    let orders = 0;
+    for (const story of [two, three, again]) for (const order of permutations(story)) {
+      orders++;
+      const record = deliver(order);
+      if (counted(record) !== 0) throw new Error(`still counted after ${JSON.stringify(order)}`);
+    }
+    expect(orders).toBe(720 + 5040 + 720);
+  });
+
+  it('counts a session exactly once, where its newest tab is, when that tab stays, in every order', () => {
+    // A and C leave, B (the tab the visitor turned to last) stays: counted at B's place, whichever request is last.
+    const story = [b(A, 10, F), b(B, 12, AI), b(C, 15, ML), b(B, 20, DB), b(B, 20, DB), l(A, 30), l(C, 31)];
+    for (const order of permutations(story)) {
+      const record = deliver(order)!;
+      if (counted(record) !== 1 || record.tab !== B || record.location !== DB) throw new Error(`wrong end after ${JSON.stringify(order)}: ${JSON.stringify(record)}`);
+    }
+  });
+
+  it('holds for random stories of three tabs delivered in random order', () => {
+    const random = (() => { let a = 20261122; return () => { a = (a * 1664525 + 1013904223) >>> 0; return a / 4294967296; }; })();
+    const places = [F, DB, ML, AI, HUB_LOCATION], tabs = [A, B, C];
+    let allLeft = 0, newestStays = 0;
+    for (let round = 0; round < 3_000; round++) {
+      // The story as it happened in the browser: each tab shows, moves, reports again and hides, on one clock.
+      const visible = new Map<string, { since: number; place: PresenceLocation }>(), events: Event[] = [];
+      let clock = 100;
+      for (let step = 0; step < 4 + Math.floor(random() * 10); step++) {
+        clock += 1 + Math.floor(random() * 5);
+        const tab = tabs[Math.floor(random() * tabs.length)], state = visible.get(tab), roll = random();
+        if (!state || roll < 0.25) { const next = { since: clock, place: places[Math.floor(random() * places.length)] }; visible.set(tab, next); events.push(b(tab, next.since, next.place)); }
+        else if (roll < 0.6) events.push(b(tab, state.since, state.place));
+        else { visible.delete(tab); events.push(l(tab, clock)); }
+      }
+      if (round % 3 === 0) for (const tab of [...visible.keys()]) { clock += 1; visible.delete(tab); events.push(l(tab, clock)); }
+      const beats = events.filter(event => event.kind === 'beat');
+      if (!beats.length) continue;
+      const newest = beats.reduce((max, event) => event.since > max.since ? event : max);
+      const order = [...events];
+      for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+      const record = deliver(order), total = counted(record), context = () => `round ${round}: ${JSON.stringify(order)} -> ${JSON.stringify(record)}`;
+      expect(total, context()).toBeLessThanOrEqual(1);
+      // Nobody left to count: not counted, whichever request landed last.
+      if (visible.size === 0) { allLeft++; expect(total, context()).toBe(0); }
+      // Whoever is counted is a tab that is really there.
+      if (total === 1) expect(visible.has(record!.tab), context()).toBe(true);
+      // The tab the visitor turned to last is still there: the session is counted, and at that tab's place.
+      if (visible.get(newest.tab)?.since === newest.since) { newestStays++; expect(total, context()).toBe(1); expect(record!.tab, context()).toBe(newest.tab); expect(record!.location, context()).toBe(newest.place); }
+      if (record?.left) expect(Object.keys(record.left).length).toBeLessThanOrEqual(MAX_LEFT);
+    }
+    // Both ends were really tried.
+    expect(allLeft).toBeGreaterThan(800);
+    expect(newestStays).toBeGreaterThan(800);
+  });
+
+  it('never moves a session\'s last sign of life back in time (a request handled late, by a server whose clock is behind)', () => {
+    let record = applyHeartbeat(undefined, beat(A, 10, F), T0);
+    record = applyHeartbeat(record, beat(A, 10, F), T0 + 30_000);
+    const late = applyHeartbeat(record, beat(A, 10, F), T0 + 12_000);
+    expect(late.seen).toBe(T0 + 30_000);
+    expect(late.ownerSeen).toBe(T0 + 30_000);
+    // The same for another tab's report and for a new owner.
+    expect(applyHeartbeat(record, beat(B, 5, DB), T0 + 1).seen).toBe(T0 + 30_000);
+    const taken = applyHeartbeat(record, beat(B, 50, DB), T0 + 1);
+    expect([taken.seen, taken.ownerSeen, taken.tab]).toEqual([T0 + 30_000, T0 + 30_000, B]);
+    // And a late request is no reason to call a live session expired.
+    expect(applyHeartbeat(record, beat(A, 10, F), T0 - 5 * PRESENCE.ttlMs).seen).toBe(T0 + 30_000);
+  });
+
+  it('remembers a bounded number of goodbyes: the oldest goes first, never the owner\'s', () => {
+    let record = applyHeartbeat(undefined, beat('owner001', 1_000, F), T0);
+    record = applyLeave(record, { tab: 'owner001', at: 1_001 });
+    for (let i = 0; i < 20; i++) record = applyLeave(record, { tab: `other${String(i).padStart(3, '0')}`, at: 2_000 + i });
+    const left = record.left!;
+    expect(Object.keys(left)).toHaveLength(MAX_LEFT);
+    expect(left.owner001).toBe(1_001);
+    expect(Object.keys(left).filter(tab => tab !== 'owner001').sort()).toEqual(['other015', 'other016', 'other017', 'other018', 'other019']);
+    expect(record.away).toBe(true);
+    // A tab id is only a key, whatever it spells.
+    const odd = applyLeave(applyHeartbeat(undefined, beat(A, 10, F), T0), { tab: 'constructor', at: 5 });
+    expect(odd.left).toEqual({ constructor: 5 });
+    expect(applyHeartbeat(odd, beat('tostring1', 1, DB), T0 + 1).away).toBe(false);
+    expect(applyHeartbeat(odd, beat('constructor', 4, DB), T0 + 1)).toBe(odd);
   });
 });
 

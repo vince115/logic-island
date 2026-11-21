@@ -6,7 +6,7 @@ import { HELD_SCRIPT, LIVE_SCRIPT, RedisPresenceStore, WRITE_SCRIPT, sharedStore
 import { handlePresenceGet, handlePresencePost } from '@/lib/presence/service';
 import { MemoryPresenceStore, presenceStore } from '@/lib/presence/store';
 import { FakeRedis } from './helpers/fake-redis';
-import { presenceStoreContract } from './helpers/presence-store-contract';
+import { presenceOrderingContract, presenceStoreContract } from './helpers/presence-store-contract';
 import { RespClient } from './helpers/resp-client';
 
 /*
@@ -31,6 +31,11 @@ const prefix = () => `li:test:${process.pid}:${++run}`;
 presenceStoreContract('the shared store (stand-in Redis)', max => {
   const store = new RedisPresenceStore(new FakeRedis(), { prefix: prefix(), maxSessions: max });
   return { store, held: () => store.held() };
+});
+
+presenceOrderingContract('the shared store (stand-in Redis, three instances)', () => {
+  const redis = new FakeRedis(), name = prefix(), instances = [0, 1, 2].map(() => new RedisPresenceStore(redis, { prefix: name }));
+  return { instances, held: () => instances[0].held() };
 });
 
 describe('the shared store: several server instances, one database', () => {
@@ -234,6 +239,35 @@ describe.skipIf(!REAL || !local)('the shared store on a real Redis (PRESENCE_TES
   presenceStoreContract('real Redis', max => {
     const store = new RedisPresenceStore(client, { prefix: name(), maxSessions: max });
     return { store, held: () => store.held() };
+  });
+
+  // P6-A: four instances, each on a connection of its own, so their scripts really interleave on the server.
+  const extra: RespClient[] = [];
+  afterAll(() => { for (const connection of extra) connection.close(); });
+  presenceOrderingContract('real Redis, four instances on four connections', () => {
+    const p = name(), connections: RespClient[] = [];
+    const instances = [0, 1, 2, 3].map(i => new RedisPresenceStore({ eval: async (script, keys, args) => (connections[i] ??= await opened()).eval(script, keys, args) }, { prefix: p }));
+    return { instances, held: () => instances[0].held() };
+  });
+  const opened = async () => { const connection = await RespClient.open(REAL!); extra.push(connection); return connection; };
+
+  it('keeps the score of a session at its record\'s last sign of life, and one member a session, after a storm of requests', async () => {
+    const p = name(), connections = await Promise.all([opened(), opened(), opened()]);
+    const stores = connections.map(connection => new RedisPresenceStore(connection, { prefix: p }));
+    const jobs: Promise<unknown>[] = [];
+    for (let i = 0; i < 300; i++) {
+      const sid = `s${i % 25}`, store = stores[i % 3], now = T0 + (i * 37) % 1_000;
+      jobs.push(i % 7 === 3 ? store.leave(sid, { tab: i % 2 ? 'taba0001' : 'tabb0002', at: 100 + i }, now) : store.touch(sid, beat(i % 2 ? 'taba0001' : 'tabb0002', 100 + i, i % 2 ? F : DB), now));
+    }
+    await Promise.all(jobs);
+    expect(Number(await client.command('HLEN', `${p}:records`))).toBe(25);
+    expect(Number(await client.command('ZCARD', `${p}:seen`))).toBe(25);
+    for (let i = 0; i < 25; i++) {
+      const record = JSON.parse(String(await client.command('HGET', `${p}:records`, `s${i}`)));
+      expect(Number(await client.command('ZSCORE', `${p}:seen`, `s${i}`))).toBe(record.seen);
+      expect(Object.keys(record.left ?? {}).length).toBeLessThanOrEqual(2);
+    }
+    expect((await stores[0].counts(T0 + 2_000)).total).toBeLessThanOrEqual(25);
   });
 
   it('writes, conflicts and refuses exactly as the scripts say', async () => {

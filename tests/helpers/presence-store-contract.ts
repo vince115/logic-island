@@ -173,3 +173,113 @@ export function presenceStoreContract(name: string, make: (maxSessions?: number)
     });
   });
 }
+
+/*
+ * P6-A: requests that land in any order, on any server instance. `instances` are stores over one set of sessions
+ * (one for the memory store; several over one database for the shared store): each request goes to one of them, all
+ * of a round at the same moment, in a shuffled order. What must hold at the end does not depend on that order:
+ *
+ *   - a session whose tabs have all said goodbye is not counted, whichever request landed last (KNOWN_ISSUES P1-44);
+ *   - a session whose newest tab is still there is counted once, at that tab's place;
+ *   - a session is one record, never two.
+ */
+export interface StoresUnderTest { instances: PresenceStore[]; held?: () => Promise<number> | number }
+
+export function presenceOrderingContract(name: string, make: () => StoresUnderTest) {
+  const A = 'taba0001', B = 'tabb0002', C = 'tabc0003';
+  type Request = { sid: string; tab: string; since?: number; place?: PresenceLocation; at?: number };
+  const send = (store: PresenceStore, request: Request, now: number) => request.at === undefined
+    ? store.touch(request.sid, beat(request.tab, request.since!, request.place!), now)
+    : store.leave(request.sid, { tab: request.tab, at: request.at }, now);
+  const shuffled = <T>(list: T[], random: () => number) => { const out = [...list]; for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; } return out; };
+
+  describe(`${name}: tabs leaving and reporting in any order (P6-A)`, () => {
+    it('keeps a session away when both its tabs left and the other tab\'s heartbeat lands last (P1-44)', async () => {
+      const { instances } = make(), at = (i: number) => instances[i % instances.length];
+      await at(0).touch('s1', beat(A, 10, F), T0);
+      await at(1).touch('s1', beat(B, 20, DB), T0 + 100);
+      await at(2).leave('s1', { tab: A, at: 30 }, T0 + 200);
+      expect((await at(0).counts(T0 + 250)).islands).toEqual({ databases: 1 });
+      await at(1).leave('s1', { tab: B, at: 31 }, T0 + 300);
+      // A's heartbeat, sent before both windows were hidden, lands now.
+      await at(2).touch('s1', beat(A, 10, F), T0 + 400);
+      for (const store of instances) expect((await store.counts(T0 + 500)).total).toBe(0);
+      // A comes back for real.
+      await at(0).touch('s1', beat(A, 40, ML), T0 + 600);
+      expect((await at(1).counts(T0 + 700)).islands).toEqual({ 'machine-learning': 1 });
+    });
+
+    it('starts no session for a heartbeat whose goodbye landed first, and lets the remembered goodbye expire', async () => {
+      const { instances, held } = make(), [first] = instances, last = instances[instances.length - 1];
+      await first.leave('s1', { tab: A, at: 30 }, T0);
+      if (held) expect(await held()).toBe(1);
+      await last.touch('s1', beat(A, 20, F), T0 + 50);
+      expect((await first.counts(T0 + 100)).total).toBe(0);
+      // A goodbye with no time (an older page) for a session nobody holds is nothing at all.
+      await first.leave('s2', A, T0);
+      if (held) expect(await held()).toBe(1);
+      // Sent after the goodbye: the visitor is back.
+      await last.touch('s1', beat(A, 31, F), T0 + 200);
+      expect((await first.counts(T0 + 300)).islands).toEqual({ foundations: 1 });
+      // A remembered goodbye nobody follows goes like a session does.
+      await first.leave('s3', { tab: B, at: 5 }, T0 + 1_000);
+      expect((await last.counts(T0 + 1_000 + TTL + 1)).total).toBe(0);
+      await last.counts(T0 + 1_000 + TTL + 20_000);
+      if (held) expect(await held()).toBe(0);
+    });
+
+    it('ends the same for every order and every instance: all gone is nobody, the newest tab staying is one', async () => {
+      for (const seed of [11, 12, 13, 14, 15, 16]) {
+        const { instances, held } = make(), random = seeded(seed), requests: Request[] = [], gone: string[] = [], here = new Map<string, PresenceLocation>();
+        const places = [F, DB, ML, AI];
+        for (let i = 0; i < 60; i++) {
+          const sid = `s${seed}-${i}`, last = places[Math.floor(random() * places.length)];
+          // Three tabs; B is the one the visitor turned to last. In half of the sessions B leaves too.
+          requests.push({ sid, tab: A, since: 10, place: F }, { sid, tab: A, since: 10, place: F }, { sid, tab: C, since: 14, place: ML }, { sid, tab: B, since: 12, place: AI },
+            { sid, tab: B, since: 20, place: last }, { sid, tab: B, since: 20, place: last }, { sid, tab: A, at: 30 }, { sid, tab: C, at: 32 });
+          if (i % 2) { requests.push({ sid, tab: B, at: 31 }); gone.push(sid); } else here.set(sid, last);
+        }
+        // Everything at the same moment, in a shuffled order, each request on an instance of its own choosing.
+        await Promise.all(shuffled(requests, random).map((request, i) => send(instances[Math.floor(random() * instances.length)], request, T0 + i)));
+        const expected: Record<string, number> = {};
+        for (const place of here.values()) if (place.island) expected[place.island] = (expected[place.island] ?? 0) + 1;
+        for (const store of instances) {
+          const counts = await store.counts(T0 + 5_000);
+          expect(counts.total, `seed ${seed}`).toBe(here.size);
+          expect(counts.islands, `seed ${seed}`).toEqual(expected);
+          expect(sum(counts.regions)).toBe(counts.total);
+          expect(sum(counts.islands) + sum(counts.commons)).toBe(counts.total);
+        }
+        // One record a session, the ones nobody is in included (they go at the timeout).
+        if (held) expect(await held(), `seed ${seed}`).toBe(60);
+        // The late heartbeats of the sessions that are gone land once more, after everything: still nobody.
+        await Promise.all(gone.flatMap(sid => [send(instances[0], { sid, tab: A, since: 10, place: F }, T0 + 6_000), send(instances[instances.length - 1], { sid, tab: B, since: 20, place: DB }, T0 + 6_000)]));
+        expect((await instances[0].counts(T0 + 7_000)).total, `seed ${seed}`).toBe(here.size);
+      }
+    });
+
+    it('counts one session once when every instance hears from it at the same moment', async () => {
+      const { instances, held } = make();
+      // Two requests an instance, all at once: more than a session's tabs ever send together. (A write can lose its
+      // turn only to another instance's write of the same session; the shared store tries ten times: redis-store.ts.)
+      const results = await Promise.all(Array.from({ length: Math.max(8, instances.length * 2) }, (_, i) => instances[i % instances.length].touch('s1', beat(i % 3 ? A : B, i % 3 ? 10 : 20, i % 3 ? F : DB), T0 + (i * 7) % 13)));
+      expect(results.every(result => result === 'counted')).toBe(true);
+      for (const store of instances) {
+        const counts = await store.counts(T0 + 100);
+        expect(counts.total).toBe(1);
+        expect(counts.islands).toEqual({ databases: 1 });
+      }
+      if (held) expect(await held()).toBe(1);
+    });
+
+    it('does not let a request handled late take a session\'s last sign of life back', async () => {
+      const { instances } = make(), [first] = instances, last = instances[instances.length - 1];
+      await first.touch('s1', beat(A, 10, F), T0);
+      await first.touch('s1', beat(A, 10, F), T0 + 60_000);
+      // Handled by an instance whose clock is a minute behind: the session must not expire a minute early for it.
+      await last.touch('s1', beat(A, 10, F), T0 + 1_000);
+      expect((await first.counts(T0 + 60_000 + TTL)).total).toBe(1);
+      expect((await last.counts(T0 + 60_000 + TTL + 1)).total).toBe(0);
+    });
+  });
+}

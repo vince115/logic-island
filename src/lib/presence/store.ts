@@ -1,5 +1,5 @@
 import { PRESENCE } from './config';
-import { aggregate, allowWrite, applyHeartbeat, applyLeave, isExpired, type Heartbeat, type Leave, type PopulationCounts, type SessionRecord } from './engine';
+import { aggregate, allowWrite, applyHeartbeat, applyLeave, isExpired, leaveFirst, type Heartbeat, type Leave, type PopulationCounts, type SessionRecord } from './engine';
 import { RedisPresenceStore, sharedStoreConfig, upstashRest } from './redis-store';
 
 /**
@@ -57,10 +57,16 @@ export class MemoryPresenceStore implements PresenceStore {
   }
 
   async leave(sid: string, leave: Leave | string, now: number): Promise<void> {
-    const current = this.sessions.get(sid);
-    if (!current || isExpired(current, now)) return;
-    if (!allowWrite(current, now)) return;
-    this.sessions.set(sid, applyLeave(current, leave));
+    this.sweep(now);
+    const held = this.sessions.get(sid), current = held && !isExpired(held, now) ? held : undefined;
+    if (current) {
+      if (allowWrite(current, now)) this.sessions.set(sid, applyLeave(current, leave));
+      return;
+    }
+    // No session (yet): the goodbye overtook the first heartbeat. Remember it, where there is room.
+    const first = leaveFirst(leave, now);
+    if (!first || (!held && this.sessions.size >= this.maxSessions) || !allowWrite(first, now)) return;
+    this.sessions.set(sid, first);
   }
 
   async counts(now: number): Promise<PopulationCounts> {

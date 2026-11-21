@@ -39,6 +39,8 @@ export class PresenceTracker {
   private started = false;
   private stopped = false;
   private left = true;
+  /** When this tab last said goodbye (its own clock); 0: never. */
+  private leftAt = 0;
 
   constructor(private readonly env: TrackerEnvironment) {
     this.tab = env.randomId();
@@ -46,6 +48,12 @@ export class PresenceTracker {
   }
 
   private get visible() { return this.env.document.visibilityState === 'visible'; }
+  /**
+   * The tab became active (or moved): a new `since`. It never goes back, and it is always later than the tab's last
+   * goodbye, even on a clock that was set back: the server orders this tab's requests by these two times alone
+   * (engine.ts), so "sent before the goodbye" and "sent after it" must never look the same.
+   */
+  private activate() { this.since = Math.max(this.env.now(), this.since, this.leftAt + 1); }
 
   private schedule(delay: number) {
     if (this.timer !== undefined) this.env.window.clearTimeout(this.timer);
@@ -82,25 +90,27 @@ export class PresenceTracker {
     if (this.left || this.stopped) return;
     this.left = true;
     // `at`: when this tab left, so a heartbeat it sent just before, arriving late, does not bring the session back.
-    const body = JSON.stringify({ v: PRESENCE.version, tab: this.tab, leave: true, at: this.env.now() });
+    // Never earlier than the tab's own `since` (a heartbeat already sent carries it).
+    this.leftAt = Math.max(this.env.now(), this.since, this.leftAt);
+    const body = JSON.stringify({ v: PRESENCE.version, tab: this.tab, leave: true, at: this.leftAt });
     // A beacon outlives the page; where there is none, a keepalive request does the same.
     if (this.env.beacon?.(PRESENCE.endpoint, new Blob([body], { type: 'application/json' }))) return;
     void this.env.fetch(PRESENCE.endpoint, { method: 'POST', credentials: 'same-origin', keepalive: true, headers: { 'content-type': 'application/json' }, body }).catch(() => {});
   }
 
   private readonly onVisibility = () => {
-    if (this.visible) { this.since = this.env.now(); this.schedule(0); } else this.leave();
+    if (this.visible) { this.activate(); this.schedule(0); } else this.leave();
   };
   /** The visitor turned to this window: it now owns the session's place (two visible windows of one session). */
-  private readonly onFocus = () => { if (this.visible) { this.since = this.env.now(); this.schedule(PRESENCE.placeDebounceMs); } };
+  private readonly onFocus = () => { if (this.visible) { this.activate(); this.schedule(PRESENCE.placeDebounceMs); } };
   private readonly onPageHide = () => this.leave();
-  private readonly onPageShow = (event: Event) => { if ((event as PageTransitionEvent).persisted && this.visible) { this.since = this.env.now(); this.schedule(0); } };
+  private readonly onPageShow = (event: Event) => { if ((event as PageTransitionEvent).persisted && this.visible) { this.activate(); this.schedule(0); } };
 
   /** The page's current place. A change is reported after a short wait, so passing through pages is one report. */
   setPlace(place: PlaceClaim) {
     if (samePlace(place, this.place)) return;
     this.place = place;
-    this.since = this.env.now();
+    this.activate();
     if (this.started) this.schedule(PRESENCE.placeDebounceMs);
   }
 

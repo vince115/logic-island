@@ -197,6 +197,50 @@ describe('counting visitors', () => {
     expect(stray.headers.get('set-cookie')).toBeNull();
   });
 
+  it('does not bring a visitor back when both windows were hidden together and the other window\'s heartbeat lands last (P1-44)', async () => {
+    const visitor = browser(), A = 'aaaaaaaa00000001', B = 'bbbbbbbb00000002';
+    await visitor.arrive(F01, A);
+    const sinceA = now;
+    now += 1_000;
+    await visitor.send(heartbeat(DB01, B));
+    // Both windows go to the background within the same moment; A's periodic heartbeat was already on its way.
+    now += 5_000;
+    await visitor.send({ v: 1, tab: A, leave: true, at: now });
+    await visitor.send({ v: 1, tab: B, leave: true, at: now + 1 });
+    expect((await population()).total).toBe(0);
+    now += 200;
+    const late = await visitor.send(heartbeat(F01, A, sinceA));
+    expect(late.status).toBe(200);
+    expect((await population()).total).toBe(0);
+    // The same heartbeat again, and B's: still nobody. Then A is really opened again.
+    await visitor.send(heartbeat(DB01, B, sinceA + 1_000));
+    await visitor.send(heartbeat(F01, A, sinceA));
+    expect((await population()).total).toBe(0);
+    now += 10_000;
+    await visitor.send(heartbeat(F01, A, now));
+    expect(await population()).toMatchObject({ total: 1, islands: { foundations: 1 } });
+  });
+
+  it('counts nobody for a visitor whose goodbye overtook the heartbeat that would have counted them', async () => {
+    const visitor = browser(), A = 'aaaaaaaa00000001';
+    const first = await (await visitor.send(heartbeat(F01, A))).json();
+    const since = now;
+    now += first.retryMs;
+    // The page is left the moment its second report goes out: the goodbye (a beacon) lands first.
+    await visitor.send({ v: 1, tab: A, leave: true, at: now });
+    now += 50;
+    expect((await (await visitor.send(heartbeat(F01, A, since))).json()).ok).toBe(true);
+    expect((await population()).total).toBe(0);
+    // Nothing about it is published, and it is gone at the timeout like any session.
+    expect(JSON.stringify(await population())).not.toContain(A);
+    now += PRESENCE.ttlMs + 20_000;
+    expect((await population()).total).toBe(0);
+    expect((deps.store as MemoryPresenceStore).size).toBe(0);
+    // A client that keeps no cookie still costs no memory, goodbyes included.
+    for (let i = 0; i < 50; i++) await post({ v: 1, tab: A, leave: true, at: now });
+    expect((deps.store as MemoryPresenceStore).size).toBe(0);
+  });
+
   it('lets a silent visitor go after the timeout', async () => {
     const visitor = browser();
     await visitor.arrive(F01);

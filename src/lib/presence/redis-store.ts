@@ -1,5 +1,5 @@
 import { PRESENCE } from './config';
-import { aggregate, allowWrite, applyHeartbeat, applyLeave, isExpired, type Heartbeat, type Leave, type PopulationCounts, type SessionRecord } from './engine';
+import { aggregate, allowWrite, applyHeartbeat, applyLeave, isExpired, leaveFirst, type Heartbeat, type Leave, type PopulationCounts, type SessionRecord } from './engine';
 import type { PresenceStore, TouchResult } from './store';
 
 /**
@@ -94,6 +94,12 @@ export const HELD_SCRIPT = `return redis.call('HLEN', KEYS[1])`;
 
 /** An "expected record" no record can equal: the write script answers it with the current record. */
 const NO_HINT = '\u0000';
+/**
+ * How often a write is tried. An attempt is lost only to another instance's write of the same session landing in
+ * between (inside an instance a session's writes wait for one another), so ten cover eight such writes at the same
+ * moment: far more than a session's tabs send together (one request a tab every 30 s, 40 writes a minute at most).
+ * Beyond that the write fails and the API answers 503; the tracker tries again later.
+ */
 const ATTEMPTS = 10;
 
 function parseRecord(json: string | undefined): SessionRecord | undefined {
@@ -179,10 +185,11 @@ export class RedisPresenceStore implements PresenceStore {
 
   async leave(sid: string, leave: Leave | string, now: number): Promise<void> {
     await this.update<void>(sid, now, current => {
-      if (!current || isExpired(current, now)) return { result: undefined };
-      const counted = { ...current };
-      if (!allowWrite(counted, now)) return { result: undefined };
-      return { next: applyLeave(counted, leave), result: undefined };
+      const live = current && !isExpired(current, now) ? { ...current } : undefined;
+      // No session (yet): the goodbye overtook the first heartbeat. Remember it (a full store keeps nothing).
+      const next = live ?? leaveFirst(leave, now);
+      if (!next || !allowWrite(next, now)) return { result: undefined };
+      return { next: live ? applyLeave(next, leave) : next, result: undefined };
     }, undefined);
   }
 
