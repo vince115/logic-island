@@ -55,7 +55,8 @@ test('網路協定視覺化：手機以文字列出訊息、不需要水平捲�
   await expect(first).toBeVisible();
   // Phones show each message as text; wide screens draw the arrow between the nodes' columns.
   await expect(http.locator('[data-dir]').first()).toBeVisible({ visible: !phone() });
-  expect(await first.evaluate(e => getComputedStyle(e).transitionDuration)).toBe('0s');
+  // The site's reduced-motion rule (globals.css) shortens every transition to 0.01 ms: effectively none.
+  expect(parseFloat(await first.evaluate(e => getComputedStyle(e).transitionDuration))).toBeLessThan(0.001);
   expect(await noOverflow(page)).toBeLessThanOrEqual(0);
 });
 
