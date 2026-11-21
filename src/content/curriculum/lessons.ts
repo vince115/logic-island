@@ -1,7 +1,7 @@
 import type { AlgorithmId } from '@/lib/engine';
 import planning from '@/content/world/planning-data.json';
 import type { AnyLessonId } from '@/content/world/lesson-id';
-import { DATABASE_VISUALIZATIONS, LANGUAGES, LESSON_ACTIVITIES, OPTIONAL_LANGUAGES, ISLAND_PREFIX, ISLAND_IDS, type ApcsRelevance, type Difficulty, type LessonActivity, type LessonCapability, type LessonId, type LessonMeta, type LessonStatus, type VisualizationType } from './schema';
+import { DATABASE_VISUALIZATIONS, LANGUAGES, LESSON_ACTIVITIES, OPTIONAL_LANGUAGES, ISLAND_PREFIX, ISLAND_IDS, PYTHON_LANGUAGES, type ApcsRelevance, type Difficulty, type LessonActivity, type LessonCapability, type LessonId, type LessonMeta, type LessonStatus, type VisualizationType } from './schema';
 
 /*
  * The lessons in recommended order (F01..F20, D01..D20, A01..A20, then the database island's written lessons from DB01).
@@ -402,6 +402,20 @@ const networks: Outline[] = [
   programFromBlueprint('CN20', '把整座島接成一件作品：依時間順序追蹤筆電以 DHCP 取得位址、以 ARP 問出閘道的 MAC、以 DNS 解析 api.example.com，再經路由與 NAT、TCP 三向交握與 TLS 1.3 送出 HTTPS 請求，設計並實作一個在記憶體中處理原始 HTTP/1.1 請求的待辦事項 REST API 服務（以 FNV-1a 的 ETag 回應 304、以 Bearer token 區分 401 與 403、固定的檢查順序與 Cache-Control），用 dig、curl、ss、openssl 與 tcpdump 分層診斷錯誤的 DNS 紀錄、丟棄 443 的防火牆、只聽 127.0.0.1 的服務、過期的憑證與缺少的 Cache-Control，最後寫下 HTTPS、HSTS、快取、存取控制與防火牆規則的設定和設計取捨。', 120, 'challenge-stages'),
 ];
 
+/**
+ * AIF-0 (2026-11-22): a Python-only program lesson of an AI island, written from its blueprint outline (slug, title,
+ * objectives, concepts, difficulty, prerequisites). The blueprint's exercises there are code-python, so the lesson's
+ * examples and exercises are Python, run by the tests; its blueprint activity (search-tree, game-tree…) is not built yet
+ * and the lesson shows one of the implemented shared visualizations instead, never a stand-in.
+ */
+export function pythonFromBlueprint(lessonId: string, summary: string, minutes: number, visualization: VisualizationType): Outline {
+  const b = planning.plannedLessons.find(l => l.lessonId === lessonId);
+  if (!b || b.islandId !== 'ai-foundations') throw new Error(`${lessonId} is not an AI foundations lesson of the blueprint`);
+  return { slug: b.slug, title: b.title, summary, objectives: b.learningObjectives, concepts: b.concepts, difficulty: b.difficulty as Difficulty,
+    minutes, prerequisites: b.prerequisites as LessonId[], recommended: b.recommended as AnyLessonId[], apcs: ['none'], visualization,
+    status: 'complete', version: '1.0.0', capabilities: ['python-code'], blueprintId: lessonId };
+}
+
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */
 function idAt(islandId: (typeof ISLAND_IDS)[number], index: number, blueprintId?: string): LessonId {
   const id = `${ISLAND_PREFIX[islandId]}${String(index + 1).padStart(2, '0')}` as LessonId;
@@ -420,7 +434,7 @@ export const lessons: LessonMeta[] = ISLAND_IDS.flatMap(islandId => outlines[isl
   lessonId: idAt(islandId, index, o.blueprintId),
   islandId, slug: o.slug, title: o.title, summary: o.summary, learningObjectives: o.objectives, difficulty: o.difficulty,
   estimatedMinutes: o.minutes, prerequisites: o.prerequisites, concepts: o.concepts, apcsRelevance: o.apcs,
-  supportedLanguages: o.capabilities.includes('program-code') ? [...LANGUAGES, ...(o.extraLanguages ?? [])] : [], visualizationType: o.visualization, lessonStatus: o.status ?? 'planned',
+  supportedLanguages: o.capabilities.includes('program-code') ? [...LANGUAGES, ...(o.extraLanguages ?? [])] : o.capabilities.includes('python-code') ? [...PYTHON_LANGUAGES] : [], visualizationType: o.visualization, lessonStatus: o.status ?? 'planned',
   version: o.version ?? '0.1.0', ...(o.labs ? { labs: o.labs } : {}), capabilities: o.capabilities,
   ...(o.capabilities.includes('sql') ? { queryLanguage: 'SQL' as const } : {}), ...(o.activity ? { activity: o.activity } : {}), ...(o.recommended?.length ? { recommended: o.recommended } : {}),
 })));

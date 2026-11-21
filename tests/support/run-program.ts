@@ -31,14 +31,15 @@ export class ProgramError extends Error {
 
 export interface ProgramRun { stdout: string; pid: number }
 
-export function runProcess(command: string, args: readonly string[], stdin = '', timeoutMs = PROGRAM_TIMEOUT_MS): ProgramRun {
+/** `env`: variables added to the inherited environment (AIF-0: PYTHONHASHSEED for the determinism check). */
+export function runProcess(command: string, args: readonly string[], stdin = '', timeoutMs = PROGRAM_TIMEOUT_MS, env?: Record<string, string>): ProgramRun {
   const dir = stdin ? mkdtempSync(join(tmpdir(), 'logic-island-stdin-')) : undefined;
   let fd: number | undefined;
   try {
     if (dir) { writeFileSync(join(dir, 'input.txt'), stdin); fd = openSync(join(dir, 'input.txt'), 'r'); }
     return finish(command, args, timeoutMs, spawnSync(command, args, {
       encoding: 'utf8', stdio: [fd ?? 'ignore', 'pipe', 'pipe'],
-      timeout: timeoutMs, killSignal: 'SIGKILL', maxBuffer: 64 * 1024 * 1024,
+      timeout: timeoutMs, killSignal: 'SIGKILL', maxBuffer: 64 * 1024 * 1024, ...env ? { env: { ...process.env, ...env } } : {},
     }));
   } finally {
     if (fd !== undefined) closeSync(fd);

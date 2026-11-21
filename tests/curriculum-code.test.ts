@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { curriculum, getLessonById } from '../src/content/curriculum';
-import { hasCapability, type LessonLanguage } from '../src/content/curriculum/schema';
+import { hasProgramCode, type LessonLanguage } from '../src/content/curriculum/schema';
 import { COMPILE_TIMEOUT_MS, runProcess } from './support/run-program';
 
 /*
@@ -44,7 +44,7 @@ const runs = (language: LessonLanguage) => language === 'Java' ? it.skipIf(!java
 
 // Phase F.1b: only lessons declaring program-code have programs; SQL runs in tests/curriculum-sql.test.ts, ER and
 // normalization answers in tests/curriculum-db.test.ts.
-for (const [id, content] of Object.entries(curriculum.contents).filter(([id]) => hasCapability(getLessonById(id)!, 'program-code'))) describe(`${id} code (E.1)`, () => {
+for (const [id, content] of Object.entries(curriculum.contents).filter(([id]) => hasProgramCode(getLessonById(id)!))) describe(`${id} code (E.1)`, () => {
   for (const language of getLessonById(id)!.supportedLanguages) {
     for (const example of content!.examples) runs(language)(`${language} example ${example.id}`, () => {
       expect(run(language, example.code[language]!, example.stdin)).toBe((example.outputByLanguage?.[language] ?? example.output).trimEnd());
