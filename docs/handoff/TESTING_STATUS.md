@@ -10,6 +10,26 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## Dynamic Island Population 第二輪：效能、五大群島、共用儲存、安全整合（2026-11-21，同分支，未合併）
+
+報告：`docs/planning/PRESENCE_ROUND2.md`（另有 `PRESENCE_SHARED_STORE.md`、`PRESENCE_PRIVACY.md`）；證據與工具：`docs/planning/evidence/presence/`。**只有本機隔離副本的結果，不是 Preview、不是 Production，也不是真機。沒有建立任何雲端資源，沒有修改任何環境變數。**
+
+- 基線是 `main` `709c9fc`。建置與測試在 scratch 副本執行（worktree `../logic-island-presence` 的 rsync 副本）；對照用的 `main` 與優化前的版本（`2af64fe`）各以 `git archive` 建置。
+- Typecheck 0、ESLint 0（全專案）、Vitest **100 個檔案、2,708 通過／9 略過／0 失敗**。Presence 與 preflight 相關 9 個檔案 180 項，其中 13 項要設 `PRESENCE_TEST_REDIS_URL` 指向本機的 `redis-server` 才會執行（沒設就是略過，不是通過）。
+- 注意：`tsconfig` 的 `include` 涵蓋 `tests/`，測試檔的型別錯誤會讓 `next build` 失敗。
+- 旗標在 build 時決定，測試時要設同一組變數。`e2e/presence.spec.ts` 要單獨跑且 `--workers=1`：
+  - 預設（旗標全關）：全套 E2E **437 通過／341 略過／2 失敗**；兩項失敗與第一輪相同，是 `main` 既有的 P1-43。`app-paths-manifest.json` 沒有 route handler；`trials:preflight --build` 的 `routes`、`bundle-leak` 通過。
+  - `LOGIC_ISLAND_PRESENCE=1 LOGIC_ISLAND_POPULATION_NPC=mock LOGIC_ISLAND_REGIONAL_WORLD=1`：`e2e/presence.spec.ts` **54 通過／18 略過／0 失敗**（含一項等待約 95 秒的逾時測試）。
+  - `LOGIC_ISLAND_POPULATION_NPC=mock LOGIC_ISLAND_P9_PROTOTYPE=1`：P9 區域地圖 **10／10**（`-g "P9 region maps"`；這個 build 的首頁是 P9 世界總覽，其他首頁測試不適用）。
+  - `LOGIC_ISLAND_PRESENCE=1 LOGIC_ISLAND_POPULATION_NPC=live`：live 測試 **4／4**（`-g "population figures: live"`）。
+- Release preflight 的例外（`docs/exam-system/22_T2F_RELEASE_READINESS.md` §2.3）以 CI 的旗標（`LOGIC_ISLAND_TRIALS=1 LOGIC_ISLAND_REGIONAL_WORLD=1`）在本機重現：不含 Presence 時 `--build --probe` 通過、0 個 handler；加上 `LOGIC_ISLAND_PRESENCE=1` 且 preflight 也帶同一個旗標時通過；同一個 build 不帶旗標時 `routes` 與 `probe` 都失敗（符合設計）。**`trials-ci` 沒有在這個分支跑過**（沒有 PR）。
+- 預設 build 的 `--probe` 不適用：probe 期望考試路由回 200，而預設 build 沒有 `LOGIC_ISLAND_TRIALS`，本來就是 404。這不是本輪造成的。
+- 旗標全關對 `main` 的逐像素比對：9 個頁面 × 桌機／手機共 18 組，最終版本 **18 組全部 0 差異**。第一次比對時 `/curriculum`（桌機，本輪沒有動到的頁面）有 12 個像素相差 1 階；重跑三次確認是算圖雜訊：`main` 對 `main` 自己比也會出現同樣的 12 個像素。
+- NPC 效能（Apple M6 Metal、headless Chromium、優化前後緊鄰交錯量測）：首頁全景、8 個 NPC，桌機 30.3 → 8.0 fps、CPU 約 20% → 8%；手機（模擬）20 → 5 fps、約 10% → 5%；只有 1 個 NPC 時桌機 5.3–6.3 fps。NPC 完全在畫面外、背景分頁、Reduced Motion 時 NPC 的幀為 0。自動旋轉 60 fps、幀間隔 16.7 ms 前後相同，有 NPC 多約 1.5 個百分點的 CPU（前後相同）。Draw call 與三角形數不變。完整表格在報告 §2.3；原始數字 `perf-loop-before.json`、`perf-loop-after.json`。**真機未量測。**
+- 這台機器上 CPU 的量測在一小時內會漂移 2–3 倍（同一個版本量到 8% 與 20%），所以 CPU 只比較緊鄰的兩次；幀數不會漂移。
+- 私有題庫洩漏掃描（追蹤檔案、`origin/main..HEAD`）：clean。
+- 沒有做：Vercel Preview、Production、真機、iOS Safari、螢幕閱讀器、真正的 Upstash 服務。
+
 ## Dynamic Island Population：Presence 與島上 NPC（2026-11-20，分支 `presence/visitor-population`，未合併）
 
 報告：`docs/planning/PRESENCE_POPULATION_SYSTEM.md`；證據與工具：`docs/planning/evidence/presence/`。**只有本機建置的結果，不是 Preview、不是 Production，也不是真機。**

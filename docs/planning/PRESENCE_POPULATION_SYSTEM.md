@@ -3,6 +3,12 @@
 > 記錄日期：2026-11-20（Asia/Taipei）。分支 `presence/visitor-population`（基於 `origin/main` `709c9fc`），工作目錄 `../logic-island-presence`。
 > 狀態：**原型完成、預設關閉**。兩個 build-time 旗標都不設時，網站沒有 API、沒有 Cookie、不畫 NPC；未合併 `main`、未部署、未在真機驗證。
 > 需要使用者決定的事項集中在 §8。
+>
+> **2026-11-21 第二輪**（NPC 效能、五大群島、共用儲存、安全整合）記錄在 [PRESENCE_ROUND2.md](PRESENCE_ROUND2.md)、[PRESENCE_SHARED_STORE.md](PRESENCE_SHARED_STORE.md)、[PRESENCE_PRIVACY.md](PRESENCE_PRIVACY.md)。本文件是第一輪的記錄，以下幾處已被第二輪取代，以第二輪文件為準：
+>
+> - §5 的 API：`GET` 的回應多了 `commons`（各群島不在任何島上的人數）；告別請求多了選填的 `at`；帶 GPC／DNT 訊號的瀏覽器不計入；儲存失敗回 503。
+> - §6 的 NPC：不再只有基礎程式島，改為每張地圖的每座島與橋（資料驅動）；`NPC_ISLANDS` 已移除；繪製改由單一排程器決定，不再是固定 30／20 fps。
+> - §7 的效能表與「已知限制」第 5、7、8 項；§8 的 D1（共用儲存已有實作，尚未佈建）、D3（preflight 已有最小例外，待審閱）、D4（隱私草案與 GPC／DNT 已完成）、D6（其他島與 P8／P9 地圖已完成）。
 
 ## 1. 目標與範圍
 

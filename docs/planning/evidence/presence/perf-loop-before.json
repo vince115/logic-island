@@ -1,0 +1,592 @@
+{
+ "build": "before",
+ "commit": "2af64fe",
+ "date": "2026-11-21",
+ "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M6)",
+ "flags": "LOGIC_ISLAND_PRESENCE=1 LOGIC_ISLAND_POPULATION_NPC=mock",
+ "method": "docs/planning/evidence/presence/tools/npc-loop-perf.mjs; before and after measured in alternating runs minutes apart; each scenario 20 s (hidden, still: 10 s; orbit: 8 s). cpu: CPU seconds of all browser processes per second of wall clock, in percent of one core.",
+ "runs": {
+  "desktop": {
+   "hiddenTab_40online": [
+    {
+     "run": "h1",
+     "frames": 1,
+     "fps": 0.1,
+     "cpu": 1.6,
+     "mainThread": 0.5
+    }
+   ],
+   "orbit_40online": [
+    {
+     "run": "h1",
+     "frames": 480,
+     "fps": 60,
+     "cpu": 67,
+     "mainThread": 15.5,
+     "frameMs": 16.7,
+     "frameP95": 16.7,
+     "draws": 69,
+     "triangles": 49545,
+     "shadowDraws": 0
+    }
+   ],
+   "orbit_noNpc": [
+    {
+     "run": "h1",
+     "frames": 481,
+     "fps": 60.1,
+     "cpu": 55.6,
+     "mainThread": 11.8,
+     "frameMs": 16.7,
+     "frameP95": 16.8,
+     "draws": 66,
+     "triangles": 49113,
+     "shadowDraws": 0
+    }
+   ],
+   "reducedMotion_40online": [
+    {
+     "run": "h1",
+     "frames": 0,
+     "fps": 0,
+     "cpu": 1.9,
+     "mainThread": 0.5
+    }
+   ],
+   "idle_noNpc": [
+    {
+     "run": "r2",
+     "frames": 0,
+     "fps": 0,
+     "cpu": 1.9,
+     "mainThread": 0.5
+    },
+    {
+     "run": "r3",
+     "frames": 0,
+     "fps": 0,
+     "cpu": 1.8,
+     "mainThread": 0.5
+    }
+   ],
+   "overview_1online": [
+    {
+     "run": "r2",
+     "figures": 1,
+     "loop": null,
+     "frames": 607,
+     "fps": 30.3,
+     "cpu": 20.4,
+     "mainThread": 5.1,
+     "frameMs": 33.3,
+     "frameP95": 33.4,
+     "draws": 69,
+     "triangles": 49167,
+     "shadowDraws": 0
+    },
+    {
+     "run": "r3",
+     "figures": 1,
+     "loop": null,
+     "frames": 606,
+     "fps": 30.3,
+     "cpu": 20.2,
+     "mainThread": 5.1,
+     "frameMs": 33.3,
+     "frameP95": 33.4,
+     "draws": 69,
+     "triangles": 49167,
+     "shadowDraws": 0
+    }
+   ],
+   "overview_3online": [
+    {
+     "run": "r2",
+     "figures": 3,
+     "loop": null,
+     "frames": 606,
+     "fps": 30.3,
+     "cpu": 20.7,
+     "mainThread": 5.2,
+     "frameMs": 33.3,
+     "frameP95": 33.4,
+     "draws": 69,
+     "triangles": 49275,
+     "shadowDraws": 0
+    },
+    {
+     "run": "r3",
+     "figures": 3,
+     "loop": null,
+     "frames": 606,
+     "fps": 30.3,
+     "cpu": 20,
+     "mainThread": 5.1,
+     "frameMs": 33.3,
+     "frameP95": 33.4,
+     "draws": 69,
+     "triangles": 49275,
+     "shadowDraws": 0
+    }
+   ],
+   "overview_40online": [
+    {
+     "run": "r2",
+     "figures": 8,
+     "loop": null,
+     "frames": 606,
+     "fps": 30.3,
+     "cpu": 20,
+     "mainThread": 5.1,
+     "frameMs": 33.3,
+     "frameP95": 33.4,
+     "draws": 69,
+     "triangles": 49545,
+     "shadowDraws": 0
+    },
+    {
+     "run": "r3",
+     "figures": 8,
+     "loop": null,
+     "frames": 606,
+     "fps": 30.3,
+     "cpu": 19.4,
+     "mainThread": 4.9,
+     "frameMs": 33.3,
+     "frameP95": 33.4,
+     "draws": 69,
+     "triangles": 49545,
+     "shadowDraws": 0
+    }
+   ],
+   "nearbyIsland_40online": [
+    {
+     "run": "r2",
+     "loop": null,
+     "frames": 665,
+     "fps": 33.2,
+     "cpu": 21.2,
+     "mainThread": 4.4,
+     "frameMs": 33.3,
+     "frameP95": 33.4,
+     "draws": 30,
+     "triangles": 40959,
+     "shadowDraws": 0
+    },
+    {
+     "run": "r3",
+     "loop": null,
+     "frames": 663,
+     "fps": 33.1,
+     "cpu": 21,
+     "mainThread": 4.6,
+     "frameMs": 33.3,
+     "frameP95": 33.4,
+     "draws": 30,
+     "triangles": 40959,
+     "shadowDraws": 0
+    }
+   ],
+   "focused_40online": [
+    {
+     "run": "r2",
+     "loop": null,
+     "frames": 662,
+     "fps": 33.1,
+     "cpu": 22.8,
+     "mainThread": 5.1,
+     "frameMs": 33.3,
+     "frameP95": 33.4,
+     "draws": 42,
+     "triangles": 48733,
+     "shadowDraws": 0
+    },
+    {
+     "run": "r3",
+     "loop": null,
+     "frames": 663,
+     "fps": 33.1,
+     "cpu": 22.7,
+     "mainThread": 5.1,
+     "frameMs": 33.3,
+     "frameP95": 33.4,
+     "draws": 42,
+     "triangles": 48733,
+     "shadowDraws": 0
+    },
+    {
+     "run": "e1",
+     "loop": null,
+     "frames": 663,
+     "fps": 33.1,
+     "cpu": 23.2,
+     "mainThread": 5.3,
+     "frameMs": 33.3,
+     "frameP95": 33.4,
+     "draws": 42,
+     "triangles": 48733,
+     "shadowDraws": 0
+    },
+    {
+     "run": "e2",
+     "loop": null,
+     "frames": 663,
+     "fps": 33.1,
+     "cpu": 22.6,
+     "mainThread": 5.3,
+     "frameMs": 33.3,
+     "frameP95": 33.4,
+     "draws": 42,
+     "triangles": 48733,
+     "shadowDraws": 0
+    }
+   ],
+   "outOfView_40online": [
+    {
+     "run": "e1",
+     "loop": null,
+     "frames": 665,
+     "fps": 33.2,
+     "cpu": 21.4,
+     "mainThread": 4.5,
+     "frameMs": 33.3,
+     "frameP95": 33.4,
+     "draws": 32,
+     "triangles": 42696,
+     "shadowDraws": 0
+    },
+    {
+     "run": "e2",
+     "loop": null,
+     "frames": 665,
+     "fps": 33.2,
+     "cpu": 21.2,
+     "mainThread": 4.5,
+     "frameMs": 33.3,
+     "frameP95": 33.4,
+     "draws": 32,
+     "triangles": 42696,
+     "shadowDraws": 0
+    }
+   ]
+  },
+  "phone": {
+   "hiddenTab_40online": [
+    {
+     "run": "h1",
+     "frames": 1,
+     "fps": 0.1,
+     "cpu": 1.7,
+     "mainThread": 0.5
+    }
+   ],
+   "orbit_40online": [
+    {
+     "run": "h1",
+     "frames": 480,
+     "fps": 60,
+     "cpu": 41.8,
+     "mainThread": 12.1,
+     "frameMs": 16.7,
+     "frameP95": 16.8,
+     "draws": 69,
+     "triangles": 37139,
+     "shadowDraws": 0
+    }
+   ],
+   "orbit_noNpc": [
+    {
+     "run": "h1",
+     "frames": 481,
+     "fps": 60.1,
+     "cpu": 38.2,
+     "mainThread": 10.4,
+     "frameMs": 16.7,
+     "frameP95": 16.8,
+     "draws": 66,
+     "triangles": 36923,
+     "shadowDraws": 0
+    }
+   ],
+   "reducedMotion_40online": [
+    {
+     "run": "h1",
+     "frames": 0,
+     "fps": 0,
+     "cpu": 1.9,
+     "mainThread": 0.5
+    }
+   ],
+   "idle_noNpc": [
+    {
+     "run": "r2",
+     "frames": 0,
+     "fps": 0,
+     "cpu": 1.8,
+     "mainThread": 0.5
+    },
+    {
+     "run": "r3",
+     "frames": 0,
+     "fps": 0,
+     "cpu": 1.8,
+     "mainThread": 0.5
+    }
+   ],
+   "overview_1online": [
+    {
+     "run": "r2",
+     "figures": 1,
+     "loop": null,
+     "frames": 400,
+     "fps": 20,
+     "cpu": 12.1,
+     "mainThread": 3.5,
+     "frameMs": 50,
+     "frameP95": 50.1,
+     "draws": 69,
+     "triangles": 36977,
+     "shadowDraws": 0
+    },
+    {
+     "run": "r3",
+     "figures": 1,
+     "loop": null,
+     "frames": 400,
+     "fps": 20,
+     "cpu": 12.4,
+     "mainThread": 3.6,
+     "frameMs": 50,
+     "frameP95": 50.1,
+     "draws": 69,
+     "triangles": 36977,
+     "shadowDraws": 0
+    }
+   ],
+   "overview_3online": [
+    {
+     "run": "r2",
+     "figures": 3,
+     "loop": null,
+     "frames": 400,
+     "fps": 20,
+     "cpu": 10.2,
+     "mainThread": 3.1,
+     "frameMs": 50,
+     "frameP95": 50.1,
+     "draws": 69,
+     "triangles": 37085,
+     "shadowDraws": 0
+    },
+    {
+     "run": "r3",
+     "figures": 3,
+     "loop": null,
+     "frames": 400,
+     "fps": 20,
+     "cpu": 10.2,
+     "mainThread": 3.2,
+     "frameMs": 50,
+     "frameP95": 50.1,
+     "draws": 69,
+     "triangles": 37085,
+     "shadowDraws": 0
+    }
+   ],
+   "overview_40online": [
+    {
+     "run": "r2",
+     "figures": 4,
+     "loop": null,
+     "frames": 400,
+     "fps": 20,
+     "cpu": 9.9,
+     "mainThread": 3,
+     "frameMs": 50,
+     "frameP95": 50.1,
+     "draws": 69,
+     "triangles": 37139,
+     "shadowDraws": 0
+    },
+    {
+     "run": "r3",
+     "figures": 4,
+     "loop": null,
+     "frames": 400,
+     "fps": 20,
+     "cpu": 10.1,
+     "mainThread": 3.2,
+     "frameMs": 50,
+     "frameP95": 50.1,
+     "draws": 69,
+     "triangles": 37139,
+     "shadowDraws": 0
+    }
+   ],
+   "nearbyIsland_40online": [
+    {
+     "run": "r2",
+     "loop": null,
+     "frames": 465,
+     "fps": 23.2,
+     "cpu": 11.4,
+     "mainThread": 2.7,
+     "frameMs": 50,
+     "frameP95": 50.1,
+     "draws": 35,
+     "triangles": 40811,
+     "shadowDraws": 0
+    },
+    {
+     "run": "r3",
+     "loop": null,
+     "frames": 466,
+     "fps": 23.3,
+     "cpu": 11.7,
+     "mainThread": 2.9,
+     "frameMs": 50,
+     "frameP95": 50.1,
+     "draws": 35,
+     "triangles": 40811,
+     "shadowDraws": 0
+    }
+   ],
+   "focused_40online": [
+    {
+     "run": "r2",
+     "loop": null,
+     "frames": 461,
+     "fps": 23,
+     "cpu": 13.3,
+     "mainThread": 3.5,
+     "frameMs": 50,
+     "frameP95": 50.1,
+     "draws": 50,
+     "triangles": 46702,
+     "shadowDraws": 0
+    },
+    {
+     "run": "r3",
+     "loop": null,
+     "frames": 462,
+     "fps": 23.1,
+     "cpu": 13.6,
+     "mainThread": 3.7,
+     "frameMs": 50,
+     "frameP95": 50.1,
+     "draws": 50,
+     "triangles": 46702,
+     "shadowDraws": 0
+    },
+    {
+     "run": "e1",
+     "loop": null,
+     "frames": 462,
+     "fps": 23.1,
+     "cpu": 12.6,
+     "mainThread": 3.4,
+     "frameMs": 50,
+     "frameP95": 50.1,
+     "draws": 50,
+     "triangles": 46702,
+     "shadowDraws": 0
+    },
+    {
+     "run": "e2",
+     "loop": null,
+     "frames": 461,
+     "fps": 23,
+     "cpu": 13.2,
+     "mainThread": 3.5,
+     "frameMs": 50,
+     "frameP95": 50.1,
+     "draws": 50,
+     "triangles": 46702,
+     "shadowDraws": 0
+    }
+   ],
+   "outOfView_40online": [
+    {
+     "run": "e1",
+     "loop": null,
+     "frames": 466,
+     "fps": 23.3,
+     "cpu": 11.6,
+     "mainThread": 2.8,
+     "frameMs": 50,
+     "frameP95": 66.7,
+     "draws": 39,
+     "triangles": 41756,
+     "shadowDraws": 0
+    },
+    {
+     "run": "e2",
+     "loop": null,
+     "frames": 465,
+     "fps": 23.2,
+     "cpu": 11.9,
+     "mainThread": 2.9,
+     "frameMs": 50,
+     "frameP95": 50.1,
+     "draws": 39,
+     "triangles": 41756,
+     "shadowDraws": 0
+    }
+   ]
+  }
+ },
+ "orbitAlternating": {
+  "note": "one page, the camera turning the whole time, the population alternating every 19 s; 10 s windows",
+  "desktop": [
+   {
+    "online": 0,
+    "figures": "0",
+    "fps": 60.1,
+    "cpu": 65.5
+   },
+   {
+    "online": 40,
+    "figures": "8",
+    "fps": 60,
+    "cpu": 66.2
+   },
+   {
+    "online": 0,
+    "figures": "0",
+    "fps": 60.1,
+    "cpu": 65.1
+   },
+   {
+    "online": 40,
+    "figures": "8",
+    "fps": 60,
+    "cpu": 68.4
+   },
+   {
+    "online": 0,
+    "figures": "0",
+    "fps": 60.1,
+    "cpu": 65.4
+   },
+   {
+    "online": 40,
+    "figures": "8",
+    "fps": 60,
+    "cpu": 65.9
+   }
+  ]
+ },
+ "focusWithNoFigures": {
+  "note": "camera on the structures island, no figures anywhere, 20 s: the frames the map draws by itself",
+  "desktop": {
+   "frames": 0,
+   "seconds": 20.004
+  },
+  "phone": {
+   "frames": 97,
+   "seconds": 20.007,
+   "spanMs": 1600
+  }
+ },
+ "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M6, Unspecified Version)"
+}
