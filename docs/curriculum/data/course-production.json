@@ -210,7 +210,8 @@
       "commit": "2877687",
       "tests": "驗證器、發布閘門 139/139、Vitest 2915（含 AIF16–AIF19 Python 程式測試、逐支程式的雙種子比對與 <pre> 換行的回歸測試）、E2E 桌機＋手機旗標關 433（候選頁 2 個像素比對失敗為 main 既有回歸 #36；「所有完整教材」抓到 AIF16 的 hydration 錯誤 React #418，修正 <pre> 的換行顯示後課程相關 spec 121 全過）、網路預覽＋P9＋區域世界旗標開 250，修正後課程、navigation、區域世界重跑 153 全過、測驗 32 題逐題複核、洩漏掃描",
       "notes": "AIF-4：馬可夫鏈與隱馬可夫模型（n 步分布、精確穩態分布、前向濾波、log 空間的 Viterbi，Baum–Welch 只說明不實作）、決策理論與效用（風險態度、MEU、決策樹與決策網路、資訊價值）、MDP（貝爾曼方程、價值迭代與停止規則、策略迭代、折扣與生存獎勵、強化學習的方向）、負責任的 AI（傷害來源、分組公平性指標與不可能結果、k-匿名與差分隱私、可解釋性、人類監督與治理；法規只寫確定的事實，資料皆為合成）；藍圖的 mdp-gridworld、decision-simulation、probability-explorer 活動尚未建置，改用 dp-table 與 variable-state 追蹤，步驟由課內程式產生；以 \\r\\n 開頭的測資在 <pre> 中第一個換行被 HTML 解析器吃掉，造成 hydration 不一致：<pre> 內的文字改為顯示正規化換行（自動驗證仍用原始文字）",
-      "pr": "#56"
+      "pr": "#56",
+      "merged": "3fad90d"
     },
     {
       "id": 15,
@@ -218,8 +219,8 @@
       "lessons": [
         "AIF20"
       ],
-      "commit": "TBD",
-      "tests": "TBD",
+      "commit": "fbc456a",
+      "tests": "驗證器、發布閘門 140/140、Vitest 2927（含 AIF20 Python 程式測試與雙種子比對）、E2E 桌機＋手機旗標關 435（候選頁 2 個像素比對失敗為 main 既有回歸 #36）、網路預覽＋P9＋區域世界旗標開 252、測驗 8 題逐題複核、洩漏掃描",
       "notes": "AIF-5：AI 基礎島綜合專題（python-code＋challenge-stages 五關：A* 與可接受啟發、深度限制 alpha-beta、HMM 前向濾波與期望效用選路、穿越或等待的 MDP、固定種子模擬分開報告成功／被抓／交給人類並設計決策紀錄與人類監督）；AI 基礎島 20/20 完成，mapState 維持 planned；學習路線沒有因此變成可完整學完（E、F、J 仍需其他 AI 島）"
     }
   ]
