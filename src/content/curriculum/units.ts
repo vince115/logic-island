@@ -43,8 +43,11 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '資料模型、架構與綜合挑戰', summary: 'NoSQL 與 CAP；備份、複寫與分片；從需求到安全串接的完整應用', lessonIds: range('DB', 18, 20) },
   ],
   // 2026-11-20 (course production, batch 1): the written lessons only; the island's other units come with their lessons.
-  // AIF-0: prepared for authoring; its units come with its first written lessons.
-  'ai-foundations': [],
+  // AIF-1: the first five lessons; later batches add their units.
+  'ai-foundations': [
+    { title: 'AI 的定義與歷史', summary: 'AI 的四種定義、理性代理人與圖靈測試；從達特茅斯會議、專家系統與 AI 寒冬到深度學習與基礎模型', lessonIds: range('AIF', 1, 2) },
+    { title: '代理人與搜尋', summary: 'PEAS、環境性質與代理人類型；問題形式化、無資訊搜尋、啟發式搜尋與 A*', lessonIds: range('AIF', 3, 5) },
+  ],
   // CN-1 to CN-5: the whole island, CN01–CN20.
   networks: [
     { title: '分層模型與實體層', summary: '網路為什麼分層、OSI 與 TCP/IP、封裝與 PDU；訊號與媒介、頻寬、延遲、吞吐量與頻寬延遲乘積', lessonIds: range('CN', 1, 2) },

@@ -14,8 +14,8 @@ const poi = (page: Page, island: string, node: string) => places(page, island).l
 test('every published island\'s syllabus anchor exists on /curriculum and lands on its heading', async ({ page }) => {
   const published = (['cs', 'ai', 'design', 'web', 'sys'] as const).flatMap(r => islandsInRegion(r)).filter(i => i.status !== 'planned');
   // programming-languages: PL01–PL05 published in course production batch 1.
-  // CN-1 (2026-11-22): the computer-networks island opened with CN01–CN05.
-  expect(published.map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks']);
+  // CN-1 (2026-11-22): the computer-networks island opened with CN01–CN05; AIF-1 opened the AI foundations island.
+  expect(published.map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations']);
   for (const island of published) {
     await page.goto(`/curriculum#island-${island.id}`);
     const heading = page.locator(`#island-${island.id}`);
@@ -86,7 +86,7 @@ test.describe('region map (flag on)', () => {
   });
 
   test('a planned island has no place list and no course entry, in any region', async ({ page }) => {
-    for (const [region, island] of [['cs', 'systems-analysis'], ['ai', 'ai-foundations'], ['design', 'ui-design'], ['web', 'frontend'], ['sys', 'linux-systems']] as const) {
+    for (const [region, island] of [['cs', 'systems-analysis'], ['ai', 'machine-learning'], ['design', 'ui-design'], ['web', 'frontend'], ['sys', 'linux-systems']] as const) {
       await openRegion(page, `/world/${region}?island=${island}`);
       await expect(page.getByRole('region', { name: /地點$/ })).toHaveCount(0);
       await expect(page.locator('button[data-route]')).toHaveCount(0);
