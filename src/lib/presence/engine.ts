@@ -37,6 +37,11 @@ export interface SessionRecord {
   /** Writes in the current rate window. */
   windowStart: number;
   writes: number;
+  /**
+   * Set by a store that keeps pulses beside its records (redis-store.ts): the server time of the record's last write.
+   * A pulse not later than it was already taken into the record, or was overtaken by that write, and counts for nothing.
+   */
+  written?: number;
 }
 
 export interface Heartbeat { tab: string; since: number; location: PresenceLocation }
@@ -123,6 +128,44 @@ export function applyLeave(record: SessionRecord, leave: Leave | string): Sessio
 export function leaveFirst(leave: Leave | string, now: number): SessionRecord | undefined {
   if (typeof leave === 'string' || leave.at === undefined) return undefined;
   return { location: { ...HUB_LOCATION }, seen: now, tab: leave.tab, since: leave.at, ownerSeen: now, away: true, left: { [leave.tab]: leave.at }, windowStart: now, writes: 0 };
+}
+
+/**
+ * A pulse (P7): a heartbeat that says nothing new. The owning tab, still visible, still on the same page, reports
+ * again; all it changes is when the session was last heard from. A store may keep the latest one beside the session's
+ * record instead of rewriting the record (the shared store does: one plain command instead of a script's three), and
+ * whoever reads the session takes it into the record first, with `applyPulse`.
+ *
+ * `at` is the server's time of the heartbeat; `windowStart` and `writes` are the session's rate window after it.
+ */
+export interface Pulse extends Heartbeat { at: number; windowStart: number; writes: number }
+
+const samePlace = (a: PresenceLocation, b: PresenceLocation) => a.region === b.region && a.island === b.island && a.course === b.course;
+
+/** True when `beat` is the owning tab saying again exactly what the record says: it can only renew the session. */
+export function renews(record: SessionRecord, beat: Heartbeat): boolean {
+  return !record.away && record.tab === beat.tab && record.since === beat.since && samePlace(record.location, beat.location) && leftAt(record, beat.tab) === undefined;
+}
+
+/**
+ * The record with a pulse taken into it. Where the record is still the one the pulse renewed, the session was heard
+ * from at the pulse's time (however old the record itself is: each pulse was written while the session was alive, so
+ * the chain of them never broke). Where the record has changed since (another tab took over, the tab left, the page
+ * changed), the pulse is just a heartbeat that arrived late, and the rules for those decide (`applyHeartbeat`): a
+ * pulse can never undo a goodbye, nor move a session, any more than a late heartbeat can. A pulse alone is nobody.
+ */
+export function applyPulse(record: SessionRecord | undefined, pulse: Pulse | undefined): SessionRecord | undefined {
+  if (!record || !pulse) return record;
+  if (record.written !== undefined && pulse.at <= record.written) return record;
+  if (!renews(record, pulse)) {
+    // Sent before its tab left: nothing, however much later the pulse is than the record (a record that is over
+    // still remembers its goodbyes for as long as it is held).
+    const gone = leftAt(record, pulse.tab);
+    return gone !== undefined && pulse.since <= gone ? record : applyHeartbeat(record, pulse, pulse.at);
+  }
+  // The newer rate window is the one that counts; in the same window, the fuller.
+  const window = pulse.windowStart > record.windowStart || (pulse.windowStart === record.windowStart && pulse.writes > record.writes) ? pulse : record;
+  return { ...record, seen: Math.max(record.seen, pulse.at), ownerSeen: Math.max(record.ownerSeen, pulse.at), windowStart: window.windowStart, writes: window.writes };
 }
 
 /** The online population by region, island and course. Counts only; nothing of a session leaves this function. */

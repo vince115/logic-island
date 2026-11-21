@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { PRESENCE } from '@/lib/presence/config';
-import { MAX_LEFT, aggregate, applyHeartbeat, applyLeave, isActive, leaveFirst, publicSnapshot, type Heartbeat, type SessionRecord } from '@/lib/presence/engine';
+import { MAX_LEFT, aggregate, applyHeartbeat, applyLeave, applyPulse, isActive, leaveFirst, publicSnapshot, renews, type Heartbeat, type Pulse, type SessionRecord } from '@/lib/presence/engine';
 import { HUB_LOCATION, type PresenceLocation } from '@/lib/presence/locations';
 import { MemoryPresenceStore } from '@/lib/presence/store';
-import { presenceOrderingContract, presenceStoreContract } from './helpers/presence-store-contract';
+import { presenceLifetimeContract, presenceOrderingContract, presenceStoreContract } from './helpers/presence-store-contract';
 
 /*
  * Dynamic Island Population: the population engine and its memory store. One session is in one place; several tabs,
@@ -169,8 +169,114 @@ describe('the memory store', () => {
 });
 
 // P5: the same contract the shared store runs (races between tabs and sessions, expiry, cleanup).
+describe('pulses: a report that says nothing new (P7)', () => {
+  const MIN = 60_000, TTL = PRESENCE.ttlMs;
+  const pulse = (tab: string, since: number, location: PresenceLocation, at: number, window: Partial<Pulse> = {}): Pulse => ({ tab, since, location, at, windowStart: T0, writes: 1, ...window });
+  const start = () => ({ ...applyHeartbeat(undefined, beat('taba0001', 10, F), T0), written: T0 });
+
+  it('is only the owning tab saying again exactly what the record says', () => {
+    const record = start();
+    expect(renews(record, beat('taba0001', 10, F))).toBe(true);
+    expect(renews(record, beat('taba0001', 11, F))).toBe(false);
+    expect(renews(record, beat('taba0001', 10, DB))).toBe(false);
+    expect(renews(record, beat('taba0001', 10, { ...F, course: null }))).toBe(false);
+    expect(renews(record, beat('tabb0002', 10, F))).toBe(false);
+    expect(renews(applyLeave(record, { tab: 'taba0001', at: 50 }), beat('taba0001', 10, F))).toBe(false);
+    expect(renews({ ...record, left: { taba0001: 5 } }, beat('taba0001', 10, F))).toBe(false);
+    // Whatever a store does with such a report, it is exactly the heartbeat's own effect: later, and nothing else.
+    const after = applyHeartbeat(record, beat('taba0001', 10, F), T0 + MIN);
+    expect(after).toEqual({ ...record, seen: T0 + MIN, ownerSeen: T0 + MIN });
+  });
+
+  it('keeps the session heard from at the pulse\'s time, however old the record is', () => {
+    const record = start(), late = T0 + 9 * MIN;
+    const renewed = applyPulse(record, pulse('taba0001', 10, F, late, { writes: 7 }))!;
+    expect(renewed).toEqual({ ...record, seen: late, ownerSeen: late, writes: 7 });
+    expect(isActive(renewed, late + TTL)).toBe(true);
+    expect(isActive(renewed, late + TTL + 1)).toBe(false);
+    // The record itself is long past the timeout: without the pulse nobody is there.
+    expect(isActive(record, late)).toBe(false);
+    // Nothing goes back: an older pulse, an older rate window.
+    expect(applyPulse({ ...record, seen: late + 5, ownerSeen: late + 5 }, pulse('taba0001', 10, F, late))).toMatchObject({ seen: late + 5, ownerSeen: late + 5 });
+    expect(applyPulse({ ...record, windowStart: T0 + MIN, writes: 3 }, pulse('taba0001', 10, F, late, { windowStart: T0, writes: 30 }))).toMatchObject({ windowStart: T0 + MIN, writes: 3 });
+    expect(applyPulse({ ...record, writes: 9 }, pulse('taba0001', 10, F, late, { writes: 4 }))).toMatchObject({ writes: 9 });
+  });
+
+  it('is nobody without a record, and nothing once the record was written after it', () => {
+    expect(applyPulse(undefined, pulse('taba0001', 10, F, T0))).toBeUndefined();
+    const record = start();
+    expect(applyPulse(record, undefined)).toBe(record);
+    expect(applyPulse(record, pulse('taba0001', 10, F, T0))).toBe(record);
+    expect(applyPulse({ ...record, written: T0 + MIN }, pulse('taba0001', 10, F, T0 + MIN - 1))).toMatchObject({ seen: T0 });
+    expect(applyPulse({ ...record, written: T0 + MIN }, pulse('taba0001', 10, F, T0 + MIN + 1))).toMatchObject({ seen: T0 + MIN + 1 });
+  });
+
+  it('never undoes a goodbye, moves a session, or takes it from a newer tab: against another record it is a late heartbeat', () => {
+    const record = start(), at = T0 + MIN;
+    // The tab left (on another instance) after it sent the report: nobody, whatever the pulse says and whenever.
+    const left = { ...applyLeave(record, { tab: 'taba0001', at: 50 }), written: T0 + 30_000 };
+    for (const when of [at, at + MIN, at + 2 * MIN]) {
+      const after = applyPulse(left, pulse('taba0001', 10, F, when))!;
+      expect(after.away).toBe(true);
+      expect(isActive(after, when)).toBe(false);
+    }
+    // A goodbye with no time of its own (an older page), then a pulse from before it was written: nobody either.
+    const told = { ...applyLeave(record, 'taba0001'), written: T0 + 30_000 };
+    expect(isActive(applyPulse(told, pulse('taba0001', 10, F, T0 + 20_000))!, T0 + 40_000)).toBe(false);
+    // The tab moved to another page: an old pulse keeps the session alive where it is now.
+    const moved = { ...applyHeartbeat(record, beat('taba0001', 20, DB), T0 + 10_000), written: T0 + 10_000 };
+    expect(applyPulse(moved, pulse('taba0001', 10, F, at))).toMatchObject({ location: DB, since: 20, seen: at });
+    // The visitor turned to another window: the first one's pulse keeps the session alive and leaves it there.
+    const other = { ...applyHeartbeat(record, beat('tabb0002', 30, ML), T0 + 10_000), written: T0 + 10_000 };
+    expect(applyPulse(other, pulse('taba0001', 10, F, at))).toMatchObject({ location: ML, tab: 'tabb0002', seen: at, ownerSeen: T0 + 10_000 });
+    // Both tabs left; the first tab's pulse is the last thing to land (P1-44).
+    const both = { ...applyLeave(applyLeave(other, { tab: 'taba0001', at: 40 }), { tab: 'tabb0002', at: 41 }), written: T0 + 20_000 };
+    expect(isActive(applyPulse(both, pulse('taba0001', 10, F, at))!, at)).toBe(false);
+    expect(isActive(applyPulse(both, pulse('tabb0002', 30, ML, at))!, at)).toBe(false);
+  });
+
+  it('gives the same session as rewriting the record every time, for any story of one visitor (3,000 of them)', () => {
+    // A store that keeps pulses against one that does not, event for event. The pulse store keeps one pulse a session
+    // (the latest), takes it into the record whenever the record is written, and may only keep a report as a pulse
+    // when it `renews` a session that is alive.
+    const random = (() => { let a = 4242; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; })();
+    const tabs = ['taba0001', 'tabb0002', 'tabc0003'], places = [F, DB, ML, AI];
+    let pulsesKept = 0;
+    for (let run = 0; run < 3_000; run++) {
+      let plain: SessionRecord | undefined, record: SessionRecord | undefined, kept: Pulse | undefined, now = T0;
+      const since: Record<string, number> = {}, place: Record<string, PresenceLocation> = {}, gone: Record<string, boolean> = {};
+      for (let step = 0; step < 30; step++) {
+        now += 1_000 + Math.floor(random() * (random() < 0.1 ? 4 * MIN : 70_000));
+        const tab = tabs[Math.floor(random() * (1 + run % 3))], roll = random(), current = applyPulse(record, kept);
+        if (roll < 0.14 && plain && !gone[tab] && since[tab] !== undefined) {
+          const leave = { tab, at: now - T0 };
+          gone[tab] = true;
+          plain = isActive(plain, now) || now - plain.seen <= TTL ? applyLeave(plain, leave) : plain;
+          if (current && now - current.seen <= TTL) { record = { ...applyLeave(current, leave), written: now }; kept = undefined; }
+          else if (current) { record = { ...current, written: now }; kept = undefined; }
+        } else {
+          if (since[tab] === undefined || gone[tab] || roll < 0.3) { since[tab] = now - T0 + 1; place[tab] = places[Math.floor(random() * places.length)]; gone[tab] = false; }
+          const report = beat(tab, since[tab], place[tab]);
+          plain = applyHeartbeat(plain, report, now);
+          const next = applyHeartbeat(current, report, now);
+          if (current && now - current.seen <= TTL && renews(current, report)) { kept = { ...report, at: next.seen, windowStart: next.windowStart, writes: next.writes }; pulsesKept += 1; }
+          else { record = { ...next, written: now }; kept = undefined; }
+        }
+        const a = plain, b = applyPulse(record, kept);
+        for (const when of [now, now + 30_000, now + TTL, now + TTL + 1]) {
+          expect(aggregate(b ? [b] : [], when), `run ${run} step ${step}`).toEqual(aggregate(a ? [a] : [], when));
+        }
+        if (a && b) expect({ ...b, written: undefined }, `run ${run} step ${step}`).toEqual({ ...a, written: undefined });
+      }
+    }
+    // The stories really are mostly pulses.
+    expect(pulsesKept).toBeGreaterThan(20_000);
+  }, 60_000);
+});
+
 presenceStoreContract('the memory store (contract)', max => { const store = new MemoryPresenceStore(max); return { store, held: () => store.size }; });
 presenceOrderingContract('the memory store (contract)', () => { const store = new MemoryPresenceStore(); return { instances: [store], held: () => store.size }; });
+presenceLifetimeContract('the memory store (contract)', () => { const store = new MemoryPresenceStore(); return { instances: [store], held: () => store.size }; });
 
 describe('requests that arrive out of order', () => {
   const P1: PresenceLocation = F, P2: PresenceLocation = DB, P3: PresenceLocation = ML;

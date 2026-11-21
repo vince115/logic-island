@@ -1,7 +1,7 @@
 import { PRESENCE } from './config';
 import type { PopulationSnapshot } from './engine';
 import type { PopulationSource } from './flag';
-import { MOCK_STEP_MS, mockSnapshot, parseSnapshot } from './population';
+import { MOCK_STEP_MS, mockSnapshot, parseSnapshot, withoutAnswer } from './population';
 
 /**
  * Where a map's population numbers come from (browser only). `live`: the presence API, asked every `pollMs` while the
@@ -24,15 +24,21 @@ export function watchPopulation(source: PopulationSource, onChange: Listener): (
     timer = window.setInterval(emit, MOCK_STEP_MS / 4);
     return () => { stopped = true; window.clearInterval(timer); delete holder.__logicIslandPopulation; };
   }
+  let last: PopulationSnapshot | undefined, lastAt = 0;
   const ask = async () => {
     if (stopped || document.visibilityState !== 'visible') return;
+    let snapshot: PopulationSnapshot | null = null;
     try {
       // No cookie goes with it (the answer is the same for everyone), and the browser's own copy is not reused: the
       // map asks as often as an answer may be shared, so the CDN's copy is the one to take.
       const response = await fetch(PRESENCE.endpoint, { credentials: 'omit', cache: 'no-cache' });
-      const snapshot = response.ok ? parseSnapshot(await response.json()) : null;
-      if (snapshot && !stopped) onChange(snapshot);
-    } catch { /* offline: keep the last numbers */ }
+      snapshot = response.ok ? parseSnapshot(await response.json()) : null;
+    } catch { /* offline */ }
+    if (stopped) return;
+    if (snapshot) { last = snapshot; lastAt = Date.now(); onChange(snapshot); return; }
+    // No answer (offline, or the API or its store is down): the last numbers stand for a while, then nobody is shown.
+    const empty = withoutAnswer(last, lastAt, Date.now());
+    if (empty) { last = empty; onChange(empty); }
   };
   const visible = () => { if (document.visibilityState === 'visible') void ask(); };
   document.addEventListener('visibilitychange', visible);

@@ -91,3 +91,13 @@ export function parseSnapshot(value: unknown): PopulationSnapshot | null {
   if (!counts(regions) || !counts(islands) || (commons !== undefined && !counts(commons))) return null;
   return { v, at, ttlMs, total, hub, regions, islands, ...(commons ? { commons } : {}) };
 }
+
+/**
+ * What a map shows when the population cannot be asked for (the API is unreachable, or its store is: P7). The last
+ * answer stands for as long as a silent visitor would have been counted anyway (`ttlMs`); after that nobody knows who
+ * is there, and the map shows nobody rather than figures of visitors who may have left long ago. Null: keep what is shown.
+ */
+export function withoutAnswer(last: PopulationSnapshot | undefined, lastAt: number, now: number): PopulationSnapshot | null {
+  if (!last || last.total === 0 || now - lastAt <= last.ttlMs) return null;
+  return { v: last.v, at: last.at, ttlMs: last.ttlMs, total: 0, hub: 0, regions: Object.fromEntries(Object.keys(last.regions).map(region => [region, 0])), islands: {}, commons: {} };
+}

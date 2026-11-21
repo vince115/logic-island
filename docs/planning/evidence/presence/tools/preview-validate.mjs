@@ -13,7 +13,7 @@ import { writeFileSync } from 'node:fs';
  *   EXPECT_NPC     live (default) | mock | off  how the build was made (LOGIC_ISLAND_POPULATION_NPC)
  *   BYPASS         a Vercel "Protection Bypass for Automation" secret, when the deployment is behind Vercel
  *                  Authentication (sent as the x-vercel-protection-bypass header; never printed)
- *   SKIP_TTL=1     skip the two-minute check that a silent visitor is dropped
+ *   SKIP_TTL=1     skip the check that a silent visitor is dropped (up to four minutes: the timeout and the answer's lag)
  *   OUT=<file>     also write the report as JSON
  *
  * It reads counts as differences from what it found when it started, and waits for each one (the population answer
@@ -199,13 +199,15 @@ await check('count.timeout', async () => {
   await until('visitor B is still counted', async () => (await delta()).commons.ai ?? 0, 1);
   // The network goes away with the tab open: no heartbeat, no goodbye.
   await b.context.setOffline(true);
-  await new Promise(resolve => setTimeout(resolve, 50_000));
-  if (((await delta()).commons.ai ?? 0) !== 1) fail('a silent visitor was dropped inside the 90-second timeout');
-  await until('a silent visitor is dropped after the timeout', async () => (await delta()).commons.ai ?? 0, 0, 90_000);
-  return 'kept for the timeout, then dropped';
+  // The visitor's last report was at most one heartbeat ago; the timeout (the snapshot's own `ttlMs`) runs from it.
+  const ttl = first?.ttlMs ?? 150_000;
+  await new Promise(resolve => setTimeout(resolve, Math.min(50_000, ttl / 3)));
+  if (((await delta()).commons.ai ?? 0) !== 1) fail(`a silent visitor was dropped inside the ${ttl / 1000}-second timeout`);
+  await until('a silent visitor is dropped after the timeout', async () => (await delta()).commons.ai ?? 0, 0, ttl + LAG);
+  return `kept for a while, then dropped within the timeout (${ttl / 1000} s) and the answer's lag`;
 });
 await b.context.close().catch(() => {});
-await check('count.clean', async () => { await until('nobody of this check is left', async () => (await delta()).total, 0, 120_000); return 'the population is back where it was'; });
+await check('count.clean', async () => { await until('nobody of this check is left', async () => (await delta()).total, 0, (first?.ttlMs ?? 150_000) + LAG); return 'the population is back where it was'; });
 
 await browser.close();
 const failed = results.filter(result => result.status === 'FAIL').length;

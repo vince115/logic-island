@@ -5,7 +5,7 @@ import { islandsHomeWorld } from '@/lib/islands/islands-world';
 import { validateHexWorld } from '@/lib/islands/hex-world';
 import { PLATFORM_HEIGHT, RING, roadPoint, walkNetwork, type WalkNetwork } from '@/lib/presence/npc-paths';
 import { ROSTER_STEP_SECONDS, createCrowd, fillCrowd, stepCrowd, targetPose } from '@/lib/presence/npc-sim';
-import { MOCK_STEP_MS, mockSnapshot, npcCountFor, onlineOf, parseSnapshot, tierCap, tierFps } from '@/lib/presence/population';
+import { MOCK_STEP_MS, mockSnapshot, npcCountFor, onlineOf, parseSnapshot, tierCap, tierFps, withoutAnswer } from '@/lib/presence/population';
 import { ISLAND_CAPS } from '@/lib/presence/npc-zones';
 
 /*
@@ -238,5 +238,26 @@ describe('population changes are smooth', () => {
     expect(crowd.npcs.map(n => [n.id, n.x, n.z])).toEqual(before.slice(0, 3));
     fillCrowd(crowd, network, 0);
     expect(crowd.npcs).toEqual([]);
+  });
+});
+
+describe('a map whose population cannot be asked for (P7: the API or its store is down)', () => {
+  const answer = { v: 1, at: 1_000, ttlMs: 150_000, total: 3, hub: 1, regions: { cs: 2, ai: 0 }, islands: { foundations: 2 }, commons: { hub: 1 } };
+
+  it('keeps the last numbers for as long as a silent visitor would have counted, then shows nobody', () => {
+    expect(withoutAnswer(answer, 10_000, 10_000 + 150_000)).toBeNull();
+    const empty = withoutAnswer(answer, 10_000, 10_000 + 150_001)!;
+    expect(empty).toEqual({ v: 1, at: 1_000, ttlMs: 150_000, total: 0, hub: 0, regions: { cs: 0, ai: 0 }, islands: {}, commons: {} });
+    // What it shows instead is an answer like any other: nobody anywhere.
+    expect(parseSnapshot(empty)).toEqual(empty);
+    expect(onlineOf(empty, 'foundations')).toBe(0);
+  });
+
+  it('has nothing to take back when there was no answer yet, or the last one was already nobody', () => {
+    expect(withoutAnswer(undefined, 0, 1e12)).toBeNull();
+    expect(withoutAnswer({ ...answer, total: 0, hub: 0, regions: {}, islands: {}, commons: {} }, 0, 1e12)).toBeNull();
+    // Once it showed nobody, it stays quiet until an answer comes.
+    const empty = withoutAnswer(answer, 0, 1e9)!;
+    expect(withoutAnswer(empty, 0, 2e9)).toBeNull();
   });
 });
