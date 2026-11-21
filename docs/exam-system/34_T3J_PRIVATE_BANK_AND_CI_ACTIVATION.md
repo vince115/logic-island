@@ -40,12 +40,7 @@ git clone https://github.com/vince115/logic-island-question-bank.git ../logic-is
 使用方式：
 
 - **CLI**（`trials:leak-scan`、`trials:integrity`、`trials:quality`、`trials:import`、`trials:ledger`、`trials:review` 等）：在指令前加上 `LOGIC_ISLAND_PRIVATE_BANK=<固定路徑的絕對路徑>`。相對路徑以執行指令的目錄為準，在 `.claude/worktrees/*` 或 scratch 副本中不會指到同一處，所以一律用絕對路徑。
-- **私人模式的 Vitest 與 Fixture E2E**：`vitest.config.mts` 只認 `<cwd>/private/question-bank/tests`，所以在隔離副本中把題庫的工作檔複製進去（不含 `.git`），跑完隨副本一起丟棄：
-
-  ```bash
-  rsync -a --exclude .git <固定路徑>/ <隔離副本>/private/question-bank/
-  ```
-
+- **私人模式的 Vitest**：用下面的 `pnpm trials:test-private`。它自己建立隔離工作區與題庫快照，不需要手動複製題庫。
 - **題庫的 commit 與 push 只在固定路徑進行。** 匯入器會寫入題庫的 `generated/` 與 manifest；有第二份可寫的 checkout，兩份就會分歧。
 
 不要做的事：
@@ -57,12 +52,57 @@ git clone https://github.com/vince115/logic-island-question-bank.git ../logic-is
 
 2026-11-21 建立固定路徑時的驗證：新 clone 的 HEAD 與 Private GitHub 的 `main` 相同、`git fsck` 無錯誤；16 個批次、380 題，與前一份 checkout 的檔案逐位元組相同；在 `origin/main` 的隔離 checkout 以新舊兩個路徑各掃描追蹤檔案與完整歷史，報告逐位元組相同且皆為 clean；題庫自帶的 21 個測試檔，連同公開端的 `tests/trials-public-bank.test.ts`（共 22 個檔案、304 個測試），在 `trials/mvp` 的隔離副本全部通過。
 
+### 私人模式測試：`pnpm trials:test-private`（2026-11-22 起）
+
+```bash
+LOGIC_ISLAND_PRIVATE_BANK=<固定路徑的絕對路徑> pnpm trials:test-private
+```
+
+變數只寫在這一行指令上。可以在主工作目錄或任何 worktree 執行；它不會改動執行所在的 checkout、其他 worktree 或題庫。
+
+每次執行做的事（`scripts/trials/test-private.ts`）：
+
+1. 在系統暫存目錄建立一個只有本人可讀的工作區 `logic-island-private-test-<id>`，並寫入標記檔。
+2. 以 `git archive` 把指定的公開 commit（預設 `HEAD`）展開成隔離 checkout。只含已提交的檔案，工作目錄中未提交的變更不會被測到。
+3. 把題庫的工作檔複製成快照，放在隔離 checkout 的 `private/question-bank`：是實際檔案，不含 `.git`，不是 symlink。
+4. 檢查題庫測試 import 的公開模組在該 commit 是否都存在。
+5. 以 copy-on-write 複製 `node_modules`，在隔離 checkout 執行私人模式的 Vitest：題庫自帶的全部測試檔，加上公開端的 `tests/trials-public-bank.test.ts`。
+6. 分開列出題庫測試與公開端測試的檔案數與測試數，確認題庫在執行前後內容相同，然後刪除工作區。
+
+| 選項 | 用途 |
+|---|---|
+| `--ref <commit>` | 用哪個公開 commit 測（預設 `HEAD`） |
+| `--node-modules <dir>` | 指定為該 commit 安裝的 `node_modules`（預設是執行所在 checkout 的） |
+| `-- <檔名片段>` | 只跑符合的測試檔；`-- --testTimeout=60000` 之類的 Vitest 選項也從這裡傳（用 `--名稱=值` 的寫法） |
+| `--keep` | 保留工作區供檢查失敗原因，結束時印出路徑 |
+| `--tmp-root <dir>`、`--run-id <id>` | 指定工作區的上層目錄與名稱；名稱已存在時拒絕執行，不動那個目錄 |
+| `--exec <cmd> [args…]` | 在同一個隔離環境改執行其他唯讀指令；它對題庫快照的任何寫入都會隨工作區丟棄 |
+| `--list`、`--reclaim` | 列出／回收殘留的工作區（不需要題庫） |
+
+結束代碼：`0` 通過；`1` 測試失敗；`2` 用法錯誤（沒給題庫路徑、路徑不存在或不是絕對路徑、在 CI 中執行）；`3` 題庫與公開 commit 或 `node_modules` 不相容；`4` 結果不可信（執行期間題庫內容變了、題庫測試檔沒有全部執行、工作區無法安全刪除）；`130`／`143` 被中斷。
+
+版本相容：
+
+- 題庫測試需要的公開模組不在該 commit 時，Runner 在跑任何測試之前就停止並列出缺少的模組（代碼 3）。處理方式是用 `--ref` 指定有那些模組的 commit，不是修改或略過題庫的測試。
+- `node_modules` 旁的 `pnpm-lock.yaml` 與該 commit 的不同時也以代碼 3 停止；用 `--node-modules` 指向為那個 lockfile 安裝的目錄。
+- **目前的狀態（2026-11-22）**：題庫 `c3ee9fd` 的 `trials-ccarf-bank.test.ts` 需要 `src/lib/trials/structural`，它在 `trials/mvp`，還不在 `main`。所以在以 `main` 為基礎的 checkout 直接執行會得到代碼 3；要加上 `--ref origin/trials/mvp --node-modules <為 trials/mvp 的 lockfile 安裝的 node_modules>`。那個模組合併進 `main` 之後就不需要這兩個選項。
+
+基準（題庫 `c3ee9fd`、公開 `trials/mvp` `8c36677`）：題庫測試 21 個檔案、297 個測試全部通過；公開端 1 個檔案、8 個測試，7 個通過、1 個本來就略過。合計 22 個檔案、304 個通過。
+
+中斷與殘留：
+
+- 測試失敗、Ctrl-C、`SIGTERM` 都會先結束測試程序再刪除工作區。
+- Runner 自己被強制終止（`kill -9`、當機）時工作區會留下。`pnpm trials:test-private --list` 會列出它：`running`（Runner 或它的測試程序還活著）、`stale`（程序都結束了）、`unknown`（沒有有效標記檔，不是 Runner 能證明自己建立的）。`--reclaim` 只刪除 `stale`，其餘原樣保留。
+- 多個 Runner 可以同時執行，各有各的工作區。同時跑會互搶 CPU：`trials-integrity-guard` 內 5 秒逾時的 CLI 測試在高負載下會逾時，單獨重跑或加 `-- --testTimeout=60000` 即可分辨。
+
+不做的事：不在 CI 執行（偵測到 `CI` 就拒絕）；不修改題庫；不把題庫路徑傳給測試程序（測試只看得到快照）；不影響一般的 `pnpm test`、build 與公開 CI，它們仍然只在沒有題庫的公開模式執行。
+
 ## 3. 測試的兩種模式
 
 | 模式 | 內容 |
 |---|---|
 | 公開（CI、沒有 `private/`） | `tests/` 全部；以未發布題目為對象的測試標為 skip，並由 `tests/trials-public-bank.test.ts` 檢查公開題庫只有已發布題目、每個已發布雜湊都對得到公開題目、公開 manifest 只有自己的條目且全部吻合 |
-| 私人（有 `private/question-bank`） | 另外執行私人題庫的 `tests/`（`vitest.config.mts` 的 include），包括 lifecycle、帳本順序、release gate 與 preflight 演練、integrity guard、易變題、各批次測試 |
+| 私人（`pnpm trials:test-private`，見第 2 節） | 在隔離工作區放入題庫快照後，另外執行私人題庫的 `tests/`（`vitest.config.mts` 的 include），包括 lifecycle、帳本順序、release gate 與 preflight 演練、integrity guard、易變題、各批次測試 |
 
 品質關卡（`trials:quality`）在沒有私人題庫、該考試又沒有任何題目時，回報 `passed: null` 與「not run」並以 0 結束；這不代表通過，關卡要在私人模式下執行。
 
@@ -85,7 +125,7 @@ git clone https://github.com/vince115/logic-island-question-bank.git ../logic-is
 
 1. **發布私人題目的流程還沒定**：題目發布後要從私人題庫搬到公開的 `generated/`（與 manifest 條目一起）。現在的檢查是 fail closed：公開 CI 會要求每個已發布雜湊都對得到公開題目，否則失敗。
 2. **私人題庫沒有自己的 CI**：私人模式的測試與品質關卡目前只在本機執行。
-3. **Fixture E2E**：`e2e/fixtures/*` 會把審核中的題目改為已發布再建置，所以需要私人題庫。在隔離副本中要另外複製 `private/question-bank`，或設定 `LOGIC_ISLAND_PRIVATE_BANK`（來源見第 2 節的固定路徑）。
+3. **Fixture E2E**：`e2e/fixtures/*` 會把審核中的題目改為已發布再建置，所以需要私人題庫。在隔離副本中要另外複製 `private/question-bank`，或設定 `LOGIC_ISLAND_PRIVATE_BANK`（來源見第 2 節的固定路徑）。`pnpm trials:test-private` 目前只負責 Vitest；用它的 `--exec` 在同一個隔離環境跑 fixture 建置與 E2E 尚未驗證。
 4. **Theme Session**：Theme 的變更要另外 cherry-pick 到公開分支。它的 commit 不能直接從本機 `trials/mvp` 推送；pre-push hook 會拒絕。
 5. 被搬走的 docs 13–18、21、26–29 仍出現在公開文件與佇列的連結中。這些連結在公開端會失效，內容要到私人題庫的 `docs/` 查看。
 

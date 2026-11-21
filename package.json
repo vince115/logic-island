@@ -20,7 +20,8 @@
     "trials:ci-base": "node --experimental-transform-types --no-warnings --import ./scripts/trials/register.mjs scripts/trials/ci-base.ts",
     "trials:ci-bootstrap": "node --experimental-transform-types --no-warnings --import ./scripts/trials/register.mjs scripts/trials/ci-bootstrap.ts",
     "trials:release-gate": "node --experimental-transform-types --no-warnings --import ./scripts/trials/register.mjs scripts/trials/release-gate.ts",
-    "trials:leak-scan": "node --experimental-transform-types --no-warnings --import ./scripts/trials/register.mjs scripts/trials/leak-scan.ts"
+    "trials:leak-scan": "node --experimental-transform-types --no-warnings --import ./scripts/trials/register.mjs scripts/trials/leak-scan.ts",
+    "trials:test-private": "node --experimental-transform-types --no-warnings --import ./scripts/trials/register.mjs scripts/trials/test-private.ts"
   },
   "dependencies": {
     "@radix-ui/react-slot": "1.5.0",
