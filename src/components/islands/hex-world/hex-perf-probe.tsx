@@ -48,6 +48,8 @@ export default function PerfProbe({ox,oz}:{ox:number;oz:number}) {
         offset:[offset.x,offset.y],distance:controls.distance,touchAction:(events.connected as HTMLElement|undefined)?.style.touchAction??null,active:controls.active};
     };
     Object.assign(gl.domElement,{__hexProject:project,__hexView:view,__hexZoom:()=>camera.zoom,__hexCamera:read});
+    // P9.8c: a shared canvas outlives this map, so its hooks leave with it.
+    return ()=>{const c=gl.domElement as unknown as Record<string,unknown>;delete c.__hexProject;delete c.__hexView;delete c.__hexZoom;delete c.__hexCamera;};
   },[gl,camera,controls,events,ox,oz,invalidate]);
   useEffect(()=>{
     const probe=(freshShadows=false):PerfStats=>{
@@ -84,6 +86,7 @@ export default function PerfProbe({ox,oz}:{ox:number;oz:number}) {
       });
     };
     Object.assign(gl.domElement,{__hexPerf:probe,__hexDraws:draws});
+    return ()=>{const c=gl.domElement as unknown as Record<string,unknown>;delete c.__hexPerf;delete c.__hexDraws;};
   },[gl,scene,camera,ox,oz]);
   useEffect(()=>{
     const hex=(color:Color)=>`#${color.getHexString()}`;
@@ -112,6 +115,7 @@ export default function PerfProbe({ox,oz}:{ox:number;oz:number}) {
         shadowMap:{enabled:gl.shadowMap.enabled,type:gl.shadowMap.type,autoUpdate:gl.shadowMap.autoUpdate},materials:[...materials.values()]};
     };
     Object.assign(gl.domElement,{__hexEnvironment:environment});
+    return ()=>{delete (gl.domElement as unknown as Record<string,unknown>).__hexEnvironment;};
   },[gl,scene]);
   return null;
 }
