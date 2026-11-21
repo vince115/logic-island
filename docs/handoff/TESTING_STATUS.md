@@ -66,6 +66,18 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 - 3D 效能單次量測（首頁全景、8 個 NPC）：draw call 66 → 69、三角形 +432、陰影貼圖重畫 0 次；自動旋轉時有無 NPC 幀率未觀察到差異（Metal 60／60 fps，SwiftShader 桌機 26.9／27.3）；閒置時由 0 fps 變為桌機 30、手機 20 fps。**真機未量測。**
 - 沒有做：Vercel Preview、Production、真機、iOS Safari、螢幕閱讀器、共用儲存。
 
+## Private Vitest Runner（2026-11-22，分支 `trials/private-test-runner`）
+
+用法與選項：`docs/exam-system/34_T3J_PRIVATE_BANK_AND_CI_ACTIVATION.md` 第 2 節。**以下是本機隔離 checkout 的結果，不是 CI：公開 CI 沒有私有題庫，也不執行這個 Runner。**
+
+- 指令：`LOGIC_ISLAND_PRIVATE_BANK=<絕對路徑> pnpm trials:test-private`。在暫存工作區以 `git archive` 展開公開 commit、放入題庫快照後執行私人模式 Vitest，結束後刪除工作區。
+- 私人模式（題庫 `c3ee9fd`、公開 `trials/mvp` `8c36677`）：題庫測試 21 個檔案 297／297 通過；公開端 `tests/trials-public-bank.test.ts` 8 個測試，7 通過、1 略過。合計 22 個檔案、304 通過。與先前手動複製題庫的結果相同。
+- 以 `main` 為基礎的 commit 會以代碼 3 停止：題庫的 `trials-ccarf-bank.test.ts` 需要 `src/lib/trials/structural`，目前只在 `trials/mvp`。這是題庫與 `main` 的版本差，不是 Runner 的錯誤，也沒有為此修改或略過測試。
+- 情境驗收（真實題庫）：題庫路徑不存在（代碼 2）；版本不相容（代碼 3，未執行任何測試）；刻意失敗的測試（題庫的可丟棄副本加一個必定失敗的測試，代碼 1）；`SIGINT`、對 `pnpm` 整個程序群組的 `SIGINT`、`SIGTERM`（代碼 130／130／143）；同名工作區（第二個以代碼 2 拒絕，第一個不受影響）；Runner 被 `SIGKILL` 後 `--list`／`--reclaim`。每個情境結束後都沒有殘留的工作區或測試程序，沒有標記檔的同名前綴目錄原樣保留。
+- 兩個 Runner 同時執行：工作區各自獨立、都跑完 22 個檔案。在 load average 約 9 的機器上，預設逾時下兩邊各有 1 個測試逾時（`trials-integrity-guard` 的 5 秒 CLI 測試）；加 `-- --testTimeout=60000` 後兩邊都是 304 通過。這是 CPU 競爭，不是資料互相干擾。
+- 題庫保護：全部情境結束後題庫的 HEAD、內容雜湊、`git status` 與 `.git/index` 的修改時間都與開始前相同。
+- 公開模式不受影響：Typecheck 0、ESLint 0、完整 Vitest **2,554 通過／9 略過／0 失敗**（92 個檔案，其中新增的 `tests/trials-private-runner.test.ts` 25 個測試使用虛構的 repository 與題庫，不需要私有題庫）。旗標建置成功，`trials:preflight --build` 通過；外洩掃描（追蹤檔案、新增檔案、`.next`）皆 clean。
+
 ## P9 S1 引擎通用化（2026-11-19，分支 `p9/s1-1` 至 `p9/s1-4`，未合併）
 
 報告：`docs/planning/P9_S1_ENGINE_GENERALIZATION.md`；證據與工具：`docs/planning/evidence/p9-s1/`。**只有本機隔離建置的結果，不是 Preview，也不是真機。**

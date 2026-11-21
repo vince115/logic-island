@@ -37,6 +37,8 @@
 
 課程以 `capabilities` 宣告教學與練習的方式（`program-code`、`sql`、`protocol-sequence`…）。程式語言島（PL）完全使用 `program-code`，所以第一批從它開始。網路、Linux、AI、設計等學科要先新增對應的 capability（內容欄位、頁面區塊與自動驗證），不能把它們硬塞成三語程式課，也不能沒有驗證就開放。新增 capability 屬架構變更，另案進行。
 
+2026-11-21（CN-0）：新增 `network-protocol`（固定的網路情境：節點、依序的訊息與各層標頭、節點表格；練習答案從情境讀出或計算），規格與隔離見 [CN0_NETWORK_CAPABILITY](CN0_NETWORK_CAPABILITY.md)。計算機網路島以「預備島嶼」（`PREPARED_ISLAND_IDS`）登錄：可以撰寫與驗證課程，但第一堂課寫好、島嶼移入 `ISLAND_IDS` 之前不會出現任何頁面。自主課程生產的佇列與恢復方式見 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md)（由 `scripts/curriculum-queue.ts` 計算）。
+
 ## 5. 生產流程
 
 1. 依先修關係與重用價值選一批 5–10 堂（§7 佇列）。
@@ -58,6 +60,8 @@
 | 3（已發布，PR #34） | PL11–PL15 | 語法分析、直譯器、並行模型；AST 與並行時間軸以既有的樹、框架、容器與表格面板表達，新引擎列入 [INTERACTIVE_LAB_ROADMAP](INTERACTIVE_LAB_ROADMAP.md) |
 | 4（已發布，PR #37） | PL16–PL19 | 編譯流程、虛擬機與 JIT、超程式設計、語言設計取捨；CFG 以圖面板、VM 以堆疊容器、裝飾器以呼叫框架表達，語言設計以比較表格；`compiler-pipeline`、`ast-explorer`、`case-study-board` 列入 [INTERACTIVE_LAB_ROADMAP](INTERACTIVE_LAB_ROADMAP.md) |
 | 5（本批，見 [BATCH_5_PLAN](BATCH_5_PLAN.md)） | PL20 | 程式語言島綜合挑戰（`challenge-stages`）：四語各寫含閉包與型別檢查的迷你語言，篇幅最大，單獨一批 |
-| 之後 | CN、LNX 起步課 | 先完成 §4 的 capability（網路協定、終端機），再開課 |
+| CN-0（架構） | — | `network-protocol` capability、計算機網路島登錄為預備島嶼（[CN0_NETWORK_CAPABILITY](CN0_NETWORK_CAPABILITY.md)） |
+| CN-1 至 CN-5 | CN01–CN05、CN06–CN10、CN11–CN15、CN16–CN19、CN20 | 課程編號即位置，只能依序連續發布；同島先修都排在前面，所以依編號就是拓樸順序 |
+| 之後 | 依 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 自動選擇 | 先修已滿足、能力已備妥、解鎖其他島最多的島優先；缺少的共用能力先做最小可用版本 |
 
 進度記錄在 [COURSE_PRODUCTION_PROGRESS](COURSE_PRODUCTION_PROGRESS.md)。
