@@ -484,7 +484,8 @@ test.describe('population figures: mock data, with motion', () => {
     test.setTimeout(90_000);
     await openHome(page, '/?island=foundations');
     await setPopulation(page, { foundations: 1 });
-    await expect.poll(() => drawn(page)).toBe('1');
+    // (The generated numbers the page started with may have put more figures on the island: those walk off first.)
+    await expect.poll(() => drawn(page), { timeout: 30_000 }).toBe('1');
     const cap = phone() ? 4 : 8;
     await setPopulation(page, { foundations: 100 });
     // Not at once: the roster grows by one at a time.

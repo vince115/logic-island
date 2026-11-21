@@ -397,9 +397,14 @@ describe('open and planned islands (P6-B)', () => {
       // Nothing else changes: the commons are the same bridges, with the same caps.
       expect(map.zones.filter(zone => zone.kind === 'commons')).toEqual(map.all.filter(zone => zone.kind === 'commons'));
     }
-    // The registry as it is today (2026-11-21): five open islands of the CS archipelago and the Interactive Lab Island; every other subject island is planned.
-    expect([...open].sort()).toEqual(['algorithms', 'databases', 'foundations', 'labs', 'programming-languages', 'structures']);
-    expect(planned.size).toBe(subjectIslands.length - 5);
+    // Which islands are open is the registry's to say, and it changes as lessons are written (the networks island
+    // opened on 2026-11-22 with CN01–CN05): the maps agree with it, island for island, and the Interactive Lab Island
+    // is open besides. The five that were open when this was written (2026-11-21) stay so.
+    const written = subjectIslands.filter(island => island.status !== 'planned').map(island => island.id);
+    expect([...open].sort()).toEqual([...written, 'labs'].sort());
+    expect(planned.size).toBe(subjectIslands.length - written.length);
+    for (const id of ['algorithms', 'databases', 'foundations', 'programming-languages', 'structures']) expect(open.has(id), id).toBe(true);
+    expect(planned.size).toBeGreaterThan(0);
   });
 
   it('keeps every region its commons, also a region none of whose islands is open yet', () => {
