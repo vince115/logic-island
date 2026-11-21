@@ -5,7 +5,7 @@
 > - 只在 `LOGIC_ISLAND_P9_PROTOTYPE=1` 與新的 `LOGIC_ISLAND_P9_SHARED_CANVAS=1` 同時設定時生效。
 > - 沒有修改 Vercel、Production、旗標設定、GLB、座標、Exam Engine 或題庫。
 > - P9.7 原型只作參考，沒有合併或 cherry-pick。
-> - **本 PR 不合併**：Shared Canvas 改變了 WebGL 的生命週期，而且尚未完成真機驗證。
+> - **合併（2026-11-21）**：使用者批准以 Merge Commit 將程式碼合併至 `main`，但**不批准在 Production 啟用 Shared Canvas**。啟用前的檢查清單見 [P9_8C_RELEASE_GATE.md](P9_8C_RELEASE_GATE.md)。
 
 ## 1. 旗標（Phase A）
 
@@ -239,7 +239,7 @@ E2E 清單在各模式相同：`p9-prototype`、`p9-continuity`、`p9-shared-can
 
 ## 9. 實機驗證
 
-**Pending（未驗證）。** 可由人工執行的清單見 [P9_8C_DEVICE_CHECKLIST.md](P9_8C_DEVICE_CHECKLIST.md)：World → CS → World、觸控拖曳與縮放、Back／Forward、3D ↔ 清單、背景切換後恢復、長時間使用、畫面凍結與備援導航。
+**Pending（未驗證）。** 啟用前的 Release Gate 見 [P9_8C_RELEASE_GATE.md](P9_8C_RELEASE_GATE.md)。可由人工執行的清單見 [P9_8C_DEVICE_CHECKLIST.md](P9_8C_DEVICE_CHECKLIST.md)：World → CS → World、觸控拖曳與縮放、Back／Forward、3D ↔ 清單、背景切換後恢復、長時間使用、畫面凍結與備援導航。
 
 這台 Mac 沒有 Xcode、Playwright WebKit，也沒有連接 iPhone 或 Android 裝置。本文件所有手機數據都是 headless Chromium 的手機模擬（iPhone 13 尺寸、觸控模擬），不能代替實機。
 
@@ -265,7 +265,7 @@ E2E 清單在各模式相同：`p9-prototype`、`p9-continuity`、`p9-shared-can
    - 只有「直接開 `/cs` 載入時」decoded +1.04%（`regionFrame` 等 handover 必要程式，只在 P9 開啟時）。
 
    請確認是否接受。
-4. **合併由使用者決定**：本 PR 不會自動合併。
+4. **合併**：使用者於 2026-11-21 批准合併程式碼（旗標維持關閉）；啟用前的項目見 [P9_8C_RELEASE_GATE.md](P9_8C_RELEASE_GATE.md)。
 
 **限制與已知問題**：
 - **fallback 清單不列課程**：CS 的 fallback 島嶼清單本身不列出課程，要經過「不需 3D 清單總覽」→「前往課綱」才能進入課程（三步，都可用鍵盤）。這是 region explorer 在 P9.8b 就有的行為。
