@@ -55,7 +55,7 @@ git clone https://github.com/vince115/logic-island-question-bank.git ../logic-is
 
 題庫版本要和公開端的程式碼對得上：題庫自帶的測試會 import 公開 repository 的模組，題庫比程式碼新時，那些測試會因為找不到模組而失敗（2026-11-21：題庫 `c3ee9fd` 的 `trials-ccarf-bank.test.ts` 需要 `trials/mvp` 上的 `src/lib/trials/structural`，`main` 還沒有）。外洩掃描不受影響，一律用最新的題庫。
 
-2026-11-21 建立固定路徑時的驗證：新 clone 的 HEAD 與 Private GitHub 的 `main` 相同、`git fsck` 無錯誤；16 個批次、380 題，與前一份 checkout 的檔案逐位元組相同；在 `origin/main` 的隔離 checkout 以新舊兩個路徑各掃描追蹤檔案與完整歷史，報告逐位元組相同且皆為 clean；題庫自帶的 22 個測試檔在 `trials/mvp` 的隔離副本全部通過。
+2026-11-21 建立固定路徑時的驗證：新 clone 的 HEAD 與 Private GitHub 的 `main` 相同、`git fsck` 無錯誤；16 個批次、380 題，與前一份 checkout 的檔案逐位元組相同；在 `origin/main` 的隔離 checkout 以新舊兩個路徑各掃描追蹤檔案與完整歷史，報告逐位元組相同且皆為 clean；題庫自帶的 21 個測試檔，連同公開端的 `tests/trials-public-bank.test.ts`（共 22 個檔案、304 個測試），在 `trials/mvp` 的隔離副本全部通過。
 
 ## 3. 測試的兩種模式
 

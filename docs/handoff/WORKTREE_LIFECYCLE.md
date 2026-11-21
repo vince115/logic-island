@@ -90,5 +90,6 @@ git worktree remove <path>
 
 2026-11-21 更新（資料保護，未移除任何 worktree）：
 
+- 上表之後的變動：PR #38 已合併，`logic-island-p98c` 已由該 Session 移除；新增 `logic-island-p98c-docs`（`docs/p98c-post-merge-baseline`，PR #43）與 `logic-island-presence`（`presence/visitor-population`），兩者都在使用中。共 12 個 worktree。
 - 私有題庫改用第 2 節的固定路徑。`logic-island-t3j` 與 `logic-island-port` 內的 `private/question-bank` 是舊的 checkout，兩份都已完整推送到 Private GitHub、沒有未提交的內容；`logic-island-t3j` 那份落後最新版 2 個 commit（350 題，最新是 380 題），不再用於外洩掃描。兩個目錄在使用它們的 Session 改用固定路徑、並由使用者確認之前，仍視為高風險，不清理。
 - `logic-island-m3-ring` 的三個 `.blend` 原檔與全部本機獨有的 Git 歷史已存入本機備份（同一顆磁碟），尚無異地備份；該目錄仍視為高風險。
