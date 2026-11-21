@@ -14,7 +14,9 @@ const ALGORITHMS_DONE = 20;
 const DATABASES_DONE = lessons.filter(l => l.islandId === 'databases').length;
 /** 2026-11-20 (course production): the programming-languages island's written lessons, PL01 onwards, before databases. */
 const PL_DONE = lessons.filter(l => l.islandId === 'programming-languages').length;
-const COMPLETE = [...ids('F', 20), ...ids('D', 20), ...ids('A', ALGORITHMS_DONE), ...ids('PL', PL_DONE), ...ids('DB', DATABASES_DONE)];
+// CN-1 (2026-11-22): the computer-networks island is written in batches with the network-protocol capability.
+const NETWORKS_DONE = lessons.filter(l => l.islandId === 'networks').length;
+const COMPLETE = [...ids('F', 20), ...ids('D', 20), ...ids('A', ALGORITHMS_DONE), ...ids('PL', PL_DONE), ...ids('DB', DATABASES_DONE), ...ids('CN', NETWORKS_DONE)];
 // F.1b: lessons are told apart by the capabilities they declare, never by a missing field.
 const programLessons = lessons.filter(l => hasCapability(l, 'program-code'));
 type TraceConfig = Extract<VisualizationConfig, { steps: unknown }>;
@@ -32,7 +34,9 @@ describe('curriculum (E.1)', () => {
     expect(lessons.filter(l => l.islandId === 'programming-languages').map(l => l.lessonId)).toEqual(ids('PL', PL_DONE));
     expect(DATABASES_DONE).toBeGreaterThan(0);
     expect(lessons.filter(l => l.islandId === 'databases').map(l => l.lessonId)).toEqual(ids('DB', DATABASES_DONE));
-    expect(lessons).toHaveLength(60 + PL_DONE + DATABASES_DONE);
+    expect(NETWORKS_DONE).toBeGreaterThanOrEqual(5);
+    expect(lessons.filter(l => l.islandId === 'networks').map(l => l.lessonId)).toEqual(ids('CN', NETWORKS_DONE));
+    expect(lessons).toHaveLength(60 + PL_DONE + DATABASES_DONE + NETWORKS_DONE);
     expect(new Set(lessons.map(l => l.lessonId)).size).toBe(lessons.length);
     expect(new Set(lessons.map(l => l.slug)).size).toBe(lessons.length);
   });
@@ -52,7 +56,13 @@ describe('curriculum (E.1)', () => {
 
   it('capabilities (F.1b): F, D and A are program-code; database lessons declare what they use; the blueprint\'s activity fits', () => {
     const blueprint = new Map(planning.plannedLessons.map(l => [l.lessonId, l.activity]));
-    expect(programLessons.map(l => l.lessonId)).toEqual(lessons.filter(l => l.islandId !== 'databases').map(l => l.lessonId));
+    expect(programLessons.map(l => l.lessonId)).toEqual(lessons.filter(l => l.islandId !== 'databases' && l.islandId !== 'networks').map(l => l.lessonId));
+    // CN-1: network lessons are taught with network-protocol scenes, never program code; the blueprint's protocol-sequence is
+    // the network-sequence activity there (protocol-sequence keeps meaning the database lessons' SQL round trips).
+    for (const l of lessons.filter(l => l.islandId === 'networks')) {
+      expect(l, l.lessonId).toMatchObject({ supportedLanguages: [], capabilities: ['network-protocol'] });
+      expect(l.activity, l.lessonId).toBe(blueprint.get(l.lessonId) === 'protocol-sequence' ? 'network-sequence' : 'packet-journey');
+    }
     expect(programLessons).toHaveLength(60 + PL_DONE);
     for (const l of programLessons) expect([l.capabilities, l.activity, l.queryLanguage], l.lessonId).toEqual([['program-code'], undefined, undefined]);
     for (const l of lessons.filter(l => l.islandId === 'databases')) {

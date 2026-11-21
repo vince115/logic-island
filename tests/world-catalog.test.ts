@@ -11,7 +11,7 @@ import { BLUEPRINT, readJson } from '../scripts/planning-data.mjs';
 const mutate = (id: string, change: Partial<CatalogLesson>) => catalogLessons.map(l => l.lessonId === id ? { ...l, ...change } : l);
 
 /** Islands whose lessons the curriculum writes from the blueprint's outlines (F.1a; course production batch 1 for PL). */
-const FROM_BLUEPRINT = ['databases', 'programming-languages'];
+const FROM_BLUEPRINT = ['databases', 'programming-languages', 'networks'];
 
 describe('lesson catalog (F.0)', () => {
   it('passes its own rules and the world rules', () => {
@@ -59,11 +59,12 @@ describe('lesson catalog (F.0)', () => {
   it('publishes written lessons of a planned island exactly as the blueprint defines them (F.1a), without editing the blueprint', () => {
     type Entry = { id: string; slug: string; titleZh: string; difficulty: string; prerequisites: string[]; recommended: string[]; objectives: string[]; concepts: string[]; status: string };
     const blueprint = new Map<string, Entry>(readJson(BLUEPRINT).lessons.map((l: Entry) => [l.id, l]));
+    // CN-1: a lesson the blueprint recommends nothing for (CN01) carries no `recommended` field.
     for (const lesson of lessons.filter(l => FROM_BLUEPRINT.includes(l.islandId))) {
       const b = blueprint.get(lesson.lessonId)!;
       // The blueprint keeps its planning status; the curriculum decides what is published.
       expect(b.status, lesson.lessonId).toBe('planned');
-      expect({ slug: lesson.slug, title: lesson.title, difficulty: lesson.difficulty, prerequisites: lesson.prerequisites, recommended: lesson.recommended,
+      expect({ slug: lesson.slug, title: lesson.title, difficulty: lesson.difficulty, prerequisites: lesson.prerequisites, recommended: lesson.recommended ?? [],
         objectives: lesson.learningObjectives, concepts: lesson.concepts }, lesson.lessonId)
         .toEqual({ slug: b.slug, title: b.titleZh, difficulty: b.difficulty, prerequisites: b.prerequisites, recommended: b.recommended, objectives: b.objectives, concepts: b.concepts });
       expect(getCatalogLesson(lesson.lessonId)?.recommended, lesson.lessonId).toEqual(b.recommended);

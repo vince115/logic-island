@@ -55,7 +55,7 @@ describe('island configuration (F.0)', () => {
     expect(meetsCondition({ completedIslands: ['foundations'] }, progress(f))).toBe(true);
     expect(meetsCondition({ completedIslands: ['foundations'] }, progress(f.slice(1)))).toBe(false);
     // A planned island cannot be completed, whatever the progress says; the database island can since F.1d.
-    expect(meetsCondition({ completedIslands: ['networks'] }, progress(ids('CN', 20)))).toBe(false);
+    expect(meetsCondition({ completedIslands: ['systems-analysis'] }, progress(ids('SA', 20)))).toBe(false);
     expect(meetsCondition({ completedIslands: ['databases'] }, progress(ids('DB', 20)))).toBe(true);
     expect(meetsCondition({ completedIslands: ['databases'] }, progress(ids('DB', 19)))).toBe(false);
     expect(meetsCondition({ any: [{ completedLessons: ['A20'] }, { all: [{ completedLessons: ['F01'] }, { completedIslands: ['foundations'] }] }] }, progress(f))).toBe(true);
@@ -63,9 +63,10 @@ describe('island configuration (F.0)', () => {
   });
 
   it('catches a way into a planned island, a bridge to one, a missing page and a locked subject island', () => {
-    const entry = clone(); island(entry, 'networks').entryPoints = [{ id: 'syllabus', label: '課綱', target: '/curriculum#island-networks' }];
-    expect(validateIslandLinks(entry, worldPages()).join('\n')).toMatch(/networks: a planned island has no entry point/);
-    expect(validateIslandLinks(entry, worldPages()).join('\n')).toMatch(/leads to \/curriculum#island-networks, which does not exist/);
+    // systems-analysis is still an outline (CN, the example before, opened in CN-1).
+    const entry = clone(); island(entry, 'systems-analysis').entryPoints = [{ id: 'syllabus', label: '課綱', target: '/curriculum#island-systems-analysis' }];
+    expect(validateIslandLinks(entry, worldPages()).join('\n')).toMatch(/systems-analysis: a planned island has no entry point/);
+    expect(validateIslandLinks(entry, worldPages()).join('\n')).toMatch(/leads to \/curriculum#island-systems-analysis, which does not exist/);
     const bridge = clone(); island(bridge, 'algorithms').links.push({ to: 'programming-languages', kind: 'bridge' });
     expect(validateIslandLinks(bridge, worldPages()).join('\n')).toMatch(/bridge to programming-languages: planned islands are not on the map/);
     // A planned lesson has no page (whichever lesson is still an outline, not one fixed future lesson).

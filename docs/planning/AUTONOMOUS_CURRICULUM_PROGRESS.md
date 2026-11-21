@@ -13,11 +13,11 @@
 
 ## 總覽
 
-已發布 **100／520**（19.2%）；規劃中 420。
+已發布 **105／520**（20.2%）；規劃中 415。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
-| 程式與資訊群島 | 100 | 60 | 62.5% |
+| 程式與資訊群島 | 105 | 55 | 65.6% |
 | AI 人工智慧群島 | 0 | 160 | 0.0% |
 | 數位設計群島 | 0 | 56 | 0.0% |
 | 網頁與應用開發群島 | 0 | 55 | 0.0% |
@@ -25,7 +25,7 @@
 
 ## 下一批（自動選擇）
 
-**計算機網路島（CN）**：CN01 網路分層模型、CN02 實體層與網路效能：頻寬、延遲與吞吐量、CN03 資料鏈結層、Ethernet 與交換器、CN04 Wi-Fi 與行動網路基礎、CN05 IP 位址與子網路。島嶼能力：已備妥（可開始撰寫）；這幾堂解鎖其他島的 60 堂。
+**計算機網路島（CN）**：CN06 ARP、DHCP 與 NAT、CN07 路由與轉送、CN08 路由協定：距離向量與鏈路狀態、CN09 TCP 與 UDP、CN10 TCP 可靠傳輸、流量控制與壅塞控制。島嶼能力：可用；這幾堂解鎖其他島的 60 堂。
 
 能力缺口中最優先的是 **AI 基礎島（AIF）**：需要 python-code (Python-only program lessons; search, probability and game trees on the shared trace panels)；先修已滿足、可依序撰寫的有 20 堂，前 5 堂解鎖其他島的 140 堂。
 
@@ -40,7 +40,7 @@
 | 程式與資訊群島 | 演算法島（AL） | 20／20 | program-code | 可用 | 全島完成 | — |
 | 程式與資訊群島 | 程式語言島（PL） | 20／20 | program-code | 可用 | 全島完成 | — |
 | 程式與資訊群島 | 資料庫應用島（DB） | 20／20 | sql, er-diagram, normalization, query-plan, transaction-timeline, driver-code, protocol-sequence, architecture-diagram | 可用 | 全島完成 | — |
-| 程式與資訊群島 | 計算機網路島（CN） | 0／20 | network-protocol (packets through the layers, message sequences, node tables; field, layer and subnet exercises) | 已備妥（可開始撰寫） | CN01–CN20（20 堂） | — |
+| 程式與資訊群島 | 計算機網路島（CN） | 5／20 | network-protocol (packets through the layers, message sequences, node tables; field, layer, table, subnet and delay exercises) | 可用 | CN06–CN20（15 堂） | — |
 | 程式與資訊群島 | 系統分析與設計島（SA） | 0／20 | model-diagram (UML, DFD, BPMN, state and sequence models, checked by structure) | 缺少 | SA01–SA20（20 堂） | 缺少課程能力 |
 | 程式與資訊群島 | 管理資訊系統島（MIS） | 0／20 | case-analysis (scenario data, decision tables, KPI calculations checked by value) | 缺少 | MIS01–MIS20（20 堂） | 缺少課程能力 |
 | AI 人工智慧群島 | AI 基礎島（AIF） | 0／20 | python-code (Python-only program lessons; search, probability and game trees on the shared trace panels) | 缺少 | AIF01–AIF20（20 堂） | 缺少課程能力 |
@@ -89,16 +89,16 @@
 |---|---|---|
 | APCS／資訊科學基礎 | 60／60 | 是 |
 | 軟體工程 | 66／86 | 否 |
-| 網路與系統 | 34／54 | 否 |
+| 網路與系統 | 39／54 | 否 |
 | 企業資訊系統 | 44／84 | 否 |
-| AI 研究 | 32／142 | 否 |
-| AI 應用工程 | 19／89 | 否 |
+| AI 研究 | 34／142 | 否 |
+| AI 應用工程 | 21／89 | 否 |
 | 前端工程 | 7／62 | 否 |
 | 產品設計 | 0／56 | 否 |
-| AI 架構 | 11／66 | 否 |
+| AI 架構 | 13／66 | 否 |
 | 全端部署 | 16／62 | 否 |
-| AI 基礎設施 | 7／60 | 否 |
-| 雲端與 DevOps 基礎 | 1／48 | 否 |
+| AI 基礎設施 | 9／60 | 否 |
+| 雲端與 DevOps 基礎 | 3／48 | 否 |
 
 ## 先修依賴檢查
 
@@ -237,15 +237,15 @@
 
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
-| CN01 | 網路分層模型 | 大綱 | F01 | packet-journey | — |
-| CN02 | 實體層與網路效能：頻寬、延遲與吞吐量 | 待先修 | CN01 | packet-journey | 先修 CN01 |
-| CN03 | 資料鏈結層、Ethernet 與交換器 | 待先修 | CN01 | routing-table | 先修 CN01 |
-| CN04 | Wi-Fi 與行動網路基礎 | 待先修 | CN03 | protocol-sequence | 先修 CN03 |
-| CN05 | IP 位址與子網路 | 待先修 | CN01 | subnet-calculator | 先修 CN01 |
-| CN06 | ARP、DHCP 與 NAT | 待先修 | CN05、CN03 | protocol-sequence | 先修 CN05、CN03 |
-| CN07 | 路由與轉送 | 待先修 | CN05 | routing-table | 先修 CN05 |
+| CN01 | 網路分層模型 | 已發布（閘門通過） | F01 | packet-journey | — |
+| CN02 | 實體層與網路效能：頻寬、延遲與吞吐量 | 已發布（閘門通過） | CN01 | packet-journey | — |
+| CN03 | 資料鏈結層、Ethernet 與交換器 | 已發布（閘門通過） | CN01 | packet-journey | — |
+| CN04 | Wi-Fi 與行動網路基礎 | 已發布（閘門通過） | CN03 | network-sequence | — |
+| CN05 | IP 位址與子網路 | 已發布（閘門通過） | CN01 | packet-journey | — |
+| CN06 | ARP、DHCP 與 NAT | 大綱 | CN05、CN03 | protocol-sequence | — |
+| CN07 | 路由與轉送 | 大綱 | CN05 | routing-table | — |
 | CN08 | 路由協定：距離向量與鏈路狀態 | 待先修 | CN07、A16 | graph-traversal | 先修 CN07 |
-| CN09 | TCP 與 UDP | 待先修 | CN05 | protocol-sequence | 先修 CN05 |
+| CN09 | TCP 與 UDP | 大綱 | CN05 | protocol-sequence | — |
 | CN10 | TCP 可靠傳輸、流量控制與壅塞控制 | 待先修 | CN09 | protocol-sequence | 先修 CN09 |
 | CN11 | Socket 網路程式設計 | 待先修 | CN09 | protocol-sequence | 先修 CN09 |
 | CN12 | DNS 與 HTTP | 待先修 | CN09 | packet-journey | 先修 CN09 |

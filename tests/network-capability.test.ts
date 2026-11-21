@@ -82,25 +82,29 @@ describe('isolation from the database capabilities', () => {
   });
 });
 
-describe('the networks island is prepared, not published', () => {
-  it('has its prefix but stays out of the curriculum islands, the lessons and the pages', () => {
-    expect(PREPARED_ISLAND_IDS).toEqual(['networks']);
+describe('the networks island: prepared in CN-0, written in batches from CN-1', () => {
+  it('is a curriculum island with its first lessons written in id order; the rest stay planned outlines without a page', () => {
+    expect(PREPARED_ISLAND_IDS).toEqual([]);
     expect(ISLAND_PREFIX.networks).toBe('CN');
-    expect(ISLAND_IDS).not.toContain('networks');
+    expect(ISLAND_IDS).toContain('networks');
     expect(islands.map(i => i.id)).toEqual([...ISLAND_IDS]);
-    expect(lessons.filter(l => (l.islandId as string) === 'networks')).toEqual([]);
-    for (const l of lessonsOfIsland('networks')) {
+    const written = lessons.filter(l => l.islandId === 'networks');
+    expect(written.map(l => l.lessonId)).toEqual(written.map((_, i) => `CN${String(i + 1).padStart(2, '0')}`));
+    expect(written.length).toBeGreaterThanOrEqual(5);
+    for (const l of lessonsOfIsland('networks').slice(written.length)) {
       expect(l.lessonStatus, l.lessonId).toBe('planned');
       expect(l.href, l.lessonId).toBeUndefined();
       expect(getLessonBySlug(l.slug), l.slug).toBeUndefined();
     }
     expect(lessonsOfIsland('networks')).toHaveLength(20);
-    expect(getIsland('networks')).toMatchObject({ status: 'planned' });
+    // Its lessons open on their own; its 3D landscape stays the planned one (IslandConfig.mapState, set by hand).
+    expect(getIsland('networks')).toMatchObject({ status: written.length < 20 ? 'available' : 'complete', mapState: 'planned' });
     expect(catalogLessons.filter(l => l.lessonStatus === 'complete')).toHaveLength(lessons.length);
   });
-  it('rejects a lesson of a prepared island until the island joins ISLAND_IDS', () => {
-    const early = validateCurriculum({ ...curriculum, lessons: [...lessons, meta], contents: { ...curriculum.contents, CN01: content() } }).join('\n');
-    expect(early).toMatch(/CN01: networks is prepared for authoring, not a curriculum island yet/);
+  it('rejects a lesson of an island that is not a curriculum island yet', () => {
+    const outside = { ...meta, lessonId: 'CN99', islandId: 'systems-analysis' } as unknown as LessonMeta;
+    const early = validateCurriculum({ ...curriculum, lessons: [...lessons, outside] }).join('\n');
+    expect(early).toMatch(/systems-analysis is prepared for authoring, not a curriculum island yet/);
   });
 });
 

@@ -85,7 +85,7 @@ test.describe('region map (flag on)', () => {
   });
 
   test('a planned island has no place list and no course entry, in any region', async ({ page }) => {
-    for (const [region, island] of [['cs', 'networks'], ['ai', 'ai-foundations'], ['design', 'ui-design'], ['web', 'frontend'], ['sys', 'linux-systems']] as const) {
+    for (const [region, island] of [['cs', 'systems-analysis'], ['ai', 'ai-foundations'], ['design', 'ui-design'], ['web', 'frontend'], ['sys', 'linux-systems']] as const) {
       await openRegion(page, `/world/${region}?island=${island}`);
       await expect(page.getByRole('region', { name: /地點$/ })).toHaveCount(0);
       await expect(page.locator('button[data-route]')).toHaveCount(0);

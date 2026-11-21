@@ -71,7 +71,23 @@
       ],
       "commit": "316f4ec",
       "tests": "驗證器、發布閘門 100/100、PL20 四語程式測試 20（含 Java；練習 46 組測資）、Vitest 2528、E2E 桌機＋手機 433（旗標關；候選頁 2 個像素比對失敗為 main 既有回歸，見 #36）、P9＋區域世界旗標開 216、測驗 8 題以參考直譯器逐題複核、洩漏掃描",
-      "notes": "程式語言島 20/20 完成（課程狀態 complete），mapState 維持 planned、3D 地景不變；PL20 以 challenge-stages 五關呈現；「仍為規劃中」的測試改為動態取目前的大綱課；測驗答案位置集中的閘門警告列為後續改善"
+      "notes": "程式語言島 20/20 完成（課程狀態 complete），mapState 維持 planned、3D 地景不變；PL20 以 challenge-stages 五關呈現；「仍為規劃中」的測試改為動態取目前的大綱課；測驗答案位置集中的閘門警告列為後續改善",
+      "pr": "#39",
+      "merged": "c66b2e2"
+    },
+    {
+      "id": 6,
+      "date": "2026-11-22",
+      "lessons": [
+        "CN01",
+        "CN02",
+        "CN03",
+        "CN04",
+        "CN05"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "CN-1：計算機網路島首批，以 network-protocol 能力（CN-0，PR #46）呈現；計算機網路島課程狀態 available（5/20），mapState 維持 planned、3D 地景不變；以計算機網路島當「規劃中」範例的測試改用系統分析與設計島"
     }
   ]
 }

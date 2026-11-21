@@ -22,9 +22,9 @@
       "status": "ready"
     },
     "networks": {
-      "capability": "network-protocol (packets through the layers, message sequences, node tables; field, layer and subnet exercises)",
-      "status": "prepared",
-      "note": "CN-0: the capability and the prepared island; lessons publish in id order from CN01"
+      "capability": "network-protocol (packets through the layers, message sequences, node tables; field, layer, table, subnet and delay exercises)",
+      "status": "ready",
+      "note": "CN-0 built the capability; CN-1 published CN01–CN05; later lessons publish in id order"
     },
     "systems-analysis": {
       "capability": "model-diagram (UML, DFD, BPMN, state and sequence models, checked by structure)",
