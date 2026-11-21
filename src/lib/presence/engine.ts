@@ -151,8 +151,10 @@ export function renews(record: SessionRecord, beat: Heartbeat): boolean {
  * The record with a pulse taken into it. Where the record is still the one the pulse renewed, the session was heard
  * from at the pulse's time (however old the record itself is: each pulse was written while the session was alive, so
  * the chain of them never broke). Where the record has changed since (another tab took over, the tab left, the page
- * changed), the pulse is just a heartbeat that arrived late, and the rules for those decide (`applyHeartbeat`): a
- * pulse can never undo a goodbye, nor move a session, any more than a late heartbeat can. A pulse alone is nobody.
+ * changed), the pulse decides nothing: one sent before its tab left counts for nothing; one that finds an owner keeps
+ * the session alive where the owner is; only where the session's owner has left does it count, as the heartbeat of a
+ * tab that is still there (`applyHeartbeat`). A pulse never undoes a goodbye and never moves a session from a tab
+ * that has not left. A pulse alone is nobody.
  */
 export function applyPulse(record: SessionRecord | undefined, pulse: Pulse | undefined): SessionRecord | undefined {
   if (!record || !pulse) return record;
@@ -161,7 +163,15 @@ export function applyPulse(record: SessionRecord | undefined, pulse: Pulse | und
     // Sent before its tab left: nothing, however much later the pulse is than the record (a record that is over
     // still remembers its goodbyes for as long as it is held).
     const gone = leftAt(record, pulse.tab);
-    return gone !== undefined && pulse.since <= gone ? record : applyHeartbeat(record, pulse, pulse.at);
+    if (gone !== undefined && pulse.since <= gone) return record;
+    // Nobody is counted for the session (its owner left): the pulse's tab is still there, and takes over as any
+    // heartbeat would.
+    if (record.away) return applyHeartbeat(record, pulse, pulse.at);
+    // The session has an owner that has not left, and it is not what the pulse renewed (another tab took over, or
+    // this one moved on). The pulse says the session is alive, and that is all it says: it never moves the session,
+    // and it never hands it over. Whether a silent owner gives way is for a record's write to decide; a store keeps
+    // one pulse a session, so the owner's own may be the one this pulse replaced, and its silence here means nothing.
+    return pulse.at > record.seen || pulse.at > record.ownerSeen ? { ...record, seen: Math.max(record.seen, pulse.at), ownerSeen: Math.max(record.ownerSeen, pulse.at) } : record;
   }
   // The newer rate window is the one that counts; in the same window, the fuller.
   const window = pulse.windowStart > record.windowStart || (pulse.windowStart === record.windowStart && pulse.writes > record.writes) ? pulse : record;

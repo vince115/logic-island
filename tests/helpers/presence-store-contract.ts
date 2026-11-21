@@ -395,6 +395,87 @@ export function presenceLifetimeContract(name: string, make: () => StoresUnderTe
       for (const store of instances) expect((await store.counts(now + 30 * MIN + 1)).islands).toEqual({ 'machine-learning': 1 });
     });
 
+    it('counts a visitor with two windows once, on the island of the window they turned to last, as they go from island to island', async () => {
+      const { instances, held } = make(), at = (i: number) => instances[i % instances.length];
+      let now = T0;
+      /** Every instance counts one visitor, there and nowhere else. */
+      const there = async (where: { islands?: Record<string, number>; commons?: string }, label: string) => {
+        for (const [i, store] of instances.entries()) {
+          const counts = await store.counts(now + 1 + i);
+          expect(counts.total, label).toBe(1);
+          expect(counts.islands, label).toEqual(where.islands ?? {});
+          expect(sum(counts.commons), label).toBe(where.commons ? 1 : 0);
+          if (where.commons) expect(counts.commons[where.commons as 'ai'], label).toBe(1);
+        }
+      };
+      /** Both windows are visible and report a minute apart, each always to the same instance, for `minutes`. */
+      const both = async (a: Heartbeat, b: Heartbeat, minutes: number, where: Parameters<typeof there>[0], label: string) => {
+        for (let i = 0; i < minutes; i++) {
+          now += 25_000; await at(0).touch('s1', a, now); await there(where, `${label}, minute ${i}, after A`);
+          now += 35_000; await at(1).touch('s1', b, now); await there(where, `${label}, minute ${i}, after B`);
+        }
+      };
+      // Window A on the foundations island; then the visitor opens window B on the databases island.
+      await at(0).touch('s1', beat(A, 10, F), now);
+      await there({ islands: { foundations: 1 } }, 'A alone');
+      now += 20_000; await at(1).touch('s1', beat(B, 20, DB), now);
+      await there({ islands: { databases: 1 } }, 'B opened');
+      // Four minutes with both visible: A's instance has only ever heard from A, and goes on taking its reports.
+      await both(beat(A, 10, F), beat(B, 20, DB), 4, { islands: { databases: 1 } }, 'both visible, B last');
+      // The visitor turns back to A (a later `since`), on a third instance.
+      now += 10_000; await at(2).touch('s1', beat(A, 300, F), now);
+      await there({ islands: { foundations: 1 } }, 'back to A');
+      await both(beat(A, 300, F), beat(B, 20, DB), 4, { islands: { foundations: 1 } }, 'both visible, A last');
+      // A goes to another island; then B is turned to, and goes to a region's own page.
+      now += 10_000; await at(1).touch('s1', beat(A, 500, ML), now);
+      await there({ islands: { 'machine-learning': 1 } }, 'A moved');
+      await both(beat(A, 500, ML), beat(B, 20, DB), 2, { islands: { 'machine-learning': 1 } }, 'A moved, both visible');
+      now += 10_000; await at(0).touch('s1', beat(B, 600, DB), now);
+      await there({ islands: { databases: 1 } }, 'back to B');
+      now += 30_000; await at(2).touch('s1', beat(B, 700, AI), now);
+      await there({ commons: 'ai' }, 'B on the region page');
+      await both(beat(A, 500, ML), beat(B, 700, AI), 12, { commons: 'ai' }, 'twelve minutes, B last');
+      // B is closed. A was never turned to again, but it is visible and still reports: the visitor is where A is.
+      now += 5_000; await at(2).leave('s1', { tab: B, at: 800 }, now);
+      now += 20_000; await at(0).touch('s1', beat(A, 500, ML), now);
+      await there({ islands: { 'machine-learning': 1 } }, 'B closed, A still there');
+      // One record all along, and nobody once A is hidden too, whatever lands afterwards.
+      if (held) expect(await held()).toBe(1);
+      now += 40_000; await at(1).leave('s1', { tab: A, at: 900 }, now);
+      for (const [i, store] of instances.entries()) { await store.touch('s1', beat(i % 2 ? A : B, i % 2 ? 500 : 700, i % 2 ? ML : AI), now + 1_000 + i * 16_000); }
+      for (const store of instances) expect((await store.counts(now + 80_000)).total).toBe(0);
+    });
+
+    it('keeps counting a visitor whose newer window vanished, once, and moves them to the window that is left within a bounded time', async () => {
+      const { instances } = make(), at = (i: number) => instances[i % instances.length];
+      // Window A reports to one instance from the start; window B opens later, reports elsewhere, then vanishes
+      // (a crash: no goodbye). A is still visible, was never turned to again, and goes on reporting once a minute.
+      await at(0).touch('s1', beat(A, 10, F), T0);
+      await at(0).touch('s1', beat(A, 10, F), T0 + BEAT);
+      const opened = T0 + BEAT + 20_000;
+      for (let i = 0; i < 3; i++) await at(1).touch('s1', beat(B, 20, DB), opened + i * BEAT);
+      const vanished = opened + 2 * BEAT;
+      let moved: number | undefined;
+      for (let i = 2; i <= 18 && moved === undefined; i++) {
+        const now = T0 + i * BEAT;
+        await at(0).touch('s1', beat(A, 10, F), now);
+        for (const store of instances) {
+          const counts = await store.counts(now + 1);
+          // Never nobody, never two: the visitor is on one of their two pages.
+          expect(counts.total, `minute ${i}`).toBe(1);
+          expect(['databases', 'foundations']).toContain(Object.keys(counts.islands)[0]);
+        }
+        if ((await at(1).counts(now + 2)).islands.foundations) moved = now;
+      }
+      // One instance (or a store that keeps no pulses) hands the session over once the owner has been silent for
+      // `ownerSilenceMs`; with pulses and several instances, at the latest when the record is next rewritten and
+      // two reports after (KNOWN_ISSUES P1-49).
+      expect(moved, 'the visitor ends on the page of the window that is left').toBeDefined();
+      expect(moved! - vanished).toBeGreaterThan(PRESENCE.ownerSilenceMs);
+      expect(moved! - vanished).toBeLessThanOrEqual(instances.length === 1 ? PRESENCE.ownerSilenceMs + BEAT : PRESENCE.pulseRecordEveryMs + 3 * BEAT);
+      for (const store of instances) expect((await store.counts(moved! + 10_000)).islands).toEqual({ foundations: 1 });
+    });
+
     it('keeps the rate limit when the same report is repeated faster than a tracker ever sends it', async () => {
       const { instances } = make(), at = (i: number) => instances[i % instances.length];
       await at(0).touch('s1', beat(A, 10, F), T0);
@@ -414,7 +495,7 @@ export function presenceLifetimeContract(name: string, make: () => StoresUnderTe
    * closed tab says goodbye; some vanish without one; some come back.
    */
   interface Sent { now: number; sid: string; tab: string; since?: number; place?: PresenceLocation; at?: number }
-  function story(seed: number, sessions: number, tabsEach: number, minutes: number): Sent[] {
+  function story(seed: number, sessions: number, tabsEach: number, minutes: number, vanish = true): Sent[] {
     const random = seeded(seed), places = [F, DB, ML, AI], out: Sent[] = [], end = T0 + minutes * MIN;
     for (let s = 0; s < sessions; s++) {
       const sid = `v${seed}-${s}`, offset = Math.floor(random() * 20_000) - 10_000; // the browser's clock is its own
@@ -429,7 +510,7 @@ export function presenceLifetimeContract(name: string, make: () => StoresUnderTe
           if (visible && roll < 0.18) { now += step; place = places[Math.floor(random() * places.length)]; since = now + offset; next = now; } // another page
           else if (visible && roll < 0.26) { now += step; since = now + offset; next = now; } // turned to this window
           else if (visible && roll < 0.36) { now += step; out.push({ now, sid, tab, at: now + offset }); visible = false; } // hidden or closed
-          else if (visible && roll < 0.40) gone = true; // vanished: no goodbye
+          else if (visible && roll < 0.40 && vanish) gone = true; // vanished: no goodbye
           else if (!visible && roll < 0.5) { now += step + Math.floor(random() * 5 * MIN); visible = true; since = now + offset + 1; next = now; } // back
           else now = visible ? next : now + step;
         }
@@ -461,6 +542,19 @@ export function presenceLifetimeContract(name: string, make: () => StoresUnderTe
       }
     });
 
+    it('for visitors with two and three tabs who always say goodbye: every count the same, island for island, whichever instance hears each request', async () => {
+      for (const [seed, tabs] of [[41, 2], [42, 3], [43, 2], [44, 3]] as const) {
+        const { instances } = make(), reference = new MemoryPresenceStore(), random = seeded(seed * 13), sent = story(seed, 10, tabs, 30, false);
+        expect(sent.length).toBeGreaterThan(400);
+        for (const [i, request] of sent.entries()) {
+          await deliver(instances[Math.floor(random() * instances.length)], request); await deliver(reference, request);
+          const later = Math.min(request.now + Math.floor(random() * 30_000), (sent[i + 1]?.now ?? request.now + 1) - 1);
+          for (const when of i % 2 ? [request.now] : [request.now, Math.max(request.now, later)])
+            expect(await instances[Math.floor(random() * instances.length)].counts(when), `seed ${seed} request ${i} at +${when - T0}`).toEqual(await reference.counts(when));
+        }
+      }
+    });
+
     it('for visitors with two and three tabs, on one instance at a time: every count the same; across instances: nobody lost, nobody twice', async () => {
       for (const [seed, tabs] of [[31, 2], [32, 3], [33, 2]] as const) {
         const { instances } = make(), reference = new MemoryPresenceStore(), random = seeded(seed * 11), sent = story(seed, 10, tabs, 30);
@@ -469,8 +563,8 @@ export function presenceLifetimeContract(name: string, make: () => StoresUnderTe
           await deliver(store, request); await deliver(reference, request);
           const counts = await instances[Math.floor(random() * instances.length)].counts(request.now), expected = await reference.counts(request.now);
           // One instance: its memory is the truth, and every count is the reference's. Several: a session is still
-          // counted exactly when the reference counts it (where two visible windows of one visitor report to
-          // different instances, which of the two pages it is counted on may differ for a while: KNOWN_ISSUES P1-49).
+          // counted exactly when the reference counts it (after a window vanished without a goodbye, the visitor's
+          // other window may be counted on the vanished one's page for longer than on one instance: KNOWN_ISSUES P1-49).
           if (instances.length === 1) expect(counts, `seed ${seed} request ${i}`).toEqual(expected);
           expect(counts.total, `seed ${seed} request ${i}`).toBe(expected.total);
           expect(sum(counts.regions)).toBe(counts.total);

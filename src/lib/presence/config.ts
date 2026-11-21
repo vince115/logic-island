@@ -24,6 +24,12 @@ export const PRESENCE = {
   tokenMaxAgeMs: 12 * 60 * 60 * 1000,
   /** After a navigation the tracker waits this long before reporting, so a quick pass through pages is one report. */
   placeDebounceMs: 600,
+  /**
+   * When a tab says goodbye it tells the browser's other tabs of this site (client.ts); a visible one reports this
+   * long after, so its report lands after the goodbye and the visitor is counted where they still are at once,
+   * rather than at that tab's next report up to `heartbeatMs` later.
+   */
+  peerLeftMs: 1_500,
   /** The tracker's wait after a failed or refused request. */
   retryMs: 60_000,
   /** A tab that is not the session's owner takes over once the owner has been silent this long (a report and a half). */

@@ -4,12 +4,17 @@ import { PRESENCE } from '@/lib/presence/config';
 
 /*
  * Dynamic Island Population: the browser tracker, with a stand-in page (visibility, events, timers) and a stand-in
- * server. Holds the reporting rhythm: at once, after a change of place, every 30 seconds while visible; a goodbye
+ * server. Holds the reporting rhythm: at once, after a change of place, once a minute while visible; a goodbye
  * and silence in the background.
  */
 
 type Listener = (event: Event) => void;
-function page() {
+/** The line between a browser's tabs: what one tells, every other one that is listening hears. */
+function tabLine() {
+  const open = new Set<() => void>();
+  return { open, peers: (heard: () => void) => { open.add(heard); return { tell: () => { for (const other of open) if (other !== heard) other(); }, close: () => { open.delete(heard); } }; } };
+}
+function page(line?: ReturnType<typeof tabLine>) {
   const listeners = new Map<string, Set<Listener>>();
   const on = (type: string, listener: Listener) => { (listeners.get(type) ?? listeners.set(type, new Set()).get(type)!).add(listener); };
   const off = (type: string, listener: Listener) => { listeners.get(type)?.delete(listener); };
@@ -29,6 +34,7 @@ function page() {
       setTimeout: ((fn: () => void, ms: number) => setTimeout(fn, ms)) as unknown as Window['setTimeout'], clearTimeout: ((handle: number) => clearTimeout(handle)) as Window['clearTimeout'] },
     now: () => Date.now(),
     randomId: () => `tab${String(++id).padStart(13, '0')}`,
+    ...(line ? { peers: line.peers } : {}),
   };
   return {
     env, requests, beacons,
@@ -44,7 +50,7 @@ afterEach(() => { vi.useRealTimers(); });
 const tick = (ms: number) => vi.advanceTimersByTimeAsync(ms);
 
 describe('PresenceTracker', () => {
-  it('reports the first place once, then every 30 seconds', async () => {
+  it('reports the first place once, then once every heartbeat (a minute)', async () => {
     const p = page(), tracker = new PresenceTracker(p.env);
     tracker.start();
     tracker.setPlace({ t: 'island', id: 'foundations' });
@@ -244,4 +250,121 @@ describe('privacy signals', () => {
     await tick(PRESENCE.placeDebounceMs);
     expect(p.requests[3].since as number).toBeGreaterThanOrEqual(backAgain);
   });
+
+  describe('tabs of one browser tell each other when one leaves (P7)', () => {
+    it('reports again a moment after another tab left, with the same place and time, instead of a minute later', async () => {
+      const line = tabLine(), a = page(line), b = page(line), first = new PresenceTracker(a.env), second = new PresenceTracker(b.env);
+      first.start(); first.setPlace({ t: 'island', id: 'foundations' });
+      await tick(PRESENCE.placeDebounceMs);
+      second.start(); second.setPlace({ t: 'island', id: 'databases' });
+      await tick(PRESENCE.placeDebounceMs);
+      expect(a.requests).toHaveLength(1); expect(b.requests).toHaveLength(1);
+      // Ten seconds on, the second window is closed: its goodbye goes out, and the first hears of it.
+      await tick(10_000);
+      b.fire('pagehide');
+      await tick(0);
+      expect(b.beacons).toHaveLength(1);
+      await tick(PRESENCE.peerLeftMs - 1);
+      expect(a.requests).toHaveLength(1);
+      await tick(1);
+      expect(a.requests).toHaveLength(2);
+      // The very same report as before: nothing about the first tab changed.
+      expect(a.requests[1]).toEqual(a.requests[0]);
+      // And from there its usual rhythm.
+      await tick(PRESENCE.heartbeatMs - 1);
+      expect(a.requests).toHaveLength(2);
+      await tick(1);
+      expect(a.requests).toHaveLength(3);
+      // The tab that left heard nothing and sent nothing more.
+      expect(b.requests).toHaveLength(1);
+    });
+
+    it('sends one more report after one that was already due or on its way, so one of them lands after the goodbye', async () => {
+      const line = tabLine(), a = page(line), b = page(line), first = new PresenceTracker(a.env), second = new PresenceTracker(b.env);
+      first.start(); second.start();
+      await tick(0);
+      expect(a.requests).toHaveLength(1);
+      // The first tab's next report is due in half a second when the second leaves.
+      await tick(PRESENCE.heartbeatMs - 500);
+      b.setVisibility('hidden');
+      await tick(500);
+      expect(a.requests).toHaveLength(2);
+      await tick(PRESENCE.peerLeftMs);
+      expect(a.requests).toHaveLength(3);
+      await tick(PRESENCE.heartbeatMs - 1);
+      expect(a.requests).toHaveLength(3);
+      await tick(1);
+      expect(a.requests).toHaveLength(4);
+      // A change of place just made is on its way when another tab leaves: the same.
+      first.setPlace({ t: 'island', id: 'structures' });
+      await tick(PRESENCE.placeDebounceMs - 100);
+      b.setVisibility('visible'); await tick(0);
+      b.setVisibility('hidden');
+      await tick(100);
+      expect(a.requests).toHaveLength(5);
+      await tick(PRESENCE.peerLeftMs);
+      expect(a.requests).toHaveLength(6);
+      expect(a.requests[5]).toEqual(a.requests[4]);
+    });
+
+    it('listens only while it is visible, tells only when it had reported, and holds no line once it left', async () => {
+      const line = tabLine(), a = page(line), b = page(line), first = new PresenceTracker(a.env), second = new PresenceTracker(b.env);
+      first.start(); second.start();
+      await tick(0);
+      expect(line.open.size).toBe(2);
+      // A hidden tab is off the line: it is not told, and it does not report.
+      a.setVisibility('hidden');
+      await tick(0);
+      expect(line.open.size).toBe(1);
+      b.setVisibility('hidden');
+      await tick(PRESENCE.peerLeftMs * 2);
+      expect(line.open.size).toBe(0);
+      expect(a.requests).toHaveLength(1);
+      // Back in front: on the line again.
+      a.setVisibility('visible');
+      await tick(0);
+      expect(line.open.size).toBe(1);
+      expect(a.requests).toHaveLength(2);
+      // A tab kept for the back button and shown again listens again.
+      a.fire('pagehide');
+      expect(line.open.size).toBe(0);
+      a.fire('pageshow', { persisted: true });
+      await tick(0);
+      expect(line.open.size).toBe(1);
+      first.stop();
+      expect(line.open.size).toBe(0);
+    });
+
+    it('opens no line for a browser that asks not to be tracked, and works without one where there is none', async () => {
+      const line = tabLine(), quiet = page(line);
+      quiet.env.optedOut = () => true;
+      new PresenceTracker(quiet.env).start();
+      await tick(PRESENCE.heartbeatMs);
+      expect(line.open.size).toBe(0);
+      expect(quiet.requests).toHaveLength(0);
+      // No BroadcastChannel (the default stand-in page has none): the rhythm is the tracker's own.
+      const alone = page(), tracker = new PresenceTracker(alone.env);
+      tracker.start();
+      await tick(PRESENCE.heartbeatMs);
+      expect(alone.requests).toHaveLength(2);
+      alone.setVisibility('hidden');
+      await tick(0);
+      expect(alone.beacons).toHaveLength(1);
+      // A line that cannot be opened is no reason to stop reporting.
+      const broken = page();
+      broken.env.peers = () => { throw new Error('no channel'); };
+      new PresenceTracker(broken.env).start();
+      await tick(0);
+      expect(broken.requests).toHaveLength(1);
+    });
+
+    it('stops listening once the server says there is no presence API', async () => {
+      const line = tabLine(), a = page(line), tracker = new PresenceTracker(a.env);
+      a.respond(() => ({ status: 404 }));
+      tracker.start();
+      await tick(0);
+      expect(line.open.size).toBe(0);
+    });
+  });
 });
+

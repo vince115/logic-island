@@ -226,9 +226,20 @@ describe('pulses: a report that says nothing new (P7)', () => {
     // The tab moved to another page: an old pulse keeps the session alive where it is now.
     const moved = { ...applyHeartbeat(record, beat('taba0001', 20, DB), T0 + 10_000), written: T0 + 10_000 };
     expect(applyPulse(moved, pulse('taba0001', 10, F, at))).toMatchObject({ location: DB, since: 20, seen: at });
-    // The visitor turned to another window: the first one's pulse keeps the session alive and leaves it there.
+    // The visitor turned to another window: the first one's pulse keeps the session alive and leaves it there,
+    // however long the record has not been written (the newer window's own pulses may be the ones this one replaced:
+    // a store keeps one pulse a session). It never hands the session back to the older window.
     const other = { ...applyHeartbeat(record, beat('tabb0002', 30, ML), T0 + 10_000), written: T0 + 10_000 };
-    expect(applyPulse(other, pulse('taba0001', 10, F, at))).toMatchObject({ location: ML, tab: 'tabb0002', seen: at, ownerSeen: T0 + 10_000 });
+    for (const when of [at, at + 2 * MIN, at + 9 * MIN]) {
+      const after = applyPulse(other, pulse('taba0001', 10, F, when))!;
+      expect(after).toMatchObject({ location: ML, tab: 'tabb0002', since: 30, away: false, seen: when });
+      expect(aggregate([after], when).islands).toEqual({ 'machine-learning': 1 });
+      // And a record written from it does not find the owner silent just because the other window's pulse was the last.
+      expect(applyHeartbeat(after, beat('taba0001', 10, F), when + 1_000)).toMatchObject({ location: ML, tab: 'tabb0002' });
+    }
+    // The newer window left (its goodbye is in the record): now the older one's pulse is a visitor who is still there.
+    const alone = { ...applyLeave(other, { tab: 'tabb0002', at: 40 }), written: T0 + 20_000 };
+    expect(applyPulse(alone, pulse('taba0001', 10, F, at))).toMatchObject({ location: F, tab: 'taba0001', away: false, seen: at });
     // Both tabs left; the first tab's pulse is the last thing to land (P1-44).
     const both = { ...applyLeave(applyLeave(other, { tab: 'taba0001', at: 40 }), { tab: 'tabb0002', at: 41 }), written: T0 + 20_000 };
     expect(isActive(applyPulse(both, pulse('taba0001', 10, F, at))!, at)).toBe(false);

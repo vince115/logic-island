@@ -8,6 +8,11 @@ import { samePlace, type PlaceClaim } from './place';
  *
  * It holds no identity: the session lives in a cookie only the server reads. `tab` is a random label for this page
  * load, used by the server to tell the session's tabs apart; it is never stored in the browser.
+ *
+ * Tabs of one browser tell each other when one of them leaves (P7), over a BroadcastChannel that carries one fixed
+ * word and nothing else: a visible tab that hears it reports again a moment later. Without it, a visitor who closes
+ * the window they used last, and whose other window gets no focus from that, would not be counted until that
+ * window's next report (the server knows only that the session's owner left).
  */
 export interface TrackerEnvironment {
   fetch: typeof fetch;
@@ -19,7 +24,14 @@ export interface TrackerEnvironment {
   randomId: () => string;
   /** The browser asks not to be tracked (Global Privacy Control or Do Not Track); unset: it does not. */
   optedOut?: () => boolean;
+  /**
+   * Opens the line to this browser's other tabs of the site: `heard` is called when one of them says it left; `tell`
+   * says so for this one. Unset where there is no BroadcastChannel. The line is open only while the tab is visible.
+   */
+  peers?: (heard: () => void) => { tell: () => void; close: () => void };
 }
+
+const PEER_CHANNEL = 'logic-island-presence', PEER_LEFT = 'left';
 
 export function browserEnvironment(): TrackerEnvironment {
   return {
@@ -28,6 +40,11 @@ export function browserEnvironment(): TrackerEnvironment {
     document, window, now: Date.now,
     randomId: () => Array.from(crypto.getRandomValues(new Uint8Array(8)), byte => byte.toString(16).padStart(2, '0')).join(''),
     optedOut: () => (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl === true || navigator.doNotTrack === '1',
+    peers: typeof BroadcastChannel === 'function' ? heard => {
+      const channel = new BroadcastChannel(PEER_CHANNEL);
+      channel.onmessage = event => { if (event.data === PEER_LEFT) heard(); };
+      return { tell: () => channel.postMessage(PEER_LEFT), close: () => channel.close() };
+    } : undefined,
   };
 }
 
@@ -41,6 +58,12 @@ export class PresenceTracker {
   private left = true;
   /** When this tab last said goodbye (its own clock); 0: never. */
   private leftAt = 0;
+  /** When the waiting report is due (this tab's clock); meaningful while `timer` is set. */
+  private due = 0;
+  /** The line to the browser's other tabs, while this one is visible. */
+  private line: { tell: () => void; close: () => void } | undefined;
+  /** Another tab left while a report was about to go out or on its way: the one after it comes soon, not in a minute. */
+  private again = false;
 
   constructor(private readonly env: TrackerEnvironment) {
     this.tab = env.randomId();
@@ -59,7 +82,25 @@ export class PresenceTracker {
     if (this.timer !== undefined) this.env.window.clearTimeout(this.timer);
     this.timer = undefined;
     if (this.stopped || !this.started || !this.visible) return;
+    this.due = this.env.now() + delay;
     this.timer = this.env.window.setTimeout(() => { this.timer = undefined; void this.send(); }, delay);
+  }
+
+  /** Another tab of this browser left: report again shortly (the same place, the same `since`), unless a report is due sooner anyway. */
+  private readonly onPeerLeft = () => {
+    if (this.stopped || !this.started || !this.visible) return;
+    // A report that is due sooner, or on its way, may land before that tab's goodbye does: one more follows it.
+    if (this.timer !== undefined && this.due > this.env.now() + PRESENCE.peerLeftMs) this.schedule(PRESENCE.peerLeftMs);
+    else this.again = true;
+  };
+  private hangUp() {
+    const line = this.line;
+    this.line = undefined;
+    try { line?.close(); } catch { /* closed already */ }
+  }
+  private listen() {
+    if (this.line || this.stopped || !this.started || !this.visible) return;
+    try { this.line = this.env.peers?.(this.onPeerLeft); } catch { /* no line: the next report comes in its own time */ }
   }
 
   private async send() {
@@ -73,7 +114,7 @@ export class PresenceTracker {
         body: JSON.stringify({ v: PRESENCE.version, tab: this.tab, since: this.since, place: this.place }),
       });
       // The API is not in this build, or the tracker speaks a version the server refuses: stop for this page load.
-      if (response.status === 404 || response.status === 400) { this.stopped = true; return; }
+      if (response.status === 404 || response.status === 400) { this.stopped = true; this.hangUp(); return; }
       if (response.ok) {
         const answer = await response.json() as { retryMs?: unknown; next?: unknown };
         const wait = typeof answer.retryMs === 'number' ? answer.retryMs : typeof answer.next === 'number' ? answer.next : PRESENCE.heartbeatMs;
@@ -81,14 +122,20 @@ export class PresenceTracker {
       }
     } catch { /* offline or blocked: try again later */ }
     // A report that was waiting (a change of place while this one was in flight) keeps its own, sooner, time.
-    if (this.timer === undefined) this.schedule(next);
+    if (this.timer === undefined) this.schedule(this.again ? Math.min(next, PRESENCE.peerLeftMs) : next);
+    this.again = false;
   }
 
   private leave() {
     if (this.timer !== undefined) this.env.window.clearTimeout(this.timer);
     this.timer = undefined;
-    if (this.left || this.stopped) return;
+    // A hidden tab neither listens nor is told (and a page kept for the back button holds no open channel).
+    const line = this.line;
+    this.again = false;
+    if (this.left || this.stopped) { this.hangUp(); return; }
     this.left = true;
+    try { line?.tell(); } catch { /* the others report in their own time */ }
+    this.hangUp();
     // `at`: when this tab left, so a heartbeat it sent just before, arriving late, does not bring the session back.
     // Never earlier than the tab's own `since` (a heartbeat already sent carries it).
     this.leftAt = Math.max(this.env.now(), this.since, this.leftAt);
@@ -99,12 +146,12 @@ export class PresenceTracker {
   }
 
   private readonly onVisibility = () => {
-    if (this.visible) { this.activate(); this.schedule(0); } else this.leave();
+    if (this.visible) { this.activate(); this.listen(); this.schedule(0); } else this.leave();
   };
   /** The visitor turned to this window: it now owns the session's place (two visible windows of one session). */
   private readonly onFocus = () => { if (this.visible) { this.activate(); this.schedule(PRESENCE.placeDebounceMs); } };
   private readonly onPageHide = () => this.leave();
-  private readonly onPageShow = (event: Event) => { if ((event as PageTransitionEvent).persisted && this.visible) { this.activate(); this.schedule(0); } };
+  private readonly onPageShow = (event: Event) => { if ((event as PageTransitionEvent).persisted && this.visible) { this.activate(); this.listen(); this.schedule(0); } };
 
   /** The page's current place. A change is reported after a short wait, so passing through pages is one report. */
   setPlace(place: PlaceClaim) {
@@ -123,6 +170,7 @@ export class PresenceTracker {
     this.env.window.addEventListener('focus', this.onFocus);
     this.env.window.addEventListener('pagehide', this.onPageHide);
     this.env.window.addEventListener('pageshow', this.onPageShow);
+    this.listen();
     this.schedule(0);
   }
 

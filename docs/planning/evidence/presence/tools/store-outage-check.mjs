@@ -74,7 +74,8 @@ for (const [name, options] of Object.entries({ desktop: { viewport: { width: 144
     const next = page.getByRole('button', { name: '下一步', exact: true });
     await next.waitFor({ timeout: 15_000 });
     await next.click();
-    await page.locator('.step-count').filter({ hasText: /^2 \// }).waitFor({ timeout: 5_000 });
+    // The step's own label (the step counter beside the buttons is hidden on a narrow screen).
+    await page.locator('.step-description .eyebrow').filter({ hasText: 'STEP 01' }).waitFor({ timeout: 5_000 });
     return 'a lesson page renders and its player steps';
   });
   await check(`${name}.pages`, async () => {

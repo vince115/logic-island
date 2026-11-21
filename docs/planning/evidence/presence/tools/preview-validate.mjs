@@ -127,7 +127,9 @@ await check('count.two-tabs', async () => {
   await until('two tabs of one browser are one visitor, where the newer tab is', delta, { total: 1, islands: { structures: 1 }, commons: {} });
   await second.close();
   await a.page.bringToFront();
-  // The visitor goes on in the first tab: there and back is one report, with a new time of its own.
+  // The second tab's goodbye took the session away (it was the tab in use). The first tab is still open and visible:
+  // it hears that the other one left and reports again a moment later, without waiting for its next minute.
+  // (Going there and back in the first tab adds nothing: the place is the same when the page looks again.)
   await a.page.evaluate(() => { location.hash = '#island-databases'; location.hash = '#island-foundations'; });
   await until('the visitor is back on the first tab\'s island', delta, { total: 1, islands: { foundations: 1 }, commons: {} });
   return 'one visitor, following the tab in use';
