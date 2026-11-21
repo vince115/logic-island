@@ -55,8 +55,8 @@ test.describe('regional world: flag on', () => {
     const list = page.getByRole('group', { name: '選擇學習島嶼' });
     await expect(list.getByRole('button')).toHaveCount(8);
     await expect(list.getByRole('button').nth(3)).toContainText('程式語言島20 堂課 · 6 個科目');
-    // CN-1 to CN-4: 計算機網路島 opened CN01–CN19 in eight units; 系統分析與設計島 is still an outline.
-    await expect(list.getByRole('button').nth(5)).toContainText('計算機網路島19 堂課 · 8 個科目');
+    // CN-1 to CN-5: 計算機網路島 is written to the end (20 lessons, nine units); 系統分析與設計島 is still an outline.
+    await expect(list.getByRole('button').nth(5)).toContainText('計算機網路島20 堂課 · 9 個科目');
     await expect(list.getByRole('button').nth(6)).toContainText('系統分析與設計島規劃中 預計 20 堂');
     await expect(list.getByRole('button').nth(4)).toContainText('資料庫應用島20 堂課 · 6 個科目');
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);

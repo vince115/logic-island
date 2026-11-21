@@ -134,7 +134,18 @@
       ],
       "commit": "3a587ae",
       "tests": "驗證器、發布閘門 119/119、Vitest 2660（含 CN16 四語程式測試與 firewall 練習單元／DOM 測試）、E2E 桌機＋手機旗標關 435（候選頁 2 個像素比對失敗為 main 既有回歸 #36）、網路預覽＋P9＋區域世界旗標開 252（含預覽頁的防火牆練習）、測驗 32 題逐題複核、洩漏掃描",
-      "notes": "CN-4：CN16 WebSocket 為四語程式課；CN17 除錯工具、CN18 安全基礎、CN19 防火牆／VPN／零信任為網路情境；network-protocol 新增 firewall 練習（學習者寫規則、以封包逐一判斷，寫法不同結果相同也算對）"
+      "notes": "CN-4：CN16 WebSocket 為四語程式課；CN17 除錯工具、CN18 安全基礎、CN19 防火牆／VPN／零信任為網路情境；network-protocol 新增 firewall 練習（學習者寫規則、以封包逐一判斷，寫法不同結果相同也算對）",
+      "pr": "#50"
+    },
+    {
+      "id": 10,
+      "date": "2026-11-22",
+      "lessons": [
+        "CN20"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "CN-5：計算機網路島綜合挑戰（四語程式課＋challenge-stages 六關：端到端追蹤、API 設計、處理器、快取與存取控制、除錯、HTTPS 與防火牆設定）；計算機網路島 20/20 完成，mapState 維持 planned；學習路線 C（網路與系統）成為可完整學完"
     }
   ]
 }

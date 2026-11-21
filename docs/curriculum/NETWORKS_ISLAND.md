@@ -2,7 +2,7 @@
 
 > 2026-11-22 起分批撰寫（自主課程生產，見 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md)）。大綱（標題、目標、概念、先修）取自藍圖 `docs/planning/data/curriculum-blueprint.json`，由 `lessons.ts` 的 `networkFromBlueprint` 讀入。
 
-教學方式是 `network-protocol` 能力（[CN0_NETWORK_CAPABILITY](CN0_NETWORK_CAPABILITY.md)）；結果是一支程式的課（CN11 socket、CN14 REST 客戶端、CN16 WebSocket）則用 `program-code`，C++、Java、Python、JavaScript 四語的範例與練習都由 `tests/curriculum-code.test.ts` 實際執行（socket 範例只用本機迴路，練習讀固定的輸入，不連到外部網路）：
+教學方式是 `network-protocol` 能力（[CN0_NETWORK_CAPABILITY](CN0_NETWORK_CAPABILITY.md)）；結果是一支程式的課（CN11 socket、CN14 REST 客戶端、CN16 WebSocket、CN20 綜合挑戰的 API 服務）則用 `program-code`，C++、Java、Python、JavaScript 四語的範例與練習都由 `tests/curriculum-code.test.ts` 實際執行（socket 範例只用本機迴路，練習讀固定的輸入，不連到外部網路）：
 - 固定的網路情境，逐步看訊息的順序、由外到內的各層標頭與節點的表格；
 - 練習答案從情境讀出（標頭欄位、協定所在的層、節點表格的一格），或由程式計算（子網路、延遲），再和學習者的答案比對；
 - 不連線到任何真實網路，位址都用 RFC 5737 與 RFC 1918 的範例範圍。
@@ -30,6 +30,7 @@
 | CN17 | 網路除錯工具<br>`network-troubleshooting-tools` | 中級 | 55 分 | CN07、CN12 | packet-journey | 6 段、5 個情境（ping、traceroute、dig、連線被拒與逾時、502）、5 個練習、8 題 | **完整 v1.0.0** |
 | CN18 | 網路安全基礎<br>`network-security-basics` | 中級 | 55 分 | CN13 | packet-journey | 6 段、3 個情境（ARP 偽冒與 TLS 擋下偽造憑證、SYN flood 與 SYN cookies、仿冒網域釣魚與通行金鑰）、5 個練習、8 題 | **完整 v1.0.0** |
 | CN19 | 防火牆、VPN 與零信任<br>`firewalls-vpns-and-zero-trust` | 進階 | 60 分 | CN18、CN07 | packet-journey（藍圖 routing-table 未建置；防火牆練習由學習者寫規則，以封包逐一判斷） | 6 段、4 個情境（狀態檢查、DMZ、站對站 VPN、零信任存取代理）、4 個練習（2 個寫防火牆規則）、8 題 | **完整 v1.0.0** |
+| CN20 | 計算機網路島綜合挑戰：追蹤並打造一個網路服務<br>`networks-capstone` | 進階 | 120 分 | CN14、CN17、CN18 | 綜合挑戰分段；`program-code` 四語 | 8 段、6 個關卡、5 個四語範例（解析請求、路由與 JSON、ETag 與 304、Bearer 驗證、防火牆規則）、練習「待辦事項 API 服務」（23 組測資）、8 題 | **完整 v1.0.0** |
 
 ## 單元
 
@@ -43,9 +44,10 @@
 | Web 安全、API 與效能 | CN13–CN15 |
 | 即時通訊與除錯 | CN16–CN17 |
 | 網路安全與防護 | CN18–CN19 |
+| 綜合挑戰 | CN20 |
 
 ## 後續批次
 
-最後一堂 CN20 綜合挑戰單獨一批，理由見 [CN0_NETWORK_CAPABILITY](CN0_NETWORK_CAPABILITY.md) §2。
+全島 20 堂在 CN-5（CN20 綜合挑戰）後都已發布，理由見 [CN0_NETWORK_CAPABILITY](CN0_NETWORK_CAPABILITY.md) §2。
 
 課程狀態與 3D 地景分離：計算機網路島的 `mapState` 仍是 `'planned'`，地景要另行授權的建模階段才會改變。
