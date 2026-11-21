@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Vector3 } from 'three';
 import { Canvas, useThree } from '@react-three/fiber';
 import { hexToWorld } from '@/lib/islands/hex';
@@ -25,6 +25,8 @@ import { HexNaturalOcean, HexOcean } from './hex-ocean';
 import { HexPlaza } from './hex-plaza';
 import { GlowProvider, HexEnvironment, STATIC_SHADOW_MAP } from './hex-environment';
 import { SceneHtml, useOverlaysReady } from './scene-html';
+import { canvasSlot } from './canvas-slot';
+import { handoverFor, type SceneFrame } from '@/lib/islands/stage-pose';
 import styles from '../islands.module.css';
 import status from '../island-status.module.css';
 
@@ -170,6 +172,11 @@ export interface HexSceneProps {
   room?:StageRoom;
   /** P9.8b: the pose the camera starts from at mount (hex-camera.tsx `handover`); unset, as before. */
   cameraHandover?:CameraHandover;
+  /**
+   * P9.8c: draw in the shared canvas (canvas-slot.ts) instead of a canvas of its own; `frame` is where this map's scene
+   * space sits in the shared canvas's common space. The camera then starts from the pose the scene before it left.
+   */
+  sharedCanvas?:{frame:SceneFrame};
 }
 
 /**
@@ -290,8 +297,47 @@ export function HexCanvasShell({options={},label,onUnavailable,pointer,handover,
   </div>;
 }
 
+/**
+ * P9.8c: the map in the shared canvas: its stage (the element the shell's canvas would be in, with its cursor and
+ * attributes) and its content, registered with every render as a canvas of its own would get it. The camera's
+ * handover is the pose the scene before it left (the world, or this map before the list), measured here on this
+ * stage; else the page's own (`cameraHandover`). A canvas already lost sends the page to its list at once.
+ */
+const FIBER={Canvas,useThree};
+function SharedHexScene({sharedCanvas,...props}:HexSceneProps&{sharedCanvas:{frame:SceneFrame}}) {
+  const stage=useRef<HTMLDivElement>(null);
+  const [pointer,setPointer]=useState(false),[handedOver,setHandedOver]=useState(false);
+  const handover=useRef<{pose:CameraHandover|undefined}|null>(null);
+  const {onUnavailable}=props;
+  // Every render, as a canvas's children are: the content carries this render's props.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useLayoutEffect(()=>{
+    const element=stage.current;
+    if(!element) return;
+    if(!handover.current){
+      const pose=canvasSlot.takePose(),box=element.getBoundingClientRect();
+      handover.current={pose:pose?handoverFor(pose,{left:box.left,top:box.top,width:box.width,height:box.height},sharedCanvas.frame):undefined};
+    }
+    const cameraHandover=handover.current.pose??props.cameraHandover;
+    canvasSlot.register({id:'hex-map',stage:element,frame:sharedCanvas.frame,label:props.label,onUnavailable,fiber:FIBER,
+      content:<HexWorldContent {...props} cameraHandover={cameraHandover} onPointerChange={setPointer} onCameraHandover={()=>setHandedOver(true)}/>});
+  });
+  useLayoutEffect(()=>{
+    if(canvasSlot.lost()) onUnavailable();
+    return ()=>canvasSlot.release('hex-map');
+  },[onUnavailable]);
+  // The content reports ready itself (ContentReady), as in a canvas of its own.
+  const options=props.options??{};
+  return <div ref={stage} className={styles.canvasWrap} style={pointer||options.ownLayer?{cursor:pointer?'pointer':undefined,isolation:options.ownLayer?'isolate':undefined}:undefined}
+    data-camera={options.camera==='free'?'free':undefined} data-camera-handover={handedOver?'applied':props.cameraHandover?'pending':undefined} data-shared-stage="hex-map"/>;
+}
+
 /** The hex map: its canvas shell with its content, as one component (the explorers' API, unchanged by P9.8b). */
 export default function HexWorldScene(props:HexSceneProps) {
+  if(props.sharedCanvas) return <SharedHexScene {...props} sharedCanvas={props.sharedCanvas}/>;
+  return <OwnCanvasScene {...props}/>;
+}
+function OwnCanvasScene(props:HexSceneProps) {
   const [pointer,setPointer]=useState(false);
   // The camera reads the callback once, at mount (hex-camera.tsx `handover`).
   const [handedOver,setHandedOver]=useState(false);

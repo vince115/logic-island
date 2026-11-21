@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
+import { canvasSlot } from '../islands/hex-world/canvas-slot';
 import { ArrowRight, Compass } from 'lucide-react';
 import { REGION_IDS, type RegionId } from '@/content/world/types';
 import { p9RegionHref } from '@/lib/p9/routes';
@@ -14,8 +15,10 @@ import { SceneBoundary } from '../islands/hex-world/scene-boundary';
 import status from '../islands/island-status.module.css';
 import styles from '../world/world.module.css';
 import type { P9WorldTarget } from './p9-world-scene';
+import { loadWorldScene } from './world-scene-loader';
+import { useFocusOnLoss } from './use-focus-on-loss';
 
-const Scene = dynamic(() => import('./p9-world-scene'), { ssr: false, loading: () => <div className={styles.loading} role="status">正在準備世界群島…</div> });
+const Scene = dynamic(loadWorldScene, { ssr: false, loading: () => <div className={styles.loading} role="status">正在準備世界群島…</div> });
 const WIDE = '(min-width: 781px)';
 const subscribe = (onChange: () => void) => { const list = matchMedia(WIDE); list.addEventListener('change', onChange); return () => list.removeEventListener('change', onChange); };
 
@@ -30,11 +33,18 @@ const shortName = (name: string) => name.replace(/群島$/, '');
  * the same regions, counts and hub from the world registry, the same guide beside the map (below it on phones) as the
  * way in without WebGL. Only the regions in P9_REGIONS lead to a prototype region page; the rest say so.
  */
-export function P9World({ regions, hub, accents }: { regions: RegionSummary[]; hub: HubSummary;
+export function P9World({ regions, hub, accents, sharedCanvas = false }: { regions: RegionSummary[]; hub: HubSummary;
   /** Every subject island's accent, by island id (the registry's), for what the regions' scenes draw in it. */
-  accents: Record<string, string> }) {
+  accents: Record<string, string>;
+  /** P9.8c: the scene draws in the canvas shared with the CS page (p9-world-scene.tsx `sharedCanvas`). */
+  sharedCanvas?: boolean }) {
   const router = useRouter();
-  const [available, setAvailable] = useState(true);
+  const [ownAvailable, setAvailable] = useState(true);
+  // P9.8c: a shared canvas that lost its WebGL context is lost for this page too, also when it was lost on the CS page.
+  const sharedLost = useSyncExternalStore(canvasSlot.subscribe, () => sharedCanvas && canvasSlot.lost(), () => false);
+  const available = ownAvailable && !sharedLost;
+  const retry = useCallback(() => { canvasSlot.retry(); setAvailable(true); }, []);
+  const lostNotice = useFocusOnLoss<HTMLDivElement>(Boolean(sharedLost));
   const unavailable = useCallback(() => setAvailable(false), []);
   const ready = useCallback(() => {}, []);
   const wide = useSyncExternalStore(subscribe, () => matchMedia(WIDE).matches, () => false);
@@ -53,8 +63,12 @@ export function P9World({ regions, hub, accents }: { regions: RegionSummary[]; h
     <div className={styles.stage}>
       {available ? <SceneBoundary onUnavailable={unavailable}>
         <Scene targets={targets} insetRight={wide ? 360 : 0} shape={wide ? 'wide' : 'tall'} environmentId={time} accents={accents} onReady={ready} onUnavailable={unavailable}
-          label={`Logic Island 互動學習群島（${SITE_TIME_LABELS[time]}）：中央樞紐與 ${regions.length} 個群島（${names}）各自的島嶼、橋樑與地標，亦可使用清單導航`}/>
-      </SceneBoundary> : <p className={styles.fallbackNotice} role="status">此裝置的 3D 場景無法使用，已切換至清單導航。</p>}
+          label={`Logic Island 互動學習群島（${SITE_TIME_LABELS[time]}）：中央樞紐與 ${regions.length} 個群島（${names}）各自的島嶼、橋樑與地標，亦可使用清單導航`} sharedCanvas={sharedCanvas}/>
+      </SceneBoundary> : <div ref={lostNotice} className={styles.fallbackNotice} role="status" tabIndex={-1}>
+        <p>此裝置的 3D 場景無法使用，已切換至清單導航：請使用下方的「世界導覽」進入各群島。</p>
+        {/* P9.8c: a shared canvas whose context was lost comes back only when asked (never by itself). */}
+        {sharedLost && <button type="button" onClick={retry}>重新載入 3D 地圖</button>}
+      </div>}
     </div>
     <nav className={styles.guide} aria-label="世界導覽">
       <div className={styles.guideHeading}><Compass size={17}/><span>世界總覽</span><small>Logic Island — 互動學習群島</small></div>
