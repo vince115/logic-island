@@ -6,6 +6,8 @@
 > - 沒有修改 Vercel、Production、旗標設定、GLB、座標、Exam Engine 或題庫。
 > - P9.7 原型只作參考，沒有合併或 cherry-pick。
 > - **合併（2026-11-21）**：使用者批准以 Merge Commit 將程式碼合併至 `main`，但**不批准在 Production 啟用 Shared Canvas**。啟用前的檢查清單見 [P9_8C_RELEASE_GATE.md](P9_8C_RELEASE_GATE.md)。
+> - **合併結果**：PR #38 的 merge commit 為 `f36ba39`；`main` CI 與 Vercel Production 部署成功，Shared Canvas 維持關閉。
+> - **更正（2026-11-21）**：P9 關閉時，**手機寬度**有三個頁面的 JS 增加 +0.19% 到 +0.26%（`/` +4.4 KB）；桌機寬度為 −0.01% 到 −0.42%。本文件先前「P9 關閉時正式頁面沒有增加」只對桌機成立。正式部署前後的量測見 6.5 節。
 
 ## 1. 旗標（Phase A）
 
@@ -170,7 +172,7 @@ app/layout.tsx（root layout，換頁時保留）
 | 直接開 `/cs` 載入時 | 595.8 / 190.3 | 602.0 / 192.0 | +6.2 / +1.7（**+1.04%** / +0.89%） |
 | 直接開 `/cs` 含 3D | 1884.1 / 562.4 | 1893.3 / 566.6 | +9.2 / +4.2（**+0.49% / +0.75%**） |
 
-**C. P9 關閉的正式頁面（Production 組合），對 `main`（`fd01b1d` 與 `709c9fc` 相同）**
+**C. P9 關閉的正式頁面（Production 組合），對 `main`（`fd01b1d` 與 `709c9fc` 相同）；只量桌機寬度（1440 px）**
 
 | 頁面 | `main` | P9.8c | 差異 |
 |---|---|---|---|
@@ -179,13 +181,13 @@ app/layout.tsx（root layout，換頁時保留）
 | `/curriculum`、`/regions/cs`、課程頁 | 696.9 / 226.2 | 693.9 / 225.1 | −3.0（−0.43%） |
 | `/learn` | 912.8 / 299.5 | 909.8 / 298.5 | −3.0（−0.33%） |
 
-（各頁的量測包含 Next 對 header 連結的預取，例如 `/` 路由的 chunk。）
+（各頁的量測包含 Next 對 header 連結的預取，例如 `/` 路由的 chunk。本表只有桌機寬度；手機寬度的預取不同，結果見 6.5 節，**不可把本表當成所有裝置的結論**。）
 
 - **Shared Canvas 增加的 chunk**：只有 host 自己的 lazy chunk（3,359 bytes，gzip 約 1.6 KB），只在兩個旗標都開啟時下載。World 頁的 chunk 清單只差這一個。
 - **對 P9.8b 的其他增加**（A 表以外，Shared 開關都有）：CS 頁需要 `regionFrame`（世界配置與 overview 幾何，約 4 KB）、`canvasSlot` 與 stage-pose（約 0.7 KB）、loader 與 host slot（約 0.7 KB）。這是 handover 必要的程式，不是重複。只有「直接開 `/cs` 載入時」超過 1%（+1.04%，P9 開啟才有）。要再縮小，必須把 `regionFrame` 改成非同步取得，等於重構 frame 傳到 scene 的方式，依指示**不做，記錄**。
 - **整合階段的兩個修正**：
   - `dd74271`：原本 host chunk 是 17.1 KB，其中 13.8 KB 是 R3F 入口模組的第二份複本（Turbopack 把同一個模組放進 7 個 chunk）。改由 scene 透過 canvas-slot 提供 `Canvas` 與 `useThree` 後，host chunk 降到 3.3 KB；A 表的差異從 +0.93%／+1.3% 降到 +0.18%／+0.33%。
-  - `754221e`：**更正先前的紀錄**。先前記錄「P9 關閉的正式頁面 −0.1% 到 −0.5%」是錯的，或是在 Phase F（`ff29ea4`）之前量的。`ff29ea4` 讓 `P9World` 從 `p9-scene-loaders.ts` 取得 `loadWorldScene`，而這個模組會 import 各區域的模型清單與資料。`P9World` 即使在 P9 關閉時也在 `/` 路由的 entry 中，所以每個正式頁面（透過預取）多了約 20 KB（+0.8% 到 +3.0%）。把 `loadWorldScene` 移到只含它的 `world-scene-loader.ts` 後，回到 C 表的 0 到 −0.43%。整合時用 `8788b36` 對 `main@3092455` 重建確認了這個問題，`d541fbc`、`dd74271` 也有同樣的增加。
+  - `754221e`：**更正先前的紀錄**。先前記錄「P9 關閉的正式頁面 −0.1% 到 −0.5%」是錯的，或是在 Phase F（`ff29ea4`）之前量的。`ff29ea4` 讓 `P9World` 從 `p9-scene-loaders.ts` 取得 `loadWorldScene`，而這個模組會 import 各區域的模型清單與資料。`P9World` 即使在 P9 關閉時也在 `/` 路由的 entry 中，所以每個正式頁面（透過預取）多了約 20 KB（+0.8% 到 +3.0%）。把 `loadWorldScene` 移到只含它的 `world-scene-loader.ts` 後，回到 C 表的 0 到 −0.43%（桌機寬度；手機寬度見 6.5 節）。整合時用 `8788b36` 對 `main@3092455` 重建確認了這個問題，`d541fbc`、`dd74271` 也有同樣的增加。
 - 先前已修掉兩處多出的下載：CS 頁預載世界場景時用了另一個 import 來源（+75 KB 重複）；host 引入環境模組。
 
 ### 6.4 換頁時間與第一幀（10 次往返，最終程式碼）
@@ -195,6 +197,41 @@ app/layout.tsx（root layout，換頁時保留）
 | Click → 第一個完整 CS 畫面（中位數，桌機／手機） | 938／914 ms | **838／810 ms** |
 | Click → Scene Ready（8 個名牌都有內容） | 957／934 ms | **856／830 ms** |
 | 第一幀完整（無 pop-in） | 10/10 | 10/10 |
+
+### 6.5 正式部署前後（Production，P9 關閉，2026-11-21）
+
+合併前後各量一次 `https://logic-island-psi.vercel.app`：合併前是 `main@709c9fc` 的部署，合併後是 `f36ba39` 的部署。方法與 C 表相同（Playwright Chromium，`load` 後等 4 秒，`/` 與 `/islands` 等 6 秒，加總所有 `.js` 資源）。桌機為 1440×1000，手機為 Playwright 的 iPhone 13 設定（390 px，觸控模擬，不是實機）。單位 KB，「解碼後／傳輸量」；傳輸量是 Vercel 實際壓縮後的大小，含標頭。
+
+| 頁面 | 桌機 合併前 | 桌機 合併後 | 桌機 差異（解碼後） | 手機 合併前 | 手機 合併後 | 手機 差異（解碼後） |
+|---|---|---|---|---|---|---|
+| `/` | 1788.2 / 541.7 | 1788.0 / 543.1 | −0.2（−0.01%） | 1699.0 / 508.7 | 1703.4 / 511.7 | **+4.4（+0.26%）** |
+| `/islands` | 1985.6 / 610.9 | 1979.2 / 609.7 | −6.4（−0.32%） | 1680.6 / 501.1 | 1678.6 / 501.4 | −2.0（−0.12%） |
+| `/curriculum` | 697.5 / 233.6 | 694.6 / 232.6 | −2.9（−0.42%） | 697.5 / 233.6 | 694.6 / 232.6 | −2.9（−0.42%） |
+| `/regions/cs` | 697.5 / 233.6 | 694.6 / 232.6 | −2.9（−0.42%） | 608.4 / 200.7 | 609.9 / 201.2 | **+1.5（+0.25%）** |
+| `/learn` | 913.5 / 310.5 | 910.5 / 309.5 | −3.0（−0.33%） | 824.3 / 277.5 | 825.9 / 278.0 | **+1.6（+0.19%）** |
+| `/curriculum/programs-and-algorithms` | 697.5 / 233.6 | 694.6 / 232.6 | −2.9（−0.42%） | 697.5 / 233.6 | 694.6 / 232.6 | −2.9（−0.42%） |
+
+- **桌機**：解碼後 −0.01% 到 −0.42%，與 C 表的本機建置一致。`/` 的傳輸量 +1.4 KB（+0.26%），解碼後 −0.2 KB；其餘頁面的傳輸量也下降。
+- **手機**：`/`、`/regions/cs`、`/learn` 解碼後 **+0.19% 到 +0.26%**（傳輸量 `/` +3.0 KB、其餘 +0.5 KB）；`/islands`、`/curriculum` 與課程頁下降。
+- **其他檢查**：兩次量測中所有頁面都回應 200，沒有 Console Error；`/p9`、`/p9/cs`、`/cs` 為 404，沒有 `[data-shared-stage]` 元素；100 堂已發布課程都回應 200 並有標題。
+
+**原因**（本機以 `main@709c9fc` 與 `f36ba39` 各建置一次 P9 關閉版本，逐 chunk 比對，手機 `/regions/cs` 的結果與 Production 相同，+1.5 KB）：
+
+- P9.8c 有幾個小模組在 P9 關閉時仍在載入路徑上：
+  - root layout 的 `P9SharedStageSlot` 動態載入包裝（193 bytes）與它的 loader（134 bytes）；
+  - `canvasSlot`（402 bytes）；
+  - `useFocusOnLoss`（278 bytes）；
+  - 世界場景 loader（52 與 269 bytes）。
+
+  合計約 1.3 KB，加上 chunk 本身的額外位元組。這些模組只是參照，P9 關閉時不會下載 Shared Canvas 的 chunk。
+- **桌機**：多預取一個 `/` 路由的 chunk，這個 chunk 縮小了 4.6 KB（16.6 → 12.0 KB），所以總量反而下降。
+- **手機**：手機寬度不預取這個 chunk，只看到增加的部分。`/` 的 +4.4 KB 還包含 hex world 場景 chunk 的重新分割：P9 關閉時首頁的 3D 地圖會向 `canvasSlot` 登記 `Canvas` 與 `useThree`。
+
+**結論**：**不能宣稱 P9 關閉時所有裝置的 JS 都沒有增加。**
+- **桌機**：下降。
+- **手機**：三個頁面增加 +0.19% 到 +0.26%，每頁 1.5 到 4.4 KB。
+
+本次只修正紀錄，沒有修改程式。若要消除，可以讓 root layout 只在旗標開啟時引用 `P9SharedStageSlot`，並讓 P9 關閉的頁面不帶 `canvasSlot` 與相關 hook。這需要另外的程式變更與授權。
 
 ## 7. 測試結果（Phase G；最終程式碼 `a7403a4`，含 `main@709c9fc`）
 
@@ -246,7 +283,7 @@ E2E 清單在各模式相同：`p9-prototype`、`p9-continuity`、`p9-shared-can
 ## 10. 建議
 
 **Conditional Go**：
-- **可以合併的理由**：旗標預設關閉。P9 關閉（Production 組合）的頁面對 `main` 沒有增加，Shared 關閉的行為與 P9.8b 相同。
+- **可以合併的理由**：旗標預設關閉。P9 關閉（Production 組合）的頁面在桌機寬度對 `main` 沒有增加，Shared 關閉的行為與 P9.8b 相同。（合併後更正：手機寬度有三個頁面增加 +0.19% 到 +0.26%，見 6.5 節。）
 - **使用 Shared 旗標之前的條件**：在任何部署（Preview 審查以外）使用 Shared 旗標之前，必須先滿足以下條件。
 
 1. **真機**：至少一台 iPhone（Safari）與一台 Android（Chrome），完成實機清單，特別是：
@@ -285,6 +322,6 @@ E2E 清單在各模式相同：`p9-prototype`、`p9-continuity`、`p9-shared-can
 | 整合後的 commit | `dd74271`：host 不再帶第二份 R3F 入口模組（−13.8 KB）<br>`1af8c7c`：context loss 時焦點移到提示，E2E 涵蓋<br>`754221e`：世界場景 loader 獨立成模組，修正 P9 關閉時正式頁面多 20 KB 的問題 |
 | 重新驗證 | 四種旗標模式的建置與 E2E、Vitest、TypeScript、ESLint：在 `754221e`（`fd01b1d` 為基準）與 `a7403a4`（`709c9fc` 為基準）各執行一次，0 失敗（第 7 節） |
 | 資源 | 30 次往返（另加 60 次）重新量測（6.1、6.2 節） |
-| Bundle | 三種比較（6.3 節） |
+| Bundle | 三種比較（6.3 節）；合併後的 Production 桌機／手機比較（6.5 節） |
 | Context loss 驗收 | 無凍結畫面；世界導覽可用；CS 島嶼清單可用；鍵盤可進入已發布課程；重新載入按鈕有效；不會自動重建；失效後 Back 回到世界與再回到 CS 都不留下失效的 Canvas（Forward 的往返另由一般的快速 Back／Forward 測試涵蓋）；其他四個區域不受影響（E2E）。焦點管理已修正；`role="status"`；Reduced Motion（E2E 預設 reduce）；觸控與 360／390 px 版面只在模擬中驗證 |
 | 實機 | Pending，見第 9 節與實機清單 |
