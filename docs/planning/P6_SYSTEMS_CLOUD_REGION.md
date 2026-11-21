@@ -342,3 +342,24 @@ R5 之後 `main` 已含 PR #1（`archipelago/v2`）、PR #2（`trials/mvp`）、
 `/regions/sys`：6 座島、89 堂規劃中、沒有任何 `/curriculum/` 課程連結、無水平捲動。
 
 PR #4（`r7/design-web`，另一個 session）在本分支開 PR 後合併進 `main@aaf1d0a`（之後 PR #5 R7 發布紀錄為 `main@1f93cc8`），本分支再以 merge 帶入：`tool-lab-page.tsx` 保留 Flexbox 與 Linux 終端機兩個實驗；學習路線依序為 A–F、G、H（R7）、J、K、L、M（P6），共 12 條；工具實驗開放 3 個（色彩對比、Flexbox、Linux 終端機）；`planning-data.json` 由 `scripts/planning-data.mjs` 重新產生，與合併結果一致。對 `main` 的路由契約差異只有 `/learn/linux-terminal` 與 `/regions/sys`（兩種建置各一）。
+
+## 10. 發布（2026-11-16）
+
+| 項目 | 結果 |
+|---|---|
+| PR [#6](https://github.com/vince115/logic-island/pull/6) | head `89fe1d4`；合併前 `main` 仍是 `1f93cc8`、無衝突；CI `gates` 通過（10 分 36 秒）、Vercel Preview 成功；由 Draft 轉 Ready 後以 merge commit 合併為 `main` **`3605922`**（未 squash、未 rebase、未 force push） |
+| 洩漏掃描（合併前） | `origin/main..archipelago/p6-sys` 提交範圍乾淨；兩種建置的 `.next` 先前已掃描乾淨 |
+| 正式部署 | `3605922` 的 Vercel commit status 為 success（Production），https://logic-island-psi.vercel.app。Vercel MCP／CLI 對 `vince115s-projects` 仍回 403，部署狀態以 GitHub commit status 與正式站回應為證據 |
+| 路由（正式站） | `/`、`/regions/cs`、`/regions/ai`、`/regions/design`、`/regions/web`、`/regions/sys`、`/curriculum`、`/learn`、`/learn/linux-terminal`、`/learn/flexbox-playground`、`/learn/color-contrast` 皆 200。`/regions` 沒有索引頁（repository 只有 `/regions/[region]`），回 404 符合設計；`/regions/labs`、`/trials`、`/world`、SYS 課程網址 404 |
+| 五區域 | `/curriculum` 標題「五大學習群島」、區域列「五大群島」5 個連結；`/regions/sys` 6 座島、89 堂「規劃中」、0 個課程連結；cs 8 島（80 堂規劃中標記＋已開放課程）、ai 7 島 160、design 4 島 56、web 4 島 55 |
+| 已開放課程 | 正式站頁面中的 80 個 `/curriculum/` 連結逐一請求皆 200；`/curriculum/binary-search` 播放器、麵包屑、側欄（5 個群島）正常 |
+| 導覽 | 桌機 1280×900 與手機 375×812：側欄「學習群島目錄」列出五個群島，目前群島展開並標示 `aria-current`；SYS 沒有課程連結；無水平溢出 |
+| Linux Terminal（手機） | `mkdir`／`cd`／`echo >` 完成 2／7 任務，可及名稱更新為「~/projects」；`cat /etc/shadow` 為 Permission denied；`ls \| grep a` 被拒；操作期間只有 Next.js 的連結預取請求，沒有送出指令資料 |
+| 對比（亮色與深色，瀏覽器實測算繪色） | `/curriculum`、五個 `/regions/*`、`/learn/linux-terminal` 全部文字達 AA（最低：亮色 4.86、深色 4.66） |
+| 洩漏掃描（正式站） | 下載的正式站頁面（17 個路由＋80 堂課程頁）以 T.3J `leak-scan --dir` 掃描：乾淨 |
+
+### 10.1 已知限制與後續
+
+- 首頁島嶼選單的序號（`choiceNumber`，亮色最低 3.56、深色 3.19）與 `/learn` 卡片的序號（`.course-number`，亮色 1.72、深色 2.67）未達 4.5。兩者是 P6 之前就存在的裝飾性序號，本次未修改；見 `docs/handoff/KNOWN_ISSUES.md` P2。
+- 未驗證：真機（iOS／Android 實體裝置）、螢幕閱讀器實機朗讀、正式站 3D 首頁效能（本次沒有 3D 變更）。
+- 後續：SYS 的 3D 地圖與資產（§6）、Docker／Network／CI/CD 三個實驗（[P7_SYSTEMS_LABS §5](P7_SYSTEMS_LABS.md#5-其他三個實驗的設計要點planned)）、LNX01–LNX05 正式教材。
