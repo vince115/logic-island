@@ -103,7 +103,22 @@
       ],
       "commit": "67cf67e",
       "tests": "驗證器、發布閘門 110/110、Vitest 2583（含 Java 程式測試）、E2E 桌機＋手機旗標關 434（候選頁 D.3-5c、D.3-6d 為 main 既有回歸 #36；手機 D.3-5b 偶發，單獨重跑）、網路預覽＋P9＋區域世界旗標開 251（P9.6 飛行時長在高負載下超出範圍，單獨重跑 2/2 通過）、測驗 40 題逐題複核、洩漏掃描",
-      "notes": "CN-2：DHCP／ARP／NAT、路由與最長前綴匹配、距離向量／鏈路狀態／BGP、TCP 與 UDP、TCP 可靠傳輸與壅塞控制；藍圖的 routing-table 與 graph-traversal 以節點路由表呈現，未另建元件"
+      "notes": "CN-2：DHCP／ARP／NAT、路由與最長前綴匹配、距離向量／鏈路狀態／BGP、TCP 與 UDP、TCP 可靠傳輸與壅塞控制；藍圖的 routing-table 與 graph-traversal 以節點路由表呈現，未另建元件",
+      "pr": "#48"
+    },
+    {
+      "id": 8,
+      "date": "2026-11-22",
+      "lessons": [
+        "CN11",
+        "CN12",
+        "CN13",
+        "CN14",
+        "CN15"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "CN-3：CN11（socket）與 CN14（REST、JSON）的結果是程式，以 program-code 四語撰寫，socket 只用本機迴路、練習讀固定輸入；CN12 DNS 與 HTTP、CN13 TLS、CN15 快取與 HTTP/2、HTTP/3 以網路情境呈現"
     }
   ]
 }

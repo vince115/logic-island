@@ -13,11 +13,11 @@
 
 ## 總覽
 
-已發布 **110／520**（21.2%）；規劃中 410。
+已發布 **115／520**（22.1%）；規劃中 405。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
-| 程式與資訊群島 | 110 | 50 | 68.8% |
+| 程式與資訊群島 | 115 | 45 | 71.9% |
 | AI 人工智慧群島 | 0 | 160 | 0.0% |
 | 數位設計群島 | 0 | 56 | 0.0% |
 | 網頁與應用開發群島 | 0 | 55 | 0.0% |
@@ -25,7 +25,7 @@
 
 ## 下一批（自動選擇）
 
-**計算機網路島（CN）**：CN11 Socket 網路程式設計、CN12 DNS 與 HTTP、CN13 HTTPS 與 TLS、CN14 REST API 與 JSON、CN15 快取、CDN 與 HTTP/2、HTTP/3。島嶼能力：可用；這幾堂解鎖其他島的 60 堂。
+**計算機網路島（CN）**：CN16 WebSocket 與即時通訊、CN17 網路除錯工具、CN18 網路安全基礎、CN19 防火牆、VPN 與零信任、CN20 計算機網路島綜合挑戰：追蹤並打造一個網路服務。島嶼能力：可用；這幾堂解鎖其他島的 5 堂。
 
 能力缺口中最優先的是 **AI 基礎島（AIF）**：需要 python-code (Python-only program lessons; search, probability and game trees on the shared trace panels)；先修已滿足、可依序撰寫的有 20 堂，前 5 堂解鎖其他島的 140 堂。
 
@@ -40,7 +40,7 @@
 | 程式與資訊群島 | 演算法島（AL） | 20／20 | program-code | 可用 | 全島完成 | — |
 | 程式與資訊群島 | 程式語言島（PL） | 20／20 | program-code | 可用 | 全島完成 | — |
 | 程式與資訊群島 | 資料庫應用島（DB） | 20／20 | sql, er-diagram, normalization, query-plan, transaction-timeline, driver-code, protocol-sequence, architecture-diagram | 可用 | 全島完成 | — |
-| 程式與資訊群島 | 計算機網路島（CN） | 10／20 | network-protocol (packets through the layers, message sequences, node tables; field, layer, table, subnet and delay exercises) | 可用 | CN11–CN20（10 堂） | — |
+| 程式與資訊群島 | 計算機網路島（CN） | 15／20 | network-protocol (packets through the layers, message sequences, node tables; field, layer, table, subnet and delay exercises) | 可用 | CN16–CN20（5 堂） | — |
 | 程式與資訊群島 | 系統分析與設計島（SA） | 0／20 | model-diagram (UML, DFD, BPMN, state and sequence models, checked by structure) | 缺少 | SA01–SA20（20 堂） | 缺少課程能力 |
 | 程式與資訊群島 | 管理資訊系統島（MIS） | 0／20 | case-analysis (scenario data, decision tables, KPI calculations checked by value) | 缺少 | MIS01–MIS20（20 堂） | 缺少課程能力 |
 | AI 人工智慧群島 | AI 基礎島（AIF） | 0／20 | python-code (Python-only program lessons; search, probability and game trees on the shared trace panels) | 缺少 | AIF01–AIF20（20 堂） | 缺少課程能力 |
@@ -89,16 +89,16 @@
 |---|---|---|
 | APCS／資訊科學基礎 | 60／60 | 是 |
 | 軟體工程 | 66／86 | 否 |
-| 網路與系統 | 44／54 | 否 |
+| 網路與系統 | 49／54 | 否 |
 | 企業資訊系統 | 44／84 | 否 |
-| AI 研究 | 35／142 | 否 |
-| AI 應用工程 | 22／89 | 否 |
+| AI 研究 | 37／142 | 否 |
+| AI 應用工程 | 25／89 | 否 |
 | 前端工程 | 7／62 | 否 |
 | 產品設計 | 0／56 | 否 |
-| AI 架構 | 14／66 | 否 |
+| AI 架構 | 17／66 | 否 |
 | 全端部署 | 16／62 | 否 |
-| AI 基礎設施 | 10／60 | 否 |
-| 雲端與 DevOps 基礎 | 4／48 | 否 |
+| AI 基礎設施 | 12／60 | 否 |
+| 雲端與 DevOps 基礎 | 5／48 | 否 |
 
 ## 先修依賴檢查
 
@@ -247,16 +247,16 @@
 | CN08 | 路由協定：距離向量與鏈路狀態 | 已發布（閘門通過） | CN07、A16 | packet-journey | — |
 | CN09 | TCP 與 UDP | 已發布（閘門通過） | CN05 | network-sequence | — |
 | CN10 | TCP 可靠傳輸、流量控制與壅塞控制 | 已發布（閘門通過） | CN09 | network-sequence | — |
-| CN11 | Socket 網路程式設計 | 大綱 | CN09 | protocol-sequence | — |
-| CN12 | DNS 與 HTTP | 大綱 | CN09 | packet-journey | — |
-| CN13 | HTTPS 與 TLS | 待先修 | CN12 | protocol-sequence | 先修 CN12 |
-| CN14 | REST API 與 JSON | 待先修 | CN12 | protocol-sequence | 先修 CN12 |
-| CN15 | 快取、CDN 與 HTTP/2、HTTP/3 | 待先修 | CN12 | architecture-diagram | 先修 CN12 |
-| CN16 | WebSocket 與即時通訊 | 待先修 | CN11、CN12 | protocol-sequence | 先修 CN11、CN12 |
-| CN17 | 網路除錯工具 | 待先修 | CN07、CN12 | packet-journey | 先修 CN12 |
-| CN18 | 網路安全基礎 | 待先修 | CN13 | packet-journey | 先修 CN13 |
+| CN11 | Socket 網路程式設計 | 已發布（閘門通過） | CN09 | stack-queue | — |
+| CN12 | DNS 與 HTTP | 已發布（閘門通過） | CN09 | packet-journey | — |
+| CN13 | HTTPS 與 TLS | 已發布（閘門通過） | CN12 | network-sequence | — |
+| CN14 | REST API 與 JSON | 已發布（閘門通過） | CN12 | variable-state | — |
+| CN15 | 快取、CDN 與 HTTP/2、HTTP/3 | 已發布（閘門通過） | CN12 | packet-journey | — |
+| CN16 | WebSocket 與即時通訊 | 大綱 | CN11、CN12 | protocol-sequence | — |
+| CN17 | 網路除錯工具 | 大綱 | CN07、CN12 | packet-journey | — |
+| CN18 | 網路安全基礎 | 大綱 | CN13 | packet-journey | — |
 | CN19 | 防火牆、VPN 與零信任 | 待先修 | CN18、CN07 | routing-table | 先修 CN18 |
-| CN20 | 計算機網路島綜合挑戰：追蹤並打造一個網路服務 | 待先修 | CN14、CN17、CN18 | challenge-stages | 先修 CN14、CN17、CN18 |
+| CN20 | 計算機網路島綜合挑戰：追蹤並打造一個網路服務 | 待先修 | CN14、CN17、CN18 | challenge-stages | 先修 CN17、CN18 |
 
 ### 程式與資訊群島 · 系統分析與設計島（SA）
 
@@ -405,7 +405,7 @@
 | LLM06 | 規模法則與運算預算 | 待能力 | LLM05 | cost-calculator | 課程能力、先修 LLM05 |
 | LLM07 | 解碼策略與取樣 | 待能力 | LLM02 | sampling-explorer | 課程能力、先修 LLM02 |
 | LLM08 | 指令微調與聊天模型 | 待能力 | LLM05 | prompt-lab | 課程能力、先修 LLM05 |
-| LLM09 | 使用 LLM API | 待能力 | LLM01、CN14 | prompt-lab | 課程能力、先修 LLM01、CN14 |
+| LLM09 | 使用 LLM API | 待能力 | LLM01、CN14 | prompt-lab | 課程能力、先修 LLM01 |
 | LLM10 | 提示工程 | 待能力 | LLM09 | prompt-lab | 課程能力、先修 LLM09 |
 | LLM11 | 上下文與對話管理 | 待能力 | LLM10 | token-explorer | 課程能力、先修 LLM10 |
 | LLM12 | 結構化輸出 | 待能力 | LLM10 | prompt-lab | 課程能力、先修 LLM10 |
@@ -463,7 +463,7 @@
 | AG09 | 長期記憶 | 待能力 | AG08、LLM15 | memory-inspector | 課程能力、先修 AG08、LLM15 |
 | AG10 | Agentic RAG | 待能力 | AG06、LLM14 | rag-explorer | 課程能力、先修 AG06、LLM14 |
 | AG11 | 工作流程模式 | 待能力 | AG06 | agent-workflow | 課程能力、先修 AG06 |
-| AG12 | MCP 模型上下文協定 | 待能力 | AG03、CN14 | protocol-sequence | 課程能力、先修 AG03、CN14 |
+| AG12 | MCP 模型上下文協定 | 待能力 | AG03、CN14 | protocol-sequence | 課程能力、先修 AG03 |
 | AG13 | 實作 MCP 伺服器 | 待能力 | AG12 | tool-call-trace | 課程能力、先修 AG12 |
 | AG14 | 以圖與狀態機編排 Agent | 待能力 | AG07、AG11 | agent-workflow | 課程能力、先修 AG07、AG11 |
 | AG15 | 多 Agent 系統 | 待能力 | AG14 | multi-agent-board | 課程能力、先修 AG14 |
@@ -483,7 +483,7 @@
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
 | OPS01 | AI 工程與 MLOps 概觀 | 待能力 | SA01、LLM01 | pipeline-diagram | 課程能力、先修 SA01、LLM01 |
-| OPS02 | 以 API 提供 AI 服務 | 待能力 | OPS01、CN14 | protocol-sequence | 課程能力、先修 OPS01、CN14 |
+| OPS02 | 以 API 提供 AI 服務 | 待能力 | OPS01、CN14 | protocol-sequence | 課程能力、先修 OPS01 |
 | OPS03 | 模型閘道與供應商整合 | 待能力 | OPS02 | deployment-simulator | 課程能力、先修 OPS02 |
 | OPS04 | 容器與 Docker | 待能力 | OPS02 | pipeline-diagram | 課程能力、先修 OPS02 |
 | OPS05 | 模型產出物打包 | 待能力 | OPS04、DL08 | pipeline-diagram | 課程能力、先修 OPS04、DL08 |

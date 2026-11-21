@@ -372,7 +372,7 @@ const programmingLanguages: Outline[] = [
   programFromBlueprint('PL20', '把 PL10 的 lexer、PL11 的遞迴下降 parser 與 PL12 的樹走訪直譯器接成一個能執行的迷你語言：用帶 parent 鏈的環境實作 let、遞迴與捕捉環境的閉包，在每個運算做動態型別檢查並以「error line N: …」回報第一個語法、名稱或型別錯誤，以瞄準規則的測試證明作用域、遞迴與錯誤行為，並說明動態檢查、急切求值、整數除法與全域重新綁定這些設計取捨的代價。', 120, 'challenge-stages'),
 ];
 
-/** CN-1 and CN-2 (2026-11-22): the computer-networks island's lessons, written with the network-protocol capability (CN0_NETWORK_CAPABILITY.md). */
+/** CN-1 to CN-3 (2026-11-22): the computer-networks island's lessons, written with the network-protocol capability (CN0_NETWORK_CAPABILITY.md). */
 const networks: Outline[] = [
   networkFromBlueprint('CN01', '說明網路為什麼分層、每層只使用下一層的服務，對照 OSI 七層與 TCP/IP 四層及各層代表協定，在固定情境中追蹤 HTTP 請求經過交換器與路由器時由上而下封裝成訊框、在接收端由下而上解封裝，並以 DNS 查詢比較 UDP 與 TCP 標頭，區分訊息、區段／資料包、封包、訊框與位元等各層 PDU。', 45),
   networkFromBlueprint('CN02', '把位元看成在雙絞線、光纖與空氣中傳送的電、光與無線電訊號並比較三種媒介，分清頻寬、吞吐量與延遲，逐步算出傳輸延遲與傳播延遲、RTT 與頻寬延遲乘積，並在多段路徑上找出決定吞吐量的瓶頸鏈路。', 50),
@@ -385,6 +385,13 @@ const networks: Outline[] = [
   networkFromBlueprint('CN08', '以 Bellman-Ford 的想法逐步模擬 RIP 式距離向量路由交換向量、更新路由表直到收斂，看鏈路斷線後壞消息如何慢慢傳開、計數到無限與毒性逆轉的效果，再以 LSA 泛洪與 Dijkstra 說明 OSPF 每台路由器如何從同一份鏈路狀態資料庫算出自己的最短路徑樹，最後區分自治系統內部的路由與依政策選路的 BGP 路徑向量。', 60),
   networkFromBlueprint('CN09', '以 5-tuple 說明連接埠與 socket 如何區分同一台主機上的程式，拆開 8 位元組的 UDP 標頭與 TCP 標頭的連接埠、Seq、Ack、旗標、視窗與檢查碼，逐步追蹤三向交握、資料傳輸與四次揮手的序號與 ACK（SYN 與 FIN 各占一個序號、Ack 是下一個期待的位元組），看懂 TIME_WAIT 與連到沒開的連接埠時的 RST，並為 DNS、串流影音、線上遊戲與檔案下載選擇 TCP 或 UDP。', 55),
   networkFromBlueprint('CN10', '從累積確認、RTO 逾時重送與三個重複 ACK 的快速重傳出發，用滑動視窗說明在途資料最多 min(rwnd, cwnd)，追蹤接收視窗縮到 0、視窗探測與視窗更新的流量控制，依 Reno 規則一輪一輪算出慢啟動、壅塞避免（AIMD）、重複 ACK 減半與逾時歸 1 的壅塞視窗，並比較流量控制與壅塞控制、說明遺失為什麼讓吞吐量下降。', 60),
+  // CN-3 (2026-11-22): sockets and REST are program lessons (their code runs in the tests, on loopback or recorded
+  // responses, never a real network); DNS and HTTP, TLS and caching are network scenes.
+  programFromBlueprint('CN11', '用 socket、bind、listen、accept 與 connect 在本機迴路上寫出 TCP 回聲伺服器與客戶端，看懂 TCP 是位元組串流、一次 send 不等於一次 recv，以換行分隔與 4 位元組大端序的長度前綴切出每一則訊息，分清 UTF-8 的字元數與位元組數，用序號處理 UDP 資料包的遺失、重複與亂序，以每條連線一個執行緒或事件驅動讓伺服器同時服務多個客戶端，並處理連線被拒、逾時、部分讀取與正確關閉。', 60, 'stack-queue'),
+  networkFromBlueprint('CN12', '從在網址列輸入網址到收到 HTML，逐步追蹤 stub 解析程式、遞迴解析器、根、TLD 與權威伺服器的迭代查詢與 AA、RD、RA 旗標，讀懂 A、AAAA、CNAME、MX、NS、TXT 紀錄與 TTL 快取如何讓第二次查詢跳過根伺服器，拆開 HTTP/1.1 請求與回應的起始列、標頭與本文，分辨 GET、HEAD、POST、PUT、DELETE 的安全與冪等和 2xx 到 5xx 狀態碼，看懂 301 重新導向與持久連線上的多個請求，並以 Set-Cookie 的 Domain、HttpOnly、Secure、SameSite 與 Cookie 標頭說明登入如何在無狀態的 HTTP 上維持。', 55),
+  networkFromBlueprint('CN13', '分清對稱加密、非對稱加密與雜湊在 TLS 中的分工，讀懂 X.509 憑證的主體、SAN、簽發者、有效期間與公鑰，從葉憑證經中繼憑證走到信任儲存區的根憑證驗證信任鏈，逐步追蹤 TLS 1.3 的 ClientHello、ServerHello 與加密的 EncryptedExtensions、Certificate、CertificateVerify、Finished（外層內容類型 23）以及兩端金鑰的導出，說明 (EC)DHE 如何提供前向保密，辨識憑證過期、名稱不符與混合內容警告的風險，並以 HSTS 與預載清單防止降級，說清楚 HTTPS 保護與不保護的資訊。', 60),
+  programFromBlueprint('CN14', '用資源與 HTTP 方法設計待辦事項 API 的端點與分頁，組出帶 Authorization 標頭與 JSON 本文的請求，解析 JSON 並驗證它的形狀（C++ 與 Java 以手寫的子集解析器示範），看懂 JavaScript double 對大整數 id 的捨入，依 200、201、204、401、403、404、409、422、429 等狀態碼與錯誤物件處理回應，以重送實驗說明 PUT、DELETE 的冪等性與 POST 的 Idempotency-Key，並分辨 API 金鑰與 Bearer token、401 與 403，以及由瀏覽器執行的 CORS 預檢。', 60, 'variable-state'),
+  networkFromBlueprint('CN15', '以 Cache-Control 的 max-age、no-cache、no-store、private／public 與 immutable 決定瀏覽器與 CDN 何時重用快取，用 ETag 與 If-None-Match 換得 304 Not Modified，以雜湊檔名讓靜態檔放心快取一年，在固定情境中追蹤 CDN 邊緣節點的命中與回源，依「命中率 × 邊緣 RTT +（1 − 命中率）×（邊緣 RTT + 來源 RTT）」算出期望延遲，並比較 HTTP/1.1 的隊頭阻塞、HTTP/2 在一條 TCP 連線上的多工與 HPACK，以及 HTTP/3 以 QUIC 在 UDP 上做到逐串流的遺失復原、1-RTT 交握與連線遷移。', 55),
 ];
 
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */
