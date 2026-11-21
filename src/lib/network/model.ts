@@ -63,13 +63,16 @@ export type NetworkTask =
   | { task: 'field'; scene: string; message: string; layer: LayerId; field: string }
   | { task: 'layer'; scene: string; protocol: string }
   | { task: 'subnet'; address: string; prefix: number }
-  | { task: 'delay'; bytes: number; bandwidth: number; distance: number; speed?: number };
+  | { task: 'delay'; bytes: number; bandwidth: number; distance: number; speed?: number }
+  /** table: one cell of a node's table right after a message, found by the row's first cell and the column's name. */
+  | { task: 'table'; scene: string; message: string; node: string; table: string; row: string; column: string };
 
 export const NETWORK_FIELDS: Record<NetworkTask['task'], Record<string, string>> = {
   field: { value: '欄位的值' },
   layer: { layer: '所在的層' },
   subnet: { network: '網路位址', broadcast: '廣播位址', hosts: '可用主機數' },
   delay: { transmission: '傳輸延遲（毫秒）', propagation: '傳播延遲（毫秒）', total: '總延遲（毫秒）' },
+  table: { cell: '表格中的值' },
 };
 /** Numeric answers (delay) are compared as numbers to this many milliseconds, so 0.8 and 0.800 are the same answer. */
 export const DELAY_TOLERANCE = 0.0005;
@@ -82,6 +85,7 @@ const HINTS: Record<string, string> = {
   transmission: '傳輸延遲是把整個封包推上線路的時間：位元數 ÷ 頻寬（位元組要先乘以 8）。',
   propagation: '傳播延遲是訊號走完線路的時間：距離 ÷ 訊號速度，和封包大小無關。',
   total: '總延遲是傳輸延遲加傳播延遲（這裡不計排隊與處理延遲）。',
+  cell: '依訊息的順序一步一步更新表格：節點只從它看到的訊息學到東西，還沒看到的不會出現在表裡。',
 };
 
 /** Transmission, propagation and total delay in milliseconds (rounded to the microsecond), or undefined for bad input. */
@@ -133,6 +137,12 @@ export function expectedNetworkAnswer(t: NetworkTask, scenes: readonly NetworkSc
       const s = subnetOf(t.address, t.prefix);
       if (!s) throw new Error(`invalid subnet ${t.address}/${t.prefix}`);
       return { network: s.network, broadcast: s.broadcast, hosts: String(s.hosts) };
+    }
+    case 'table': {
+      const t2 = sceneById(scenes, t.scene)?.messages.find(m => m.id === t.message)?.tables?.find(x => x.node === t.node && x.name === t.table);
+      const col = t2?.head.indexOf(t.column) ?? -1, row = t2?.rows.find(r => r[0] === t.row);
+      if (!t2 || col < 1 || !row) throw new Error(`no cell ${t.row}/${t.column} in ${t.node}'s ${t.table} after ${t.scene}/${t.message}`);
+      return { cell: row[col] };
     }
     case 'delay': {
       const d = delayOf(t.bytes, t.bandwidth, t.distance, t.speed);

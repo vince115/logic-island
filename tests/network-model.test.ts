@@ -86,6 +86,15 @@ describe('exercise answers come from the scenes', () => {
     expect(expectedNetworkAnswer({ task: 'layer', scene: 'preview-tcp-handshake', protocol: 'TCP' }, previewScenes)).toEqual({ layer: 'transport' });
     expect(expectedNetworkAnswer({ task: 'subnet', address: '192.0.2.130', prefix: 26 }, previewScenes)).toEqual({ network: '192.0.2.128', broadcast: '192.0.2.191', hosts: '62' });
   });
+  it('reads a cell of a node\'s table after a message', () => {
+    const t = { task: 'table', scene: 'preview-switch-learning', message: 'arp-reply', node: 'sw', table: 'MAC 位址表', row: '02:00:00:00:00:0b', column: '連接埠' } as const;
+    expect(expectedNetworkAnswer(t, previewScenes)).toEqual({ cell: '2' });
+    expect(checkNetworkAnswer(t, previewScenes, { cell: '2' }).ok).toBe(true);
+    expect(checkNetworkAnswer(t, previewScenes, { cell: '1' }).messages).toEqual([expect.stringMatching(/表格中的值」不對/)]);
+    // B's address is not in the table before B has sent anything, and the key column is not an answer.
+    expect(() => expectedNetworkAnswer({ ...t, message: 'arp-req' }, previewScenes)).toThrow(/no cell/);
+    expect(() => expectedNetworkAnswer({ ...t, column: 'MAC 位址' }, previewScenes)).toThrow(/no cell/);
+  });
   it('refuses a task the scenes cannot answer', () => {
     expect(() => expectedNetworkAnswer({ task: 'field', scene: 'preview-http-router', message: 'req-2', layer: 'network', field: 'Flow Label' }, previewScenes)).toThrow(/no field/);
     expect(() => expectedNetworkAnswer({ task: 'layer', scene: 'preview-http-router', protocol: 'UDP' }, previewScenes)).toThrow(/exactly one layer/);
