@@ -13,19 +13,19 @@
 
 ## 總覽
 
-已發布 **187／520**（36.0%）；規劃中 333。
+已發布 **189／520**（36.3%）；規劃中 331。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
 | 程式與資訊群島 | 120 | 40 | 75.0% |
-| AI 人工智慧群島 | 23 | 137 | 14.4% |
+| AI 人工智慧群島 | 25 | 135 | 15.6% |
 | 數位設計群島 | 0 | 56 | 0.0% |
 | 網頁與應用開發群島 | 15 | 40 | 27.3% |
 | 系統與雲端工程群島 | 29 | 60 | 32.6% |
 
 ## 下一批（自動選擇）
 
-**生成式 AI 島（GEN）**：GEN01 生成模型概觀、GEN02 自回歸生成模型。島嶼能力：已備妥（可開始撰寫）；這幾堂解鎖其他島的 0 堂。
+目前沒有能力已備妥、先修已滿足的島嶼；先處理「能力缺口」的第一項。
 
 能力缺口中最優先的是 **機器學習島（ML）**：需要 python-code + data-explorer (fixed datasets, metrics computed in the browser)；先修已滿足、可依序撰寫的有 25 堂，前 5 堂解鎖其他島的 39 堂。
 
@@ -47,7 +47,7 @@
 | AI 人工智慧群島 | 機器學習島（ML） | 0／25 | python-code + data-explorer (fixed datasets, metrics computed in the browser) | 缺少 | ML01–ML25（25 堂） | 缺少課程能力 |
 | AI 人工智慧群島 | 深度學習島（DL） | 0／25 | python-code + precomputed training curves (T3) | 缺少 | — | 缺少課程能力；DL01 需要尚未發布的 ML09 |
 | AI 人工智慧群島 | 大型語言模型島（LLM） | 3／25 | llm-explorer (token-explorer: byte-level BPE from the lesson's merge table; sampling-explorer: a recorded toy model with temperature, top-k, top-p and a seeded generator; embedding-space: hand-written vectors, cosine similarity and a deterministic PCA; exercises checked by value), alone or with python-code | 已備妥（可開始撰寫） | — | LLM04 需要尚未發布的 DL18 |
-| AI 人工智慧群島 | 生成式 AI 島（GEN） | 0／20 | llm-explorer for GEN01, GEN02 (sampling-explorer) and GEN08 (embedding-space); precomputed pipeline steps (T3) for the rest | 已備妥（可開始撰寫） | GEN01–GEN02（2 堂） | GEN03 需要尚未發布的 DL01 |
+| AI 人工智慧群島 | 生成式 AI 島（GEN） | 2／20 | llm-explorer for GEN01, GEN02 (sampling-explorer) and GEN08 (embedding-space); precomputed pipeline steps (T3) for the rest | 已備妥（可開始撰寫） | — | GEN03 需要尚未發布的 DL01 |
 | AI 人工智慧群島 | AI 代理島（AG） | 0／25 | agent trace (tool calls and memory as fixed transcripts) | 缺少 | — | 缺少課程能力；AG01 需要尚未發布的 LLM10 |
 | AI 人工智慧群島 | AI 工程與 MLOps 島（OPS） | 0／20 | pipeline and deployment simulation | 缺少 | — | 缺少課程能力；OPS01 需要尚未發布的 SA01 |
 | 數位設計群島 | UI 設計島（UI） | 0／15 | design-lab (color contrast exists as a standalone lab; visual hierarchy and grid) | 缺少 | UI01–UI15（15 堂） | 缺少課程能力 |
@@ -92,7 +92,7 @@
 | 軟體工程 | 66／86 | 否 |
 | 網路與系統 | 54／54 | 是 |
 | 企業資訊系統 | 44／84 | 否 |
-| AI 研究 | 60／142 | 否 |
+| AI 研究 | 62／142 | 否 |
 | AI 應用工程 | 31／89 | 否 |
 | 前端工程 | 22／62 | 否 |
 | 產品設計 | 0／56 | 否 |
@@ -428,25 +428,25 @@
 
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
-| GEN01 | 生成模型概觀 | 大綱 | AIF01 | sampling-explorer | — |
-| GEN02 | 自回歸生成模型 | 待先修 | GEN01、LLM01 | sampling-explorer | 先修 GEN01 |
-| GEN03 | 自編碼器與 VAE | 待先修 | GEN01、DL01 | latent-space | 先修 GEN01、DL01 |
-| GEN04 | GAN 生成對抗網路 | 待先修 | GEN01、DL03 | training-curves | 先修 GEN01、DL03 |
-| GEN05 | 擴散模型 | 待先修 | GEN01 | diffusion-steps | 先修 GEN01 |
+| GEN01 | 生成模型概觀 | 已發布（閘門通過） | AIF01 | sampling-explorer | — |
+| GEN02 | 自回歸生成模型 | 已發布（閘門通過） | GEN01、LLM01 | sampling-explorer | — |
+| GEN03 | 自編碼器與 VAE | 待先修 | GEN01、DL01 | latent-space | 先修 DL01 |
+| GEN04 | GAN 生成對抗網路 | 待先修 | GEN01、DL03 | training-curves | 先修 DL03 |
+| GEN05 | 擴散模型 | 大綱 | GEN01 | diffusion-steps | — |
 | GEN06 | 流模型與 Flow Matching | 待先修 | GEN05 | diffusion-steps | 先修 GEN05 |
 | GEN07 | 擴散取樣器與排程 | 待先修 | GEN05 | diffusion-steps | 先修 GEN05 |
-| GEN08 | CLIP 與圖文對齊 | 待先修 | GEN01、LLM03 | embedding-space | 先修 GEN01 |
+| GEN08 | CLIP 與圖文對齊 | 大綱 | GEN01、LLM03 | embedding-space | — |
 | GEN09 | 文字生成圖像：潛在擴散 | 待先修 | GEN07、GEN08 | multimodal-pipeline | 先修 GEN07、GEN08 |
 | GEN10 | 條件生成與 Classifier-Free Guidance | 待先修 | GEN09 | diffusion-steps | 先修 GEN09 |
 | GEN11 | ControlNet 與結構控制 | 待先修 | GEN10 | multimodal-pipeline | 先修 GEN10 |
 | GEN12 | 圖像編輯與修補 | 待先修 | GEN10 | diffusion-steps | 先修 GEN10 |
 | GEN13 | 影片生成 | 待先修 | GEN09 | diffusion-steps | 先修 GEN09 |
-| GEN14 | 語音合成 TTS | 待先修 | GEN02 | multimodal-pipeline | 先修 GEN02 |
+| GEN14 | 語音合成 TTS | 大綱 | GEN02 | multimodal-pipeline | — |
 | GEN15 | 音樂與音訊生成 | 待先修 | GEN05、GEN14 | sequence-model | 先修 GEN05、GEN14 |
 | GEN16 | 視覺語言模型 | 待先修 | GEN08、LLM10 | multimodal-pipeline | 先修 GEN08、LLM10 |
 | GEN17 | 生成結果評估 | 待先修 | GEN09、LLM20 | eval-dashboard | 先修 GEN09、LLM20 |
 | GEN18 | 生成式創作工作流程 | 待先修 | GEN12、GEN16 | pipeline-diagram | 先修 GEN12、GEN16 |
-| GEN19 | 著作權、倫理與浮水印 | 待先修 | GEN01、AIF19 | case-study-board | 先修 GEN01 |
+| GEN19 | 著作權、倫理與浮水印 | 大綱 | GEN01、AIF19 | case-study-board | — |
 | GEN20 | 生成式 AI 島綜合專題 | 待先修 | GEN17、GEN18、GEN19 | challenge-stages | 先修 GEN17、GEN18、GEN19 |
 
 ### AI 人工智慧群島 · AI 代理島（AG）

@@ -13,13 +13,14 @@ import { checkLlmAnswer, llmContentProblems, type LlmExercise, type LlmLessonCon
 import { draws, mulberry32 } from '@/lib/llm/prng';
 import { contextFor, distribution, generate, pick, softmax, toyModelProblems, type ToyModel } from '@/lib/llm/sampling';
 import { exercises, llmContent, llmLesson, sampler, TRAINING_CORPUS, tokenizer, tokenSpace } from './support/llm-fixture';
+import { validateTerminalLessonsFirst } from './support/terminal-replays';
 
 /*
  * LLM-0 (docs/curriculum/LLM0_LANGUAGE_MODEL_CAPABILITY.md): the llm-explorer capability. The engines (byte-level BPE,
  * temperature / top-k / top-p sampling with a seeded generator, embeddings with a deterministic PCA) are checked against
  * hand-computed values; llmContentProblems catches each kind of inconsistent data and unsound exercise; a complete
  * fixture lesson validates and passes the publish gate; the two islands are prepared for authoring. LLM-1 publishes the
- * large-language-models island (LLM01–LLM03); generative-ai stays prepared, not published.
+ * large-language-models island (LLM01–LLM03); GEN-1 publishes the generative-ai island (GEN01–GEN02).
  */
 const close = (got: number[], want: number[], digits = 6) => { expect(got).toHaveLength(want.length); got.forEach((g, i) => expect(g).toBeCloseTo(want[i], digits)); };
 const metaOf = (lessonId: string, island: LessonMeta['islandId'], outline: ReturnType<typeof llmFromBlueprint>): LessonMeta => ({
@@ -31,6 +32,8 @@ const metaOf = (lessonId: string, island: LessonMeta['islandId'], outline: Retur
 const meta = metaOf('LLM02', 'large-language-models', llmFromBlueprint('LLM02', '用 BPE 合併規則把中文與英文切成 token，並估算費用（測試用大綱）。', 50));
 
 // ---- token-explorer -------------------------------------------------------------------------------------------------
+validateTerminalLessonsFirst();
+
 describe('byte-level BPE', () => {
   const table = tokenizer().table;
   it('reads text as UTF-8 bytes: one CJK character is three bytes', () => {
@@ -362,12 +365,13 @@ describe('the large-language-models island: prepared in LLM-0, written in batche
     // LLM-1: one unit, LLM01–LLM03.
     expect(UNITS['large-language-models'][0]).toMatchObject({ title: '語言模型如何讀寫文字', lessonIds: ['LLM01', 'LLM02', 'LLM03'] });
     expect(UNITS['large-language-models'].flatMap(u => u.lessonIds)).toEqual(written.map(l => l.lessonId));
-    // Every written lesson has its content and its page; only LLM lessons declare llm-explorer.
+    // Every written lesson has its content and its page; only LLM and (from GEN-1) GEN lessons declare llm-explorer.
     for (const l of written) {
       expect(curriculum.contents[l.lessonId]?.llm, l.lessonId).toBeDefined();
       expect(getLessonBySlug(l.slug)?.lessonId, l.slug).toBe(l.lessonId);
     }
-    expect(lessons.filter(l => l.capabilities.includes('llm-explorer')).map(l => l.lessonId)).toEqual(written.map(l => l.lessonId));
+    const generative = lessons.filter(l => l.islandId === 'generative-ai');
+    expect(lessons.filter(l => l.capabilities.includes('llm-explorer')).map(l => l.lessonId)).toEqual([...written, ...generative].map(l => l.lessonId));
     const outline = lessonsOfIsland('large-language-models');
     expect(outline.map(l => l.lessonId)).toEqual(Array.from({ length: 25 }, (_, i) => `LLM${String(i + 1).padStart(2, '0')}`));
     expect(outline.slice(0, written.length).every(l => l.lessonStatus === 'complete' && l.href === `/curriculum/${l.slug}`)).toBe(true);
@@ -384,28 +388,41 @@ describe('the large-language-models island: prepared in LLM-0, written in batche
   });
 });
 
-describe('the generative-ai island: prepared in LLM-0, not published', () => {
-  it('is registered for authoring with its prefix and no units, lessons or pages', () => {
-    // WEB-1 moved the web foundations island (prepared in WEB-0) to ISLAND_IDS, so generative-ai is the one prepared island.
-    expect(PREPARED_ISLAND_IDS).toEqual(['generative-ai']);
-    expect(ISLAND_IDS as readonly string[]).not.toContain('generative-ai');
+describe('the generative-ai island: prepared in LLM-0, published from GEN-1', () => {
+  it('is a curriculum island after large-language-models with its first lessons written in id order and in its units; the rest stay planned outlines without a page', () => {
+    // GEN-1 moved generative-ai (prepared in LLM-0) to ISLAND_IDS, so no island is prepared for authoring now.
+    expect(PREPARED_ISLAND_IDS).toEqual([]);
+    expect(ISLAND_IDS).toContain('generative-ai');
+    expect(ISLAND_IDS.indexOf('generative-ai')).toBe(ISLAND_IDS.indexOf('large-language-models') + 1);
     expect(ISLAND_PREFIX['generative-ai']).toBe('GEN');
-    expect(UNITS['generative-ai']).toEqual([]);
-    expect(lessons.filter(l => l.islandId === 'generative-ai')).toEqual([]);
-    expect(lessonsOfIsland('generative-ai')).toHaveLength(20);
-    for (const l of lessonsOfIsland('generative-ai')) {
+    const written = lessons.filter(l => l.islandId === 'generative-ai');
+    expect(written.map(l => l.lessonId)).toEqual(written.map((_, i) => `GEN${String(i + 1).padStart(2, '0')}`));
+    expect(written.length).toBeGreaterThanOrEqual(2);
+    // GEN-1: one unit, GEN01–GEN02.
+    expect(UNITS['generative-ai'][0]).toMatchObject({ title: '生成模型與自回歸生成', lessonIds: ['GEN01', 'GEN02'] });
+    expect(UNITS['generative-ai'].flatMap(u => u.lessonIds)).toEqual(written.map(l => l.lessonId));
+    // Every written lesson has its content and its page; GEN02's blueprint exercise is code-python, so it pairs Python with its explorer.
+    for (const l of written) {
+      expect(curriculum.contents[l.lessonId]?.llm, l.lessonId).toBeDefined();
+      expect(getLessonBySlug(l.slug)?.lessonId, l.slug).toBe(l.lessonId);
+    }
+    expect(written.slice(0, 2).map(l => [l.lessonId, l.capabilities, l.activity, l.supportedLanguages])).toEqual([
+      ['GEN01', ['llm-explorer'], 'sampling-explorer', []],
+      ['GEN02', ['python-code', 'llm-explorer'], 'sampling-explorer', ['Python']],
+    ]);
+    const outline = lessonsOfIsland('generative-ai');
+    expect(outline.map(l => l.lessonId)).toEqual(Array.from({ length: 20 }, (_, i) => `GEN${String(i + 1).padStart(2, '0')}`));
+    expect(outline.slice(0, written.length).every(l => l.lessonStatus === 'complete' && l.href === `/curriculum/${l.slug}`)).toBe(true);
+    for (const l of outline.slice(written.length)) {
       expect(l.lessonStatus, l.lessonId).toBe('planned');
       expect(l.href, l.lessonId).toBeUndefined();
       expect(getLessonBySlug(l.slug), l.slug).toBeUndefined();
     }
-    expect(getIsland('generative-ai')).toMatchObject({ status: 'planned' });
+    // Its lessons open on their own; its 3D landscape stays the planned one (IslandConfig.mapState, set by hand).
+    expect(getIsland('generative-ai')).toMatchObject({ status: written.length < 20 ? 'available' : 'complete', mapState: 'planned' });
   });
-  it('refuses a written lesson until the island moves to ISLAND_IDS; the curriculum stays valid', () => {
+  it('leaves the curriculum valid', () => {
     expect(validateCurriculum(curriculum)).toEqual([]);
-    const gen = metaOf('GEN01', 'generative-ai', llmFromBlueprint('GEN01', '以玩具模型比較取樣設定如何改變生成的文字（測試用大綱）。', 45));
-    expect(gen).toMatchObject({ activity: 'sampling-explorer', capabilities: ['llm-explorer'] });
-    const problems = validateCurriculum({ ...curriculum, lessons: [...lessons, gen], contents: { ...curriculum.contents, GEN01: { ...llmLesson(), lessonId: 'GEN01' as LessonContent['lessonId'] } } });
-    expect(problems.join('\n')).toMatch(/GEN01: generative-ai is prepared for authoring, not a curriculum island yet/);
   });
 });
 

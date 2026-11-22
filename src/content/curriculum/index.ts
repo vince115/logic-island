@@ -151,6 +151,8 @@ import { SRV14 } from './content/SRV14';
 import { LLM01 } from './content/LLM01';
 import { LLM02 } from './content/LLM02';
 import { LLM03 } from './content/LLM03';
+import { GEN01 } from './content/GEN01';
+import { GEN02 } from './content/GEN02';
 import { WEB01 } from './content/WEB01';
 import { WEB02 } from './content/WEB02';
 import { WEB03 } from './content/WEB03';
@@ -211,7 +213,7 @@ export const curriculum: Curriculum = {
     LNX01, LNX02, LNX03, LNX04, LNX05, LNX06, LNX07,
     LNX08, LNX09, LNX10, LNX11, LNX12, LNX13, LNX14, LNX15,
     SRV01, SRV02, SRV03, SRV04, SRV05, SRV06, SRV07, SRV08, SRV09, SRV10, SRV11, SRV12, SRV13, SRV14,
-    LLM01, LLM02, LLM03, WEB01, WEB02, WEB03, WEB04, WEB05, WEB06, WEB07,
+    LLM01, LLM02, LLM03, GEN01, GEN02, WEB01, WEB02, WEB03, WEB04, WEB05, WEB06, WEB07,
     WEB08, WEB09, WEB10, WEB11, WEB12, WEB13, WEB14, WEB15 },
 };
 
