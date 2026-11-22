@@ -83,8 +83,8 @@
     },
     "web-foundations": {
       "capability": "web-code (HTML, CSS and JavaScript pages in a sandboxed frame beside the DOM the browser built; exercises checked by steps on that page, verified in Chromium)",
-      "status": "prepared",
-      "note": "WEB-0 built the capability (checks: count, text, attr, style, box, value, label, headings, focus, console, submitted, navigated, doctype; loop guard); WEB-1 to WEB-5 add engine stages W1–W6 as lessons need them (WEB0_WEB_CODE_CAPABILITY.md)"
+      "status": "ready",
+      "note": "WEB-1 published WEB01–WEB04; later lessons publish in id order. WEB-0 built the capability (checks: count, text, attr, style, box, value, label, headings, focus, console, submitted, navigated, doctype; loop guard); WEB-1 to WEB-5 add engine stages W1–W6 as lessons need them (WEB0_WEB_CODE_CAPABILITY.md)"
     },
     "frontend": {
       "capability": "web-code + state-flow trace",

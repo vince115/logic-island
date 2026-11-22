@@ -576,6 +576,14 @@ const largeLanguageModels: Outline[] = [
   llmFromBlueprint('LLM03', '從零學會向量的內積、長度與餘弦相似度，分辨語言模型內依 token ID 查表的 embedding 表與為整段文字算出一個向量的句子 embedding 模型，用最近鄰在示意的句子空間中找出語意最接近的句子，比較向量沒有正規化時內積與餘弦的排名差異，並看懂 2D PCA 投影保留與失去的資訊。', 50),
 ];
 
+/** WEB-1 (2026-11-23): the web foundations island's first lessons, written with the web-code capability (WEB0_WEB_CODE_CAPABILITY.md). */
+const webFoundations: Outline[] = [
+  webFromBlueprint('WEB01', '用同一個「小島圖書館」頁面依序加上 HTML、CSS 與 JavaScript，分清內容、外觀與行為的分工，走一遍瀏覽器從網址、解析 HTML 建立 DOM、計算樣式、版面配置到繪製的頁面載入流程，看懂原始碼與 DOM 為何不同，並用開發者工具的 Elements、Console 與 Network 面板檢查網頁。', 40),
+  webFromBlueprint('WEB02', '寫出含 DOCTYPE、lang、charset 與 title 的文件骨架，分清元素、標籤、屬性與巢狀規則，用 header、nav、main、article、section、aside、footer 取代無意義的 div，並以不跳級的 h1–h6 標題層級與地標區域，讓頁面不靠外觀也讀得出結構。', 45),
+  webFromBlueprint('WEB03', '用 em、strong、清單與 blockquote 標出文字的意義，以 a 與 href 寫出文字清楚的連結與頁內錨點，分辨相對與絕對路徑並安全地另開分頁，為圖片寫替代文字、標出 width 與 height、加上圖說，再用 audio、video、source 與 track 嵌入影音並提供字幕。', 45),
+  webFromBlueprint('WEB04', '用 form、name 與送出按鈕組成表單並讀懂送出的資料，以 label 關聯每個欄位，依資料選擇 email、number、date、radio、select 等輸入類型，再用 required、min／max、pattern 等原生驗證屬性讓瀏覽器擋下漏填與格式錯誤，並確認表單只靠鍵盤也能填寫與送出。', 50),
+];
+
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */
 function idAt(islandId: (typeof ISLAND_IDS)[number], index: number, blueprintId?: string): LessonId {
   const id = `${ISLAND_PREFIX[islandId]}${String(index + 1).padStart(2, '0')}` as LessonId;
@@ -585,7 +593,7 @@ function idAt(islandId: (typeof ISLAND_IDS)[number], index: number, blueprintId?
 /** F, D and A are taught in the program languages: every lesson there declares program-code. */
 const program = (list: Omit<Outline, 'capabilities'>[]): Outline[] => list.map(o => ({ ...o, capabilities: ['program-code'] }));
 const outlines: Record<(typeof ISLAND_IDS)[number], Outline[]> = {
-  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages, networks, 'ai-foundations': aiFoundations, 'linux-systems': linuxSystems, 'network-servers': networkServers, 'large-language-models': largeLanguageModels };
+  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages, networks, 'ai-foundations': aiFoundations, 'large-language-models': largeLanguageModels, 'web-foundations': webFoundations, 'linux-systems': linuxSystems, 'network-servers': networkServers };
 
 /** Every lesson the blueprint outlines, written or not (validateCurriculum's recommended-lesson check). */
 export const outlinedLessonIds: readonly string[] = planning.plannedLessons.map(l => l.lessonId);

@@ -54,7 +54,7 @@ webCode: {
 | `click` | 聚焦並點擊（連結、送出按鈕、核取方塊的預設行為都會發生） |
 | `input`、`select` | 設定欄位的值，觸發 `input` 與 `change` |
 | `check` | 讓核取方塊或選項按鈕成為指定狀態（需要時點擊） |
-| `key` | 在元素上觸發 `keydown`、`keyup`；指令稿產生的鍵盤事件沒有預設行為，所以模擬最常用的兩種：Enter／Space 啟動按鈕、單行欄位裡的 Enter 送出表單 |
+| `key` | 在元素上觸發 `keydown`、`keyup`；指令稿產生的鍵盤事件沒有預設行為，所以模擬最常用的兩種：Enter／Space 啟動按鈕；欄位裡的 Enter 依瀏覽器的隱式送出規則送出表單（WEB-1：表單有送出按鈕時經由第一個送出按鈕，按鈕停用就不送出；沒有送出按鈕時，只有單一單行欄位的表單會送出） |
 | `submit` | 和送出按鈕相同的 `requestSubmit`（先原生驗證，再 `submit` 事件） |
 | `wait` | 讓計時器執行（每步最多 1000 ms，全部最多 3000 ms） |
 
@@ -86,7 +86,7 @@ webCode: {
 
 文件由 `webDocument(files, nonce)` 組成：harness 指令稿放在 `head` 的最前面（在 doctype 之後、在頁面任何程式之前），執行後把自己和 CSP 的 `<meta>` 從 DOM 移除，所以 DOM 樹就是頁面自己的樣子（`script` 的個數、`head` 的子元素都不受影響）。它負責：
 
-- 記錄 `console.log／info／warn／error`、未捕捉的錯誤與被拒絕的 Promise；值的顯示方式固定（字串原樣、物件與陣列以 JSON、元素以 `<tag#id.class>`）。
+- 記錄 `console.log／info／warn／error`、未捕捉的錯誤與被拒絕的 Promise；值的顯示方式固定（字串原樣、物件與陣列以 JSON、元素以 `<tag#id.class>`）。未捕捉的錯誤與被拒絕的 Promise 會標成已處理（WEB-1）：它們是頁面自己的事，只顯示在頁面的主控台，不會算在承載框架的課程頁上（`console.log`、`console.error` 仍會出現在瀏覽器的開發者工具）。
 - 攔截連結與表單送出（§2）。
 - 回報 DOM 的大綱（標籤、id、class、其他屬性、自己的文字；最多 200 個元素），預覽中 DOM 或主控台改變時再回報一次。
 - 執行父頁面送來的步驟，回傳每一步的原始結果；訊息文字由 `judge()` 在父頁面產生。
@@ -128,6 +128,8 @@ Chromium 是 Playwright 的 headless Chromium，頁面的載入方式和課程�
 - 框架沒有 `localStorage` 與 Cookie（不透明來源）；WEB12 需要記憶體中的替代品，是之後的引擎階段。
 - 迴圈保護不涵蓋行內事件屬性、無窮遞迴的 Promise 與 `for…of` 無限的產生器；這些情況仍可能讓分頁沒有回應，重新整理即可。
 - 鍵盤操作是指令稿產生的事件，只模擬 §3 列出的預設行為；Tab 移動焦點不模擬。
+- `input` 操作以程式設定欄位的值：瀏覽器只對使用者親手輸入的文字套用 `minlength`／`maxlength` 的驗證，所以這兩個屬性無法用檢查重現。
+- `navigated` 比對的是連結上寫的 `href`，不解析相對路徑；捲動位置沒有檢查。
 
 ## 9. 之後的引擎階段（依課程需要，向下相容）
 

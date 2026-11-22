@@ -365,6 +365,19 @@
     },
     {
       "id": 26,
+      "date": "2026-11-23",
+      "lessons": [
+        "WEB01",
+        "WEB02",
+        "WEB03",
+        "WEB04"
+      ],
+      "commit": "TBD",
+      "tests": "驗證器、發布閘門 173/173、TypeScript、ESLint、Vitest 131 檔 3672 passed／9 skipped（含 Chromium：四堂課的每個範例、參考解答、起始內容與常見錯誤）、Production build、E2E 桌機＋手機旗標關 449 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；e2e/webcode-lessons.spec.ts 在課程頁上把 16 個練習各做一遍）、測驗 32 題逐題複核、洩漏掃描",
+      "notes": "WEB-1：網頁基礎島前四課（web-code 能力，WEB-0 PR #71）：網頁如何運作、HTML 文件結構與語意元素、文字連結圖片與媒體、表單元素與原生驗證；每課 5 個可修改的頁面範例、4 個以瀏覽器結果檢查的練習、8 題測驗。同批引擎調整：框架內未捕捉的錯誤只顯示在頁面自己的主控台、Enter 的隱式送出依瀏覽器規則（有送出按鈕才經由它送出）、srcdoc 框架一律標準模式的說明。網頁與應用開發群島第一次有已開放的課，mapState 維持 planned"
+    },
+    {
+      "id": 27,
       "date": "2026-11-22",
       "lessons": [
         "LLM01",

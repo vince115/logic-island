@@ -80,8 +80,11 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '語言模型如何讀寫文字', summary: '逐一預測下一個 token、greedy、temperature、top-k 與 top-p 取樣、基礎模型、指令模型與推理模型、上下文視窗、知識截止與幻覺；BPE 子詞斷詞、UTF-8 位元組、token ID、特殊 token 與費用；embedding 向量、內積、餘弦相似度、最近鄰與 2D 投影', lessonIds: range('LLM', 1, 3) },
   ],
   'generative-ai': [],
-  // WEB-0 (2026-11-23): the web foundations island is prepared for authoring; its units come with its first lessons.
-  'web-foundations': [],
+  // WEB-1 (2026-11-23): the web foundations island's first unit.
+  'web-foundations': [
+    { title: '網頁如何運作與 HTML 結構', summary: 'HTML、CSS 與 JavaScript 的分工、頁面載入流程、DOM 與開發者工具；文件骨架、語意元素、地標區域與標題層級', lessonIds: range('WEB', 1, 2) },
+    { title: '內容與表單', summary: '文字的語意、連結與錨點、相對與絕對路徑、圖片的替代文字與尺寸、影音與字幕；表單控制項、label 關聯、輸入類型與原生驗證', lessonIds: range('WEB', 3, 4) },
+  ],
   // CN-1 to CN-5: the whole island, CN01–CN20.
   networks: [
     { title: '分層模型與實體層', summary: '網路為什麼分層、OSI 與 TCP/IP、封裝與 PDU；訊號與媒介、頻寬、延遲、吞吐量與頻寬延遲乘積', lessonIds: range('CN', 1, 2) },

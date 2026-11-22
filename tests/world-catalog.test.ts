@@ -11,7 +11,7 @@ import { BLUEPRINT, readJson } from '../scripts/planning-data.mjs';
 const mutate = (id: string, change: Partial<CatalogLesson>) => catalogLessons.map(l => l.lessonId === id ? { ...l, ...change } : l);
 
 /** Islands whose lessons the curriculum writes from the blueprint's outlines (F.1a; course production batch 1 for PL). */
-const FROM_BLUEPRINT = ['databases', 'programming-languages', 'networks', 'ai-foundations', 'linux-systems', 'network-servers', 'large-language-models'];
+const FROM_BLUEPRINT = ['databases', 'programming-languages', 'networks', 'ai-foundations', 'linux-systems', 'network-servers', 'large-language-models', 'web-foundations'];
 
 describe('lesson catalog (F.0)', () => {
   it('passes its own rules and the world rules', () => {
@@ -48,9 +48,9 @@ describe('lesson catalog (F.0)', () => {
 
   it('keeps the 60 lessons exactly as the curriculum has them, which is also what the blueprint references', () => {
     const complete = catalogLessons.filter(l => l.lessonStatus === 'complete');
-    // The catalog lists lessons region by region (catalog.ts), the curriculum in ISLAND_IDS order. LLM-1: the AI region's
-    // large-language-models island joined ISLAND_IDS last, but its lessons come before the sys region's LNX and SRV here.
-    const inRegionOrder = ['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'large-language-models', 'linux-systems', 'network-servers'];
+    // The catalog lists lessons region by region (catalog.ts): cs, ai, design, web, sys. ISLAND_IDS now follows the same
+    // order (LLM-1 after AI foundations, WEB-1 before the systems islands).
+    const inRegionOrder = ['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'large-language-models', 'web-foundations', 'linux-systems', 'network-servers'];
     expect([...inRegionOrder].sort()).toEqual([...new Set(lessons.map(l => l.islandId))].sort());
     const ordered = inRegionOrder.flatMap(id => lessons.filter(l => l.islandId === id));
     expect(complete.map(l => l.lessonId)).toEqual(ordered.map(l => l.lessonId));

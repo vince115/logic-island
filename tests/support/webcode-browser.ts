@@ -10,7 +10,14 @@ import { WEB_LIMITS, WEB_SANDBOX, webDocument, type WebRun, type WebRunner } fro
  * installed, the browser tests are skipped and reported as Not Executed, like the Java cases without a JDK
  * (`pnpm exec playwright install chromium` installs it).
  */
-export interface WebBrowser { run: WebRunner; /** Runs one frame job as given (the tests use it for a frame that never answers). */ job: (job: FrameJob) => Promise<WebRun>; close: () => Promise<void> }
+export interface WebBrowser {
+  run: WebRunner;
+  /** Runs one frame job as given (the tests use it for a frame that never answers). */
+  job: (job: FrameJob) => Promise<WebRun>;
+  /** Uncaught errors the browser reported against the page that hosts the frames (a lesson page must stay clean). */
+  hostErrors: () => string[];
+  close: () => Promise<void>;
+}
 
 export async function openWebBrowser(): Promise<WebBrowser | null> {
   let browser: Browser;
@@ -21,10 +28,12 @@ export async function openWebBrowser(): Promise<WebBrowser | null> {
   }
   // A page that blocks its thread (a loop the guard could not reach) would never answer: after a hard limit the browser is
   // replaced, so one bad page fails its own test only.
+  const hostErrors: string[] = [];
   const open = async (b: Browser): Promise<Page> => {
     const context = await b.newContext({ offline: true, viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
     const page = await context.newPage();
     await page.setContent('<!DOCTYPE html><html lang="zh-Hant"><head><title>web-code checks</title></head><body><button id="parent">parent</button></body></html>');
+    page.on('pageerror', error => hostErrors.push(error.message));
     return page;
   };
   let page = await open(browser);
@@ -43,5 +52,5 @@ export async function openWebBrowser(): Promise<WebBrowser | null> {
     const nonce = `t${++serial}x${Math.random().toString(16).slice(2)}`;
     return job({ sandbox: WEB_SANDBOX, srcdoc: webDocument(files, nonce), nonce, steps, width: viewport.width, height: viewport.height, timeoutMs: WEB_LIMITS.timeoutMs });
   };
-  return { run, job, close: () => browser.close() };
+  return { run, job, hostErrors: () => [...hostErrors], close: () => browser.close() };
 }

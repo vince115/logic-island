@@ -117,7 +117,7 @@ describe('world registry (F.0)', () => {
     expect(labIslandConfig.labs).toEqual(['array', 'stack', 'queue', 'binary-search', 'bubble-sort', 'bfs']);
   });
 
-  it('marks the three existing islands, the database island (F.1d), PL (course production batches 1–5) CN (CN-1 to CN-5) AIF (AIF-1 to AIF-5) LNX (LNX-1 to LNX-5) and SRV (SRV-1 to SRV-5) complete, LLM open (LLM-1) and the other nineteen planned', () => {
+  it('marks the three existing islands, the database island (F.1d), PL (course production batches 1–5) CN (CN-1 to CN-5) AIF (AIF-1 to AIF-5) LNX (LNX-1 to LNX-5) and SRV (SRV-1 to SRV-5) complete, LLM open (LLM-1), WEB open (WEB-1), and the other eighteen planned', () => {
     expect(subjectIslands.filter(i => i.status === 'complete').map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'linux-systems', 'network-servers']);
     // Course production batch 5 published PL20, the last of 20: every PL lesson is written, but its map stays planned
     // (an island's 3D look is set by hand in IslandConfig.mapState, never by its lessons).
@@ -125,19 +125,21 @@ describe('world registry (F.0)', () => {
     // AIF-5 published AIF20, the last of 20: the AI foundations island is complete; its map stays planned too.
     // LNX-5 published LNX15, the last of 15: the Linux systems island is complete; its map stays planned too.
     // SRV-5 published SRV14, the last of 14: the network and servers island is complete; its map stays planned too.
-    // LLM-1 published LLM01–LLM03 of 25: the island is open (available); its map stays planned.
-    expect(subjectIslands.filter(i => i.status === 'available').map(i => i.id)).toEqual(['large-language-models']);
+    // LLM-1 published LLM01–LLM03 of 25 and WEB-1 published WEB01–WEB04 of 15: both islands are open (available); their maps stay planned.
+    expect(subjectIslands.filter(i => i.status === 'available').map(i => i.id)).toEqual(['large-language-models', 'web-foundations']);
     expect(getIsland('large-language-models')).toMatchObject({ status: 'available', mapState: 'planned' });
+    expect(getIsland('web-foundations')).toMatchObject({ status: 'available', mapState: 'planned' });
     expect(getIsland('network-servers')).toMatchObject({ status: 'complete', mapState: 'planned' });
     expect(getIsland('linux-systems')).toMatchObject({ status: 'complete', mapState: 'planned' });
     expect(getIsland('ai-foundations')).toMatchObject({ status: 'complete', mapState: 'planned' });
     expect(getIsland('programming-languages')).toMatchObject({ status: 'complete', mapState: 'planned' });
     expect(getIsland('networks')).toMatchObject({ status: 'complete', mapState: 'planned' });
-    expect(subjectIslands.filter(i => i.status === 'planned')).toHaveLength(19);
+    expect(subjectIslands.filter(i => i.status === 'planned')).toHaveLength(18);
     expect(regionStatus('design')).toBe('planned');
     // LNX-1: the systems region has its first open island.
     expect(regionStatus('sys')).toBe('available');
-    expect(regionStatus('web')).toBe('planned');
+    // WEB-1: the web region has its first open island.
+    expect(regionStatus('web')).toBe('available');
     for (const island of subjectIslands.filter(i => i.status === 'planned')) expect(island.entryPoints, island.id).toEqual([]);
     expect(getIsland('databases')?.entryPoints.map(e => e.target)).toEqual(['/curriculum#island-databases', '/curriculum/database-concepts']);
     expect(DB_OPEN).toBeGreaterThan(0);
@@ -153,7 +155,7 @@ describe('world registry (F.0)', () => {
   });
 
   it('gives the curriculum the same three islands as before, then the database island (F.1a), PL (batch 1) and CN (CN-1)', () => {
-    expect(curriculumIslands.map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'linux-systems', 'network-servers', 'large-language-models']);
+    expect(curriculumIslands.map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'large-language-models', 'web-foundations', 'linux-systems', 'network-servers']);
     expect(curriculumIslands.find(i => i.id === 'databases')).toMatchObject({ name: '資料庫應用島', englishName: 'Database Applications', summary: planning.islands.databases.description });
     expect(curriculumIslands.find(i => i.id === 'programming-languages')).toMatchObject({ name: planning.islands['programming-languages'].name, summary: planning.islands['programming-languages'].description });
     expect(curriculumIslands.slice(0, 3)).toEqual([

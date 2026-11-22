@@ -80,6 +80,7 @@
 | SRV-0（架構） | — | 網路與伺服器島登錄為預備島嶼，沿用 `terminal` 與 `network-protocol` 能力（`serverFromBlueprint`）；引擎階段 E10–E12（`sockets`、`dns`、`http`）先完成（[SRV0_SERVER_CAPABILITY](SRV0_SERVER_CAPABILITY.md)）；SRV-1 至 SRV-5 依引擎階段 E10–E19 依序發布 |
 | LLM-0（架構） | — | 大型語言模型島與生成式 AI 島登錄為預備島嶼；新能力 `llm-explorer`：位元組層級 BPE（`token-explorer`）、錄好的玩具模型與 temperature／top-k／top-p／種子取樣（`sampling-explorer`）、手寫向量與 PCA（`embedding-space`），練習以數值比對（`llmFromBlueprint`，[LLM0_LANGUAGE_MODEL_CAPABILITY](LLM0_LANGUAGE_MODEL_CAPABILITY.md)）；LLM-1 為 LLM01–LLM03，GEN-1 為 GEN01 |
 | WEB-0（架構） | — | `web-code` 能力（沙盒框架裡的 HTML、CSS、JavaScript 頁面，以瀏覽器建立的結果檢查的練習，迴圈保護）、網頁基礎島登錄為預備島嶼（[WEB0_WEB_CODE_CAPABILITY](WEB0_WEB_CODE_CAPABILITY.md)）；WEB-1 至 WEB-5 依引擎階段 W1–W6 依序發布 |
+| WEB-1（見 [WEB_FOUNDATIONS_ISLAND](WEB_FOUNDATIONS_ISLAND.md)） | WEB01–04 | 網頁如何運作、HTML 結構與語意、文字連結圖片與媒體、表單與原生驗證；網頁與應用開發群島第一次有已開放的課 |
 | 之後 | 依 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 自動選擇 | 先修已滿足、能力已備妥、解鎖其他島最多的島優先；缺少的共用能力先做最小可用版本 |
 
 進度記錄在 [COURSE_PRODUCTION_PROGRESS](COURSE_PRODUCTION_PROGRESS.md)。

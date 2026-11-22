@@ -10,10 +10,9 @@ import { validateTerminalLessonsFirst } from './support/terminal-replays';
 import { webContent } from './support/webcode-fixture';
 
 /*
- * WEB-0: the web-code capability and the web-foundations island prepared for authoring. A synthetic web lesson built from
- * the blueprint validates with pages and exercises; web-code content needs the web-code capability and the reverse; no
- * existing capability or published lesson changes; nothing of the island is published until it joins ISLAND_IDS with its
- * first written lesson. Whether pages behave as stated is tests/webcode-runner.test.ts and tests/curriculum-webcode.test.ts.
+ * WEB-0: the web-code capability and the web-foundations island (prepared for authoring in WEB-0, a curriculum island
+ * since WEB-1). A synthetic web lesson built from the blueprint validates with pages and exercises; web-code content
+ * needs the web-code capability and the reverse; no other capability or island's lesson changes. Whether pages behave as stated is tests/webcode-runner.test.ts and tests/curriculum-webcode.test.ts.
  */
 const outline = webFromBlueprint('WEB02', '寫出結構正確的 HTML 文件並用語意元素安排內容（測試用大綱）。', 45);
 const meta: LessonMeta = {
@@ -104,28 +103,32 @@ describe('isolation from the other capabilities', () => {
   });
   it('keeps every other lesson as it was and the curriculum valid', () => {
     expect(validateCurriculum(curriculum)).toEqual([]);
+    // WEB-1: only the web foundations island's lessons use the web-code capability.
     for (const l of lessons) {
       const web = l.islandId === 'web-foundations';
       expect(l.capabilities.includes('web-code'), l.lessonId).toBe(web);
-      expect(l.activity === 'dom-explorer', l.lessonId).toBe(false);
+      // WEB11 (fetch) pairs its pages with a network scene and WEB15 is the capstone: their activities differ.
+      expect(l.activity === 'dom-explorer', l.lessonId).toBe(web && !['WEB11', 'WEB15'].includes(l.lessonId));
       expect(!!curriculum.contents[l.lessonId]?.webCode, l.lessonId).toBe(web);
     }
   });
 });
 
-describe('the web-foundations island: prepared for authoring, not published', () => {
-  it('has its prefix and capability, and no lesson, unit, page or change on the map yet', () => {
-    expect(PREPARED_ISLAND_IDS).toContain('web-foundations');
+describe('the web-foundations island: prepared in WEB-0, written in batches from WEB-1', () => {
+  it('is a curriculum island with its first lessons written in id order; the rest stay planned outlines without a page', () => {
+    expect(PREPARED_ISLAND_IDS).not.toContain('web-foundations');
     expect(ISLAND_PREFIX['web-foundations']).toBe('WEB');
-    expect(ISLAND_IDS).not.toContain('web-foundations');
-    expect(lessons.filter(l => l.islandId === 'web-foundations')).toEqual([]);
-    expect(UNITS['web-foundations']).toEqual([]);
+    expect(ISLAND_IDS).toContain('web-foundations');
+    const written = lessons.filter(l => l.islandId === 'web-foundations');
+    expect(written.map(l => l.lessonId)).toEqual(written.map((_, i) => `WEB${String(i + 1).padStart(2, '0')}`));
+    expect(written.length).toBeGreaterThanOrEqual(4);
+    expect(UNITS['web-foundations'].flatMap(u => u.lessonIds)).toEqual(written.map(l => l.lessonId));
     expect(lessonsOfIsland('web-foundations')).toHaveLength(15);
-    expect(lessonsOfIsland('web-foundations').every(l => l.lessonStatus === 'planned' && !l.href)).toBe(true);
-    expect(getIsland('web-foundations')).toMatchObject({ status: 'planned', mapState: 'planned' });
+    expect(lessonsOfIsland('web-foundations').slice(written.length).every(l => l.lessonStatus === 'planned' && !l.href)).toBe(true);
+    expect(getIsland('web-foundations')).toMatchObject({ status: written.length < 15 ? 'available' : 'complete', mapState: 'planned' });
   });
-  it('refuses a web lesson until the island joins the curriculum', () => {
-    const problems = validateCurriculum({ ...curriculum, lessons: [...lessons, meta], contents: { ...curriculum.contents, WEB02: content() } }).join('\n');
-    expect(problems).toMatch(/WEB02: web-foundations is prepared for authoring, not a curriculum island yet/);
+  it('accepts the synthetic web lesson only in its own place', () => {
+    // WEB02 is written: a second lesson with the same id is refused.
+    expect(validateCurriculum({ ...curriculum, lessons: [...lessons, meta], contents: { ...curriculum.contents, WEB02: content() } }).join('\n')).not.toBe('');
   });
 });
