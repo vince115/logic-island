@@ -40,6 +40,8 @@ WEB-1 的結果（隔離副本，旗標關，JDK 在 PATH）：TypeScript 與 ES
 
 RWD-1 的結果（隔離副本，旗標關，JDK 在 PATH，併入 main `5e4f35f` 之後）：TypeScript 與 ESLint 通過；Vitest **134 檔、3828 passed／9 skipped**；Production build 通過；E2E 桌機＋手機 **483 passed／2 failed／297 skipped**，兩個失敗是 `e2e/candidate-integration.spec.ts` 的候選頁像素比對（D.3-5c、D.3-6d），為 main 既有的回歸（#36）。過程中 E2E 先後找到三個只在真正的課程頁出現的問題，都已修正並補上測試：減少動態規則讓 `resize` 晚一個畫格生效、預覽寬度少 2px（框線）、實驗頁漏列已發布的 RWD 課。
 
+RWD-2 的結果（`rwd/2-batch-2`，疊在 RWD-1 上，隔離副本，旗標關）：TypeScript 與 ESLint 通過；Vitest **134 檔、3836 passed／9 skipped**；Production build 通過；E2E 桌機＋手機 **491 passed／2 failed／297 skipped**（兩個失敗同上，#36）。沒有新增引擎。
+
 ## Private Vitest Runner（2026-11-22，分支 `trials/private-test-runner`）
 
 用法與選項：`docs/exam-system/34_T3J_PRIVATE_BANK_AND_CI_ACTIVATION.md` 第 2 節。**以下是本機隔離 checkout 的結果，不是 CI：公開 CI 沒有私有題庫，也不執行這個 Runner。**

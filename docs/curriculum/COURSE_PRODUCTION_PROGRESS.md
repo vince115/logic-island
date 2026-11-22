@@ -50,7 +50,7 @@
 | 31 | 2026-11-23 | WEB14、WEB15 | `TBD` | #77 | `9fbf05d` | 驗證器、發布閘門、TypeScript、ESLint、Vitest（併入 main 之前的 WEB-5 樹：131 檔 3696 passed／9 skipped，含 Chromium：十五堂網頁課的每個頁面）、Production build、E2E 桌機＋手機旗標關 471 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上 61 個練習各做一遍）；併入 main（LLM-1）後重跑 TypeScript、ESLint、完整 Vitest 與 E2E、測驗 16 題逐題複核、洩漏掃描 |
 | 32 | 2026-11-23 | GEN01、GEN02 | `TBD` | — | 未合併 | TBD |
 | 33 | 2026-11-23 | RWD01、RWD02、RWD03、RWD04 | `TBD` | #79 | 未合併 | 驗證器、發布閘門、TypeScript、ESLint、Vitest 134 檔 3828 passed／9 skipped（併入 main 的 GEN-1 之後；含 Chromium：23 堂網頁課的每個範例、參考解答、起始內容與常見錯誤，各在一般與傳統捲軸的瀏覽器跑一遍；resize、預覽寬度、捲軸與站台減少動態規則的測試）、Production build、E2E 桌機＋手機旗標關 483 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上每個練習各做一遍，含多個寬度的檢查；預覽寬度、實驗頁的課程連結）、測驗 32 題逐題複核、洩漏掃描 |
-| 34 | 2026-11-23 | RWD05、RWD06、RWD07、RWD08 | `TBD` | — | 未合併 | __TESTS__ |
+| 34 | 2026-11-23 | RWD05、RWD06、RWD07、RWD08 | `TBD` | — | 未合併 | 驗證器、發布閘門、TypeScript、ESLint、Vitest 134 檔 3836 passed／9 skipped（含 Chromium：27 堂網頁課的每個範例、參考解答、起始內容與常見錯誤，各在一般與傳統捲軸的瀏覽器跑一遍）、Production build、E2E 桌機＋手機旗標關 491 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上每個練習各做一遍，含 699／700／701px 邊界的檢查；CSS Grid Playground 與 Responsive Layout Simulator 的課程連結）、測驗 32 題逐題複核、洩漏掃描 |
 
 ## 各區域與島嶼
 
