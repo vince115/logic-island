@@ -304,7 +304,8 @@ export const hostsReverse = (state: FsState, address: string) => hostsOf(state).
 
 /** A name looked up: the address, the canonical name and the other names (getent hosts prints them in this order). */
 export interface Lookup { address: string; name: string; aliases: string[] }
-export type Resolved = { state: FsState; found: Lookup } | { state: FsState; error: 'notfound' | 'tryagain' };
+/** `cached`: the local resolver answered from its cache without sending a query (dig's 0 msec). */
+export type Resolved = { state: FsState; found: Lookup; cached?: boolean } | { state: FsState; error: 'notfound' | 'tryagain' };
 /** How a command looks up a host name (files, then DNS from the dns profile up, or E7's names below it). */
 export type Resolver = (state: FsState, name: string, family: 4 | 6) => Resolved;
 

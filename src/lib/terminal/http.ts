@@ -444,13 +444,13 @@ export function curl(state0: FsState, args: readonly string[], io: NetIo): NetRe
         let lookup = 0.000012;
         if (forced) { address = forced.address; say(`* Added ${u.host}:${u.port}:${forced.address} to DNS cache`); say(`* Hostname ${u.host} was found in DNS cache`); }
         else {
-          const before = state.dns, viaHosts = !isIPv4(u.host) && !!hostsLookup(state, u.host, 4);
+          const viaHosts = !isIPv4(u.host) && !!hostsLookup(state, u.host, 4);
           const r = io.resolve(state, u.host, 4);
           state = r.state;
           if ('error' in r) { ex.exit = error(6, `Could not resolve host: ${u.host}`); break; }
           address = r.found.address;
           // An address, /etc/hosts, the resolver's cache, or a query the resolver had to send (dig's 24 msec).
-          lookup = isIPv4(u.host) ? 0.000012 : viaHosts ? 0.00018 : state.dns !== before ? 0.0243 : 0.00045;
+          lookup = isIPv4(u.host) ? 0.000012 : viaHosts ? 0.00018 : r.cached ? 0.00045 : 0.0243;
         }
         timing = { lookup, rtt: rttTo(state, address) ?? 0, tls: u.scheme === 'https', fresh: true };
         say(`*   Trying ${address}:${u.port}...`);

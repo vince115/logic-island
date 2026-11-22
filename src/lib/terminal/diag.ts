@@ -370,8 +370,8 @@ function parseFilter(words: readonly string[], resolve: (name: string) => string
     if (t[i] === '(') { i++; const e = expr(); if (t[i++] !== ')') throw syntax(); return e; }
     return primitive();
   };
-  const term = (): Filter => { let a = factor(); while (t[i] === 'and') { i++; a = { op: 'and', a, b: factor() }; } return a; };
-  const expr = (): Filter => { let a = term(); while (t[i] === 'or') { i++; a = { op: 'or', a, b: term() }; } return a; };
+  // pcap-filter: `and` and `or` have the same precedence and group from the left (`a or b and c` is `(a or b) and c`).
+  const expr = (): Filter => { let a = factor(); while (t[i] === 'and' || t[i] === 'or') { const op = t[i++] as 'and' | 'or'; a = { op, a, b: factor() }; } return a; };
   const e = expr();
   if (i < t.length) throw syntax();
   return e;

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { type FsState } from '@/lib/terminal/fs';
-import { PROXY_PROFILE, run, SCHEDULING_PROFILE, SCRIPTING_PROFILE, SERVICES_PROFILE, STREAMS_PROFILE, TUNNELS_PROFILE, type ShellProfile } from '@/lib/terminal/shell';
+import { DIAGNOSTICS_PROFILE, EDGE_PROFILE, PROXY_PROFILE, run, SCHEDULING_PROFILE, SCRIPTING_PROFILE, SERVICES_PROFILE, STREAMS_PROFILE, TUNNELS_PROFILE, type ShellProfile } from '@/lib/terminal/shell';
 import { checkTerminalExercise, machineState, terminalContentProblems, type TerminalExercise, type TerminalFile, type TerminalMachine, type TerminalRemote } from '@/lib/terminal/lesson';
 import { cronMachine, scriptMachine, svcMachine } from './support/terminal-fixture';
 import { bastion, proxyMachine, tunnelLaptop } from './support/edge-fixture';
+import { httpMachine } from './support/server-fixture';
+import { diagLaptop } from './support/cdn-fixture';
 
 /*
  * The fixes of the SRV-4 batch that lesson writers asked for (docs/curriculum/SRV0_SERVER_CAPABILITY.md §26), each from the
@@ -147,5 +149,26 @@ describe('lesson data', () => {
     expect(terminalContentProblems({ machines: [m], examples: [], exercises: [{ ...exercise, checks: [{ kind: 'output', fromCommand: '(' }] }] }).join('\n')).toContain('fromCommand is not a regular expression');
     const low = { ...exercise, variants: [{ label: 'x', files: [], upstreamConnections: [] }] };
     expect(terminalContentProblems({ machines: [{ ...streams, id: 'web-06' }], examples: [], exercises: [{ ...low, checks: [{ kind: 'output' }] }] }).join('\n')).toContain('upstreamConnections needs the proxy profile');
+  });
+});
+
+// Found by the SRV12 writer (SRV-4 integration).
+describe('curl -w time_namelookup', () => {
+  it('is a query the first time and the resolver cache after that, as dig shows 24 msec then 0 msec', () => {
+    const m: TerminalMachine = { ...httpMachine, profile: 'edge' };
+    const w = 'curl -s -o /dev/null -w "%{time_namelookup}" http://legacy.example.org/';
+    const r = session(EDGE_PROFILE, m, w, w, 'dig legacy.example.org').log;
+    expect([r[0].out, r[1].out]).toEqual([['0.024300'], ['0.000450']]);
+    expect(r[2].out).toContain(';; Query time: 0 msec');
+  });
+});
+
+describe('tcpdump filter precedence', () => {
+  it('gives and and or the same precedence and groups from the left, as pcap-filter does', () => {
+    const f = (e: string) => `tcpdump -nn -t -r /var/tmp/web.pcap '${e}'`;
+    const r = session(DIAGNOSTICS_PROFILE, diagLaptop, f('port 53 or port 80 and src host 10.0.0.12'), f('(port 53 or port 80) and src host 10.0.0.12'), f('port 53 or (port 80 and src host 10.0.0.12)')).log;
+    expect(r[0].out).toEqual(r[1].out);
+    expect(r[0].out.some(l => l.includes('.53:') || l.includes('.53 >'))).toBe(false);
+    expect(r[2].out.filter(l => l.includes('A?')).length).toBe(1);
   });
 });

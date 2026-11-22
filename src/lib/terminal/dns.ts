@@ -475,7 +475,7 @@ export const dnsResolver: Resolver = (state, name, family): Resolved => {
   const addr = a.answer.find(r => r.type === (family === 4 ? 'A' : 'AAAA'));
   if (!addr) return { state: q.state, error: 'notfound' };
   const aliases = a.answer.filter(r => r.type === 'CNAME').map(r => shownName(r.name));
-  return { state: q.state, found: { address: addr.data, name: shownName(addr.name), aliases } };
+  return { state: q.state, found: { address: addr.data, name: shownName(addr.name), aliases }, cached: q.via === 'resolved' && !!a.cached };
 };
 
 // ----------------------------------------------------------------------------------------------------- dig output
