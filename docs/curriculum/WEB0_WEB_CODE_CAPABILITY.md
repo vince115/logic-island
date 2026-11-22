@@ -31,7 +31,7 @@
 
 ```ts
 webCode: {
-  examples: [{ id, title, description, files: { html, css?, js? }, observe: WebStep[], height?, expectErrors?, viewport?, widths? }],
+  examples: [{ id, title, description, files: { html, css?, js?, sw? }, observe: WebStep[], height?, expectErrors?, viewport?, widths? }],
   exercises: [{ id, title, statement, hints, explanation,
     fixed?: { html?, css?, js? },      // 學習者不能改的檔案
     starter: { html?, css?, js? },     // 學習者要完成的檔案（一開始看到的內容）
@@ -61,6 +61,7 @@ webCode: {
 | `resize` | 把檢查頁面的視窗改成另一個寬度（240–1600，可同時指定高度 200–1200）（RWD-0）：同一份頁面在新的寬度重新排版，媒體查詢、百分比、`vw`、flex 換行、grid 的 `auto-fit` 與容器查詢都會跟著變，頁面自己的指令稿也看得到新的 `innerWidth` 與 `resize` 事件 |
 | `pointer` | 一支指標在元素上按下、移動、放開或被取消（`type: 'down' \| 'move' \| 'up' \| 'cancel'`，W9，MOB-1）：送出真正的 `PointerEvent`（`pointerId` 1、`isPrimary`、按著時 `buttons` 1），位置是元素的中心或距離左上角 `x`、`y`，`pointerType` 是 `mouse`（預設）、`touch` 或 `pen`。指標捕捉依規格模擬：按著時 `setPointerCapture` 之後的 `move`／`up`／`cancel` 都送到捕捉的元素，並觸發 `gotpointercapture`／`lostpointercapture`；手指或觸控筆已離開時呼叫會丟出 `NotFoundError`，滑鼠沒按著時呼叫沒有效果。不模擬瀏覽器接著做的事：沒有 `click`、相容用的滑鼠事件、捲動、`touch-action` 的效果，只有一支指標 |
 | `dispatch` | 在元素上觸發任何型別的事件（`mouseover`、`dblclick`、自訂事件；會冒泡，本來就不冒泡的 `mouseenter`、`focus` 等除外）（WEB-3） |
+| `network` | 拿走或還回頁面的網路（`online: false \| true`，W10，MOB-3）：離線時每個請求都失敗（`fetch` 被拒絕），不論路由怎麼寫；由 Service Worker 從快取回答的請求不受影響 |
 | `wait` | 讓頁面的計時器執行這麼久（每步最多 10000 ms，全部最多 60000 ms）；時鐘推進之後再等一個真的畫格，頁面交給 `requestAnimationFrame` 的工作會在下一項檢查之前完成（MOB-2）。檢查用的是虛擬時鐘（W2，WEB-3）：不會真的等待，計時器依時間先後、同時間依設定的先後執行，Promise 的回呼在計時器之間照常執行；第一步之前，延遲 0 的計時器已經執行過。預覽裡的計時器是真的。`Date.now()` 不是虛擬的 |
 
 | 檢查 `check` | 看什麼 |
@@ -76,6 +77,8 @@ webCode: {
 | `role` | 元素的角色（W5）：`role` 屬性，或標籤隱含的角色（`button`、有 `href` 的 `link`、`heading`、`navigation`、`textbox`、`checkbox`…；沒有角色是 `generic`） |
 | `request` | 頁面用 `fetch` 送出的請求（W3）：對某個方法與路徑至少一次（或剛好 `count` 次）；`body` 比對最後一次送出的 JSON |
 | `storage`、`cookie` | localStorage／sessionStorage 的項目、頁面讀得到的 Cookie（W4）：存在、等於某值或不存在 |
+| `worker` | 模擬的 Service Worker 目前的狀態（W10）：`state` 是 `none`（沒有註冊）、`installing`、`waiting`（新版本已安裝、等舊版本放手）或 `active`；`controlling` 另外檢查頁面是否由某個 worker 控制（第一次造訪時 worker 已啟用但頁面還不歸它） |
+| `cache` | 快取裡有（或 `match: 'absent'`：沒有）某個路徑的回應（W10）；`name` 指定哪一個快取，不寫就是任何一個 |
 | `label` | 表單控制項的標籤文字，依輔助科技讀取的順序：`aria-labelledby`、`aria-label`、對應的 `<label>`（`for` 或包住控制項） |
 | `headings` | 標題形成大綱：只有一個 `h1` 且在最前面，之後每個標題最多比前一個深一層 |
 | `focus` | 目前取得焦點的元素 |
@@ -92,6 +95,7 @@ webCode: {
 
 - `api`（W3）：頁面的模擬伺服器。框架沒有網路，`fetch` 由這些路由回答：`{ method?, path, status?, body?, delay?, fail?, headers? }`。沒有查詢字串的路徑符合任何查詢字串；沒有路由的位址回 404；`fail` 是網路錯誤（`fetch` 被拒絕）；`delay` 走頁面的時鐘（檢查裡是虛擬的）。回應是只有常用成員的物件（`status`、`ok`、`headers`、`json()`、`text()`），不是真的 `Response`：真的回應本文是串流，讀取需要真實時間，虛擬時鐘無法計入。GET／HEAD 帶本文會像瀏覽器一樣被拒絕。預覽下方列出每個請求與它得到的狀態碼。
 - `storage`、`cookies`（W4）：頁面有自己在記憶體裡的 `localStorage`、`sessionStorage` 與 `document.cookie`（不透明來源讀不到真的），開始時是 `setup` 所說「上次造訪留下的」內容。預覽重新執行時保留 localStorage 與 Cookie（像重新整理），可以按鈕清除；檢查每次都從 `setup` 開始。
+- `offline`、`caches`、`worker`（W10，MOB-3）：有第四個檔案 `sw.js` 的頁面得到一個**模擬的** Service Worker 與 Cache API（沙盒框架的來源不透明，註冊不了真的，也沒有 `caches`）。`navigator.serviceWorker.register('sw.js')` 由 harness 接手：`sw.js` 在自己的範圍執行（`self`、`caches`、`fetch`、`clients.claim()`、`skipWaiting()`），依規格的順序走 `install`（`waitUntil` 的 Promise 失敗就安裝失敗）→ 等待（有舊版本在啟用時）→ `activate` → 控制頁面；頁面的 `fetch` 先交給控制它的 worker 的 `fetch` 監聽器，`respondWith` 的回應就是頁面拿到的回應，沒有回答的請求照常送到模擬伺服器。`setup.offline: true` 是一開始就沒有網路；`setup.caches` 是上次造訪留下的快取內容（`{ 快取名: { 路徑: 內容 } }`）；`setup.worker: true` 是回訪（同一份 `sw.js` 已啟用並從一開始就控制頁面），`setup.worker: { previous: '舊的 sw.js' }` 是部署了新版本（舊版本在控制頁面，新的安裝後等待）。`sw.js` 的原始碼以函式的形式寫進文件（頁面的內容安全政策不允許 `eval`）。預覽多一個「Service Worker 與快取」面板：狀態、是否控制頁面、每個快取的路徑、「切斷網路連線」與「移除 Service Worker 與快取並重新載入」；重新執行等於再造訪一次（帶著上次的 worker 與快取；改過 `sw.js` 就是新版本）。
 - 變體可以帶自己的 `setup`（另一份伺服器資料、壞掉的伺服器、回訪的使用者），不一定要換固定檔案。
 
 ### 檢查怎麼執行
@@ -160,6 +164,8 @@ Chromium 是 Playwright 的 headless Chromium，頁面的載入方式和課程�
 - 鍵盤操作是指令稿產生的事件，只模擬 §3 列出的預設行為；Tab 移動焦點不模擬。
 - `input` 操作以程式設定欄位的值：瀏覽器只對使用者親手輸入的文字套用 `minlength`／`maxlength` 的驗證，所以這兩個屬性無法用檢查重現。
 - 響應式課程（RWD-0）：檢查與預覽改變的只有視窗的寬高。裝置像素比不由檢查控制（`srcset` 選了哪一個檔案取決於它，不檢查；`sizes` 的顯示寬度與 `picture` 的來源可以量測，W8）、使用者縮放、`prefers-color-scheme` 與 `prefers-reduced-motion` 不能在檢查裡切換、沒有觸控事件與螢幕方向；手機瀏覽器在沒有 viewport meta 時的虛擬視窗也無法重現（預覽一律是 `width=device-width` 的行為）。
+- Service Worker 與快取是模擬的（W10）：只攔截頁面的 `fetch()` 呼叫，不攔截頁面本身的載入（導覽）、圖片、樣式表與指令稿；沒有推播、背景同步與真正的持久化（只在預覽的「重新執行」之間保留）；`Cache` 的比對只看路徑與查詢字串（不看方法、`Vary` 與標頭），回應與 W3 一樣是只有常用成員的物件（有 `clone()`）；範圍只有一個（整個頁面），`registration.update()` 不做事，`unregister()` 回報 `false`；`sw.js` 和頁面在同一條執行緒上，事件之間不會被停止，沒有 `self.registration`、`clients.matchAll` 與 `importScripts`，`event.request` 不是真的 `Request`。課文在 MOB09 一開始就說明這些差別，並指向真實網站的開發者工具。
+- 瀏覽器會強制的規則，模擬的版本同樣強制（`tests/webcode-runner.test.ts`「what a browser enforces holds here too」）：回應的本文只能讀一次，`cache.put` 會取走本文，沒有 `clone()` 就存進快取再交給頁面，頁面的 `fetch` 會失敗；快取只收 GET 的回應；`respondWith` 只能在監聽器自己的那一輪呼叫一次（`await` 之後才呼叫會丟出錯誤，請求改走網路）；`fetch(event.request)` 帶著頁面的方法、標頭與本文；只有啟用中的 worker 能 `clients.claim()`；沒有網路時註冊不了新的 `sw.js`（已有 worker 的回訪維持原狀）；文字相同的 `sw.js` 不算新版本；`sw.js` 裡沒有 `window`、`document`、頁面的儲存空間、`parent`、`top` 與 `alert`，`globalThis` 與 `location` 是 worker 自己的；`new Response()`、`Response.json()` 與 `Response.error()` 可以在 `sw.js` 裡使用。
 - `navigated` 比對的是連結上寫的 `href`，不解析相對路徑；捲動位置沒有檢查。
 
 ## 9. 之後的引擎階段（依課程需要，向下相容）
@@ -174,6 +180,7 @@ Chromium 是 Playwright 的 headless Chromium，頁面的載入方式和課程�
 | W7（RWD-0、RWD-1 完成） | `resize` 操作（同一份答案在多個寬度檢查）、預覽寬度切換 `widths`、切換後回報頁面高度；檢查框架不畫自己的捲軸 | RWD01– |
 | W8（RWD-3 完成） | 檢查框架放在視窗內並做畫面更新：`picture` 的來源與 `sizes` 的顯示寬度在載入與 `resize` 之後都能以盒子量測 | RWD10 |
 | W9（MOB-1 完成） | `pointer` 操作與模擬的指標捕捉、`box` 的 `op: 'min' \| 'max'`（觸控目標）、按鍵的 `code`、對話框的 `close` 事件與 `method="dialog"` | MOB01– |
+| W10（MOB-3 完成） | 模擬的 Service Worker 與 Cache API：第四個檔案 `sw.js`、生命週期（install／waiting／activate／控制）、頁面的 `fetch` 經過 worker、`setup.offline`／`caches`／`worker`、`network` 操作、`worker` 與 `cache` 檢查、預覽的 Service Worker 面板 | MOB09、MOB13 |
 | W6（未建立） | 載入時間軸與指標的模型（不是量測）。WEB14 改以頁面呈現順序與版面位移，量測交給真實的開發者工具；模型留在 [INTERACTIVE_LAB_ROADMAP](INTERACTIVE_LAB_ROADMAP.md) 的 `metric-explorer` | — |
 
 ## 10. 藍圖活動的對應（`webFromBlueprint`）

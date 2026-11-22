@@ -663,6 +663,10 @@ const mobileApps: Outline[] = [
   mobileFromBlueprint('MOB06', '用 viewport-fit=cover 讓頁面延伸到螢幕邊緣，以 env() 的安全區域配合自訂屬性與 max()，讓底部操作列避開瀏海與手勢列、內容不被它蓋住；用方向與高度的媒體查詢處理手機橫放時不足的高度與轉到兩側的安全區域，再用 dvh、svh 做出和看得到的視窗一樣高、不被工具列遮住的全螢幕版面。', 50),
   mobileFromBlueprint('MOB07', '比較原生 App、跨平台框架與 PWA 在發布、裝置功能、效能、離線、更新、成本與連結上的取捨，用一張從需求出發的規則表寫出 chooseRoute 來選擇路線並說明理由，學會查證 PWA 在各平台的限制，再以功能偵測替分享按鈕準備退路，並規劃分階段的路線。', 50),
   mobileFromBlueprint('MOB08', '說明把網站安裝到主畫面的意義與安裝條件，用 link rel="manifest" 連結 Web App Manifest，寫出名稱、start_url、display、顏色與 192、512、maskable 圖示，避開 JSON 的語法陷阱，並用 display-mode 媒體查詢調整安裝後的畫面。', 50),
+  mobileFromBlueprint('MOB09', '註冊 Service Worker 並說明安裝、等待、啟用的生命週期與第一次造訪不受控制的原因，用 Cache API 預先快取外殼，依資源選擇快取優先、網路優先、背景更新或只走網路，準備離線時的替代回應，並以版本化的快取名稱與 skipWaiting 完成新版本的更新流程。', 60),
+  mobileFromBlueprint('MOB10', '說明低階裝置與開發用電腦的差距，在開發者工具用 CPU 與網路節流重現並找出長任務，以讓路、延後、防彈跳、requestAnimationFrame 與先讀後寫減輕主執行緒的負擔，讓動畫只改 transform 與 opacity，並用 visibilitychange 讓輪詢在頁面隱藏時暫停、回來時恢復。', 55),
+  mobileFromBlueprint('MOB11', '用手機內建的螢幕閱讀器照著測試腳本把頁面聽一遍並記錄問題，替圖示控制項補上名稱、把自製按鈕換回原生按鈕；讓卡片在文字放大與 320px 寬的視窗下不被裁切、不必左右捲動，拿掉禁止縮放與方向鎖定，再替拖曳排序加上上移、下移按鈕，並用狀態訊息說出結果。', 50),
+  mobileFromBlueprint('MOB12', '分辨瀏覽器的裝置模式、模擬器與真機各自驗證得到的範圍，把「哪一種問題要去哪裡驗證」寫成規則表與 whereToVerify，用遠端除錯查看真機上頁面的主控台、樣式與請求，依自己網站的資料訂出每個維度的值都被涵蓋的裝置測試矩陣與冒煙測試，並寫出可以重現的錯誤回報。', 45),
 ];
 
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */
