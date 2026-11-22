@@ -1,7 +1,8 @@
 import { physicalPath, type FsState } from './fs';
 import { accountsOf, findUser } from './accounts';
 import { commOf, tableOf, type Proc } from './processes';
-import { sha256 } from './ssh';
+import { sha256, type RemoteHost } from './ssh';
+import { decideIn, decideOut, ifaceOf, type Verdict } from './firewall';
 
 /*
  * Engine stage E10 (docs/curriculum/SRV0_SERVER_CAPABILITY.md §6): sockets. A machine of the sockets profile has network
@@ -15,6 +16,9 @@ import { sha256 } from './ssh';
  * interface address) or of another machine of the network (E7 remotes). A listener bound to 0.0.0.0 accepts on every
  * address; one bound to an address only on that address, so 127.0.0.1 is unreachable from another host. Nothing listens:
  * "Connection refused". An address no machine has: the connection times out (no firewall is modelled before E16).
+ * E16–E17 (only machines of those profiles carry the data): a machine may be reachable only from some hosts (a private
+ * network behind a bastion: the others time out), the firewalls of both ends decide (drop: timed out, reject: refused),
+ * and a listener of an SSH tunnel forwards the connection from the machine at the other end of the tunnel.
  *
  * The commands follow Ubuntu 24.04: ss (iproute2 6.1), lsof 4.95, nc (netcat-openbsd), ip (iproute2) and getent (glibc).
  * Column spacing is the simulation's own: widths from the content, one space between columns, nothing after the last
@@ -40,7 +44,15 @@ export interface Listen {
   /** E14 (set by the engine, not by lessons): nginx's master listens here with its applied configuration (ssl: a TLS port). */
   nginx?: true;
   ssl?: true;
+  /** E17 (set by ssh, not by lessons): an SSH tunnel's listener; the connection is made from the machine `via`. */
+  forward?: Forward;
 }
+/**
+ * E17: where a tunnel's connections go: `via` (a host name of the lesson) opens a connection to host:port, resolving host
+ * there. -L: the listener is on the client and via is the SSH server; -R: the listener is on the server (held by sshd) and
+ * via is the client (client: its ssh process). prohibited: the server's AllowTcpForwarding refuses the channels.
+ */
+export interface Forward { via: string; host: string; port: number; client?: number; prohibited?: true }
 /** E10: an IPv4 address of an interface (lo is implicit). */
 export interface Iface { name: string; address: string; prefix: number; mac: string }
 export const TCP_STATES = ['ESTAB', 'TIME-WAIT', 'CLOSE-WAIT', 'SYN-SENT', 'SYN-RECV', 'FIN-WAIT-1', 'FIN-WAIT-2', 'LAST-ACK', 'CLOSING'] as const;
@@ -48,8 +60,8 @@ export type TcpState = typeof TCP_STATES[number];
 /** E10: an established (or closing) TCP connection of the machine; pid is the process holding it (none in TIME-WAIT). */
 export interface Conn { local: Endpoint; peer: Endpoint; state: TcpState; pid?: number; fd?: number }
 export interface Endpoint { address: string; port: number }
-/** E10: the machine's interfaces, default route and connections. */
-export interface SocketState { interfaces: readonly Iface[]; gateway?: string; connections: readonly Conn[] }
+/** E10: the machine's interfaces, default route and connections. E17: onlyFrom, the hosts that can reach it (a private network). */
+export interface SocketState { interfaces: readonly Iface[]; gateway?: string; connections: readonly Conn[]; onlyFrom?: readonly string[] }
 
 /** A socket as ss and lsof show it. */
 export interface Socket {
@@ -68,6 +80,7 @@ export interface Socket {
   tls?: { certificate: string; key: string };
   nginx?: true;
   ssl?: true;
+  forward?: Forward;
 }
 
 // ----------------------------------------------------------------------------------------------------- addresses
@@ -136,7 +149,7 @@ export function socketsOf(state: FsState): Socket[] {
       out.push({
         proto, state: proto === 'tcp' ? 'LISTEN' : 'UNCONN', local: { address, port: l.port }, peer: null, recvQ: 0, sendQ: proto === 'tcp' ? l.backlog ?? 4096 : 0,
         inode: inodeOf(`${host}/${p.pid}/${proto}/${address}/${l.port}`), holders: [p, ...kids].map(proc => ({ proc, fd })), ...l.http ? { http: l.http } : {},
-        ...l.tls ? { tls: l.tls } : {}, ...l.nginx ? { nginx: true } : {}, ...l.ssl ? { ssl: true } : {},
+        ...l.tls ? { tls: l.tls } : {}, ...l.nginx ? { nginx: true } : {}, ...l.ssl ? { ssl: true } : {}, ...l.forward ? { forward: l.forward } : {},
       });
     });
   }
@@ -158,16 +171,87 @@ export function machineAt(state: FsState, address: string): { at: 'self' | numbe
   const i = hosts.findIndex(h => h.address === address || interfacesOf(h.state).some(x => x.address === address));
   return i < 0 ? undefined : { at: i, state: hosts[i].state };
 }
-export type Reached = { result: 'ok'; at: 'self' | number; host: FsState; socket: Socket } | { result: 'refused'; at: 'self' | number; host: FsState } | { result: 'timeout' };
+/** channel (E17): the tunnel accepted the connection but could not open it at the other end (ssh prints `channel N: open failed: …`). */
+export type Reached = { result: 'ok'; at: 'self' | number; host: FsState; socket: Socket; channel?: string } | { result: 'refused'; at: 'self' | number; host: FsState } | { result: 'timeout' };
 /**
  * E10: what a connection from this machine to address:port finds. Loopback stays on the machine; another machine sees the
- * connection arrive on its own address, so its 127.0.0.1 listeners never answer it.
+ * connection arrive on its own address, so its 127.0.0.1 listeners never answer it. E16: the firewalls decide first (a
+ * drop times out, a reject is refused). E17: a tunnel's listener passes the connection on from the tunnel's other end.
  */
-export function reach(state: FsState, address: string, port: number, proto: Proto = 'tcp'): Reached {
+export function reach(state: FsState, address: string, port: number, proto: Proto = 'tcp', depth = 0): Reached {
   const m = machineAt(state, address);
   if (!m) return { result: 'timeout' };
+  const gate = gateOf(state, m, address, port, proto);
+  if (gate === 'drop') return { result: 'timeout' };
+  if (gate === 'reject') return { result: 'refused', at: m.at, host: m.state };
   const s = listenersOf(m.state).find(x => x.proto === proto && x.local.port === port && accepts(x, address));
-  return s ? { result: 'ok', at: m.at, host: m.state, socket: s } : { result: 'refused', at: m.at, host: m.state };
+  if (!s) return { result: 'refused', at: m.at, host: m.state };
+  if (s.forward && depth < 4) return forwarded(state, m, s, depth);
+  return { result: 'ok', at: m.at, host: m.state, socket: s };
+}
+
+/** E16–E17: the lesson's name of a machine (its host name; logic-island by default). */
+export const nameOf = (state: Pick<FsState, 'host'>) => state.host ?? 'logic-island';
+/** The address a machine connects from toward dest: loopback stays loopback, else its interface on dest's network, else its address. */
+export function sourceAddress(state: FsState, dest: string): string {
+  if (ownsAddress(state, dest)) return dest.startsWith('127.') ? '127.0.0.1' : dest;
+  const own = interfacesOf(state).filter(i => i.name !== 'lo');
+  return own.find(i => inSubnet(dest, i.address, i.prefix))?.address ?? state.net?.address ?? own[0]?.address ?? '127.0.0.1';
+}
+/** E16–E17: whether the network lets the connection through: the reachable-from list, the source's output, the destination's input. */
+function gateOf(state: FsState, m: { at: 'self' | number; state: FsState }, address: string, port: number, proto: Proto): Verdict {
+  if (m.at === 'self') return state.firewall ? decideIn(state, { proto, src: address.startsWith('127.') ? '127.0.0.1' : address, dst: address, port, iface: 'lo', state: 'new' }) : 'accept';
+  const only = m.state.sockets?.onlyFrom;
+  if (only && !only.includes(nameOf(state))) return 'drop';
+  const src = sourceAddress(state, address);
+  const out = state.firewall ? decideOut(state, { proto, src, dst: address, port, iface: ifaceOf(state, src), state: 'new' }) : 'accept';
+  if (out !== 'accept') return out;
+  return m.state.firewall ? decideIn(m.state, { proto, src, dst: address, port, iface: ifaceOf(m.state, address), state: 'new' }) : 'accept';
+}
+/** E16–E17: a machine of the lesson by its name, as seen from `state` (itself, or a host of its network). */
+export function indexByName(state: FsState, name: string): 'self' | number | undefined {
+  if (name === nameOf(state)) return 'self';
+  const i = state.net?.hosts.findIndex(h => h.host === name) ?? -1;
+  return i < 0 ? undefined : i;
+}
+/**
+ * E16–E17: the lesson's network as seen from host i — its own state with a network of the others (the machine that was the
+ * root becomes one of them). The same machines with the same states, so whatever happens in the view can be written back.
+ */
+export function viewFrom(state: FsState, i: number): FsState {
+  const net = state.net!, h = net.hosts[i];
+  const { net: _n, session: _s, ...root } = state;
+  void _n; void _s;
+  const rootHost: RemoteHost = { host: nameOf(state), address: net.address, aliases: [], passwords: [], state: root };
+  return { ...h.state, net: { address: h.address, seed: net.seed, hosts: [rootHost, ...net.hosts.filter((_, k) => k !== i)], connections: net.connections } };
+}
+/** E16–E17: the states of a view (viewFrom(state, i)) written back into the network rooted at `state`. */
+export function fromView(state: FsState, i: number, view: FsState): FsState {
+  const { net: vnet, ...remote } = view, hosts = vnet!.hosts;
+  const others = hosts.slice(1);
+  const root = hosts[0].state;
+  return {
+    ...root, ...state.session ? { session: state.session } : {},
+    net: { ...state.net!, connections: vnet!.connections, hosts: state.net!.hosts.map((h, k) => k === i ? { ...h, state: remote } : { ...h, state: others[k < i ? k : k - 1].state }) },
+  };
+}
+/** E17: a tunnel's connection: from the machine at the tunnel's other end to host:port (resolved there), through its firewalls. */
+function forwarded(state: FsState, m: { at: 'self' | number; state: FsState }, s: Socket, depth: number): Reached {
+  const f = s.forward!, fail = (why: string): Reached => ({ result: 'ok', at: m.at, host: m.state, socket: s, channel: why });
+  if (f.prohibited) return fail('administratively prohibited: open failed');
+  // The machine that opens the connection, seen from the listener's machine.
+  const base = m.at === 'self' ? state : viewFrom(state, m.at);
+  const vi = indexByName(base, f.via);
+  if (vi === undefined) return fail('connect failed: Connection refused');
+  const from = vi === 'self' ? base : viewFrom(base, vi);
+  const r0 = basicResolver(from, f.host, 4);
+  if ('error' in r0) return fail('connect failed: Name or service not known');
+  const r = reach(from, r0.found.address, f.port, 'tcp', depth + 1);
+  if (r.result === 'timeout') return fail('connect failed: Connection timed out');
+  if (r.result === 'refused') return fail('connect failed: Connection refused');
+  // The end machine, named from the original state.
+  const endName = nameOf(r.host), at = indexByName(state, endName);
+  return { ...r, at: at ?? 'self' };
 }
 
 // ------------------------------------------------------------------------------------------- /etc/services, /etc/hosts

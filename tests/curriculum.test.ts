@@ -6,7 +6,13 @@ import { UNITS } from '../src/content/curriculum/units';
 import { DATABASE_VISUALIZATIONS, branchTaken, hasCapability, validateContent, validateCurriculum, type Curriculum, type LessonMeta, type VisualizationConfig } from '../src/content/curriculum/schema';
 
 // Phase E.1: the 60-lesson curriculum and the rules every lesson keeps (src/content/curriculum/schema.ts).
-const clone = (): Curriculum => structuredClone(curriculum);
+// A deep copy for tests that change metadata or program content. Terminal content is shared, never changed here, so its
+// replay is remembered (schema.ts replayedTerminalProblems) instead of repeated for every copy.
+const clone = (): Curriculum => {
+  const c = structuredClone(curriculum);
+  for (const [id, content] of Object.entries(curriculum.contents)) if (content?.terminal) c.contents[id as keyof Curriculum['contents']]!.terminal = content.terminal;
+  return c;
+};
 /** Complete so far: E.1 wrote F01..F05, E.2 the rest of the foundations island, E.3 the structures island, E.4 the algorithms island. */
 const ids = (prefix: string, n: number) => Array.from({ length: n }, (_, i) => `${prefix}${String(i + 1).padStart(2, '0')}`);
 const ALGORITHMS_DONE = 20;

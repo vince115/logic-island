@@ -54,6 +54,15 @@ describe('the terminal capability', () => {
     expect(problems).toMatch(/LNX01: exercise backup needs a statement and hints/);
     expect(problems).toMatch(/LNX01: example tour is never shown/);
   });
+  it('remembers a replay per terminal content object, and replays a changed copy again (SRV-3)', () => {
+    const good = content();
+    expect(validateContent(meta, good, curriculum.visualizations)).toEqual([]);
+    expect(validateContent(meta, good, curriculum.visualizations)).toEqual([]);
+    const changed = structuredClone(good);
+    changed.terminal!.examples[0].steps[0].output = '/root';
+    expect(validateContent(meta, changed, curriculum.visualizations).join('\n')).toMatch(/LNX01: example tour: step 1 \(pwd\) prints "\/home\/learner", not "\/root"/);
+    expect(validateContent(meta, good, curriculum.visualizations)).toEqual([]);
+  });
   it('maps the blueprint activities: terminal-sim stays, the overview uses the terminal, SSH adds network scenes, the capstone its stages', () => {
     expect(terminalFromBlueprint('LNX04', 's', 50)).toMatchObject({ activity: 'terminal-sim', capabilities: ['terminal'], visualization: 'none', blueprintId: 'LNX04' });
     expect(terminalFromBlueprint('LNX01', 's', 40)).toMatchObject({ activity: 'terminal-sim', capabilities: ['terminal'] });
@@ -87,7 +96,7 @@ describe('isolation from the other capabilities', () => {
       expect(l.capabilities.includes('terminal'), l.lessonId).toBe(linux);
       // LNX-4: LNX12 (SSH) pairs its terminal machines with a network-protocol scene, so its activity is network-sequence.
       // LNX-5: the capstone LNX15 is a challenge-stages lesson.
-      expect(l.activity === 'terminal-sim', l.lessonId).toBe(linux && !['LNX12', 'LNX15', 'SRV02', 'SRV03', 'SRV04', 'SRV05', 'SRV06'].includes(l.lessonId));
+      expect(l.activity === 'terminal-sim', l.lessonId).toBe(linux && !['LNX12', 'LNX15', 'SRV02', 'SRV03', 'SRV04', 'SRV05', 'SRV06', 'SRV07', 'SRV08', 'SRV10'].includes(l.lessonId));
       expect(!!curriculum.contents[l.lessonId]?.terminal, l.lessonId).toBe(linux);
     }
   });

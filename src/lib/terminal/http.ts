@@ -2,9 +2,10 @@ import { type FsState } from './fs';
 import { clockOf, commOf } from './processes';
 import { fields, MONTHS, WEEKDAYS } from './clock';
 import { openWrite, OPEN_TEXT } from './shell';
-import { inSubnet, interfacesOf, reach, type NetIo, type NetResult, type Reached, type Socket } from './sockets';
-import { alertFor, certsIn, cnOf, curlHandshake, dnCurl, asn1Time, keyBits, nameMatches, nowOf, presentedBy, readAs, sigAlg, TRUST_BUNDLE, trustOf, VERIFY_TEXT, verifyChain, type Cert } from './tls';
-import { nginxCertificate, nginxServe, plainOnTls } from './nginx';
+import { indexByName, nameOf, reach, sourceAddress, viewFrom, type NetIo, type NetResult, type Reached, type Socket } from './sockets';
+import { alertFor, builtin, certsIn, cnOf, curlHandshake, dnCurl, asn1Time, keyBits, nameMatches, nowOf, presentedBy, readAs, sha1, sigAlg, TRUST_BUNDLE, trustOf, VERIFY_TEXT, verifyChain, type Cert } from './tls';
+import { nginxCertificate, nginxServe, plainOnTls, type UpstreamFn, type UpstreamResult } from './nginx';
+import { base64 } from './ssh';
 import { resolvePath } from './fs';
 
 /*
@@ -36,14 +37,20 @@ export interface Route {
   type?: string;
   /** E13: serves the file root + path from the machine (read as www-data; 404 when it is missing), e.g. ACME's webroot. */
   root?: string;
+  /** E15: the body is the request as the application received it (its client address, request line and headers): what a proxy forwards. */
+  echo?: true;
+  /** E15: a WebSocket endpoint: a valid upgrade request gets 101 Switching Protocols, any other request 426 Upgrade Required. */
+  websocket?: true;
+  /** E15: seconds before the answer (nginx's proxy_read_timeout turns a slow application into a 504). */
+  delay?: number;
 }
-/** E12: an HTTP server's behaviour: its Server header, whether it keeps connections alive (default yes), its routes in order. */
-export interface Responder { id: string; server?: string; keepAlive?: boolean; routes: Route[] }
+/** E12: an HTTP server's behaviour: its Server header, whether it keeps connections alive (default yes), its routes in order. E15: a delay for every answer. */
+export interface Responder { id: string; server?: string; keepAlive?: boolean; routes: Route[]; delay?: number }
 
 export const CURL_VERSION = '8.5.0';
 const REASONS: Readonly<Record<number, string>> = {
   100: 'Continue', 200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content', 206: 'Partial Content', 301: 'Moved Permanently', 302: 'Found', 303: 'See Other',
-  304: 'Not Modified', 307: 'Temporary Redirect', 308: 'Permanent Redirect', 400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found',
+  304: 'Not Modified', 307: 'Temporary Redirect', 308: 'Permanent Redirect', 400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 101: 'Switching Protocols', 426: 'Upgrade Required',
   405: 'Method Not Allowed', 408: 'Request Timeout', 409: 'Conflict', 410: 'Gone', 413: 'Payload Too Large', 418: "I'm a teapot", 429: 'Too Many Requests',
   500: 'Internal Server Error', 501: 'Not Implemented', 502: 'Bad Gateway', 503: 'Service Unavailable', 504: 'Gateway Timeout',
 };
@@ -64,19 +71,29 @@ export function errorPage(status: number, server?: string): string {
   return `<html>\n<head><title>${title}</title></head>\n<body>\n<center><h1>${title}</h1></center>\n${server ? `<hr><center>${server}</center>\n` : ''}</body>\n</html>\n`;
 }
 
-export interface Request { method: string; path: string; headers: [string, string][]; body?: string }
-export interface Response { status: number; reason: string; headers: [string, string][]; body: string; close: boolean }
+/** version: E15, the HTTP version of the request line (nginx's proxy sends 1.0 unless proxy_http_version 1.1); default 1.1. */
+export interface Request { method: string; path: string; headers: [string, string][]; body?: string; version?: '1.0' | '1.1' }
+/** wait: E15, the seconds the answer took (an upstream's delay, nginx's timeouts); curl -m compares it. */
+export interface Response { status: number; reason: string; headers: [string, string][]; body: string; close: boolean; wait?: number }
 const header = (h: readonly [string, string][], name: string) => h.find(([k]) => k.toLowerCase() === name.toLowerCase())?.[1];
 
 /**
  * What a responder answers: the first route whose path (and Host) matches, 405 for another method, else 404. E12 fix: a
  * 204 has no Content-Length (and no body). E13: a route with root serves files through `read` (missing: 404).
  */
-export function respond(r: Responder, req: Request, now: number, read?: (path: string) => string | undefined): Response {
+export function respond(r: Responder, req: Request, now: number, read?: (path: string) => string | undefined, client?: string): Response {
   const host = (header(req.headers, 'Host') ?? '').replace(/:\d+$/, '').toLowerCase(), path = req.path.split('?')[0];
   const route = r.routes.find(x => (!x.host || x.host.toLowerCase() === host) && (x.path.endsWith('*') ? path.startsWith(x.path.slice(0, -1)) : path === x.path));
   const methods = route?.methods ?? ['GET'];
   const allowed = route && (methods.includes(req.method) || (req.method === 'HEAD' && methods.includes('GET')));
+  const wait = route?.delay ?? r.delay;
+  // E15: a WebSocket endpoint and an echo of the request.
+  if (allowed && route.websocket) return { ...upgrade(r, req, now), ...wait ? { wait } : {} };
+  if (allowed && route.echo) {
+    const text = [`remote_addr: ${client ?? '127.0.0.1'}`, `${req.method} ${req.path} HTTP/${req.version ?? '1.1'}`, ...req.headers.map(([k, v]) => `${k}: ${v}`)].join('\n') + '\n' + (req.body !== undefined ? `\n${req.body}\n` : '');
+    const res = respond({ ...r, delay: undefined, routes: [{ path: req.path.split('?')[0], methods: [req.method], body: text, type: 'text/plain', ...route.headers ? { headers: route.headers } : {} }] }, req, now);
+    return { ...res, ...wait ? { wait } : {} };
+  }
   const file = allowed && route.root !== undefined ? read?.(`${route.root.replace(/\/$/, '')}${path}`) : undefined;
   const missing = !!allowed && route.root !== undefined && file === undefined;
   const status = !route || missing ? 404 : !allowed ? 405 : route.status ?? (route.redirect ? 301 : 200);
@@ -87,7 +104,18 @@ export function respond(r: Responder, req: Request, now: number, read?: (path: s
     ...status === 204 ? [] : [['Content-Length', String(bytes(body))] as [string, string]], ['Connection', close ? 'close' : 'keep-alive'],
     ...ok && route.redirect ? [['Location', route.redirect] as [string, string]] : [], ...ok ? route.headers ?? [] : [],
   ];
-  return { status, reason: reasonOf(status, r.server), headers, body: req.method === 'HEAD' ? '' : body, close };
+  return { status, reason: reasonOf(status, r.server), headers, body: req.method === 'HEAD' ? '' : body, close, ...wait ? { wait } : {} };
+}
+/** RFC 6455's handshake: Sec-WebSocket-Accept is base64(SHA-1(key + the protocol's GUID)). */
+export const websocketAccept = (key: string) => base64(sha1(new TextEncoder().encode(`${key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)));
+/** E15: the answer of a WebSocket endpoint: 101 for an HTTP/1.1 request with Upgrade: websocket, Connection: upgrade and a key; else 426. */
+function upgrade(r: Responder, req: Request, now: number): Response {
+  const key = header(req.headers, 'Sec-WebSocket-Key');
+  const ok = (req.version ?? '1.1') === '1.1' && (header(req.headers, 'Upgrade') ?? '').toLowerCase() === 'websocket'
+    && (header(req.headers, 'Connection') ?? '').toLowerCase().split(/\s*,\s*/).includes('upgrade') && !!key;
+  if (ok) return { status: 101, reason: 'Switching Protocols', headers: [...r.server ? [['Server', r.server] as [string, string]] : [], ['Upgrade', 'websocket'], ['Connection', 'Upgrade'], ['Sec-WebSocket-Accept', websocketAccept(key!)]], body: '', close: true };
+  const body = 'Upgrade Required';
+  return { status: 426, reason: 'Upgrade Required', headers: [...r.server ? [['Server', r.server] as [string, string]] : [], ['Date', httpDate(now)], ['Content-Type', 'text/plain'], ['Content-Length', String(bytes(body))], ['Connection', r.keepAlive === false ? 'close' : 'keep-alive'], ['Upgrade', 'websocket']], body: req.method === 'HEAD' ? '' : body, close: r.keepAlive === false };
 }
 
 /** A URL curl accepts: http or https, a host, an optional port, a path with its query (the fragment is dropped). */
@@ -117,7 +145,7 @@ const CURL_TRY = "curl: try 'curl --help' or 'curl --manual' for more informatio
 const VALUE_SHORT = 'oHXdwAmC';
 const LONG: Readonly<Record<string, string>> = {
   verbose: 'v', silent: 's', 'show-error': 'S', head: 'I', include: 'i', location: 'L', insecure: 'k', fail: 'f', output: 'o', header: 'H', request: 'X',
-  data: 'd', 'data-raw': 'd', 'write-out': 'w', 'user-agent': 'A', 'max-time': 'm', cacert: 'C',
+  data: 'd', 'data-raw': 'd', 'write-out': 'w', 'user-agent': 'A', 'max-time': 'm', cacert: 'C', 'no-buffer': 'N',
 };
 
 interface Opts {
@@ -125,6 +153,8 @@ interface Opts {
   data?: string; agent: string; headers: [string, string][]; resolve: { host: string; port: number; address: string }[]; maxRedirs: number; connectTimeout?: number; urls: string[];
   /** E13: -k (do not verify the server's certificate) and --cacert. */
   insecure: boolean; cacert?: string;
+  /** E15: -m, the longest the whole transfer may take (an answer that takes longer is error 28). */
+  maxTime?: number;
 }
 function curlOptions(args: readonly string[], io: NetIo): Opts | { status: number } {
   const o: Opts = { verbose: false, silent: false, showError: false, head: false, include: false, follow: false, fail: false, agent: `curl/${CURL_VERSION}`, headers: [], resolve: [], maxRedirs: 50, urls: [], insecure: false };
@@ -137,7 +167,7 @@ function curlOptions(args: readonly string[], io: NetIo): Opts | { status: numbe
       case 'X': o.method = value; return null;
       case 'd': o.data = o.data === undefined ? value : `${o.data}&${value}`; return null;
       case 'A': o.agent = value; return null;
-      case 'm': o.connectTimeout = Number(value); return null;
+      case 'm': o.connectTimeout = Number(value); o.maxTime = Number(value); return null;
       case 'C': o.cacert = value; return null;
       case 'H': {
         const at = value.indexOf(':');
@@ -179,7 +209,7 @@ function curlOptions(args: readonly string[], io: NetIo): Opts | { status: numbe
         if (f === 'v') o.verbose = true; else if (f === 's') o.silent = true; else if (f === 'S') o.showError = true; else if (f === 'I') o.head = true;
         else if (f === 'i') o.include = true; else if (f === 'L') o.follow = true; else if (f === 'f') o.fail = true;
         else if (f === 'k') o.insecure = true;
-        else if (f === '4') continue;
+        else if (f === '4' || f === 'N') continue;
         else return bad(`curl: option -${f}: is unknown`);
       }
       continue;
@@ -206,8 +236,55 @@ export function tlsServer(reached: Extract<Reached, { result: 'ok' }>, address: 
 /** The address a request comes from as the server sees it (the client's interface toward it; loopback stays loopback). */
 export function clientAddress(state: FsState, at: 'self' | number, dest: string): string {
   if (at === 'self') return dest.startsWith('127.') ? '127.0.0.1' : dest;
-  const own = interfacesOf(state).filter(i => i.name !== 'lo');
-  return own.find(i => inSubnet(dest, i.address, i.prefix))?.address ?? state.net?.address ?? own[0]?.address ?? '127.0.0.1';
+  return sourceAddress(state, dest);
+}
+
+/**
+ * E15: how nginx on the machine `at` (of the network rooted at get()) reaches an upstream: through the network seen from
+ * there (firewalls and tunnels included), to a responder or another nginx (whose logs are written back with set()). An
+ * upstream on the proxy's own machine is served on the state nginx hands in, and handed back.
+ */
+export function upstreamOf(get: () => FsState, set: (s: FsState) => void, at: 'self' | number, depth = 0): UpstreamFn {
+  return (proxyHost, address, port, scheme, req) => {
+    const stripNet = (s: FsState): FsState => { const { net: _n, ...rest } = s; void _n; return rest; };
+    const origin = at === 'self' ? proxyHost : viewFrom(withHost(get(), at, proxyHost), at);
+    const done = (result: UpstreamResult, host = proxyHost) => ({ result, host });
+    const r = reach(origin, address, port);
+    if (r.result === 'timeout') return done({ kind: 'timeout' });
+    if (r.result === 'refused') return done({ kind: 'refused' });
+    if (r.channel) return done({ kind: 'closed' });
+    const s = r.socket, client = r.at === 'self' ? (address.startsWith('127.') ? '127.0.0.1' : address) : sourceAddress(origin, address);
+    if (scheme === 'https') {
+      const t = tlsServer(r, address, '');
+      if ('plain' in t) return done({ kind: 'plain' });
+      if ('error' in t || !t.keyOk) return done({ kind: 'closed' });
+    }
+    const now = clockOf(r.host).now;
+    let res: Response, served = r.host;
+    if (s.nginx && r.host.nginx?.applied) {
+      if (depth >= 3) return done({ kind: 'closed' });
+      const x = { address, port, https: scheme === 'https', client, req, now };
+      if (scheme === 'http' && s.ssl) res = plainOnTls(r.host, x);
+      else {
+        // The upstream nginx proxies on from its own place in the network.
+        const endAt = r.at === 'self' ? at : indexByName(get(), nameOf(r.host)) ?? 'self';
+        const out = nginxServe(r.host, { ...x, upstream: upstreamOf(get, set, endAt, depth + 1) });
+        res = out.res; served = out.host;
+      }
+    } else {
+      const responder = findResponder(r.host, s);
+      if (!responder || (scheme === 'http' && s.tls)) return done({ kind: 'closed' });
+      res = respond(responder.r, req, now, fileReader(r.host), client);
+    }
+    const delay = res.wait ?? 0;
+    if (r.at === 'self') return done({ kind: 'response', res, delay }, at === 'self' ? served : stripNet(served));
+    const idx = indexByName(get(), nameOf(r.host));
+    if (idx !== undefined) {
+      const root = get();
+      set(idx === 'self' ? { ...stripNet(served), ...root.net ? { net: root.net } : {}, ...root.session ? { session: root.session } : {} } : withHost(root, idx, served));
+    }
+    return done({ kind: 'response', res, delay });
+  };
 }
 /** A host's state written back after a request (nginx's logs): the machine itself or a host of its network. */
 export function withHost(state: FsState, at: 'self' | number, host: FsState): FsState {
@@ -291,6 +368,8 @@ export function curl(state0: FsState, args: readonly string[], io: NetIo): NetRe
         conn = { id: nextId++, address, tls: u.scheme === 'https', tickets: false };
         ex.connects++;
         say(`* Connected to ${u.host} (${address}) port ${u.port}`);
+        // E17: an SSH tunnel accepted the connection but its other end could not open it (the ssh in the background says so).
+        if (reached.channel) io.err(`channel 2: open failed: ${reached.channel}`);
         if (u.scheme === 'https') {
           if (!io.tls) { ex.exit = error(35, '模擬環境：HTTPS 的 TLS 交握在引擎階段 E13 才模擬；請先用 http:// 觀察 HTTP'); say(`* Closing connection`); break; }
           const caFile = o.cacert ?? TRUST_BUNDLE, hs = curlHandshake(caFile);
@@ -326,7 +405,8 @@ export function curl(state0: FsState, args: readonly string[], io: NetIo): NetRe
           say(`*  issuer: ${dnCurl(leaf.issuer)}`);
           say(v.first ? `*  SSL certificate verify result: ${VERIFY_TEXT[v.first]} (${v.first}), continuing anyway.` : '*  SSL certificate verify ok.');
           server.chain.forEach((c, i) => {
-            const issuerKey = server.chain[i + 1]?.key ?? t.find(x => dnCurl(x.subject) === dnCurl(c.issuer))?.key ?? c.key, [kind, bits, sec] = keyBits[c.key];
+            // Fix (E15 batch): an issuer neither sent nor trusted is still known by its name (Let's Encrypt's R11 signs with RSA).
+            const issuerKey = server.chain[i + 1]?.key ?? t.find(x => dnCurl(x.subject) === dnCurl(c.issuer))?.key ?? Object.values(builtin()).find(x => dnCurl(x.subject) === dnCurl(c.issuer))?.key ?? c.key, [kind, bits, sec] = keyBits[c.key];
             say(`*   Certificate level ${i}: Public key type ${kind} (${bits}/${sec} Bits/secBits), signed using ${sigAlg(issuerKey)}`);
           });
         }
@@ -339,7 +419,7 @@ export function curl(state0: FsState, args: readonly string[], io: NetIo): NetRe
       const nginx = socket?.nginx && reached.result === 'ok' && reached.host.nginx?.applied;
       if (!responder && !nginx) {
         pool.delete(key);
-        if (socket && socket.holders.some(h => commOf(h.proc.command) === 'sshd')) { say('* Closing connection'); ex.exit = error(1, 'Received HTTP/0.9 when not allowed'); }
+        if (socket && !socket.forward && socket.holders.some(h => commOf(h.proc.command) === 'sshd')) { say('* Closing connection'); ex.exit = error(1, 'Received HTTP/0.9 when not allowed'); }
         else { say('* Empty reply from server'); say('* Closing connection'); ex.exit = error(52, 'Empty reply from server'); }
         break;
       }
@@ -362,10 +442,17 @@ export function curl(state0: FsState, args: readonly string[], io: NetIo): NetRe
       if (nginx) {
         const x = { address, port: u.port, https: u.scheme === 'https', client: clientAddress(state, ok.at, address), req, now };
         if (u.scheme === 'http' && socket?.ssl) res = plainOnTls(ok.host, x);
-        else { const served = nginxServe(ok.host, x); res = served.res; state = withHost(state, ok.at, served.host); }
+        else {
+          // E15: nginx reaches its upstreams through this machine's network (their logs are written back as it goes).
+          const served = nginxServe(ok.host, { ...x, upstream: upstreamOf(() => state, next => { state = next; }, ok.at) });
+          res = served.res;
+          state = ok.at === 'self' ? { ...served.host, ...state.net ? { net: state.net } : {} } : withHost(state, ok.at, served.host);
+        }
       } else if (u.scheme === 'http' && socket?.tls) {
         pool.delete(key); say('* Empty reply from server'); say('* Closing connection'); ex.exit = error(52, 'Empty reply from server'); break;
-      } else res = respond(responder!.r, req, now, fileReader(ok.host));
+      } else res = respond(responder!.r, req, now, fileReader(ok.host), clientAddress(state, ok.at, address));
+      // E15: an answer slower than -m is curl's error 28 (nothing of it is written).
+      if (o.maxTime !== undefined && (res.wait ?? 0) > o.maxTime) { pool.delete(key); ex.exit = error(28, `Operation timed out after ${Math.round(o.maxTime * 1000)} milliseconds with 0 bytes received`); break; }
       ex.res = res;
       const statusLine = `HTTP/1.1 ${res.status} ${res.reason}`.trimEnd();
       [statusLine, ...res.headers.map(([k, v]) => `${k}: ${v}`)].forEach(l => say(`< ${l}`));
@@ -493,13 +580,13 @@ export function probe(state: FsState, url: string, resolve: NetIo['resolve'], tl
   const now = clockOf(reached.host).now;
   if (reached.socket.nginx && reached.host.nginx?.applied) {
     const x = { address: r.found.address, port: u.port, https: u.scheme === 'https', client: clientAddress(r.state, reached.at, r.found.address), req, now };
-    const res = u.scheme === 'http' && reached.socket.ssl ? plainOnTls(reached.host, x) : nginxServe(reached.host, x).res;
+    const res = u.scheme === 'http' && reached.socket.ssl ? plainOnTls(reached.host, x) : nginxServe(reached.host, { ...x, upstream: upstreamOf(() => r.state, () => {}, reached.at) }).res;
     return { status: res.status, headers: res.headers, body: res.body };
   }
   const responder = findResponder(reached.host, reached.socket);
   if (!responder) return { error: `${u.host}:${u.port} 上的程式不是 HTTP 伺服器` };
   if (u.scheme === 'http' && reached.socket.tls) return { error: `${u.host}:${u.port} 只接受 HTTPS` };
-  const res = respond(responder.r, req, now, fileReader(reached.host));
+  const res = respond(responder.r, req, now, fileReader(reached.host), clientAddress(r.state, reached.at, r.found.address));
   return { status: res.status, headers: res.headers, body: res.body };
 }
 export { header as responseHeader };

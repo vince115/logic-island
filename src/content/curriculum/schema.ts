@@ -593,6 +593,19 @@ export function validateCurriculum({ islands, lessons, contents, visualizations,
 }
 
 /**
+ * SRV-3: replaying a terminal lesson is the slowest part of validation (tens of milliseconds a lesson), and the tests
+ * validate the whole curriculum many times over. The result is remembered per terminal content object, so content is
+ * treated as immutable once validated: a check that changes it builds a new object (a factory or structuredClone),
+ * which is replayed again.
+ */
+const terminalReplays = new WeakMap<TerminalLessonContent, readonly string[]>();
+function replayedTerminalProblems(terminal: TerminalLessonContent): readonly string[] {
+  let problems = terminalReplays.get(terminal);
+  if (!problems) terminalReplays.set(terminal, problems = terminalContentProblems(terminal));
+  return problems;
+}
+
+/**
  * Phase F.1a/F.1b: the checks on a database lesson's content: sections and quiz as for every lesson, at least
  * MIN_EXAMPLES examples in all (SQL examples, ER diagrams, normalization steps; each shown in a section by id), at least
  * one exercise, SQL exercises with hints and hidden checks on known datasets, ER and normalization exercises whose
@@ -630,7 +643,7 @@ export function validateDatabaseContent(lesson: LessonMeta, content: LessonConte
     ...queryPlan?.trees ?? [], ...transactions?.timelines ?? [], ...transactions?.schedules ?? [],
     ...driverCode?.examples ?? [], ...sequences ?? [], ...ops?.replication ?? [], ...ops?.backups ?? [], ...network?.scenes ?? [], ...terminal?.examples ?? []];
   for (const scene of network?.scenes ?? []) for (const p of networkSceneProblems(scene)) fail(p);
-  if (terminal) for (const p of terminalContentProblems(terminal)) fail(p);
+  if (terminal) for (const p of replayedTerminalProblems(terminal)) fail(p);
   for (const e of driverCode?.examples ?? []) {
     const langs = Object.keys(e.code);
     if (!langs.length || langs.some(l => !(DRIVER_LANGUAGES as readonly string[]).includes(l))) fail(`driver example ${e.id} uses ${DRIVER_LANGUAGES.join(', ')} only`);

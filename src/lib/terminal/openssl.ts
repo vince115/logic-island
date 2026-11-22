@@ -1,7 +1,7 @@
 import { resolvePath, type FsState } from './fs';
 import { reach, type NetIo, type NetResult } from './sockets';
 import {
-  asn1Time, certBytes, certPem, certsIn, dnText, keyBits, nowOf, readAs, serialText, sha1, trustOf, VERIFY_TEXT, verifyChain, type Cert, type VerifyEvent,
+  asn1Time, builtin, certBytes, certPem, certsIn, dnText, keyBits, nowOf, readAs, serialText, sha1, trustOf, VERIFY_TEXT, verifyChain, type Cert, type VerifyEvent,
 } from './tls';
 import { sha256 } from './ssh';
 import { tlsServer } from './http';
@@ -179,7 +179,7 @@ function sClient(state0: FsState, args: readonly string[], io: NetIo): NetResult
   say('---');
   say('Certificate chain');
   sent.forEach((c, i) => {
-    const issuerKey = sent[i + 1]?.key ?? trusted.find(t => dnText(t.subject) === dnText(c.issuer))?.key ?? c.key;
+    const issuerKey = sent[i + 1]?.key ?? trusted.find(t => dnText(t.subject) === dnText(c.issuer))?.key ?? Object.values(builtin()).find(t => dnText(t.subject) === dnText(c.issuer))?.key ?? c.key;
     say(` ${i} s:${dnText(c.subject)}`);
     say(`   i:${dnText(c.issuer)}`);
     say(`   a:PKEY: ${pkeyName(c)}, ${keyBits[c.key][1]} (bit); sigalg: ${sigName(issuerKey)}`);

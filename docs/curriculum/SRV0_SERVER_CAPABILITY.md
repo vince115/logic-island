@@ -1,6 +1,6 @@
-# SRV-0：網路與伺服器島的課程能力與引擎階段 E10–E14
+# SRV-0：網路與伺服器島的課程能力與引擎階段 E10–E17
 
-> 2026-11-22。目標：讓網路與伺服器島（`network-servers`，前綴 SRV，14 堂）可以撰寫、驗證、發布。本島**不需要新的課程能力或活動**：沿用 LNX-0 的 `terminal` 能力（[LNX0_TERMINAL_CAPABILITY](LNX0_TERMINAL_CAPABILITY.md)）與 CN-0 的 `network-protocol` 情境。本文件也是終端機引擎階段 **E10–E14**（`sockets`、`dns`、`http`、`tls`、`nginx`）的唯一說明處；E1–E9 仍在 LNX0 文件（§9–§17），LNX0 的 §18 只指向這裡。之後的進度與下一批由 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 計算。
+> 2026-11-22。目標：讓網路與伺服器島（`network-servers`，前綴 SRV，14 堂）可以撰寫、驗證、發布。本島**不需要新的課程能力或活動**：沿用 LNX-0 的 `terminal` 能力（[LNX0_TERMINAL_CAPABILITY](LNX0_TERMINAL_CAPABILITY.md)）與 CN-0 的 `network-protocol` 情境。本文件也是終端機引擎階段 **E10–E17**（`sockets`、`dns`、`http`、`tls`、`nginx`、`proxy`、`firewall`、`tunnels`）的唯一說明處；E1–E9 仍在 LNX0 文件（§9–§17），LNX0 的 §18 只指向這裡。之後的進度與下一批由 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 計算。
 
 ## 1. 範圍
 
@@ -12,6 +12,9 @@
 | E12 `http` | HTTP 回應者（路由、狀態碼、標頭、重新導向、keep-alive）；`curl` |
 | E13 `tls` | 憑證（模擬的 PEM 檔，不是 DER）、信任庫、OpenSSL 的憑證鏈驗證；`openssl x509`／`s_client`／`verify`、`curl` 的 HTTPS、`certbot`（ACME HTTP-01、更新、timer）；§11 |
 | E14 `nginx` | 真正解析的 nginx 設定（include、server、location）、`nginx -t`／`-T`／`-s`、reload 才套用、依設定服務檔案與寫日誌；§12 |
+| E15 `proxy` | nginx 的反向代理：`proxy_pass` 的 URI 規則、轉送標頭、WebSocket 升級、502／504 與 error.log、`upstream`（round robin、least_conn、ip_hash、backup、down、被動健康檢查）、`map`；§16 |
+| E16 `firewall` | 主機防火牆：`ufw`、`nft` 子集；別台主機的連線由防火牆決定（丟棄逾時、REJECT 拒絕），狀態追蹤；遠端工作階段看得到課程的網路；§17 |
+| E17 `tunnels` | `ssh -L`／`-R`／`-J`、`-f -N`、`~/.ssh/config`（Host 區塊、ProxyJump）、只有跳板機連得到的私有網段、sshd 的 AllowTcpForwarding／GatewayPorts；§18 |
 
 不新增任何執行期套件；所有輸出由課程資料與固定時鐘決定（§5）。
 
@@ -40,13 +43,13 @@
 
 ## 4. 批次與引擎階段
 
-課程編號即位置，依序連續發布；每一批先完成它需要的引擎階段（各自的 profile 與測試），再寫課。profile 延續 LNX 的**線性鏈**：lab < files < streams < users < processes < packages < services < remote < scripting < scheduling < **sockets < dns < http < tls < nginx** < …（E15 起依序接在後面）。
+課程編號即位置，依序連續發布；每一批先完成它需要的引擎階段（各自的 profile 與測試），再寫課。profile 延續 LNX 的**線性鏈**：lab < files < streams < users < processes < packages < services < remote < scripting < scheduling < **sockets < dns < http < tls < nginx < proxy < firewall < tunnels** < …（E18 起依序接在後面）。
 
 | 批次 | 課程 | 引擎階段 |
 |---|---|---|
 | SRV-1 | SRV01–SRV03 | **E10** `sockets`（已完成，§6）、**E11** `dns`（已完成，§7）、**E12** `http`（已完成，§8） |
 | SRV-2 | SRV04–SRV06 | **E13** `tls`（已完成，§11）、**E14** `nginx`（已完成，§12）；課程資料與檢查 §13 |
-| SRV-3 | SRV07–SRV10 | E15 `proxy`（`proxy_pass`、轉送標頭、upstream 的 round-robin／least_conn／ip_hash、502／504）、E16 `firewall`（ufw、nftables 子集，接到 CN 的封包判斷）、E17 `tunnels`（`ssh -L`／`-R`／`-J`、`~/.ssh/config`） |
+| SRV-3 | SRV07–SRV10 | **E15** `proxy`（已完成，§16）、**E16** `firewall`（已完成，§17）、**E17** `tunnels`（已完成，§18）；課程資料與檢查 §19、同批的修正 §20 |
 | SRV-4 | SRV11–SRV13 | E18 `edge`（CDN 的 Cache-Control、Age、X-Cache、purge）、E19 `diagnostics`（`ping`、`traceroute`、`mtr --report`、讀擷取資料的 `tcpdump -r`） |
 | SRV-5 | SRV14 | 綜合專題，單獨一批 |
 
@@ -287,7 +290,7 @@ machines: [{ ..., profile: 'sockets' | 'dns' | 'http',
 - **語法**：字詞以空白分隔、`;` 結束、`{ }` 是區塊、`#` 註解、單雙引號（`\"`、`\\`、`\n`、`\t` 照 nginx 的 tokenizer 處理）、`${var}`。`include`：相對路徑在 `/etc/nginx`，可以用 glob（依名稱排序，不含隱藏檔與資料夾）；`sites-enabled/*` 的連結指向已刪除的檔案時是 `open() … failed (2: No such file or directory) in /etc/nginx/nginx.conf:50`。
 - **指令**（其他是 `unknown directive "x"`）：main：`user`、`worker_processes`、`pid`、`error_log`、`include`、`worker_rlimit_nofile`、`events`（必須有）、`http`；events：`worker_connections`、`multi_accept`、`use`；http／server／location：`root`、`alias`（location）、`index`、`try_files`、`return`、`rewrite`、`if`（只支援 `($var)`、`=`、`!=`、`~`、`~*`、`!~` 的條件，裡面只能有 `return`、`rewrite`）、`add_header`、`error_page`、`access_log`（`off` 或 `combined`）、`error_log`、`allow`／`deny`（`all` 或位址／CIDR）、`autoindex`、`default_type`、`types`、`keepalive_timeout`、`server_tokens`、`log_not_found`、`listen`（`位址:埠`、`default_server`、`ssl`；`[::]` 的 IPv6 接受但不建立 socket）、`server_name`（精確、`*.x`、`.x`、`x.*`、`~正規表示式`，具名擷取可當變數）、`location`（`=`、`^~`、`~`、`~*`、前綴、`@名稱`，可以巢狀）、`ssl_certificate`、`ssl_certificate_key`、`ssl_protocols` 等（接受）、`sendfile`、`gzip` 等效能指令（接受、沒有作用）。
 - **訊息**（`nginx: [emerg] … in 檔案:行`）：`unknown directive`、`"x" directive is not allowed here`、`invalid number of arguments in "x" directive`、`unexpected "}"`、`unexpected end of file, expecting ";" or "}"`／`expecting "}"`、`directive "x" has no opening "{"`、`directive "x" is not terminated by ";"`、`"root" directive is duplicate`、`"alias" directive is duplicate, "root" directive was specified earlier`、`invalid port in "70000" of the "listen" directive`、`host not found in "x" of the "listen" directive`、`invalid parameter "x"`、`invalid value "x" in "sendfile" directive, it must be "on" or "off"`、`a duplicate default server for 0.0.0.0:80`、`duplicate location "/x"`、`unknown "x" variable`、`no "events" section in configuration`、`getpwnam("x") failed`、`open() "/var/log/x/a.log" failed (2: No such file or directory)`、`no "ssl_certificate" is defined for the "listen ... ssl" directive`、`cannot load certificate "x": BIO_new_file() failed (…)`、`SSL_CTX_use_PrivateKey("x") failed (… key values mismatch)`；警告 `nginx: [warn] conflicting server name "x" on 0.0.0.0:80, ignored`（測試仍成功）。
-- **E15 的指令**：`proxy_pass`、`proxy_set_header`、`upstream`、`fastcgi_pass` 等。**選擇**：解析到時**測試失敗**，訊息 `nginx: [emerg] 模擬環境："proxy_pass" 是反向代理的設定，在引擎階段 E15 才模擬 in 檔案:行`——不假裝代理成功，也不默默忽略。`log_format`、`map`、`set` 同樣以 emerg 說明不支援。
+- **E15 的指令**：`proxy_pass`、`proxy_set_header`、`upstream`、`fastcgi_pass` 等。**選擇**：`nginx` profile 解析到時**測試失敗**，訊息 `nginx: [emerg] 模擬環境："proxy_pass" 是反向代理的設定，在引擎階段 E15 才模擬 in 檔案:行`——不假裝代理成功，也不默默忽略。`log_format`、`map`、`set` 同樣以 emerg 說明不支援。`proxy` profile 起照 §16 處理（這個拒絕只留在 `nginx` profile）。
 
 ### 12.3 `nginx` 指令
 
@@ -359,4 +362,183 @@ machines: [{ ..., profile: 'tls' | 'nginx',
 
 ## 15. 仍不支援（之後的階段或文字說明）
 
-IPv6 的連線與監聽（`[::]:80`；`ip` 只顯示核心自動加的 IPv6 位址；nginx 的 `listen [::]:80` 接受但不建立 socket）、`ss` 的 unix socket、狀態過濾（`state established`）、`-s`、`-e`、`%lo` 的介面標記、`lsof` 的檔案與 `-p`、`nc` 的資料傳送與監聽、UDP 的連線檢查、`ip` 的修改、`netstat`（請用 ss）、防火牆（E16）、反向 DNS（PTR、`dig -x`）、DNSSEC、區域傳送與次要伺服器、委派的逐步查詢（CN12）、`resolvectl` 的其他子指令、`/etc/nsswitch.conf`、從遠端工作階段跨主機的連線與查詢、代理（`proxy_pass`、`upstream`：E15）、`curl` 的進度表與時間變數。E13–E14：真正的密碼學（簽章、金鑰交換）、DER、`openssl req`／`genrsa`／`s_server`、TLS 1.2 與 cipher 的協商、OCSP、CRL、憑證透明度、`update-ca-certificates`（課程以 `trust` 宣告信任）、DNS-01 與其他 certbot 外掛、HTTP/2（nginx 1.24 的 `listen … http2` 接受、仍說 HTTP/1.1）、`log_format`、`map`、`set`、完整的 `if`、`limit_req`、`gzip` 的實際壓縮、`Last-Modified`／`ETag`、Range、nginx 的 `stub_status`。
+IPv6 的連線與監聽（`[::]:80`；`ip` 只顯示核心自動加的 IPv6 位址；nginx 的 `listen [::]:80` 接受但不建立 socket）、`ss` 的 unix socket、狀態過濾（`state established`）、`-s`、`-e`、`%lo` 的介面標記、`lsof` 的檔案與 `-p`、`nc` 的資料傳送與監聽、UDP 的連線檢查、`ip` 的修改、`netstat`（請用 ss）、防火牆（E16 起，§17）、反向 DNS（PTR、`dig -x`）、DNSSEC、區域傳送與次要伺服器、委派的逐步查詢（CN12）、`resolvectl` 的其他子指令、`/etc/nsswitch.conf`、從遠端工作階段跨主機的連線與查詢、代理（E15 起，§16）、`curl` 的進度表與時間變數。E13–E14：真正的密碼學（簽章、金鑰交換）、DER、`openssl req`／`genrsa`／`s_server`、TLS 1.2 與 cipher 的協商、OCSP、CRL、憑證透明度、`update-ca-certificates`（課程以 `trust` 宣告信任）、DNS-01 與其他 certbot 外掛、HTTP/2（nginx 1.24 的 `listen … http2` 接受、仍說 HTTP/1.1）、`log_format`、`map`、`set`、完整的 `if`、`limit_req`、`gzip` 的實際壓縮、`Last-Modified`／`ETag`、Range、nginx 的 `stub_status`。
+
+## 16. 引擎階段 E15：`proxy` profile（`src/lib/terminal/nginx.ts`、`proxy.ts`）
+
+### 16.1 選用方式
+
+| 項目 | 內容 |
+|---|---|
+| `PROXY_PROFILE` | `nginx` 的一切，**沒有新指令**；feature `proxy`。機器狀態的 `nginx.proxy` 讓設定解析器接受反向代理的指令；`nginx` profile 仍是 §12.2 的 E15 拒絕訊息（已發布的 SRV04–SRV06 不變） |
+| 新的指令 | `proxy_pass`（location）、`proxy_set_header`、`proxy_http_version`（`1.0`／`1.1`，其他是 `invalid value "2.0" in "proxy_http_version" directive, it must be "1.0" or "1.1"`）、`proxy_connect_timeout`（最多 75 秒）、`proxy_read_timeout`、`proxy_send_timeout`（接受）、`proxy_redirect`（`default`、`off` 或兩個參數）、`proxy_next_upstream`（預設 `error timeout`）、`proxy_next_upstream_tries`、`proxy_intercept_errors`、`proxy_hide_header`、`proxy_pass_header`、`proxy_buffering` 等（接受）；`upstream` 區塊的 `server`（`weight=`、`max_fails=`、`fail_timeout=`、`backup`、`down`、`max_conns=` 接受）、`least_conn`、`ip_hash`、`keepalive`、`zone`；`map`（精確值、`~`／`~*` 正規表示式、`default`）。`fastcgi_pass` 等其他後端、upstream 的 `hash`／`random` 以 emerg 說明不支援；`log_format`、`set` 仍不支援 |
+| 變數 | `$proxy_add_x_forwarded_for`、`$proxy_host`、`$proxy_port`、`$upstream_addr`（嘗試過的伺服器，以 `, ` 分隔）、`$upstream_status`、`$http_*`（例如 `$http_upgrade`）、map 定義的變數 |
+| 設定錯誤 | `invalid URL prefix in "127.0.0.1:3000"`、`host not found in upstream "app.internal:3000"`（名稱在**載入設定時**以 IPv4、localhost、`/etc/hosts` 解析：課程的其他機器都在產生的 `/etc/hosts` 裡）、`"proxy_pass" cannot have URI part in location given by regular expression, or inside named location, …`、`upstream "backend" may not have port 8080`、`no servers are inside upstream`、`duplicate upstream "b"`、`invalid parameter "backup"`（ip_hash）、`invalid parameter "weight=0"`、`"proxy_read_timeout" directive invalid value`、`load balancing method redefined`（警告） |
+
+### 16.2 送到後端的請求
+
+- **URI**（nginx 文件的規則）：`proxy_pass` 沒有 URI 部分時原封不動傳出用戶端送來的 URI（含查詢字串、編碼）；有 URI 部分時把符合 location 前綴的部分換成它——`location /api/ { proxy_pass http://b/; }` 的 `/api/users` 變成 `/users`，`proxy_pass http://b/v1;` 則是 `/v1users`（少了斜線的常見錯誤）；`=` location 整個換掉。URI 被 `rewrite` 改過時傳改過的 URI。
+- **標頭**（`ngx_http_proxy_init_headers` 的順序）：先 `proxy_set_header`（只繼承上一層沒有自己的時候，和 `add_header` 相同），再補預設的 `Host: $proxy_host`、`Connection: close`、POST 的 `Content-Length`，`Transfer-Encoding`、`TE`、`Keep-Alive`、`Expect`、`Upgrade` 預設是空的（不送）；值是空字串的標頭不送；最後是用戶端的其他標頭。請求行預設 `HTTP/1.0`。
+- **後端看到的用戶端**：後端的 `$remote_addr` 是 nginx 的位址（同一台是 127.0.0.1），真正的用戶端只在 `X-Real-IP`／`X-Forwarded-For` 裡（`$proxy_add_x_forwarded_for` 把 `$remote_addr` 接在用戶端送來的 X-Forwarded-For 後面）。
+- **回應**：狀態與本文照後端；nginx 換上自己的 `Server`、`Date`，丟掉 `Connection`、`Keep-Alive`、`Transfer-Encoding`、`X-Accel-*`（與 `proxy_hide_header`），保留 `Content-Type`、`Content-Length`（HEAD 也照後端的值）與其他標頭（`add_header` 接在後面）。`proxy_redirect default` 把 `Location` 的 `http://127.0.0.1:3000/` 換成 location 的前綴，相對位址再依 Host 補成絕對網址。後端自己的錯誤直接傳回（`proxy_intercept_errors on` 時才用 `error_page`）。
+- **WebSocket**：`proxy_http_version 1.1` 加上 `proxy_set_header Upgrade $http_upgrade` 與 `Connection "upgrade"`（或文件的 `map $http_upgrade $connection_upgrade`）時，後端的 101 傳回用戶端：`HTTP/1.1 101 Switching Protocols`、`Server`、`Date`、`Connection: upgrade`、`Upgrade: websocket`、`Sec-WebSocket-Accept`（RFC 6455：key 加上 GUID 的 SHA-1 的 base64）。少了它們，後端收到 HTTP/1.0 而沒有 Upgrade，回 `426 Upgrade Required`。curl 印出 101 的標頭後結束（沒有鍵盤，不模擬之後的資料框）；`-N` 接受。
+
+### 16.3 失敗與日誌
+
+| 情況 | 狀態 | error.log（`*N … , client: …, server: …, request: "…", upstream: "http://位址:埠/URI", host: "…"`） |
+|---|---|---|
+| 後端拒絕連線 | 502 | `connect() failed (111: Connection refused) while connecting to upstream` |
+| 位址沒有機器（或防火牆丟棄） | 504（等 `proxy_connect_timeout`） | `upstream timed out (110: Connection timed out) while connecting to upstream` |
+| 後端比 `proxy_read_timeout` 慢 | 504 | `upstream timed out (110: Connection timed out) while reading response header from upstream` |
+| 監聽的不是 HTTP（sshd、沒有回應者） | 502 | `upstream prematurely closed connection while reading response header from upstream` |
+| `https://` 後端不是 TLS | 502 | `SSL_do_handshake() failed (SSL: error:0A00010B:SSL routines::wrong version number) while SSL handshaking to upstream` |
+| 沒有可用的伺服器 | 502 | `no live upstreams while connecting to upstream`（upstream 是區塊的名稱） |
+
+- 每次失敗的嘗試各寫一行；達到 `max_fails` 時的 `upstream server temporarily disabled …` 是 warn，Ubuntu 的 `error_log` 等級是 error，所以不寫（等級設成 warn 才看得到）。
+- 回應者的 `delay`（秒）模擬慢的後端；回應的等待時間累計在 `Response.wait`，`curl -m N` 等不到時是 `curl: (28) Operation timed out after N000 milliseconds with 0 bytes received`（真實的毫秒數會多幾毫秒，模擬環境固定）。
+
+### 16.4 upstream 的選擇（`proxy.ts`，nginx 1.24 的演算法）
+
+- **round robin**：平滑加權輪詢（`current_weight += effective_weight`，選最大，它減去總和）；`weight=3` 與 1 的順序是 a a b a，5／1／1 是 a a b a c a a。狀態存在 `nginx.peers`（每個 upstream 一張表，**啟動與每次 reload 重設**，和 nginx 的新 worker 一樣）。模擬環境只有一份表（真實的 nginx 沒有 `zone` 時每個 worker 各有一份）。
+- **least_conn**：比較「連線數 × 對方權重」，最少的；相同時在它們之間平滑輪詢。連線數來自課程資料 `upstreamConnections`（模擬環境的請求是瞬間的，不會增加連線數）。
+- **ip_hash**：nginx 的公式：從 89 開始，對用戶端 IPv4 的前三個位元組 `hash = (hash × 113 + 位元組) mod 6271`，`hash mod 總權重` 依權重選；那台不能用（down、已失敗、這次試過）就繼續雜湊，最多 20 次後改用輪詢；不能有 `backup`。
+- **被動健康檢查**：一次失敗 `fails + 1`、`effective_weight` 減 `weight / max_fails`；`fails` 達到 `max_fails`（預設 1，0 表示不判斷）就不再選它——真實的 nginx 在 `fail_timeout`（預設 10 秒）後再試，**模擬環境的時鐘不前進，所以到下次 reload 為止**。成功時歸零。只有一台伺服器時永遠不判斷為故障（nginx 的規則）。
+- **重試與 backup**：`proxy_next_upstream`（預設 `error timeout`）的失敗換下一台（已送出請求的非冪等方法不重試，除非 `non_idempotent`）；主要的伺服器都不能用時才用 `backup`；`down` 永遠不用。`proxy_pass http://主機:埠` 是只有一台的隱含 upstream。
+- **主動健康檢查**（nginx Plus 的 `health_check`）、HAProxy、L4（`stream` 模組）的負載平衡只在課文說明。
+
+### 16.5 後端怎麼找到
+
+nginx 所在的機器（本機或遠端）依 §17 的網路模型連到後端位址（防火牆、私有網段、通道都算）；後端是回應者或另一個 nginx（它的日誌也寫回那台機器，代理可以串接，最多 3 層）。回應者的路由新增 `echo: true`（本文是後端收到的請求：`remote_addr: 位址`、請求行、每個標頭，有內容時接在空行後）、`websocket: true`（§16.2）、`delay`（秒）；回應者本身也可以有 `delay`。
+
+## 17. 引擎階段 E16：`firewall` profile（`src/lib/terminal/firewall.ts`）
+
+### 17.1 選用方式與模型
+
+| 項目 | 內容 |
+|---|---|
+| `FIREWALL_PROFILE` | `proxy` 的一切加上 `ufw`、`nft`（`E16_COMMANDS`）；feature `firewall`。`proxy` 以下是 `command not found`，機器沒有 `firewall` 狀態、也不多任何檔案 |
+| 產生的檔案 | `/etc/ufw/applications.d/openssh-server`（`[OpenSSH]`）、有 nginx 的機器加 `/etc/ufw/applications.d/nginx`（`Nginx HTTP`、`Nginx HTTPS`、`Nginx Full`）、`/etc/nftables.conf`（Ubuntu 的預設：flush ruleset 與空的 inet filter 表） |
+| 狀態 | `FsState.firewall`：ufw（是否啟用、預設的連入／連出原則、logging、規則；IPv4 與 IPv6 的規則分開存，和 ufw 的 user.rules／user6.rules 相同）與核心裡的 nftables 規則集。**簡化**：不寫 `/etc/ufw/user.rules`；`ufw.service`、`nftables.service` 不模擬（請用 `sudo nft -f /etc/nftables.conf`） |
+| 判斷 | ufw 的規則**編譯成 CN 的規則模型**（`src/lib/network/firewall.ts`）並用 `decidePacket` 判斷：先是 ufw 的 before 規則（lo、`established` 一律放行），再依序是使用者的規則（第一條符合的決定），最後是預設原則；REJECT 記在 CN 規則旁邊（CN 只有 allow／deny）。nft 的 input 鏈（inet 與 ip 表、依 priority）逐條比對：`ct state`、`iif`／`iifname`、`ip saddr`／`daddr`（位址、CIDR、`{ }` 集合）、`tcp`／`udp dport`（埠、範圍、集合）、`meta l4proto`、`counter`、`log`，判決 `accept`、`drop`、`reject`；沒有判決時用鏈的 policy。每一條 input 基礎鏈都要放行；output 鏈與 ufw 的連出原則用在這台機器自己發出的新連線 |
+| 連線的結果 | §6.2 的連線模型加上兩道關卡：來源的 output、目的的 input。**丟棄 → 逾時**（`nc` 的 `Connection timed out`、`curl` 的 7／28、`ssh: connect to host … port 22: Connection timed out`）、**REJECT → 拒絕**（`Connection refused`）。連到自己（含自己的介面位址）走 lo：ufw 一律放行，nft 的 `policy drop` 沒有 `iif lo accept` 時連 127.0.0.1 也會逾時（真實的行為） |
+| 遠端工作階段 | 從 `firewall` 起，ssh 的工作階段與遠端指令在「從那台機器看出去的網路」裡執行（`viewFrom`：同一組機器，原本的本機變成其中一台），所以可以在 office 上 `nc -zv srv-01 22`、`curl http://srv-01/` 測試防火牆；遠端機器的 `/etc/hosts` 也列出課程的其他機器。`firewall` 以下不變（遠端只連得到自己）。在遠端仍不能再 ssh 到別台（E17 用 `-J`） |
+| 雲端的安全群組 | 只在課文說明 |
+
+### 17.2 `ufw`（ufw 0.36.2）
+
+| 指令 | 行為與格式 |
+|---|---|
+| 權限 | 非 root：`ERROR: You need to be root to run this script`（`ufw version`、`--help` 除外） |
+| `status [verbose\|numbered]` | 停用時 `Status: inactive`。啟用時 `Status: active`、空行、`To`（26 欄）`Action`（12 欄）`From` 的標題與 `--` 行、每條規則、空行；IPv4 的規則在前、`(v6)` 的在後。`verbose` 多 `Logging: on (low)`、`Default: deny (incoming), allow (outgoing), disabled (routed)`、`New profiles: skip`，動作寫成 `ALLOW IN`；`numbered` 每行前面 `[ 1] `、標題縮排 5 格。位置的寫法：`22/tcp`、`80,443/tcp`、`OpenSSH`、`Nginx Full`、`Anywhere`、`10.0.0.10 22/tcp`、`22/tcp on eth1`，來源 `Anywhere`、`10.0.0.0/24`；有 comment 時 `# 註解` |
+| `allow\|deny\|reject\|limit [in\|out] [on 介面] 規則 [comment '…']` | 簡單寫法：`22`（tcp 與 udp）、`22/tcp`、`6000:6007/tcp`、`80,443/tcp`、服務名稱（`ssh` 依 `/etc/services`）、應用程式（`OpenSSH`、`'Nginx Full'`）；完整寫法：`[proto tcp\|udp] [from 位址 [port N]] [to 位址 [port N\|app 名稱]]`。輸出 `Rules updated` 與 `Rules updated (v6)`（指定了 IPv4 位址的規則沒有 v6）、已存在 `Skipping adding existing rule`、只改動作 `Rule updated`。錯誤：`ERROR: Bad port`、`ERROR: Must specify 'tcp' or 'udp' with multiple ports`、`ERROR: Bad source address`、`ERROR: Bad destination address`、`ERROR: Could not find a profile matching 'x'`、`ERROR: Unsupported protocol`、`ERROR: Invalid syntax`。`limit` 是放行（30 秒 6 次的頻率限制只在課文說明：模擬環境的連線是瞬間的） |
+| `insert N 規則`、`prepend 規則` | `Rule inserted`；N 超過規則數 `ERROR: Invalid position 'N'` |
+| `delete N`、`delete 規則` | 依編號刪除要先確認：`Deleting:`、` allow 80/tcp`、`Proceed with operation (y|n)? `；沒有鍵盤時說明並 `Aborted`，`--force` 或 `echo y \|` 回答。依規則刪除不必確認（IPv4 與 v6 各一行 `Rule deleted`）；不存在 `Could not delete non-existent rule` |
+| `default allow\|deny\|reject [incoming\|outgoing\|routed]` | `Default incoming policy changed to 'deny'` 與 `(be sure to update your rules accordingly)` |
+| `enable`、`disable`、`reload`、`reset` | `Firewall is active and enabled on system startup`、`Firewall stopped and disabled on system startup`、`Firewall reloaded`（停用時 `Firewall not enabled (skipping reload)`）。**在 SSH 工作階段（或 ssh 的遠端指令）中** enable 會先問 `Command may disrupt existing ssh connections. Proceed with operation (y|n)? `（ufw 檢查父行程有沒有 sshd）：沒有鍵盤時說明並 `Aborted`；`--force` 或 `echo y \| sudo ufw enable` 繼續 |
+| `logging on\|off\|low\|…`、`show added`、`app list`、`app info 名稱`、`version` | `Logging enabled`；`Added user rules (see 'ufw status' for running firewall):` 與每條 `ufw allow 22/tcp`（停用時也看得到）；`Available applications:` 與兩格縮排的名稱；`Profile:`、`Title:`、`Description:`、`Port:`／`Ports:` |
+
+### 17.3 `nft`（nftables 1.0.9 的子集）
+
+| 指令 | 行為與格式 |
+|---|---|
+| `nft [-a] list ruleset`、`list tables`、`list table F T`、`list chain F T C` | nft 的版面（Tab 縮排）：`table inet filter {`、`\tchain input {`、`\t\ttype filter hook input priority filter; policy drop;`（priority 0 印成 `filter`）、每條規則（`ct state established,related accept`、`iif "lo" accept`、`ip saddr 10.0.0.0/24 tcp dport { 22, 80 } accept`、`counter packets 0 bytes 0`）、`\t}`、`}`；`-a` 在表、鏈、規則後加 `# handle N`（每個表自己編號）。ufw 啟用時另在標準錯誤說明 ufw 的規則（iptables-nft 產生）不列出 |
+| `add\|create table [F] T`、`delete table`、`add chain [F] T C '{ type filter hook input priority 0; policy drop; }'`、`add rule [F] T C 敘述`、`insert rule …`（`position N`）、`delete rule F T C handle N`、`flush chain`、`flush ruleset` | 家族預設 ip；錯誤是 `Error: …`（`Error: Could not process rule: No such file or directory`、`Error: syntax error, unexpected x`；nft 畫在指令下方的 `^^^` 不印） |
+| `nft -f 檔案`、`-c -f`（只檢查） | 讀 nft 的檔案語法（`flush ruleset`、`table … { chain … { type …; policy …; 規則 } }`，換行結束一個敘述），一次套用 |
+| 權限 | 非 root：`Error: Could not process rule: Operation not permitted` |
+| 不支援 | `jump`／`goto`（說明）、具名 set／map、`ip6` 的判斷、prerouting／forward 的判斷（接受、列出，不影響連線） |
+
+### 17.4 狀態追蹤與「不要把自己鎖在外面」
+
+- 開著的 SSH 工作階段是已建立的連線：ufw 的 before 規則一律放行 `established`，所以 `ufw enable` 之後工作階段繼續，但**新的** ssh 在沒有允許 22（或 OpenSSH）時逾時——典型的鎖在外面。
+- nft 沒有 `ct state established,related accept` 而 input 的 policy 是 drop（或有規則丟棄這個工作階段的封包）時，下一行輸入送不到：模擬環境結束工作階段，印說明與 `client_loop: send disconnect: Broken pipe`（真實的終端機會停住到 TCP 重送逾時），本機的 `$?` 是 255。
+
+## 18. 引擎階段 E17：`tunnels` profile（`src/lib/terminal/ssh.ts`）
+
+### 18.1 選用方式與網路
+
+| 項目 | 內容 |
+|---|---|
+| `TUNNELS_PROFILE` | `firewall` 的一切，**沒有新指令**；feature `tunnels`：ssh 的 `-L`、`-R`、`-J`、`-F`、`-f`、`-N`、`-g` 與 `-o ProxyJump=…`／`LocalForward`／`RemoteForward`，以及 `~/.ssh/config`。以下的 profile 不變：`-L` 是 `ssh: unknown option -- L`，`~/.ssh/config` 不讀（E7 的限制，LNX0 §15） |
+| 私有網段 | 遠端機器的 `reachableFrom: ['bastion']`：只有這些機器（主機名稱；本機用它的 host）能連到它，其他的逾時（沒有路由；不靠防火牆）。跳板機通常有兩個介面（公開與私有） |
+| sshd 的設定 | `AllowTcpForwarding`（yes、all、local、remote、no）與 `GatewayPorts`（no、yes、clientspecified）從 E7 的「接受但不模擬」改成真的讀取（值不對是 `unsupported option`）；`sshd -T` 的輸出不變 |
+
+### 18.2 `-J` 與 ProxyJump
+
+- `ssh -J [使用者@]跳板機[:埠][,下一個] [使用者@]目的主機 [指令]`：先登入跳板機（它自己的 `~/.ssh/config` 設定、它自己的 ProxyJump，最多 4 層），跳板機的 sshd 要允許 TCP 轉送，再由跳板機**解析名稱並連線**到目的主機的 22 埠（跳板機的防火牆、私有網段都算），最後以**本機的金鑰與 known_hosts** 登入目的主機（known_hosts 記的是目的主機的名稱）。和 OpenSSH 相同，**跳板機不沿用命令列的 `-o`**（例如 StrictHostKeyChecking）：先把跳板機加進 known_hosts，或在 `~/.ssh/config` 設定。
+- 失敗（OpenSSH 的訊息）：`channel 0: open failed: connect failed: Name or service not known`（或 `Connection timed out`、`Connection refused`）、`stdio forwarding failed`、`Connection closed by UNKNOWN port 65535`；跳板機不允許轉送：`channel 0: open failed: administratively prohibited: open failed` 與後兩行。結束碼 255。
+- 互動式工作階段的提示字元是目的主機，`exit` 印 `Connection to db-01 closed.`；sshd 的 journal 記錄的來源是跳板機的位址。
+
+### 18.3 `~/.ssh/config`
+
+- 讀 `~/.ssh/config`（或 `-F 檔案`，讀不到是 `Can't open user config file x: No such file or directory`）；檔案不是自己（或 root）的、或群組／其他人可寫：`Bad owner or permissions on /home/learner/.ssh/config`（結束碼 255）。
+- `Host 樣式…`（`*`、`?`、`!否定`）區塊依序比對，**同一個設定第一個出現的值生效**（所以 `Host *` 放最後），命令列的選項優先；`IdentityFile`、`LocalForward`、`RemoteForward` 累加。支援 `HostName`（`%h`）、`User`、`Port`、`IdentityFile`（`~`）、`ProxyJump`（`none` 取消）、`LocalForward`、`RemoteForward`、`StrictHostKeyChecking`、`PasswordAuthentication`、`PubkeyAuthentication`、`BatchMode`、`LogLevel`、`GatewayPorts`，以及接受而沒有作用的 `ServerAliveInterval`、`ForwardAgent` 等；`Match`、`Include` 略過。其他關鍵字：`… line N: Bad configuration option: x` 與 `… terminating, N bad configuration options`。
+- `HostName` 換掉名稱之後，known_hosts、密碼提示與 `Connection to … closed.` 用的都是 HostName（OpenSSH 的行為）。
+- 課程資料 `sshConfig`（本機）產生 `~/.ssh/config`（0600，`~/.ssh` 0700）。
+
+### 18.4 `-L`、`-R`、`-f`、`-N`
+
+| 項目 | 行為 |
+|---|---|
+| `-L [位址:]本機埠:主機:埠` | 在本機監聽 127.0.0.1（`-g` 或位址 `*`／`0.0.0.0` 時所有位址）；連線由 **SSH 伺服器那一端**解析主機並連過去（`-L 9090:127.0.0.1:8080 db-01` 是 db-01 自己的 127.0.0.1）。埠被占用：`bind [127.0.0.1]:8080: Address already in use`、`channel_setup_fwd_listener_tcpip: cannot listen to port: 8080`、`Could not request local forwarding.`（ssh 繼續）；1024 以下而不是 root：同樣三行，原因 `Permission denied` |
+| `-R [位址:]遠端埠:主機:埠` | 在伺服器監聽（`GatewayPorts no` 時一律 127.0.0.1，`yes` 時所有位址，`clientspecified` 時依指定的位址），由 sshd（`sshd: 使用者` 行程）持有；連線回到用戶端這一端解析主機。不允許（`AllowTcpForwarding no`／`local`）、埠被占用或 1024 以下而不是 root：`Warning: remote port forwarding failed for listen port 9000` |
+| `-f -N` | 登入之後在背景執行（本機的 `ssh -f -N …` 行程，持有 `-L` 的監聽 socket：`ss -tlnp` 是 `users:(("ssh",pid=…,fd=4))`）；`kill`／`pkill` 結束它，監聽就關閉，它在伺服器上的 `-R` 監聽也一起關閉。**`-N` 沒有 `-f`**：說明它會佔住終端機（模擬環境沒有 Ctrl-C），請加 `-f`；`-f` 沒有 `-N` 也沒有指令：`Cannot fork into background without a command to execute.`。互動式工作階段的 `-R` 在 `exit` 時關閉；遠端指令的 `-R` 在指令結束時關閉；互動式工作階段的 `-L` 不建立（工作階段在遠端，本機無法同時使用它） |
+| 通道的連線 | `curl`、`nc` 連到通道的埠時，對方那一端依 §17 的網路連線：成功就是目的地的服務；失敗時 ssh（在背景）印 `channel 2: open failed: connect failed: Connection refused`（`Connection timed out`、`Name or service not known`；不允許轉送是 `administratively prohibited: open failed`），而 `curl` 得到 `(52) Empty reply from server`——`nc -z` 仍是成功（本機的 ssh 接受了連線，和真實的情形相同） |
+| 不模擬 | ssh 連線本身在 `ss -tan` 的 ESTAB 列、IPv6 的 `[::1]` 監聽、動態轉送（`-D`、SOCKS）、`-W`、agent 轉送、`ExitOnForwardFailure` 的效果、`&` 把 ssh 放到背景（請用 `-f`） |
+
+## 19. E15–E17 的課程資料與檢查（`src/lib/terminal/net-lesson.ts`）
+
+```ts
+machines: [{ ..., profile: 'proxy' | 'firewall' | 'tunnels',
+  upstreamConnections?: [{ upstream: 'backend', server: '10.0.0.21:8080', connections: 12 }],   // proxy 以上
+  responders: [{ ..., delay?: 秒, routes: [{ ..., echo?: true, websocket?: true, delay?: 秒 }] }],  // proxy 以上
+  firewall?: { enabled?: true, incoming?: 'deny', outgoing?: 'allow', rules?: ['allow OpenSSH', "allow 'Nginx Full'"], nftables?: 'table inet filter { … }' },  // firewall 以上
+  sshConfig?: 'Host bastion\n  HostName …',                                                     // tunnels 以上（本機）
+  remotes: [{ ..., upstreamConnections?, firewall?, reachableFrom?: ['bastion'] }] }]            // reachableFrom：tunnels 以上
+```
+
+| 規則 | 內容 |
+|---|---|
+| 各自的 profile | `upstreamConnections` 與回應者的 `echo`、`websocket`、`delay` 需要 `proxy`；`firewall` 需要 `firewall`；`reachableFrom`、`sshConfig` 需要 `tunnels`（遠端機器同樣檢查，訊息前綴 `remote 名稱:`） |
+| 內容 | 最多 24 筆連線數（伺服器 `a.b.c.d:埠`、0–100000）；delay 0–3600 秒；echo 與 websocket 是 true 且二選一；ufw 規則最多 30 條、每條以 allow／deny／reject／limit 開頭並能被 ufw 解析（錯誤照 ufw 的訊息）；`nftables` 要能載入；原則是 allow、deny、reject；`reachableFrom` 是課程的其他機器；`sshConfig` 最多 4000 字 |
+| 產生的東西 | §17.1 的檔案、`~/.ssh/config`（課程沒有列出時）；遠端機器從 `firewall` 起的 `/etc/hosts` 列出課程的其他機器（引擎經由內部欄位 `peers` 傳遞，課程不要寫） |
+
+| 檢查 | 意義 |
+|---|---|
+| `{ kind: 'reach', from?, to, port, proto?: 'tcp', result: 'succeeded' \| 'refused' \| 'timeout' }`（`firewall` 以上） | 從 `from`（預設練習的機器；也可以是遠端機器）連到 `to`（機器名稱或 IPv4，在 from 上以 `/etc/hosts` 與課程的名稱解析）的埠：防火牆、私有網段、通道都算 |
+| `{ kind: 'firewall', host?, enabled?, incoming?, outgoing?, rule?, absent?, nftPolicy?, nftRule? }`（`firewall` 以上） | ufw 是否啟用、預設原則、`rule`（ufw 的寫法，例如 `allow from 10.0.0.0/24 to any port 22 proto tcp`，比對解析後的 IPv4 規則）存在（`absent`：不存在）；nft 的 input 鏈原則與規則文字（`nft list ruleset` 的寫法） |
+| `{ kind: 'tunnel', port, host?, target: '主機:埠', address?, works? }`（`tunnels` 以上） | 那個埠是 SSH 通道的監聽，轉送到 target（target 從通道的另一端解析，和 ssh 相同）；`works`：連得過去（沒有 channel 錯誤） |
+| `http` 的 `host`（`firewall` 以上） | 從那台機器經由網路送出（防火牆、私有網段、通道都算）；以下不變 |
+
+## 20. 同批的修正（SRV-3；從指令所在的 profile 起）
+
+| 修正 | 內容 |
+|---|---|
+| `certbot --nginx` 多個 `-d` | 同一個 server 區塊的名稱只加一次 TLS 的設定、共用一個 redirect 區塊：每個名稱一段 `if ($host = …)`（certbot 每次加在最上面，所以最後一個名稱在前），`server_name` 是全部的名稱。之前第二個名稱會再插入一次（`listen 443 ssl` 重複）並多一個 redirect 區塊 |
+| `certbot.service`／timer 觸發的更新 | deploy hook 做的事保留下來（服務的腳本結果整個採用：`systemctl reload nginx` 的 journal、nginx 套用的設定）；之前只保留了檔案，nginx 繼續送舊的憑證 |
+| `certbot renew --deploy-hook X` | 執行 X 並存成 renewal 設定的 `renew_hook`（只有真正更新時；`--dry-run` 印 `Dry run: skipping deploy hook command: X`）；之前被忽略 |
+| `/etc/letsencrypt/renewal-hooks/deploy/*` | `renew` 更新之後依名稱執行可執行的檔案（`~` 結尾的略過），在 `renew_hook` 之前；同一個指令不重複執行 |
+| `certonly` 遇到到期的同名憑證 | 印 `Renewing an existing certificate for x`（`--dry-run`：`Simulating renewal of an existing certificate for x`）；之前印 Requesting |
+| 簽章演算法 | 伺服器只送葉憑證、簽發者也不在信任庫時，由內建 CA 的名稱找簽發者的金鑰（R11 是 RSA：`sigalg: RSA-SHA256`、curl 的 `signed using sha256WithRSAEncryption`）；之前誤用葉憑證自己的金鑰 |
+| `dig a b` | 每個名稱都查（名稱後面的類型只用在它），`+short` 依序印出；完整版面時 `; <<>> DiG` 標頭只印一次 |
+| `grep -o`、`-A`／`-B`／`-C N` | 每個符合的部分一行（可配合 `-n`、`-i`、`-w`、`-E`；`-v` 不印）；上下文行用 `-` 分隔行號與檔名、不相連的群組之間 `--`；`invalid context length argument` |
+| `tr -c`／`-C`、`-cd` | 集合 1 的補集：刪除，或轉換成集合 2 的最後一個字元（GNU 依補集排序對應集合 2，集合 2 較短時以最後一個字元補齊；模擬環境一律用最後一個字元） |
+| `pgrep -c`、`ps -C 名稱` | 符合的數目（沒有時印 0、結束碼 1）；依行程名稱（comm）選擇 |
+| `sed` | **沒有做**：加入新的指令會改變已發布課程 `command not found` 訊息裡的指令清單 |
+
+已發布的課程（LNX01–LNX15、SRV01–SRV06）沒有用到上述寫法，**沒有任何已發布的輸出改變**（全部的 `terminalContentProblems` 仍是空的）；`grep`、`tr`、`ps`、`pgrep` 的說明頁與 `help` 也不變。
+
+## 21. E15–E17 的測試
+
+| 檔案 | 內容 |
+|---|---|
+| `tests/terminal-e15.test.ts` | profile 的分界（`nginx` 仍拒絕、資料欄位要 `proxy`）、URI 規則（沒有 URI、`/`、少了斜線、`=`）、送到後端的標頭與順序、X-Forwarded-For 的累加、proxy_redirect 與 HEAD 的 Content-Length、WebSocket（RFC 6455 的範例值、101、426、map）、502／504 與 error.log／access.log、連線逾時、不是 HTTP、curl -m、round robin 的加權順序、least_conn、ip_hash 的公式與 down 時的重新雜湊、重試、max_fails、backup、reload 重設、no live upstreams、設定錯誤、載入時解析名稱、資料驗證與經由代理的 `http` 檢查 |
+| `tests/terminal-e16.test.ts` | profile 的分界、產生的檔案、ufw 的每種輸出與錯誤、依編號刪除的確認、insert、show added、丟棄／拒絕／來源限制／lo、CN 模型的判斷、連出原則、遠端工作階段的網路、ssh 工作階段中 enable 的確認與鎖在外面、先允許 OpenSSH、nft 的列表與 handle、input 鏈的判斷、沒有 ct state 時工作階段中斷、nft -f／-c、資料驗證與 `reach`、`firewall`、經由防火牆的 `http` 檢查 |
+| `tests/terminal-e17.test.ts` | profile 的分界（`-L` 不是選項、config 不讀）、私有網段、`-J` 與它的錯誤、跳板機的 AllowTcpForwarding、`~/.ssh/config`（Host 區塊、第一個值、權限、未知的設定、`-F`）、`-L`（監聽的持有者、對方那一端解析、channel 錯誤、kill、埠被占用、特權埠、`-N`／`-f`、`-g`、LocalForward）、`-R`（sshd 持有、回到本機、GatewayPorts、AllowTcpForwarding）、資料驗證與 `tunnel` 檢查 |
+| `tests/terminal-srv3-fixes.test.ts` | §20 的每個修正 |
+| `tests/support/edge-fixture.ts` | 只供測試：web-06（反向代理、本機的應用程式與三台後端）、laptop／srv-01／office（防火牆）、laptop／bastion／db-01（通道） |
+
+`tests/terminal-e1.test.ts` 的 `PROFILES` 期望值加上 `proxy`、`firewall`、`tunnels`。
+
+## 22. E15–E17 仍不支援
+
+nginx：`log_format`、`set`、`if` 裡的 `proxy_pass`、同一個 location 的 `try_files` 與 `proxy_pass`（請用 `try_files $uri @app` 與具名 location）、`proxy_pass` 的變數與 unix socket、`proxy_cache`、`stream`（L4）、upstream 的 `hash`、`random`、`sticky`、`slow_start`、主動健康檢查（nginx Plus）、fail_timeout 經過後的再試（時鐘不前進）、keepalive 連線的重用細節、真實的 WebSocket 資料框。防火牆：`ufw route`、limit 的頻率、`/etc/ufw/*.rules` 檔案、`ufw.service`／`nftables.service`、IPv6 的判斷、UDP 的連線檢查、nft 的 jump、set、map、NAT、prerouting／forward 的判斷、`iptables` 指令（請用 ufw 或 nft）、雲端的安全群組。通道：`-D`（SOCKS）、`-W`、agent 轉送、在遠端工作階段中再 ssh（請用 `-J`）、`&` 背景執行 ssh、ssh 連線本身的 socket 列、互動式工作階段的 `-L`、HAProxy。

@@ -186,7 +186,7 @@ export function ps(state: FsState, args: readonly string[], io: ProcIo, peers: r
     if (!bsd.includes('u')) { io.err('ps: 模擬環境的 BSD 格式只支援 u（例如 ps aux）；也可以用 ps -ef'); return 1; }
   }
   rest = rest.map(a => a.startsWith('--sort') ? a.replace(/^--sort/, '--\x01') : a);
-  const o = getopt(rest, 'eAfu:p:o:\x01:', { '\x01': '\x01' });
+  const o = getopt(rest, 'eAfu:p:o:C:\x01:', { '\x01': '\x01' });
   if ('error' in o) return bad('error: unsupported SysV option');
   if (o.operands.length) return bad('error: garbage option');
   const list = (f: string) => (o.flags.get(f) ?? []).flatMap(v => v.split(/[,\s]+/)).filter(Boolean);
@@ -199,6 +199,8 @@ export function ps(state: FsState, args: readonly string[], io: ProcIo, peers: r
   }
   const pids = list('p');
   if (pids.some(p => !/^\d+$/.test(p))) return bad('error: process ID list syntax error');
+  // Fix (E15 batch): -C selects by command name (comm), as procps does.
+  const names = list('C');
   const fields = list('o');
   const unknown = fields.find(f => !cols[f]);
   if (unknown) return bad(`error: unknown user-defined format specifier "${unknown}"`);
@@ -216,7 +218,7 @@ export function ps(state: FsState, args: readonly string[], io: ProcIo, peers: r
   const selected = all.filter(p => {
     if (bsd !== null) return (a && x) || (a ? p.tty !== '?' : x ? p.user === io.user : p.user === io.user && p.tty === SESSION_TTY);
     if (o.flags.has('e') || o.flags.has('A')) return true;
-    if (users.length || pids.length) return users.includes(p.user) || pids.includes(String(p.pid));
+    if (users.length || pids.length || names.length) return users.includes(p.user) || pids.includes(String(p.pid)) || names.includes(commOf(p.command));
     return p.user === io.user && p.tty === SESSION_TTY;
   }).sort(order);
   const tty = { ...cols.tty, header: 'TTY' };
@@ -421,7 +423,7 @@ export function pgrep(state: FsState, cmd: 'pgrep' | 'pkill', args: readonly str
     const n = parseSignal(rest[0].slice(1));
     if (n !== undefined) { signal = n; rest = rest.slice(1); }
   }
-  const o = getopt(rest, cmd === 'pgrep' ? 'lafxnou:' : 'fxu:', {});
+  const o = getopt(rest, cmd === 'pgrep' ? 'lafxnocu:' : 'fxu:', {});
   if ('error' in o) { io.err(`${cmd}: ${o.error}`); io.err(`Try \`${cmd} --help' for more information.`); return done(2); }
   if (o.operands.length !== 1) {
     io.err(o.operands.length ? `${cmd}: only one pattern can be provided` : `${cmd}: no matching criteria specified`);
@@ -435,6 +437,8 @@ export function pgrep(state: FsState, cmd: 'pgrep' | 'pkill', args: readonly str
   if (o.flags.has('n')) procs = procs.slice(-1);
   if (o.flags.has('o')) procs = procs.slice(0, 1);
   if (cmd === 'pgrep') {
+    // Fix (E15 batch): -c prints how many matched.
+    if (o.flags.has('c')) { io.out(String(procs.length)); return done(procs.length ? 0 : 1); }
     for (const p of procs) io.out(o.flags.has('a') ? `${p.pid} ${p.command}` : o.flags.has('l') ? `${p.pid} ${commOf(p.command)}` : String(p.pid));
     return done(procs.length ? 0 : 1);
   }

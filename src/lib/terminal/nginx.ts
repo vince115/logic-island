@@ -9,6 +9,7 @@ import { matchName } from './glob';
 import { isIPv4, ownsAddress, type Listen, type NetIo, type NetResult } from './sockets';
 import { errorPage, httpDate, reasonOf, type Request, type Response } from './http';
 import { certsIn, keyIn, keyMatches, readAs, type Cert } from './tls';
+import { freshPeers, pickPeer, peerFailed, peerSucceeded, timeValue, type PeerState, type UpServer, type Upstream } from './proxy';
 
 /*
  * Engine stage E14 (docs/curriculum/SRV0_SERVER_CAPABILITY.md §12): nginx 1.24.0 as Ubuntu 24.04 packages it. The
@@ -20,7 +21,9 @@ import { certsIn, keyIn, keyMatches, readAs, type Cert } from './tls';
  * requests are answered from the simulated file system: server selection by address, port and Host (or SNI), location
  * selection in nginx's documented order, root/alias/index/try_files/return/rewrite/error_page/add_header, files read as
  * the worker user, combined access-log lines and error-log lines on the fixed clock. Reverse proxying (proxy_pass,
- * upstream) is engine stage E15: such a configuration fails the test with a message that says so.
+ * upstream) is engine stage E15: below the proxy profile such a configuration fails the test with a message that says so;
+ * from it up, proxy_pass sends the request to an upstream (round robin, least_conn, ip_hash, backup, passive health checks;
+ * proxy.ts) through the caller's network (Exchange2.upstream) and answers 502/504 with nginx's error-log lines.
  */
 
 export const NGINX_VERSION = 'nginx/1.24.0 (Ubuntu)';
@@ -34,7 +37,7 @@ export const NGINX_WORKER = 'nginx: worker process';
 
 /** A directive as parsed: its name, arguments, where it was written and (for a block) what is inside. */
 export interface Dir { name: string; args: string[]; file: string; line: number; block?: Dir[] }
-type Ctx = 'main' | 'events' | 'http' | 'server' | 'location' | 'types' | 'if';
+type Ctx = 'main' | 'events' | 'http' | 'server' | 'location' | 'types' | 'if' | 'upstream' | 'map';
 interface Spec { ctx: readonly Ctx[]; min: number; max: number; block?: true; flag?: true; once?: true }
 const ANY = Infinity, HSL: Ctx[] = ['http', 'server', 'location'], HS: Ctx[] = ['http', 'server'];
 const SPEC: Record<string, Spec> = {
@@ -61,6 +64,20 @@ const SPEC: Record<string, Spec> = {
   absolute_redirect: { ctx: HSL, min: 1, max: 1, flag: true }, port_in_redirect: { ctx: HSL, min: 1, max: 1, flag: true }, server_name_in_redirect: { ctx: HSL, min: 1, max: 1, flag: true },
   types_hash_max_size: { ctx: HSL, min: 1, max: 1 }, server_names_hash_bucket_size: { ctx: ['http'], min: 1, max: 1 }, client_max_body_size: { ctx: HSL, min: 1, max: 1 },
   charset: { ctx: HSL, min: 1, max: 1 }, expires: { ctx: HSL, min: 1, max: 2 }, etag: { ctx: HSL, min: 1, max: 1, flag: true },
+};
+/** E15 (the proxy profile and above): reverse proxying, upstream blocks and map. */
+const PROXY_SPEC: Record<string, Spec> = {
+  proxy_pass: { ctx: ['location'], min: 1, max: 1 }, proxy_set_header: { ctx: HSL, min: 2, max: 2 }, proxy_http_version: { ctx: HSL, min: 1, max: 1, once: true },
+  proxy_connect_timeout: { ctx: HSL, min: 1, max: 1, once: true }, proxy_read_timeout: { ctx: HSL, min: 1, max: 1, once: true }, proxy_send_timeout: { ctx: HSL, min: 1, max: 1, once: true },
+  proxy_redirect: { ctx: HSL, min: 1, max: 2 }, proxy_buffering: { ctx: HSL, min: 1, max: 1, flag: true }, proxy_request_buffering: { ctx: HSL, min: 1, max: 1, flag: true },
+  proxy_intercept_errors: { ctx: HSL, min: 1, max: 1, flag: true }, proxy_next_upstream: { ctx: HSL, min: 1, max: ANY }, proxy_next_upstream_tries: { ctx: HSL, min: 1, max: 1 },
+  proxy_hide_header: { ctx: HSL, min: 1, max: 1 }, proxy_pass_header: { ctx: HSL, min: 1, max: 1 }, proxy_buffer_size: { ctx: HSL, min: 1, max: 1 }, proxy_buffers: { ctx: HSL, min: 2, max: 2 },
+  upstream: { ctx: ['http'], min: 1, max: 1, block: true }, map: { ctx: ['http'], min: 2, max: 2, block: true },
+};
+/** E15: the directives of an upstream block. */
+const UPSTREAM_SPEC: Record<string, Spec> = {
+  server: { ctx: ['upstream'], min: 1, max: ANY }, least_conn: { ctx: ['upstream'], min: 0, max: 0 }, ip_hash: { ctx: ['upstream'], min: 0, max: 0 },
+  keepalive: { ctx: ['upstream'], min: 1, max: 1 }, keepalive_timeout: { ctx: ['upstream'], min: 1, max: 1 }, keepalive_requests: { ctx: ['upstream'], min: 1, max: 1 }, zone: { ctx: ['upstream'], min: 1, max: 2 },
 };
 /** Directives of reverse proxying and upstreams: engine stage E15. */
 const E15 = ['proxy_pass', 'proxy_set_header', 'proxy_redirect', 'proxy_http_version', 'proxy_read_timeout', 'proxy_connect_timeout', 'proxy_buffering', 'upstream', 'fastcgi_pass', 'uwsgi_pass', 'grpc_pass'];
@@ -112,7 +129,7 @@ function tokenize(text: string, file: string): Token[] {
 }
 
 /** What reading the configuration needs: the files as some user reads them (nginx -t as a user, the master as root). */
-export interface Reader { read(path: string): { text: string } | { error: string }; list(dir: string): string[] | null; isDir(path: string): boolean }
+export interface Reader { read(path: string): { text: string } | { error: string }; list(dir: string): string[] | null; isDir(path: string): boolean; /** E15: the machine has the proxy profile. */ proxy?: boolean }
 export function readerOf(state: FsState, user = 'root'): Reader {
   const acc = accountsOf(state), view: FsState = { ...state, user, groups: loginGroups(acc, user), cwd: '/' };
   return {
@@ -123,6 +140,7 @@ export function readerOf(state: FsState, user = 'root'): Reader {
       return childrenOf(state.nodes, w.path).map(baseName);
     },
     isDir: path => { const w = walk(view, physicalPath(state.nodes, path, true)); return !('error' in w) && w.node?.kind === 'dir'; },
+    ...state.nginx?.proxy ? { proxy: true } : {},
   };
 }
 
@@ -159,13 +177,17 @@ export function parseConfig(reader: Reader, conf = NGINX_CONF): Parsed {
       }
       if (!words.length) { if (end.special === '{') throw new ConfError(`unexpected "{" in ${file}:${end.line}`); continue; }
       const [head, ...rest] = words, d: Dir = { name: head.t, args: rest.map(w => w.t), file, line: head.line };
-      if (ctx === 'types') {
+      if (ctx === 'types' || ctx === 'map') {
         if (end.special !== ';') throw new ConfError(`unexpected "{" in ${file}:${end.line}`);
+        if (ctx === 'map' && d.args.length !== 1) throw new ConfError(`invalid number of the map parameters${at(d)}`);
         if (d.name !== 'include') { out.push(d); continue; }
       }
-      if (E15.includes(d.name)) throw new ConfError(`模擬環境："${d.name}" 是反向代理的設定，在引擎階段 E15 才模擬${at(d)}`);
-      if (UNSUPPORTED[d.name]) throw new ConfError(`${UNSUPPORTED[d.name]}${at(d)}`);
-      const spec = SPEC[d.name];
+      const proxy = reader.proxy === true;
+      if (proxy && ctx === 'upstream' && !UPSTREAM_SPEC[d.name]) throw new ConfError(['hash', 'random', 'least_time', 'sticky', 'ntlm'].includes(d.name) ? `模擬環境的 upstream 支援 round robin、least_conn 與 ip_hash（"${d.name}" 不支援）${at(d)}` : `"${d.name}" directive is not allowed here${at(d)}`);
+      if (proxy && ['fastcgi_pass', 'uwsgi_pass', 'grpc_pass', 'scgi_pass', 'memcached_pass'].includes(d.name)) throw new ConfError(`模擬環境只模擬 HTTP 的反向代理（proxy_pass）；"${d.name}" 不支援${at(d)}`);
+      if (!proxy && E15.includes(d.name)) throw new ConfError(`模擬環境："${d.name}" 是反向代理的設定，在引擎階段 E15 才模擬${at(d)}`);
+      if (UNSUPPORTED[d.name] && !(proxy && d.name === 'map')) throw new ConfError(`${UNSUPPORTED[d.name]}${at(d)}`);
+      const spec = proxy ? (ctx === 'upstream' ? UPSTREAM_SPEC[d.name] : PROXY_SPEC[d.name] ?? SPEC[d.name]) : SPEC[d.name];
       if (!spec) throw new ConfError(`unknown directive "${d.name}"${at(d)}`);
       if (!spec.ctx.includes(ctx)) throw new ConfError(ctx === 'if' ? `模擬環境的 if 裡只支援 return 與 rewrite${at(d)}` : `"${d.name}" directive is not allowed here${at(d)}`);
       if (spec.block && end.special !== '{') throw new ConfError(`directive "${d.name}" has no opening "{"${at(d)}`);
@@ -186,6 +208,7 @@ export function parseConfig(reader: Reader, conf = NGINX_CONF): Parsed {
         continue;
       }
       if (d.name === 'if') ifCondition(d);
+      if (d.name === 'proxy_http_version' && !['1.0', '1.1'].includes(d.args[0])) throw new ConfError(`invalid value "${d.args[0]}" in "proxy_http_version" directive, it must be "1.0" or "1.1"${at(d)}`);
       if (spec.block) {
         const inner: Ctx = d.name === 'location' ? 'location' : d.name as Ctx;
         d.block = parse(tokens, file, inner, pos, d);
@@ -218,19 +241,30 @@ function globFiles(reader: Reader, pattern: string): string[] {
 // --------------------------------------------------------------------------------------------------- configuration
 
 export interface NgListen { address: string; port: number; def: boolean; ssl: boolean; file: string; line: number }
-export interface Loc { mod: '' | '=' | '^~' | '~' | '~*' | '@'; path: string; re?: RegExp; dirs: Dir[]; children: Loc[]; parent?: Loc; file: string; line: number }
+export interface Loc { mod: '' | '=' | '^~' | '~' | '~*' | '@'; path: string; re?: RegExp; dirs: Dir[]; children: Loc[]; parent?: Loc; file: string; line: number; /** E15 */ proxy?: ProxyPass }
+/** E15: proxy_pass as loaded: the URL, its scheme, the upstream (a block, or the implicit one of host:port) and the URI part (undefined: none). */
+export interface ProxyPass { url: string; scheme: 'http' | 'https'; upstream: string; hostPort: string; uri?: string }
+/** E15: a map block: the variable it reads, the one it defines, exact keys (and ~regex keys) with values, and the default. */
+export interface MapDef { source: string; target: string; entries: { key: string; re?: RegExp; value: string }[]; def: string }
 export interface Srv { listens: NgListen[]; names: string[]; dirs: Dir[]; locs: Loc[]; file: string; line: number; cert?: { chain: Cert[]; path: string } }
 /** What the master runs with: the servers, the http and main directives, the worker user and count, the mime types and the files read. */
-export interface NgConf { main: Dir[]; http: Dir[]; servers: Srv[]; user: string; workers: number | 'auto'; mime: ReadonlyMap<string, string>; files: { path: string; text: string }[]; warnings: string[] }
-/** E14: the running nginx's configuration and the connection counter of its error log (*N). */
-export interface NginxState { applied?: NgConf; connections: number }
+export interface NgConf { main: Dir[]; http: Dir[]; servers: Srv[]; user: string; workers: number | 'auto'; mime: ReadonlyMap<string, string>; files: { path: string; text: string }[]; warnings: string[]; /** E15 */ upstreams: Upstream[]; maps: MapDef[] }
+/**
+ * E14: the running nginx's configuration and the connection counter of its error log (*N). E15: whether the machine has the
+ * proxy profile, each upstream's peer table (reset by every start and reload) and the active connections the lesson
+ * declares per upstream server (least_conn reads them; requests in the simulation are instantaneous and add none).
+ */
+export interface NginxState { applied?: NgConf; connections: number; proxy?: true; peers?: Record<string, { primary: PeerState[]; backup: PeerState[] }>; conns?: Record<string, number> }
 
 const VARS = ['uri', 'request_uri', 'host', 'scheme', 'args', 'query_string', 'is_args', 'server_name', 'server_port', 'remote_addr', 'request_method', 'document_root', 'request_filename', 'http_host', 'server_addr', 'status'];
+/** E15: the proxy module's and upstream module's variables. */
+const PROXY_VARS = ['proxy_add_x_forwarded_for', 'proxy_host', 'proxy_port', 'upstream_addr', 'upstream_status', 'remote_port', 'server_protocol'];
 /** Variables must be known: nginx's own, the named captures of the configuration's regexes (captures), $1..$9. */
 function checkVars(values: readonly string[], captureNames: ReadonlySet<string>) {
   for (const v of values) for (const m of v.matchAll(/\$(?:\{(\w+)\}|(\w+))/g)) {
     const name = m[1] ?? m[2];
     if (/^\d$/.test(name) || VARS.includes(name) || captureNames.has(name) || /^(http|arg|cookie|sent_http)_\w+$/.test(name)) continue;
+    if (captureNames.has('\u0001proxy') && PROXY_VARS.includes(name)) continue;
     throw new ConfError(`unknown "${name}" variable`);
   }
 }
@@ -270,7 +304,7 @@ function buildLocs(dirs: Dir[], parent?: Loc): Loc[] {
   }
   return out;
 }
-const DIRECTIVE_VARS = ['try_files', 'return', 'rewrite', 'add_header', 'root', 'alias', 'index', 'error_page'];
+const DIRECTIVE_VARS = ['try_files', 'return', 'rewrite', 'add_header', 'root', 'alias', 'index', 'error_page', 'proxy_set_header'];
 function checkLevel(dirs: Dir[], captures: ReadonlySet<string>) {
   for (const d of dirs) {
     if (d.name === 'if') { checkVars([ifCondition(d).variable], captures); checkLevel(d.block ?? [], captures); continue; }
@@ -296,7 +330,106 @@ function checkLevel(dirs: Dir[], captures: ReadonlySet<string>) {
     if ((d.name === 'allow' || d.name === 'deny') && d.args[0] !== 'all' && !/^\d+\.\d+\.\d+\.\d+(\/\d{1,2})?$/.test(d.args[0])) throw new ConfError(`invalid parameter "${d.args[0]}"${at(d)}`);
     if (d.name === 'keepalive_timeout' && !/^\d+[sm]?$/.test(d.args[0])) throw new ConfError(`invalid value "${d.args[0]}"${at(d)}`);
     if (d.name === 'access_log' && d.args[0] !== 'off' && d.args[1] !== undefined && d.args[1] !== 'combined') throw new ConfError(`unknown log format "${d.args[1]}"${at(d)}`);
+    if (['proxy_connect_timeout', 'proxy_read_timeout', 'proxy_send_timeout'].includes(d.name) && timeValue(d.args[0]) === undefined) throw new ConfError(`"${d.name}" directive invalid value${at(d)}`);
+    if (d.name === 'proxy_next_upstream') for (const a of d.args) if (!['error', 'timeout', 'invalid_header', 'http_500', 'http_502', 'http_503', 'http_504', 'http_403', 'http_404', 'http_429', 'non_idempotent', 'off'].includes(a)) throw new ConfError(`invalid value "${a}"${at(d)}`);
+    if (d.name === 'proxy_redirect' && d.args.length === 1 && !['off', 'default'].includes(d.args[0])) throw new ConfError(`invalid parameter "${d.args[0]}"${at(d)}`);
+    if (d.name === 'proxy_next_upstream_tries' && !/^\d+$/.test(d.args[0])) throw new ConfError(`invalid value "${d.args[0]}"${at(d)}`);
   }
+}
+
+/** E15: a host name nginx resolves while it loads the configuration: an IPv4 address, localhost, or /etc/hosts (read as root). */
+function resolveAtLoad(reader: Reader, host: string): string | undefined {
+  if (isIPv4(host)) return host;
+  if (host === 'localhost') return '127.0.0.1';
+  const r = reader.read('/etc/hosts');
+  if ('error' in r) return undefined;
+  for (const raw of r.text.split('\n')) {
+    const [address, ...names] = raw.replace(/#.*/, '').trim().split(/\s+/);
+    if (address && isIPv4(address) && names.some(n => n.toLowerCase() === host.toLowerCase())) return address;
+  }
+  return undefined;
+}
+/** E15: host[:port] of proxy_pass or of an upstream server (default port 80, or 443 for https). */
+function hostPort(text: string, defPort: number): { host: string; port: number } | null {
+  const m = /^([^:/]+)(?::(\d+))?$/.exec(text);
+  if (!m || (m[2] !== undefined && (Number(m[2]) < 1 || Number(m[2]) > 65535))) return null;
+  return { host: m[1], port: m[2] !== undefined ? Number(m[2]) : defPort };
+}
+/** E15: the upstream blocks of the http block, checked as nginx does when it loads them. */
+function buildUpstreams(http: Dir[], reader: Reader, warnings: string[]): Upstream[] {
+  const out: Upstream[] = [];
+  for (const u of http.filter(d => d.name === 'upstream')) {
+    const name = u.args[0];
+    if (out.some(o => o.name === name)) throw new ConfError(`duplicate upstream "${name}"${at(u)}`);
+    const dirs = u.block ?? [];
+    const methods = dirs.filter(d => d.name === 'least_conn' || d.name === 'ip_hash');
+    if (methods.length > 1) warnings.push(`load balancing method redefined${at(methods[1])}`);
+    const method = methods.at(-1)?.name === 'ip_hash' ? 'ip_hash' : methods.length ? 'least_conn' : 'round-robin';
+    const servers: UpServer[] = [];
+    for (const d of dirs.filter(x => x.name === 'server')) {
+      const [addr, ...params] = d.args;
+      if (addr.startsWith('unix:')) throw new ConfError(`模擬環境的 upstream 只支援 TCP 的 server（${addr} 不支援）${at(d)}`);
+      const hp = hostPort(addr, 80);
+      if (!hp) throw new ConfError(`invalid host in upstream "${addr}"${at(d)}`);
+      const address = resolveAtLoad(reader, hp.host);
+      if (!address) throw new ConfError(`host not found in upstream "${addr}"${at(d)}`);
+      const s: UpServer = { text: `${address}:${hp.port}`, address, port: hp.port, weight: 1, maxFails: 1, failTimeout: 10, backup: false, down: false };
+      for (const p of params) {
+        const m = /^(weight|max_fails|fail_timeout|max_conns)=(\w+)$/.exec(p);
+        if (m && m[1] === 'weight' && /^\d+$/.test(m[2]) && Number(m[2]) >= 1) s.weight = Number(m[2]);
+        else if (m && m[1] === 'max_fails' && /^\d+$/.test(m[2])) s.maxFails = Number(m[2]);
+        else if (m && m[1] === 'fail_timeout' && timeValue(m[2]) !== undefined) s.failTimeout = timeValue(m[2])!;
+        else if (m && m[1] === 'max_conns' && /^\d+$/.test(m[2])) continue;
+        else if (p === 'backup' && method !== 'ip_hash') s.backup = true;
+        else if (p === 'down') s.down = true;
+        else throw new ConfError(`invalid parameter "${p}"${at(d)}`);
+      }
+      servers.push(s);
+    }
+    if (!servers.length) throw new ConfError(`no servers are inside upstream${at(u)}`);
+    const ka = dirs.find(d => d.name === 'keepalive');
+    if (ka && (!/^\d+$/.test(ka.args[0]) || Number(ka.args[0]) < 1)) throw new ConfError(`invalid value "${ka.args[0]}" in "keepalive" directive${at(ka)}`);
+    out.push({ name, servers, method, ...ka ? { keepalive: Number(ka.args[0]) } : {}, file: u.file, line: u.line });
+  }
+  return out;
+}
+/** E15: proxy_pass's URL: an upstream block's name, or host:port (an implicit upstream of one server, resolved now). */
+function buildProxy(d: Dir, loc: Loc, upstreams: Upstream[], reader: Reader): ProxyPass {
+  const url = d.args[0];
+  if (url.includes('$')) throw new ConfError(`模擬環境的 proxy_pass 不支援變數（${url}）${at(d)}`);
+  const m = /^(https?):\/\/([^/]+)(\/.*)?$/i.exec(url);
+  if (!m) throw new ConfError(/^unix:/i.test(url.replace(/^https?:\/\//, '')) ? `模擬環境的 proxy_pass 只支援 TCP（${url}）${at(d)}` : `invalid URL prefix in "${url}"${at(d)}`);
+  const scheme = m[1].toLowerCase() as 'http' | 'https', hp = m[2], uri = m[3];
+  if (uri !== undefined && (loc.re || loc.mod === '@')) throw new ConfError(`"proxy_pass" cannot have URI part in location given by regular expression, or inside named location, or inside "if" statement, or inside "limit_except" block${at(d)}`);
+  const named = upstreams.find(u => u.name === hp.replace(/:\d+$/, ''));
+  if (named) {
+    if (hp.includes(':')) throw new ConfError(`upstream "${named.name}" may not have port ${hp.split(':')[1]}${at(d)}`);
+    return { url, scheme, upstream: named.name, hostPort: named.name, ...uri !== undefined ? { uri } : {} };
+  }
+  const p = hostPort(hp, scheme === 'https' ? 443 : 80);
+  if (!p) throw new ConfError(`invalid host in upstream "${hp}"${at(d)}`);
+  const address = resolveAtLoad(reader, p.host);
+  if (!address) throw new ConfError(`host not found in upstream "${hp}"${at(d)}`);
+  const key = `${address}:${p.port}`;
+  if (!upstreams.some(u => u.name === key)) {
+    upstreams.push({ name: key, implicit: true, servers: [{ text: key, address, port: p.port, weight: 1, maxFails: 1, failTimeout: 10, backup: false, down: false }], method: 'round-robin', file: d.file, line: d.line });
+  }
+  const shown = p.port === (scheme === 'https' ? 443 : 80) ? p.host : `${p.host}:${p.port}`;
+  return { url, scheme, upstream: key, hostPort: shown, ...uri !== undefined ? { uri } : {} };
+}
+/** E15: map $source $target { key value; … default value; }: exact keys (case-insensitive like nginx's hostnames off) and ~regex keys. */
+function buildMaps(http: Dir[]): MapDef[] {
+  return http.filter(d => d.name === 'map').map(d => {
+    const entries: MapDef['entries'] = [];
+    let def = '';
+    for (const e of d.block ?? []) {
+      if (e.name === 'default') { def = e.args[0]; continue; }
+      if (e.name.startsWith('~')) entries.push({ key: e.name, re: regex(e.name.replace(/^~\*?/, ''), e.name.startsWith('~*') ? 'i' : '', e), value: e.args[0] });
+      else entries.push({ key: e.name.replace(/^\\/, ''), value: e.args[0] });
+    }
+    if (!/^\$\w+$/.test(d.args[1])) throw new ConfError(`invalid variable name "${d.args[1]}"${at(d)}`);
+    return { source: d.args[0], target: d.args[1].slice(1), entries, def };
+  });
 }
 function walkLocs(locs: Loc[], f: (l: Loc) => void) { for (const l of locs) { f(l); walkLocs(l.children, f); } }
 
@@ -313,6 +446,10 @@ export function loadConfig(state: FsState, reader: Reader = readerOf(state), con
     scan(d.block ?? []);
   } };
   scan(http);
+  // E15: the variables map defines, and the proxy module's own (only from the proxy profile up).
+  const maps = reader.proxy ? buildMaps(http) : [];
+  if (reader.proxy) { captures.add('\u0001proxy'); for (const m of maps) captures.add(m.target); }
+  const upstreams = reader.proxy ? buildUpstreams(http, reader, warnings) : [];
   const userDir = main.find(d => d.name === 'user'), user = userDir?.args[0] ?? 'nobody';
   if (userDir && !findUser(accountsOf(state), user)) throw new ConfError(`getpwnam("${user}") failed${at(userDir)}`);
   const wp = main.find(d => d.name === 'worker_processes');
@@ -331,6 +468,8 @@ export function loadConfig(state: FsState, reader: Reader = readerOf(state), con
     for (const n of names) if (n.startsWith('~')) regex(n.slice(1), 'i', s);
     const locs = buildLocs(s.block ?? []);
     walkLocs(locs, l => checkLevel(l.dirs, captures));
+    // E15: each location's proxy_pass (nginx resolves its host now; an upstream block's name stands for the block).
+    if (reader.proxy) walkLocs(locs, l => { const pp = l.dirs.find(d => d.name === 'proxy_pass'); if (pp) l.proxy = buildProxy(pp, l, upstreams, reader); });
     servers.push({ listens, names: names.length ? names : [''], dirs, locs, file: s.file, line: s.line });
   }
   // Default servers and server names, per address and port.
@@ -371,7 +510,8 @@ export function loadConfig(state: FsState, reader: Reader = readerOf(state), con
   collect(main); collect(http);
   for (const s of servers) { collect(s.dirs); walkLocs(s.locs, l => collect(l.dirs)); }
   for (const p of logs) if (!reader.isDir(parentOf(p))) throw new ConfError(`open() "${p}" failed (2: No such file or directory)`);
-  return { main, http, servers, user, workers: wp?.args[0] === 'auto' || !wp ? (wp ? 'auto' : 1) : Number(wp.args[0]), mime, files: parsed.files, warnings };
+  for (const m of maps) checkVars([m.source], captures);
+  return { main, http, servers, user, workers: wp?.args[0] === 'auto' || !wp ? (wp ? 'auto' : 1) : Number(wp.args[0]), mime, files: parsed.files, warnings, upstreams, maps };
 }
 /** The configuration test's result as nginx -t prints it. */
 export function testConfig(state: FsState, reader: Reader = readerOf(state), conf = NGINX_CONF): { conf: NgConf } | { error: string } {
@@ -401,7 +541,7 @@ function workerCount(state: FsState, conf: NgConf) { return conf.workers === 'au
 /** Applies a configuration to the running master: its sockets, new workers (the old ones leave), the log files it opens. */
 export function applyConfig(state: FsState, conf: NgConf, initial = false): FsState {
   const master = masterOf(state);
-  if (!master) return { ...state, nginx: { ...nginxOf(state), applied: conf } };
+  if (!master) return { ...state, nginx: { ...nginxOf(state), applied: conf, ...conf.upstreams.length ? { peers: peersOf(conf) } : {} } };
   let procs = tableOf(state).map(p => p.pid === master.pid ? { ...p, command: NGINX_MASTER, listen: listensOf(conf) } : p);
   let last = state.lastPid ?? Math.max(0, ...procs.map(p => p.pid));
   procs = procs.filter(p => !(p.ppid === master.pid && commOf(p.command) === 'nginx'));
@@ -417,8 +557,10 @@ export function applyConfig(state: FsState, conf: NgConf, initial = false): FsSt
     const real = physicalPath(nodes, p, true);
     if (!nodes.has(real) && nodes.get(parentOf(real))?.kind === 'dir') nodes.set(real, { kind: 'file', mode: 0o644, owner: 'root', content: '' });
   }
-  return { ...state, nodes, processes: procs, lastPid: last, nginx: { ...nginxOf(state), applied: conf } };
+  return { ...state, nodes, processes: procs, lastPid: last, nginx: { ...nginxOf(state), applied: conf, ...conf.upstreams.length ? { peers: peersOf(conf) } : {} } };
 }
+/** E15: a fresh peer table for every upstream (a start or reload forgets the failures, as nginx's new workers do). */
+const peersOf = (conf: NgConf) => Object.fromEntries(conf.upstreams.map(u => [u.name, { primary: freshPeers(u.servers.filter(s => !s.backup)), backup: freshPeers(u.servers.filter(s => s.backup)) }]));
 function logPaths(conf: NgConf): string[] {
   const out = new Set<string>([DEFAULT_ERROR]);
   const add = (dirs: Dir[]) => { for (const d of dirs) if ((d.name === 'access_log' || d.name === 'error_log') && d.args[0].startsWith('/')) out.add(d.args[0]); };
@@ -697,7 +839,14 @@ function levelWith(c: Ctx2, name: string): Dir[] {
 const flag = (c: Ctx2, name: string, def: boolean) => { const d = levelWith(c, name)[0]; return d ? d.args[0] === 'on' : def; };
 
 export interface Served { res: Response; host: FsState }
-export interface Exchange2 { address: string; port: number; https: boolean; client: string; req: Request; now: number }
+/** E15: what an upstream answered (or how the attempt failed); delay is how long the response took (seconds). */
+export type UpstreamResult = { kind: 'refused' } | { kind: 'timeout' } | { kind: 'closed' } | { kind: 'plain' } | { kind: 'response'; res: Response; delay: number };
+/**
+ * E15: how nginx's machine reaches an upstream server, given by the caller that knows the network (curl, the lesson checks):
+ * proxyHost is the nginx machine's state now (an upstream on the same machine is served on it and handed back).
+ */
+export type UpstreamFn = (proxyHost: FsState, address: string, port: number, scheme: 'http' | 'https', req: Request) => { result: UpstreamResult; host: FsState };
+export interface Exchange2 { address: string; port: number; https: boolean; client: string; req: Request; now: number; /** E15 */ upstream?: UpstreamFn }
 
 /** E14: nginx answers one request; the access and error logs are written on the host (its new state is returned). */
 export function nginxServe(host0: FsState, x: Exchange2): Served {
@@ -715,9 +864,11 @@ export function nginxServe(host0: FsState, x: Exchange2): Served {
   const serverTokens = flag({ srv, conf }, 'server_tokens', true);
   const serverHeader = serverTokens ? NGINX_VERSION : 'nginx';
   const hostName = (hostHeader ?? srv.names[0] ?? '').replace(/:\d+$/, '');
-  const errors: string[] = [];
-  const logError = (msg: string) => errors.push(msg);
-  const vars = (c: Ctx2, captures: string[]) => (text: string) => text.replace(/\$(?:\{(\w+)\}|(\w+))/g, (_m, a: string | undefined, b: string | undefined) => {
+  const errors: { msg: string; level: 'error' | 'warn'; upstream?: string }[] = [];
+  const logError = (msg: string, upstream?: string, level: 'error' | 'warn' = 'error') => errors.push({ msg, level, ...upstream !== undefined ? { upstream } : {} });
+  // E15: what the proxy module tried ($upstream_addr, $upstream_status) and the variables of map blocks.
+  let upstreamAddr = '', upstreamStatus = '', proxyHostVar = '', proxyPortVar = '';
+  const vars = (c: Ctx2, captures: string[]) => (text: string): string => text.replace(/\$(?:\{(\w+)\}|(\w+))/g, (_m, a: string | undefined, b: string | undefined): string => {
     const name = a ?? b ?? '';
     if (/^\d$/.test(name)) return captures[Number(name) - 1] ?? sel.captures[name] ?? '';
     switch (name) {
@@ -734,10 +885,23 @@ export function nginxServe(host0: FsState, x: Exchange2): Served {
       case 'remote_addr': return x.client;
       case 'request_method': return x.req.method;
       case 'document_root': return rootOf(c) ?? '';
-      default:
+      case 'proxy_add_x_forwarded_for': { const xff = x.req.headers.find(([k]) => k.toLowerCase() === 'x-forwarded-for')?.[1]; return xff ? `${xff}, ${x.client}` : x.client; }
+      case 'proxy_host': return proxyHostVar;
+      case 'proxy_port': return proxyPortVar;
+      case 'upstream_addr': return upstreamAddr;
+      case 'upstream_status': return upstreamStatus;
+      case 'server_protocol': return 'HTTP/1.1';
+      default: {
+        const map = conf.maps?.find(m => m.target === name);
+        if (map) {
+          const source: string = vars(c, captures)(map.source);
+          const hit: MapDef['entries'][number] | undefined = map.entries.find(e => e.re ? e.re.test(source) : e.key.toLowerCase() === source.toLowerCase());
+          return vars(c, captures)(hit ? hit.value : map.def);
+        }
         if (name.startsWith('http_')) return x.req.headers.find(([k]) => k.toLowerCase().replace(/-/g, '_') === name.slice(5))?.[1] ?? '';
         if (name.startsWith('arg_')) return new URLSearchParams(args).get(name.slice(4)) ?? '';
         return sel.captures[name] ?? '';
+      }
     }
   });
   const rootOf = (c: Ctx2) => levelWith(c, 'root')[0]?.args[0] ?? '/usr/share/nginx/html';
@@ -762,7 +926,7 @@ export function nginxServe(host0: FsState, x: Exchange2): Served {
     const ext = /\.([^./]+)$/.exec(path)?.[1]?.toLowerCase();
     return (ext && conf.mime.get(ext)) ?? levelWith(c, 'default_type')[0]?.args[0] ?? 'text/plain';
   };
-  type Out = { status: number; body?: string; type?: string; location?: string; c: Ctx2 };
+  type Out = { status: number; body?: string; type?: string; location?: string; c: Ctx2; /** E15: an upstream's response (its other headers, in order) */ proxied?: { headers: [string, string][]; upgrade: boolean; length?: string } };
   const fail = (status: number, c: Ctx2): Out => ({ status, c });
   const access = (c: Ctx2): Out | null => {
     for (const d of [...levelWith(c, 'allow'), ...levelWith(c, 'deny')].sort((p, q) => p.line - q.line || (p.file < q.file ? -1 : 1))) {
@@ -831,12 +995,95 @@ export function nginxServe(host0: FsState, x: Exchange2): Served {
         if (/^https?:\/\//.test(to) || flagName === 'redirect' || flagName === 'permanent') return { status: flagName === 'permanent' ? 301 : 302, location: to, c };
         if (to.includes('?')) to = to.split('?')[0];
         uri = to;
+        rewritten = true;
         if (flagName === 'last') return { last: to };
         if (flagName === 'break') return { brk: true };
       }
     }
     return null;
   };
+  let rewritten = false;
+  /** E15: proxy_pass — the upstream request (URI, proxy_set_header and the defaults), the peers in turn, 502/504 and their log lines. */
+  const proxyTo = (c: Ctx2, loc: Loc, captures: string[]): Out => {
+    const p = loc.proxy!, up = conf.upstreams.find(u => u.name === p.upstream)!, v = vars(c, captures);
+    proxyHostVar = p.hostPort; proxyPortVar = String(up.implicit ? up.servers[0].port : 80);
+    const prefix = loc.mod === '' || loc.mod === '^~' || loc.mod === '=';
+    const query = args ? `?${args}` : '';
+    const path = rewritten ? uri + query : p.uri !== undefined ? p.uri + (prefix ? uri.slice(loc.path.length) : '') + query : rawUri;
+    const userSet = levelWith(c, 'proxy_set_header').map(d => [d.args[0], v(d.args[1])] as [string, string]);
+    const body = x.req.body;
+    const defaults: [string, string][] = [['Host', p.hostPort], ['Connection', 'close'], ...body !== undefined ? [['Content-Length', String(new TextEncoder().encode(body).length)] as [string, string]] : [],
+      ['Transfer-Encoding', ''], ['TE', ''], ['Keep-Alive', ''], ['Expect', ''], ['Upgrade', '']];
+    const merged = [...userSet, ...defaults.filter(([k]) => !userSet.some(([u]) => u.toLowerCase() === k.toLowerCase()))];
+    const keys = new Set(merged.map(([k]) => k.toLowerCase()));
+    const headers: [string, string][] = [...merged.filter(([, val]) => val !== ''), ...x.req.headers.filter(([k]) => !keys.has(k.toLowerCase()))];
+    const version = levelWith(c, 'proxy_http_version')[0]?.args[0] === '1.1' ? '1.1' : '1.0';
+    const req: Request = { method: x.req.method, path, headers, ...body !== undefined ? { body } : {}, version };
+    const time = (name: string, def: number) => { const d = levelWith(c, name)[0]; return d ? timeValue(d.args[0]) ?? def : def; };
+    const connectTimeout = Math.min(time('proxy_connect_timeout', 60), 75), readTimeout = time('proxy_read_timeout', 60);
+    const nextOn = levelWith(c, 'proxy_next_upstream').flatMap(d => d.args), retryOn = nextOn.length ? (nextOn.includes('off') ? [] : nextOn) : ['error', 'timeout'];
+    const triesDir = levelWith(c, 'proxy_next_upstream_tries')[0], maxTries = triesDir ? Number(triesDir.args[0]) : 0;
+    const idempotent = ['GET', 'HEAD', 'OPTIONS', 'TRACE', 'PUT', 'DELETE'].includes(x.req.method) || retryOn.includes('non_idempotent');
+    const n0 = host.nginx!, table = n0.peers?.[up.name] ?? { primary: freshPeers(up.servers.filter(z => !z.backup)), backup: freshPeers(up.servers.filter(z => z.backup)) };
+    const peers = { primary: table.primary.map(z => ({ ...z })), backup: table.backup.map(z => ({ ...z })) };
+    const peerOf = (i: number) => { const srv = up.servers[i], list = srv.backup ? peers.backup : peers.primary, group = up.servers.filter(z => z.backup === srv.backup); return { srv, state: list[group.indexOf(srv)], single: up.servers.length === 1 }; };
+    const tried = new Set<number>(), addrs: string[] = [], statuses: string[] = [];
+    let res: Response | undefined, last: 'error' | 'timeout' | undefined, waited = 0;
+    for (;;) {
+      const i = pickPeer(up, peers, tried, x.client, srv => n0.conns?.[`${up.name}/${srv.text}`] ?? 0);
+      if (i === undefined) {
+        if (!tried.size) { logError('no live upstreams while connecting to upstream', `${p.scheme}://${up.name}${path}`); addrs.push(up.name); last = 'error'; }
+        break;
+      }
+      tried.add(i);
+      const { srv, state: ps, single } = peerOf(i), upstreamUrl = `${p.scheme}://${srv.text}${path}`;
+      addrs.push(srv.text);
+      const r = x.upstream ? x.upstream(host, srv.address, srv.port, p.scheme, req) : { result: { kind: 'refused' } as UpstreamResult, host };
+      host = r.host;
+      const a = r.result;
+      if (a.kind === 'response' && a.delay < readTimeout) { res = a.res; waited += a.delay; statuses.push(String(a.res.status)); peerSucceeded(ps); break; }
+      const failure: { kind: 'error' | 'timeout'; msg: string; phase: string } =
+        a.kind === 'refused' ? { kind: 'error', msg: 'connect() failed (111: Connection refused) while connecting to upstream', phase: 'connecting to' }
+          : a.kind === 'timeout' ? { kind: 'timeout', msg: 'upstream timed out (110: Connection timed out) while connecting to upstream', phase: 'connecting to' }
+            : a.kind === 'closed' ? { kind: 'error', msg: 'upstream prematurely closed connection while reading response header from upstream', phase: 'reading response header from' }
+              : a.kind === 'plain' ? { kind: 'error', msg: 'SSL_do_handshake() failed (SSL: error:0A00010B:SSL routines::wrong version number) while SSL handshaking to upstream', phase: 'SSL handshaking to' }
+                : { kind: 'timeout', msg: 'upstream timed out (110: Connection timed out) while reading response header from upstream', phase: 'reading response header from' };
+      waited += failure.kind === 'timeout' ? (a.kind === 'timeout' ? connectTimeout : readTimeout) : 0;
+      logError(failure.msg, upstreamUrl);
+      statuses.push(failure.kind === 'timeout' ? '504' : '502');
+      if (peerFailed(srv, ps, single)) logError(`upstream server temporarily disabled while ${failure.phase} upstream`, upstreamUrl, 'warn');
+      last = failure.kind;
+      const sent = a.kind === 'closed' || a.kind === 'response';
+      if (!retryOn.includes(failure.kind) || (sent && !idempotent) || (maxTries && tried.size >= maxTries)) break;
+    }
+    host = { ...host, nginx: { ...host.nginx!, peers: { ...host.nginx!.peers, [up.name]: peers } } };
+    upstreamAddr = addrs.join(', ');
+    upstreamStatus = res ? statuses.join(', ') : statuses.length ? statuses.join(', ') : '';
+    wait += waited;
+    if (!res) return { status: last === 'timeout' ? 504 : 502, c };
+    // The upstream's response: nginx's own Server and Date, the hop-by-hop headers dropped, proxy_redirect on Location.
+    const hide = new Set(['server', 'date', 'connection', 'keep-alive', 'transfer-encoding', 'content-length', 'content-type', 'x-pad', 'x-accel-expires', 'x-accel-redirect', 'x-accel-limit-rate', 'x-accel-buffering', 'x-accel-charset',
+      ...levelWith(c, 'proxy_hide_header').map(d => d.args[0].toLowerCase())].filter(h => !levelWith(c, 'proxy_pass_header').some(d => d.args[0].toLowerCase() === h)));
+    const redirect = levelWith(c, 'proxy_redirect');
+    const rewriteLocation = (l: string) => {
+      if (redirect[0]?.args[0] === 'off') return l;
+      const rules = redirect.length && redirect[0].args[0] !== 'default' ? redirect.map(d => [d.args[0], d.args[1] ?? ''] as [string, string])
+        : [p.uri !== undefined ? [p.url, loc.path] as [string, string] : [`${p.url}/`, '/'] as [string, string]];
+      for (const [from, to] of rules) if (l.startsWith(from)) return to + l.slice(from.length);
+      return l;
+    };
+    const passed: [string, string][] = [];
+    let location: string | undefined;
+    for (const [k, val] of res.headers) {
+      const key = k.toLowerCase();
+      if (key === 'location') { location = rewriteLocation(val); if (!location.startsWith('/')) passed.push([k, location]); continue; }
+      if (res.status === 101 && key === 'upgrade') { passed.push([k, val]); continue; }
+      if (!hide.has(key)) passed.push([k, val]);
+    }
+    const type = res.headers.find(([k]) => k.toLowerCase() === 'content-type')?.[1], length = res.headers.find(([k]) => k.toLowerCase() === 'content-length')?.[1];
+    return { status: res.status, body: res.body, ...type !== undefined ? { type } : {}, ...location?.startsWith('/') ? { location } : {}, c, proxied: { headers: passed, upgrade: res.status === 101, ...length !== undefined ? { length } : {} } };
+  };
+  let wait = 0;
   const internal = (u: string, redirects: number, s: Srv): Out => {
     if (redirects > 10) { logError(`rewrite or internal redirection cycle while internally redirecting to "${u}"`); return fail(500, { srv: s, conf }); }
     uri = u;
@@ -849,7 +1096,9 @@ export function nginxServe(host0: FsState, x: Exchange2): Served {
       const r = runRewrites(found.loc.dirs.filter(d => d.name === 'return' || d.name === 'rewrite' || d.name === 'if'), c, captures);
       if (r && 'last' in r) return internal(r.last, redirects + 1, s);
       if (r && 'status' in r) return r;
-      if (r && 'brk' in r) return serveStatic(c, uri, captures, redirects);
+      if (r && 'brk' in r) return found.loc.proxy ? proxyTo(c, found.loc, captures) : serveStatic(c, uri, captures, redirects);
+      // E15: a location with proxy_pass hands the request to its upstream (try_files there is not modelled).
+      if (found.loc.proxy) return proxyTo(c, found.loc, captures);
     }
     // try_files is not inherited: the location's own, or the server's when no location matched.
     const tf = found ? found.loc.dirs.find(d => d.name === 'try_files') : s.dirs.find(d => d.name === 'try_files');
@@ -871,7 +1120,8 @@ export function nginxServe(host0: FsState, x: Exchange2): Served {
   let out: Out = serverLevel && 'status' in serverLevel ? serverLevel : internal(uri, 0, srv);
   // error_page: an internal redirect for the listed status (once), the page's own status unless =code.
   const ep = levelWith(out.c, 'error_page').find(d => d.args.slice(0, -1).includes(String(out.status)));
-  if (ep && out.status >= 300 && !out.location) {
+  // E15: an upstream's own error passes through unless proxy_intercept_errors is on.
+  if (ep && out.status >= 300 && !out.location && (!out.proxied || flag(out.c, 'proxy_intercept_errors', false))) {
     const target = ep.args.at(-1)!, eq = ep.args.slice(0, -1).find(a => a.startsWith('='));
     if (/^https?:\/\//.test(target)) out = { status: 302, location: target, c: out.c };
     else {
@@ -887,17 +1137,19 @@ export function nginxServe(host0: FsState, x: Exchange2): Served {
   const relative = out.location?.startsWith('/') ?? false;
   const scheme = x.https ? 'https' : 'http', portPart = (x.https && x.port === 443) || (!x.https && x.port === 80) ? '' : `:${x.port}`;
   const location = out.location === undefined ? undefined : relative ? `${scheme}://${hostName.toLowerCase() || x.address}${portPart}${out.location}` : out.location;
-  const type = status === 204 ? undefined : out.body !== undefined ? out.type ?? 'text/html' : 'text/html';
+  const noBody = status === 204 || status === 101 || status === 304;
+  const type = noBody ? undefined : out.proxied ? out.type : out.body !== undefined ? out.type ?? 'text/html' : 'text/html';
   const headers: [string, string][] = [['Server', serverHeader], ['Date', httpDate(x.now)]];
-  if (status === 204) body = '';
+  if (noBody) body = '';
   if (type) headers.push(['Content-Type', type]);
-  if (status !== 204) headers.push(['Content-Length', String(new TextEncoder().encode(body).length)]);
+  if (!noBody) headers.push(['Content-Length', out.proxied?.length ?? String(new TextEncoder().encode(body).length)]);
   if (location && relative) headers.push(['Location', location]);
-  headers.push(['Connection', keepAlive ? 'keep-alive' : 'close']);
+  headers.push(['Connection', out.proxied?.upgrade ? 'upgrade' : keepAlive ? 'keep-alive' : 'close']);
   if (location && !relative) headers.push(['Location', location]);
+  if (out.proxied) headers.push(...out.proxied.headers);
   const always = [200, 201, 204, 206, 301, 302, 303, 304, 307, 308].includes(status);
   for (const d of levelWith(c, 'add_header')) if (always || d.args[2] === 'always') headers.push([d.args[0], vars(c, [])(d.args[1])]);
-  const res: Response = { status, reason: reasonOf(status, NGINX_VERSION), headers, body: x.req.method === 'HEAD' ? '' : body, close: !keepAlive };
+  const res: Response = { status, reason: reasonOf(status, NGINX_VERSION), headers, body: x.req.method === 'HEAD' ? '' : body, close: !keepAlive || !!out.proxied?.upgrade, ...wait ? { wait } : {} };
   // Logs: the access log of the final context (combined format), the error log of that context.
   const ua = x.req.headers.find(([k]) => k.toLowerCase() === 'user-agent')?.[1] ?? '-', ref = x.req.headers.find(([k]) => k.toLowerCase() === 'referer')?.[1] ?? '-';
   const line = `${x.client} - - [${timeLocal(host)}] "${x.req.method} ${rawUri} HTTP/1.1" ${status} ${new TextEncoder().encode(res.body).length} "${ref}" "${ua}"`;
@@ -907,8 +1159,10 @@ export function nginxServe(host0: FsState, x: Exchange2): Served {
   if (errors.length) {
     const el = levelWith(c, 'error_log')[0] ?? conf.main.find(d => d.name === 'error_log');
     const path = el?.args[0] && el.args[0].startsWith('/') ? el.args[0] : DEFAULT_ERROR, level = el?.args[1] ?? 'error';
-    if (['debug', 'info', 'notice', 'warn', 'error'].includes(level)) {
-      for (const e of errors) host = appendLog(host, path, logStamp(host, 'error', wpid, `*${n.connections} ${e}, client: ${x.client}, server: ${srv.names[0] ?? ''}, request: "${x.req.method} ${rawUri} HTTP/1.1", host: "${hostHeader ?? ''}"`));
+    const LEVELS = ['debug', 'info', 'notice', 'warn', 'error'];
+    for (const e of errors) {
+      if (!LEVELS.includes(level) || LEVELS.indexOf(e.level) < LEVELS.indexOf(level)) continue;
+      host = appendLog(host, path, logStamp(host, e.level, wpid, `*${n.connections} ${e.msg}, client: ${x.client}, server: ${srv.names[0] ?? ''}, request: "${x.req.method} ${rawUri} HTTP/1.1", ${e.upstream !== undefined ? `upstream: "${e.upstream}", ` : ''}host: "${hostHeader ?? ''}"`));
     }
   }
   return { res, host };
