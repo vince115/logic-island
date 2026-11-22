@@ -136,7 +136,7 @@ describe('activity registry (F.0)', () => {
     // P7: terminal-sim likewise, by /learn/linux-terminal (R7: flexbox-playground by its own page).
     // R8.1: grid-playground by /learn/css-grid-playground.
     const standalone = new Set(['color-contrast', 'flexbox-playground', 'grid-playground', 'responsive-sim', 'mobile-nav-sim', 'terminal-sim']);
-    expect(of('activity').filter(a => a.availability === 'implemented').map(a => a.id)).toEqual(['architecture-diagram', 'color-contrast', 'erd-builder', 'flexbox-playground', 'grid-playground', 'mobile-nav-sim', 'network-sequence', 'normalization-steps', 'packet-journey', 'protocol-sequence', 'query-plan', 'responsive-sim', 'sql-playground', 'terminal-sim', 'transaction-timeline'].filter(id => standalone.has(id) || used.has(id as 'sql-playground')));
+    expect(of('activity').filter(a => a.availability === 'implemented').map(a => a.id)).toEqual(['architecture-diagram', 'color-contrast', 'dom-explorer', 'erd-builder', 'flexbox-playground', 'grid-playground', 'mobile-nav-sim', 'network-sequence', 'normalization-steps', 'packet-journey', 'protocol-sequence', 'query-plan', 'responsive-sim', 'sql-playground', 'terminal-sim', 'transaction-timeline'].filter(id => standalone.has(id) || used.has(id as 'sql-playground')));
     expect(getActivity('color-contrast')).toMatchObject({ lab: 'color-contrast', version: '1.0.0', subjects: ['labs', 'ui-design'] });
     expect(getActivity('terminal-sim')).toMatchObject({ lab: 'linux-terminal', version: '1.0.0', availability: 'implemented' });
     expect(getActivity('terminal-sim')!.subjects).toEqual(['labs', 'linux-systems', 'network-servers']);

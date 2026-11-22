@@ -10,6 +10,22 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 
 第一份暫存副本直接呼叫 pnpm 時，pnpm 12 的依賴驗證自動嘗試 install，因 snapshot store／網路限制失敗，甚至暫存 node_modules 被重整；**那不是 lint／unit 的產品測試結果**。後續建立第二份完整副本，直接呼叫 node CLI，避免自動 install。原專案的依賴與 lockfile 不變。未下載新工具或安裝 JDK；本輪不將 wrapper 網路失敗冒充應用錯誤。
 
+## 網頁課程的 web-code 測試（WEB-0／WEB-1，2026-11-23，`web/0-capability`、`web/1-batch-1`）
+
+網頁基礎島的課以 `web-code` 能力撰寫（[WEB0_WEB_CODE_CAPABILITY](../curriculum/WEB0_WEB_CODE_CAPABILITY.md)）。它的頁面必須在真實瀏覽器裡驗證，所以 Vitest 有兩個檔案會啟動 Playwright 的 headless Chromium：
+
+| 測試 | 內容 | 沒有 Chromium 時 |
+|---|---|---|
+| `tests/webcode-runner.test.ts` | harness 的每一種檢查與操作、隔離、迴圈保護、逾時 | 本機略過（Not Executed）；CI 失敗 |
+| `tests/curriculum-webcode.test.ts` | 每一堂 web-code 課：範例的陳述成立、參考解答通過、起始內容與常見錯誤不通過 | 同上 |
+
+- CI（`trials-ci`）在 Vitest 之前執行 `pnpm exec playwright install --with-deps --only-shell chromium`，並因 `CI` 環境變數而不允許略過。本機安裝：`pnpm exec playwright install chromium`（跑 E2E 的機器已經有）。
+- 載入方式和課程頁相同：同一個 `webDocument`、同一個 sandbox 屬性、同一個父頁面函式 `runFrameJob`（以原始碼在瀏覽器裡執行）；瀏覽器離線（`offline: true`）。
+- E2E：`e2e/webcode-lessons.spec.ts` 在課程頁上把每一堂課的每個練習做一遍（起始內容未通過、填入參考解答後通過、重設），並檢查範例的框架、DOM 樹、編輯重跑、鍵盤與焦點。`e2e/curriculum.spec.ts` 的 console 守門不計入來自 `about:srcdoc`（課程頁面自己的框架）的訊息；框架內未捕捉的錯誤由 harness 標為已處理，不會成為課程頁的 page error。
+- 撰寫單一課程時的自我檢查（不提交）：scratch 的 `zz-web-lesson.test.ts`，以 `LESSON=WEBxx` 執行，內容同上兩項加上發布閘門與份量檢查。
+
+WEB-1 的結果（隔離副本，旗標關，JDK 在 PATH）：TypeScript 與 ESLint 通過；Vitest **131 檔、3672 passed／9 skipped**；Production build 通過；E2E 桌機＋手機 **449 passed／2 failed／297 skipped**，兩個失敗是 `e2e/candidate-integration.spec.ts` 的候選頁像素比對（D.3-5c、D.3-6d），為 `main` 既有的回歸 #36（WEB-0 的同一組測試在加入課程前也是這兩項失敗）。
+
 ## Private Vitest Runner（2026-11-22，分支 `trials/private-test-runner`）
 
 用法與選項：`docs/exam-system/34_T3J_PRIVATE_BANK_AND_CI_ACTIVATION.md` 第 2 節。**以下是本機隔離 checkout 的結果，不是 CI：公開 CI 沒有私有題庫，也不執行這個 Runner。**

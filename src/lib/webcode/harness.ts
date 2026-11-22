@@ -3,7 +3,7 @@
  * plain ES2017 kept as text (it is written into the frame's srcdoc, never imported), so it must not contain a backtick,
  * a dollar-brace or a closing script tag. What it does:
  *   - removes itself and the other injected nodes (data-li-harness) from the DOM, so the page's tree is the learner's;
- *   - records console output, uncaught errors and rejected promises;
+ *   - records console output, uncaught errors and rejected promises (marked handled: they are the page's, not the site's);
  *   - keeps the preview on its page: a link is not followed (its href is recorded; a #fragment scrolls), and a form
  *     submission is recorded with its data and then cancelled;
  *   - reports the DOM as an outline, and (live previews) reports again when the DOM or the console changes;
@@ -79,12 +79,15 @@ const SOURCE = String.raw`(function () {
       if (typeof original === 'function') original.apply(console, arguments);
     };
   });
+  // An uncaught error is shown in the page's own console panel; it is marked handled so the browser does not also report
+  // it against the lesson page that hosts the frame (the frame's console.log and console.error still reach the devtools).
   window.addEventListener('error', function (e) {
     if (e.target && e.target !== window) return;
     var err = e.error;
     record('error', 'Uncaught ' + (err && err.name ? err.name + ': ' + err.message : String(e.message || '').replace(/^Uncaught\s+/, '')));
+    e.preventDefault();
   });
-  window.addEventListener('unhandledrejection', function (e) { record('error', 'Uncaught (in promise) ' + show(e.reason)); });
+  window.addEventListener('unhandledrejection', function (e) { record('error', 'Uncaught (in promise) ' + show(e.reason)); e.preventDefault(); });
 
   document.addEventListener('click', function (e) {
     var a = e.target && e.target.closest ? e.target.closest('a[href], area[href]') : null;
@@ -177,13 +180,23 @@ const SOURCE = String.raw`(function () {
       var down = new KeyboardEvent('keydown', { key: s.key, bubbles: true, cancelable: true });
       var go = el.dispatchEvent(down);
       // A script-made key event has no default action; the two every page relies on are emulated: Enter and Space
-      // activate a button, and Enter in a one-line field submits its form.
+      // activate a button, and Enter in a one-line field submits its form the way a browser does (see below).
       if (go) {
         var tag = el.tagName, type = (el.getAttribute('type') || '').toLowerCase();
         var button = tag === 'BUTTON' || (tag === 'INPUT' && (type === 'button' || type === 'submit' || type === 'reset'));
         if (button && (s.key === 'Enter' || s.key === ' ')) el.click();
         else if (tag === 'INPUT' && (type === 'checkbox' || type === 'radio') && s.key === ' ') el.click();
-        else if (tag === 'INPUT' && s.key === 'Enter' && el.form && el.form.requestSubmit) el.form.requestSubmit();
+        else if (tag === 'INPUT' && s.key === 'Enter' && el.form && el.form.requestSubmit) {
+          // Implicit submission: through the form's first submit button when it has one (not when that is disabled);
+          // without one, only a form with a single one-line field submits.
+          var fields = el.form.elements, first = null, lines = 0;
+          for (var f = 0; f < fields.length; f++) {
+            var c = fields[f], ct = String(c.type || '').toLowerCase();
+            if (!first && ((c.tagName === 'BUTTON' && ct === 'submit') || (c.tagName === 'INPUT' && (ct === 'submit' || ct === 'image')))) first = c;
+            if (c.tagName === 'INPUT' && /^(text|search|url|tel|email|password|date|month|week|time|datetime-local|number)$/.test(ct)) lines++;
+          }
+          if (first ? !first.disabled : lines <= 1) { if (first) first.click(); else el.form.requestSubmit(); }
+        }
         else if (tag === 'A' && s.key === 'Enter') el.click();
       }
       el.dispatchEvent(new KeyboardEvent('keyup', { key: s.key, bubbles: true, cancelable: true }));

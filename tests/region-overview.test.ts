@@ -50,12 +50,12 @@ describe('region overview', () => {
     expect(pathRegion(['F01', 'DS01', 'LLM01'])).toBe('cs');
     // R7: the design and web regions each have their own path.
     expect(regionOverview('design').paths.map(p => p.id)).toEqual(['H-product-design']);
-    expect(regionOverview('web').paths.map(p => [p.id, p.lessonCount, p.publishedLessons])).toEqual([['G-frontend-engineering', 62, 7]]);
+    expect(regionOverview('web').paths.map(p => [p.id, p.lessonCount, p.publishedLessons])).toEqual([['G-frontend-engineering', 62, 11]]); // WEB-1: + WEB01–WEB04
     expect(pathRegion([])).toBeUndefined();
   });
 
   it('entries for the home page and /curriculum: every region in order, each to its own overview', () => {
-    expect(regionEntries().map(r => [r.id, r.href, r.status])).toEqual([['cs', '/regions/cs', 'available'], ['ai', '/regions/ai', 'available'], ['design', '/regions/design', 'planned'], ['web', '/regions/web', 'planned'], ['sys', '/regions/sys', 'available']]);
+    expect(regionEntries().map(r => [r.id, r.href, r.status])).toEqual([['cs', '/regions/cs', 'available'], ['ai', '/regions/ai', 'available'], ['design', '/regions/design', 'planned'], ['web', '/regions/web', 'available'], ['sys', '/regions/sys', 'available']]);
     expect(regionHref('ai')).toBe('/regions/ai');
     expect(isRegionId('ai')).toBe(true);
     expect(isRegionId('labs')).toBe(false);

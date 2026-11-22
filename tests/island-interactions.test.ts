@@ -135,8 +135,8 @@ describe('island interaction specs (P9 S1)', () => {
 
   it('a planned island offers information only: routes are refused by validation and dropped by the page', () => {
     const planned = worldIslands.filter(i => i.status === 'planned');
-    // 29 subject islands: F, DS, AL, DB, PL, CN, AIF and LNX complete, SRV open since SRV-1, the other 20 planned.
-    expect(planned.length).toBe(20);
+    // 29 subject islands: F, DS, AL, DB, PL, CN, AIF, LNX and SRV complete, WEB open since WEB-1, the other 19 planned.
+    expect(planned.length).toBe(19);
     for (const island of planned) {
       const routed: IslandInteractionSpec = { islandId: island.id, targets: [
         { interactionId: 'gate', label: '入口', action: { type: 'route', to: { kind: 'syllabus', islandId: island.id } } },
