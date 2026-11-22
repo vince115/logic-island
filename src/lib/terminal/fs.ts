@@ -3,8 +3,10 @@
  * pure functions: nothing here touches the host file system, the network or a real shell, and every operation returns
  * a new state instead of changing the old one, so a reset is just the initial state again.
  *
- * Paths are absolute, normalized strings ('/home/learner/notes.txt'). Permissions follow the owner / other bits of a
- * Unix mode (the simulator has one learner and root, so the group bits are shown but never decide anything).
+ * Paths are absolute, normalized strings ('/home/learner/notes.txt'). Permissions follow the owner / group / other bits
+ * of a Unix mode. LNX-0 (2026-11-22): a node may name its group (default: its owner, like a user private group) and a
+ * state may name the user's groups (default: only the user's own); the group bits decide only for a user in the node's
+ * group, so with the defaults (the lab: one learner and root) they never decide anything, exactly as before.
  */
 
 export interface FsNode {
@@ -12,6 +14,8 @@ export interface FsNode {
   /** Permission bits, e.g. 0o755. */
   mode: number;
   owner: string;
+  /** LNX-0: the node's group; when absent, the owner's name (a user private group). */
+  group?: string;
   /** Files only. */
   content?: string;
 }
@@ -21,7 +25,17 @@ export interface FsState {
   cwd: string;
   user: string;
   home: string;
+  /** LNX-0: the machine's host name in the prompt; when absent, logic-island. */
+  host?: string;
+  /** LNX-0: the groups the user belongs to; when absent, only the group named after the user. */
+  groups?: readonly string[];
 }
+
+export const DEFAULT_HOST = 'logic-island';
+/** The node's group: its own, or its owner's name. */
+export const groupOf = (node: FsNode) => node.group ?? node.owner;
+/** The groups of the state's user: its own list, or the group named after the user. */
+export const groupsOf = (state: Pick<FsState, 'user' | 'groups'>): readonly string[] => state.groups ?? [state.user];
 
 /** Hard limits that keep the simulation small whatever the learner types. */
 export const LIMITS = { nodes: 400, nameLength: 64, depth: 16, fileLength: 4000, input: 500 } as const;
@@ -89,10 +103,14 @@ export const subtreeOf = (nodes: ReadonlyMap<string, FsNode>, path: string) => [
 export type Access = 'r' | 'w' | 'x';
 const BIT: Record<Access, number> = { r: 4, w: 2, x: 1 };
 
-/** Whether the user may read, write or execute a node: root may do anything, the owner uses the owner bits, others the other bits. */
-export function can(node: FsNode, user: string, access: Access): boolean {
+/**
+ * Whether the user may read, write or execute a node: root may do anything, the owner uses the owner bits, a member of
+ * the node's group the group bits, others the other bits. `groups` defaults to the group named after the user, so with a
+ * node's default group (its owner) the group bits decide nothing (LNX-0 keeps the lab's behaviour).
+ */
+export function can(node: FsNode, user: string, access: Access, groups: readonly string[] = [user]): boolean {
   if (user === 'root') return true;
-  const bits = node.owner === user ? (node.mode >> 6) & 7 : node.mode & 7;
+  const bits = node.owner === user ? (node.mode >> 6) & 7 : groups.includes(groupOf(node)) ? (node.mode >> 3) & 7 : node.mode & 7;
   return (bits & BIT[access]) !== 0;
 }
 

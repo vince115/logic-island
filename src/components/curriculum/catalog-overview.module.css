@@ -40,6 +40,7 @@
   color: var(--island-accent-fg); background: color-mix(in srgb, var(--island-accent) 12%, transparent); }
 .regionHeading, .regionSection h2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; scroll-margin-top: 72px; }
 .regionHeading span, .regionSection h2 span { font-size: var(--text-xs); font-weight: 500; color: var(--muted); }
+.openRegion { scroll-margin-top: 72px; }
 .regionSection { margin-top: 48px; padding-top: 18px; border-top: 3px solid var(--island-accent); scroll-margin-top: 72px; }
 .group { margin-top: 18px; }
 .group h3, .plannedSection h3 { display: flex; align-items: baseline; gap: 8px; font-size: var(--text-md); font-weight: 700; margin-bottom: 8px; }

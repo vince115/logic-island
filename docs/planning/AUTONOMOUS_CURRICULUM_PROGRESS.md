@@ -13,21 +13,21 @@
 
 ## 總覽
 
-已發布 **105／520**（20.2%）；規劃中 415。
+已發布 **140／520**（26.9%）；規劃中 380。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
-| 程式與資訊群島 | 105 | 55 | 65.6% |
-| AI 人工智慧群島 | 0 | 160 | 0.0% |
+| 程式與資訊群島 | 120 | 40 | 75.0% |
+| AI 人工智慧群島 | 20 | 140 | 12.5% |
 | 數位設計群島 | 0 | 56 | 0.0% |
 | 網頁與應用開發群島 | 0 | 55 | 0.0% |
 | 系統與雲端工程群島 | 0 | 89 | 0.0% |
 
 ## 下一批（自動選擇）
 
-**計算機網路島（CN）**：CN06 ARP、DHCP 與 NAT、CN07 路由與轉送、CN08 路由協定：距離向量與鏈路狀態、CN09 TCP 與 UDP、CN10 TCP 可靠傳輸、流量控制與壅塞控制。島嶼能力：可用；這幾堂解鎖其他島的 60 堂。
+**Linux 系統島（LNX）**：LNX01 Linux 概論與發行版、LNX02 終端機與 Shell 基礎、LNX03 Linux 檔案系統階層、LNX04 檔案與目錄操作、LNX05 文字處理、管線與重新導向。島嶼能力：已備妥（可開始撰寫）；這幾堂解鎖其他島的 67 堂。
 
-能力缺口中最優先的是 **AI 基礎島（AIF）**：需要 python-code (Python-only program lessons; search, probability and game trees on the shared trace panels)；先修已滿足、可依序撰寫的有 20 堂，前 5 堂解鎖其他島的 140 堂。
+能力缺口中最優先的是 **大型語言模型島（LLM）**：需要 python-code + token, sampling and prompt explorers on recorded outputs (T3)；先修已滿足、可依序撰寫的有 3 堂，前 3 堂解鎖其他島的 58 堂。
 
 選擇規則：島嶼的課程能力已可用或已備妥 → 先修已滿足（編號即位置，只能從下一個未發布的編號連續往後）→ 解鎖其他島的課程較多 → 區域與島嶼順序。
 
@@ -40,15 +40,15 @@
 | 程式與資訊群島 | 演算法島（AL） | 20／20 | program-code | 可用 | 全島完成 | — |
 | 程式與資訊群島 | 程式語言島（PL） | 20／20 | program-code | 可用 | 全島完成 | — |
 | 程式與資訊群島 | 資料庫應用島（DB） | 20／20 | sql, er-diagram, normalization, query-plan, transaction-timeline, driver-code, protocol-sequence, architecture-diagram | 可用 | 全島完成 | — |
-| 程式與資訊群島 | 計算機網路島（CN） | 5／20 | network-protocol (packets through the layers, message sequences, node tables; field, layer, table, subnet and delay exercises) | 可用 | CN06–CN20（15 堂） | — |
+| 程式與資訊群島 | 計算機網路島（CN） | 20／20 | network-protocol (packets through the layers, message sequences, node tables; field, layer, table, subnet and delay exercises) | 可用 | 全島完成 | — |
 | 程式與資訊群島 | 系統分析與設計島（SA） | 0／20 | model-diagram (UML, DFD, BPMN, state and sequence models, checked by structure) | 缺少 | SA01–SA20（20 堂） | 缺少課程能力 |
 | 程式與資訊群島 | 管理資訊系統島（MIS） | 0／20 | case-analysis (scenario data, decision tables, KPI calculations checked by value) | 缺少 | MIS01–MIS20（20 堂） | 缺少課程能力 |
-| AI 人工智慧群島 | AI 基礎島（AIF） | 0／20 | python-code (Python-only program lessons; search, probability and game trees on the shared trace panels) | 缺少 | AIF01–AIF20（20 堂） | 缺少課程能力 |
-| AI 人工智慧群島 | 機器學習島（ML） | 0／25 | python-code + data-explorer (fixed datasets, metrics computed in the browser) | 缺少 | — | 缺少課程能力；ML01 需要尚未發布的 AIF01 |
+| AI 人工智慧群島 | AI 基礎島（AIF） | 20／20 | python-code (Python-only program lessons; search, games, logic and probability on the shared traces) | 可用 | 全島完成 | — |
+| AI 人工智慧群島 | 機器學習島（ML） | 0／25 | python-code + data-explorer (fixed datasets, metrics computed in the browser) | 缺少 | ML01–ML25（25 堂） | 缺少課程能力 |
 | AI 人工智慧群島 | 深度學習島（DL） | 0／25 | python-code + precomputed training curves (T3) | 缺少 | — | 缺少課程能力；DL01 需要尚未發布的 ML09 |
-| AI 人工智慧群島 | 大型語言模型島（LLM） | 0／25 | python-code + token, sampling and prompt explorers on recorded outputs (T3) | 缺少 | — | 缺少課程能力；LLM01 需要尚未發布的 AIF01 |
-| AI 人工智慧群島 | 生成式 AI 島（GEN） | 0／20 | precomputed pipeline steps (T3) | 缺少 | — | 缺少課程能力；GEN01 需要尚未發布的 AIF01 |
-| AI 人工智慧群島 | AI 代理島（AG） | 0／25 | agent trace (tool calls and memory as fixed transcripts) | 缺少 | — | 缺少課程能力；AG01 需要尚未發布的 AIF03、LLM10 |
+| AI 人工智慧群島 | 大型語言模型島（LLM） | 0／25 | python-code + token, sampling and prompt explorers on recorded outputs (T3) | 缺少 | LLM01–LLM03（3 堂） | 缺少課程能力；LLM04 需要尚未發布的 DL18 |
+| AI 人工智慧群島 | 生成式 AI 島（GEN） | 0／20 | precomputed pipeline steps (T3) | 缺少 | GEN01–GEN01（1 堂） | 缺少課程能力；GEN02 需要尚未發布的 LLM01 |
+| AI 人工智慧群島 | AI 代理島（AG） | 0／25 | agent trace (tool calls and memory as fixed transcripts) | 缺少 | — | 缺少課程能力；AG01 需要尚未發布的 LLM10 |
 | AI 人工智慧群島 | AI 工程與 MLOps 島（OPS） | 0／20 | pipeline and deployment simulation | 缺少 | — | 缺少課程能力；OPS01 需要尚未發布的 SA01、LLM01 |
 | 數位設計群島 | UI 設計島（UI） | 0／15 | design-lab (color contrast exists as a standalone lab; visual hierarchy and grid) | 缺少 | UI01–UI15（15 堂） | 缺少課程能力 |
 | 數位設計群島 | UX 研究島（UX） | 0／15 | case-analysis + model-diagram | 缺少 | UX01–UX15（15 堂） | 缺少課程能力 |
@@ -58,7 +58,7 @@
 | 網頁與應用開發群島 | 前端開發島（FE） | 0／15 | web-code + state-flow trace | 缺少 | — | 缺少課程能力；FE01 需要尚未發布的 WEB09 |
 | 網頁與應用開發群島 | 響應式設計島（RWD） | 0／12 | web-code + responsive simulator (the standalone lab exists) | 缺少 | — | 缺少課程能力；RWD01 需要尚未發布的 WEB06 |
 | 網頁與應用開發群島 | 行動應用島（MOB） | 0／13 | web-code + case-analysis | 缺少 | — | 缺少課程能力；MOB01 需要尚未發布的 RWD01 |
-| 系統與雲端工程群島 | Linux 系統島（LNX） | 0／15 | terminal (the /learn/linux-terminal engine as a lesson capability with per-lesson file systems and checked tasks) | 缺少 | LNX01–LNX15（15 堂） | 缺少課程能力 |
+| 系統與雲端工程群島 | Linux 系統島（LNX） | 0／15 | terminal (machines as data, transcripts replayed to their exact output, exercises checked by replaying the learner's commands in the simulated shell) | 已備妥（可開始撰寫） | LNX01–LNX15（15 堂） | — |
 | 系統與雲端工程群島 | Docker 容器島（DKR） | 0／15 | container simulation | 缺少 | — | 缺少課程能力；DKR01 需要尚未發布的 LNX08 |
 | 系統與雲端工程群島 | 網路與伺服器島（SRV） | 0／14 | request-path simulation + terminal | 缺少 | — | 缺少課程能力；SRV01 需要尚未發布的 LNX02 |
 | 系統與雲端工程群島 | 雲端基礎設施島（CLD） | 0／15 | architecture simulation | 缺少 | CLD01–CLD02（2 堂） | 缺少課程能力；CLD03 需要尚未發布的 LNX12 |
@@ -71,12 +71,13 @@
 
 | 島嶼 | 需要的能力 | 可依序撰寫 | 解鎖其他島 | 備註 |
 |---|---|---|---|---|
-| AI 基礎島（AIF） | python-code (Python-only program lessons; search, probability and game trees on the shared trace panels) | 20 | 140 | program-code requires C++, Java and Python; 12 of 20 exercises are code-python |
-| Linux 系統島（LNX） | terminal (the /learn/linux-terminal engine as a lesson capability with per-lesson file systems and checked tasks) | 15 | 67 | engine exists; shell covers pwd, ls, cd, mkdir, touch, cat, cp, mv, rm, chmod, echo, whoami |
+| 大型語言模型島（LLM） | python-code + token, sampling and prompt explorers on recorded outputs (T3) | 3 | 58 | — |
 | 網頁基礎島（WEB） | web-code (HTML, CSS and DOM in a sandboxed frame, checked by DOM queries) | 15 | 40 | — |
+| 機器學習島（ML） | python-code + data-explorer (fixed datasets, metrics computed in the browser) | 25 | 39 | — |
 | 系統分析與設計島（SA） | model-diagram (UML, DFD, BPMN, state and sequence models, checked by structure) | 20 | 20 | — |
 | DevOps 與 CI/CD 島（CICD） | pipeline simulation | 3 | 7 | — |
 | 管理資訊系統島（MIS） | case-analysis (scenario data, decision tables, KPI calculations checked by value) | 20 | 0 | — |
+| 生成式 AI 島（GEN） | precomputed pipeline steps (T3) | 1 | 0 | — |
 | UI 設計島（UI） | design-lab (color contrast exists as a standalone lab; visual hierarchy and grid) | 15 | 0 | — |
 | UX 研究島（UX） | case-analysis + model-diagram | 15 | 0 | — |
 | 互動設計島（IXD） | case-analysis + a11y checks | 14 | 0 | — |
@@ -89,16 +90,16 @@
 |---|---|---|
 | APCS／資訊科學基礎 | 60／60 | 是 |
 | 軟體工程 | 66／86 | 否 |
-| 網路與系統 | 39／54 | 否 |
+| 網路與系統 | 54／54 | 是 |
 | 企業資訊系統 | 44／84 | 否 |
-| AI 研究 | 34／142 | 否 |
-| AI 應用工程 | 21／89 | 否 |
+| AI 研究 | 57／142 | 否 |
+| AI 應用工程 | 28／89 | 否 |
 | 前端工程 | 7／62 | 否 |
 | 產品設計 | 0／56 | 否 |
-| AI 架構 | 13／66 | 否 |
+| AI 架構 | 20／66 | 否 |
 | 全端部署 | 16／62 | 否 |
-| AI 基礎設施 | 9／60 | 否 |
-| 雲端與 DevOps 基礎 | 3／48 | 否 |
+| AI 基礎設施 | 13／60 | 否 |
+| 雲端與 DevOps 基礎 | 5／48 | 否 |
 
 ## 先修依賴檢查
 
@@ -242,21 +243,21 @@
 | CN03 | 資料鏈結層、Ethernet 與交換器 | 已發布（閘門通過） | CN01 | packet-journey | — |
 | CN04 | Wi-Fi 與行動網路基礎 | 已發布（閘門通過） | CN03 | network-sequence | — |
 | CN05 | IP 位址與子網路 | 已發布（閘門通過） | CN01 | packet-journey | — |
-| CN06 | ARP、DHCP 與 NAT | 大綱 | CN05、CN03 | protocol-sequence | — |
-| CN07 | 路由與轉送 | 大綱 | CN05 | routing-table | — |
-| CN08 | 路由協定：距離向量與鏈路狀態 | 待先修 | CN07、A16 | graph-traversal | 先修 CN07 |
-| CN09 | TCP 與 UDP | 大綱 | CN05 | protocol-sequence | — |
-| CN10 | TCP 可靠傳輸、流量控制與壅塞控制 | 待先修 | CN09 | protocol-sequence | 先修 CN09 |
-| CN11 | Socket 網路程式設計 | 待先修 | CN09 | protocol-sequence | 先修 CN09 |
-| CN12 | DNS 與 HTTP | 待先修 | CN09 | packet-journey | 先修 CN09 |
-| CN13 | HTTPS 與 TLS | 待先修 | CN12 | protocol-sequence | 先修 CN12 |
-| CN14 | REST API 與 JSON | 待先修 | CN12 | protocol-sequence | 先修 CN12 |
-| CN15 | 快取、CDN 與 HTTP/2、HTTP/3 | 待先修 | CN12 | architecture-diagram | 先修 CN12 |
-| CN16 | WebSocket 與即時通訊 | 待先修 | CN11、CN12 | protocol-sequence | 先修 CN11、CN12 |
-| CN17 | 網路除錯工具 | 待先修 | CN07、CN12 | packet-journey | 先修 CN07、CN12 |
-| CN18 | 網路安全基礎 | 待先修 | CN13 | packet-journey | 先修 CN13 |
-| CN19 | 防火牆、VPN 與零信任 | 待先修 | CN18、CN07 | routing-table | 先修 CN18、CN07 |
-| CN20 | 計算機網路島綜合挑戰：追蹤並打造一個網路服務 | 待先修 | CN14、CN17、CN18 | challenge-stages | 先修 CN14、CN17、CN18 |
+| CN06 | ARP、DHCP 與 NAT | 已發布（閘門通過） | CN05、CN03 | network-sequence | — |
+| CN07 | 路由與轉送 | 已發布（閘門通過） | CN05 | packet-journey | — |
+| CN08 | 路由協定：距離向量與鏈路狀態 | 已發布（閘門通過） | CN07、A16 | packet-journey | — |
+| CN09 | TCP 與 UDP | 已發布（閘門通過） | CN05 | network-sequence | — |
+| CN10 | TCP 可靠傳輸、流量控制與壅塞控制 | 已發布（閘門通過） | CN09 | network-sequence | — |
+| CN11 | Socket 網路程式設計 | 已發布（閘門通過） | CN09 | stack-queue | — |
+| CN12 | DNS 與 HTTP | 已發布（閘門通過） | CN09 | packet-journey | — |
+| CN13 | HTTPS 與 TLS | 已發布（閘門通過） | CN12 | network-sequence | — |
+| CN14 | REST API 與 JSON | 已發布（閘門通過） | CN12 | variable-state | — |
+| CN15 | 快取、CDN 與 HTTP/2、HTTP/3 | 已發布（閘門通過） | CN12 | packet-journey | — |
+| CN16 | WebSocket 與即時通訊 | 已發布（閘門通過） | CN11、CN12 | variable-state | — |
+| CN17 | 網路除錯工具 | 已發布（閘門通過） | CN07、CN12 | packet-journey | — |
+| CN18 | 網路安全基礎 | 已發布（閘門通過） | CN13 | packet-journey | — |
+| CN19 | 防火牆、VPN 與零信任 | 已發布（閘門通過） | CN18、CN07 | packet-journey | — |
+| CN20 | 計算機網路島綜合挑戰：追蹤並打造一個網路服務 | 已發布（閘門通過） | CN14、CN17、CN18 | challenge-stages | — |
 
 ### 程式與資訊群島 · 系統分析與設計島（SA）
 
@@ -312,32 +313,32 @@
 
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
-| AIF01 | AI 是什麼 | 待能力 | F01 | case-study-board | 課程能力 |
-| AIF02 | AI 的發展史與主要方法 | 待能力 | AIF01 | case-study-board | 課程能力、先修 AIF01 |
-| AIF03 | 智慧代理人 | 待能力 | AIF01 | agent-workflow | 課程能力、先修 AIF01 |
-| AIF04 | 問題形式化與無資訊搜尋 | 待能力 | AIF03、A14、A15 | search-tree | 課程能力、先修 AIF03 |
-| AIF05 | 啟發式搜尋與 A* | 待能力 | AIF04、A16 | search-tree | 課程能力、先修 AIF04 |
-| AIF06 | 區域搜尋與最佳化 | 待能力 | AIF04 | gradient-descent | 課程能力、先修 AIF04 |
-| AIF07 | 對抗搜尋與 Minimax | 待能力 | AIF04 | game-tree | 課程能力、先修 AIF04 |
-| AIF08 | Alpha-Beta 剪枝與遊戲 AI | 待能力 | AIF07 | game-tree | 課程能力、先修 AIF07 |
-| AIF09 | 限制滿足問題 | 待能力 | AIF04、A12 | search-tree | 課程能力、先修 AIF04 |
-| AIF10 | 知識表示 | 待能力 | AIF03 | knowledge-graph | 課程能力、先修 AIF03 |
-| AIF11 | 命題邏輯與推論 | 待能力 | AIF10、F06 | logic-proof | 課程能力、先修 AIF10 |
-| AIF12 | 一階邏輯 | 待能力 | AIF11 | logic-proof | 課程能力、先修 AIF11 |
-| AIF13 | AI 的機率基礎 | 待能力 | AIF01 | probability-explorer | 課程能力、先修 AIF01 |
-| AIF14 | 貝氏定理與機率推論 | 待能力 | AIF13 | probability-explorer | 課程能力、先修 AIF13 |
-| AIF15 | 貝氏網路 | 待能力 | AIF14 | bayes-net | 課程能力、先修 AIF14 |
-| AIF16 | 馬可夫鏈與隱馬可夫模型 | 待能力 | AIF14 | probability-explorer | 課程能力、先修 AIF14 |
-| AIF17 | 決策理論與效用 | 待能力 | AIF13、AIF03 | decision-simulation | 課程能力、先修 AIF13、AIF03 |
-| AIF18 | 馬可夫決策過程入門 | 待能力 | AIF17 | mdp-gridworld | 課程能力、先修 AIF17 |
-| AIF19 | 負責任的 AI | 待能力 | AIF03 | decision-simulation | 課程能力、先修 AIF03 |
-| AIF20 | AI 基礎島綜合專題 | 待能力 | AIF05、AIF08、AIF18 | challenge-stages | 課程能力、先修 AIF05、AIF08、AIF18 |
+| AIF01 | AI 是什麼 | 已發布（閘門通過） | F01 | conditional-branch | — |
+| AIF02 | AI 的發展史與主要方法 | 已發布（閘門通過） | AIF01 | none | — |
+| AIF03 | 智慧代理人 | 已發布（閘門通過） | AIF01 | array-index | — |
+| AIF04 | 問題形式化與無資訊搜尋 | 已發布（閘門通過） | AIF03、A14、A15 | tree-traversal | — |
+| AIF05 | 啟發式搜尋與 A* | 已發布（閘門通過） | AIF04、A16 | graph-traversal | — |
+| AIF06 | 區域搜尋與最佳化 | 已發布（閘門通過） | AIF04 | array-index | — |
+| AIF07 | 對抗搜尋與 Minimax | 已發布（閘門通過） | AIF04 | recursion-tree | — |
+| AIF08 | Alpha-Beta 剪枝與遊戲 AI | 已發布（閘門通過） | AIF07 | recursion-tree | — |
+| AIF09 | 限制滿足問題 | 已發布（閘門通過） | AIF04、A12 | recursion-tree | — |
+| AIF10 | 知識表示 | 已發布（閘門通過） | AIF03 | graph-traversal | — |
+| AIF11 | 命題邏輯與推論 | 已發布（閘門通過） | AIF10、F06 | dp-table | — |
+| AIF12 | 一階邏輯 | 已發布（閘門通過） | AIF11 | variable-state | — |
+| AIF13 | AI 的機率基礎 | 已發布（閘門通過） | AIF01 | dp-table | — |
+| AIF14 | 貝氏定理與機率推論 | 已發布（閘門通過） | AIF13 | variable-state | — |
+| AIF15 | 貝氏網路 | 已發布（閘門通過） | AIF14 | recursion-tree | — |
+| AIF16 | 馬可夫鏈與隱馬可夫模型 | 已發布（閘門通過） | AIF14 | dp-table | — |
+| AIF17 | 決策理論與效用 | 已發布（閘門通過） | AIF13、AIF03 | variable-state | — |
+| AIF18 | 馬可夫決策過程入門 | 已發布（閘門通過） | AIF17 | dp-table | — |
+| AIF19 | 負責任的 AI | 已發布（閘門通過） | AIF03 | dp-table | — |
+| AIF20 | AI 基礎島綜合專題 | 已發布（閘門通過） | AIF05、AIF08、AIF18 | challenge-stages | — |
 
 ### AI 人工智慧群島 · 機器學習島（ML）
 
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
-| ML01 | 機器學習工作流程 | 待能力 | AIF01 | pipeline-diagram | 課程能力、先修 AIF01 |
+| ML01 | 機器學習工作流程 | 待能力 | AIF01 | pipeline-diagram | 課程能力 |
 | ML02 | NumPy 與 pandas 資料處理 | 待能力 | ML01、F12 | data-explorer | 課程能力、先修 ML01 |
 | ML03 | 探索式資料分析 EDA | 待能力 | ML02 | data-explorer | 課程能力、先修 ML02 |
 | ML04 | 資料前處理與資料切分 | 待能力 | ML03 | data-explorer | 課程能力、先修 ML03 |
@@ -346,7 +347,7 @@
 | ML07 | 正則化：Ridge 與 Lasso | 待能力 | ML06 | regression-explorer | 課程能力、先修 ML06 |
 | ML08 | k-NN 最近鄰分類 | 待能力 | ML04 | classification-explorer | 課程能力、先修 ML04 |
 | ML09 | 邏輯迴歸 | 待能力 | ML05 | classification-explorer | 課程能力、先修 ML05 |
-| ML10 | 單純貝氏分類器 | 待能力 | ML04、AIF13 | probability-explorer | 課程能力、先修 ML04、AIF13 |
+| ML10 | 單純貝氏分類器 | 待能力 | ML04、AIF13 | probability-explorer | 課程能力、先修 ML04 |
 | ML11 | 決策樹 | 待能力 | ML04 | decision-tree-explorer | 課程能力、先修 ML04 |
 | ML12 | 集成學習：Bagging 與隨機森林 | 待能力 | ML11 | decision-tree-explorer | 課程能力、先修 ML11 |
 | ML13 | 梯度提升 | 待能力 | ML12 | decision-tree-explorer | 課程能力、先修 ML12 |
@@ -397,7 +398,7 @@
 
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
-| LLM01 | 大型語言模型概觀 | 待能力 | AIF01 | sampling-explorer | 課程能力、先修 AIF01 |
+| LLM01 | 大型語言模型概觀 | 待能力 | AIF01 | sampling-explorer | 課程能力 |
 | LLM02 | Tokenization 斷詞 | 待能力 | LLM01 | token-explorer | 課程能力、先修 LLM01 |
 | LLM03 | 嵌入向量 | 待能力 | LLM02 | embedding-space | 課程能力、先修 LLM02 |
 | LLM04 | 用 Transformer 做語言模型 | 待能力 | LLM03、DL18 | attention-explorer | 課程能力、先修 LLM03、DL18 |
@@ -405,7 +406,7 @@
 | LLM06 | 規模法則與運算預算 | 待能力 | LLM05 | cost-calculator | 課程能力、先修 LLM05 |
 | LLM07 | 解碼策略與取樣 | 待能力 | LLM02 | sampling-explorer | 課程能力、先修 LLM02 |
 | LLM08 | 指令微調與聊天模型 | 待能力 | LLM05 | prompt-lab | 課程能力、先修 LLM05 |
-| LLM09 | 使用 LLM API | 待能力 | LLM01、CN14 | prompt-lab | 課程能力、先修 LLM01、CN14 |
+| LLM09 | 使用 LLM API | 待能力 | LLM01、CN14 | prompt-lab | 課程能力、先修 LLM01 |
 | LLM10 | 提示工程 | 待能力 | LLM09 | prompt-lab | 課程能力、先修 LLM09 |
 | LLM11 | 上下文與對話管理 | 待能力 | LLM10 | token-explorer | 課程能力、先修 LLM10 |
 | LLM12 | 結構化輸出 | 待能力 | LLM10 | prompt-lab | 課程能力、先修 LLM10 |
@@ -427,7 +428,7 @@
 
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
-| GEN01 | 生成模型概觀 | 待能力 | AIF01 | sampling-explorer | 課程能力、先修 AIF01 |
+| GEN01 | 生成模型概觀 | 待能力 | AIF01 | sampling-explorer | 課程能力 |
 | GEN02 | 自回歸生成模型 | 待能力 | GEN01、LLM01 | sampling-explorer | 課程能力、先修 GEN01、LLM01 |
 | GEN03 | 自編碼器與 VAE | 待能力 | GEN01、DL01 | latent-space | 課程能力、先修 GEN01、DL01 |
 | GEN04 | GAN 生成對抗網路 | 待能力 | GEN01、DL03 | training-curves | 課程能力、先修 GEN01、DL03 |
@@ -445,14 +446,14 @@
 | GEN16 | 視覺語言模型 | 待能力 | GEN08、LLM10 | multimodal-pipeline | 課程能力、先修 GEN08、LLM10 |
 | GEN17 | 生成結果評估 | 待能力 | GEN09、LLM20 | eval-dashboard | 課程能力、先修 GEN09、LLM20 |
 | GEN18 | 生成式創作工作流程 | 待能力 | GEN12、GEN16 | pipeline-diagram | 課程能力、先修 GEN12、GEN16 |
-| GEN19 | 著作權、倫理與浮水印 | 待能力 | GEN01、AIF19 | case-study-board | 課程能力、先修 GEN01、AIF19 |
+| GEN19 | 著作權、倫理與浮水印 | 待能力 | GEN01、AIF19 | case-study-board | 課程能力、先修 GEN01 |
 | GEN20 | 生成式 AI 島綜合專題 | 待能力 | GEN17、GEN18、GEN19 | challenge-stages | 課程能力、先修 GEN17、GEN18、GEN19 |
 
 ### AI 人工智慧群島 · AI 代理島（AG）
 
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
-| AG01 | Agent 架構 | 待能力 | AIF03、LLM10 | agent-workflow | 課程能力、先修 AIF03、LLM10 |
+| AG01 | Agent 架構 | 待能力 | AIF03、LLM10 | agent-workflow | 課程能力、先修 LLM10 |
 | AG02 | LLM 作為推理核心 | 待能力 | AG01 | prompt-lab | 課程能力、先修 AG01 |
 | AG03 | 工具呼叫 | 待能力 | AG01、LLM12 | tool-call-trace | 課程能力、先修 AG01、LLM12 |
 | AG04 | 工具介面設計 | 待能力 | AG03 | tool-call-trace | 課程能力、先修 AG03 |
@@ -463,13 +464,13 @@
 | AG09 | 長期記憶 | 待能力 | AG08、LLM15 | memory-inspector | 課程能力、先修 AG08、LLM15 |
 | AG10 | Agentic RAG | 待能力 | AG06、LLM14 | rag-explorer | 課程能力、先修 AG06、LLM14 |
 | AG11 | 工作流程模式 | 待能力 | AG06 | agent-workflow | 課程能力、先修 AG06 |
-| AG12 | MCP 模型上下文協定 | 待能力 | AG03、CN14 | protocol-sequence | 課程能力、先修 AG03、CN14 |
+| AG12 | MCP 模型上下文協定 | 待能力 | AG03、CN14 | protocol-sequence | 課程能力、先修 AG03 |
 | AG13 | 實作 MCP 伺服器 | 待能力 | AG12 | tool-call-trace | 課程能力、先修 AG12 |
 | AG14 | 以圖與狀態機編排 Agent | 待能力 | AG07、AG11 | agent-workflow | 課程能力、先修 AG07、AG11 |
 | AG15 | 多 Agent 系統 | 待能力 | AG14 | multi-agent-board | 課程能力、先修 AG14 |
 | AG16 | 人機協作與審批 | 待能力 | AG14 | agent-workflow | 課程能力、先修 AG14 |
 | AG17 | Agent 護欄 | 待能力 | AG06、LLM12 | guardrail-sim | 課程能力、先修 AG06、LLM12 |
-| AG18 | 提示注入與防禦 | 待能力 | AG17、CN18 | guardrail-sim | 課程能力、先修 AG17、CN18 |
+| AG18 | 提示注入與防禦 | 待能力 | AG17、CN18 | guardrail-sim | 課程能力、先修 AG17 |
 | AG19 | 沙箱與權限：程式與電腦操作 Agent | 待能力 | AG18 | guardrail-sim | 課程能力、先修 AG18 |
 | AG20 | Agent 評估 | 待能力 | AG06、LLM20 | eval-dashboard | 課程能力、先修 AG06、LLM20 |
 | AG21 | Agent 基準測試 | 待能力 | AG20 | eval-dashboard | 課程能力、先修 AG20 |
@@ -483,7 +484,7 @@
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
 | OPS01 | AI 工程與 MLOps 概觀 | 待能力 | SA01、LLM01 | pipeline-diagram | 課程能力、先修 SA01、LLM01 |
-| OPS02 | 以 API 提供 AI 服務 | 待能力 | OPS01、CN14 | protocol-sequence | 課程能力、先修 OPS01、CN14 |
+| OPS02 | 以 API 提供 AI 服務 | 待能力 | OPS01、CN14 | protocol-sequence | 課程能力、先修 OPS01 |
 | OPS03 | 模型閘道與供應商整合 | 待能力 | OPS02 | deployment-simulator | 課程能力、先修 OPS02 |
 | OPS04 | 容器與 Docker | 待能力 | OPS02 | pipeline-diagram | 課程能力、先修 OPS02 |
 | OPS05 | 模型產出物打包 | 待能力 | OPS04、DL08 | pipeline-diagram | 課程能力、先修 OPS04、DL08 |
@@ -498,7 +499,7 @@
 | OPS14 | 資料漂移與品質監控 | 待能力 | OPS13 | monitoring-dashboard | 課程能力、先修 OPS13 |
 | OPS15 | 上線後評估管線 | 待能力 | OPS13、LLM20 | eval-dashboard | 課程能力、先修 OPS13、LLM20 |
 | OPS16 | AI 成本最佳化 | 待能力 | OPS03 | cost-calculator | 課程能力、先修 OPS03 |
-| OPS17 | AI 系統安全與法規遵循 | 待能力 | OPS11、CN18 | case-study-board | 課程能力、先修 OPS11、CN18 |
+| OPS17 | AI 系統安全與法規遵循 | 待能力 | OPS11、CN18 | case-study-board | 課程能力、先修 OPS11 |
 | OPS18 | AI 系統事故應變 | 待能力 | OPS06、OPS13 | decision-simulation | 課程能力、先修 OPS06、OPS13 |
 | OPS19 | SLO 與容量規劃 | 待能力 | OPS08、OPS13 | monitoring-dashboard | 課程能力、先修 OPS08、OPS13 |
 | OPS20 | AI 工程島綜合專題：上線一個 AI 系統 | 待能力 | OPS15、OPS17、OPS18 | challenge-stages | 課程能力、先修 OPS15、OPS17、OPS18 |
@@ -658,21 +659,21 @@
 
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
-| LNX01 | Linux 概論與發行版 | 待能力 | — | case-study-board | 課程能力 |
-| LNX02 | 終端機與 Shell 基礎 | 待能力 | LNX01 | terminal-sim | 課程能力、先修 LNX01 |
-| LNX03 | Linux 檔案系統階層 | 待能力 | LNX02 | terminal-sim | 課程能力、先修 LNX02 |
-| LNX04 | 檔案與目錄操作 | 待能力 | LNX03 | terminal-sim | 課程能力、先修 LNX03 |
-| LNX05 | 文字處理、管線與重新導向 | 待能力 | LNX04 | terminal-sim | 課程能力、先修 LNX04 |
-| LNX06 | 使用者與群組 | 待能力 | LNX04 | terminal-sim | 課程能力、先修 LNX04 |
-| LNX07 | Linux 權限與 chmod | 待能力 | LNX06 | terminal-sim | 課程能力、先修 LNX06 |
-| LNX08 | Process 管理與訊號 | 待能力 | LNX05 | terminal-sim | 課程能力、先修 LNX05 |
-| LNX09 | 套件管理 | 待能力 | LNX06 | terminal-sim | 課程能力、先修 LNX06 |
-| LNX10 | systemd 與服務管理 | 待能力 | LNX08 | terminal-sim | 課程能力、先修 LNX08 |
-| LNX11 | 日誌與 journalctl | 待能力 | LNX05、LNX10 | terminal-sim | 課程能力、先修 LNX05、LNX10 |
-| LNX12 | SSH 遠端連線與金鑰 | 待能力 | LNX07 | protocol-sequence | 課程能力、先修 LNX07 |
-| LNX13 | Bash Script 撰寫 | 待能力 | LNX05、LNX07 | terminal-sim | 課程能力、先修 LNX05、LNX07 |
-| LNX14 | 排程：cron 與 systemd timer | 待能力 | LNX10、LNX13 | terminal-sim | 課程能力、先修 LNX10、LNX13 |
-| LNX15 | Linux 系統島綜合專題：維護一台伺服器 | 待能力 | LNX09、LNX11、LNX12、LNX14 | challenge-stages | 課程能力、先修 LNX09、LNX11、LNX12、LNX14 |
+| LNX01 | Linux 概論與發行版 | 大綱 | — | case-study-board | — |
+| LNX02 | 終端機與 Shell 基礎 | 待先修 | LNX01 | terminal-sim | 先修 LNX01 |
+| LNX03 | Linux 檔案系統階層 | 待先修 | LNX02 | terminal-sim | 先修 LNX02 |
+| LNX04 | 檔案與目錄操作 | 待先修 | LNX03 | terminal-sim | 先修 LNX03 |
+| LNX05 | 文字處理、管線與重新導向 | 待先修 | LNX04 | terminal-sim | 先修 LNX04 |
+| LNX06 | 使用者與群組 | 待先修 | LNX04 | terminal-sim | 先修 LNX04 |
+| LNX07 | Linux 權限與 chmod | 待先修 | LNX06 | terminal-sim | 先修 LNX06 |
+| LNX08 | Process 管理與訊號 | 待先修 | LNX05 | terminal-sim | 先修 LNX05 |
+| LNX09 | 套件管理 | 待先修 | LNX06 | terminal-sim | 先修 LNX06 |
+| LNX10 | systemd 與服務管理 | 待先修 | LNX08 | terminal-sim | 先修 LNX08 |
+| LNX11 | 日誌與 journalctl | 待先修 | LNX05、LNX10 | terminal-sim | 先修 LNX05、LNX10 |
+| LNX12 | SSH 遠端連線與金鑰 | 待先修 | LNX07 | protocol-sequence | 先修 LNX07 |
+| LNX13 | Bash Script 撰寫 | 待先修 | LNX05、LNX07 | terminal-sim | 先修 LNX05、LNX07 |
+| LNX14 | 排程：cron 與 systemd timer | 待先修 | LNX10、LNX13 | terminal-sim | 先修 LNX10、LNX13 |
+| LNX15 | Linux 系統島綜合專題：維護一台伺服器 | 待先修 | LNX09、LNX11、LNX12、LNX14 | challenge-stages | 先修 LNX09、LNX11、LNX12、LNX14 |
 
 ### 系統與雲端工程群島 · Docker 容器島（DKR）
 

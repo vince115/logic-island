@@ -87,7 +87,142 @@
       ],
       "commit": "817fb7c",
       "tests": "驗證器、發布閘門 105/105、Vitest 2558（含 Java 程式測試）、E2E 桌機＋手機（旗標關 431＋重跑 123；候選頁 2 個像素比對失敗為 main 既有回歸 #36）、網路預覽＋P9＋區域世界旗標開（216＋重跑 93；P9.5 飛行影格數在高負載下不足，單獨重跑通過）、測驗 40 題逐題複核、洩漏掃描",
-      "notes": "CN-1：計算機網路島首批，以 network-protocol 能力（CN-0，PR #46）呈現；計算機網路島課程狀態 available（5/20），mapState 維持 planned、3D 地景不變；以計算機網路島當「規劃中」範例的測試改用系統分析與設計島"
+      "notes": "CN-1：計算機網路島首批，以 network-protocol 能力（CN-0，PR #46）呈現；計算機網路島課程狀態 available（5/20），mapState 維持 planned、3D 地景不變；以計算機網路島當「規劃中」範例的測試改用系統分析與設計島",
+      "pr": "#47",
+      "merged": "b36c565"
+    },
+    {
+      "id": 7,
+      "date": "2026-11-22",
+      "lessons": [
+        "CN06",
+        "CN07",
+        "CN08",
+        "CN09",
+        "CN10"
+      ],
+      "commit": "67cf67e",
+      "tests": "驗證器、發布閘門 110/110、Vitest 2583（含 Java 程式測試）、E2E 桌機＋手機旗標關 434（候選頁 D.3-5c、D.3-6d 為 main 既有回歸 #36；手機 D.3-5b 偶發，單獨重跑）、網路預覽＋P9＋區域世界旗標開 251（P9.6 飛行時長在高負載下超出範圍，單獨重跑 2/2 通過）、測驗 40 題逐題複核、洩漏掃描",
+      "notes": "CN-2：DHCP／ARP／NAT、路由與最長前綴匹配、距離向量／鏈路狀態／BGP、TCP 與 UDP、TCP 可靠傳輸與壅塞控制；藍圖的 routing-table 與 graph-traversal 以節點路由表呈現，未另建元件",
+      "pr": "#48",
+      "merged": "a97a86b"
+    },
+    {
+      "id": 8,
+      "date": "2026-11-22",
+      "lessons": [
+        "CN11",
+        "CN12",
+        "CN13",
+        "CN14",
+        "CN15"
+      ],
+      "commit": "2ec7bee",
+      "tests": "驗證器、發布閘門 115/115、Vitest 2631（含 CN11、CN14 四語程式測試，Java 未略過）、E2E 桌機＋手機旗標關 435（候選頁 2 個像素比對失敗為 main 既有回歸 #36）、網路預覽＋P9＋區域世界旗標開 252、測驗 40 題逐題複核、洩漏掃描",
+      "notes": "CN-3：CN11（socket）與 CN14（REST、JSON）的結果是程式，以 program-code 四語撰寫，socket 只用本機迴路、練習讀固定輸入；CN12 DNS 與 HTTP、CN13 TLS、CN15 快取與 HTTP/2、HTTP/3 以網路情境呈現",
+      "pr": "#49",
+      "merged": "50a163a"
+    },
+    {
+      "id": 9,
+      "date": "2026-11-22",
+      "lessons": [
+        "CN16",
+        "CN17",
+        "CN18",
+        "CN19"
+      ],
+      "commit": "3a587ae",
+      "tests": "驗證器、發布閘門 119/119、Vitest 2660（含 CN16 四語程式測試與 firewall 練習單元／DOM 測試）、E2E 桌機＋手機旗標關 435（候選頁 2 個像素比對失敗為 main 既有回歸 #36）、網路預覽＋P9＋區域世界旗標開 252（含預覽頁的防火牆練習）、測驗 32 題逐題複核、洩漏掃描",
+      "notes": "CN-4：CN16 WebSocket 為四語程式課；CN17 除錯工具、CN18 安全基礎、CN19 防火牆／VPN／零信任為網路情境；network-protocol 新增 firewall 練習（學習者寫規則、以封包逐一判斷，寫法不同結果相同也算對）",
+      "pr": "#50",
+      "merged": "87bbe95"
+    },
+    {
+      "id": 10,
+      "date": "2026-11-22",
+      "lessons": [
+        "CN20"
+      ],
+      "commit": "abb6614",
+      "tests": "驗證器、發布閘門 120/120、Vitest 2684（含 CN20 四語程式測試）、E2E 桌機＋手機旗標關 435（候選頁 2 個像素比對失敗為 main 既有回歸 #36）、網路預覽＋P9＋區域世界旗標開 252、測驗 8 題逐題複核、洩漏掃描",
+      "notes": "CN-5：計算機網路島綜合挑戰（四語程式課＋challenge-stages 六關：端到端追蹤、API 設計、處理器、快取與存取控制、除錯、HTTPS 與防火牆設定）；計算機網路島 20/20 完成，mapState 維持 planned；學習路線 C（網路與系統）成為可完整學完",
+      "pr": "#51",
+      "merged": "61d4a9d"
+    },
+    {
+      "id": 11,
+      "date": "2026-11-22",
+      "lessons": [
+        "AIF01",
+        "AIF02",
+        "AIF03",
+        "AIF04",
+        "AIF05"
+      ],
+      "commit": "8e4e3e5",
+      "tests": "驗證器、發布閘門 125/125、Vitest 2718（含 AIF01–AIF05 Python 程式測試與雙雜湊種子輸出比對）、E2E 桌機＋手機旗標關 434（候選頁 2 個像素比對失敗為 main 既有回歸 #36；課綱頁群島分組修正後相關 spec 重跑通過）、網路預覽＋P9＋區域世界旗標開 252、測驗 40 題逐題複核、洩漏掃描",
+      "notes": "AIF-1：AI 基礎島首批，以 python-code 能力（AIF-0）撰寫，只用 Python 標準函式庫、兩個雜湊種子下輸出相同；AI 群島第一次有已開放的課（區域狀態 available），AI 基礎島 mapState 維持 planned；以 AI 群島當「全部規劃中」範例的測試改用數位設計群島；/curriculum 改為依群島列出已開放的島（AI 基礎島列在 AI 人工智慧群島下，不再列在程式與資訊群島標題下）",
+      "pr": "#53",
+      "merged": "f6c1aa6"
+    },
+    {
+      "id": 12,
+      "date": "2026-11-22",
+      "lessons": [
+        "AIF06",
+        "AIF07",
+        "AIF08",
+        "AIF09",
+        "AIF10"
+      ],
+      "commit": "8b8837c",
+      "tests": "驗證器、發布閘門 130/130、Vitest 2746（含 AIF06–AIF10 Python 程式測試；雙種子比對改為每支程式一個測試後 63 個全過）、E2E 桌機＋手機旗標關 435（候選頁 2 個像素比對失敗為 main 既有回歸 #36）、網路預覽＋P9＋區域世界旗標開 252、測驗 39 題逐題複核、洩漏掃描",
+      "notes": "AIF-2：區域搜尋與最佳化（8 皇后的爬山、模擬退火、基因演算法）、對抗搜尋與 minimax（井字遊戲完整遊戲樹 549,946 節點）、alpha-beta 剪枝、expectiminimax 與 MCTS、限制滿足問題（前向檢查、AC-3、MRV／LCV）、知識表示（框架、三元組、繼承與例外）；藍圖的 game-tree、search-tree、knowledge-graph 活動尚未建置，改用已實作的追蹤視覺化（array-index、recursion-tree、graph-traversal），步驟由課內程式產生",
+      "pr": "#54",
+      "merged": "abbf3cc"
+    },
+    {
+      "id": 13,
+      "date": "2026-11-22",
+      "lessons": [
+        "AIF11",
+        "AIF12",
+        "AIF13",
+        "AIF14",
+        "AIF15"
+      ],
+      "commit": "dbe08e0",
+      "tests": "驗證器、發布閘門 135/135、Vitest 2865（含 AIF11–AIF15 Python 程式測試與逐支程式的雙種子比對）、E2E 桌機＋手機旗標關 435（候選頁 2 個像素比對失敗為 main 既有回歸 #36）、網路預覽＋P9＋區域世界旗標開 251＋1（網路預覽鍵盤測試在撰寫者同時執行時失敗一次，單獨重跑兩次皆通過，未放寬）、測驗 40 題逐題複核、洩漏掃描",
+      "notes": "AIF-3：命題邏輯（模型檢查、推論規則、CNF 與歸結、Horn 子句的前向與後向鏈結）、一階邏輯（量詞翻譯、含 occurs check 的合一、一階前向鏈結、半可判定性）、AI 的機率基礎（聯合分布、邊際化、列舉與 α、條件獨立）、貝氏定理（基本比率、逐次更新、單純貝氏與 Laplace 平滑）、貝氏網路（因式分解、d-分離、枚舉、變數消去、拒絕抽樣與似然加權）；藍圖的 logic-proof、probability-explorer、bayes-net 活動尚未建置，改用 dp-table、variable-state、recursion-tree 追蹤，步驟由課內程式產生；機率一律以 Fraction 精確計算，抽樣固定種子",
+      "pr": "#55",
+      "merged": "4277805"
+    },
+    {
+      "id": 14,
+      "date": "2026-11-22",
+      "lessons": [
+        "AIF16",
+        "AIF17",
+        "AIF18",
+        "AIF19"
+      ],
+      "commit": "2877687",
+      "tests": "驗證器、發布閘門 139/139、Vitest 2915（含 AIF16–AIF19 Python 程式測試、逐支程式的雙種子比對與 <pre> 換行的回歸測試）、E2E 桌機＋手機旗標關 433（候選頁 2 個像素比對失敗為 main 既有回歸 #36；「所有完整教材」抓到 AIF16 的 hydration 錯誤 React #418，修正 <pre> 的換行顯示後課程相關 spec 121 全過）、網路預覽＋P9＋區域世界旗標開 250，修正後課程、navigation、區域世界重跑 153 全過、測驗 32 題逐題複核、洩漏掃描",
+      "notes": "AIF-4：馬可夫鏈與隱馬可夫模型（n 步分布、精確穩態分布、前向濾波、log 空間的 Viterbi，Baum–Welch 只說明不實作）、決策理論與效用（風險態度、MEU、決策樹與決策網路、資訊價值）、MDP（貝爾曼方程、價值迭代與停止規則、策略迭代、折扣與生存獎勵、強化學習的方向）、負責任的 AI（傷害來源、分組公平性指標與不可能結果、k-匿名與差分隱私、可解釋性、人類監督與治理；法規只寫確定的事實，資料皆為合成）；藍圖的 mdp-gridworld、decision-simulation、probability-explorer 活動尚未建置，改用 dp-table 與 variable-state 追蹤，步驟由課內程式產生；以 \\r\\n 開頭的測資在 <pre> 中第一個換行被 HTML 解析器吃掉，造成 hydration 不一致：<pre> 內的文字改為顯示正規化換行（自動驗證仍用原始文字）",
+      "pr": "#56",
+      "merged": "3fad90d"
+    },
+    {
+      "id": 15,
+      "date": "2026-11-22",
+      "lessons": [
+        "AIF20"
+      ],
+      "commit": "fbc456a",
+      "tests": "驗證器、發布閘門 140/140、Vitest 2927（含 AIF20 Python 程式測試與雙種子比對）、E2E 桌機＋手機旗標關 435（候選頁 2 個像素比對失敗為 main 既有回歸 #36）、網路預覽＋P9＋區域世界旗標開 252、測驗 8 題逐題複核、洩漏掃描",
+      "notes": "AIF-5：AI 基礎島綜合專題（python-code＋challenge-stages 五關：A* 與可接受啟發、深度限制 alpha-beta、HMM 前向濾波與期望效用選路、穿越或等待的 MDP、固定種子模擬分開報告成功／被抓／交給人類並設計決策紀錄與人類監督）；AI 基礎島 20/20 完成，mapState 維持 planned；學習路線沒有因此變成可完整學完（E、F、J 仍需其他 AI 島）",
+      "merged": "605e65d"
     }
   ]
 }

@@ -65,7 +65,9 @@ export type NetworkTask =
   | { task: 'subnet'; address: string; prefix: number }
   | { task: 'delay'; bytes: number; bandwidth: number; distance: number; speed?: number }
   /** table: one cell of a node's table right after a message, found by the row's first cell and the column's name. */
-  | { task: 'table'; scene: string; message: string; node: string; table: string; row: string; column: string };
+  | { task: 'table'; scene: string; message: string; node: string; table: string; row: string; column: string }
+  /** firewall (CN-4): the learner writes rules; they are run against the packets and compared with the reference's decisions. */
+  | { task: 'firewall'; reference: string; packets: FirewallPacket[] };
 
 export const NETWORK_FIELDS: Record<NetworkTask['task'], Record<string, string>> = {
   field: { value: '欄位的值' },
@@ -73,6 +75,7 @@ export const NETWORK_FIELDS: Record<NetworkTask['task'], Record<string, string>>
   subnet: { network: '網路位址', broadcast: '廣播位址', hosts: '可用主機數' },
   delay: { transmission: '傳輸延遲（毫秒）', propagation: '傳播延遲（毫秒）', total: '總延遲（毫秒）' },
   table: { cell: '表格中的值' },
+  firewall: { rules: '防火牆規則（每行一條）' },
 };
 /** Numeric answers (delay) are compared as numbers to this many milliseconds, so 0.8 and 0.800 are the same answer. */
 export const DELAY_TOLERANCE = 0.0005;
@@ -96,26 +99,11 @@ export function delayOf(bytes: number, bandwidth: number, distance: number, spee
   return { transmission: round(transmission), propagation: round(propagation), total: round(transmission + propagation) };
 }
 
-// ---- IPv4 ------------------------------------------------------------------------------------------------------
-const QUAD = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
-export function parseIpv4(text: string): number | undefined {
-  const m = QUAD.exec(text.trim());
-  if (!m) return undefined;
-  const parts = m.slice(1).map(Number);
-  if (parts.some(p => p > 255) || m.slice(1).some(p => p.length > 1 && p.startsWith('0'))) return undefined;
-  return ((parts[0] << 24) >>> 0) + (parts[1] << 16) + (parts[2] << 8) + parts[3];
-}
-export const formatIpv4 = (n: number) => [24, 16, 8, 0].map(s => (n >>> s) & 255).join('.');
-/** The network address, the broadcast address and the usable hosts of an IPv4 address with a prefix length 0–32. */
-export function subnetOf(address: string, prefix: number): { network: string; broadcast: string; hosts: number } | undefined {
-  const ip = parseIpv4(address);
-  if (ip === undefined || !Number.isInteger(prefix) || prefix < 0 || prefix > 32) return undefined;
-  const mask = prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0;
-  const network = (ip & mask) >>> 0, broadcast = (network | (~mask >>> 0)) >>> 0;
-  // RFC 3021: a /31 has two usable addresses (a point-to-point link); a /32 names one host.
-  const hosts = prefix === 32 ? 1 : prefix === 31 ? 2 : 2 ** (32 - prefix) - 2;
-  return { network: formatIpv4(network), broadcast: formatIpv4(broadcast), hosts };
-}
+// ---- IPv4 (src/lib/network/ipv4.ts) ------------------------------------------------------------------------------
+export { formatIpv4, parseIpv4, subnetOf } from './ipv4';
+import { subnetOf } from './ipv4';
+import { checkFirewallRules, firewallTaskProblems, type FirewallPacket } from './firewall';
+export type { FirewallPacket } from './firewall';
 
 const sceneById = (scenes: readonly NetworkScene[], id: string) => scenes.find(s => s.id === id);
 /** The answer, from the scenes or computed; throws when the task names something the scenes do not have. */
@@ -138,6 +126,11 @@ export function expectedNetworkAnswer(t: NetworkTask, scenes: readonly NetworkSc
       if (!s) throw new Error(`invalid subnet ${t.address}/${t.prefix}`);
       return { network: s.network, broadcast: s.broadcast, hosts: String(s.hosts) };
     }
+    case 'firewall': {
+      const problems = firewallTaskProblems(t.reference, t.packets);
+      if (problems.length) throw new Error(`firewall exercise: ${problems.join('; ')}`);
+      return { rules: t.reference };
+    }
     case 'table': {
       const t2 = sceneById(scenes, t.scene)?.messages.find(m => m.id === t.message)?.tables?.find(x => x.node === t.node && x.name === t.table);
       const col = t2?.head.indexOf(t.column) ?? -1, row = t2?.rows.find(r => r[0] === t.row);
@@ -157,6 +150,8 @@ export function expectedNetworkAnswer(t: NetworkTask, scenes: readonly NetworkSc
  */
 const normalize = (text: string) => text.replace(/\s+/g, '').replace(/[、，]/g, ',').toLowerCase();
 export function checkNetworkAnswer(t: NetworkTask, scenes: readonly NetworkScene[], answer: Record<string, string>): { ok: boolean; messages: string[] } {
+  // Firewall rules are judged by what they decide, not by their text.
+  if (t.task === 'firewall') { expectedNetworkAnswer(t, scenes); return checkFirewallRules(answer.rules ?? '', t.reference, t.packets); }
   const expected = expectedNetworkAnswer(t, scenes), messages: string[] = [];
   for (const [field, value] of Object.entries(expected)) {
     const got = answer[field];

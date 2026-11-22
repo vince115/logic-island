@@ -84,6 +84,41 @@ import { CN02 } from './content/CN02';
 import { CN03 } from './content/CN03';
 import { CN04 } from './content/CN04';
 import { CN05 } from './content/CN05';
+import { CN06 } from './content/CN06';
+import { CN07 } from './content/CN07';
+import { CN08 } from './content/CN08';
+import { CN09 } from './content/CN09';
+import { CN10 } from './content/CN10';
+import { CN11 } from './content/CN11';
+import { CN12 } from './content/CN12';
+import { CN13 } from './content/CN13';
+import { CN14 } from './content/CN14';
+import { CN15 } from './content/CN15';
+import { CN16 } from './content/CN16';
+import { CN17 } from './content/CN17';
+import { CN18 } from './content/CN18';
+import { CN19 } from './content/CN19';
+import { CN20 } from './content/CN20';
+import { AIF01 } from './content/AIF01';
+import { AIF02 } from './content/AIF02';
+import { AIF03 } from './content/AIF03';
+import { AIF04 } from './content/AIF04';
+import { AIF05 } from './content/AIF05';
+import { AIF06 } from './content/AIF06';
+import { AIF07 } from './content/AIF07';
+import { AIF08 } from './content/AIF08';
+import { AIF09 } from './content/AIF09';
+import { AIF10 } from './content/AIF10';
+import { AIF11 } from './content/AIF11';
+import { AIF12 } from './content/AIF12';
+import { AIF13 } from './content/AIF13';
+import { AIF14 } from './content/AIF14';
+import { AIF15 } from './content/AIF15';
+import { AIF16 } from './content/AIF16';
+import { AIF17 } from './content/AIF17';
+import { AIF18 } from './content/AIF18';
+import { AIF19 } from './content/AIF19';
+import { AIF20 } from './content/AIF20';
 import { DB01 } from './content/DB01';
 import { DB02 } from './content/DB02';
 import { DB03 } from './content/DB03';
@@ -122,7 +157,10 @@ export const curriculum: Curriculum = {
     PL01, PL02, PL03, PL04, PL05, PL06, PL07, PL08, PL09, PL10, PL11, PL12, PL13, PL14, PL15, PL16, PL17, PL18, PL19, PL20,
     DB01, DB02, DB03, DB04, DB05, DB06, DB07, DB08, DB09, DB10,
     DB11, DB12, DB13, DB14, DB15, DB16, DB17, DB18, DB19, DB20,
-    CN01, CN02, CN03, CN04, CN05 },
+    CN01, CN02, CN03, CN04, CN05, CN06, CN07, CN08, CN09, CN10,
+    CN11, CN12, CN13, CN14, CN15, CN16, CN17, CN18, CN19, CN20,
+    AIF01, AIF02, AIF03, AIF04, AIF05, AIF06, AIF07, AIF08, AIF09, AIF10,
+    AIF11, AIF12, AIF13, AIF14, AIF15, AIF16, AIF17, AIF18, AIF19, AIF20 },
 };
 
 export const getLessonBySlug = (slug: string) => lessons.find(l => l.slug === slug);

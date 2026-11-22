@@ -246,6 +246,26 @@
   font: inherit;
 }
 
+/* CN-4: firewall exercises (rules written by the learner). */
+.rulesLabel {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  font-weight: 700;
+}
+.rules {
+  width: 100%;
+  min-height: 9em;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--text-sm);
+  font-weight: 400;
+}
+
 /* Phones: the arrows give way to the text of each message, so nothing scrolls sideways. */
 @media (max-width: 560px) {
   .sequence {

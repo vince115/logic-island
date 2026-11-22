@@ -5,6 +5,7 @@ import { Check, Copy } from 'lucide-react';
 import { LANGUAGES, LESSON_LANGUAGES, type LessonCode, type LessonLanguage, type QueryLanguage } from '@/content/curriculum/schema';
 import type { HlLines } from '@/lib/highlight/kinds';
 import { Highlighted } from '@/components/highlighted';
+import { shownText } from './pre-text';
 import styles from './curriculum.module.css';
 
 /*
@@ -72,8 +73,8 @@ export function CodeTabs({ code, tokens, label, input, output }: { code: LessonC
       <code>{(code[language] ?? '').split('\n').map((line, i) => <span key={i} className={styles.codeLine}><span className={styles.lineNo} aria-hidden>{i + 1}</span><Highlighted text={line} pieces={tokens?.[language]?.[i]}/>{'\n'}</span>)}</code>
     </pre>
     {(input !== undefined || shown !== undefined) && <div className={styles.io}>
-      {input !== undefined && <div><span>輸入</span><pre>{input}</pre></div>}
-      {shown !== undefined && <div><span>輸出（{language}）</span><pre>{shown}</pre></div>}
+      {input !== undefined && <div><span>輸入</span><pre>{shownText(input)}</pre></div>}
+      {shown !== undefined && <div><span>輸出（{language}）</span><pre>{shownText(shown)}</pre></div>}
     </div>}
   </figure>;
 }

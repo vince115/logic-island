@@ -117,15 +117,17 @@ describe('world registry (F.0)', () => {
     expect(labIslandConfig.labs).toEqual(['array', 'stack', 'queue', 'binary-search', 'bubble-sort', 'bfs']);
   });
 
-  it('marks the three existing islands, the database island (F.1d) and PL (course production batches 1–5) complete, CN available (CN-1) and the other twenty-three planned', () => {
-    expect(subjectIslands.filter(i => i.status === 'complete').map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases']);
+  it('marks the three existing islands, the database island (F.1d), PL (course production batches 1–5) CN (CN-1 to CN-5) and AIF (AIF-1 to AIF-5) complete and the other twenty-two planned', () => {
+    expect(subjectIslands.filter(i => i.status === 'complete').map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations']);
     // Course production batch 5 published PL20, the last of 20: every PL lesson is written, but its map stays planned
     // (an island's 3D look is set by hand in IslandConfig.mapState, never by its lessons).
-    // CN-1 published CN01–CN05 of 20: the computer-networks island is open (available); its map stays planned too.
-    expect(subjectIslands.filter(i => i.status === 'available').map(i => i.id)).toEqual(['networks']);
+    // CN-5 published CN20, the last of 20: the computer-networks island is complete; its map stays planned too.
+    // AIF-5 published AIF20, the last of 20: the AI foundations island is complete; its map stays planned too.
+    expect(subjectIslands.filter(i => i.status === 'available').map(i => i.id)).toEqual([]);
+    expect(getIsland('ai-foundations')).toMatchObject({ status: 'complete', mapState: 'planned' });
     expect(getIsland('programming-languages')).toMatchObject({ status: 'complete', mapState: 'planned' });
-    expect(getIsland('networks')).toMatchObject({ status: 'available', mapState: 'planned' });
-    expect(subjectIslands.filter(i => i.status === 'planned')).toHaveLength(23);
+    expect(getIsland('networks')).toMatchObject({ status: 'complete', mapState: 'planned' });
+    expect(subjectIslands.filter(i => i.status === 'planned')).toHaveLength(22);
     expect(regionStatus('design')).toBe('planned');
     expect(regionStatus('sys')).toBe('planned');
     expect(regionStatus('web')).toBe('planned');
@@ -144,7 +146,7 @@ describe('world registry (F.0)', () => {
   });
 
   it('gives the curriculum the same three islands as before, then the database island (F.1a), PL (batch 1) and CN (CN-1)', () => {
-    expect(curriculumIslands.map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks']);
+    expect(curriculumIslands.map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations']);
     expect(curriculumIslands.find(i => i.id === 'databases')).toMatchObject({ name: '資料庫應用島', englishName: 'Database Applications', summary: planning.islands.databases.description });
     expect(curriculumIslands.find(i => i.id === 'programming-languages')).toMatchObject({ name: planning.islands['programming-languages'].name, summary: planning.islands['programming-languages'].description });
     expect(curriculumIslands.slice(0, 3)).toEqual([
@@ -191,7 +193,9 @@ describe('world registry (F.0)', () => {
 
   it('derives a region\'s status from its islands', () => {
     expect(regionStatus('cs')).toBe('available');
-    expect(regionStatus('ai')).toBe('planned');
+    // AIF-1 (2026-11-22): the AI foundations island opened, so the AI region is available; the design region is all outlines.
+    expect(regionStatus('ai')).toBe('available');
+    expect(regionStatus('design')).toBe('planned');
   });
 
   it('checks navigation groups: whole islands of their own region, each in one group at most', () => {

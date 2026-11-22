@@ -1,7 +1,7 @@
 import type { AlgorithmId } from '@/lib/engine';
 import planning from '@/content/world/planning-data.json';
 import type { AnyLessonId } from '@/content/world/lesson-id';
-import { DATABASE_VISUALIZATIONS, LANGUAGES, LESSON_ACTIVITIES, OPTIONAL_LANGUAGES, ISLAND_PREFIX, ISLAND_IDS, type ApcsRelevance, type Difficulty, type LessonActivity, type LessonCapability, type LessonId, type LessonMeta, type LessonStatus, type VisualizationType } from './schema';
+import { DATABASE_VISUALIZATIONS, LANGUAGES, LESSON_ACTIVITIES, OPTIONAL_LANGUAGES, ISLAND_PREFIX, ISLAND_IDS, PYTHON_LANGUAGES, type ApcsRelevance, type Difficulty, type LessonActivity, type LessonCapability, type LessonId, type LessonMeta, type LessonStatus, type VisualizationType } from './schema';
 
 /*
  * The lessons in recommended order (F01..F20, D01..D20, A01..A20, then the database island's written lessons from DB01).
@@ -346,6 +346,29 @@ export function networkFromBlueprint(lessonId: string, summary: string, minutes:
     visualization: capstone ? 'challenge-stages' : 'none', status: 'complete', version: '1.0.0', activity,
     capabilities: capstone ? ['network-protocol', 'visualization'] : ['network-protocol'], blueprintId: lessonId };
 }
+/**
+ * LNX-0 (2026-11-22): a Linux lesson written from its blueprint outline. Slug, title, objectives, concepts, difficulty
+ * and prerequisites are the blueprint's. Its body is the terminal capability (machines, replayed transcripts, exercises
+ * checked in the simulated shell). Activities: terminal-sim stays; the overview's case-study-board is not built (it stays
+ * in INTERACTIVE_LAB_ROADMAP) and the lesson uses the terminal instead; SSH's protocol-sequence becomes network-sequence
+ * with network scenes beside the terminal (protocol-sequence keeps meaning the database lessons' SQL round trips); the
+ * capstone adds the challenge-stages visualization.
+ */
+export function terminalFromBlueprint(lessonId: string, summary: string, minutes: number): Outline {
+  const b = planning.plannedLessons.find(l => l.lessonId === lessonId);
+  if (!b || b.islandId !== 'linux-systems') throw new Error(`${lessonId} is not a Linux systems lesson of the blueprint`);
+  const shape: Record<string, Pick<Outline, 'activity' | 'capabilities' | 'visualization'>> = {
+    'terminal-sim': { activity: 'terminal-sim', capabilities: ['terminal'], visualization: 'none' },
+    'case-study-board': { activity: 'terminal-sim', capabilities: ['terminal'], visualization: 'none' },
+    'protocol-sequence': { activity: 'network-sequence', capabilities: ['terminal', 'network-protocol'], visualization: 'none' },
+    'challenge-stages': { activity: 'challenge-stages', capabilities: ['terminal', 'visualization'], visualization: 'challenge-stages' },
+  };
+  const s = shape[b.activity];
+  if (!s) throw new Error(`${lessonId}: no terminal lesson shape for the blueprint activity ${b.activity}`);
+  return { slug: b.slug, title: b.title, summary, objectives: b.learningObjectives, concepts: b.concepts, difficulty: b.difficulty as Difficulty,
+    minutes, prerequisites: b.prerequisites as LessonId[], recommended: b.recommended as AnyLessonId[], apcs: ['none'],
+    status: 'complete', version: '1.0.0', ...s, blueprintId: lessonId };
+}
 /** Batches 1–5: the programming-languages island's written lessons, PL20 its capstone. */
 const programmingLanguages: Outline[] = [
   programFromBlueprint('PL01', '用同一個「偶數平方和」問題比較命令式、程序式、物件導向與函數式寫法，認識宣告式的 SQL 與邏輯式的 Prolog，看懂 C++、Java、Python、JavaScript 各自支援的典範組合，並依可讀性與可變狀態選擇合適的風格。', 45, 'variable-state'),
@@ -372,13 +395,72 @@ const programmingLanguages: Outline[] = [
   programFromBlueprint('PL20', '把 PL10 的 lexer、PL11 的遞迴下降 parser 與 PL12 的樹走訪直譯器接成一個能執行的迷你語言：用帶 parent 鏈的環境實作 let、遞迴與捕捉環境的閉包，在每個運算做動態型別檢查並以「error line N: …」回報第一個語法、名稱或型別錯誤，以瞄準規則的測試證明作用域、遞迴與錯誤行為，並說明動態檢查、急切求值、整數除法與全域重新綁定這些設計取捨的代價。', 120, 'challenge-stages'),
 ];
 
-/** CN-1 (2026-11-22): the computer-networks island's first lessons, written with the network-protocol capability (CN0_NETWORK_CAPABILITY.md). */
+/** CN-1 to CN-5 (2026-11-22): the computer-networks island's lessons, written with the network-protocol capability (CN0_NETWORK_CAPABILITY.md). */
 const networks: Outline[] = [
   networkFromBlueprint('CN01', '說明網路為什麼分層、每層只使用下一層的服務，對照 OSI 七層與 TCP/IP 四層及各層代表協定，在固定情境中追蹤 HTTP 請求經過交換器與路由器時由上而下封裝成訊框、在接收端由下而上解封裝，並以 DNS 查詢比較 UDP 與 TCP 標頭，區分訊息、區段／資料包、封包、訊框與位元等各層 PDU。', 45),
   networkFromBlueprint('CN02', '把位元看成在雙絞線、光纖與空氣中傳送的電、光與無線電訊號並比較三種媒介，分清頻寬、吞吐量與延遲，逐步算出傳輸延遲與傳播延遲、RTT 與頻寬延遲乘積，並在多段路徑上找出決定吞吐量的瓶頸鏈路。', 50),
   networkFromBlueprint('CN03', '拆開 Ethernet 訊框的前導碼、MAC 位址、EtherType、酬載與 FCS，認識 48 位元 MAC 位址、OUI 與廣播位址，比較同位元、檢查碼與 CRC 如何偵測（而不修正）錯誤，依一串訊框模擬交換器學習 MAC 位址表並判斷轉送、泛洪、過濾與老化，區分集線器、交換器與路由器的工作層級，並以 802.1Q 標籤看 VLAN 如何切開廣播網域。', 50),
   networkFromBlueprint('CN04', '從 Wi-Fi 的 SSID、BSSID 與 2.4／5／6 GHz 頻段和通道出發，逐步看手機掃描、關聯並完成 WPA2 四向交握，比較 CSMA/CD 與 CSMA/CA、用 RTS/CTS 與 NAV 解決隱藏終端，追蹤手機邊下載邊在兩座 5G 基地台之間換手，並用訊號強度、干擾、距離與速率調整解釋 Wi-Fi 為什麼會變慢、提出改善做法。', 50),
   networkFromBlueprint('CN05', '把 IPv4 位址在二進位與點分十進位之間轉換，以子網路遮罩與 CIDR 用 AND 算出網路位址、廣播位址與可用主機數，判斷目的地在同一子網路還是交給預設閘道，依部門人數由大到小、對齊邊界把 192.168.10.0/24 切成子網路並寫出每段範圍，再認識私有位址、特殊用途位址與 IPv6 的壓縮寫法。', 55),
+  // CN-2 (2026-11-22): address translation, routing and the transport layer.
+  networkFromBlueprint('CN06', '追蹤筆電接上網路後以 DHCP 的 Discover、Offer、Request、Ack 廣播與單播取得位址、遮罩、預設閘道與租約並在 T1 續約，判斷同網段或跨網段後用 ARP 廣播請求、單播回覆問出閘道或目的主機的 MAC 並讀懂 ARP 快取，再以 NAT 轉譯表與連接埠轉譯讓多台裝置共用一個公開位址，說明入站連線為什麼需要連接埠轉送、NAT 為什麼不等於防火牆。', 55),
+  networkFromBlueprint('CN07', '分清轉送與路由，讀懂路由表的目的前綴、下一跳、介面與來源，用二進位做最長前綴匹配選出送出介面，設定靜態路由與預設路由，並追蹤 TTL 如何結束靜態路由打錯造成的迴圈、回傳 ICMP Time Exceeded。', 55),
+  networkFromBlueprint('CN08', '以 Bellman-Ford 的想法逐步模擬 RIP 式距離向量路由交換向量、更新路由表直到收斂，看鏈路斷線後壞消息如何慢慢傳開、計數到無限與毒性逆轉的效果，再以 LSA 泛洪與 Dijkstra 說明 OSPF 每台路由器如何從同一份鏈路狀態資料庫算出自己的最短路徑樹，最後區分自治系統內部的路由與依政策選路的 BGP 路徑向量。', 60),
+  networkFromBlueprint('CN09', '以 5-tuple 說明連接埠與 socket 如何區分同一台主機上的程式，拆開 8 位元組的 UDP 標頭與 TCP 標頭的連接埠、Seq、Ack、旗標、視窗與檢查碼，逐步追蹤三向交握、資料傳輸與四次揮手的序號與 ACK（SYN 與 FIN 各占一個序號、Ack 是下一個期待的位元組），看懂 TIME_WAIT 與連到沒開的連接埠時的 RST，並為 DNS、串流影音、線上遊戲與檔案下載選擇 TCP 或 UDP。', 55),
+  networkFromBlueprint('CN10', '從累積確認、RTO 逾時重送與三個重複 ACK 的快速重傳出發，用滑動視窗說明在途資料最多 min(rwnd, cwnd)，追蹤接收視窗縮到 0、視窗探測與視窗更新的流量控制，依 Reno 規則一輪一輪算出慢啟動、壅塞避免（AIMD）、重複 ACK 減半與逾時歸 1 的壅塞視窗，並比較流量控制與壅塞控制、說明遺失為什麼讓吞吐量下降。', 60),
+  // CN-3 (2026-11-22): sockets and REST are program lessons (their code runs in the tests, on loopback or recorded
+  // responses, never a real network); DNS and HTTP, TLS and caching are network scenes.
+  programFromBlueprint('CN11', '用 socket、bind、listen、accept 與 connect 在本機迴路上寫出 TCP 回聲伺服器與客戶端，看懂 TCP 是位元組串流、一次 send 不等於一次 recv，以換行分隔與 4 位元組大端序的長度前綴切出每一則訊息，分清 UTF-8 的字元數與位元組數，用序號處理 UDP 資料包的遺失、重複與亂序，以每條連線一個執行緒或事件驅動讓伺服器同時服務多個客戶端，並處理連線被拒、逾時、部分讀取與正確關閉。', 60, 'stack-queue'),
+  networkFromBlueprint('CN12', '從在網址列輸入網址到收到 HTML，逐步追蹤 stub 解析程式、遞迴解析器、根、TLD 與權威伺服器的迭代查詢與 AA、RD、RA 旗標，讀懂 A、AAAA、CNAME、MX、NS、TXT 紀錄與 TTL 快取如何讓第二次查詢跳過根伺服器，拆開 HTTP/1.1 請求與回應的起始列、標頭與本文，分辨 GET、HEAD、POST、PUT、DELETE 的安全與冪等和 2xx 到 5xx 狀態碼，看懂 301 重新導向與持久連線上的多個請求，並以 Set-Cookie 的 Domain、HttpOnly、Secure、SameSite 與 Cookie 標頭說明登入如何在無狀態的 HTTP 上維持。', 55),
+  networkFromBlueprint('CN13', '分清對稱加密、非對稱加密與雜湊在 TLS 中的分工，讀懂 X.509 憑證的主體、SAN、簽發者、有效期間與公鑰，從葉憑證經中繼憑證走到信任儲存區的根憑證驗證信任鏈，逐步追蹤 TLS 1.3 的 ClientHello、ServerHello 與加密的 EncryptedExtensions、Certificate、CertificateVerify、Finished（外層內容類型 23）以及兩端金鑰的導出，說明 (EC)DHE 如何提供前向保密，辨識憑證過期、名稱不符與混合內容警告的風險，並以 HSTS 與預載清單防止降級，說清楚 HTTPS 保護與不保護的資訊。', 60),
+  programFromBlueprint('CN14', '用資源與 HTTP 方法設計待辦事項 API 的端點與分頁，組出帶 Authorization 標頭與 JSON 本文的請求，解析 JSON 並驗證它的形狀（C++ 與 Java 以手寫的子集解析器示範），看懂 JavaScript double 對大整數 id 的捨入，依 200、201、204、401、403、404、409、422、429 等狀態碼與錯誤物件處理回應，以重送實驗說明 PUT、DELETE 的冪等性與 POST 的 Idempotency-Key，並分辨 API 金鑰與 Bearer token、401 與 403，以及由瀏覽器執行的 CORS 預檢。', 60, 'variable-state'),
+  networkFromBlueprint('CN15', '以 Cache-Control 的 max-age、no-cache、no-store、private／public 與 immutable 決定瀏覽器與 CDN 何時重用快取，用 ETag 與 If-None-Match 換得 304 Not Modified，以雜湊檔名讓靜態檔放心快取一年，在固定情境中追蹤 CDN 邊緣節點的命中與回源，依「命中率 × 邊緣 RTT +（1 − 命中率）×（邊緣 RTT + 來源 RTT）」算出期望延遲，並比較 HTTP/1.1 的隊頭阻塞、HTTP/2 在一條 TCP 連線上的多工與 HPACK，以及 HTTP/3 以 QUIC 在 UDP 上做到逐串流的遺失復原、1-RTT 交握與連線遷移。', 55),
+  // CN-4 (2026-11-22): WebSocket is a program lesson (frames and the handshake key run in the tests); debugging tools,
+  // security basics and firewalls are network scenes; CN19's firewall exercises are rules the learner writes.
+  programFromBlueprint('CN16', '比較輪詢、長輪詢、Server-Sent Events（text/event-stream）與全雙工的 WebSocket 在請求數、延遲與標頭成本上的差異，追蹤 HTTP/1.1 的 Upgrade 交握與 101 Switching Protocols 並以 base64(SHA-1(key + GUID)) 算出 Sec-WebSocket-Accept，逐位元拆解 RFC 6455 訊框的 FIN、opcode、MASK、7／16／64 位元長度與遮罩金鑰的 XOR，寫出以連線表廣播訊息的簡易聊天室伺服器，並用 ping／pong 心跳偵測半開連線、以 close 狀態碼關閉，再以指數退避加抖動重連，說明聊天室為何選擇 WebSocket 而非輪詢。', 60, 'variable-state'),
+  networkFromBlueprint('CN17', '用 ping 的 ICMP Echo 與回覆 TTL、traceroute 的 TTL 遞增與 Time Exceeded、dig 的 status 與 @解析器比較、curl -v 的連線與 TLS 階段和封包擷取的 SYN／RST，依分層除錯判斷「網站打不開」是 DNS、路由、連接埠還是應用層的問題。', 55),
+  networkFromBlueprint('CN18', '以機密性、完整性與可用性分析網路威脅，逐步追蹤咖啡店區域網路上的 ARP 偽冒如何形成中間人、TLS 的憑證檢查如何以 unknown_ca 擋下偽造的憑證，看懂 IP、MAC、DNS 與電子郵件寄件者的偽冒與對應防護，在固定情境中看偽冒來源的 SYN flood 塞滿半開佇列、SYN cookies 如何不占佇列完成交握，比較流量型與反射放大攻擊及速率限制、CDN 與清洗、anycast 的防護，辨識仿冒網域與有效憑證的釣魚網站、說明鎖頭為什麼不證明網站身分與通行金鑰為什麼能抵抗釣魚，並認識封包過濾防火牆的能力與限制。', 55),
+  networkFromBlueprint('CN19', '分清無狀態封包過濾與狀態檢查，讀懂連線追蹤表如何讓回應進來而不開放入站埠，以預設拒絕、最小權限與「第一條符合的規則決定結果」寫出防火牆規則並預測每個封包的結果，用 DMZ 與網段隔離限制被攻破的伺服器能走的路，追蹤站對站 VPN 把內層封包加密後裝進外層 UDP 封包的封裝、比較遠端存取 VPN 並說明 VPN 保護與不保護的範圍，最後以身分感知的存取代理與微分段比較城堡與護城河和零信任。', 60),
+  // CN-5 (2026-11-22): the capstone; its outcome is a working API service, so it is a program lesson with challenge stages.
+  programFromBlueprint('CN20', '把整座島接成一件作品：依時間順序追蹤筆電以 DHCP 取得位址、以 ARP 問出閘道的 MAC、以 DNS 解析 api.example.com，再經路由與 NAT、TCP 三向交握與 TLS 1.3 送出 HTTPS 請求，設計並實作一個在記憶體中處理原始 HTTP/1.1 請求的待辦事項 REST API 服務（以 FNV-1a 的 ETag 回應 304、以 Bearer token 區分 401 與 403、固定的檢查順序與 Cache-Control），用 dig、curl、ss、openssl 與 tcpdump 分層診斷錯誤的 DNS 紀錄、丟棄 443 的防火牆、只聽 127.0.0.1 的服務、過期的憑證與缺少的 Cache-Control，最後寫下 HTTPS、HSTS、快取、存取控制與防火牆規則的設定和設計取捨。', 120, 'challenge-stages'),
+];
+
+/**
+ * AIF-0 (2026-11-22): a Python-only program lesson of an AI island, written from its blueprint outline (slug, title,
+ * objectives, concepts, difficulty, prerequisites). The blueprint's exercises there are code-python, so the lesson's
+ * examples and exercises are Python, run by the tests; its blueprint activity (search-tree, game-tree…) is not built yet
+ * and the lesson shows one of the implemented shared visualizations instead, never a stand-in.
+ */
+export function pythonFromBlueprint(lessonId: string, summary: string, minutes: number, visualization: VisualizationType): Outline {
+  const b = planning.plannedLessons.find(l => l.lessonId === lessonId);
+  if (!b || b.islandId !== 'ai-foundations') throw new Error(`${lessonId} is not an AI foundations lesson of the blueprint`);
+  return { slug: b.slug, title: b.title, summary, objectives: b.learningObjectives, concepts: b.concepts, difficulty: b.difficulty as Difficulty,
+    minutes, prerequisites: b.prerequisites as LessonId[], recommended: b.recommended as AnyLessonId[], apcs: ['none'], visualization,
+    status: 'complete', version: '1.0.0', capabilities: ['python-code'], blueprintId: lessonId };
+}
+
+/** AIF-1 (2026-11-22): the AI foundations island's first lessons, Python only (python-code, AIF0_PYTHON_CAPABILITY.md); AIF-2 adds AIF06–AIF10, AIF-3 AIF11–AIF15, AIF-4 AIF16–AIF19, AIF-5 the capstone AIF20. */
+const aiFoundations: Outline[] = [
+  pythonFromBlueprint('AIF01', '用 AI 的四種定義、理性代理人與圖靈測試判斷什麼算 AI，比較狹義 AI 與通用 AI、符號式與資料驅動兩條路線，並以明確的規則把日常系統分類為規則式程式或 AI 系統。', 45, 'conditional-branch'),
+  pythonFromBlueprint('AIF02', '從 1956 年達特茅斯會議、早期符號 AI、MYCIN 與 XCON 等專家系統和兩次 AI 寒冬，到感知器與 XOR、1986 年普及的反向傳播、2012 年的 AlexNet 與 2017 年 Transformer 之後的基礎模型，比較符號主義、連結主義與統計學習，說明運算力、資料與演算法如何推動每一波興起，並以 Python 實作前向鏈結專家系統、學會 AND 卻學不會 XOR 的整數感知器，以及依時期分組的 AI 時間軸。', 45, 'none'),
+  pythonFromBlueprint('AIF03', '以 PEAS 描述任務、分類環境並比較五種代理人，再用 Python 寫出在格子世界中吸塵的反射型代理人。', 50, 'array-index'),
+  pythonFromBlueprint('AIF04', '把問題形式化為狀態、動作、轉移模型、目標測試與路徑成本，在同一個搜尋框架中比較 BFS、UCS、DFS 與迭代加深搜尋的完備性、最佳性與展開節點數。', 60, 'tree-traversal'),
+  pythonFromBlueprint('AIF05', '依估計的剩餘成本引導搜尋：貪婪最佳優先、A* 的 f = g + h、可接受與一致的啟發函數，以及格子尋路。', 60, 'graph-traversal'),
+  pythonFromBlueprint('AIF06', '以目標函數地形說明區域最大、高原與山脊，用 Python 在 8 皇后上實作最陡上升、橫移與隨機重啟、模擬退火的 exp(Δ/T) 接受機率與溫度排程，以及基因演算法的選擇、交配與突變，並以固定種子比較各方法的成功率與步數。', 55, 'array-index'),
+  pythonFromBlueprint('AIF07', '把雙人零和、完全資訊遊戲寫成遊戲樹，讓 MAX 與 MIN 輪流取最大與最小值倒推出 minimax 值，數出井字遊戲完整遊戲樹的 549,946 個節點與 5,478 個盤面，說明深度限制、評估函數與地平線效應，並以 Python 實作不會輸的井字遊戲 AI。', 55, 'recursion-tree'),
+  pythonFromBlueprint('AIF08', '在 minimax 上加入 alpha 與 beta 剪掉不影響結果的分支，量測行動排序省下的節點數，並以 expectiminimax 處理機率節點、以 UCB1 的蒙地卡羅樹搜尋選擇走法。', 55, 'recursion-tree'),
+  pythonFromBlueprint('AIF09', '把地圖著色、考試排程與數獨寫成變數、值域與限制，以回溯搜尋加上前向檢查與 AC-3 弧一致性縮小值域，用 MRV、degree 與 LCV 決定順序，並以 Python 寫出解地圖著色與 4 × 4 數獨的 CSP 解題器。', 60, 'recursion-tree'),
+  pythonFromBlueprint('AIF10', '比較規則、語意網路、框架與本體論，用主詞—述詞—受詞三元組建立校園知識圖譜，以類別階層、繼承與企鵝的例外說明預設推理，並以 Python 寫出直接查詢、繼承查詢與沿指定述詞做 BFS 的多步關係查詢，再和 ER 模型比較表達能力。', 50, 'graph-traversal'),
+  pythonFromBlueprint('AIF11', '以命題、連接詞與真值表定義語法和語意，用列舉模型的模型檢查判斷蘊涵、可滿足性與有效性，以真值表說明 modus ponens 等推論規則的可靠性，把語句轉成 CNF 以歸結反證，並以 Python 對 Horn 子句實作前向鏈結與後向鏈結。', 60, 'dp-table'),
+  pythonFromBlueprint('AIF12', '說明命題邏輯為何不夠，以物件、述詞、函數與常數描述家族關係，正確使用全稱與存在量詞翻譯中文敘述並避開 ∀ 配 ∧、∃ 配 ⇒ 的錯誤，用 Python 實作含 occurs check 的合一與一階前向鏈結推導隱含的親屬關係，再說明一階歸結的半可判定性並和知識圖譜查詢比較。', 60, 'variable-state'),
+  pythonFromBlueprint('AIF13', '從代理人為何需要以機率表示信念談起，以隨機變數與完整聯合分布做邊際化、條件機率、乘法規則與連鎖規則，用列舉與正規化 α 回答查詢，說明獨立與條件獨立如何把指數大小的表格縮小，並以 Fraction 精確計算、以固定種子的模擬估計機率。', 50, 'dp-table'),
+  pythonFromBlueprint('AIF14', '從乘法規則推導貝氏定理，區分先驗、概似、證據與後驗，以醫療檢測的精確分數說明基本比率謬誤，用正規化與枚舉從聯合分布回答查詢，在條件獨立下逐一更新多個證據，並以 Python 寫出加上 Laplace 平滑與對數機率的單純貝氏文字分類器。', 50, 'variable-state'),
+  pythonFromBlueprint('AIF15', '以有向無環圖與條件機率表建立警報情境的貝氏網路，用因式分解比較參數數量，從鏈、分叉與對撞讀出條件獨立與 d-分離，以枚舉推論算出兩通電話後闖空門的精確後驗，再以變數消去重複使用因子，並用固定種子的拒絕抽樣與似然加權近似同一個答案。', 60, 'recursion-tree'),
+  pythonFromBlueprint('AIF16', '以馬可夫性質與轉移矩陣描述隨時間變化的狀態，用 Fraction 計算 n 步分布並解出精確的穩態分布、說明它存在、唯一與收斂的條件，以固定種子模擬馬可夫鏈，再以隱馬可夫模型區分隱藏狀態與觀察，用前向演算法加正規化做濾波、以 log 機率與 backpointer 的 Viterbi 找最可能的狀態序列，並說明 Baum–Welch 如何學習參數。', 60, 'dp-table'),
+  pythonFromBlueprint('AIF17', '從理性代理人最大化期望效用談起，以效用函數與樂透表達偏好，用凹效用、確定等值與風險貼水說明風險態度，以決策表套用最大期望效用原則，用決策樹倒推與決策網路結合機率、決策與效用節點，計算完美與不完美資訊的價值，並簡述 von Neumann–Morgenstern 公理與 Allais 悖論。', 50, 'variable-state'),
+  pythonFromBlueprint('AIF18', '以狀態、動作、轉移機率、獎勵與折扣因子定義地板會滑的格子世界 MDP，說明隨機轉移下為什麼需要策略而不是一條計畫，計算折扣報酬並推導貝爾曼方程，用 Python 實作同步價值迭代與 δ < θ 的停止規則、依固定順序處理平手取出最佳策略，比較策略迭代的評估與改進，觀察折扣因子與生存獎勵如何改變策略，並說明模型未知時的強化學習與 Q-learning。', 60, 'dp-table'),
+  pythonFromBlueprint('AIF19', '從資料、標籤、代理變數、回饋迴圈與部署情境找出 AI 系統的傷害來源，以分組混淆矩陣計算選取率、真陽性率、偽陽性率與精確率並說明基本比率不同時這些公平性指標無法同時相等，用資料最小化、k-匿名與 Laplace 機制的差分隱私保護個人資料，再以可解釋性、穩健性、人類監督、文件化、影響評估與歐盟 AI 法的風險分級，為自動審核系統做風險評估。', 50, 'dp-table'),
+  pythonFromBlueprint('AIF20', '把整座島接成一個迷宮對戰代理人：以 A* 與可接受的曼哈頓距離規劃三條穿越路線，用深度限制的 alpha-beta 與 BFS 評估函數判斷守衛是最佳對手時何時能穿越，以隱馬可夫模型的前向演算法從雜訊讀數濾出守衛的位置並以期望效用選路，用價值迭代解出「穿越或等待」的 MDP 並與 minimax 規則比較，最後以固定種子的模擬分開報告成功、被抓與交給人類的比例，設計決策紀錄與人類監督，寫出含風險分級的設計報告。', 120, 'challenge-stages'),
 ];
 
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */
@@ -390,7 +472,7 @@ function idAt(islandId: (typeof ISLAND_IDS)[number], index: number, blueprintId?
 /** F, D and A are taught in the program languages: every lesson there declares program-code. */
 const program = (list: Omit<Outline, 'capabilities'>[]): Outline[] => list.map(o => ({ ...o, capabilities: ['program-code'] }));
 const outlines: Record<(typeof ISLAND_IDS)[number], Outline[]> = {
-  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages, networks };
+  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages, networks, 'ai-foundations': aiFoundations };
 
 /** Every lesson the blueprint outlines, written or not (validateCurriculum's recommended-lesson check). */
 export const outlinedLessonIds: readonly string[] = planning.plannedLessons.map(l => l.lessonId);
@@ -399,7 +481,7 @@ export const lessons: LessonMeta[] = ISLAND_IDS.flatMap(islandId => outlines[isl
   lessonId: idAt(islandId, index, o.blueprintId),
   islandId, slug: o.slug, title: o.title, summary: o.summary, learningObjectives: o.objectives, difficulty: o.difficulty,
   estimatedMinutes: o.minutes, prerequisites: o.prerequisites, concepts: o.concepts, apcsRelevance: o.apcs,
-  supportedLanguages: o.capabilities.includes('program-code') ? [...LANGUAGES, ...(o.extraLanguages ?? [])] : [], visualizationType: o.visualization, lessonStatus: o.status ?? 'planned',
+  supportedLanguages: o.capabilities.includes('program-code') ? [...LANGUAGES, ...(o.extraLanguages ?? [])] : o.capabilities.includes('python-code') ? [...PYTHON_LANGUAGES] : [], visualizationType: o.visualization, lessonStatus: o.status ?? 'planned',
   version: o.version ?? '0.1.0', ...(o.labs ? { labs: o.labs } : {}), capabilities: o.capabilities,
   ...(o.capabilities.includes('sql') ? { queryLanguage: 'SQL' as const } : {}), ...(o.activity ? { activity: o.activity } : {}), ...(o.recommended?.length ? { recommended: o.recommended } : {}),
 })));

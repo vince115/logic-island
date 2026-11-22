@@ -48,9 +48,11 @@ describe('learning paths (F.0)', () => {
     for (const p of [g, h]) expect(p.completion.learnable, p.id).toBe(false);
   });
 
-  it('keeps path A to the 60 complete lessons, the only path a learner can take today', () => {
+  it('keeps path A to the 60 complete lessons; CN-5 makes path C (network and systems) learnable too, the others not yet', () => {
     expect(path('A-apcs-cs-foundations').completion).toEqual({ lessonCount: 60, completeLessons: 60, plannedLessons: 0, learnable: true, rule: 'all-lessons' });
-    for (const p of learningPaths.slice(1)) expect(p.completion.learnable, p.id).toBe(false);
+    // CN20 completes the networks island, the last planned lesson on path C.
+    expect(path('C-network-and-systems').completion).toMatchObject({ plannedLessons: 0, learnable: true });
+    expect(learningPaths.filter(p => p.completion.learnable).map(p => p.id)).toEqual(['A-apcs-cs-foundations', 'C-network-and-systems']);
   });
 
   it('counts the written database lessons as available on every path that has them, and the rest as planned (F.1a)', () => {

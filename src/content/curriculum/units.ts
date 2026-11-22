@@ -43,10 +43,30 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '資料模型、架構與綜合挑戰', summary: 'NoSQL 與 CAP；備份、複寫與分片；從需求到安全串接的完整應用', lessonIds: range('DB', 18, 20) },
   ],
   // 2026-11-20 (course production, batch 1): the written lessons only; the island's other units come with their lessons.
-  // CN-1: the first five lessons; later batches add their units.
+  // AIF-1 to AIF-5: the whole island, AIF01–AIF20.
+  'ai-foundations': [
+    { title: 'AI 的定義與歷史', summary: 'AI 的四種定義、理性代理人與圖靈測試；從達特茅斯會議、專家系統與 AI 寒冬到深度學習與基礎模型', lessonIds: range('AIF', 1, 2) },
+    { title: '代理人與搜尋', summary: 'PEAS、環境性質與代理人類型；問題形式化、無資訊搜尋、啟發式搜尋與 A*', lessonIds: range('AIF', 3, 5) },
+    { title: '區域搜尋與賽局', summary: '爬山法、模擬退火與基因演算法；minimax、alpha-beta 剪枝、expectiminimax 與蒙地卡羅樹搜尋', lessonIds: range('AIF', 6, 8) },
+    { title: '限制滿足與知識表示', summary: 'CSP、回溯、前向檢查、AC-3 與 MRV／LCV；語意網路、框架、本體論與知識圖譜', lessonIds: range('AIF', 9, 10) },
+    { title: '邏輯與推論', summary: '命題邏輯的模型檢查、推論規則、CNF 與歸結、Horn 子句的前向與後向鏈結；一階邏輯的量詞、合一與前向鏈結', lessonIds: range('AIF', 11, 12) },
+    { title: '機率與貝氏推論', summary: '聯合分布、邊際化、條件機率與條件獨立；貝氏定理、基本比率與單純貝氏；貝氏網路的因式分解、d-分離、枚舉、變數消去與抽樣', lessonIds: range('AIF', 13, 15) },
+    { title: '時序機率與序列決策', summary: '馬可夫鏈、穩態分布與隱馬可夫模型的濾波與 Viterbi；期望效用、風險態度與資訊價值；MDP、貝爾曼方程、價值迭代與策略迭代', lessonIds: range('AIF', 16, 18) },
+    { title: '負責任的 AI 與綜合專題', summary: '傷害來源、分組混淆矩陣與公平性指標的取捨、隱私保護、可解釋性、人類監督與治理；把搜尋、賽局、機率推論、期望效用與 MDP 接成一個迷宮代理人，並寫出含風險分級的設計報告', lessonIds: range('AIF', 19, 20) },
+  ],
+  // LNX-0: prepared for authoring; its units come with its first written lessons.
+  'linux-systems': [],
+  // CN-1 to CN-5: the whole island, CN01–CN20.
   networks: [
     { title: '分層模型與實體層', summary: '網路為什麼分層、OSI 與 TCP/IP、封裝與 PDU；訊號與媒介、頻寬、延遲、吞吐量與頻寬延遲乘積', lessonIds: range('CN', 1, 2) },
     { title: '區域網路與 IP 定址', summary: 'Ethernet 訊框、MAC 位址與交換器學習、VLAN；Wi-Fi、CSMA/CA 與換手；IPv4、子網路切割、私有位址與 IPv6', lessonIds: range('CN', 3, 5) },
+    { title: '位址轉換與路由', summary: 'DHCP、ARP 與 NAT；路由表、最長前綴匹配與 TTL；距離向量、鏈路狀態與 BGP', lessonIds: range('CN', 6, 8) },
+    { title: '傳輸層', summary: '連接埠、TCP 與 UDP、三向交握與連線關閉；滑動視窗、逾時重送、流量控制與壅塞控制', lessonIds: range('CN', 9, 10) },
+    { title: '網路程式與應用層', summary: 'socket、訊息框架與並行伺服器；DNS 解析、HTTP 請求與回應、Cookie', lessonIds: range('CN', 11, 12) },
+    { title: 'Web 安全、API 與效能', summary: 'TLS 1.3、憑證與 HSTS；REST、JSON、冪等性與 CORS；HTTP 快取、CDN、HTTP/2 與 HTTP/3', lessonIds: range('CN', 13, 15) },
+    { title: '即時通訊與除錯', summary: '輪詢、SSE 與 WebSocket；ping、traceroute、dig、curl 與封包擷取的分層除錯', lessonIds: range('CN', 16, 17) },
+    { title: '網路安全與防護', summary: 'CIA、中間人、偽冒、DoS 與釣魚；封包過濾、狀態檢查、DMZ、VPN 與零信任', lessonIds: range('CN', 18, 19) },
+    { title: '綜合挑戰', summary: '追蹤一個 HTTPS 請求的每一步，實作並保護一個 REST API 服務，診斷埋入的網路錯誤', lessonIds: ['CN20'] },
   ],
   'programming-languages': [
     { title: '程式設計典範與抽象', summary: '命令式、程序式、物件導向、函數式與宣告式的比較；封裝、繼承與介面；純函式與函式組合', lessonIds: range('PL', 1, 3) },
