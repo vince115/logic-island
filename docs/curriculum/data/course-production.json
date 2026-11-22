@@ -302,8 +302,8 @@
         "SRV02",
         "SRV03"
       ],
-      "commit": "TBD",
-      "tests": "TBD",
+      "commit": "afde966",
+      "tests": "驗證器、發布閘門 158/158、Vitest 3269（含 E10 18、E11 19、E12 13 個引擎測試與 server-capability 測試）、E2E 桌機＋手機旗標關 435（候選頁 2 個像素比對失敗為 main 既有回歸 #36）、網路預覽＋P9＋區域世界旗標開 252、SRV03 的 curl 練習在瀏覽器實際操作（全部通過）、測驗 24 題逐題複核、洩漏掃描",
       "notes": "SRV-1：網路與伺服器島首批，沿用 terminal 能力並依藍圖搭配 network-protocol 情境（SRV-0，PR #64，引擎階段 E10 sockets、E11 dns、E12 http）；伺服器端網路基礎、DNS 記錄管理、用 curl 觀察 HTTP 三課；系統與雲端工程群島的第二座開放島嶼，網路與伺服器島 mapState 維持 planned；SRV02 第 7 題依 systemd-resolved 會回應 /etc/hosts 的事實修正"
     }
   ]
