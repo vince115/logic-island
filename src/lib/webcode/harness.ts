@@ -23,6 +23,121 @@ const SOURCE = String.raw`(function () {
   for (var i = 0; i < injected.length; i++) if (injected[i].parentNode) injected[i].parentNode.removeChild(injected[i]);
 
   var lines = [], navigations = [], submissions = [], pending = 0, ready = false;
+  var SCRIPT_AT = __LI_SCRIPT_AT__, SCRIPT_LINES = __LI_SCRIPT_LINES__;
+  var realSetTimeout = window.setTimeout.bind(window);
+
+  // W2 virtual clock (check frames only): the page's timers are queued against a clock that the wait action advances, so
+  // a check never waits in real time and the order of timers is the same on every machine. A live preview keeps real timers.
+  var clock = 0, timers = [], timerSeq = 0;
+  if (!LIVE) {
+    var schedule = function (fn, delay, args, every) {
+      var id = ++timerSeq, ms = Math.max(0, Number(delay) || 0);
+      timers.push({ id: id, seq: id, at: clock + (every ? Math.max(1, ms) : ms), fn: fn, args: args, every: every ? Math.max(1, ms) : 0 });
+      return id;
+    };
+    window.setTimeout = function (fn, delay) { return schedule(fn, delay, Array.prototype.slice.call(arguments, 2), false); };
+    window.setInterval = function (fn, delay) { return schedule(fn, delay, Array.prototype.slice.call(arguments, 2), true); };
+    window.clearTimeout = window.clearInterval = function (id) { timers = timers.filter(function (t) { return t.id !== id; }); };
+  }
+  // W3: the page's pretend server. The frame has no network, so fetch is answered from the routes the lesson declares,
+  // after the route's delay on the page's clock; every request is recorded. An unknown address is a 404, a route marked
+  // fail is a network error (fetch rejects).
+  var SETUP = __LI_SETUP__, requests = [];
+  // The answer is a plain object with a response's everyday members, not a real Response: reading a real one's body takes
+  // real time (it is a stream), which the virtual clock of a check could not account for. Here json() and text() settle
+  // as promise callbacks, so what the page does after a fetch is in step with its timers.
+  function answer(status, text, headers, url) {
+    var used = false;
+    function read(parse) {
+      if (used) return Promise.reject(new TypeError('body stream already read'));
+      used = true;
+      return new Promise(function (resolve) { resolve(parse ? JSON.parse(text) : text); });
+    }
+    var res = { status: status, ok: status >= 200 && status <= 299, statusText: '', url: url, redirected: false, type: 'basic', headers: new Headers(headers),
+      json: function () { return read(true); }, text: function () { return read(false); }, clone: function () { return answer(status, text, headers, url); } };
+    Object.defineProperty(res, 'bodyUsed', { get: function () { return used; } });
+    return res;
+  }
+  window.fetch = function (input, init) {
+    var url = typeof input === 'string' ? input : input && input.url ? input.url : String(input), parsed;
+    var method = String((init && init.method) || (input && typeof input === 'object' && input.method) || 'GET').toUpperCase();
+    try { parsed = new URL(url, 'https://library.example/'); } catch (x) { return Promise.reject(new TypeError('Failed to fetch')); }
+    if ((method === 'GET' || method === 'HEAD') && init && init.body !== undefined && init.body !== null) return Promise.reject(new TypeError('Request with GET/HEAD method cannot have body.'));
+    var path = parsed.pathname + parsed.search, routes = SETUP.api || [], route = null;
+    for (var i = 0; i < routes.length && !route; i++) {
+      var r = routes[i];
+      if (String(r.method || 'GET').toUpperCase() === method && (r.path === path || (r.path.indexOf('?') < 0 && r.path === parsed.pathname))) route = r;
+    }
+    var entry = { method: method, path: path, body: init && init.body !== undefined && init.body !== null ? String(init.body) : '', status: 0 };
+    requests.push(entry);
+    touch();
+    return new Promise(function (resolve, reject) {
+      window.setTimeout(function () {
+        if (route && route.fail) { entry.status = -1; touch(); reject(new TypeError('Failed to fetch')); return; }
+        var status = route ? route.status || 200 : 404, body = route ? route.body : { error: 'Not Found' };
+        var text = typeof body === 'string' ? body : body === undefined ? '' : JSON.stringify(body), headers = { 'Content-Type': typeof body === 'string' ? 'text/plain; charset=utf-8' : 'application/json' };
+        if (route && route.headers) for (var k in route.headers) headers[k] = route.headers[k];
+        entry.status = status;
+        touch();
+        resolve(answer(status, status === 204 || status === 304 ? '' : text, headers, parsed.href));
+      }, route && typeof route.delay === 'number' ? route.delay : 100);
+    });
+  };
+
+  // W4: storage. The frame's origin is opaque (the real localStorage and document.cookie throw), so the page gets its
+  // own in-memory ones, filled with what the lesson says an earlier visit left behind.
+  function makeStorage(initial) {
+    var data = {}, keys = [];
+    var api = {
+      getItem: function (k) { k = String(k); return Object.prototype.hasOwnProperty.call(data, k) ? data[k] : null; },
+      setItem: function (k, v) { k = String(k); if (!Object.prototype.hasOwnProperty.call(data, k)) keys.push(k); data[k] = String(v); touch(); },
+      removeItem: function (k) { k = String(k); if (Object.prototype.hasOwnProperty.call(data, k)) { delete data[k]; keys.splice(keys.indexOf(k), 1); touch(); } },
+      clear: function () { data = {}; keys = []; touch(); },
+      key: function (i) { return i >= 0 && i < keys.length ? keys[i] : null; },
+      snapshot: function () { var out = {}; keys.forEach(function (k) { out[k] = data[k]; }); return out; }
+    };
+    Object.defineProperty(api, 'length', { get: function () { return keys.length; } });
+    for (var k in initial || {}) api.setItem(k, initial[k]);
+    return api;
+  }
+  var local = makeStorage(SETUP.storage), session = makeStorage(null), jar = {}, jarNames = [];
+  for (var c in SETUP.cookies || {}) { jar[c] = String(SETUP.cookies[c]); jarNames.push(c); }
+  try { Object.defineProperty(window, 'localStorage', { value: local, configurable: true }); } catch (x) {}
+  try { Object.defineProperty(window, 'sessionStorage', { value: session, configurable: true }); } catch (x) {}
+  try {
+    Object.defineProperty(document, 'cookie', { configurable: true,
+      get: function () { return jarNames.map(function (n) { return n + '=' + jar[n]; }).join('; '); },
+      set: function (text) {
+        var parts = String(text).split(';'), pair = parts[0], eq = pair.indexOf('='), name = (eq < 0 ? '' : pair.slice(0, eq)).trim(), value = (eq < 0 ? pair : pair.slice(eq + 1)).trim(), gone = false;
+        for (var i = 1; i < parts.length; i++) {
+          var a = parts[i].trim(), at = a.indexOf('='), key = (at < 0 ? a : a.slice(0, at)).toLowerCase(), v = at < 0 ? '' : a.slice(at + 1);
+          if (key === 'max-age' && Number(v) <= 0) gone = true;
+          if (key === 'expires' && Date.parse(v) <= Date.now()) gone = true;
+          if (key === 'httponly') return;
+        }
+        if (!name) return;
+        var has = Object.prototype.hasOwnProperty.call(jar, name);
+        if (gone) { if (has) { delete jar[name]; jarNames.splice(jarNames.indexOf(name), 1); } }
+        else { if (!has) jarNames.push(name); jar[name] = value; }
+        touch();
+      } });
+  } catch (x) {}
+  function stored() { var cookies = {}; jarNames.forEach(function (n) { cookies[n] = jar[n]; }); return { local: local.snapshot(), session: session.snapshot(), cookies: cookies }; }
+
+  function advance(ms) {
+    var until = clock + ms, fired = 0;
+    function next() {
+      var due = null;
+      for (var i = 0; i < timers.length; i++) { var t = timers[i]; if (t.at <= until && (!due || t.at < due.at || (t.at === due.at && t.seq < due.seq))) due = t; }
+      if (!due || ++fired > 2000) { clock = until; return Promise.resolve(); }
+      clock = due.at;
+      if (due.every) { due.at += due.every; due.seq = ++timerSeq; } else timers = timers.filter(function (t) { return t !== due; });
+      try { if (typeof due.fn === 'function') due.fn.apply(window, due.args); }
+      catch (x) { if (typeof window.reportError === 'function') window.reportError(x); else record('error', 'Uncaught ' + show(x)); }
+      return tick().then(next);
+    }
+    return tick().then(next);
+  }
 
   // Loop protection (./loop-guard.ts): every guarded loop condition calls this. The loops of one task share a budget;
   // once it is spent the call throws, which ends the page's script with an error instead of freezing the tab.
@@ -30,7 +145,7 @@ const SOURCE = String.raw`(function () {
   Object.defineProperty(window, '__LI_GUARD__', { value: function () {
     if (++loopCalls % 100) return true;
     var now = Date.now();
-    if (!loopStart) { loopStart = now; setTimeout(function () { loopStart = 0; loopCalls = 0; }, 0); return true; }
+    if (!loopStart) { loopStart = now; realSetTimeout(function () { loopStart = 0; loopCalls = 0; }, 0); return true; }
     if (now - loopStart > __LI_BUDGET__) throw new Error('__LI_LOOP_MESSAGE__');
     return true;
   } });
@@ -84,7 +199,9 @@ const SOURCE = String.raw`(function () {
   window.addEventListener('error', function (e) {
     if (e.target && e.target !== window) return;
     var err = e.error;
-    record('error', 'Uncaught ' + (err && err.name ? err.name + ': ' + err.message : String(e.message || '').replace(/^Uncaught\s+/, '')));
+    var line = SCRIPT_AT ? (e.lineno || 0) - SCRIPT_AT + 1 : 0;
+    record('error', 'Uncaught ' + (err && err.name ? err.name + ': ' + err.message : String(e.message || '').replace(/^Uncaught\s+/, ''))
+      + (line >= 1 && line <= SCRIPT_LINES ? '（script.js 第 ' + line + ' 行）' : ''));
     e.preventDefault();
   });
   window.addEventListener('unhandledrejection', function (e) { record('error', 'Uncaught (in promise) ' + show(e.reason)); e.preventDefault(); });
@@ -144,18 +261,88 @@ const SOURCE = String.raw`(function () {
   function post(kind, extra) {
     var message = { li: NONCE, kind: kind, console: lines.slice(), tree: outline(), height: height(), navigations: navigations.slice(),
       // "standards": the document has a doctype. (compatMode is CSS1Compat in a srcdoc frame even without one.)
-      submissions: submissions.slice(), title: document.title, standards: document.compatMode === 'CSS1Compat' && !!document.doctype };
+      submissions: submissions.slice(), title: document.title, standards: document.compatMode === 'CSS1Compat' && !!document.doctype,
+      requests: requests.map(function (r) { return { method: r.method, path: r.path, body: r.body, status: r.status }; }), storage: stored() };
     if (extra) for (var k in extra) message[k] = extra[k];
     window.parent.postMessage(message, '*');
   }
   function touch() {
     if (!LIVE || !ready || pending) return;
-    pending = setTimeout(function () { pending = 0; post('update'); }, 80);
+    pending = realSetTimeout(function () { pending = 0; post('update'); }, 80);
   }
 
   function norm(s) { return String(s).replace(/\s+/g, ' ').trim(); }
   function one(selector) { return document.querySelector(selector); }
-  function tick() { return new Promise(function (r) { setTimeout(r, 0); }); }
+  function tick() { return new Promise(function (r) { realSetTimeout(r, 0); }); }
+
+  // W5: what assistive technology is told about an element. A simplified reading of the accessible-name and role rules,
+  // enough for the patterns the lessons teach; it is not a full implementation of either specification.
+  function hiddenFromAT(el) { return el.nodeType === 1 && (el.getAttribute('aria-hidden') === 'true' || el.hidden); }
+  function textOf(node) {
+    if (node.nodeType === 3) return node.nodeValue;
+    if (node.nodeType !== 1 || hiddenFromAT(node)) return '';
+    if (node.getAttribute('aria-label')) return node.getAttribute('aria-label');
+    var tag = node.tagName;
+    if (tag === 'IMG' || tag === 'AREA') return node.getAttribute('alt') || '';
+    if (tag === 'INPUT') { var it = (node.getAttribute('type') || '').toLowerCase(); return it === 'button' || it === 'submit' || it === 'reset' ? node.value || '' : ''; }
+    if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'SELECT' || tag === 'TEXTAREA') return '';
+    var out = '';
+    for (var c = node.firstChild; c; c = c.nextSibling) out += ' ' + textOf(c);
+    return out;
+  }
+  function accessibleName(el) {
+    var by = el.getAttribute('aria-labelledby');
+    if (by) { var named = by.split(/\s+/).map(function (id) { var t = document.getElementById(id); return t ? textOf(t) : ''; }).join(' '); if (norm(named)) return norm(named); }
+    if (norm(el.getAttribute('aria-label') || '')) return norm(el.getAttribute('aria-label'));
+    var tag = el.tagName, type = (el.getAttribute('type') || '').toLowerCase(), name = '';
+    if (tag === 'IMG' || tag === 'AREA') name = el.getAttribute('alt') || '';
+    else if (tag === 'INPUT' && (type === 'button' || type === 'submit' || type === 'reset')) name = el.value || '';
+    else if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || tag === 'METER' || tag === 'PROGRESS') name = el.labels && el.labels.length ? textOf(el.labels[0]) : '';
+    else if (tag === 'FIELDSET') { var lg = el.querySelector(':scope > legend'); name = lg ? textOf(lg) : ''; }
+    else if (tag === 'TABLE') { var cap = el.querySelector(':scope > caption'); name = cap ? textOf(cap) : ''; }
+    else if (tag === 'FIGURE') { var fc = el.querySelector(':scope > figcaption'); name = fc ? textOf(fc) : ''; }
+    else if (/^(BUTTON|A|H[1-6]|SUMMARY|LI|TH|TD|LABEL|LEGEND|OPTION|CAPTION)$/.test(tag) || /^(button|link|heading|tab|menuitem|checkbox|radio|switch|option|listitem|cell)$/.test(el.getAttribute('role') || '')) {
+      for (var c = el.firstChild; c; c = c.nextSibling) name += ' ' + textOf(c);
+    }
+    return norm(name) || norm(el.getAttribute('title') || '');
+  }
+  function sectioned(el) { return !!el.parentElement && !!el.parentElement.closest('article, aside, main, nav, section'); }
+  function roleOf(el) {
+    var explicit = norm(el.getAttribute('role') || '').split(' ')[0];
+    if (explicit) return explicit;
+    var tag = el.tagName, type = (el.getAttribute('type') || 'text').toLowerCase();
+    if (tag === 'A' || tag === 'AREA') return el.hasAttribute('href') ? 'link' : 'generic';
+    if (tag === 'INPUT') return { button: 'button', submit: 'button', reset: 'button', image: 'button', checkbox: 'checkbox', radio: 'radio', range: 'slider', number: 'spinbutton', search: 'searchbox',
+      text: 'textbox', email: 'textbox', tel: 'textbox', url: 'textbox', password: 'textbox', hidden: 'none' }[type] || 'textbox';
+    if (tag === 'SELECT') return el.multiple || el.size > 1 ? 'listbox' : 'combobox';
+    if (tag === 'IMG') return el.getAttribute('alt') === '' ? 'presentation' : 'img';
+    if (tag === 'HEADER') return sectioned(el) ? 'generic' : 'banner';
+    if (tag === 'FOOTER') return sectioned(el) ? 'generic' : 'contentinfo';
+    if (tag === 'SECTION') return accessibleName(el) ? 'region' : 'generic';
+    if (tag === 'FORM') return accessibleName(el) ? 'form' : 'generic';
+    return { BUTTON: 'button', TEXTAREA: 'textbox', H1: 'heading', H2: 'heading', H3: 'heading', H4: 'heading', H5: 'heading', H6: 'heading', NAV: 'navigation', MAIN: 'main',
+      ASIDE: 'complementary', ARTICLE: 'article', UL: 'list', OL: 'list', LI: 'listitem', TABLE: 'table', TR: 'row', TH: 'columnheader', TD: 'cell', DIALOG: 'dialog', FIELDSET: 'group',
+      P: 'paragraph', HR: 'separator', OPTION: 'option', PROGRESS: 'progressbar', METER: 'meter', FIGURE: 'figure', DETAILS: 'group', SUMMARY: 'button', OUTPUT: 'status' }[tag] || 'generic';
+  }
+  // The order the Tab key visits: elements with a positive tabindex first (ascending), then the rest in document order;
+  // disabled, hidden and tabindex="-1" elements are skipped, and a radio group is one stop (its checked button).
+  function tabStops() {
+    var all = document.querySelectorAll('a[href], area[href], button, input, select, textarea, summary, [tabindex], [contenteditable=""], [contenteditable="true"], audio[controls], video[controls]'), stops = [];
+    for (var i = 0; i < all.length; i++) {
+      var el = all[i], ti = el.hasAttribute('tabindex') ? parseInt(el.getAttribute('tabindex'), 10) : 0;
+      if (isNaN(ti)) ti = 0;
+      if (ti < 0 || el.disabled || (el.tagName === 'INPUT' && (el.getAttribute('type') || '').toLowerCase() === 'hidden')) continue;
+      if (el.closest('[inert]') || !el.getClientRects().length || getComputedStyle(el).visibility === 'hidden') continue;
+      if (el.tagName === 'INPUT' && el.type === 'radio' && el.name) {
+        var group = (el.form || document).querySelectorAll('input[type="radio"][name="' + el.name.replace(/["\\]/g, '\\$&') + '"]'), chosen = null;
+        for (var g = 0; g < group.length; g++) if (group[g].checked) chosen = group[g];
+        if (chosen ? chosen !== el : group[0] !== el) continue;
+      }
+      stops.push({ el: el, ti: ti, at: i });
+    }
+    stops.sort(function (a, b) { return (a.ti || 1e9) - (b.ti || 1e9) || a.at - b.at; });
+    return stops.map(function (s) { return s.el; });
+  }
   function setValue(el, value) {
     var proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
     var d = Object.getOwnPropertyDescriptor(proto, 'value');
@@ -163,7 +350,21 @@ const SOURCE = String.raw`(function () {
   }
   function fire(el, type) { el.dispatchEvent(new Event(type, { bubbles: true })); }
   function act(s) {
-    if (s.do === 'wait') return new Promise(function (r) { setTimeout(function () { r({ ok: true }); }, Math.max(0, Math.min(1000, Number(s.ms) || 0))); });
+    if (s.do === 'wait') {
+      var ms = Math.max(0, Math.min(60000, Number(s.ms) || 0));
+      return (LIVE ? new Promise(function (r) { realSetTimeout(r, Math.min(ms, 1000)); }) : advance(ms)).then(function () { return { ok: true }; });
+    }
+    if (s.do === 'tab') {
+      // The key goes to the focused element first: a page that cancels it (a focus trap) decides where focus goes.
+      var from = document.activeElement && document.activeElement !== document.body ? document.activeElement : document.body;
+      var went = from.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: !!s.shift, bubbles: true, cancelable: true }));
+      if (went) {
+        var order = tabStops(), here = order.indexOf(document.activeElement), next = s.shift ? (here < 0 ? order.length - 1 : here - 1) : here + 1;
+        if (next >= 0 && next < order.length) order[next].focus(); else if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      }
+      from.dispatchEvent(new KeyboardEvent('keyup', { key: 'Tab', shiftKey: !!s.shift, bubbles: true, cancelable: true }));
+      return tick().then(function () { return { ok: true }; });
+    }
     var el = s.do === 'scroll' && s.selector === ':page' ? document.documentElement : one(s.selector);
     if (!el) return Promise.resolve({ ok: false, missing: true });
     if (s.do === 'scroll') { if (s.selector === ':page') window.scrollTo(0, Number(s.top) || 0); else el.scrollTop = Number(s.top) || 0; }
@@ -171,6 +372,10 @@ const SOURCE = String.raw`(function () {
     else if (s.do === 'input') { if (el.focus) el.focus(); setValue(el, s.value); fire(el, 'input'); fire(el, 'change'); }
     else if (s.do === 'select') { if (el.focus) el.focus(); setValue(el, s.value); fire(el, 'input'); fire(el, 'change'); }
     else if (s.do === 'check') { if (el.focus) el.focus(); if (!!el.checked !== !!s.checked) el.click(); }
+    else if (s.do === 'dispatch') {
+      var type = String(s.event), mouse = /^(click|dblclick|contextmenu|mouse|pointer)/.test(type), stays = type === 'mouseenter' || type === 'mouseleave' || type === 'focus' || type === 'blur';
+      el.dispatchEvent(mouse ? new MouseEvent(type, { bubbles: !stays, cancelable: true }) : new Event(type, { bubbles: !stays, cancelable: true }));
+    }
     else if (s.do === 'submit') {
       var form = el.tagName === 'FORM' ? el : el.form;
       if (!form) return Promise.resolve({ ok: false, error: 'not-a-form' });
@@ -237,6 +442,29 @@ const SOURCE = String.raw`(function () {
       }
       return { ok: s.count !== undefined ? true : n > 0, actual: String(n) };
     }
+    if (s.check === 'request') {
+      var m = String(s.method || 'GET').toUpperCase(), hits = requests.filter(function (r) { return r.method === m && (r.path === s.path || (s.path.indexOf('?') < 0 && r.path.split('?')[0] === s.path)); });
+      var seen = requests.map(function (r) { return r.method + ' ' + r.path; }).join(', ');
+      if (s.count !== undefined ? hits.length !== s.count : !hits.length) return { ok: false, actual: seen };
+      if (s.body !== undefined) {
+        var sent = hits.length ? hits[hits.length - 1].body : '', same = false;
+        try { same = JSON.stringify(JSON.parse(sent)) === JSON.stringify(s.body); } catch (x) { same = sent === s.body; }
+        return { ok: same, actual: sent, sent: true };
+      }
+      return { ok: true, actual: seen };
+    }
+    if (s.check === 'storage') {
+      var area = s.area === 'session' ? session : local, held = area.getItem(s.key);
+      if (s.match === 'absent') return { ok: held === null, actual: held === null ? '' : held };
+      if (held === null) return { ok: false, absent: true };
+      return { ok: s.value === undefined || held === s.value, actual: held };
+    }
+    if (s.check === 'cookie') {
+      var there = Object.prototype.hasOwnProperty.call(jar, s.name);
+      if (s.match === 'absent') return { ok: !there, actual: there ? jar[s.name] : '' };
+      if (!there) return { ok: false, absent: true };
+      return { ok: s.value === undefined || jar[s.name] === s.value, actual: jar[s.name] };
+    }
     if (s.check === 'navigated') {
       var nav = navigations[navigations.length - 1];
       return { ok: !!nav && nav.href === s.href, actual: nav ? nav.href : '' };
@@ -273,6 +501,11 @@ const SOURCE = String.raw`(function () {
       if (s.value === undefined) return { ok: true, actual: value };
       return { ok: s.match === 'includes' ? value.indexOf(s.value) >= 0 : value === s.value, actual: value };
     }
+    if (s.check === 'name') {
+      var an = accessibleName(el);
+      return { ok: s.match === 'includes' ? an.indexOf(norm(s.text)) >= 0 : an === norm(s.text), actual: an };
+    }
+    if (s.check === 'role') { var role = roleOf(el); return { ok: role === s.role, actual: role }; }
     if (s.check === 'label') {
       // The control's label as assistive technology reads it: aria-labelledby, then aria-label, then its <label>.
       var name = '', by = el.getAttribute('aria-labelledby');
@@ -325,7 +558,7 @@ const SOURCE = String.raw`(function () {
         try { r = s && s.do ? act(s) : Promise.resolve(check(s)); } catch (x) { r = Promise.resolve({ ok: false, error: 'selector', detail: String(x && x.message || x) }); }
         return r.then(function (v) { out.push(v); }, function (x) { out.push({ ok: false, error: 'selector', detail: String(x && x.message || x) }); });
       });
-    }, Promise.resolve()).then(function () { return out; });
+    }, LIVE ? Promise.resolve() : advance(0)).then(function () { return out; });
   }
 
   window.addEventListener('message', function (e) {
@@ -334,7 +567,7 @@ const SOURCE = String.raw`(function () {
     run(d.steps || []).then(function (results) { return tick().then(function () { post('result', { results: results }); }); });
   });
   function start() {
-    setTimeout(function () {
+    realSetTimeout(function () {
       ready = true;
       post('ready');
       if (LIVE && typeof MutationObserver === 'function') new MutationObserver(touch).observe(document.documentElement, { subtree: true, childList: true, attributes: true, characterData: true });
@@ -343,4 +576,12 @@ const SOURCE = String.raw`(function () {
   if (document.readyState === 'complete') start(); else window.addEventListener('load', start);
 })();`;
 
-export const HARNESS_SOURCE = SOURCE.replace('__LI_GUARD__', LOOP_GUARD).replace('__LI_BUDGET__', String(LOOP_BUDGET_MS)).replace('__LI_LOOP_MESSAGE__', LOOP_MESSAGE);
+/**
+ * One line (comment lines dropped, the rest joined): the harness then adds no line to the document, so the page's own
+ * lines keep their numbers. Every statement in SOURCE ends with a semicolon and its comments are whole lines.
+ */
+export const HARNESS_SOURCE = SOURCE.replace('__LI_GUARD__', LOOP_GUARD).replace('__LI_BUDGET__', String(LOOP_BUDGET_MS)).replace('__LI_LOOP_MESSAGE__', LOOP_MESSAGE)
+  .split('\n').filter(line => !/^\s*\/\//.test(line)).map(line => line.trim()).join(' ');
+export const HARNESS_SCRIPT_AT = '__LI_SCRIPT_AT__';
+export const HARNESS_SCRIPT_LINES = '__LI_SCRIPT_LINES__';
+export const HARNESS_SETUP = '__LI_SETUP__';

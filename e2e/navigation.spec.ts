@@ -289,7 +289,7 @@ test('AI 群島入口：首頁「更多學習群島」→ 群島總覽，七座�
   // GEN-1: path E (AI 研究) leads through GEN01 and GEN02, so both count as open (60 → 62).
   await expect(paths.filter({ hasText: 'AI 研究' })).toContainText('路線共 142 堂 · 已開放 62 堂 · 其餘 80 堂規劃中');
   await page.goto('/regions/web');
-  await expect(page.locator('section[aria-labelledby="region-paths"] li')).toHaveText([/前端工程.*路線共 62 堂 · 已開放 14 堂 · 其餘 48 堂規劃中/]);
+  await expect(page.locator('section[aria-labelledby="region-paths"] li')).toHaveText([/前端工程.*路線共 62 堂 · 已開放 22 堂 · 其餘 40 堂規劃中/]);
   await page.goto('/regions/ai');
   await expect(page.getByRole('navigation', { name: '麵包屑' })).toHaveText(/探索群島.*五大群島.*AI 人工智慧群島/);
   const sidebar = page.locator('#site-sidebar');

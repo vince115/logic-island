@@ -98,7 +98,7 @@ describe('curriculum (E.1)', () => {
     // WEB-1: the web lessons are pages in a sandboxed frame (web-code); the blueprint's unbuilt activities use them too (dom-explorer).
     for (const l of lessons.filter(l => l.islandId === 'web-foundations')) {
       const kind = blueprint.get(l.lessonId);
-      const expected = kind === 'protocol-sequence' ? [['web-code', 'network-protocol'], 'network-sequence', true] : kind === 'challenge-stages' ? [['web-code', 'visualization'], 'challenge-stages', true] : [['web-code'], 'dom-explorer', true];
+      const expected = kind === 'challenge-stages' ? [['web-code', 'visualization'], 'challenge-stages', true] : [['web-code'], 'dom-explorer', true];
       expect([l.capabilities, l.activity, !!curriculum.contents[l.lessonId]?.webCode], l.lessonId).toEqual(expected);
     }
     // LNX-1: the Linux lessons are taught in the terminal capability's console (terminal-sim), with no program code.

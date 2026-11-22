@@ -17,7 +17,7 @@ afterEach(cleanup);
 const frameOf = (root: HTMLElement) => root.querySelector('iframe') as HTMLIFrameElement;
 const nonceOf = (frame: HTMLIFrameElement) => /var NONCE = '([^']+)'/.exec(frame.getAttribute('srcdoc') ?? '')![1];
 const report = (patch: Partial<WebReport> = {}): WebReport => ({ console: [], tree: [{ d: 0, t: 'html', i: '', c: [], a: [], x: '' }, { d: 1, t: 'body', i: '', c: [], a: [], x: '' }, { d: 2, t: 'p', i: '', c: ['note'], a: [], x: '注意' }],
-  height: 90, navigations: [], submissions: [], title: '', standards: true, ...patch });
+  height: 90, navigations: [], submissions: [], title: '', standards: true, requests: [], storage: { local: {}, session: {}, cookies: {} }, ...patch });
 function post(frame: HTMLIFrameElement, data: object, source: unknown = frame.contentWindow) {
   act(() => { window.dispatchEvent(new MessageEvent('message', { data, source: source as MessageEventSource })); });
 }
@@ -61,6 +61,29 @@ describe('WebExampleView', () => {
     expect(screen.getByText(/連結「外部」會前往/).textContent).toBe('連結「外部」會前往 https://example.com/a（target="_blank"）；預覽不會離開這一頁。');
     expect(screen.getByText(/表單送出了/).textContent).toBe('表單送出了（POST /go）：q=海龜；預覽不會真的送出。');
     expect(screen.getByText(/相容模式/)).toBeTruthy();
+  });
+  it('lists the requests the page made and what it stored, and keeps the stored data for the next run until the learner clears it (W3, W4)', async () => {
+    const example = { ...counterExample(), setup: { api: [{ path: '/api/books', body: [] }], storage: { visits: '1' } } };
+    const { container } = render(<WebExampleView example={example}/>);
+    const first = await waitFor(() => { const f = frameOf(container); expect(f).toBeTruthy(); return f; });
+    // The lesson's setup travels in the frame's document.
+    expect(first.getAttribute('srcdoc')).toContain('var SETUP = {"api":[{"path":"/api/books","body":[]}],"storage":{"visits":"1"}}');
+    expect(screen.queryByRole('list', { name: '按鈕與事件：網路請求' })).toBeNull();
+    post(first, { li: nonceOf(first), kind: 'update', ...report({ requests: [{ method: 'GET', path: '/api/books', body: '', status: 200 }, { method: 'POST', path: '/api/wishes', body: '{}', status: 0 },
+      { method: 'GET', path: '/api/down', body: '', status: -1 }, { method: 'GET', path: '/nowhere', body: '', status: 404 }], storage: { local: { visits: '2' }, session: { tab: 'a' }, cookies: { lang: 'zh-Hant' } } }) });
+    expect(within(screen.getByRole('list', { name: '按鈕與事件：網路請求' })).getAllByRole('listitem').map(li => li.textContent))
+      .toEqual(['GET /api/books → 200', 'POST /api/wishes → 等待回應…', 'GET /api/down → 連線失敗', 'GET /nowhere → 404']);
+    expect(within(screen.getByRole('list', { name: '按鈕與事件：儲存的資料' })).getAllByRole('listitem').map(li => li.textContent))
+      .toEqual(['localStorage visits = 2', 'sessionStorage tab = a', 'Cookie lang = zh-Hant']);
+    // Running again is a reload: the next document starts with what the page had stored.
+    fireEvent.click(screen.getByText('動手改這個範例'));
+    fireEvent.click(screen.getByRole('button', { name: '執行' }));
+    const second = await waitFor(() => { const f = frameOf(container); expect(f).not.toBe(first); return f; });
+    expect(second.getAttribute('srcdoc')).toContain('"storage":{"visits":"2"},"cookies":{"lang":"zh-Hant"}');
+    post(second, { li: nonceOf(second), kind: 'ready', ...report({ storage: { local: { visits: '3' }, session: {}, cookies: { lang: 'zh-Hant' } } }) });
+    fireEvent.click(screen.getByRole('button', { name: '清除儲存的資料並重新載入' }));
+    const third = await waitFor(() => { const f = frameOf(container); expect(f).not.toBe(second); return f; });
+    expect(third.getAttribute('srcdoc')).toContain('"storage":{},"cookies":{}');
   });
   it('lets the learner edit the files and run the page again, then restore the original', async () => {
     const { container } = render(<WebExampleView example={styledExample()}/>);

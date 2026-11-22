@@ -37,12 +37,34 @@ describe('webDocument', () => {
     expect(webDocument({ html: '<!doctype html><p>x</p>' }, 'n').startsWith('<!doctype html><head><meta data-li-harness')).toBe(true);
   });
   it('puts the style sheet and the script where the page links style.css and script.js', () => {
-    const doc = webDocument({ html: '<!DOCTYPE html><html><head><link rel="stylesheet" href="style.css"><title>T</title></head><body><script src="./script.js" defer></script><p>x</p></body></html>', css: 'p{}', js: 'go()' }, 'n');
+    const page = (script: string) => `<!DOCTYPE html><html><head><link rel="stylesheet" href="style.css"><title>T</title></head><body>${script}<p>x</p></body></html>`;
+    const doc = webDocument({ html: page('<script src="./script.js"></script>'), css: 'p{}', js: 'go()' }, 'n');
     expect(doc).toContain('<head><meta data-li-harness');
     expect(doc).toMatch(/<\/script><style data-file="style\.css">\np\{\}\n<\/style><title>T<\/title>/);
     expect(doc).toMatch(/<body><script data-file="script\.js">\ngo\(\)\n<\/script><p>x<\/p><\/body>/);
     expect(doc.match(/data-file="style\.css"/g)).toHaveLength(1);
     expect(doc.match(/data-file="script\.js"/g)).toHaveLength(1);
+  });
+  it('runs a deferred script after the document (W1): defer moves it to the end of the body, a module stays a module in place', () => {
+    const page = (script: string) => `<!DOCTYPE html><html><head><title>T</title>${script}</head><body><p>x</p></body></html>`;
+    const deferred = webDocument({ html: page('<script src="script.js" defer></script>'), js: 'go()' }, 'n');
+    expect(deferred).toMatch(/<title>T<\/title><\/head><body><p>x<\/p><script data-file="script\.js">\ngo\(\)\n<\/script>\n<\/body>/);
+    const asModule = webDocument({ html: page('<script type="module" src="script.js"></script>'), js: 'go()' }, 'n');
+    expect(asModule).toMatch(/<title>T<\/title><script type="module" data-file="script\.js">\ngo\(\)\n<\/script><\/head>/);
+    const plain = webDocument({ html: page('<script src="script.js"></script>'), js: 'go()' }, 'n');
+    expect(plain).toMatch(/<title>T<\/title><script data-file="script\.js">\ngo\(\)\n<\/script><\/head>/);
+  });
+  it('adds no line of its own before the page, and tells the harness where script.js starts', () => {
+    // The harness is one line: a whole document keeps its line numbers, a fragment starts on line 5 of the wrapper.
+    const fragment = webDocument({ html: '<p>a</p>\n<p>b</p>', css: 'p{}\na{}', js: 'one();\ntwo();' }, 'n');
+    const lines = fragment.split('\n');
+    expect(lines[0]).toBe('<!DOCTYPE html>');
+    expect(lines.indexOf('<p>a</p>')).toBe(7);
+    const at = lines.indexOf('one();') + 1;
+    expect(fragment).toContain(`var SCRIPT_AT = ${at}, SCRIPT_LINES = 2;`);
+    expect(webDocument({ html: '<p>a</p>' }, 'n')).toContain('var SCRIPT_AT = 0, SCRIPT_LINES = 1;');
+    const whole = webDocument({ html: '<!DOCTYPE html>\n<html>\n<head>\n<title>T</title>\n</head>\n<body>\n<p>x</p>\n</body>\n</html>' }, 'n');
+    expect(whole.split('\n').indexOf('<p>x</p>')).toBe(6);
   });
   it('keeps the learner\'s text out of the markup around it: closing tags are escaped, `$` patterns are not expanded, the nonce is plain', () => {
     const doc = webDocument({ html: '<link rel="stylesheet" href="style.css"><script src="script.js"></script>', css: "a::after { content: '$&</style>' }", js: "const s = '$1 </script> $&';" }, 'a"b<c>');
@@ -121,14 +143,14 @@ describe('webContentProblems', () => {
     c.exercises[0].steps = [
       { check: 'count', selector: 'h1', count: 1, label: '' }, { check: 'count', selector: ' ', count: -1, label: 'x' }, { check: 'box', selector: 'h1', measure: 'width', value: NaN, label: 'x' },
       { check: 'style', selector: 'h1', property: 'color', value: ['red', ' '], label: 'x' }, { check: 'attr', selector: 'h1', name: ' ', label: 'x' },
-      { do: 'wait', ms: 5000 }, { do: 'click', selector: '' }, { check: 'nope', label: 'x' } as unknown as WebStep, { do: 'hover', selector: 'a' } as unknown as WebStep,
+      { do: 'wait', ms: 50_000 }, { do: 'click', selector: '' }, { check: 'nope', label: 'x' } as unknown as WebStep, { do: 'hover', selector: 'a' } as unknown as WebStep,
     ];
-    c.exercises[1].steps = Array.from({ length: 4 }, () => ({ do: 'wait' as const, ms: 1000 })).concat([{ check: 'count', selector: 'p', count: 1, label: 'x' }] as never);
+    c.exercises[1].steps = Array.from({ length: 7 }, () => ({ do: 'wait' as const, ms: 10_000 })).concat([{ check: 'count', selector: 'p', count: 1, label: 'x' }] as never);
     c.exercises[2].fixed = { html: 'x'.repeat(WEB_LIMITS.file + 1) };
     expect(webContentProblems(c)).toEqual([
       'exercise heading: step 1 needs a label', 'exercise heading: step 2 needs a selector', 'exercise heading: step 2 needs a count of 0 or more', 'exercise heading: step 3 needs a number',
-      'exercise heading: step 4 needs a property and a value', 'exercise heading: step 5 needs an attribute name', 'exercise heading: step 6 waits 1–1000 ms', 'exercise heading: step 7 needs a selector',
-      'exercise heading: step 8 is an unknown check nope', 'exercise heading: step 9 is an unknown action hover', `exercise heading waits more than ${WEB_LIMITS.waitTotal} ms in all`,
+      'exercise heading: step 4 needs a property and a value', 'exercise heading: step 5 needs an attribute name', `exercise heading: step 6 waits 1–${WEB_LIMITS.waitStep} ms`, 'exercise heading: step 7 needs a selector',
+      'exercise heading: step 8 is an unknown check nope', 'exercise heading: step 9 is an unknown action hover',
       `exercise badge waits more than ${WEB_LIMITS.waitTotal} ms in all`, `exercise greet: html is longer than ${WEB_LIMITS.file} characters`,
     ]);
   });

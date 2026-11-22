@@ -14,6 +14,8 @@ export interface WebBrowser {
   run: WebRunner;
   /** Runs one frame job as given (the tests use it for a frame that never answers). */
   job: (job: FrameJob) => Promise<WebRun>;
+  /** What the page that hosts the frames has in its own storage (a lesson's page must never write there). */
+  hostStorage: () => Promise<{ local: number; cookie: string }>;
   /** Uncaught errors the browser reported against the page that hosts the frames (a lesson page must stay clean). */
   hostErrors: () => string[];
   close: () => Promise<void>;
@@ -48,9 +50,11 @@ export async function openWebBrowser(): Promise<WebBrowser | null> {
       throw e;
     } finally { clearTimeout(timer); }
   };
-  const run: WebRunner = ({ files, steps, viewport }) => {
+  const run: WebRunner = ({ files, steps, viewport, setup }) => {
     const nonce = `t${++serial}x${Math.random().toString(16).slice(2)}`;
-    return job({ sandbox: WEB_SANDBOX, srcdoc: webDocument(files, nonce), nonce, steps, width: viewport.width, height: viewport.height, timeoutMs: WEB_LIMITS.timeoutMs });
+    return job({ sandbox: WEB_SANDBOX, srcdoc: webDocument(files, nonce, false, setup), nonce, steps, width: viewport.width, height: viewport.height, timeoutMs: WEB_LIMITS.timeoutMs });
   };
-  return { run, job, hostErrors: () => [...hostErrors], close: () => browser.close() };
+  // The host page is about:blank here (no storage of its own to count): what matters is that nothing was written to it.
+  const hostStorage = () => page.evaluate(() => { try { return { local: localStorage.length, cookie: document.cookie }; } catch { return { local: 0, cookie: '' }; } });
+  return { run, job, hostErrors: () => [...hostErrors], hostStorage, close: () => browser.close() };
 }

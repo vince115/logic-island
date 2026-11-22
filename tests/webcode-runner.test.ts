@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { checkWebExercise, judge, treeLines, webBehaviourProblems, webDocument, WEB_SANDBOX, WEB_VIEWPORT, type WebFiles, type WebRun, type WebStep } from '@/lib/webcode/lesson';
+import { checkWebExercise, judge, treeLines, webBehaviourProblems, webDocument, WEB_SANDBOX, WEB_VIEWPORT, type WebFiles, type WebRun, type WebSetup, type WebStep } from '@/lib/webcode/lesson';
 import { openWebBrowser, type WebBrowser } from './support/webcode-browser';
 import { badgeExercise, greetExercise, headingExercise, webContent } from './support/webcode-fixture';
 
@@ -13,7 +13,7 @@ import { badgeExercise, greetExercise, headingExercise, webContent } from './sup
 let browser: WebBrowser | null = null;
 beforeAll(async () => { browser = await openWebBrowser(); }, 60_000);
 afterAll(async () => { await browser?.close(); });
-const page = (files: WebFiles, steps: WebStep[] = []): Promise<WebRun> => browser!.run({ files, steps, viewport: WEB_VIEWPORT });
+const page = (files: WebFiles, steps: WebStep[] = [], setup?: WebSetup): Promise<WebRun> => browser!.run({ files, steps, viewport: WEB_VIEWPORT, setup });
 const inBrowser = (name: string, fn: () => Promise<void>, timeout = 30_000) => it(name, async ctx => { if (!browser) return ctx.skip(); await fn(); }, timeout);
 
 describe('the document in the frame', () => {
@@ -180,7 +180,8 @@ describe('actions and what the frame records', () => {
     const before = browser!.hostErrors().length;
     const r = await page({ html: '<p>x</p>', js: "Promise.reject(new Error('later'));\nsetTimeout(() => { throw new TypeError('in a timer'); }, 0);\nmissing();" }, [{ do: 'wait', ms: 50 }, { check: 'count', selector: 'p', count: 1, label: 'p' }]);
     expect(r.console.map(l => l.kind)).toEqual(['error', 'error', 'error']);
-    expect(r.console.map(l => l.text).sort()).toEqual(['Uncaught (in promise) Error: later', 'Uncaught ReferenceError: missing is not defined', 'Uncaught TypeError: in a timer']);
+    // W1: an error in script.js carries its line in that file.
+    expect(r.console.map(l => l.text).sort()).toEqual(['Uncaught (in promise) Error: later', 'Uncaught ReferenceError: missing is not defined（script.js 第 3 行）', 'Uncaught TypeError: in a timer（script.js 第 2 行）']);
     expect(browser!.hostErrors().slice(before)).toEqual([]);
   });
   inBrowser('a link is recorded, never followed; a fragment link scrolls on the same page', async () => {
@@ -235,6 +236,159 @@ describe('layout checks for positioning (WEB-2)', () => {
   });
 });
 
+describe('scripts, timers and events (WEB-3: W1 and W2)', () => {
+  inBrowser('a script runs where the page loads it: in the head it finds no body, deferred or as a module it finds the whole document', async () => {
+    const page_ = (script: string) => `<!DOCTYPE html><html><head><title>T</title>${script}</head><body><p id="p">x</p></body></html>`;
+    const js = "console.log(document.body ? 'body: ' + document.querySelectorAll('p').length : 'no body yet');";
+    expect((await page({ html: page_('<script src="script.js"></script>'), js })).console).toEqual([{ kind: 'log', text: 'no body yet' }]);
+    expect((await page({ html: page_('<script src="script.js" defer></script>'), js })).console).toEqual([{ kind: 'log', text: 'body: 1' }]);
+    expect((await page({ html: page_('<script type="module" src="script.js"></script>'), js })).console).toEqual([{ kind: 'log', text: 'body: 1' }]);
+    // The classic mistake and its error, with the line in script.js.
+    const broken = await page({ html: page_('<script src="script.js"></script>'), js: "const p = document.querySelector('#p');\np.textContent = 'y';" });
+    expect(broken.console).toHaveLength(1);
+    expect(broken.console[0].text).toMatch(/^Uncaught TypeError: .*（script\.js 第 2 行）$/);
+  });
+  inBrowser('a check runs on a virtual clock: timers fire in time order without real waiting, intervals repeat, cleared timers never fire', async () => {
+    const js = "console.log('start');\nsetTimeout(() => console.log('t500'), 500);\nsetTimeout(() => console.log('t100'), 100);\nsetTimeout(() => console.log('t0'), 0);\n"
+      + "Promise.resolve().then(() => console.log('micro'));\nconst gone = setTimeout(() => console.log('never'), 50);\nclearTimeout(gone);\n"
+      + "let n = 0;\nconst every = setInterval(() => { console.log('tick ' + (++n)); if (n === 3) clearInterval(every); }, 1000);\n"
+      + "setTimeout(() => { console.log('t100 again'); setTimeout(() => console.log('nested'), 10); }, 100);\nconsole.log('end');";
+    const steps: WebStep[] = [
+      { check: 'console', lines: ['start', 'end', 'micro', 't0'], label: 'zero-delay timers have fired when the page is first looked at' },
+      { do: 'wait', ms: 100 }, { check: 'console', lines: ['start', 'end', 'micro', 't0', 't100', 't100 again'], label: 'same time: in the order they were set' },
+      { do: 'wait', ms: 400 }, { check: 'console', lines: ['nested', 't500'], match: 'includes', label: 'a timer set by a timer' },
+      { do: 'wait', ms: 9500 }, { check: 'console', lines: ['start', 'end', 'micro', 't0', 't100', 't100 again', 'nested', 't500', 'tick 1', 'tick 2', 'tick 3'], label: 'the interval ran three times and stopped' },
+    ];
+    const before = Date.now();
+    const r = await page({ html: '<p>x</p>', js }, steps);
+    expect(r.results.filter((_, i) => i % 2 === 0).map(x => x.ok)).toEqual([true, true, true, true]);
+    // Ten virtual seconds in well under two real ones.
+    expect(Date.now() - before).toBeLessThan(2000);
+  });
+  inBrowser('async functions and timers interleave as in a browser; an awaited timer resumes when the clock reaches it', async () => {
+    const js = "const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));\nasync function load() {\n  console.log('loading');\n  await sleep(300);\n  console.log('loaded');\n  return 42;\n}\n"
+      + "load().then(v => { document.querySelector('#out').textContent = String(v); });\nconsole.log('after call');";
+    const steps: WebStep[] = [{ check: 'console', lines: ['loading', 'after call'], label: 'before' }, { check: 'text', selector: '#out', text: '', label: 'empty' },
+      { do: 'wait', ms: 299 }, { check: 'text', selector: '#out', text: '', label: 'not yet' }, { do: 'wait', ms: 1 }, { check: 'text', selector: '#out', text: '42', label: 'resolved' },
+      { check: 'console', lines: ['loading', 'after call', 'loaded'], label: 'order' }];
+    const r = await page({ html: '<p id="out"></p>', js }, steps);
+    expect(judge(steps, r.results).map(s => s.ok)).toEqual([true, true, true, true, true]);
+  });
+  inBrowser('dispatch fires any event on an element: it bubbles to a delegating listener, and mouseenter does not', async () => {
+    const js = "const log = [];\ndocument.querySelector('#list').addEventListener('mouseover', e => log.push('over ' + e.target.id));\n"
+      + "document.querySelector('#list').addEventListener('mouseenter', e => log.push('enter ' + e.target.id));\ndocument.querySelector('#list').addEventListener('dblclick', e => log.push('dbl ' + e.target.id));\n"
+      + "document.addEventListener('saved', e => { log.push('saved'); document.querySelector('#out').textContent = log.join(', '); });";
+    const steps: WebStep[] = [{ do: 'dispatch', selector: '#a', event: 'mouseover' }, { do: 'dispatch', selector: '#a', event: 'mouseenter' }, { do: 'dispatch', selector: '#b', event: 'dblclick' },
+      { do: 'dispatch', selector: '#b', event: 'saved' }, { check: 'text', selector: '#out', text: 'over a, dbl b, saved', label: 'delegated' }];
+    expect((await page({ html: '<ul id="list"><li id="a">a</li><li id="b">b</li></ul><p id="out"></p>', js }, steps)).results[4].ok).toBe(true);
+  });
+});
+
+describe('the pretend server and storage (WEB-4: W3 and W4)', () => {
+  const api = [
+    { path: '/api/books', body: [{ id: 1, title: '海龜的一年' }, { id: 2, title: '潮汐表' }], delay: 300 },
+    { path: '/api/books', method: 'POST' as const, status: 201, body: { id: 3 } },
+    { path: '/api/members/9', status: 404, body: { error: '找不到會員' } },
+    { path: '/api/down', fail: true },
+    { path: '/hello.txt', body: '你好' },
+    { path: '/api/empty', status: 204 },
+  ];
+  inBrowser('fetch is answered from the routes after their delay on the page\'s clock; statuses, JSON, text, 404 and a network error behave as in a browser', async () => {
+    const js = "const out = document.querySelector('#out');\nconst say = t => { out.textContent += t + ';'; };\n"
+      + "async function go() {\n  const res = await fetch('/api/books?sort=title');\n  say(res.status + ' ' + res.ok + ' ' + res.headers.get('content-type'));\n  const books = await res.json();\n  say(books.map(b => b.title).join('+'));\n"
+      + "  const missing = await fetch('/api/members/9');\n  say(missing.status + ' ' + missing.ok + ' ' + (await missing.json()).error);\n  say((await (await fetch('/nowhere')).json()).error);\n"
+      + "  say(await (await fetch('/hello.txt')).text());\n  say(String((await fetch('/api/empty')).status));\n"
+      + "  const made = await fetch('/api/books', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: '新書' }) });\n  say(made.status + ' ' + (await made.json()).id);\n"
+      + "  try { await fetch('/api/down'); } catch (e) { say(e.name); }\n}\ngo();";
+    const steps: WebStep[] = [
+      { check: 'text', selector: '#out', text: '', label: 'nothing before the first answer' }, { do: 'wait', ms: 299 }, { check: 'text', selector: '#out', text: '', label: 'not at 299 ms' },
+      { do: 'wait', ms: 1 }, { check: 'text', selector: '#out', text: '200 true application/json;海龜的一年+潮汐表;', label: 'the first answer at 300 ms' },
+      { do: 'wait', ms: 2000 }, { check: 'text', selector: '#out', text: '200 true application/json;海龜的一年+潮汐表;404 false 找不到會員;Not Found;你好;204;201 3;TypeError;', label: 'everything' },
+      { check: 'request', path: '/api/books', label: 'asked for the books' }, { check: 'request', path: '/api/books?sort=title', count: 1, label: 'once, with the query' },
+      { check: 'request', path: '/api/books', method: 'POST', body: { title: '新書' }, label: 'posted the new book' }, { check: 'request', path: '/api/books', method: 'POST', body: { title: '別的' }, label: 'not another body' },
+      { check: 'request', path: '/api/loans', label: 'never asked for loans' }, { check: 'request', path: '/api/books', method: 'DELETE', count: 0, label: 'deleted nothing' },
+    ];
+    const r = await page({ html: '<p id="out"></p>', js }, steps, { api });
+    const shown = judge(steps, r.results);
+    expect(shown.map(s => s.ok)).toEqual([true, true, true, true, true, true, true, false, false, true]);
+    expect(shown[7].message).toBe('最後一次 POST /api/books 送出的內容是 {"title":"新書"}。');
+    expect(shown[8].message).toMatch(/^頁面目前送出的請求：GET \/api\/books\?sort=title, GET \/api\/members\/9, /);
+    // A GET cannot carry a body: as in a browser, fetch rejects and nothing is sent.
+    const getBody = await page({ html: '<p id="out"></p>', js: "fetch('/api/books', { body: 'x' }).then(() => 'sent', e => e.name).then(t => { document.querySelector('#out').textContent = t; });" },
+      [{ do: 'wait', ms: 500 }, { check: 'text', selector: '#out', text: 'TypeError', label: 'rejected' }, { check: 'request', path: '/api/books', count: 0, label: 'nothing sent' }], { api });
+    expect(getBody.results.slice(1).map(x => x.ok)).toEqual([true, true]);
+    expect(r.requests.map(q => `${q.method} ${q.path} ${q.status}`)).toEqual(['GET /api/books?sort=title 200', 'GET /api/members/9 404', 'GET /nowhere 404', 'GET /hello.txt 200', 'GET /api/empty 204', 'POST /api/books 201', 'GET /api/down -1']);
+    expect(r.console).toEqual([]);
+  });
+  inBrowser('localStorage, sessionStorage and cookies are the page\'s own, start from what an earlier visit left, and can be checked', async () => {
+    const js = "const visits = Number(localStorage.getItem('visits') || '0') + 1;\nlocalStorage.setItem('visits', String(visits));\nlocalStorage.setItem('prefs', JSON.stringify({ theme: 'dark' }));\nlocalStorage.removeItem('old');\n"
+      + "sessionStorage.setItem('tab', 'a');\ndocument.cookie = 'lang=zh-Hant; max-age=3600; path=/';\ndocument.cookie = 'gone=1; max-age=0';\ndocument.cookie = 'secret=x; HttpOnly';\n"
+      + "document.querySelector('#out').textContent = [visits, localStorage.length, localStorage.key(0), document.cookie].join(' | ');";
+    const steps: WebStep[] = [
+      { check: 'text', selector: '#out', text: '4 | 2 | visits | sid=abc; lang=zh-Hant', label: 'what the page read and wrote' },
+      { check: 'storage', key: 'visits', value: '4', label: 's1' }, { check: 'storage', key: 'prefs', label: 's2' }, { check: 'storage', key: 'old', match: 'absent', label: 's3' },
+      { check: 'storage', key: 'tab', value: 'a', area: 'session', label: 's4' }, { check: 'storage', key: 'visits', value: '1', label: 's5' }, { check: 'storage', key: 'nope', label: 's6' },
+      { check: 'cookie', name: 'lang', value: 'zh-Hant', label: 'c1' }, { check: 'cookie', name: 'gone', match: 'absent', label: 'c2' }, { check: 'cookie', name: 'secret', match: 'absent', label: 'c3' }, { check: 'cookie', name: 'sid', value: 'x', label: 'c4' },
+    ];
+    const r = await page({ html: '<p id="out"></p>', js }, steps, { storage: { visits: '3', old: 'x' }, cookies: { sid: 'abc', gone: '1' } });
+    const shown = judge(steps, r.results);
+    expect(shown.map(s => s.ok)).toEqual([true, true, true, true, true, false, false, true, true, true, false]);
+    expect(shown[5].message).toBe('localStorage 的 visits 目前是「4」。');
+    expect(shown[6].message).toBe('localStorage 裡沒有 nope。');
+    expect(shown[10].message).toBe('Cookie sid 目前是「abc」。');
+    expect(r.storage).toEqual({ local: { visits: '4', prefs: '{"theme":"dark"}' }, session: { tab: 'a' }, cookies: { sid: 'abc', lang: 'zh-Hant' } });
+    // A first visit starts empty.
+    expect((await page({ html: '<p id="out"></p>', js }, [{ check: 'storage', key: 'visits', value: '1', label: 'first visit' }])).results[0].ok).toBe(true);
+  });
+});
+
+describe('accessibility checks (WEB-4: W5)', () => {
+  inBrowser('name reads an element\'s accessible name and role its role, explicit or implied by the tag', async () => {
+    const html = '<header id="top"><nav id="n1" aria-label="主選單"><a id="home" href="/">首頁</a></nav></header>'
+      + '<main><h1 id="h">借書<span aria-hidden="true">★</span></h1><button id="b1"><img src="data:," alt="搜尋"></button><button id="b2"><span aria-hidden="true">✕</span></button><button id="b3" aria-label="關閉視窗">✕</button>'
+      + '<div id="fake" onclick="go()">假按鈕</div><div id="made" role="button" tabindex="0">自製按鈕</div><a id="noref">不是連結</a>'
+      + '<label for="q">書名</label><input id="q" type="search"><input id="agree" type="checkbox" aria-labelledby="t1 t2"><span id="t1">我同意</span><span id="t2">借閱規則</span>'
+      + '<img id="deco" src="data:," alt=""><img id="pic" src="data:," alt="燈塔" title="不會用到"><fieldset id="fs"><legend>取書地點</legend></fieldset><section id="s1"><h2>無名</h2></section><section id="s2" aria-label="最新消息"></section>'
+      + '<article><header id="inner">文章頁首</header></article><input id="t" title="電話"></main><footer id="foot">頁尾</footer>';
+    const steps: WebStep[] = [
+      { check: 'name', selector: '#home', text: '首頁', label: 'n' }, { check: 'name', selector: '#n1', text: '主選單', label: 'n' }, { check: 'name', selector: '#h', text: '借書', label: 'n' },
+      { check: 'name', selector: '#b1', text: '搜尋', label: 'n' }, { check: 'name', selector: '#b2', text: '關閉', label: 'empty' }, { check: 'name', selector: '#b3', text: '關閉視窗', label: 'n' },
+      { check: 'name', selector: '#q', text: '書名', label: 'n' }, { check: 'name', selector: '#agree', text: '我同意 借閱規則', label: 'n' }, { check: 'name', selector: '#pic', text: '燈塔', label: 'n' },
+      { check: 'name', selector: '#fs', text: '取書地點', label: 'n' }, { check: 'name', selector: '#t', text: '電話', label: 'title as a last resort' }, { check: 'name', selector: '#made', text: '自製', match: 'includes', label: 'n' },
+      { check: 'role', selector: '#home', role: 'link', label: 'r' }, { check: 'role', selector: '#noref', role: 'link', label: 'no href' }, { check: 'role', selector: '#b1', role: 'button', label: 'r' },
+      { check: 'role', selector: '#fake', role: 'button', label: 'a div is not a button' }, { check: 'role', selector: '#made', role: 'button', label: 'r' }, { check: 'role', selector: '#q', role: 'searchbox', label: 'r' },
+      { check: 'role', selector: '#agree', role: 'checkbox', label: 'r' }, { check: 'role', selector: '#deco', role: 'presentation', label: 'r' }, { check: 'role', selector: '#top', role: 'banner', label: 'r' },
+      { check: 'role', selector: '#inner', role: 'banner', label: 'a header inside an article is not the banner' }, { check: 'role', selector: '#foot', role: 'contentinfo', label: 'r' },
+      { check: 'role', selector: '#s1', role: 'region', label: 'an unnamed section is no landmark' }, { check: 'role', selector: '#s2', role: 'region', label: 'r' }, { check: 'role', selector: '#h', role: 'heading', label: 'r' },
+    ];
+    const r = await page({ html }, steps);
+    const shown = judge(steps, r.results);
+    expect(shown.filter(s => !s.ok).map(s => s.label)).toEqual(['empty', 'no href', 'a div is not a button', 'a header inside an article is not the banner', 'an unnamed section is no landmark']);
+    expect(shown.find(s => s.label === 'empty')!.message).toBe('`#b2` 沒有無障礙名稱（螢幕閱讀器唸不出它是什麼）。');
+    expect(shown.find(s => s.label === 'a div is not a button')!.message).toBe('`#fake` 目前的角色是 generic。');
+    expect(shown.find(s => s.label === 'no href')!.message).toBe('`#noref` 目前的角色是 generic。');
+  });
+  inBrowser('tab moves focus in tab order: positive tabindex first, then the document; skipped elements are skipped; a page can trap it', async () => {
+    const html = '<a id="a" href="#x">a</a><button id="b">b</button><button id="off" disabled>off</button><div id="div">div</div><div id="t0" tabindex="0">t0</div><span id="tm" tabindex="-1">tm</span>'
+      + '<input id="hid" type="hidden"><input id="gone" style="display:none"><input id="r1" type="radio" name="g"><input id="r2" type="radio" name="g" checked><input id="first" tabindex="2"><input id="second" tabindex="5"><select id="sel"><option>1</option></select>';
+    const order: string[] = [];
+    const steps: WebStep[] = [];
+    for (const id of ['first', 'second', 'a', 'b', 't0', 'r2', 'sel']) { steps.push({ do: 'tab' }, { check: 'focus', selector: `#${id}`, label: id }); order.push(id); }
+    steps.push({ do: 'tab', shift: true }, { check: 'focus', selector: '#r2', label: 'back' }, { do: 'tab', shift: true }, { check: 'focus', selector: '#t0', label: 'back again' });
+    const r = await page({ html }, steps);
+    expect(judge(steps, r.results).map(s => [s.label, s.ok])).toEqual([...order.map(id => [id, true]), ['back', true], ['back again', true]]);
+    // A dialog that keeps focus inside: the page handles Tab itself.
+    const trap = '<button id="open">開啟</button><div id="dlg" role="dialog" aria-label="確認"><button id="yes">確定</button><button id="no">取消</button></div><button id="after">之後</button>';
+    const js = "const dlg = document.querySelector('#dlg');\ndlg.addEventListener('keydown', e => {\n  if (e.key !== 'Tab') return;\n  const items = dlg.querySelectorAll('button');\n  const last = items[items.length - 1];\n"
+      + "  if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); items[0].focus(); }\n  else if (e.shiftKey && document.activeElement === items[0]) { e.preventDefault(); last.focus(); }\n});";
+    const trapped: WebStep[] = [{ do: 'click', selector: '#yes' }, { do: 'tab' }, { check: 'focus', selector: '#no', label: 'next in the dialog' }, { do: 'tab' }, { check: 'focus', selector: '#yes', label: 'wrapped to the first' },
+      { do: 'tab', shift: true }, { check: 'focus', selector: '#no', label: 'and back to the last' }];
+    expect(judge(trapped, (await page({ html: trap, js }, trapped)).results).map(s => s.ok)).toEqual([true, true, true]);
+    const free: WebStep[] = [{ do: 'click', selector: '#no' }, { do: 'tab' }, { check: 'focus', selector: '#after', label: 'without the trap focus leaves' }];
+    expect(judge(free, (await page({ html: trap }, free)).results)[0].ok).toBe(true);
+  });
+});
+
 describe('implicit submission', () => {
   inBrowser('Enter in a field submits through the first submit button; without one, only a form with a single one-line field submits', async () => {
     const enter = async (form: string) => {
@@ -253,14 +407,19 @@ describe('implicit submission', () => {
 });
 
 describe('isolation', () => {
-  inBrowser('the page cannot reach the network, the parent page or its storage', async () => {
+  inBrowser('the page cannot reach the network, the parent page or the site\'s storage: its storage is its own, and fetch never leaves the frame', async () => {
     const js = "const report = [];\n"
       + "try { parent.document.title; report.push('parent readable'); } catch (e) { report.push('parent blocked'); }\n"
-      + "try { localStorage.setItem('a', '1'); report.push('storage ok'); } catch (e) { report.push('storage blocked'); }\n"
-      + "try { document.cookie = 'a=1'; report.push('cookie ' + (document.cookie ? 'set' : 'empty')); } catch (e) { report.push('cookie blocked'); }\n"
-      + "fetch('https://example.com/').then(() => report.push('fetch ok'), () => report.push('fetch blocked')).then(() => { document.querySelector('#r').textContent = report.join(', '); });";
-    const r = await page({ html: '<p id="r"></p><img id="i" src="https://example.com/x.png" alt="x">', js }, [{ do: 'wait', ms: 200 }, { check: 'text', selector: '#r', text: 'parent blocked, storage blocked, cookie blocked, fetch blocked', label: 'isolated' }]);
+      + "localStorage.setItem('a', '1'); document.cookie = 'b=2';\n"
+      + "const xhr = new XMLHttpRequest(); xhr.onerror = () => report.push('xhr blocked'); xhr.onload = () => report.push('xhr ok');\n"
+      + "try { xhr.open('GET', 'https://example.com/'); xhr.send(); } catch (e) { report.push('xhr blocked'); }\n"
+      + "fetch('https://example.com/data').then(r => report.push('fetch answered ' + r.status)).then(() => { document.querySelector('#r').textContent = report.join(', '); });";
+    const r = await page({ html: '<p id="r"></p><img id="i" src="https://example.com/x.png" alt="x">', js }, [{ do: 'wait', ms: 200 }, { check: 'text', selector: '#r', text: 'parent blocked, xhr blocked, fetch answered 404', label: 'isolated' }]);
     expect(r.results[1]).toMatchObject({ ok: true });
+    // What it stored lives in the frame only (the opaque origin has no real storage), and the request went to the pretend server.
+    expect(r.storage).toEqual({ local: { a: '1' }, session: {}, cookies: { b: '2' } });
+    expect(r.requests).toEqual([{ method: 'GET', path: '/data', body: '', status: 404 }]);
+    expect(await browser!.hostStorage()).toEqual({ local: 0, cookie: '' });
   });
   inBrowser('an endless loop is stopped with an error instead of freezing the page, in the script file, an inline script and a handler', async () => {
     for (const js of ['while (true) {}', 'for (;;) {}', 'let i = 0;\ndo { i++; } while (i > 0);', 'for (let i = 0; i >= 0; i++) { /* never ends */ }']) {

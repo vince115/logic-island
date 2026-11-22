@@ -416,8 +416,8 @@ export function llmFromBlueprint(lessonId: string, summary: string, minutes: num
  * difficulty, prerequisites). Its body is the web-code capability: pages in a sandboxed frame beside the DOM the browser
  * built, and exercises checked on that page. dom-explorer is that activity. The island's other blueprint activities
  * (pipeline-diagram, concurrency-timeline, memory-inspector, a11y-checker, metric-explorer) are not built: they stay in
- * INTERACTIVE_LAB_ROADMAP and the lesson uses pages instead, never a stand-in; protocol-sequence (WEB11, fetch) becomes
- * network-sequence with network scenes beside the pages; the capstone adds challenge-stages.
+ * INTERACTIVE_LAB_ROADMAP and the lesson uses pages instead, never a stand-in; protocol-sequence (WEB11, fetch) is taught
+ * on pages too, with the requests they make listed beside them; the capstone adds challenge-stages.
  */
 const WEB_SHAPES: Readonly<Record<string, Pick<Outline, 'activity' | 'capabilities' | 'visualization'>>> = {
   'dom-explorer': { activity: 'dom-explorer', capabilities: ['web-code'], visualization: 'none' },
@@ -426,7 +426,9 @@ const WEB_SHAPES: Readonly<Record<string, Pick<Outline, 'activity' | 'capabiliti
   'memory-inspector': { activity: 'dom-explorer', capabilities: ['web-code'], visualization: 'none' },
   'a11y-checker': { activity: 'dom-explorer', capabilities: ['web-code'], visualization: 'none' },
   'metric-explorer': { activity: 'dom-explorer', capabilities: ['web-code'], visualization: 'none' },
-  'protocol-sequence': { activity: 'network-sequence', capabilities: ['web-code', 'network-protocol'], visualization: 'none' },
+  // WEB-4: fetch (WEB11) is taught on pages whose requests a pretend server answers (engine stage W3); the page's list
+  // of requests and answers is the sequence, so no network-protocol scene is added.
+  'protocol-sequence': { activity: 'dom-explorer', capabilities: ['web-code'], visualization: 'none' },
   'challenge-stages': { activity: 'challenge-stages', capabilities: ['web-code', 'visualization'], visualization: 'challenge-stages' },
 };
 export function webFromBlueprint(lessonId: string, summary: string, minutes: number): Outline {
@@ -582,7 +584,7 @@ const generativeAi: Outline[] = [
   llmFromBlueprint('GEN02', '以機率連鎖律把整串 token 的機率拆成逐步的條件機率，用 Python 寫出字元級的自回歸取樣器，比較 greedy、temperature、top-k 與 top-p 並看 greedy 陷入重複的原因，以 log 機率替序列打分數並避開連乘的下溢，區分訓練時的 teacher forcing 與推論時的 exposure bias，再說明圖像與音訊如何先離散化成 token 再自回歸生成，以及一次一個 token 的生成延遲與品質取捨。', 55),
 ];
 
-/** WEB-1 (2026-11-23): the web foundations island's first lessons, written with the web-code capability (WEB0_WEB_CODE_CAPABILITY.md); WEB-2 adds WEB05–WEB07. */
+/** WEB-1 (2026-11-23): the web foundations island's first lessons, written with the web-code capability (WEB0_WEB_CODE_CAPABILITY.md); WEB-2 adds WEB05–WEB07, WEB-3 WEB08–WEB10, WEB-4 WEB11–WEB13, WEB-5 WEB14 and the capstone WEB15. */
 const webFoundations: Outline[] = [
   webFromBlueprint('WEB01', '用同一個「小島圖書館」頁面依序加上 HTML、CSS 與 JavaScript，分清內容、外觀與行為的分工，走一遍瀏覽器從網址、解析 HTML 建立 DOM、計算樣式、版面配置到繪製的頁面載入流程，看懂原始碼與 DOM 為何不同，並用開發者工具的 Elements、Console 與 Network 面板檢查網頁。', 40),
   webFromBlueprint('WEB02', '寫出含 DOCTYPE、lang、charset 與 title 的文件骨架，分清元素、標籤、屬性與巢狀規則，用 header、nav、main、article、section、aside、footer 取代無意義的 div，並以不跳級的 h1–h6 標題層級與地標區域，讓頁面不靠外觀也讀得出結構。', 45),
@@ -591,6 +593,14 @@ const webFoundations: Outline[] = [
   webFromBlueprint('WEB05', '用型別、class、id、後代與子代選擇器及虛擬類別選取元素，依重要性、特異性與原始碼順序判斷串接時哪一條宣告勝出，分辨會繼承與不會繼承的屬性，並以低特異性的 class 寫法取代 id 與 !important。', 50),
   webFromBlueprint('WEB06', '用內容、內距、邊框與外距四層算出元素的實際寬高，以 box-sizing: border-box 讓 width 代表整個盒子，分辨區塊與行內盒子在一般排版流中的排法並用 display 切換成 inline-block，預測上下相鄰與父子之間的外距合併，再用 margin: 0 auto 把有寬度的區塊置中。', 50),
   webFromBlueprint('WEB07', '用 position 的 static、relative、absolute、fixed、sticky 讓盒子位移、離開一般排版流或在捲動時留在畫面上，找出絕對定位的包含區塊，做出角落徽章與固定頁首，並用堆疊順序、z-index 與堆疊環境判斷誰蓋住誰、z-index 為何無效。', 55),
+  webFromBlueprint('WEB08', '從 DOM 樹與指令稿執行的時機開始，用 querySelector 與 querySelectorAll 選取元素並處理找不到的情況，以 textContent、屬性與 classList 修改內容與外觀，再用 createElement 與 append 依陣列資料建立清單並插入頁面。', 55),
+  webFromBlueprint('WEB09', '用 addEventListener 登記 click、input、submit 等事件的監聽器，從事件物件讀出 target、currentTarget 與 key，追蹤事件由內往外冒泡的順序，以 preventDefault 接手表單送出，再用事件委派與 closest 讓一個監聽器處理整份清單與之後才加入的項目。', 55),
+  webFromBlueprint('WEB10', '說明單一執行緒與事件迴圈如何安排同步程式、微任務與任務的先後，用計時器與 Promise 的 then／catch／finally 接住晚一點才有的結果，以 async／await 寫出依序與 Promise.all 並行的流程，並用 try／catch／finally 處理錯誤，交代載入中、成功與失敗三種狀態。', 60),
+  webFromBlueprint('WEB11', '用 fetch 向 API 送出請求並解析回應的 JSON 本文，分清 JSON 文字與 JavaScript 物件，依 HTTP 狀態碼與 response.ok 分辨成功與失敗，在畫面上交代載入中、沒有資料與錯誤狀態，並用 POST 送出 JSON、以 encodeURIComponent 組出查詢字串。', 60),
+  webFromBlueprint('WEB12', '用 localStorage 與 JSON 讓偏好和清單在重新整理後留著，處理 null 與壞掉的文字，分辨只活在一個分頁的 sessionStorage 與每次請求都送出的 Cookie（max-age、HttpOnly、SameSite），用版本號遷移舊格式資料，並判斷密碼、登入憑證與價格等資料為何不該存在瀏覽器。', 55),
+  webFromBlueprint('WEB13', '從無障礙樹的角色、無障礙名稱與狀態出發，依第一條 ARIA 規則優先使用原生元素，必要時以 aria-label、aria-expanded、aria-pressed 補上名稱與狀態，並用 tabindex、focus()、Escape 與即時區域管理下拉選單和動態訊息的焦點與朗讀。', 60),
+  webFromBlueprint('WEB14', '說明效能量測的實驗室資料與真實使用者資料，解讀 Core Web Vitals 的 LCP、INP、CLS 與公布的良好門檻，沿著關鍵渲染路徑找出擋住畫面的樣式表與指令稿，再用 defer、圖片尺寸與延後載入、預留空間與分批工作，提出並驗證三項改善。', 60),
+  webFromBlueprint('WEB15', '不用框架，分五關完成小島圖書館的四頁網站：以語意結構與全站共用的樣式表建立頁面，用表單的 submit 與事件委派做出願望清單，以 fetch 取得新書並交代載入中、沒有資料與失敗三種狀態，用 localStorage 記住分類，最後補上選單按鈕的無障礙名稱與狀態、defer 與預留位置，通過無障礙與效能的檢查。', 110),
 ];
 
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */
