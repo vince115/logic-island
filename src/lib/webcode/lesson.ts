@@ -49,6 +49,11 @@ export type WebAction =
   | { do: 'tab'; shift?: boolean }
   /** Fires an event of this type on the element (mouseover, dblclick, a custom event…); it bubbles unless the type never does. */
   | { do: 'dispatch'; selector: string; event: string }
+  /**
+   * One pointer pressed, moved, lifted or cancelled on an element (W9, MOB-0): a real PointerEvent at the element's
+   * centre, or at an offset (px) from its top-left corner, as a mouse or as a finger. Pointer capture is modelled.
+   */
+  | { do: 'pointer'; selector: string; type: 'down' | 'move' | 'up' | 'cancel'; x?: number; y?: number; pointerType?: 'mouse' | 'touch' | 'pen' }
   /** Lets the page's timers run for this long. In a check the clock is virtual: no real waiting, and timers fire in order. */
   | { do: 'wait'; ms: number };
 
@@ -63,7 +68,7 @@ export type WebCheck = { label: string } & (
   /** The first match's computed style; the value may be written any way the browser resolves to the same thing (red, #f00). */
   | { check: 'style'; selector: string; property: string; value: string | string[]; pseudo?: '::before' | '::after' }
   /** A box measurement in CSS pixels at the exercise's viewport, from the page's top-left corner, from the viewport's (`from: ':viewport'`, after a scroll) or from another element's. */
-  | { check: 'box'; selector: string; measure: 'width' | 'height' | 'left' | 'top' | 'right' | 'bottom'; value: number; tolerance?: number; from?: string }
+  | { check: 'box'; selector: string; measure: 'width' | 'height' | 'left' | 'top' | 'right' | 'bottom'; value: number; tolerance?: number; from?: string; op?: 'eq' | 'min' | 'max' }
   /** What is drawn on top at the centre of `selector`: the element `top` (or something inside it). For stacking order and overlap. */
   | { check: 'hit'; selector: string; top: string }
   /** A form control's value, or whether it is checked. */
@@ -250,11 +255,13 @@ export interface WebVerdict {
 }
 
 const quote = (s: string) => `「${s}」`;
+const POINTER_TEXT = { down: '按下', move: '移動', up: '放開', cancel: '被系統取消（pointercancel）' } as const;
 const actionText = (a: WebAction) => a.do === 'click' ? `點擊 \`${a.selector}\`` : a.do === 'input' ? `在 \`${a.selector}\` 輸入${quote(a.value)}`
   : a.do === 'select' ? `在 \`${a.selector}\` 選擇${quote(a.value)}` : a.do === 'check' ? `${a.checked ? '勾選' : '取消勾選'} \`${a.selector}\``
   : a.do === 'scroll' ? `把${a.selector === ':page' ? '頁面' : ` \`${a.selector}\` `}往下捲到 ${a.top}px`
   : a.do === 'resize' ? `把頁面的寬度改成 ${a.width}px${a.height ? `、高度 ${a.height}px` : ''}`
   : a.do === 'tab' ? `按下 ${a.shift ? 'Shift+Tab' : 'Tab'}`
+  : a.do === 'pointer' ? `${a.pointerType === 'touch' ? '用手指' : a.pointerType === 'pen' ? '用觸控筆' : '用滑鼠'}在 \`${a.selector}\` ${POINTER_TEXT[a.type]}${a.x !== undefined || a.y !== undefined ? `（距離它的左上角 ${a.x ?? 0}、${a.y ?? 0}px）` : ''}`
   : a.do === 'dispatch' ? `在 \`${a.selector}\` 觸發 ${a.event} 事件`
   : a.do === 'key' ? `在 \`${a.selector}\` 按下 ${a.key === ' ' ? 'Space' : a.key}` : a.do === 'submit' ? `送出 \`${a.selector}\`` : `等待 ${a.ms} 毫秒`;
 /** What a list of steps does before its checks, for the exercise's "how it is checked" note. */
@@ -271,7 +278,7 @@ function failure(step: WebCheck, raw: WebRawResult): string {
     case 'attr': return step.match === 'absent' ? `\`${step.selector}\` 仍然有 ${step.name} 屬性。` : raw.absent ? `\`${step.selector}\` 沒有 ${step.name} 屬性。` : `\`${step.selector}\` 的 ${step.name} 目前是${quote(raw.actual ?? '')}。`;
     case 'style': return `\`${step.selector}\`${step.pseudo ?? ''} 的 ${step.property} 計算後是 ${raw.actual || '（空白）'}。`;
     case 'hit': return raw.actual ? `\`${step.selector}\` 的中心點上，畫在最上面的是 ${raw.actual}。` : `\`${step.selector}\` 的中心點不在畫面內。`;
-    case 'box': return `\`${step.selector}\` 的${BOX[step.measure]}目前是 ${raw.actual}px。`;
+    case 'box': return `\`${step.selector}\` 的${BOX[step.measure]}目前是 ${raw.actual}px${step.op === 'min' ? `，至少要 ${step.value}px` : step.op === 'max' ? `，最多只能 ${step.value}px` : ''}。`;
     case 'value': return typeof step.value === 'boolean' ? `\`${step.selector}\` 目前${raw.actual === 'true' ? '已勾選' : '沒有勾選'}。` : `\`${step.selector}\` 目前的值是${quote(raw.actual ?? '')}。`;
     case 'name': return raw.actual ? `\`${step.selector}\` 目前的無障礙名稱是${quote(raw.actual)}。` : `\`${step.selector}\` 沒有無障礙名稱（螢幕閱讀器唸不出它是什麼）。`;
     case 'role': return `\`${step.selector}\` 目前的角色是 ${raw.actual}。`;
@@ -334,7 +341,7 @@ export async function checkWebExercise(exercise: WebExercise, edited: WebFilesPa
 export const TIMEOUT_MESSAGE = '頁面沒有在時間內完成載入與檢查（可能有不會結束的迴圈）。';
 
 // ---- validation -------------------------------------------------------------------------------------------------
-const ACTIONS = ['click', 'input', 'select', 'check', 'key', 'submit', 'scroll', 'dispatch', 'tab', 'resize', 'wait'];
+const ACTIONS = ['click', 'input', 'select', 'check', 'key', 'submit', 'scroll', 'dispatch', 'pointer', 'tab', 'resize', 'wait'];
 const CHECKS = ['name', 'role', 'request', 'storage', 'cookie', 'count', 'text', 'attr', 'style', 'box', 'hit', 'value', 'label', 'headings', 'focus', 'console', 'submitted', 'navigated', 'doctype'];
 
 function stepProblems(steps: WebStep[], where: string): string[] {
@@ -363,6 +370,7 @@ function stepProblems(steps: WebStep[], where: string): string[] {
       if (s.do === 'wait') { waited += s.ms; if (!(s.ms > 0 && s.ms <= WEB_LIMITS.waitStep)) problems.push(`${at} waits 1–${WEB_LIMITS.waitStep} ms`); }
       else if (s.do === 'dispatch' && !/^[a-zA-Z][\w:-]*$/.test(s.event ?? '')) problems.push(`${at} needs an event type`);
       else if (s.do === 'scroll' && !(Number.isFinite(s.top) && s.top >= 0)) problems.push(`${at} scrolls to an offset of 0 or more`);
+      else if (s.do === 'pointer' && (!['down', 'move', 'up', 'cancel'].includes(s.type) || [s.x, s.y].some(v => v !== undefined && !Number.isFinite(v)))) problems.push(`${at} presses, moves, lifts or cancels a pointer, at numbers`);
       else if (s.do === 'resize') { if (!(Number.isInteger(s.width) && s.width >= 240 && s.width <= 1600) || (s.height !== undefined && !(Number.isInteger(s.height) && s.height >= 200 && s.height <= 1200))) problems.push(`${at} resizes to a width of 240–1600 (and a height of 200–1200)`); }
       else if (s.do !== 'tab' && !s.selector?.trim()) problems.push(`${at} needs a selector`);
     }
