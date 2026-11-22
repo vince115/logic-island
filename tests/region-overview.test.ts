@@ -55,7 +55,7 @@ describe('region overview', () => {
   });
 
   it('entries for the home page and /curriculum: every region in order, each to its own overview', () => {
-    expect(regionEntries().map(r => [r.id, r.href, r.status])).toEqual([['cs', '/regions/cs', 'available'], ['ai', '/regions/ai', 'available'], ['design', '/regions/design', 'planned'], ['web', '/regions/web', 'planned'], ['sys', '/regions/sys', 'planned']]);
+    expect(regionEntries().map(r => [r.id, r.href, r.status])).toEqual([['cs', '/regions/cs', 'available'], ['ai', '/regions/ai', 'available'], ['design', '/regions/design', 'planned'], ['web', '/regions/web', 'planned'], ['sys', '/regions/sys', 'available']]);
     expect(regionHref('ai')).toBe('/regions/ai');
     expect(isRegionId('ai')).toBe(true);
     expect(isRegionId('labs')).toBe(false);

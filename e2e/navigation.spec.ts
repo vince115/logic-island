@@ -216,10 +216,12 @@ test('Linux Terminal Simulator：指令改變虛擬檔案系統、任務依結�
   await page.getByRole('button', { name: '重設環境' }).click();
   await expect(tasks.getByRole('heading', { level: 2 })).toContainText('完成 0／7');
   await expect(page.getByLabel('家目錄的檔案樹，含權限與目前位置')).not.toContainText('projects');
-  // The lessons that will use it are listed as planned, never linked.
+  // The lessons that use it: LNX-1 published LNX02, now a link to its page; the planned ones stay unlinked text.
   const lessons = page.getByRole('region', { name: '使用這個實驗的課程' });
   await expect(lessons.getByText('LNX02')).toBeVisible();
-  await expect(lessons.getByRole('link')).toHaveCount(0);
+  await expect(lessons.getByRole('link', { name: /終端機與 Shell 基礎/ })).toHaveAttribute('href', '/curriculum/terminal-and-shell-basics');
+  for (const href of await lessons.getByRole('link').evaluateAll(links => links.map(a => a.getAttribute('href') ?? '')))
+    expect((await page.request.get(href)).status(), href).toBe(200);
 });
 
 // R6: AI 人工智慧群島 has a way in from the home map, /curriculum and the sidebar; its overview shows the seven islands

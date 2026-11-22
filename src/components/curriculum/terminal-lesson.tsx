@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent 
 import { Check, RotateCcw, X } from 'lucide-react';
 import { baseName, childrenOf, groupOf, LIMITS, modeString, type FsState } from '@/lib/terminal/fs';
 import { prompt, run, type Line } from '@/lib/terminal/shell';
-import { checkTerminalExercise, machineState, replay, TERMINAL_LIMITS, type TerminalExample, type TerminalExercise, type TerminalMachine, type TerminalVerdict } from '@/lib/terminal/lesson';
+import { checkTerminalExercise, machineState, profileOf, replay, TERMINAL_LIMITS, type TerminalExample, type TerminalExercise, type TerminalMachine, type TerminalVerdict } from '@/lib/terminal/lesson';
 import { shownText } from './pre-text';
 import { Rich } from './rich';
 import base from './curriculum.module.css';
@@ -19,16 +19,17 @@ import styles from './terminal-lesson.module.css';
  * each check; Reset restores the machine. Nothing animates, so there is nothing to reduce for prefers-reduced-motion.
  */
 
-/** Every node of the machine as an indented text tree, folders first, with mode and owner:group; the working directory is marked. */
+/** Every node of the machine as an indented text tree, folders first, with mode and owner:group (E1: a link as name -> target); the working directory is marked. */
 export function machineTree(state: FsState): string[] {
   const rows: [string, string][] = [];
   const walk = (path: string, depth: number) => {
     const node = state.nodes.get(path)!;
-    const name = path === '/' ? '/' : `${baseName(path)}${node.kind === 'dir' ? '/' : ''}`;
+    const name = path === '/' ? '/' : `${baseName(path)}${node.kind === 'dir' ? '/' : node.kind === 'link' ? ` -> ${node.target ?? ''}` : ''}`;
     rows.push([`${modeString(node)} ${node.owner}:${groupOf(node)}`, `${'  '.repeat(depth)}${name}${path === state.cwd ? '  ← 目前位置' : ''}`]);
     if (node.kind !== 'dir') return;
     const kids = childrenOf(state.nodes, path);
-    for (const kid of [...kids.filter(k => state.nodes.get(k)!.kind === 'dir'), ...kids.filter(k => state.nodes.get(k)!.kind === 'file')]) walk(kid, depth + 1);
+    // Folders first, then files and (E1) symbolic links.
+    for (const kid of [...kids.filter(k => state.nodes.get(k)!.kind === 'dir'), ...kids.filter(k => state.nodes.get(k)!.kind !== 'dir')]) walk(kid, depth + 1);
   };
   walk('/', 0);
   const width = Math.max(...rows.map(([meta]) => meta.length));
@@ -88,7 +89,8 @@ export function TerminalExerciseBox({ exercise, machines }: { exercise: Terminal
       setLog(lines => [...lines, { id: nextId.current++, text: `這個練習最多執行 ${TERMINAL_LIMITS.session} 個指令，請按「重設」重新開始。`, kind: 'err' as const }].slice(-MAX_LOG));
       return;
     }
-    const from = current.current, result = run(from, command);
+    // E1: the console runs the machine's profile (the lab's commands unless the machine says files).
+    const from = current.current, result = run(from, command, profileOf(machine));
     executed.current = [...executed.current, command];
     const echo: Entry = { id: nextId.current++, prompt: prompt(from), text: command, kind: 'cmd' };
     const printed = result.lines.map(l => ({ id: nextId.current++, text: l.text, kind: l.kind }));
