@@ -264,12 +264,14 @@ describe('exec, logs, inspect, rm, rmi and prune', () => {
     expect(r[5].err[0]).toMatch(/^docker inspect：模擬環境沒有 \.State\.Health 這個欄位/);
     expect(r[6]).toEqual({ out: ['1'], err: ['Error: No such object: nosuch'] });
   });
-  it('docker rmi: in use (must force), untag and delete, untag only with -f; then ps shows the image ID', () => {
+  it('docker rmi: in use (must force), untag and delete, -f deletes an image only a stopped container uses; then ps shows the image ID', () => {
     const r = lab('docker rmi nginx; echo $?', 'docker rmi ubuntu:24.04', 'docker images -q | wc -l', 'docker rmi -f nginx', 'docker ps -a --format "{{.Image}}" --filter name=old-web', 'docker rmi nosuch').log;
     expect(r[0]).toEqual({ out: ['1'], err: ['Error response from daemon: conflict: unable to remove repository reference "nginx" (must force) - container 6d2f14683c9e is using its referenced image 6b80bc54ac19'] });
     expect(r[1].out.slice(0, 3)).toEqual(['Untagged: ubuntu:24.04', expect.stringMatching(/^Untagged: ubuntu@sha256:[0-9a-f]{64}$/), expect.stringMatching(/^Deleted: sha256:1ab7d251cec8/)]);
     expect(r[2].out).toEqual(['2']);
-    expect(r[3].out).toEqual(['Untagged: nginx:latest', expect.stringMatching(/^Untagged: nginx@sha256:/)]);
+    // Only the stopped old-web uses nginx: -f ignores that (soft) conflict and deletes the image and its 7 layers.
+    expect(r[3].out.slice(0, 3)).toEqual(['Untagged: nginx:latest', expect.stringMatching(/^Untagged: nginx@sha256:/), expect.stringMatching(/^Deleted: sha256:6b80bc54ac19/)]);
+    expect(r[3].out).toHaveLength(10);
     expect(r[4].out).toEqual(['6b80bc54ac19']);
     expect(r[5].err).toEqual(['Error response from daemon: No such image: nosuch:latest']);
   });

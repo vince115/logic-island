@@ -10,7 +10,8 @@ import type { LessonContent } from '../schema';
  * created and never started is lesson data, and docker run is explained as create plus start); exit codes 0, 1, 125-127,
  * 137 and 143, with docker stop's SIGTERM (or the image's STOPSIGNAL), the 10-second grace period and SIGKILL for a PID 1
  * that ignores SIGTERM; the writable layer and the logs surviving stop and start but not rm; and cleanup with docker rm,
- * docker rmi (the conflict while any container, even a created one, uses the image; -f only untags) and docker container
+ * docker rmi (the conflict while any container, even a created one, uses the image; -f deletes an image only stopped or
+ * created containers use, leaving them pointing at a missing image, and only untags one a running container uses) and docker container
  * prune. Machines: ship-01 with nginx, alpine and redis (a created draft and a running ticker), the same host after a week
  * of report jobs (python:3.12-slim used only by stopped containers), and an on-call host with a stopped toolbox container
  * and a backup job's container that exited 3. Host names, the backup image and files are made up. Every transcript output
@@ -190,12 +191,12 @@ export const DKR03: LessonContent = {
           ['`docker rm 容器…`', '刪除停止（created 或 exited）的容器，連同可寫層與日誌', '執行中的容器要先 `docker stop`，或用 `docker rm -f`（先強制結束再刪除）'],
           ['`docker rmi Image…`', '移除 Image 的標籤；沒有其他標籤時刪除 Image 與它的層（印出 `Untagged:` 與 `Deleted:`）', '任何容器（包括停止的、從未啟動的）還在使用它時拒絕：`conflict: unable to remove repository reference … (must force)`'],
           ['`docker container prune`', '刪除所有不在執行中的容器（exited 與 created），印出刪除的 ID 與回收的空間', '會先問 `[y/N]`；腳本裡用 `-f` 跳過確認；執行中的容器不受影響'],
-          ['`docker rmi -f Image`', '有容器使用時只移除標籤，Image 本身留在磁碟上', '空間沒有回收；那些容器在 `docker ps -a` 的 IMAGE 欄改顯示 Image ID'],
+          ['`docker rmi -f Image`', '只有停止（或從未啟動）的容器使用時，照樣刪除 Image 與它的層；有執行中的容器使用時只移除標籤，Image 留在磁碟上（`<none>`）', '停止的容器不會被刪除，卻指向一個已經不存在的 Image，`docker ps -a` 的 IMAGE 欄改顯示 Image ID'],
         ] },
         { type: 'p', text: '順序很重要：Image 被容器使用時刪不掉，所以先清容器、再刪 Image。容易忽略的是「使用」包括所有還存在的容器，不只執行中的：一個停止很久、甚至從未啟動過的 created 容器，都會讓 `docker rmi` 拒絕。下面回到 ship-01 的初始狀態，清掉不需要的 redis:7.4 與 nginx:1.27：' },
         { type: 'example', id: 'dkr03-cleanup' },
         { type: 'p', text: 'redis:7.4 沒有任何容器使用，直接刪除：先 Untagged 標籤與 digest，再 Deleted Image 與它的每一層。nginx:1.27 被拒絕，錯誤訊息指出是容器 02f3ba6f50c3（也就是從未啟動的 draft）在使用它。`docker container prune` 不加 `-f` 會停在 `[y/N]` 的確認（模擬環境沒有鍵盤可以回答，也可以寫成 `echo y | docker container prune`）；加上 `-f` 之後刪除了 draft，執行中的 ticker 不受影響。這時 nginx:1.27 已經沒有容器使用，`docker rmi` 就成功了。' },
-        { type: 'p', text: '`docker rmi -f` 看起來能繞過衝突，其實只移除了標籤：Image 的層還在磁碟上，使用它的容器也還在，`docker ps -a` 的 IMAGE 欄會從名稱變成一串 Image ID，空間一點也沒有省下來。要真正回收空間，正確的做法仍然是先刪除那些容器，再刪除 Image。刪除前用 `docker ps -a --filter status=exited` 先看清楚會刪掉哪些容器，養成習慣比事後補救容易。' },
+        { type: 'p', text: '`docker rmi -f` 看起來能繞過衝突，但它不會刪除容器。只有停止（或從未啟動）的容器使用這個 Image 時，`-f` 照樣把 Image 與它的層刪掉，那些容器卻還在，指向一個已經不存在的 Image，`docker ps -a` 的 IMAGE 欄從名稱變成一串 Image ID；有執行中的容器使用時，`-f` 只移除標籤，Image 留在磁碟上成為 `<none>`，空間沒有省下來。兩種情況都留下爛攤子，所以乾淨的順序仍然是先刪除那些容器，再刪除 Image。刪除前用 `docker ps -a --filter status=exited` 先看清楚會刪掉哪些容器，養成習慣比事後補救容易。' },
         { type: 'callout', tone: 'tip', title: '一次性的容器用 --rm', text: '跑一次就結束的工作（測試指令、轉檔、一次性的腳本）加上 `--rm`，容器結束就自動刪除，不會在主機上留下 exited 的容器。長期執行的服務則不要加，這樣它停止之後還能用 `docker logs` 看最後的輸出、用結束碼判斷原因。' },
       ],
     },
@@ -244,7 +245,7 @@ export const DKR03: LessonContent = {
       id: 'dkr03-q4', prompt: '`docker rmi python:3.12-slim` 回報 `conflict: unable to remove repository reference "python:3.12-slim" (must force) - container 370ea4d443ba is using its referenced image`，而 `docker ps` 沒有列出任何 python 的容器。要真正刪除這個 Image、回收空間，應該怎麼做？',
       options: ['改用 `docker rmi -f python:3.12-slim`，它會連同容器一起刪除', '重新開機，讓 daemon 忘記那個容器', '先用 `docker ps -a` 找出使用它的停止容器並刪除（例如 `docker container prune -f`），再執行 `docker rmi python:3.12-slim`', '等一段時間，停止的容器會自動釋放 Image'],
       answer: 2,
-      explanation: '停止的容器仍然存在，也仍然使用它的 Image；`docker ps` 只列出執行中的，要 `docker ps -a` 才看得到。刪掉那些容器之後 rmi 就會成功並刪除各層。`rmi -f` 在有容器使用時只移除標籤，容器與 Image 的層都還在；重新開機與等待都不會刪除容器。',
+      explanation: '停止的容器仍然存在，也仍然使用它的 Image；`docker ps` 只列出執行中的，要 `docker ps -a` 才看得到。刪掉那些容器之後 rmi 就會成功並刪除各層。`rmi -f` 不會刪除容器：這裡只有停止的容器使用它，`-f` 會把 Image 刪掉，但 report-1 這些容器還在，指向一個已經不存在的 Image（有執行中的容器使用時，`-f` 則只移除標籤）；重新開機與等待都不會刪除容器。',
     },
     {
       id: 'dkr03-q5', prompt: 'draft 是用 `docker create` 建立、從未啟動過的容器（STATUS 是 `Created`）。執行 `docker container prune -f` 之後，draft 會怎樣？',
@@ -406,7 +407,7 @@ export const DKR03: LessonContent = {
           { commands: ['docker container prune -f'], why: '只清了容器，忘了刪除 python:3.12-slim，125MB 還在磁碟上。' },
           { commands: ['docker rm -f $(docker ps -aq)', 'docker rmi python:3.12-slim'], why: '`docker ps -aq` 包含執行中的容器，`rm -f` 把正在服務的 shop-web 也刪掉了。' },
           { commands: ['docker rm report-1 report-2', 'docker rmi python:3.12-slim'], why: '只刪了報表的容器，忘了同樣停止的 shell-test。' },
-          { commands: ['docker rmi -f python:3.12-slim'], why: '`rmi -f` 在有容器使用時只移除標籤：三個停止的容器都還在，Image 的層也還在磁碟上。' },
+          { commands: ['docker rmi -f python:3.12-slim'], why: '`rmi -f` 確實刪除了 python:3.12-slim（只有停止的容器使用它），但三個停止的容器都還在，report-1 與 report-2 還指向一個已經不存在的 Image；乾淨的順序是先刪容器、再刪 Image。' },
         ],
         hints: [
           '`docker ps -a --filter status=exited` 列出停止的容器，先確認會刪掉哪些。',

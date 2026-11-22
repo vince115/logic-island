@@ -21,10 +21,14 @@
 
 ## 模擬器的已知差異（課文已說明或避開，列為引擎階段 E21 的修正）
 
-- 主機的 `ps` 不列出容器裡的行程（真實主機會以主機的 PID 列出）；容器裡沒有 `uname`；`docker run IMAGE ps` 會多印一行。
-- 容器裡 `sh -c "exit N"` 沒有把 exit 當成內建指令；`docker start -a` 一律以 0 結束；`docker images` 不列出沒有標籤的 Image；alpine 裡的 `ls` 與 `ps` 用 GNU／procps 的格式而不是 BusyBox。
-- `docker info --format`、`docker images --digests`、`docker ps --filter publish=` 尚未支援；`docker logs -t` 的時間是容器啟動時間；`{{.Config.Env}}` 多了 HOSTNAME 與 HOME；Image 的 digest 只由名稱與標籤決定。
+- 主機的 `ps` 不列出容器裡的行程（真實主機會以主機的 PID 列出）。
+- alpine 裡的 `ps` 用 procps 的格式而不是 BusyBox。
+- `docker logs -t` 的時間是容器啟動時間；Image 的 digest 只由名稱與標籤決定。
 - `/var/run` 與 socket 的檔案類型：socket 顯示成一般檔案（`-rw-rw----`），課文已說明。
+
+## 引擎修正後的課文更正
+
+- 2026-11-23（E20 的修正，見 [DKR0_CONTAINER_CAPABILITY](DKR0_CONTAINER_CAPABILITY.md) §10）：DKR03 原本說 `docker rmi -f` 在有容器使用時只移除標籤。真實的 Docker 只有在執行中的容器使用時才只移除標籤；只有停止（或 created）的容器使用時，`-f` 照樣刪除 Image，留下指向不存在 Image 的容器。DKR03 的清理段落（表格與說明）、測驗 q4 的解說與「清理容器與 Image」練習的典型錯誤已更正；五段終端機紀錄的輸出不變。
 
 ## 後續批次
 

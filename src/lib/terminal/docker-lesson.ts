@@ -270,7 +270,7 @@ export function dockerFailure(c: DockerCheck, end0: FsState): string | null {
   const problem = dockerCheckProblems(c, { containers: true });
   if (problem) return problem;
   if (c.kind === 'image') {
-    const ref = parseRef(c.name)!, has = d.images.some(i => i.local && i.repo === ref.repo && i.tag === ref.tag);
+    const ref = parseRef(c.name)!, has = d.images.some(i => i.local && !i.dangling && i.repo === ref.repo && i.tag === ref.tag);
     return c.absent ? has ? `仍有 Image ${c.name}` : null : has ? null : `本機沒有 ${c.name}（先 docker pull）`;
   }
   const x = d.containers.find(k => k.name === c.name) ?? findContainer(d, c.name);

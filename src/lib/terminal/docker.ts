@@ -1,4 +1,4 @@
-import { can, groupsOf, parentOf, type FsNode, type FsState } from './fs';
+import { can, DEFAULT_SYSTEM, groupsOf, parentOf, type FsNode, type FsState, type SystemInfo } from './fs';
 import { fields, isoText, MONTHS, type Seconds } from './clock';
 import { clockOf, nextPid, tableOf, type Proc } from './processes';
 import { sha256 } from './ssh';
@@ -70,6 +70,8 @@ export interface DockerImage {
   layers: number;
   local: boolean;
   pullable: boolean;
+  /** Fix (E20): a local image whose tag was removed (docker rmi -f while a container uses it): <none>:<none>, found only by its ID. */
+  dangling?: boolean;
 }
 export interface PortBinding { hostIp: string; host: number; container: number; proto: 'tcp' | 'udp' }
 export type ContainerStatus = 'created' | 'running' | 'exited';
@@ -115,12 +117,17 @@ export interface DockerState {
   daemonPid?: number;
 }
 
-/** The commands a container's shell can run (the simulation's file commands; env, ps, sleep, sh and bash are handled here). */
-export const CONTAINER_COMMANDS = ['pwd', 'ls', 'cd', 'mkdir', 'touch', 'cat', 'cp', 'mv', 'rm', 'echo', 'head', 'tail', 'grep', 'wc', 'hostname'] as const satisfies readonly CommandName[];
+/**
+ * The commands a container's shell can run (the simulation's file commands; env, ps, sleep, sh and bash are handled here).
+ * Fix (E20): uname too — it reports the host's kernel (a container has no kernel of its own) and the container's hostname.
+ */
+export const CONTAINER_COMMANDS = ['pwd', 'ls', 'cd', 'mkdir', 'touch', 'cat', 'cp', 'mv', 'rm', 'echo', 'head', 'tail', 'grep', 'wc', 'hostname', 'uname'] as const satisfies readonly CommandName[];
 export const SPECIAL_COMMANDS = ['env', 'ps', 'sleep', 'sh', 'bash', 'true', 'false'] as const;
 /** Every executable an image may list. */
 export const IMAGE_COMMANDS: readonly string[] = [...CONTAINER_COMMANDS, ...SPECIAL_COMMANDS];
 const CONTAINER_PROFILE: ShellProfile = { id: 'container', commands: CONTAINER_COMMANDS, features: ['glob', 'multi-source', 'ls-extra', 'pipes'] };
+/** Whether the image is Alpine (BusyBox's uname -o prints Linux, not GNU/Linux). */
+const isAlpine = (img: DockerImage | undefined) => !!img && /^ID="?alpine"?$/m.test(img.osRelease);
 
 const hex = (text: string) => [...sha256(new TextEncoder().encode(text))].map(b => b.toString(16).padStart(2, '0')).join('');
 export const imageIdOf = (repo: string, tag: string, created: Seconds) => hex(`image/${repo}:${tag}/${created}`);
@@ -234,7 +241,7 @@ const remoteName = (repo: string) => repo.includes('/') ? repo : `library/${repo
 const qualified = (r: ImageRef) => /^[^/]*[.:]/.test(r.repo) && r.repo.includes('/') ? refText(r) : `docker.io/${remoteName(r.repo)}:${r.tag}`;
 
 export const dockerOf = (state: FsState): DockerState | undefined => state.docker;
-const localImage = (d: DockerState, r: ImageRef) => d.images.find(i => i.local && i.repo === r.repo && i.tag === r.tag);
+const localImage = (d: DockerState, r: ImageRef) => d.images.find(i => i.local && !i.dangling && i.repo === r.repo && i.tag === r.tag);
 /** An image named by reference or by (a prefix of at least 4 hex digits of) its ID. */
 function findLocal(d: DockerState, text: string): DockerImage | undefined {
   const r = parseRef(text);
@@ -307,11 +314,23 @@ export function containerEnv(c: Pick<DockerContainer, 'id' | 'env' | 'tty'>, img
 }
 
 /**
+ * Fix (E20): docker inspect's Config.Env — what the container was created with: the -e values, then the image's ENV that
+ * they do not override (moby's merge), the image's PATH included. HOSTNAME, HOME and TERM are added when a process starts.
+ */
+export function configEnv(c: Pick<DockerContainer, 'env'>, img: DockerImage | undefined): string[] {
+  const imageEnv = img?.env ?? [], withPath = imageEnv.some(e => e.startsWith('PATH=')) ? imageEnv : ['PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin', ...imageEnv];
+  const set = new Set(c.env.map(e => e.split('=')[0]));
+  return [...c.env, ...withPath.filter(e => !set.has(e.split('=')[0]))];
+}
+
+/**
  * Runs argv in the container (as root, in its working directory). The file commands run in the simulation's own shell on
  * the container's files (so a write is in the writable layer); env, ps, sleep, true, false and sh -c are handled here.
- * notFound: what a missing executable is reported as by the caller (OCI's error).
+ * notFound: what a missing executable is reported as by the caller (OCI's error). main: argv is the container's main
+ * process (docker run IMAGE ps shows ps as PID 1 and nothing else); system: the host's uname fields (the kernel is shared).
  */
-function runIn(c: DockerContainer, img: DockerImage | undefined, argv: readonly string[], o: { tty: boolean; env: string[]; now: Seconds; workdir?: string }): Outcome | { notFound: string } {
+type RunOptions = { tty: boolean; env: string[]; now: Seconds; workdir?: string; system?: Partial<SystemInfo>; main?: boolean };
+function runIn(c: DockerContainer, img: DockerImage | undefined, argv: readonly string[], o: RunOptions): Outcome | { notFound: string } {
   const has = (cmd: string) => (img?.commands ?? IMAGE_COMMANDS).includes(cmd);
   const [cmd, ...rest] = argv;
   const name = cmd.includes('/') ? cmd.slice(cmd.lastIndexOf('/') + 1) : cmd;
@@ -323,8 +342,10 @@ function runIn(c: DockerContainer, img: DockerImage | undefined, argv: readonly 
     case 'env': return done(containerEnv({ ...c, env: [...c.env, ...o.env], tty: o.tty }, img).map(text => ({ stream: 1 as const, text })));
     case 'ps': {
       if (rest.length) return done([{ stream: 2, text: 'ps：模擬環境的容器裡只支援不加選項的 ps' }], 1);
-      const main = mainCommand(c), self = 7 + c.execs;
       const row = (pid: number, comm: string) => `${String(pid).padStart(7)} ?        00:00:00 ${comm.slice(0, 15)}`;
+      // Fix (E20): ps as the container's main process is PID 1 and the only process.
+      if (o.main) return done([{ stream: 1, text: '    PID TTY          TIME CMD' }, { stream: 1, text: row(1, 'ps') }]);
+      const main = mainCommand(c), self = 7 + c.execs;
       return done([{ stream: 1, text: '    PID TTY          TIME CMD' }, { stream: 1, text: row(1, main) }, { stream: 1, text: row(self, 'ps') }]);
     }
     case 'sleep': {
@@ -337,24 +358,39 @@ function runIn(c: DockerContainer, img: DockerImage | undefined, argv: readonly 
     case 'sh': case 'bash': {
       if (rest[0] !== '-c' || rest.length < 2) return done([]);
       const line = rest[1];
+      // Fix (E20): exit is a shell builtin (exit, exit N, or a last "; exit N" after other commands).
+      const ex = /^(?:(.*?)\s*;\s*)?exit(?:\s+(\S+))?\s*;?\s*$/s.exec(line);
+      if (ex && !/[|&<>`$'"]/.test(ex[2] ?? '')) {
+        const before: Outcome = ex[1] ? (() => { const r = runIn(c, img, [cmd, '-c', ex[1]], { ...o, main: false }); return 'notFound' in r ? done([{ stream: 2, text: `${name}: 1: ${r.notFound}: not found` }], 127) : r; })() : done([]);
+        if (ex[2] === undefined) return { ...before, running: undefined, until: undefined };
+        if (!/^\d+$/.test(ex[2])) return { ...before, lines: [...before.lines, { stream: 2, text: name === 'bash' ? `bash: line 1: exit: ${ex[2]}: numeric argument required` : `sh: 1: exit: Illegal number: ${ex[2]}` }], status: 2, running: undefined, until: undefined };
+        return { ...before, status: Number(BigInt(ex[2]) % BigInt(256)), running: undefined, until: undefined };
+      }
       const t = tokenize(line);
       // A simple command (no operators) runs as argv, so sh -c 'env' and sh -c 'sleep 5' work too.
       if ('words' in t && t.words.length && !/[|<>;&`$]/.test(line)) {
         const r = runIn(c, img, t.words, o);
         return 'notFound' in r ? done([{ stream: 2, text: `${name}: 1: ${r.notFound}: not found` }], 127) : r;
       }
-      const missing = commandNames(line).find(n => !has(n));
+      const names = commandNames(line);
+      if (names.includes('exit')) return done([{ stream: 2, text: `${name} -c：模擬環境的 exit 只支援單獨的 exit N，或寫在最後（指令; exit N）` }], 2);
+      const missing = names.find(n => !has(n));
       if (missing) return done([{ stream: 2, text: `${name}: 1: ${missing}: not found` }], 127);
-      return shellLine(c, line, o);
+      return shellLine(c, line, { ...o, system: systemOf(img, o.system), busybox: isAlpine(img) });
     }
   }
-  return shellLine(c, [name, ...rest].map(quoteArg).join(' '), o);
+  return shellLine(c, [name, ...rest].map(quoteArg).join(' '), { ...o, system: systemOf(img, o.system), busybox: isAlpine(img) });
 }
+/** The uname fields in the container: the host's kernel (BusyBox's uname -o on Alpine prints Linux). */
+const systemOf = (img: DockerImage | undefined, host: Partial<SystemInfo> | undefined): Partial<SystemInfo> => ({ ...host, ...isAlpine(img) ? { os: 'Linux' } : {} });
 /** A line of the simulation's shell on the container's files (no tty: ls prints one name per line, as in docker exec without -t). */
-function shellLine(c: DockerContainer, line: string, o: { tty: boolean; workdir?: string }): Outcome {
-  const state: FsState = { nodes: c.nodes, cwd: c.nodes.get(o.workdir ?? c.workdir)?.kind === 'dir' ? o.workdir ?? c.workdir : '/', user: 'root', home: '/root', host: short(c.id) };
+function shellLine(c: DockerContainer, line: string, o: { tty: boolean; workdir?: string; system?: Partial<SystemInfo>; busybox?: boolean }): Outcome {
+  const state: FsState = { nodes: c.nodes, cwd: c.nodes.get(o.workdir ?? c.workdir)?.kind === 'dir' ? o.workdir ?? c.workdir : '/', user: 'root', home: '/root', host: short(c.id),
+    system: { ...DEFAULT_SYSTEM, ...o.system } };
   const r = runInput(state, line, CONTAINER_PROFILE, null, o.tty);
-  const lines = r.lines.map(l => ({ stream: (l.kind === 'out' ? 1 : 2) as 1 | 2, text: l.text }));
+  // Fix (E20): BusyBox's ls (Alpine) names a missing path without GNU's "cannot access" and quotes.
+  const busy = (text: string) => o.busybox ? text.replace(/^ls: cannot access '(.*)': /, 'ls: $1: ') : text;
+  const lines = r.lines.map(l => ({ stream: (l.kind === 'out' ? 1 : 2) as 1 | 2, text: l.kind === 'out' ? l.text : busy(l.text) }));
   return { lines, status: lines.some(l => l.stream === 2) ? 1 : 0, nodes: r.state.nodes };
 }
 /** The name ps shows for the container's main process (an entrypoint script hands over to the command, as official images do). */
@@ -458,7 +494,7 @@ function start(state: FsState, d: DockerState, c0: DockerContainer, now: Seconds
     return exited([...seedLines(img.logs, now), ...outputLines(img.output, now)], img.exit);
   }
   if (name === 'tail' && argv.includes('-f')) return running([]);
-  const r = runIn(c, img, argv, { tty: c.tty, env: [], now });
+  const r = runIn(c, img, argv, { tty: c.tty, env: [], now, system: state.system, main: true });
   if ('notFound' in r) {
     const msg = `Error response from daemon: failed to create task for container: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: ${OCI_NOT_FOUND(r.notFound)}: unknown`;
     return { error: msg, status: 127, c: { ...c0, exitCode: 127 } };
@@ -558,13 +594,29 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
     return result(0);
   }
   if (sub === 'info') {
+    let format: string | undefined;
+    for (let i = 0; i < rest.length; i++) {
+      const a = rest[i];
+      if (a === '-f' || a === '--format') { format = rest[++i]; if (format === undefined) { err(`flag needs an argument: ${a === '-f' ? "'f' in -f" : '--format'}`); err(`See '${path} --help'.`); return result(125); } }
+      else if (a.startsWith('--format=')) format = a.slice(9);
+      else if (a.startsWith('-')) return flagError(a);
+      else { err(`"${path}" accepts no arguments.`); err(`See '${path} --help'.`); err(''); err(`Usage:  ${path} ${USAGE.info[0]}`); err(''); err(USAGE.info[1]); return result(1); }
+    }
+    if (format) {
+      // Fix (E20): --format applies a Go template to the info (only the template's text is printed, then a new line).
+      if (!socketAllowed(state, io.user)) { err(denied('info')); return result(1); }
+      const r = infoTemplate(format, infoFields(state));
+      if (r.text !== undefined) out(r.text);
+      if (r.error) { err(r.error); return result(1); }
+      return result(0);
+    }
     ['Client: Docker Engine - Community', ` Version:    ${DOCKER_VERSION}`, ' Context:    default', ' Debug Mode: false', '', 'Server:'].forEach(out);
     if (!socketAllowed(state, io.user)) { err(`ERROR: ${denied('info')}`); err('errors pretty printing info'); return result(1); }
-    const d = state.docker!, cs = d.containers, sys = state.system, clock = clockOf(state);
-    [` Containers: ${cs.length}`, `  Running: ${cs.filter(c => c.status === 'running').length}`, '  Paused: 0', `  Stopped: ${cs.filter(c => c.status !== 'running').length}`,
-      ` Images: ${d.images.filter(i => i.local).length}`, ` Server Version: ${DOCKER_VERSION}`, ' Storage Driver: overlay2', ' Logging Driver: json-file', ' Cgroup Driver: systemd', ' Cgroup Version: 2',
-      ` Kernel Version: ${sys?.release ?? '6.8.0-sim'}`, ' Operating System: Ubuntu 24.04.1 LTS', ' OSType: linux', ` Architecture: ${sys?.machine ?? 'x86_64'}`, ` CPUs: ${clock.cpus}`,
-      ` Total Memory: ${bytesSize(clock.memory.total * 1024 * 1024)}`, ` Name: ${state.host ?? 'logic-island'}`, ' Docker Root Dir: /var/lib/docker'].forEach(out);
+    const f = infoFields(state);
+    [` Containers: ${f.Containers}`, `  Running: ${f.ContainersRunning}`, `  Paused: ${f.ContainersPaused}`, `  Stopped: ${f.ContainersStopped}`,
+      ` Images: ${f.Images}`, ` Server Version: ${f.ServerVersion}`, ` Storage Driver: ${f.Driver}`, ` Logging Driver: ${f.LoggingDriver}`, ` Cgroup Driver: ${f.CgroupDriver}`, ` Cgroup Version: ${f.CgroupVersion}`,
+      ` Kernel Version: ${f.KernelVersion}`, ` Operating System: ${f.OperatingSystem}`, ` OSType: ${f.OSType}`, ` Architecture: ${f.Architecture}`, ` CPUs: ${f.NCPU}`,
+      ` Total Memory: ${bytesSize(Number(f.MemTotal))}`, ` Name: ${f.Name}`, ` Docker Root Dir: ${f.DockerRootDir}`].forEach(out);
     return result(0);
   }
   if (!socketAllowed(state, io.user)) { err(sub === 'run' ? `docker: ${denied('run')}.` : denied(sub)); if (sub === 'run') err("See 'docker run --help'."); return result(sub === 'run' ? 125 : 1); }
@@ -575,29 +627,47 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
 
   switch (sub) {
     case 'images': {
-      let all = false, quiet = false, format: string | undefined;
-      const names: string[] = [];
+      let all = false, quiet = false, digests = false, format: string | undefined;
+      const names: string[] = [], dangling: string[] = [];
       for (let i = 0; i < rest.length; i++) {
         const a = rest[i];
         if (a === '-a' || a === '--all') all = true;
         else if (a === '-q' || a === '--quiet') quiet = true;
         else if (a === '-aq' || a === '-qa') { all = quiet = true; }
+        else if (a === '--digests') digests = true;
         else if (a === '--format') format = rest[++i] ?? '';
         else if (a.startsWith('--format=')) format = a.slice(9);
+        else if (a === '-f' || a === '--filter' || a.startsWith('--filter=')) {
+          // Fix (E20): -f dangling=true|false (moby's GetBoolOrDefault: 1, true, 0, false).
+          const f = a.startsWith('--filter=') ? a.slice(9) : rest[++i] ?? '', eq = f.indexOf('=');
+          if (eq < 0) { err(`invalid argument "${f}" for "${a.split('=')[0]}" flag: bad format of filter (expected name=value)`); err(`See '${path} --help'.`); return result(125); }
+          if (f.slice(0, eq) !== 'dangling') { err('docker images：模擬環境的 --filter 只支援 dangling=true 與 dangling=false'); return result(1); }
+          dangling.push(f.slice(eq + 1));
+        }
         else if (a.startsWith('-')) return flagError(a);
         else names.push(a);
       }
       void all;
+      let onlyDangling: boolean | undefined;
+      if (dangling.length) {
+        const no = dangling.some(v => v === '0' || v === 'false'), yes = dangling.some(v => v === '1' || v === 'true');
+        if (no === yes) { err(`Error response from daemon: invalid filter 'dangling=${dangling.join(',')}'`); return result(1); }
+        onlyDangling = yes;
+      }
       if (names.length > 1) { err(`"${path}" requires at most 1 argument.`); err(`See '${path} --help'.`); return result(1); }
       const want = names[0];
       const wanted = want === undefined ? undefined : parseRef(want), tagged = !!want && want.lastIndexOf(':') > want.lastIndexOf('/');
       if (want !== undefined && !wanted) { err('invalid reference format'); return result(1); }
-      const list = d0.images.filter(i => i.local && (!wanted || (i.repo === wanted.repo && (!tagged || i.tag === wanted.tag))))
+      // Untagged (dangling) images are listed too, as <none> <none>, unless a repository is named.
+      const list = d0.images.filter(i => i.local && (!wanted || (!i.dangling && i.repo === wanted.repo && (!tagged || i.tag === wanted.tag))) && (onlyDangling === undefined || !!i.dangling === onlyDangling))
         .sort((a, b) => b.created - a.created || (a.repo < b.repo ? -1 : a.repo > b.repo ? 1 : 0) || (a.tag < b.tag ? -1 : 1));
       if (quiet) { list.forEach(i => out(short(i.id))); return result(0); }
-      const fieldsOf = (i: DockerImage): Record<string, string> => ({ Repository: i.repo, Tag: i.tag, ID: short(i.id), CreatedSince: `${humanDuration(now - i.created)} ago`, CreatedAt: `${isoText(i.created)} +0000 UTC`, Size: humanSize(i.size, 3) });
-      const headers = { Repository: 'REPOSITORY', Tag: 'TAG', ID: 'IMAGE ID', CreatedSince: 'CREATED', CreatedAt: 'CREATED AT', Size: 'SIZE' };
-      const r = formatted(format ?? 'table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedSince}}\t{{.Size}}', list.map(fieldsOf), headers);
+      const fieldsOf = (i: DockerImage): Record<string, string> => ({
+        Repository: i.dangling ? '<none>' : i.repo, Tag: i.dangling ? '<none>' : i.tag, Digest: i.dangling || !i.pullable ? '<none>' : `sha256:${i.digest}`, ID: short(i.id),
+        CreatedSince: `${humanDuration(now - i.created)} ago`, CreatedAt: `${isoText(i.created)} +0000 UTC`, Size: humanSize(i.size, 3),
+      });
+      const headers = { Repository: 'REPOSITORY', Tag: 'TAG', Digest: 'DIGEST', ID: 'IMAGE ID', CreatedSince: 'CREATED', CreatedAt: 'CREATED AT', Size: 'SIZE' };
+      const r = formatted(format ?? `table {{.Repository}}\t{{.Tag}}${digests ? '\t{{.Digest}}' : ''}\t{{.ID}}\t{{.CreatedSince}}\t{{.Size}}`, list.map(fieldsOf), headers);
       if ('error' in r) { err(r.error); return result(1); }
       r.lines.forEach(out);
       return result(0);
@@ -616,12 +686,30 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
         else if (/^-[aq]+$/.test(a)) { if (a.includes('a')) all = true; if (a.includes('q')) quiet = true; }
         else return flagError(a);
       }
+      // Fix (E20): publish= and expose= (PORT[/PROTO] or a range START-END[/PROTO], tcp by default), as moby's portOp parses them.
+      const ports: Record<'publish' | 'expose', Set<string>> = { publish: new Set(), expose: new Set() };
       for (const [k, v] of filters) {
         if (k === 'status' && !['created', 'restarting', 'running', 'removing', 'paused', 'exited', 'dead'].includes(v)) { err(`Error response from daemon: invalid filter 'status=${v}'`); return result(1); }
-        if (!['status', 'name'].includes(k)) { err(`docker ps：模擬環境的 --filter 只支援 status= 與 name=`); return result(1); }
+        if (k === 'publish' || k === 'expose') {
+          if (v.includes(':')) { err(`Error response from daemon: filter for '${k}' should not contain ':': ${v}`); return result(1); }
+          const r = portRange(v);
+          if ('error' in r) { err(`Error response from daemon: error while looking up for ${k} ${v}: ${r.error}`); return result(1); }
+          for (let p = r.start; p <= r.end; p++) ports[k].add(`${p}/${r.proto}`);
+          continue;
+        }
+        if (!['status', 'name'].includes(k)) { err(`docker ps：模擬環境的 --filter 只支援 status=、name=、publish= 與 expose=`); return result(1); }
       }
+      // Values of one filter are alternatives; different filters must all match (moby's filters.Args).
+      const match = (c: DockerContainer, k: string, v: string) => {
+        if (k === 'status') return c.status === v;
+        if (k === 'name') return c.name.includes(v);
+        // publish: the host ports of HostConfig.PortBindings; expose: Config.ExposedPorts (the image's EXPOSE and the -p container ports).
+        if (k === 'publish') return c.ports.some(b => ports.publish.has(`${b.host}/${b.proto}`));
+        return [...imageById(d0, c.image)?.expose.map(p => `${p}/tcp`) ?? [], ...c.ports.map(b => `${b.container}/${b.proto}`)].some(p => ports.expose.has(p));
+      };
+      const keys = [...new Set(filters.map(([k]) => k))];
       const list = d0.containers.filter(c => (all || filters.some(([k]) => k === 'status') || c.status === 'running')
-        && filters.every(([k, v]) => k === 'status' ? c.status === v : c.name.includes(v)))
+        && keys.every(k => filters.some(([fk, v]) => fk === k && match(c, k, v))))
         .map((c, i) => ({ c, i })).sort((a, b) => b.c.created - a.c.created || b.i - a.i).map(x => x.c);
       if (quiet) { list.forEach(c => out(noTrunc ? c.id : short(c.id))); return result(0); }
       const fieldsOf = (c: DockerContainer): Record<string, string> => {
@@ -701,7 +789,7 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
         void interactive;
         return result(0);
       }
-      const r = runIn(c, img, argv, { tty, env: env.map(e => e.includes('=') ? e : `${e}=`), now, ...workdir ? { workdir } : {} });
+      const r = runIn(c, img, argv, { tty, env: env.map(e => e.includes('=') ? e : `${e}=`), now, system: state.system, ...workdir ? { workdir } : {} });
       if ('notFound' in r) { out(`OCI runtime exec failed: exec failed: unable to start container process: ${OCI_NOT_FOUND(r.notFound)}: unknown`); return result(127); }
       for (const l of r.lines) if (l.stream === 1) out(l.text); else err(l.text);
       save({ ...d0, containers: d0.containers.map(x => x.id === c.id ? { ...x, nodes: r.nodes, execs: x.execs + 1 } : x) });
@@ -720,6 +808,7 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
         else names.push(a);
       }
       if (!names.length) return needArgs(1);
+      if (attach && names.length > 1) { err('you cannot start and attach multiple containers at once'); return result(1); }
       let d = d0, status = 0;
       const failed: string[] = [];
       for (const n of names) {
@@ -743,8 +832,11 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
         const s = start(state, d, before, now);
         if ('error' in s) { err(s.error); failed.push(n); status = 1; put(s.c); continue; }
         put(s.c.rm && s.c.status === 'exited' ? null : s.c);
-        if (attach) for (const l of s.lines) if (l.stream === 1) out(l.text); else err(l.text);
-        else out(n);
+        if (attach) {
+          for (const l of s.lines) if (l.stream === 1) out(l.text); else err(l.text);
+          // Fix (E20): attached, docker start exits with the container's exit code (as docker run does).
+          if (s.c.status === 'exited') status = s.c.exitCode;
+        } else out(n);
         state = syncDocker({ ...state, docker: d });
       }
       if (failed.length && (sub === 'start' || sub === 'restart')) err(`Error: failed to ${sub} containers: ${failed.join(', ')}`);
@@ -761,17 +853,34 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
         const img = findLocal(d, n);
         if (!img) { const r = parseRef(n); err(`Error response from daemon: No such image: ${r ? refText(r) : n}`); status = 1; continue; }
         const user = d.containers.find(c => c.image === img.id);
+        if (img.dangling) {
+          // An untagged image (named by its ID): a running container's is never removed, a stopped one's only with -f (moby's conflicts).
+          const running = d.containers.find(c => c.image === img.id && c.status === 'running');
+          if (running || (user && !force)) {
+            const by = running ?? user!;
+            err(`Error response from daemon: conflict: unable to delete ${short(img.id)} (${running ? 'cannot' : 'must'} be forced) - image is being used by ${running ? 'running' : 'stopped'} container ${short(by.id)}`);
+            status = 1; continue;
+          }
+          out(`Deleted: sha256:${img.id}`);
+          for (let k = 0; k < img.layers; k++) out(`Deleted: sha256:${hex(`layer/${img.repo}:${img.tag}/${k}`)}`);
+          d = { ...d, images: d.images.map(i => i === img ? { ...i, local: false, dangling: undefined } : i) };
+          continue;
+        }
         if (user && !force) {
           err(`Error response from daemon: conflict: unable to remove repository reference "${n}" (must force) - container ${short(user.id)} is using its referenced image ${short(img.id)}`);
           status = 1; continue;
         }
         out(`Untagged: ${refText(img)}`);
         out(`Untagged: ${img.repo}@sha256:${img.digest}`);
-        if (!user) {
+        // Fix (E20): with the last tag removed, moby's imageDeleteHelper runs quietly with -f's mask: only a running container
+        // (a hard conflict) keeps the image, untagged (dangling: <none> <none>); stopped or created containers (a soft conflict,
+        // ignored by -f) do not, so the image is deleted and those containers are left pointing at a missing image.
+        const running = d.containers.some(c => c.image === img.id && c.status === 'running');
+        if (!running) {
           out(`Deleted: sha256:${img.id}`);
           for (let k = 0; k < img.layers; k++) out(`Deleted: sha256:${hex(`layer/${img.repo}:${img.tag}/${k}`)}`);
         }
-        d = { ...d, images: d.images.map(i => i === img ? { ...i, local: false } : i) };
+        d = { ...d, images: d.images.map(i => i === img ? running ? { ...i, dangling: true } : { ...i, local: false } : i) };
       }
       save(d);
       return result(status);
@@ -943,6 +1052,20 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
   }
 }
 
+/** A port filter's value as go-connections' nat.SplitProtoPort and ParsePortRange read it (errors are strconv's). */
+function portRange(value: string): { start: number; end: number; proto: string } | { error: string } {
+  const slash = value.indexOf('/'), [port, proto] = slash < 0 ? [value, 'tcp'] : [value.slice(0, slash), value.slice(slash + 1) || 'tcp'];
+  if (!port) return { error: 'empty string specified for ports' };
+  const parse = (t: string): number | { error: string } => /^\d+$/.test(t) && Number(t) <= 65535 ? Number(t) : { error: /^\d+$/.test(t) ? `strconv.ParseUint: parsing "${t}": value out of range` : `strconv.ParseUint: parsing "${t}": invalid syntax` };
+  const dash = port.indexOf('-');
+  if (dash < 0) { const p = parse(port); return typeof p === 'number' ? { start: p, end: p, proto } : p; }
+  const a = parse(port.slice(0, dash)), b = parse(port.slice(dash + 1));
+  if (typeof a !== 'number') return a;
+  if (typeof b !== 'number') return b;
+  if (b < a) return { error: `invalid range specified for port: ${port}` };
+  return { start: a, end: b, proto };
+}
+
 /** -p [IP:]HOST:CONTAINER[/PROTO] (a single container port publishes to a host port the simulation does not choose: refused). */
 function parsePublish(text: string): PortBinding | { error: string } {
   const m = /^(?:(\d+\.\d+\.\d+\.\d+):)?(\d+):(\d+)(?:\/(tcp|udp))?$/.exec(text);
@@ -954,6 +1077,40 @@ function parsePublish(text: string): PortBinding | { error: string } {
   if (host < 1 || host > 65535) return { error: `invalid hostPort: ${m[2]}` };
   if (container < 1 || container > 65535) return { error: `invalid containerPort: ${m[3]}` };
   return { hostIp: m[1] ?? '0.0.0.0', host, container, proto: (m[4] ?? 'tcp') as 'tcp' | 'udp' };
+}
+
+/** The fields of docker info the simulation models, named as in the API's system.Info (what --format's template reads). */
+function infoFields(state: FsState): Record<string, string> {
+  const d = state.docker!, cs = d.containers, sys = state.system, clock = clockOf(state);
+  return {
+    Containers: String(cs.length), ContainersRunning: String(cs.filter(c => c.status === 'running').length), ContainersPaused: '0', ContainersStopped: String(cs.filter(c => c.status !== 'running').length),
+    Images: String(d.images.filter(i => i.local).length), ServerVersion: DOCKER_VERSION, Driver: 'overlay2', LoggingDriver: 'json-file', CgroupDriver: 'systemd', CgroupVersion: '2',
+    KernelVersion: sys?.release ?? DEFAULT_SYSTEM.release, OperatingSystem: 'Ubuntu 24.04.1 LTS', OSType: 'linux', Architecture: sys?.machine ?? DEFAULT_SYSTEM.machine, NCPU: String(clock.cpus),
+    MemTotal: String(clock.memory.total * 1024 * 1024), Name: state.host ?? 'logic-island', DockerRootDir: '/var/lib/docker',
+  };
+}
+/** Real fields of docker info the simulation does not model (said, not faked). */
+const INFO_UNMODELLED = ['ID', 'Plugins', 'Swarm', 'Runtimes', 'DefaultRuntime', 'SecurityOptions', 'RegistryConfig', 'Labels', 'Debug', 'DriverStatus', 'SystemStatus', 'MemoryLimit', 'SwapLimit',
+  'KernelMemoryTCP', 'CpuCfsPeriod', 'CpuCfsQuota', 'CPUShares', 'CPUSet', 'PidsLimit', 'IPv4Forwarding', 'BridgeNfIptables', 'BridgeNfIp6tables', 'NFd', 'OomKillDisable', 'NGoroutines',
+  'SystemTime', 'NEventsListener', 'IndexServerAddress', 'HTTPProxy', 'HTTPSProxy', 'NoProxy', 'ExperimentalBuild', 'LiveRestoreEnabled', 'Isolation', 'InitBinary', 'ContainerdCommit',
+  'RuncCommit', 'InitCommit', 'Warnings', 'ClientInfo', 'ServerErrors', 'ClientErrors', 'UserName', 'GenericResources', 'CDISpecDirs', 'Containerd', 'DefaultAddressPools', 'ProductLicense'];
+/** docker info --format: {{.Field}} and literal text (docker/cli's formatInfo: the template's output, then a new line). */
+function infoTemplate(format: string, f: Record<string, string>): { text?: string; error?: string } {
+  const body = format;
+  let text = '', at = 0;
+  for (const m of body.matchAll(/\{\{(\s*)(.*?)\s*\}\}/gs)) {
+    text += body.slice(at, m.index);
+    at = m.index + m[0].length;
+    const expr = m[2], field = /^\.([A-Za-z_]\w*)$/.exec(expr);
+    if (!field) return { error: `docker info：模擬環境的 --format 只支援 {{.欄位}}（例如 {{.KernelVersion}}），不支援 ${m[0]}` };
+    const name = field[1];
+    if (name in f) { text += f[name]; continue; }
+    if (INFO_UNMODELLED.includes(name)) return { error: `docker info：模擬環境沒有模擬 .${name}（模擬的欄位：${Object.keys(f).map(k => `.${k}`).join(' ')}）` };
+    // Go's text/template (ErrorContext): the field's byte offset in its line (on the first line, in the template).
+    const pos = m.index + 2 + m[1].length, lineStart = body.lastIndexOf('\n', pos - 1) + 1, line = 1 + (body.slice(0, pos).match(/\n/g)?.length ?? 0);
+    return { text, error: `template: :${line}:${line === 1 ? pos : pos - lineStart}: executing "" at <.${name}>: can't evaluate field ${name} in type system.dockerInfo` };
+  }
+  return { text: text + body.slice(at) };
 }
 
 /** docker ps's STATUS: Created, Up …, Exited (N) … ago (moby's State.String). */
@@ -973,6 +1130,12 @@ function pull(d: DockerState, ref: ImageRef, typed: string, now: Seconds): { d: 
       : `Error response from daemon: pull access denied for ${ref.repo}, repository does not exist or may require 'docker login': denied: requested access to the resource is denied` };
   }
   const lines = [...!typed.includes(':') || typed.lastIndexOf(':') < typed.lastIndexOf('/') ? ['Using default tag: latest'] : [], `${ref.tag}: Pulling from ${remoteName(ref.repo)}`];
+  // Fix (E20): an untagged (dangling) copy is tagged again; its layers are already there.
+  if (remote.local && remote.dangling) {
+    for (let k = 0; k < remote.layers; k++) lines.push(`${hex(`layer/${remote.repo}:${remote.tag}/${k}`).slice(0, 12)}: Already exists`);
+    lines.push(`Digest: sha256:${remote.digest}`, `Status: Downloaded newer image for ${refText(ref)}`);
+    return { d: { ...d, images: d.images.map(i => i === remote ? { ...i, dangling: undefined } : i) }, lines };
+  }
   if (remote.local) return { d, lines: [...lines, `Digest: sha256:${remote.digest}`, `Status: Image is up to date for ${refText(ref)}`] };
   for (let k = 0; k < remote.layers; k++) lines.push(`${hex(`layer/${remote.repo}:${remote.tag}/${k}`).slice(0, 12)}: Pull complete`);
   lines.push(`Digest: sha256:${remote.digest}`, `Status: Downloaded newer image for ${refText(ref)}`);
@@ -1020,13 +1183,13 @@ function inspectContainer(c: DockerContainer, img: DockerImage | undefined): Rec
     State: { Status: c.status, Running: c.status === 'running', Paused: false, Restarting: false, OOMKilled: false, Dead: false, ExitCode: c.exitCode, Error: '', StartedAt: rfc3339(c.started), FinishedAt: rfc3339(c.finished) },
     Image: `sha256:${c.image}`, Name: `/${c.name}`, RestartCount: 0,
     HostConfig: { PortBindings: bindings, AutoRemove: c.rm },
-    Config: { Hostname: short(c.id), Env: containerEnv(c, img), Cmd: c.cmd, Image: c.ref, WorkingDir: c.workdir, Entrypoint: img?.entrypoint.length ? img.entrypoint : null, ExposedPorts: exposed, Tty: c.tty, OpenStdin: c.interactive },
+    Config: { Hostname: short(c.id), Env: configEnv(c, img), Cmd: c.cmd, Image: c.ref, WorkingDir: c.workdir, Entrypoint: img?.entrypoint.length ? img.entrypoint : null, ExposedPorts: exposed, Tty: c.tty, OpenStdin: c.interactive },
     NetworkSettings: { IPAddress: c.ip ?? '', Gateway: c.ip ? BRIDGE_GATEWAY : '', Ports: ports },
   };
 }
 function inspectImage(i: DockerImage): Record<string, unknown> {
   return {
-    Id: `sha256:${i.id}`, RepoTags: [refText(i)], RepoDigests: [`${i.repo}@sha256:${i.digest}`], Created: rfc3339(i.created), Size: i.size, Os: 'linux', Architecture: 'amd64',
+    Id: `sha256:${i.id}`, RepoTags: i.dangling ? [] : [refText(i)], RepoDigests: i.dangling ? [] : [`${i.repo}@sha256:${i.digest}`], Created: rfc3339(i.created), Size: i.size, Os: 'linux', Architecture: 'amd64',
     Config: { Env: i.env, Cmd: i.cmd, Entrypoint: i.entrypoint.length ? i.entrypoint : null, WorkingDir: i.workdir, ExposedPorts: Object.fromEntries(i.expose.map(p => [`${p}/tcp`, {}])) },
   };
 }
