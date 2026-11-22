@@ -75,7 +75,10 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
   ],
   // LLM-0 (2026-11-22): the large-language-models and generative-ai islands are prepared for authoring; their units come
   // with their first lessons.
-  'large-language-models': [],
+  // LLM-1: LLM01–LLM03; LLM04 needs DL18 of the deep learning island.
+  'large-language-models': [
+    { title: '語言模型如何讀寫文字', summary: '逐一預測下一個 token、greedy、temperature、top-k 與 top-p 取樣、基礎模型、指令模型與推理模型、上下文視窗、知識截止與幻覺；BPE 子詞斷詞、UTF-8 位元組、token ID、特殊 token 與費用；embedding 向量、內積、餘弦相似度、最近鄰與 2D 投影', lessonIds: range('LLM', 1, 3) },
+  ],
   'generative-ai': [],
   // CN-1 to CN-5: the whole island, CN01–CN20.
   networks: [

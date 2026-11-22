@@ -30,19 +30,26 @@ const DB_PLANNED = lessonsOfIsland('databases').filter(l => l.lessonStatus === '
 const PLANNED = catalogLessons.filter(l => l.lessonStatus === 'planned').length;
 const plannedEntries = (page: Page) => page.locator('main ol').getByText('規劃中', { exact: true });
 
-test('課綱目錄：九座島，F／D／A／PL／DB／CN／AIF 各 20 堂、Linux 系統島 15 堂全部可點，網路與伺服器島 14 堂中已開放的可點、其餘標示規劃中', async ({ page }) => {
+test('課綱目錄：十座島，F／D／A／PL／DB／CN／AIF 各 20 堂、Linux 系統島 15 堂、網路與伺服器島 14 堂全部可點，大型語言模型島 25 堂中已開放的可點、其餘標示規劃中', async ({ page }) => {
   await page.goto('/curriculum');
   // Course production added 程式語言島 in five batches (PL01–PL20, all written by batch 5), 計算機網路島 from CN-1 and
-  // AI 基礎島 from AIF-1, Linux 系統島 from LNX-1 (unwritten lessons are listed 規劃中).
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(`${lessons.length} 堂課，九座島。`);
+  // AI 基礎島 from AIF-1, Linux 系統島 from LNX-1, 網路與伺服器島 from SRV-1 and 大型語言模型島 from LLM-1 (unwritten
+  // lessons are listed 規劃中).
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(`${lessons.length} 堂課，十座島。`);
   for (const island of ['基礎程式島', '資料結構島', '演算法島', '程式語言島', '資料庫應用島', '計算機網路島', 'AI 基礎島']) {
     const list = page.getByRole('region', { name: new RegExp(island) }).getByRole('listitem');
     await expect(list, island).toHaveCount(20);
   }
   // LNX-1 to LNX-5: Linux 系統島 lists its 15 lessons, all written since LNX-5.
   await expect(page.getByRole('region', { name: /Linux 系統島/ }).getByRole('listitem')).toHaveCount(15);
-  // SRV-1: 網路與伺服器島 lists its 14 lessons, the unwritten ones marked 規劃中.
+  // SRV-1 to SRV-5: 網路與伺服器島 lists its 14 lessons, all written since SRV-5.
   await expect(page.getByRole('region', { name: /網路與伺服器島/ }).getByRole('listitem')).toHaveCount(14);
+  // LLM-1: 大型語言模型島 lists its 25 lessons: LLM01–LLM03 are links, the other 22 are marked 規劃中 and not linked.
+  const llm = page.getByRole('region', { name: /大型語言模型島/ });
+  await expect(llm.getByRole('listitem')).toHaveCount(25);
+  await expect(llm.locator('ol a')).toHaveCount(3);
+  for (const l of lessons.filter(l => l.islandId === 'large-language-models')) await expect(llm.locator(`ol a[href="/curriculum/${l.slug}"]`), l.lessonId).toHaveCount(1);
+  await expect(llm.locator('ol').getByText('規劃中', { exact: true })).toHaveCount(22);
   const complete = lessons.filter(l => l.lessonStatus === 'complete').length;
   await expect(page.getByText('完整教材', { exact: true })).toHaveCount(complete);
   expect(lessons.length - complete + DB_PLANNED, 'every lesson of the four written islands has its page').toBe(0);

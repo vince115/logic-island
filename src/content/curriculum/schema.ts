@@ -47,7 +47,7 @@ export const PYTHON_LANGUAGES = ['Python'] as const satisfies readonly Language[
 // CN-1 (2026-11-22): the computer-networks island joins with CN01–CN05 (it was prepared for authoring in CN-0).
 // AIF-1 (2026-11-22): the AI foundations island joins with AIF01–AIF05 (prepared in AIF-0).
 // LNX-1 (2026-11-22): the Linux systems island joins with LNX01–LNX04 (prepared in LNX-0).
-export const ISLAND_IDS = ['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'linux-systems', 'network-servers'] as const;
+export const ISLAND_IDS = ['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'linux-systems', 'network-servers', 'large-language-models'] as const;
 /**
  * CN-0 (2026-11-21): islands registered for authoring before their first lesson is written. Their prefix and lesson
  * capability are known (so their lessons can be written and validated), but they are not curriculum islands yet: no
@@ -60,7 +60,8 @@ export const ISLAND_IDS = ['foundations', 'structures', 'algorithms', 'programmi
 // SRV-1 (2026-11-22): the network and servers island joins with SRV01–SRV03 (prepared in SRV-0).
 // LLM-0 (2026-11-22): the large-language-models and generative-ai islands, written with the llm-explorer capability
 // (alone, or with python-code), docs/curriculum/LLM0_LANGUAGE_MODEL_CAPABILITY.md.
-export const PREPARED_ISLAND_IDS = ['large-language-models', 'generative-ai'] as const;
+// LLM-1 (2026-11-22): the large-language-models island joins with LLM01–LLM03 (prepared in LLM-0); generative-ai stays prepared.
+export const PREPARED_ISLAND_IDS = ['generative-ai'] as const;
 export type IslandId = typeof ISLAND_IDS[number] | typeof PREPARED_ISLAND_IDS[number];
 /**
  * F = 基礎程式島, D = 資料結構島, A = 演算法島, then a two-digit position (F01..F20). Phase F.0: the number is two digits in

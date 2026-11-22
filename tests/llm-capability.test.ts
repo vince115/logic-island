@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { curriculum, lessons } from '@/content/curriculum';
+import { curriculum, getLessonBySlug, lessons } from '@/content/curriculum';
 import { llmFromBlueprint } from '@/content/curriculum/lessons';
 import { ISLAND_IDS, ISLAND_PREFIX, LESSON_ACTIVITIES, LESSON_CAPABILITIES, PREPARED_ISLAND_IDS, validateContent, validateCurriculum, type LessonContent, type LessonMeta } from '@/content/curriculum/schema';
 import { UNITS } from '@/content/curriculum/units';
+import { getIsland } from '@/content/world';
 import { lessonsOfIsland } from '@/content/world/catalog';
 import planning from '@/content/world/planning-data.json';
 import { publishProblems } from '@/lib/curriculum/publish-gate';
@@ -17,7 +18,8 @@ import { exercises, llmContent, llmLesson, sampler, TRAINING_CORPUS, tokenizer, 
  * LLM-0 (docs/curriculum/LLM0_LANGUAGE_MODEL_CAPABILITY.md): the llm-explorer capability. The engines (byte-level BPE,
  * temperature / top-k / top-p sampling with a seeded generator, embeddings with a deterministic PCA) are checked against
  * hand-computed values; llmContentProblems catches each kind of inconsistent data and unsound exercise; a complete
- * fixture lesson validates and passes the publish gate; the two islands are prepared for authoring, not published.
+ * fixture lesson validates and passes the publish gate; the two islands are prepared for authoring. LLM-1 publishes the
+ * large-language-models island (LLM01–LLM03); generative-ai stays prepared, not published.
  */
 const close = (got: number[], want: number[], digits = 6) => { expect(got).toHaveLength(want.length); got.forEach((g, i) => expect(g).toBeCloseTo(want[i], digits)); };
 const metaOf = (lessonId: string, island: LessonMeta['islandId'], outline: ReturnType<typeof llmFromBlueprint>): LessonMeta => ({
@@ -349,23 +351,60 @@ describe('the llm-explorer capability in the curriculum schema', () => {
   });
 });
 
-describe('the large-language-models and generative-ai islands: prepared in LLM-0, not published', () => {
-  it('are registered for authoring with their prefixes and no units, lessons or pages', () => {
-    expect(PREPARED_ISLAND_IDS).toEqual(['large-language-models', 'generative-ai']);
-    for (const island of PREPARED_ISLAND_IDS) {
-      expect(ISLAND_IDS as readonly string[]).not.toContain(island);
-      expect(UNITS[island]).toEqual([]);
-      expect(lessons.filter(l => l.islandId === island)).toEqual([]);
-      expect(lessonsOfIsland(island).every(l => l.lessonStatus === 'planned' && !l.href)).toBe(true);
-    }
+describe('the large-language-models island: prepared in LLM-0, written in batches from LLM-1', () => {
+  it('is a curriculum island with its first lessons written in id order and in its units; the rest stay planned outlines without a page', () => {
+    expect(PREPARED_ISLAND_IDS).not.toContain('large-language-models');
+    expect(ISLAND_IDS).toContain('large-language-models');
     expect(ISLAND_PREFIX['large-language-models']).toBe('LLM');
+    const written = lessons.filter(l => l.islandId === 'large-language-models');
+    expect(written.map(l => l.lessonId)).toEqual(written.map((_, i) => `LLM${String(i + 1).padStart(2, '0')}`));
+    expect(written.length).toBeGreaterThanOrEqual(3);
+    // LLM-1: one unit, LLM01–LLM03.
+    expect(UNITS['large-language-models'][0]).toMatchObject({ title: '語言模型如何讀寫文字', lessonIds: ['LLM01', 'LLM02', 'LLM03'] });
+    expect(UNITS['large-language-models'].flatMap(u => u.lessonIds)).toEqual(written.map(l => l.lessonId));
+    // Every written lesson has its content and its page; only LLM lessons declare llm-explorer.
+    for (const l of written) {
+      expect(curriculum.contents[l.lessonId]?.llm, l.lessonId).toBeDefined();
+      expect(getLessonBySlug(l.slug)?.lessonId, l.slug).toBe(l.lessonId);
+    }
+    expect(lessons.filter(l => l.capabilities.includes('llm-explorer')).map(l => l.lessonId)).toEqual(written.map(l => l.lessonId));
+    const outline = lessonsOfIsland('large-language-models');
+    expect(outline.map(l => l.lessonId)).toEqual(Array.from({ length: 25 }, (_, i) => `LLM${String(i + 1).padStart(2, '0')}`));
+    expect(outline.slice(0, written.length).every(l => l.lessonStatus === 'complete' && l.href === `/curriculum/${l.slug}`)).toBe(true);
+    for (const l of outline.slice(written.length)) {
+      expect(l.lessonStatus, l.lessonId).toBe('planned');
+      expect(l.href, l.lessonId).toBeUndefined();
+      expect(getLessonBySlug(l.slug), l.slug).toBeUndefined();
+    }
+    // Its lessons open on their own; its 3D landscape stays the planned one (IslandConfig.mapState, set by hand).
+    expect(getIsland('large-language-models')).toMatchObject({ status: written.length < 25 ? 'available' : 'complete', mapState: 'planned' });
+  });
+  it('leaves the curriculum valid', () => {
+    expect(validateCurriculum(curriculum)).toEqual([]);
+  });
+});
+
+describe('the generative-ai island: prepared in LLM-0, not published', () => {
+  it('is registered for authoring with its prefix and no units, lessons or pages', () => {
+    expect(PREPARED_ISLAND_IDS).toEqual(['generative-ai']);
+    expect(ISLAND_IDS as readonly string[]).not.toContain('generative-ai');
     expect(ISLAND_PREFIX['generative-ai']).toBe('GEN');
-    expect(lessons.some(l => l.capabilities.includes('llm-explorer'))).toBe(false);
+    expect(UNITS['generative-ai']).toEqual([]);
+    expect(lessons.filter(l => l.islandId === 'generative-ai')).toEqual([]);
+    expect(lessonsOfIsland('generative-ai')).toHaveLength(20);
+    for (const l of lessonsOfIsland('generative-ai')) {
+      expect(l.lessonStatus, l.lessonId).toBe('planned');
+      expect(l.href, l.lessonId).toBeUndefined();
+      expect(getLessonBySlug(l.slug), l.slug).toBeUndefined();
+    }
+    expect(getIsland('generative-ai')).toMatchObject({ status: 'planned' });
   });
   it('refuses a written lesson until the island moves to ISLAND_IDS; the curriculum stays valid', () => {
     expect(validateCurriculum(curriculum)).toEqual([]);
-    const problems = validateCurriculum({ ...curriculum, lessons: [...lessons, meta], contents: { ...curriculum.contents, LLM02: llmLesson() } }).join('\n');
-    expect(problems).toMatch(/LLM02: large-language-models is prepared for authoring, not a curriculum island yet/);
+    const gen = metaOf('GEN01', 'generative-ai', llmFromBlueprint('GEN01', '以玩具模型比較取樣設定如何改變生成的文字（測試用大綱）。', 45));
+    expect(gen).toMatchObject({ activity: 'sampling-explorer', capabilities: ['llm-explorer'] });
+    const problems = validateCurriculum({ ...curriculum, lessons: [...lessons, gen], contents: { ...curriculum.contents, GEN01: { ...llmLesson(), lessonId: 'GEN01' as LessonContent['lessonId'] } } });
+    expect(problems.join('\n')).toMatch(/GEN01: generative-ai is prepared for authoring, not a curriculum island yet/);
   });
 });
 
