@@ -171,13 +171,18 @@ const settlementOf = (island: IslandSpec): HexSettlement => ({
 });
 export const plannedSettlement = (settlement: PlannedSettlement): HexSettlement => settlementOf(plannedIsland(settlement));
 
-function natural(world: HexWorld, islands: IslandSpec[], glb: HexGlbSettlement[], forests: ForestPatch[]): NonNullable<WorldLayout['natural']> {
-  const keepOut: KeepOut[] = glb.flatMap(layout => layout.placements.flatMap(p => {
+/** Where a map's GLB buildings stand, as circles on the map: each asset's own footprints (asset-registry.ts) at its placements. */
+export function glbFootprints(world: HexWorld, glb: readonly HexGlbSettlement[]): KeepOut[] {
+  return glb.flatMap(layout => layout.placements.flatMap(p => {
     const pose = placementPose(world, layout.islandId, p);
-    // Each asset's own footprints (asset-registry.ts) keep trees, rocks and plaza features clear of its buildings.
     const footprints: GlbAsset['footprints'] = glbAssets[layout.asset].footprints;
     return (footprints?.[p.node] ?? []).map(([x, z, r]): KeepOut => [pose.position[0] + x, pose.position[2] + z, r]);
   }));
+}
+
+function natural(world: HexWorld, islands: IslandSpec[], glb: HexGlbSettlement[], forests: ForestPatch[]): NonNullable<WorldLayout['natural']> {
+  // The buildings' footprints keep trees, rocks and plaza features clear of them.
+  const keepOut = glbFootprints(world, glb);
   const plazas = islands.flatMap(island => {
     if (!island.plaza) return [];
     const layout = glb.find(g => g.islandId === island.islandId);

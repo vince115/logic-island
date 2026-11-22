@@ -14,6 +14,7 @@ import { regionFrame } from '@/lib/p9/world-placements';
 import { canvasSlot } from '../islands/hex-world/canvas-slot';
 import { P9_WORLD_HREF } from '@/lib/p9/routes';
 import type { RegionId } from '@/content/world/types';
+import type { PopulationConfig } from '@/lib/presence/population';
 import { P9_REGION_BASE_AZIMUTH } from '@/lib/p9/camera-heading';
 import type { CameraHandover, ExploreView } from '../islands/hex-world/hex-camera';
 import { HexWorldExplorer } from '../islands/hex-world/hex-world-explorer';
@@ -39,6 +40,8 @@ const P9Landscapes = lazy(() => {
   const resolved = { default: loaded.P9Landscapes };
   return { then: (resolve: (value: typeof resolved) => void) => resolve(resolved) } as unknown as Promise<typeof resolved>;
 });
+// Dynamic Island Population: the map's figures, downloaded only by a page whose build chose a population source.
+const P9Population = lazy(() => import('./p9-population'));
 /** Phones: the camera's own phone breakpoint; under PINS the map's labels are pins (both as on /world/<region>). */
 const PHONE = '(max-width: 699px)', PINS = '(max-width: 1239px)';
 const watch = (query: string) => (onChange: () => void) => { const list = matchMedia(query); list.addEventListener('change', onChange); return () => list.removeEventListener('change', onChange); };
@@ -70,9 +73,11 @@ function BackToWorld({ onIntent }: { onIntent?: () => void }) {
   return slot ? createPortal(<Link className={styles.backToWorld} href={P9_WORLD_HREF} aria-label="返回世界總覽" onPointerEnter={onIntent} onFocus={onIntent} onPointerDown={onIntent}><ArrowLeft size={15}/><span>世界總覽</span></Link>, slot) : null;
 }
 
-export function P9RegionExplorer({ regionId, regionName, regionNameEn, islands, hub, sharedCanvas = false }: { regionId: RegionId; regionName: string; regionNameEn: string; islands: LearningIsland[]; hub: { name: string; href: string; labs: number };
+export function P9RegionExplorer({ regionId, regionName, regionNameEn, islands, hub, sharedCanvas = false, population }: { regionId: RegionId; regionName: string; regionNameEn: string; islands: LearningIsland[]; hub: { name: string; href: string; labs: number };
   /** P9.8c (LOGIC_ISLAND_P9_SHARED_CANVAS=1, CS only): the map draws in the canvas it shares with the world overview. */
-  sharedCanvas?: boolean }) {
+  sharedCanvas?: boolean;
+  /** Dynamic Island Population: draw the region's online population as walking figures (src/lib/presence/map-population.ts). Unset: none. */
+  population?: PopulationConfig }) {
   const router = useRouter(), path = usePathname(), params = useSearchParams();
   const requested = params.get('island');
   // Read once: the camera takes a handover at mount only.
@@ -121,10 +126,12 @@ export function P9RegionExplorer({ regionId, regionName, regionNameEn, islands, 
   const accents = useMemo(() => Object.fromEntries(islands.map(i => [i.id, i.accent])), [islands]);
   const options = useMemo(() => ({
     ...sceneOptions(layout, SCENE_PRESETS.lab), labelReach: pins ? PHONE_PIN_REACH : camera.labelReach, largeTargets: true, mapControls: true, phoneRoom: PHONE_ROOM, pins, ownLayer: true,
-    extras: <Suspense fallback={null}><P9Landscapes world={layout.world} landscapes={scene.landscapes} accents={accents} region={regionId}/></Suspense>, explore: EXPLORE,
+    // The figures have a boundary of their own: the landmarks never wait for them.
+    extras: <><Suspense fallback={null}><P9Landscapes world={layout.world} landscapes={scene.landscapes} accents={accents} region={regionId}/></Suspense>
+      {population && <Suspense fallback={null}><P9Population layout={layout} landscapes={scene.landscapes} region={regionId} population={population}/></Suspense>}</>, explore: EXPLORE,
     // P9.6: the island's subjects open once the camera has reached it.
     panelsOnArrival: true,
-  }), [layout, camera, pins, accents, scene, regionId]);
+  }), [layout, camera, pins, accents, scene, regionId, population]);
   const open = islands.filter(i => !i.planned).length, planned = islands.length - open;
   // P9.8c: the map's place in the world's space (for the camera handed over from and back to the world), and a canvas
   // lost on the way: the explorer goes to its list by itself; a new canvas only when asked, with a fresh explorer.

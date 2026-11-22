@@ -1,0 +1,72 @@
+{
+ "desktop": {
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M6, Unspecified Version)",
+  "idle_noNpc": {
+   "frames": 0,
+   "fps": 0
+  },
+  "orbit_noNpc": {
+   "frames": 480,
+   "fps": 60,
+   "frameMs": 16.7,
+   "frameP95": 16.8,
+   "mainDraws": 66,
+   "triangles": 49113,
+   "shadowDraws": 0
+  },
+  "npcs": "8",
+  "idle_npc": {
+   "frames": 304,
+   "fps": 30.4,
+   "frameMs": 33.3,
+   "frameP95": 33.4,
+   "mainDraws": 69,
+   "triangles": 49545,
+   "shadowDraws": 0
+  },
+  "orbit_npc": {
+   "frames": 480,
+   "fps": 60,
+   "frameMs": 16.7,
+   "frameP95": 16.8,
+   "mainDraws": 69,
+   "triangles": 49545,
+   "shadowDraws": 0
+  }
+ },
+ "phone": {
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M6, Unspecified Version)",
+  "idle_noNpc": {
+   "frames": 0,
+   "fps": 0
+  },
+  "orbit_noNpc": {
+   "frames": 480,
+   "fps": 60,
+   "frameMs": 16.7,
+   "frameP95": 16.7,
+   "mainDraws": 66,
+   "triangles": 36923,
+   "shadowDraws": 0
+  },
+  "npcs": "4",
+  "idle_npc": {
+   "frames": 201,
+   "fps": 20.1,
+   "frameMs": 50,
+   "frameP95": 66.7,
+   "mainDraws": 69,
+   "triangles": 37139,
+   "shadowDraws": 0
+  },
+  "orbit_npc": {
+   "frames": 481,
+   "fps": 60.1,
+   "frameMs": 16.7,
+   "frameP95": 16.7,
+   "mainDraws": 69,
+   "triangles": 37139,
+   "shadowDraws": 0
+  }
+ }
+}

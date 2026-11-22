@@ -40,6 +40,39 @@ function place(piece: Piece, x: number, y: number, z: number, SCALE: number, tal
   return g;
 }
 
+/** A piece whose top is lower than this above its tile is paving (walked on); one that starts above HEADROOM is overhead. */
+const PAVING = .1, HEADROOM = .6;
+/**
+ * Dynamic Island Population: where a region's landmarks stand, as circles on the map (x, z, radius), from the very
+ * pieces drawn above at the places they are drawn. A piece's footprint is its box on the ground, covered by one circle,
+ * or by a row of them when it is long; paving and whatever hangs overhead are no obstacle to someone walking.
+ */
+export function landscapeFootprints(world: HexWorld, landscapes: readonly PlannedLandscape[], region: SceneId): [number, number, number][] {
+  const style = REGION_STYLE[region], circles: [number, number, number][] = [];
+  for (const landscape of landscapes) {
+    const settlement = world.settlements.find(s => s.islandId === landscape.islandId);
+    if (!settlement) continue;
+    for (const piece of landmarkPieces(landscape.islandId, '#000000')) {
+      const tile = landscape.tiles[piece.tile];
+      if (!tile) { piece.geometry.dispose(); continue; }
+      const [x, z] = hexToWorld(tile, world.size), under = settlement.tiles.find(u => u.q === tile.q && u.r === tile.r), y = LAND_TOP + (under ? tileHeight(under) : 0);
+      const placed = place(piece, x, y, z, style.scale * (piece.tile === 0 ? style.main : 1), style.tall);
+      piece.geometry.dispose();
+      placed.computeBoundingBox();
+      const { min, max } = placed.boundingBox!;
+      placed.dispose();
+      if (max.y - y < PAVING || min.y - y >= HEADROOM) continue;
+      const wide = max.x - min.x, deep = max.z - min.z, long = Math.max(wide, deep), short = Math.max(.1, Math.min(wide, deep));
+      const count = Math.max(1, Math.ceil(long / short)), radius = Math.hypot(short, long / count) / 2;
+      for (let k = 0; k < count; k++) {
+        const t = (k + .5) / count;
+        circles.push(wide >= deep ? [min.x + wide * t, (min.z + max.z) / 2, radius] : [(min.x + max.x) / 2, min.z + deep * t, radius]);
+      }
+    }
+  }
+  return circles;
+}
+
 /**
  * The landmarks of a region's islands, in the map's own coordinates (drawn inside the scene's map group). `detail`
  * 'world' is the overview's level of detail: the same pieces at the same places, without the fine ones.

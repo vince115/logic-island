@@ -1,0 +1,57 @@
+{
+ "checked": "2026-11-22T01:23:58.234Z",
+ "passed": 10,
+ "failed": 0,
+ "results": [
+  {
+   "id": "api.get",
+   "status": "PASS",
+   "detail": "503 unavailable, no-store, in 6 ms"
+  },
+  {
+   "id": "api.post",
+   "status": "PASS",
+   "detail": "503 unavailable in 16 ms, retry-after 60 s"
+  },
+  {
+   "id": "desktop.home-map",
+   "status": "PASS",
+   "detail": "map drawn 1440x1000, no visitor figures, island focus works; API answered 200,503"
+  },
+  {
+   "id": "desktop.lesson",
+   "status": "PASS",
+   "detail": "a lesson page renders and its player steps"
+  },
+  {
+   "id": "desktop.pages",
+   "status": "PASS",
+   "detail": "/curriculum /curriculum/programs-and-algorithms /regions/cs /learn/bfs"
+  },
+  {
+   "id": "desktop.no-errors",
+   "status": "PASS",
+   "detail": "no page threw"
+  },
+  {
+   "id": "phone.home-map",
+   "status": "PASS",
+   "detail": "map drawn 390x614, no visitor figures, island focus works; API answered 200,503"
+  },
+  {
+   "id": "phone.lesson",
+   "status": "PASS",
+   "detail": "a lesson page renders and its player steps"
+  },
+  {
+   "id": "phone.pages",
+   "status": "PASS",
+   "detail": "/curriculum /curriculum/programs-and-algorithms /regions/cs /learn/bfs"
+  },
+  {
+   "id": "phone.no-errors",
+   "status": "PASS",
+   "detail": "no page threw"
+  }
+ ]
+}

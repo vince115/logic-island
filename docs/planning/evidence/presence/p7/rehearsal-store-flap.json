@@ -1,0 +1,48 @@
+{
+ "base": "127.0.0.1:3156",
+ "checked": "2026-11-22T01:26:07.771Z",
+ "passed": 8,
+ "failed": 0,
+ "results": [
+  {
+   "id": "online",
+   "status": "PASS",
+   "detail": "two sessions and one page counted"
+  },
+  {
+   "id": "down",
+   "status": "PASS",
+   "detail": "reports 503 at once (9 ms); every instance's count 503 within 15 s; the open page's own report refused too; nothing cacheable, nothing about the cause"
+  },
+  {
+   "id": "slow",
+   "status": "PASS",
+   "detail": "a store that takes 6 s: 503 unavailable, report in 3009 ms, count in 3008 ms"
+  },
+  {
+   "id": "refuse",
+   "status": "PASS",
+   "detail": "a store that answers 500: 503 unavailable, report in 10 ms, count in 8 ms"
+  },
+  {
+   "id": "quota",
+   "status": "PASS",
+   "detail": "a plan that has used up its commands: 503 unavailable, report in 9 ms, count in 3 ms"
+  },
+  {
+   "id": "pages",
+   "status": "PASS",
+   "detail": "a page loads and nothing throws while the store fails"
+  },
+  {
+   "id": "recovery",
+   "status": "PASS",
+   "detail": "sessions counted again 0 s after the store came back; the open page (1 of its reports refused during the failure) reported again by itself 53 s after"
+  },
+  {
+   "id": "clean",
+   "status": "PASS",
+   "detail": "the population is back where it was"
+  }
+ ]
+}
