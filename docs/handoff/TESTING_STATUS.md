@@ -27,6 +27,13 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 - 私有題庫洩漏掃描（追蹤檔案、`origin/main..HEAD`）：clean。
 - 沒有做：Vercel Preview、Production、真機、iOS Safari、真正的 Upstash。
 - Vercel 專案的唯讀盤點於 2026-11-22 完成（不是測試，只讀設定）：結果在 `docs/planning/PRESENCE_P7_PREVIEW_LAUNCH_GATE.md` §2.3。
+- **2026-11-22 追加（併入 `main` `f18aafa` 之後；本機隔離副本，不是 Preview、Production 或真機）**：
+  - Typecheck 0；ESLint 0 錯誤（1 個警告在 `main` 帶進來的 `lesson-page.tsx`）；Vitest **111 個檔案、3,258 通過／10 略過／0 失敗**。
+  - 預設 build 全套 E2E **439 通過／2 失敗**（`candidate-integration.spec.ts:179`、`:264`，`main` 既有的 P1-43）；對 `main`（`f18aafa`）18 組逐像素 0 差異。
+  - Presence E2E（桌機＋手機專案）56／56；P9 mock 10／10、加共用畫布 10／10；live 4／4。
+  - **本機 Preview 預演**（`local-preview-stack.mjs`：三個 `next start`、一個 Redis、Upstash REST 替身、輪流分派的入口）：`preview-validate.mjs`（新增 D 部分：亂序與重複請求、速率限制、六人同時在線含兩支模擬手機）**18 通過／0 失敗／2 略過**（略過 CDN 與 Firewall）；`store-flap-check.mjs`（斷線、過慢、500、額度用完、恢復）**8／8**；`store-outage-check.mjs` 10／10。單一 instance 記憶體儲存的驗收腳本同樣 18／0／2。
+  - 一次完整驗收約 514 個 Redis 命令。
+  - 預演不是 Vercel 的 CDN、Firewall、區域，也不是 Upstash 本身。記錄在 P7 文件 §10 與 `docs/planning/evidence/presence/p7/rehearsal-*.json`。
 
 ## Dynamic Island Population P6：Production Readiness 與 Preview 驗收準備（2026-11-21，同分支，未合併）
 

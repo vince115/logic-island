@@ -63,6 +63,7 @@
 | P1-48 | 人口數字最多落後實際約 30 秒（2026-11-21，P6-D）：`GET /api/presence` 的快取由 5 秒改為 15 秒，CDN 與伺服器 instance 各重用一次 | 設計如此（Session 逾時 P7 起為 150 秒）。回應對所有人相同、不讀取請求的任何內容、不設 Cookie，有測試；其餘回應一律 `no-store`。既有的瀏覽器測試假設計數立即可見，**不能直接對 Preview 執行**，Preview 用 `docs/planning/evidence/presence/tools/preview-validate.mjs` |
 | P1-49 | 共用儲存的脈衝（2026-11-22，P7）：同一位訪客有兩個視窗在前景，比較新的那個**沒有告別就消失**（當機、斷線），而且還在的視窗由一個不知道新視窗存在的伺服器 instance 處理時，訪客會多留在消失那個視窗的頁面上一段時間才移到還在的視窗 | 人數不受影響（始終計入一次）。單一 instance 是 100 秒；多個 instance 在測試的排法下是 460 秒，上限是記錄重寫的 10 分鐘（`PRESENCE.pulseRecordEveryMs`）加三次回報，`tests/helpers/presence-store-contract.ts`「keeps counting a visitor whose newer window vanished…」在替身 Redis 3 個與真 Redis 4 個 instance 上固定這個上限。視窗正常關閉（有告別）、切換焦點、換頁都不受影響：兩個視窗在島嶼間切換的劇本在所有儲存上逐步正確，訪客都會告別的隨機劇本與記憶體版逐島相同。另：資料庫被清空時，只靠脈衝維持的訪客最多 10 分鐘不被計入。`new RedisPresenceStore(redis, { pulses: false })` 可回到每次都重寫記錄。見 `docs/planning/PRESENCE_P7_PREVIEW_LAUNCH_GATE.md` §3.4 |
 | P1-50 | 沒有告別就消失的訪客（當機、斷線）多被計入的時間由最多 90 秒變為最多 150 秒（2026-11-22，P7：心跳 60 秒、逾時 150 秒） | 換來的是回報次數減少約四成。正常離開（關分頁、切到背景、鎖手機）仍然立刻不計入；漏掉一次心跳不再碰到逾時邊界。是否接受、是否再放寬（120／300 秒）由使用者決定（P7 文件 §8.2 Q3） |
+| P1-51 | 超過速率上限（每個 Session 每分鐘 40 次寫入）的 Session，連告別也被拒絕；在它那一分鐘過完之前離開，會被多計入到逾時為止（最多 150 秒）（2026-11-22，P7 本機預演以真的請求量到；行為從第一輪就存在） | 設計如此：告別也是一次寫入，放行等於留一個不受限的寫入口。正常頁面每分鐘 1–2 次寫入，碰不到上限。`preview-validate.mjs` 的 `rate.session` 固定這個行為。見 P7 文件 §10.2、R13 |
 
 ## P2：可延後但需有記錄
 

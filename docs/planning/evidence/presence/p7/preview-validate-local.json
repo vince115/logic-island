@@ -1,13 +1,13 @@
 {
  "base": "127.0.0.1:3154",
- "checked": "2026-11-21T18:02:44.316Z",
+ "checked": "2026-11-22T01:58:02.575Z",
  "expect": {
   "store": "memory",
   "npc": "live"
  },
- "passed": 14,
+ "passed": 18,
  "failed": 0,
- "skipped": 1,
+ "skipped": 2,
  "results": [
   {
    "id": "api.get",
@@ -83,6 +83,31 @@
    "id": "count.clean",
    "status": "PASS",
    "detail": "the population is back where it was"
+  },
+  {
+   "id": "timing.reported",
+   "status": "PASS",
+   "detail": "a report every 60 s, a silent visitor dropped after 150 s"
+  },
+  {
+   "id": "order.repeated-and-late",
+   "status": "PASS",
+   "detail": "four repeats, an overtaken report, a stale goodbye, a report after the goodbye: one visitor, in the right place, gone when they left"
+  },
+  {
+   "id": "rate.session",
+   "status": "PASS",
+   "detail": "40 reports a minute accepted, the next 10 answered 429 with Retry-After; another session unaffected; the limited session's goodbye waits for its minute to end"
+  },
+  {
+   "id": "rate.platform",
+   "status": "SKIP",
+   "detail": "no Firewall rule declared (EXPECT_FIREWALL)"
+  },
+  {
+   "id": "count.crowd",
+   "status": "PASS",
+   "detail": "six visitors (two phones) counted once each for two minutes, reports 60 s apart; the phone's map draws two figures on the foundations island; one moved island; all gone at the end"
   }
  ]
 }

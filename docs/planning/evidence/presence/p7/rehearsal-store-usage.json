@@ -1,0 +1,57 @@
+{
+ "note": "Local rehearsal (local-preview-stack.mjs): 3 instances, one Redis behind an Upstash REST stand-in. Commands Redis executed = what Upstash would bill (a script and each call inside it).",
+ "afterValidation": {
+  "requestsToStore": 296,
+  "sentByCommand": {
+   "HGETALL": 81,
+   "EVAL": 116,
+   "HMGET": 87,
+   "HSET": 12
+  },
+  "executedByRedis": {
+   "hmget": 177,
+   "hset": 92,
+   "eval": 116,
+   "hdel": 8,
+   "hgetall": 108,
+   "hlen": 13
+  },
+  "billed": 514,
+  "requestsPerInstance": [
+   282,
+   283,
+   282
+  ],
+  "keys": [
+   "li:presence:preview:sessions"
+  ]
+ },
+ "afterOutageAndFaultChecks": {
+  "requestsToStore": 362,
+  "byMode": {
+   "up": 322,
+   "down": 34,
+   "slow": 2,
+   "refuse": 2,
+   "quota": 2
+  },
+  "executedByRedis": {
+   "hmget": 195,
+   "hset": 101,
+   "eval": 126,
+   "hdel": 9,
+   "hgetall": 117,
+   "keys": 1,
+   "hlen": 16
+  },
+  "billed": 565,
+  "requestsPerInstance": [
+   408,
+   409,
+   409
+  ],
+  "keys": [
+   "li:presence:preview:sessions"
+  ]
+ }
+}

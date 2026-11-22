@@ -1,17 +1,17 @@
 {
- "checked": "2026-11-21T18:03:30.693Z",
+ "checked": "2026-11-22T01:58:48.222Z",
  "passed": 10,
  "failed": 0,
  "results": [
   {
    "id": "api.get",
    "status": "PASS",
-   "detail": "503 unavailable, no-store, in 16 ms"
+   "detail": "503 unavailable, no-store, in 12 ms"
   },
   {
    "id": "api.post",
    "status": "PASS",
-   "detail": "503 unavailable in 4 ms, retry-after 60 s"
+   "detail": "503 unavailable in 17 ms, retry-after 60 s"
   },
   {
    "id": "desktop.home-map",

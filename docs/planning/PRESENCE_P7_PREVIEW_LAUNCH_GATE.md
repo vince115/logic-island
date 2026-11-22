@@ -5,6 +5,7 @@
 > 前一輪：[PRESENCE_P6_PRODUCTION_READINESS.md](PRESENCE_P6_PRODUCTION_READINESS.md)。本文件更新其中兩件事：心跳與逾時的時間（30／90 秒 → 60／150 秒），以及共用儲存的寫入方式與費用（§3）。
 > 需要你決定或動手的事項集中在 §8。
 > 2026-11-22 補記：你核准了 Vercel 的唯讀授權，§2 的五項盤點已完成（只讀，沒有改任何設定）。
+> 2026-11-22 再補記：既有 Upstash 整合的資料庫讀不到（§2.4）；在等你處理 Redis 的期間，用本機的「三個 instance＋一個共用 Redis」預演了你列的八個驗收項目，全部通過（§10）。
 
 ## 1. 本輪範圍與結果
 
@@ -16,6 +17,7 @@
 | 3 | Preview 安全檢查 | 七項都有結論（§4）；補了兩個「儲存失效」的防護 |
 | 4 | Draft PR 與 CI | PR #44（Draft）；`trials-ci` 通過；期間兩度併入前進的 `main`（§5） |
 | 5 | Preview 驗收準備 | 不需要付費資源的部分都完成；Upstash Free 的條件在 §6，**等你同意後才建立** |
+| 6 | 本機 Preview 預演（2026-11-22 追加） | 三個 instance 共用一個 Redis：驗收腳本 18 通過／0 失敗／2 略過，儲存故障注入 8／8，儲存失效 10／10（§10） |
 
 ## 2. Vercel 授權與環境盤點
 
@@ -51,6 +53,28 @@
 2. **本分支的 Preview 目前也沒有 Presence**：三個變數與儲存都還沒設（§6.3），所以現在的 Preview 是預設 build。
 3. **Redis 應該開在美國東岸**（Upstash 的 `us-east-1`，N. Virginia），和函式同區。每次回報函式要對 Redis 發 1–3 個請求；兩者同區時每個請求通常是幾毫秒，跨太平洋則是一兩百毫秒的等級（一般的網路距離估計，沒有在這個專案上量過；區域名稱以建立畫面的選項為準）。台灣訪客到函式的那一段（`hkg1` → `iad1`）不論 Redis 放哪裡都一樣。我不建議為了這件事改函式區域：那是專案層級的設定，會連 Production 一起改。
 4. **限流用 Hobby 的那一組**（§4.6）：只有 1 條限流規則。
+
+### 2.4 既有的 Upstash 整合底下有沒有資料庫（2026-11-22）
+
+你要我先確認這一點。結論：**目前的授權讀不到，需要你看一眼或多給一項授權**。
+
+| 我試了什麼（都是唯讀） | 結果 |
+|---|---|
+| 讀取這個安裝本身（`get_configuration`） | 讀得到，但只有安裝的資料：沒有接任何專案（`projects` 是空的），權限含 `read-write:integration-resource`。**回應裡沒有資源清單** |
+| 列出這個安裝能建立的產品（`list_integration_configuration_products`） | Upstash for Redis、QStash／Workflow、Search、Vector。Redis 的主要區域可以選 `iad1`（與函式同區） |
+| 列出 Redis 的計費方案（`list_integration_billing_plans`，區域 `iad1`） | **只列出 Pay As You Go 與 Fixed 250MB～500GB，每一個都標示需要付款方式；清單裡沒有 Free** |
+| 列出團隊的儲存資源 | Vercel 連線沒有這個工具（只有「依 ID 讀取一個」，而我沒有 ID，也不會去猜） |
+| 用 App 內建瀏覽器開 Team → Storage 頁面 | 轉到登入頁：內建瀏覽器沒有登入 Vercel。我沒有登入，也沒有用本機 CLI（那是另一個帳號） |
+
+從專案這一側可以確定的：`logic-island` 沒有接任何儲存（沒有任何 `KV_*`／`UPSTASH_*` 變數，§2.3），所以**就算有既有的資料庫，也沒有接到這個專案**。
+
+**方案清單裡沒有 Free，這一點要先弄清楚再建立**。可能的原因我分不出來：這個 Upstash 帳號已經用掉唯一的免費資料庫；帳號已經有付款方式（Upstash 的規則是有付款方式就不能有免費資料庫，§6.2）；或是這個 API 本來就不列免費方案。不論是哪一個，**如果建立畫面上沒有 Free 可選，建立資料庫就是建立付費資源**，那是你的決定，不是我能自己做的。
+
+要補上這一項，三選一：
+
+1. **你自己看（最快）**：打開 `https://vercel.com/vince115s-projects/~/stores`，告訴我有幾個 Upstash 資源、各叫什麼、方案是什麼；再按一次「Create Database → Upstash for Redis」看方案選單有沒有 Free（看完關掉，不要建立）。
+2. **讓我看**：在 App 的瀏覽器分頁登入 vercel.com（`vince115` 帳號）。範圍：我只讀 Team → Storage 的清單頁，以及建立畫面的方案選單（不送出）。不讀任何連線字串或 Token。
+3. 把本機 `vercel` CLI 換成 `vince115` 帳號登入（`vercel login`）。範圍：我只執行 `vercel integration list` 這類列表指令。這會改變你本機 CLI 的登入狀態，所以我不建議為這件事做。
 
 ## 3. Redis 成本優化
 
@@ -280,6 +304,8 @@ Presence 與網站其餘部分本來就沒有相依：頁面是靜態的，追�
 | `887e40d` | 沒有執行 | 不是失敗：這期間 `main` 併入了 PR #42–#46，PR 與 `main` 在 `docs/handoff/TESTING_STATUS.md` 衝突，GitHub 做不出合併結果就不會啟動 `pull_request` 的工作流程 |
 | `a530d96`（併入 `main` `fe3c344`） | **通過**（10 分 14 秒） | 衝突只有那一個文件，兩邊各自新增的段落都保留 |
 | `f1ed07f`（併入 `main` `b36c565`，再加兩個測試調整） | **通過**（12 分 45 秒） | `main` 又併入 PR #47（電腦網路島 CN01–CN05）。沒有衝突，但有一個本分支的單元測試因此在本機失敗，推送前已修正（下一段） |
+| `21a8f12`、`7c0b330` | **通過** | 只改文件與證據 |
+| 併入 `main` `f18aafa` 之後 | 見 PR 頁面 | `main` 又前進了 47 個 commit（PR #48–#58，電腦網路島、AI 基礎島與終端機課程能力）。沒有衝突；本機全套重跑的結果在 §10.4 |
 | 之後的文件 commit | 見 PR 頁面 | 只改文件。`main` 仍在前進（其他工作階段的課程批次），PR 落後但可以乾淨合併；CI 每次都以當時最新的 `main` 驗證合併結果 |
 
 **失敗的歸類**：
@@ -307,7 +333,7 @@ Presence 與網站其餘部分本來就沒有相依：頁面是靜態的，追�
 
 | 你問的 | 內容 |
 |---|---|
-| **正式計費條件** | Free 方案 US$0。**在 Upstash 帳號加入付款方式的那一刻，帳號下所有免費資源都會改為隨用隨付**（官方：「An account with a payment method cannot have free databases」）。之後依用量計費：每 10 萬命令 US$0.20、儲存超過 1 GB 每 GB US$0.25、流量超過 200 GB 每 GB US$0.03。透過 Vercel Marketplace 建立而且讓 Vercel 管理 Upstash 帳號時，付款走 Vercel；建立 Free 資料庫是否需要 Vercel 帳號上有付款方式，**官方頁面沒有寫**，要以安裝畫面為準 |
+| **正式計費條件** | （2026-11-22：Vercel 對這個安裝列出的方案裡沒有 Free，見 §2.4；以下是 Upstash 官方頁面的說明。）Free 方案 US$0。**在 Upstash 帳號加入付款方式的那一刻，帳號下所有免費資源都會改為隨用隨付**（官方：「An account with a payment method cannot have free databases」）。之後依用量計費：每 10 萬命令 US$0.20、儲存超過 1 GB 每 GB US$0.25、流量超過 200 GB 每 GB US$0.03。透過 Vercel Marketplace 建立而且讓 Vercel 管理 Upstash 帳號時，付款走 Vercel；建立 Free 資料庫是否需要 Vercel 帳號上有付款方式，**官方頁面沒有寫**，要以安裝畫面為準 |
 | **Free 額度** | 每月 50 萬命令、資料 250 MB、每月流量 10 GB、每秒最多 10,000 個命令、單一請求 10 MB；一個免費帳號只能有 **1 個**資料庫 |
 | **超額後的行為** | 命令數用完：請求得到錯誤 `ERR max requests limit exceeded`。是否到下個月才恢復、流量或容量超過時怎麼處理，**官方頁面沒有寫**。沒有付款方式就沒有東西可以扣款（這一句是我的推論，不是官方的句子）。對本站：API 回 503，地圖沒有即時人影，其餘正常（§4.5） |
 | **預算或用量限制方法** | Free：不綁卡，額度本身就是上限。隨用隨付：每個資料庫可設每月預算，70% 與 90% 寄信，到了就限流、不再計費。程式這一側：每個 Session 每分鐘 40 次寫入、Session 上限、§4.6 的 Firewall 規則。每日用量的檢視方式官方頁面沒有寫，Upstash 主控台有用量圖表 |
@@ -392,7 +418,9 @@ Presence 與網站其餘部分本來就沒有相依：頁面是靜態的，追�
 | R9 | 隱私說明仍是草案；preflight 的例外（`144fe69`）仍待你審閱 | 與 P6 相同 |
 | R10 | 資料庫被清空或 Key 被刪除時，只靠脈衝維持的訪客最多 10 分鐘不被計入 | 記錄每 10 分鐘重寫一次時自動恢復 |
 | R11 | 團隊既有的 Upstash 安裝底下是否已經有資料庫，未知；免費帳號只能有 1 個 | 建立前在 Team → Storage 看一眼（§6.3 第 0 步） |
-| R12 | Preview 在 Vercel Authentication 後面；Hobby 方案能不能用 Protection Bypass for Automation，這次查到的官方頁面沒有寫 | 不能用的話，自動驗收腳本改由你在已登入的瀏覽器執行，或只做人工清單 |
+| R12 | Preview 在 Vercel Authentication 後面；Hobby 方案能不能用 Protection Bypass for Automation，這次查到的官方頁面沒有寫 | 有另一條路：Vercel 連線可以替一個部署建立**分享連結**（23 小時後失效，持有連結的人都能看那一個 Preview）。驗收腳本已支援（`SHARE`），但**還沒有對真正的 Vercel 用過**。Preview 配置好之後我會用這個方式，連結只放在執行環境裡；你不同意的話先告訴我（§10.5） |
+| R13 | 超過速率上限的 Session 連告別也被拒絕，要等它那一分鐘過完才能離開；在那之前離開的話，它會被多算到逾時為止（最多 150 秒） | 從第一輪就是這樣（告別也是一次寫入，放行就等於開了一個不受限的寫入口）；這次用真的請求量到了（§10.2）。正常的頁面每分鐘 1–2 次寫入，碰不到 40 次的上限。KNOWN_ISSUES P1-51 |
+| R14 | 你列的「Redis 故障降級」在真正的 Preview 上無法由我引發：要讓真的 Upstash 失效，只能改掉 Preview 的連線變數再重新部署 | 本機預演已覆蓋五種故障與恢復（§10.3）。Preview 上要不要真的做一次，是你的決定（§10.5） |
 
 ### 8.2 待你決定
 
@@ -419,6 +447,8 @@ Presence 與網站其餘部分本來就沒有相依：頁面是靜態的，追�
 | 失效時不影響網站 | 已驗證（§4.5） |
 | 私有題庫 | clean |
 
+**2026-11-22 追加**：八個驗收項目已在本機預演全部通過（§10），所以剩下的風險集中在「真正的 Vercel 與 Upstash 和本機不一樣的地方」（R1、R6、R12）。
+
 **還不能在 Preview 上驗收，因為還有兩件事需要你**（都不是程式問題）：
 
 1. ~~Vercel 的唯讀授權~~：已完成（§2.3）。
@@ -444,4 +474,125 @@ KV_REST_API_URL=https://127.0.0.1:9 KV_REST_API_TOKEN=unused LOGIC_ISLAND_PRESEN
 ROOT=$PWD BASE=http://127.0.0.1:3154 node docs/planning/evidence/presence/tools/store-outage-check.mjs
 ```
 
+本機 Preview 預演（§10；三個 instance、一個共用 Redis、可注入故障）：
+
+```bash
+LOGIC_ISLAND_PRESENCE=1 LOGIC_ISLAND_POPULATION_NPC=live pnpm exec next build
+ROOT=$PWD WORK=<空的暫存目錄> node docs/planning/evidence/presence/tools/local-preview-stack.mjs   # 印出 READY 後保持執行
+ROOT=$PWD BASE=http://127.0.0.1:3156 EXPECT_STORE=shared node docs/planning/evidence/presence/tools/preview-validate.mjs
+ROOT=$PWD BASE=http://127.0.0.1:3156 CONTROL=http://127.0.0.1:3159 node docs/planning/evidence/presence/tools/store-flap-check.mjs
+```
+
 依專案慣例，這些都應該在隔離的副本裡執行（build 會寫 `.next`）。
+
+## 10. 本機 Preview 預演與 Preview 驗收計畫（2026-11-22）
+
+你要求在 Redis 與 Preview 變數準備好之前，先完成所有不依賴真實 Preview Redis 的驗證。先前的本機驗證有一個缺口：驗收腳本只對「一個伺服器、記憶體儲存」跑過，多 instance 的一致性只在儲存層的測試裡驗過，沒有經過真的 HTTP、真的瀏覽器與 REST 連線。這一輪把它補上。
+
+### 10.1 預演環境
+
+工具：[`evidence/presence/tools/local-preview-stack.mjs`](evidence/presence/tools/local-preview-stack.mjs)。它在本機啟動：
+
+| 元件 | 說明 |
+|---|---|
+| 一個專用的 `redis-server` | 不寫入磁碟，結束時關掉 |
+| Upstash REST API 的替身（https） | 接受應用程式送出的指令並轉給那個 Redis；和 Marketplace 整合一樣以 `KV_REST_API_URL`／`KV_REST_API_TOKEN` 提供給應用程式 |
+| 三個 `next start` 行程 | 同一個 Presence build，`VERCEL_ENV=preview`，所以 Key 是 `li:presence:preview:sessions` |
+| 一個輪流分派的入口 | 每個請求交給下一個 instance（實測三個各得三分之一：282／283／282） |
+| 控制位址 | 讓儲存「斷線、變慢、回 500、額度用完」，以及讀取 Redis 實際執行的指令數 |
+
+Token 與 Session 金鑰在啟動時隨機產生，只存在行程的記憶體裡，不印出、不寫檔。應用程式只接受 https 的儲存位址，這一點沒有為了預演放寬：工具自己簽一張只給 `127.0.0.1` 的憑證，以 `NODE_EXTRA_CA_CERTS` 交給那三個行程，系統的信任清單沒有動。
+
+**它不是什麼**：不是 Vercel 的 CDN、Firewall 與區域，也不是 Upstash 本身。它驗的是「本系統在多個 instance、共用一個 Redis、經過 REST 連線時的行為」。Upstash 實際的延遲、計費與額度用完時的回應，仍然要在真正的 Preview 上確認（R1）。
+
+### 10.2 你列的八個項目
+
+驗收腳本 `preview-validate.mjs` 新增了 D 部分（`timing.*`、`order.*`、`rate.*`、`count.crowd`），同一支腳本之後直接對 Preview 執行。
+
+| 你列的項目 | 用什麼驗 | 本機預演（三個 instance） | Preview 上 |
+|---|---|---|---|
+| Redis 多 Instance 一致性 | `api.store` 是 `shared`；所有計數檢查的請求輪流落在三個 instance；`store.agreement` 同時 24 個請求只有一種答案 | **通過** | 同一支腳本；Vercel 開幾個 instance 不由我們決定，`store.agreement` 用並行請求逼出多個 |
+| 心跳與 TTL | `timing.reported`（伺服器要求 60 秒後回報、逾時 150 秒）；`count.crowd` 觀察真的頁面兩分鐘（兩次回報相隔 60 秒）；`count.timeout`（斷網的訪客先留著，150 秒加延遲之內消失） | **通過** | 同上 |
+| 多人在線計數 | `count.visitor`、`count.two-tabs`、`count.region`、`count.planned-island`、`count.crowd`（六位訪客在四座島、一個群島頁與首頁，靜置兩分鐘，一位換島，全部離開） | **通過** | 同上 |
+| 亂序與重複請求 | `order.repeated-and-late`：不經頁面直接送請求。同一個回報重複四次、被超車的舊回報、過時的告別都不改變計數；告別後才到的舊回報不會把訪客帶回來；更新的回報才會 | **通過** | 同上 |
+| API Rate Limiting | `rate.session`：一個 Session 連送 50 次，正好 40 次被接受、10 次回 429 並帶 `Retry-After`，另一個 Session 不受影響。`rate.platform`：Vercel Firewall 的規則 | 程式這一層**通過**；Firewall 本機沒有 | `rate.session` 照跑。`rate.platform` 要先有 Firewall 規則（那是專案層級的設定，也會套用在 Production，所以是你的決定，§10.5） |
+| Redis 故障降級 | `store-outage-check.mjs`（儲存一開始就不通）與新的 `store-flap-check.mjs`（訪客在線時儲存壞掉再恢復，§10.3） | **10／10 與 8／8** | 無法由我引發（R14） |
+| Desktop／Mobile E2E | `count.crowd` 裡兩位是手機尺寸與手機 User-Agent，並檢查手機首頁地圖的人影數；`e2e/presence.spec.ts` 的桌機與手機專案；儲存失效檢查的桌機與手機頁面 | **通過**（E2E 56／56，§10.4） | 腳本的手機是模擬的；真機是人工清單（PRESENCE_PREVIEW_VALIDATION.md §5.3） |
+| Leak Scan | `trials:leak-scan`（追蹤檔案）；release preflight 的 `bundle-leak`（build 產物） | **clean** | Preview 的 build 產物由 CI 的 preflight 把關；我會再對驗收當時的 commit 掃一次 |
+
+完整一次驗收腳本的結果：**18 通過／0 失敗／2 略過**（略過的是 CDN 與 Firewall，本機都沒有）。記錄在 [`evidence/presence/p7/rehearsal-preview-validate.json`](evidence/presence/p7/rehearsal-preview-validate.json)。
+
+**一次完整驗收花多少 Redis 命令**：514 個（Redis 實際執行的指令數，等於 Upstash 的計費方式），加上故障注入共 565 個。相對於 Free 的每月 50 萬可以忽略。記錄在 [`rehearsal-store-usage.json`](evidence/presence/p7/rehearsal-store-usage.json)。
+
+過程中有三次失敗，都是我新寫的檢查本身的問題，不是系統的：
+
+| 失敗 | 原因 | 處理 |
+|---|---|---|
+| `rate.session` 等不到那個 Session 離開 | 檢查假設「超過上限的 Session 仍然可以告別」。實際上告別也算一次寫入，會被拒絕，從第一輪就是這樣設計 | 檢查改為驗證真正的行為：告別被拒絕、訪客仍被計入；那一分鐘過完之後才能離開。這個特性記為 R13／P1-51 |
+| `count.crowd` 的數字對不上 | 兩個原因：首頁的訪客算在 `commons.hub`，我的預期漏了；比較時把物件的鍵順序也算進去 | 修正預期；比較改為不看鍵的順序 |
+| 重跑時起始數字錯 | 三個 instance 各自保留最多 15 秒的人口數字，腳本開始時讀到的基準剛好是一個即將過期的舊數字 | 腳本現在會等所有答案連續 20 秒一致才開始，而且檢查失敗時也讓訪客告別，不留給下一次執行。這個問題在單一 instance 上不會出現，是這次預演才看得到的 |
+
+第三項值得記住：**對 Preview 執行時，起始基準一樣會遇到 instance 的快取**，所以這個修正不只是為了本機。
+
+### 10.3 儲存壞掉再恢復
+
+`store-flap-check.mjs`：兩個 Session 與一個真的頁面在線，然後依序讓儲存以四種方式失效，最後恢復。
+
+| 情境 | 結果 |
+|---|---|
+| 儲存直接斷線 | 回報立刻回 503（9 毫秒）；每個 instance 的人口回應在自己那份數字過期後（15 秒內）也回 503；開著的頁面自己的回報也被拒絕 |
+| 儲存 6 秒才回應 | 3 秒逾時後回 503（回報 3,009 毫秒、人口 3,008 毫秒），函式不會被拖住 |
+| 儲存回 500 | 503，10 毫秒 |
+| 方案的命令額度用完（Upstash 的錯誤訊息） | 503，9 毫秒；回應裡沒有額度、用量或服務名稱 |
+| 以上四種的共同點 | 回應都是 `{"ok":false,"error":"unavailable"}`、`no-store`、帶 `Retry-After`；看不出是哪一種故障 |
+| 故障期間的網站 | 課程頁照常載入，沒有頁面錯誤；另外 `store-outage-check.mjs` 在三個 instance 上 10／10（桌機與手機的地圖、島嶼聚焦、課程播放器、各頁面） |
+| 恢復 | Session 馬上再被計入；那個一直開著、沒有人重新整理的頁面在 53 秒後自己再次回報成功（被拒絕時伺服器要它等 60 秒） |
+
+「額度用完」這一項用的是 Upstash 文件上的錯誤訊息格式，由替身回覆；真正的 Upstash 在額度用完時回什麼狀態碼，仍然要以實際為準。本系統對任何非成功的回應都一樣處理，所以結果不會因此不同。
+
+### 10.4 併入最新 `main`（`f18aafa`）之後的全套結果
+
+`main` 在這段期間又前進了 47 個 commit（PR #48–#58）。併入沒有衝突，也沒有兩邊都改的檔案。以下全部在隔離副本執行。
+
+| 檢查 | 結果 |
+|---|---|
+| Typecheck | 0 錯誤 |
+| ESLint | 0 錯誤、1 個警告（`src/components/curriculum/lesson-page.tsx` 有一個沒用到的 import，是 `main` 帶進來的，不是本分支的檔案） |
+| Vitest 全套（含真 Redis） | **111 個檔案、3,258 通過／10 略過／0 失敗** |
+| 預設 build（旗標全關） | 0 個 route handler；preflight `--build` 通過（`bundle-leak` 掃 1,393 個檔案） |
+| 全套 E2E，預設 build | **439 通過／2 失敗／367 略過**。失敗的兩項是 `candidate-integration.spec.ts:179`、`:264`，`main` 既有的 P1-43，與先前相同 |
+| 旗標全關對 `main`（`f18aafa`）逐像素 | **18 組 0 差異** |
+| Presence build 的 preflight | 有宣告：通過（177 個路由，handler 掃 6 個檔案）；沒宣告：`routes` 失敗（設計如此） |
+| Presence 瀏覽器測試（桌機＋手機專案） | **56 通過／18 略過／0 失敗** |
+| P9 區域地圖（mock）；加上共用畫布 | 各 10／10 |
+| Live 瀏覽器測試 | 4／4 |
+| 驗收腳本，單一 instance、記憶體儲存 | 18 通過／0 失敗／2 略過 |
+| 儲存失效檢查，單一 instance | 10／10 |
+| 驗收腳本，三個 instance、共用 Redis | **18 通過／0 失敗／2 略過** |
+| 儲存故障注入，三個 instance | **8／8**；儲存失效檢查 10／10 |
+| 私有題庫洩漏掃描（追蹤檔案） | clean |
+
+本機 preflight 的 `--probe` 一樣回報 `/trials` 是 404（本機沒有設 `LOGIC_ISLAND_TRIALS=1`，與先前相同；CI 用自己的旗標執行）。
+
+### 10.5 Preview 配置好之後我會做的，以及仍然需要你的
+
+Preview 的 Redis 與三個變數就緒後（§6.3），我會自己執行，不再逐項詢問：
+
+1. 讀取該分支最新的 Preview 部署，確認 `/api/presence` 回 200、`x-presence-store` 是 `shared`、函式在 `iad1`。
+2. 取得存取：替**那一個 Preview 部署**建立分享連結（23 小時後失效）。連結只放在執行環境的變數裡，不寫進檔案、不貼在對話中。這會是我第一次對 Vercel 做唯讀以外的事，範圍只有這個 Preview 部署；**你不希望我這樣做的話，請在配置完成時一併告訴我**，改由你提供 Protection Bypass 密鑰或在已登入的瀏覽器執行。
+3. 對 Preview 執行完整的 `preview-validate.mjs`（含 `api.cdn`），記錄結果與當時 Upstash 的用量。
+4. 對驗收當時的 commit 再跑洩漏掃描，確認 `trials-ci`。
+5. 全部通過後，整理 PR #44 的正式發布準備報告。PR 維持 Draft。
+
+不會做的：不改 Production、不開正式 Presence、不改函式區域、不把任何金鑰寫進 repository、不合併。
+
+仍然需要你決定或動手的：
+
+| 項目 | 為什麼需要你 |
+|---|---|
+| Upstash 資料庫：先確認既有的，再決定建立（§2.4、§6.3） | 建立第三方資源；而且方案清單裡沒有看到 Free，可能涉及費用 |
+| 三個 Preview 變數與重新部署 | 修改環境變數；金鑰必須由你產生 |
+| Vercel Firewall 的限流規則（要驗 `rate.platform` 才需要） | 專案層級的設定，會同時套用在 Production 的網址上；Hobby 只有 1 條 |
+| 要不要在 Preview 上真的引發一次 Redis 故障 | 得把 Preview 的連線變數改壞再重新部署，之後改回來 |
+| 真機驗收（iPhone、Android） | 需要實體裝置 |
+| 正式發布的決定 | 轉為可審閱、合併 `main`、開啟 Production Presence |

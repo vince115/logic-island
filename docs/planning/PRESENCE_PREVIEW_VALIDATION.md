@@ -80,10 +80,18 @@ ROOT="$PWD" BASE="https://<preview 網址>" BYPASS="<步驟 ④ 的密鑰>" OUT=
 | `count.goodbye` | 第一位訪客關掉頁面：計數歸零，人影離開 | 告別 |
 | `count.timeout` | 第二位訪客斷網：先仍計入，逾時（150 秒）加上數字的延遲之內消失（最多約四分鐘；`SKIP_TTL=1` 可略過） | 過期 |
 | `count.clean` | 結束時人口回到開始時的數字 | 清理 |
+| `timing.reported`（P7） | 一個 Session 的回報被計入，伺服器要求 60 秒後再回報；人口回應的逾時是 150 秒 | 心跳與 TTL |
+| `order.repeated-and-late`（P7） | 不經頁面、直接送請求：同一個回報重複四次、被較新回報超車的舊回報、早於最新回報的告別，都不改變計數；告別之後才到的舊回報不會把訪客帶回來；更新的回報才會 | 亂序與重複請求 |
+| `rate.session`（P7） | 一個 Session 連送 50 次：正好 40 次被接受，其餘 10 次回 429 並帶 `Retry-After`；另一個 Session 不受影響；被拒絕的請求不改變計數 | API Rate Limiting（程式這一層） |
+| `rate.platform`（P7） | 設了 `EXPECT_FIREWALL=<規則允許的次數>` 才執行：送出超過這個數字的請求，必須有一部分被平台回 429。沒設就略過 | API Rate Limiting（Vercel Firewall） |
+| `count.crowd`（P7） | 六位訪客同時在線（其中兩位是手機尺寸與手機 User-Agent）：四座島、一個群島頁、首頁各就各位；靜置兩分鐘計數不變，而且頁面每 60 秒回報一次；手機的首頁地圖畫出正確的人影數；一位換島後計數跟著換；全部離開後歸零；沒有頁面錯誤 | 多人在線計數、心跳、Desktop／Mobile |
 
 - 計數都以「與開始時的差」判斷，並且每一項都等到成立為止（人口數字在 CDN 最多舊 15 秒、在 instance 再 15 秒），所以 Preview 上有少數其他訪客也不會誤判；最好在沒有別人使用時執行。
 - **這支腳本已在本機的 live build 上跑過**（`EXPECT_STORE=memory`），結果見 [PRESENCE_P6_PRODUCTION_READINESS.md](PRESENCE_P6_PRODUCTION_READINESS.md) §8。本機驗不到的是 `api.store` 為 `shared`、`api.cdn` 與 `store.agreement` 在多 instance 下的意義。
 - NPC 假資料的 build（`mock`）用 `EXPECT_NPC=mock`；沒有 NPC 的 build 用 `EXPECT_NPC=off`。
+- **P7 追加（2026-11-22）**：腳本開始前會等人口數字連續 20 秒一致（每個 instance 各自保留最多 15 秒的數字，只讀一次的基準可能是即將過期的舊值）；一次完整執行約 15 分鐘、約 500 個 Redis 命令。`ONLY=<正規表示式>` 可以只重跑指定的檢查。
+- Preview 在 Vercel Authentication 後面時有兩種進入方式：`BYPASS`（Protection Bypass for Automation 的密鑰），或 `SHARE`（該部署分享連結的 `_vercel_share` 值；**尚未對真正的 Vercel 用過**）。兩者都只從環境變數讀取，不會印出。
+- **本機預演**：[`local-preview-stack.mjs`](evidence/presence/tools/local-preview-stack.mjs) 在本機啟動三個 instance、一個共用的 Redis 與 Upstash REST 的替身，讓這支腳本以 `EXPECT_STORE=shared` 執行；[`store-flap-check.mjs`](evidence/presence/tools/store-flap-check.mjs) 用它的控制位址讓儲存失效再恢復。結果在 [PRESENCE_P7_PREVIEW_LAUNCH_GATE.md](PRESENCE_P7_PREVIEW_LAUNCH_GATE.md) §10。預演不是 CDN、Firewall 或 Upstash 本身。
 
 既有的瀏覽器測試（`e2e/presence.spec.ts`）**不適合直接對 Preview 跑**：它假設計數立即可見（本機沒有 CDN，也沒有 instance 快取），在 Preview 上會因為 15＋15 秒的延遲而誤報。
 
