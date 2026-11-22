@@ -66,12 +66,14 @@ describe('the python-code capability', () => {
   it('keeps every other lesson as it was and the curriculum valid', () => {
     expect(validateCurriculum(curriculum)).toEqual([]);
     for (const l of lessons) {
-      // AIF-1: only the AI foundations island's lessons are python-code.
-      expect(l.capabilities.includes('python-code'), l.lessonId).toBe(l.islandId === 'ai-foundations');
+      // AIF-1: the AI foundations island's lessons are python-code; GEN-1: so is a language-model lesson whose blueprint
+      // exercise is code-python, which pairs Python with its explorer (exactly python-code and llm-explorer).
+      expect(l.capabilities.includes('python-code'), l.lessonId).toBe(l.islandId === 'ai-foundations' || l.capabilities.join() === 'python-code,llm-explorer');
       if (l.capabilities.includes('program-code')) expect(l.supportedLanguages.slice(0, 3), l.lessonId).toEqual(['C++', 'Java', 'Python']);
       const c = curriculum.contents[l.lessonId];
       if (c) expect(publishProblems(l, c), l.lessonId).toEqual([]);
     }
+    expect(lessons.filter(l => l.capabilities.includes('python-code') && l.islandId !== 'ai-foundations').map(l => l.lessonId)).toEqual(['GEN02']);
   });
 });
 

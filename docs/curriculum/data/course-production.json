@@ -400,7 +400,20 @@
       ],
       "commit": "TBD",
       "tests": "TBD",
-      "notes": "LLM-1：課程能力 LLM-0（llm-explorer：位元組層級的 BPE 斷詞與訓練、temperature／top-k／top-p 與固定 seed 的取樣、embedding 的內積、餘弦、最近鄰與 PCA 投影，全部是示意資料，練習以值檢查），並修正 token 開頭空白在驗證器與單一 token 答案中的比較；大型語言模型概觀、Tokenization 斷詞、嵌入向量三課"
+      "notes": "LLM-1：課程能力 LLM-0（llm-explorer：位元組層級的 BPE 斷詞與訓練、temperature／top-k／top-p 與固定 seed 的取樣、embedding 的內積、餘弦、最近鄰與 PCA 投影，全部是示意資料，練習以值檢查），並修正 token 開頭空白在驗證器與單一 token 答案中的比較；大型語言模型概觀、Tokenization 斷詞、嵌入向量三課",
+      "pr": "#73",
+      "merged": "9729450"
+    },
+    {
+      "id": 29,
+      "date": "2026-11-23",
+      "lessons": [
+        "GEN01",
+        "GEN02"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "GEN-1：生成式 AI 島開放（llm-explorer；GEN02 是第一堂同時有 python-code 與探索器的課，Python 標準庫的字元取樣器、序列 log 機率、temperature／top-k／top-p 與偵測重複的 greedy）；生成模型概觀、自回歸生成模型兩課"
     }
   ]
 }

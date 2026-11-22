@@ -42,8 +42,8 @@ describe('Island Registry: one entry per island, nothing stored twice (P9 S1)', 
       expect(Object.keys(e).sort(), e.islandId).toEqual(['assetSpec', 'interactionSpec', 'islandId', 'kind', 'lessons', 'publicationStatus', 'regionId', 'visualSpec'].filter(k => k in e).sort());
       expect(JSON.stringify({ ...e, visualSpec: undefined, interactionSpec: undefined }), e.islandId).not.toContain(record.name);
     }
-    // 80 lessons, then course production batches 1–5 (PL01–PL20), CN-1 to CN-5 (CN01–CN20), AIF-1 to AIF-5 (AIF01–AIF20), LNX-1 to LNX-5 (LNX01–LNX15), SRV-1 to SRV-5 (SRV01–SRV14), LLM-1 (LLM01–LLM03) and WEB-1, WEB-2 (WEB01–WEB07).
-    expect(registry.reduce((n, e) => n + e.lessons.published, 0)).toBe(179);
+    // 80 lessons, then course production batches 1–5 (PL01–PL20), CN-1 to CN-5 (CN01–CN20), AIF-1 to AIF-5 (AIF01–AIF20), LNX-1 to LNX-5 (LNX01–LNX15), SRV-1 to SRV-5 (SRV01–SRV14), LLM-1 (LLM01–LLM03), GEN-1 (GEN01–GEN02) and WEB-1, WEB-2 (WEB01–WEB07).
+    expect(registry.reduce((n, e) => n + e.lessons.published, 0)).toBe(181);
     expect(registry.reduce((n, e) => n + e.lessons.planned, 0)).toBe(subjectIslands.reduce((n, i) => n + i.lessonCount, 0));
     expect(getIslandEntry('no-such-island')).toBeUndefined();
   });
@@ -135,9 +135,9 @@ describe('World, Region and Island share one island (P9 S1 contract)', () => {
       // A planned island is never drawn built: the map can lag the lessons, never lead them.
       for (const id of planned) expect(drawnPlanned, `${region} ${id}`).toContain(id);
     }
-    expect(registry.filter(e => e.publicationStatus !== 'planned').map(e => e.islandId)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'large-language-models', 'web-foundations', 'linux-systems', 'network-servers', 'labs']);
-    // The islands whose lessons opened before their landscape: PL, CN, AIF, LLM, WEB, LNX and SRV keep the planned landscape they had (no GLB, no remodel).
-    expect(registry.filter(e => e.publicationStatus !== 'planned' && e.visualSpec.state === 'planned').map(e => e.islandId)).toEqual(['programming-languages', 'networks', 'ai-foundations', 'large-language-models', 'web-foundations', 'linux-systems', 'network-servers']);
+    expect(registry.filter(e => e.publicationStatus !== 'planned').map(e => e.islandId)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'large-language-models', 'generative-ai', 'web-foundations', 'linux-systems', 'network-servers', 'labs']);
+    // The islands whose lessons opened before their landscape: PL, CN, AIF, LLM, GEN, WEB, LNX and SRV keep the planned landscape they had (no GLB, no remodel).
+    expect(registry.filter(e => e.publicationStatus !== 'planned' && e.visualSpec.state === 'planned').map(e => e.islandId)).toEqual(['programming-languages', 'networks', 'ai-foundations', 'large-language-models', 'generative-ai', 'web-foundations', 'linux-systems', 'network-servers']);
   });
 
   it('topology: bridges join islands of one region; the world\'s ring, hub links and relation bridges join registry regions', () => {
