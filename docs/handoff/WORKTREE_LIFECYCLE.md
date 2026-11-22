@@ -107,7 +107,7 @@ Logic Island 是一個專案：公開 repository 只有一個主工作目錄，�
 | 本機備份 | `<dev-hub>/backups/logic-island/<時間戳>/` |
 | Blender 與其他獨立資產 | `<dev-hub>/assets/logic-island/` |
 
-11. **新 worktree 一律建在集中目錄。** 用 `git wt new`（下方）。不在主 repository 的同層建立 `logic-island-<功能名稱>` 目錄，也不直接下 `git worktree add ../logic-island-…`。`<名稱>` 是簡短的任務代號（小寫英數、`.`、`-`、`_`），不加 `logic-island-` 前綴。
+11. **新 worktree 一律建在集中目錄。** 用 `git wt new`（下方）。不在主 repository 的同層建立 `logic-island-<功能名稱>` 目錄，也不直接下 `git worktree add ../logic-island-…`。`<名稱>` 是簡短的任務代號（小寫英數、`.`、`-`、`_`），不加 `logic-island-` 前綴。唯一的例外是第 3 節的臨時副本：在系統暫存目錄（`/private/tmp`、`/tmp`、`/var/folders`）下為單次測試建立、用完就移除的 worktree 不受此限，`git wt list` 標為 `scratch`。
 12. **開工先盤點，優先重用。** 新 Session 先執行 `git wt list`：已有適合的工作目錄（同一條工作線、沒有其他程序在用）就重用，不另建。同時存在的額外 worktree 以 3 個為限，超過時先清理已完成的。
 13. **同一個 branch 同時只由一個 Session 修改。** Git 本身不允許同一個 branch 在兩個 worktree checkout；`git wt list` 標為 `IN USE` 的目錄有其他程序正在使用，不進去寫入、不切換它的 branch。要接手別的 Session 的工作線，先確認那個 Session 已停止。
 14. **已合併的 worktree 由建立它的 Session 清理。** PR 合併後執行 `git wt remove <名稱>`：第 4 節七項全部成立才移除，任何一項不成立就保留並回報。Branch 與 tag 不刪。
@@ -136,7 +136,7 @@ git wt audit                                  # 集中目錄以外還有 worktre
   ```
 
   沒有 alias 時的等效寫法是 `bash scripts/worktree.sh <指令>`（所在 checkout 要有這個檔案）。
-- `install` 另外在 `.git/hooks/post-checkout` 放一個守門 hook：有人在集中目錄以外新建 worktree 時，Git 會在輸出印出警告與修正指令（`git worktree move …`）。它只在「新建 worktree」那一次作用，一般的 checkout 不受影響，也不會讓任何指令失敗。Alias 與 hook 都在 `.git/` 內，不進版本控制、不隨 clone 帶走。
+- `install` 另外在 `.git/hooks/post-checkout` 放一個守門 hook：有人在集中目錄以外新建 worktree 時，Git 會在輸出印出警告與修正指令（`git worktree move …`）。它只在「新建 worktree」那一次作用，一般的 checkout、App 管理的目錄與暫存目錄下的臨時 worktree 都不受影響，也不會讓任何指令失敗。Alias 與 hook 都在 `.git/` 內，不進版本控制、不隨 clone 帶走。
 - Helper 的自我測試：`bash scripts/worktree.test.sh`（在暫存目錄建立一個假的 repository 來跑，不碰真正的工作目錄；macOS 的 `/bin/bash` 3.2 可執行）。
 
 ### 遷移既有的同層目錄

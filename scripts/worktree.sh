@@ -14,7 +14,9 @@
 #
 # It never forces: no --force, no rm -rf, no reset, no clean, no branch deletion, no stash. When a condition cannot
 # be confirmed it stops and leaves the directory as it is. It asks nothing on stdin.
-# macOS bash 3.2 compatible. LOGIC_ISLAND_WORKTREE_ROOT overrides the folder.
+# A temporary worktree under a temp directory (scratch copies for one test run) is not held to the folder.
+# macOS bash 3.2 compatible. LOGIC_ISLAND_WORKTREE_ROOT overrides the folder, LOGIC_ISLAND_WORKTREE_TMP the
+# colon-separated list of temp directories.
 
 set -u
 export GIT_OPTIONAL_LOCKS=0
@@ -59,6 +61,16 @@ fi
 case "$ROOT" in /*) ;; *) die "LOGIC_ISLAND_WORKTREE_ROOT must be an absolute path" ;; esac
 ROOT=${ROOT%/}
 APP_ROOT="$MAIN/.claude/worktrees"
+TMP_DIRS=${LOGIC_ISLAND_WORKTREE_TMP:-/private/tmp:/tmp:/private/var/folders:/var/folders}
+
+is_tmp() {
+  local IFS=: d
+  for d in $TMP_DIRS; do
+    [ -n "$d" ] || continue
+    case "$1" in "${d%/}"/*) return 0 ;; esac
+  done
+  return 1
+}
 
 # path <TAB> head <TAB> branch <TAB> flags, one worktree per line
 worktrees() {
@@ -77,7 +89,7 @@ kind_of() {
     "$MAIN") say main ;;
     "$APP_ROOT"/*) say app ;;
     "$ROOT"/*) say central ;;
-    *) say legacy ;;
+    *) if is_tmp "$1"; then say scratch; else say legacy; fi ;;
   esac
 }
 
@@ -193,6 +205,7 @@ EOF
   [ "$legacy" = 0 ] || say "legacy = outside that folder (Pending Migration): 'worktree.sh move <name>' once nothing uses it."
   [ "$others" -le 3 ] || say "note: $others worktrees besides the main checkout; the working limit is 3. Reuse or clean up before adding one."
   say "app = made by the desktop app under .claude/worktrees; the app removes it with its session."
+  say "scratch = temporary, under a temp directory; the session that made it removes it."
 }
 
 cmd_new() {
@@ -441,6 +454,10 @@ repo=${main##*/}
 if [ -n "${LOGIC_ISLAND_WORKTREE_ROOT:-}" ]; then root=${LOGIC_ISLAND_WORKTREE_ROOT%/}
 else hub=$(cd "$main/../../.." 2>/dev/null && pwd -P) || exit 0; root="$hub/.worktrees/$repo"; fi
 case "$top" in "$root"/*|"$main"/.claude/worktrees/*) exit 0 ;; esac
+# Temporary worktrees (scratch copies for one test run) are not held to the folder.
+for d in $(printf '%s' "${LOGIC_ISLAND_WORKTREE_TMP:-/private/tmp:/tmp:/private/var/folders:/var/folders}" | tr ':' ' '); do
+  case "$top" in "${d%/}"/*) exit 0 ;; esac
+done
 name=${top##*/}; name=${name#"$repo"-}
 cat >&2 <<MSG
 

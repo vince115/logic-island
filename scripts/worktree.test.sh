@@ -28,6 +28,8 @@ wt() { bash "$HELPER" "$@"; }
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.invalid
 unset LOGIC_ISLAND_WORKTREE_ROOT
+# The whole test lives in a temp directory, so narrow "temp" to one folder of it.
+export LOGIC_ISLAND_WORKTREE_TMP="$T/scratch"
 
 MAIN="$T/hub/github/acme/demo"; ROOT="$T/hub/.worktrees/demo"
 mkdir -p "$MAIN" && git init -q --bare "$T/origin.git" && git init -q -b main "$MAIN" && cd "$MAIN" || exit 1
@@ -125,6 +127,14 @@ out=$(git worktree add -b raw/app "$MAIN/.claude/worktrees/app-one" main 2>&1)
 printf '%s' "$out" | grep -q 'worktree guard' && bad "guard: silent for app worktrees" "$out" || ok "guard: silent for app worktrees"
 out=$(git -C "$T/hub/github/acme/demo-raw" checkout -q -b raw/three 2>&1; git -C "$T/hub/github/acme/demo-raw" checkout -q raw/one 2>&1)
 [ -z "$out" ] && ok "guard: silent on ordinary checkouts, even outside the folder" || bad "guard: silent on ordinary checkouts, even outside the folder" "$out"
+mkdir -p "$T/scratch"
+out=$(git worktree add -b raw/tmp "$T/scratch/run1" main 2>&1)
+printf '%s' "$out" | grep -q 'worktree guard' && bad "guard: silent for a temporary worktree" "$out" || ok "guard: silent for a temporary worktree"
+out=$(wt list 2>&1)
+printf '%s' "$out" | grep -Eq '^scratch +raw/tmp ' && ok "list: a temporary worktree is scratch" || bad "list: a temporary worktree is scratch" "$out"
+out=$(wt audit 2>&1)
+printf '%s' "$out" | grep -q 'scratch/run1' && bad "audit: a temporary worktree is not flagged" "$out" || ok "audit: a temporary worktree is not flagged"
+git worktree remove "$T/scratch/run1"
 expect 1 "desktop app" "check: an app worktree is not ours to remove" wt check app-one
 expect 1 "desktop app" "move: an app worktree stays" wt move app-one
 mkdir -p scripts && cp "$HELPER" scripts/worktree.sh
