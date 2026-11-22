@@ -84,6 +84,7 @@
 | WEB-2 | WEB05–07 | CSS 選擇器、串接與特異性；盒模型與一般排版流；定位與堆疊順序（引擎：`hit`、`scroll`、相對於視窗的 `box`） |
 | WEB-3 | WEB08–10 | JavaScript 與 DOM、事件與事件委派、非同步 JavaScript（引擎階段 W1：錯誤行號與 `defer`；W2：虛擬時鐘；`dispatch` 操作） |
 | WEB-4 | WEB11–13 | fetch、JSON 與 API；瀏覽器儲存；語意 HTML 與 ARIA（引擎階段 W3：模擬伺服器；W4：記憶體中的儲存空間與 Cookie；W5：無障礙名稱、角色與 Tab 順序） |
+| WEB-5 | WEB14–15 | 網頁效能基礎；綜合專題（challenge-stages 五關），全島完成 |
 | 之後 | 依 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 自動選擇 | 先修已滿足、能力已備妥、解鎖其他島最多的島優先；缺少的共用能力先做最小可用版本 |
 
 進度記錄在 [COURSE_PRODUCTION_PROGRESS](COURSE_PRODUCTION_PROGRESS.md)。

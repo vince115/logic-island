@@ -6,11 +6,11 @@
 
 | 項目 | 數量 |
 |---|---|
-| 已發布課程 | 185 |
-| 規劃中課程 | 335 |
+| 已發布課程 | 187 |
+| 規劃中課程 | 333 |
 | 課程總數 | 520 |
-| 整體覆蓋率 | 35.6% |
-| 最近一批（第 30 批）完成 | 3 堂（WEB11、WEB12、WEB13） |
+| 整體覆蓋率 | 36.0% |
+| 最近一批（第 31 批）完成 | 2 堂（WEB14、WEB15） |
 | 可完整學完的學習路線 | 2 條（APCS／資訊科學基礎、網路與系統）／12 條 |
 
 ## 批次
@@ -47,6 +47,7 @@
 | 28 | 2026-11-22 | LLM01、LLM02、LLM03 | `TBD` | — | 未合併 | TBD |
 | 29 | 2026-11-23 | WEB08、WEB09、WEB10 | `TBD` | #75 | 未合併 | 驗證器、發布閘門 182/182（併入 main 的 LLM-1 之後）、TypeScript、ESLint、Vitest 131 檔 3686 passed／9 skipped（含 Chromium：十堂網頁課的每個範例、參考解答、起始內容與常見錯誤，以及虛擬時鐘、載入順序與錯誤行號的測試）、Production build、E2E 桌機＋手機旗標關 461 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；e2e/webcode-lessons.spec.ts 在課程頁上把 40 個練習各做一遍）、測驗 24 題逐題複核、洩漏掃描 |
 | 30 | 2026-11-23 | WEB11、WEB12、WEB13 | `TBD` | — | 未合併 | 驗證器、發布閘門、TypeScript、ESLint、Vitest（併入 main 之前的 WEB-4 樹：131 檔 3694 passed／9 skipped，含 Chromium：十三堂網頁課的每個頁面，以及模擬伺服器、儲存空間、無障礙名稱／角色與 Tab 順序的測試）、Production build、E2E 桌機＋手機旗標關 467 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上 52 個練習各做一遍）；併入 main（LLM-1）後重跑 TypeScript、ESLint、完整 Vitest 與 E2E、測驗 24 題逐題複核、洩漏掃描 |
+| 31 | 2026-11-23 | WEB14、WEB15 | `TBD` | — | 未合併 | 驗證器、發布閘門、TypeScript、ESLint、Vitest（併入 main 之前的 WEB-5 樹：131 檔 3696 passed／9 skipped，含 Chromium：十五堂網頁課的每個頁面）、Production build、E2E 桌機＋手機旗標關 471 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上 61 個練習各做一遍）；併入 main（LLM-1）後重跑 TypeScript、ESLint、完整 Vitest 與 E2E、測驗 16 題逐題複核、洩漏掃描 |
 
 ## 各區域與島嶼
 
@@ -71,7 +72,7 @@
 | 數位設計群島 | UX 研究島 | UX | 0 | 15 | 0.0% |
 | 數位設計群島 | 互動設計島 | IXD | 0 | 14 | 0.0% |
 | 數位設計群島 | 設計系統島 | DSY | 0 | 12 | 0.0% |
-| 網頁與應用開發群島 | 網頁基礎島 | WEB | 13 | 2 | 86.7% |
+| 網頁與應用開發群島 | 網頁基礎島 | WEB | 15 | 0 | 100.0% |
 | 網頁與應用開發群島 | 前端開發島 | FE | 0 | 15 | 0.0% |
 | 網頁與應用開發群島 | 響應式設計島 | RWD | 0 | 12 | 0.0% |
 | 網頁與應用開發群島 | 行動應用島 | MOB | 0 | 13 | 0.0% |
@@ -308,8 +309,8 @@
 | WEB11 | fetch、JSON 與 API | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已完成（待合併） |
 | WEB12 | 瀏覽器儲存：localStorage 與 Cookie | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已完成（待合併） |
 | WEB13 | 語意 HTML 與 ARIA 的無障礙實作 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已完成（待合併） |
-| WEB14 | 網頁效能基礎：載入與 Core Web Vitals | 規劃中 | 大綱 | — | — | — | 規劃中 |
-| WEB15 | 網頁基礎島綜合專題：無框架的小型網站 | 規劃中 | 大綱 | — | — | — | 規劃中 |
+| WEB14 | 網頁效能基礎：載入與 Core Web Vitals | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已完成（待合併） |
+| WEB15 | 網頁基礎島綜合專題：無框架的小型網站 | 完成 | 100% | 活動 challenge-stages | 通過 | `TBD` | 已完成（待合併） |
 
 ### 系統與雲端工程群島 · Linux 系統島（LNX）
 

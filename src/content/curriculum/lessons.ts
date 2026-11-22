@@ -578,7 +578,7 @@ const largeLanguageModels: Outline[] = [
   llmFromBlueprint('LLM03', '從零學會向量的內積、長度與餘弦相似度，分辨語言模型內依 token ID 查表的 embedding 表與為整段文字算出一個向量的句子 embedding 模型，用最近鄰在示意的句子空間中找出語意最接近的句子，比較向量沒有正規化時內積與餘弦的排名差異，並看懂 2D PCA 投影保留與失去的資訊。', 50),
 ];
 
-/** WEB-1 (2026-11-23): the web foundations island's first lessons, written with the web-code capability (WEB0_WEB_CODE_CAPABILITY.md); WEB-2 adds WEB05–WEB07, WEB-3 WEB08–WEB10, WEB-4 WEB11–WEB13. */
+/** WEB-1 (2026-11-23): the web foundations island's first lessons, written with the web-code capability (WEB0_WEB_CODE_CAPABILITY.md); WEB-2 adds WEB05–WEB07, WEB-3 WEB08–WEB10, WEB-4 WEB11–WEB13, WEB-5 WEB14 and the capstone WEB15. */
 const webFoundations: Outline[] = [
   webFromBlueprint('WEB01', '用同一個「小島圖書館」頁面依序加上 HTML、CSS 與 JavaScript，分清內容、外觀與行為的分工，走一遍瀏覽器從網址、解析 HTML 建立 DOM、計算樣式、版面配置到繪製的頁面載入流程，看懂原始碼與 DOM 為何不同，並用開發者工具的 Elements、Console 與 Network 面板檢查網頁。', 40),
   webFromBlueprint('WEB02', '寫出含 DOCTYPE、lang、charset 與 title 的文件骨架，分清元素、標籤、屬性與巢狀規則，用 header、nav、main、article、section、aside、footer 取代無意義的 div，並以不跳級的 h1–h6 標題層級與地標區域，讓頁面不靠外觀也讀得出結構。', 45),
@@ -593,6 +593,8 @@ const webFoundations: Outline[] = [
   webFromBlueprint('WEB11', '用 fetch 向 API 送出請求並解析回應的 JSON 本文，分清 JSON 文字與 JavaScript 物件，依 HTTP 狀態碼與 response.ok 分辨成功與失敗，在畫面上交代載入中、沒有資料與錯誤狀態，並用 POST 送出 JSON、以 encodeURIComponent 組出查詢字串。', 60),
   webFromBlueprint('WEB12', '用 localStorage 與 JSON 讓偏好和清單在重新整理後留著，處理 null 與壞掉的文字，分辨只活在一個分頁的 sessionStorage 與每次請求都送出的 Cookie（max-age、HttpOnly、SameSite），用版本號遷移舊格式資料，並判斷密碼、登入憑證與價格等資料為何不該存在瀏覽器。', 55),
   webFromBlueprint('WEB13', '從無障礙樹的角色、無障礙名稱與狀態出發，依第一條 ARIA 規則優先使用原生元素，必要時以 aria-label、aria-expanded、aria-pressed 補上名稱與狀態，並用 tabindex、focus()、Escape 與即時區域管理下拉選單和動態訊息的焦點與朗讀。', 60),
+  webFromBlueprint('WEB14', '說明效能量測的實驗室資料與真實使用者資料，解讀 Core Web Vitals 的 LCP、INP、CLS 與公布的良好門檻，沿著關鍵渲染路徑找出擋住畫面的樣式表與指令稿，再用 defer、圖片尺寸與延後載入、預留空間與分批工作，提出並驗證三項改善。', 60),
+  webFromBlueprint('WEB15', '不用框架，分五關完成小島圖書館的四頁網站：以語意結構與全站共用的樣式表建立頁面，用表單的 submit 與事件委派做出願望清單，以 fetch 取得新書並交代載入中、沒有資料與失敗三種狀態，用 localStorage 記住分類，最後補上選單按鈕的無障礙名稱與狀態、defer 與預留位置，通過無障礙與效能的檢查。', 110),
 ];
 
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */

@@ -159,7 +159,7 @@ Chromium 是 Playwright 的 headless Chromium，頁面的載入方式和課程�
 | W3（WEB-4 完成） | 框架裡固定回應的 `fetch`（路由、狀態碼、延遲、失敗）、`request` 檢查與預覽的請求清單 | WEB11 |
 | W4（WEB-4 完成） | 記憶體中的 `localStorage`、`sessionStorage` 與 Cookie、`storage`／`cookie` 檢查、預覽保留儲存的資料 | WEB12 |
 | W5（WEB-4 完成） | 無障礙檢查：`name`、`role`，以及 `tab` 操作的 Tab 順序 | WEB13 |
-| W6 | 載入時間軸與指標的模型（不是量測） | WEB14 |
+| W6（未建立） | 載入時間軸與指標的模型（不是量測）。WEB14 改以頁面呈現順序與版面位移，量測交給真實的開發者工具；模型留在 [INTERACTIVE_LAB_ROADMAP](INTERACTIVE_LAB_ROADMAP.md) 的 `metric-explorer` | — |
 
 ## 10. 藍圖活動的對應（`webFromBlueprint`）
 
@@ -178,6 +178,6 @@ Chromium 是 Playwright 的 headless Chromium，頁面的載入方式和課程�
 | WEB-2 | WEB05–WEB07 | `hit`、`scroll`、相對於視窗的 `box` |
 | WEB-3 | WEB08–WEB10 | W1（錯誤行號、`defer`）、W2（虛擬時鐘）、`dispatch` |
 | WEB-4 | WEB11–WEB13 | W3（模擬伺服器）、W4（儲存空間）、W5（名稱、角色、Tab） |
-| WEB-5 | WEB14–WEB15 | W6；綜合專題 |
+| WEB-5 | WEB14–WEB15 | 沒有新增引擎；綜合專題（challenge-stages） |
 
-WEB01 發布時，網頁基礎島從 `PREPARED_ISLAND_IDS` 移到 `ISLAND_IDS`，網頁與應用開發群島第一次有已開放的課。
+WEB01 發布時（WEB-1），網頁基礎島從 `PREPARED_ISLAND_IDS` 移到 `ISLAND_IDS`，網頁與應用開發群島第一次有已開放的課；WEB-5 發布後全島 15 堂完成。

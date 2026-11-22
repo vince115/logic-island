@@ -428,6 +428,17 @@
       "commit": "TBD",
       "tests": "驗證器、發布閘門、TypeScript、ESLint、Vitest（併入 main 之前的 WEB-4 樹：131 檔 3694 passed／9 skipped，含 Chromium：十三堂網頁課的每個頁面，以及模擬伺服器、儲存空間、無障礙名稱／角色與 Tab 順序的測試）、Production build、E2E 桌機＋手機旗標關 467 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上 52 個練習各做一遍）；併入 main（LLM-1）後重跑 TypeScript、ESLint、完整 Vitest 與 E2E、測驗 24 題逐題複核、洩漏掃描",
       "notes": "WEB-4：網頁基礎島的資料、儲存與無障礙三課：fetch、JSON 與 API（狀態碼與 response.ok、載入／空白／錯誤狀態、POST、查詢字串）；瀏覽器儲存（localStorage、sessionStorage、Cookie、資料版本遷移、不該存在瀏覽器的資料）；語意 HTML 與 ARIA（第一條 ARIA 規則、無障礙名稱、狀態屬性、焦點管理、即時區域）。引擎階段 W3（課程宣告的模擬伺服器與 request 檢查）、W4（記憶體中的儲存空間與 Cookie、storage／cookie 檢查、預覽保留儲存的資料）、W5（name、role 檢查與 tab 操作）；WEB11 改為只用 web-code（請求清單即請求與回應的順序）"
+    },
+    {
+      "id": 31,
+      "date": "2026-11-23",
+      "lessons": [
+        "WEB14",
+        "WEB15"
+      ],
+      "commit": "TBD",
+      "tests": "驗證器、發布閘門、TypeScript、ESLint、Vitest（併入 main 之前的 WEB-5 樹：131 檔 3696 passed／9 skipped，含 Chromium：十五堂網頁課的每個頁面）、Production build、E2E 桌機＋手機旗標關 471 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上 61 個練習各做一遍）；併入 main（LLM-1）後重跑 TypeScript、ESLint、完整 Vitest 與 E2E、測驗 16 題逐題複核、洩漏掃描",
+      "notes": "WEB-5：網頁效能基礎（實驗室與真實使用者資料、關鍵渲染路徑、LCP／INP／CLS 與公布的良好門檻、資源載入、版面位移、三項改善的計畫）與網頁基礎島綜合專題（web-code＋challenge-stages 五關：語意結構、共用樣式表、表單與事件委派、fetch 與 localStorage、無障礙與效能；以小島圖書館的四頁網站貫穿）；網頁基礎島 15/15 完成，mapState 維持 planned。沒有新增引擎：效能不在預覽裡量測，只呈現順序與版面位移"
     }
   ]
 }
