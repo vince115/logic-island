@@ -87,7 +87,7 @@ describe('isolation from the other capabilities', () => {
       expect(l.capabilities.includes('terminal'), l.lessonId).toBe(linux);
       // LNX-4: LNX12 (SSH) pairs its terminal machines with a network-protocol scene, so its activity is network-sequence.
       // LNX-5: the capstone LNX15 is a challenge-stages lesson.
-      expect(l.activity === 'terminal-sim', l.lessonId).toBe(linux && !['LNX12', 'LNX15', 'SRV02', 'SRV03', 'SRV04', 'SRV05', 'SRV06'].includes(l.lessonId));
+      expect(l.activity === 'terminal-sim', l.lessonId).toBe(linux && !['LNX12', 'LNX15', 'SRV02', 'SRV03', 'SRV04', 'SRV05', 'SRV06', 'SRV07', 'SRV08', 'SRV10'].includes(l.lessonId));
       expect(!!curriculum.contents[l.lessonId]?.terminal, l.lessonId).toBe(linux);
     }
   });

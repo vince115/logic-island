@@ -13,7 +13,7 @@
 
 ## 總覽
 
-已發布 **161／520**（31.0%）；規劃中 359。
+已發布 **165／520**（31.7%）；規劃中 355。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
@@ -21,11 +21,11 @@
 | AI 人工智慧群島 | 20 | 140 | 12.5% |
 | 數位設計群島 | 0 | 56 | 0.0% |
 | 網頁與應用開發群島 | 0 | 55 | 0.0% |
-| 系統與雲端工程群島 | 21 | 68 | 23.6% |
+| 系統與雲端工程群島 | 25 | 64 | 28.1% |
 
 ## 下一批（自動選擇）
 
-**網路與伺服器島（SRV）**：SRV07 反向代理、SRV08 負載平衡、SRV09 伺服器防火牆：ufw 與 nftables、SRV10 SSH 通道與跳板機、SRV11 CDN 與快取設定。島嶼能力：可用；這幾堂解鎖其他島的 2 堂。
+**網路與伺服器島（SRV）**：SRV11 CDN 與快取設定、SRV12 網路診斷工具、SRV13 伺服器故障排除方法、SRV14 網路與伺服器島綜合專題：架設 HTTPS 網站並追蹤請求。島嶼能力：可用；這幾堂解鎖其他島的 0 堂。
 
 能力缺口中最優先的是 **大型語言模型島（LLM）**：需要 python-code + token, sampling and prompt explorers on recorded outputs (T3)；先修已滿足、可依序撰寫的有 3 堂，前 3 堂解鎖其他島的 58 堂。
 
@@ -60,7 +60,7 @@
 | 網頁與應用開發群島 | 行動應用島（MOB） | 0／13 | web-code + case-analysis | 缺少 | — | 缺少課程能力；MOB01 需要尚未發布的 RWD01 |
 | 系統與雲端工程群島 | Linux 系統島（LNX） | 15／15 | terminal (machines as data, transcripts replayed to their exact output, exercises checked by replaying the learner's commands in the simulated shell) | 可用 | 全島完成 | — |
 | 系統與雲端工程群島 | Docker 容器島（DKR） | 0／15 | container simulation | 缺少 | DKR01–DKR15（15 堂） | 缺少課程能力 |
-| 系統與雲端工程群島 | 網路與伺服器島（SRV） | 6／14 | terminal (engine stages E10 sockets, E11 dns, E12 http, then E13-E19) + network-protocol scenes; request-path and architecture-diagram map to network-sequence | 可用 | SRV07–SRV14（8 堂） | — |
+| 系統與雲端工程群島 | 網路與伺服器島（SRV） | 10／14 | terminal (engine stages E10 sockets, E11 dns, E12 http, then E13-E19) + network-protocol scenes; request-path and architecture-diagram map to network-sequence | 可用 | SRV11–SRV14（4 堂） | — |
 | 系統與雲端工程群島 | 雲端基礎設施島（CLD） | 0／15 | architecture simulation | 缺少 | CLD01–CLD15（15 堂） | 缺少課程能力 |
 | 系統與雲端工程群島 | DevOps 與 CI/CD 島（CICD） | 0／15 | pipeline simulation | 缺少 | CICD01–CICD05（5 堂） | 缺少課程能力；CICD06 需要尚未發布的 DKR11 |
 | 系統與雲端工程群島 | Kubernetes 與可靠性工程島（KUB） | 0／15 | cluster simulation | 缺少 | — | 缺少課程能力；KUB01 需要尚未發布的 DKR09 |
@@ -98,7 +98,7 @@
 | 前端工程 | 7／62 | 否 |
 | 產品設計 | 0／56 | 否 |
 | AI 架構 | 20／66 | 否 |
-| 全端部署 | 34／62 | 否 |
+| 全端部署 | 35／62 | 否 |
 | AI 基礎設施 | 24／60 | 否 |
 | 雲端與 DevOps 基礎 | 19／48 | 否 |
 
@@ -706,14 +706,14 @@
 | SRV04 | TLS 憑證實務：申請、安裝與更新 | 已發布（閘門通過） | SRV02、SRV03 | network-sequence | — |
 | SRV05 | 網頁伺服器架構 | 已發布（閘門通過） | SRV03 | network-sequence | — |
 | SRV06 | Nginx 設定入門 | 已發布（閘門通過） | SRV05、LNX10 | network-sequence | — |
-| SRV07 | 反向代理 | 大綱 | SRV06 | request-path | — |
-| SRV08 | 負載平衡 | 待先修 | SRV07 | request-path | 先修 SRV07 |
-| SRV09 | 伺服器防火牆：ufw 與 nftables | 大綱 | SRV01、LNX07 | terminal-sim | — |
-| SRV10 | SSH 通道與跳板機 | 待先修 | LNX12、SRV09 | protocol-sequence | 先修 SRV09 |
-| SRV11 | CDN 與快取設定 | 待先修 | SRV07 | request-path | 先修 SRV07 |
+| SRV07 | 反向代理 | 已發布（閘門通過） | SRV06 | network-sequence | — |
+| SRV08 | 負載平衡 | 已發布（閘門通過） | SRV07 | network-sequence | — |
+| SRV09 | 伺服器防火牆：ufw 與 nftables | 已發布（閘門通過） | SRV01、LNX07 | terminal-sim | — |
+| SRV10 | SSH 通道與跳板機 | 已發布（閘門通過） | LNX12、SRV09 | network-sequence | — |
+| SRV11 | CDN 與快取設定 | 大綱 | SRV07 | request-path | — |
 | SRV12 | 網路診斷工具 | 大綱 | SRV02、SRV03 | terminal-sim | — |
-| SRV13 | 伺服器故障排除方法 | 待先修 | SRV07、SRV12、LNX11 | case-study-board | 先修 SRV07、SRV12 |
-| SRV14 | 網路與伺服器島綜合專題：架設 HTTPS 網站並追蹤請求 | 待先修 | SRV04、SRV08、SRV10、SRV11、SRV13 | challenge-stages | 先修 SRV08、SRV10、SRV11、SRV13 |
+| SRV13 | 伺服器故障排除方法 | 待先修 | SRV07、SRV12、LNX11 | case-study-board | 先修 SRV12 |
+| SRV14 | 網路與伺服器島綜合專題：架設 HTTPS 網站並追蹤請求 | 待先修 | SRV04、SRV08、SRV10、SRV11、SRV13 | challenge-stages | 先修 SRV11、SRV13 |
 
 ### 系統與雲端工程群島 · 雲端基礎設施島（CLD）
 
@@ -765,7 +765,7 @@
 | KUB04 | Deployment 與 ReplicaSet | 待能力 | KUB03 | cluster-sim | 課程能力、先修 KUB03 |
 | KUB05 | Service 與服務發現 | 待能力 | KUB04 | cluster-sim | 課程能力、先修 KUB04 |
 | KUB06 | ConfigMap 與 Secret | 待能力 | KUB04、CICD08 | cluster-sim | 課程能力、先修 KUB04、CICD08 |
-| KUB07 | Ingress 與 Gateway API | 待能力 | KUB05、SRV07 | request-path | 課程能力、先修 KUB05、SRV07 |
+| KUB07 | Ingress 與 Gateway API | 待能力 | KUB05、SRV07 | request-path | 課程能力、先修 KUB05 |
 | KUB08 | Persistent Volume 與有狀態應用 | 待能力 | KUB04、DKR07 | cluster-sim | 課程能力、先修 KUB04、DKR07 |
 | KUB09 | Helm 套件管理 | 待能力 | KUB06 | cluster-sim | 課程能力、先修 KUB06 |
 | KUB10 | 自動擴展 | 待能力 | KUB04 | cluster-sim | 課程能力、先修 KUB04 |
