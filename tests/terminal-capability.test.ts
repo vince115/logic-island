@@ -78,12 +78,14 @@ describe('isolation from the other capabilities', () => {
     expect(swap('DB16', { activity: 'terminal-sim' })).toMatch(/DB16: activity terminal-sim needs the terminal capability/);
     expect(swap('CN03', { activity: 'terminal-sim' })).toMatch(/CN03: activity terminal-sim needs the terminal capability/);
   });
-  it('changes no published lesson and keeps the curriculum valid', () => {
+  it('keeps every other lesson as it was and the curriculum valid', () => {
     expect(validateCurriculum(curriculum)).toEqual([]);
+    // LNX-1: only the Linux systems island's lessons use the terminal capability.
     for (const l of lessons) {
-      expect(l.capabilities, l.lessonId).not.toContain('terminal');
-      expect(l.activity, l.lessonId).not.toBe('terminal-sim');
-      expect(curriculum.contents[l.lessonId]?.terminal, l.lessonId).toBeUndefined();
+      const linux = l.islandId === 'linux-systems';
+      expect(l.capabilities.includes('terminal'), l.lessonId).toBe(linux);
+      expect(l.activity === 'terminal-sim', l.lessonId).toBe(linux);
+      expect(!!curriculum.contents[l.lessonId]?.terminal, l.lessonId).toBe(linux);
     }
   });
   it('leaves the lab\'s shell refusing pipes, command lists and variables', () => {
@@ -95,19 +97,21 @@ describe('isolation from the other capabilities', () => {
   });
 });
 
-describe('the linux-systems island is prepared, not published', () => {
-  it('has its prefix but no lesson, unit, page or catalog section yet', () => {
-    expect(PREPARED_ISLAND_IDS).toContain('linux-systems');
+describe('the linux-systems island: prepared in LNX-0, written in batches from LNX-1', () => {
+  it('is a curriculum island with its first lessons written in id order; the rest stay planned outlines without a page', () => {
+    expect(PREPARED_ISLAND_IDS).not.toContain('linux-systems');
     expect(ISLAND_PREFIX['linux-systems']).toBe('LNX');
-    expect(ISLAND_IDS).not.toContain('linux-systems');
-    expect(UNITS['linux-systems']).toEqual([]);
-    expect(lessons.filter(l => (l.islandId as string) === 'linux-systems')).toEqual([]);
+    expect(ISLAND_IDS).toContain('linux-systems');
+    const written = lessons.filter(l => l.islandId === 'linux-systems');
+    expect(written.map(l => l.lessonId)).toEqual(written.map((_, i) => `LNX${String(i + 1).padStart(2, '0')}`));
+    expect(written.length).toBeGreaterThanOrEqual(4);
+    expect(UNITS['linux-systems'].flatMap(u => u.lessonIds)).toEqual(written.map(l => l.lessonId));
     expect(lessonsOfIsland('linux-systems')).toHaveLength(15);
-    expect(lessonsOfIsland('linux-systems').every(l => l.lessonStatus === 'planned' && !l.href)).toBe(true);
-    expect(getIsland('linux-systems')).toMatchObject({ status: 'planned' });
+    expect(lessonsOfIsland('linux-systems').slice(written.length).every(l => l.lessonStatus === 'planned' && !l.href)).toBe(true);
+    expect(getIsland('linux-systems')).toMatchObject({ status: written.length < 15 ? 'available' : 'complete', mapState: 'planned' });
   });
-  it('rejects a Linux lesson until the island joins ISLAND_IDS', () => {
-    expect(validateCurriculum({ ...curriculum, lessons: [...lessons, meta], contents: { ...curriculum.contents, LNX01: content() } }).join('\n'))
-      .toMatch(/LNX01: linux-systems is prepared for authoring, not a curriculum island yet/);
+  it('accepts the synthetic Linux lesson only in its own place', () => {
+    // LNX01 is written: a second lesson with the same id is refused.
+    expect(validateCurriculum({ ...curriculum, lessons: [...lessons, meta], contents: { ...curriculum.contents, LNX01: content() } }).join('\n')).not.toBe('');
   });
 });

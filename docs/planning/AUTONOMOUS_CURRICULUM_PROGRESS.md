@@ -13,7 +13,7 @@
 
 ## 總覽
 
-已發布 **140／520**（26.9%）；規劃中 380。
+已發布 **144／520**（27.7%）；規劃中 376。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
@@ -21,11 +21,11 @@
 | AI 人工智慧群島 | 20 | 140 | 12.5% |
 | 數位設計群島 | 0 | 56 | 0.0% |
 | 網頁與應用開發群島 | 0 | 55 | 0.0% |
-| 系統與雲端工程群島 | 0 | 89 | 0.0% |
+| 系統與雲端工程群島 | 4 | 85 | 4.5% |
 
 ## 下一批（自動選擇）
 
-**Linux 系統島（LNX）**：LNX01 Linux 概論與發行版、LNX02 終端機與 Shell 基礎、LNX03 Linux 檔案系統階層、LNX04 檔案與目錄操作、LNX05 文字處理、管線與重新導向。島嶼能力：已備妥（可開始撰寫）；這幾堂解鎖其他島的 67 堂。
+**Linux 系統島（LNX）**：LNX05 文字處理、管線與重新導向、LNX06 使用者與群組、LNX07 Linux 權限與 chmod、LNX08 Process 管理與訊號、LNX09 套件管理。島嶼能力：可用；這幾堂解鎖其他島的 54 堂。
 
 能力缺口中最優先的是 **大型語言模型島（LLM）**：需要 python-code + token, sampling and prompt explorers on recorded outputs (T3)；先修已滿足、可依序撰寫的有 3 堂，前 3 堂解鎖其他島的 58 堂。
 
@@ -58,9 +58,9 @@
 | 網頁與應用開發群島 | 前端開發島（FE） | 0／15 | web-code + state-flow trace | 缺少 | — | 缺少課程能力；FE01 需要尚未發布的 WEB09 |
 | 網頁與應用開發群島 | 響應式設計島（RWD） | 0／12 | web-code + responsive simulator (the standalone lab exists) | 缺少 | — | 缺少課程能力；RWD01 需要尚未發布的 WEB06 |
 | 網頁與應用開發群島 | 行動應用島（MOB） | 0／13 | web-code + case-analysis | 缺少 | — | 缺少課程能力；MOB01 需要尚未發布的 RWD01 |
-| 系統與雲端工程群島 | Linux 系統島（LNX） | 0／15 | terminal (machines as data, transcripts replayed to their exact output, exercises checked by replaying the learner's commands in the simulated shell) | 已備妥（可開始撰寫） | LNX01–LNX15（15 堂） | — |
+| 系統與雲端工程群島 | Linux 系統島（LNX） | 4／15 | terminal (machines as data, transcripts replayed to their exact output, exercises checked by replaying the learner's commands in the simulated shell) | 可用 | LNX05–LNX15（11 堂） | — |
 | 系統與雲端工程群島 | Docker 容器島（DKR） | 0／15 | container simulation | 缺少 | — | 缺少課程能力；DKR01 需要尚未發布的 LNX08 |
-| 系統與雲端工程群島 | 網路與伺服器島（SRV） | 0／14 | request-path simulation + terminal | 缺少 | — | 缺少課程能力；SRV01 需要尚未發布的 LNX02 |
+| 系統與雲端工程群島 | 網路與伺服器島（SRV） | 0／14 | request-path simulation + terminal | 缺少 | SRV01–SRV05（5 堂） | 缺少課程能力；SRV06 需要尚未發布的 LNX10 |
 | 系統與雲端工程群島 | 雲端基礎設施島（CLD） | 0／15 | architecture simulation | 缺少 | CLD01–CLD02（2 堂） | 缺少課程能力；CLD03 需要尚未發布的 LNX12 |
 | 系統與雲端工程群島 | DevOps 與 CI/CD 島（CICD） | 0／15 | pipeline simulation | 缺少 | CICD01–CICD03（3 堂） | 缺少課程能力；CICD04 需要尚未發布的 LNX13 |
 | 系統與雲端工程群島 | Kubernetes 與可靠性工程島（KUB） | 0／15 | cluster simulation | 缺少 | — | 缺少課程能力；KUB01 需要尚未發布的 DKR09 |
@@ -75,6 +75,7 @@
 | 網頁基礎島（WEB） | web-code (HTML, CSS and DOM in a sandboxed frame, checked by DOM queries) | 15 | 40 | — |
 | 機器學習島（ML） | python-code + data-explorer (fixed datasets, metrics computed in the browser) | 25 | 39 | — |
 | 系統分析與設計島（SA） | model-diagram (UML, DFD, BPMN, state and sequence models, checked by structure) | 20 | 20 | — |
+| 網路與伺服器島（SRV） | request-path simulation + terminal | 5 | 12 | — |
 | DevOps 與 CI/CD 島（CICD） | pipeline simulation | 3 | 7 | — |
 | 管理資訊系統島（MIS） | case-analysis (scenario data, decision tables, KPI calculations checked by value) | 20 | 0 | — |
 | 生成式 AI 島（GEN） | precomputed pipeline steps (T3) | 1 | 0 | — |
@@ -97,9 +98,9 @@
 | 前端工程 | 7／62 | 否 |
 | 產品設計 | 0／56 | 否 |
 | AI 架構 | 20／66 | 否 |
-| 全端部署 | 16／62 | 否 |
-| AI 基礎設施 | 13／60 | 否 |
-| 雲端與 DevOps 基礎 | 5／48 | 否 |
+| 全端部署 | 20／62 | 否 |
+| AI 基礎設施 | 17／60 | 否 |
+| 雲端與 DevOps 基礎 | 9／48 | 否 |
 
 ## 先修依賴檢查
 
@@ -659,12 +660,12 @@
 
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
-| LNX01 | Linux 概論與發行版 | 大綱 | — | case-study-board | — |
-| LNX02 | 終端機與 Shell 基礎 | 待先修 | LNX01 | terminal-sim | 先修 LNX01 |
-| LNX03 | Linux 檔案系統階層 | 待先修 | LNX02 | terminal-sim | 先修 LNX02 |
-| LNX04 | 檔案與目錄操作 | 待先修 | LNX03 | terminal-sim | 先修 LNX03 |
-| LNX05 | 文字處理、管線與重新導向 | 待先修 | LNX04 | terminal-sim | 先修 LNX04 |
-| LNX06 | 使用者與群組 | 待先修 | LNX04 | terminal-sim | 先修 LNX04 |
+| LNX01 | Linux 概論與發行版 | 已發布（閘門通過） | — | terminal-sim | — |
+| LNX02 | 終端機與 Shell 基礎 | 已發布（閘門通過） | LNX01 | terminal-sim | — |
+| LNX03 | Linux 檔案系統階層 | 已發布（閘門通過） | LNX02 | terminal-sim | — |
+| LNX04 | 檔案與目錄操作 | 已發布（閘門通過） | LNX03 | terminal-sim | — |
+| LNX05 | 文字處理、管線與重新導向 | 大綱 | LNX04 | terminal-sim | — |
+| LNX06 | 使用者與群組 | 大綱 | LNX04 | terminal-sim | — |
 | LNX07 | Linux 權限與 chmod | 待先修 | LNX06 | terminal-sim | 先修 LNX06 |
 | LNX08 | Process 管理與訊號 | 待先修 | LNX05 | terminal-sim | 先修 LNX05 |
 | LNX09 | 套件管理 | 待先修 | LNX06 | terminal-sim | 先修 LNX06 |
@@ -699,7 +700,7 @@
 
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
-| SRV01 | 伺服器端的網路基礎：IP、Port 與 Socket | 待能力 | LNX02 | terminal-sim | 課程能力、先修 LNX02 |
+| SRV01 | 伺服器端的網路基礎：IP、Port 與 Socket | 待能力 | LNX02 | terminal-sim | 課程能力 |
 | SRV02 | 網域與 DNS 記錄管理 | 待能力 | SRV01 | request-path | 課程能力、先修 SRV01 |
 | SRV03 | 用 curl 觀察 HTTP 請求與回應 | 待能力 | SRV01 | request-path | 課程能力、先修 SRV01 |
 | SRV04 | TLS 憑證實務：申請、安裝與更新 | 待能力 | SRV02、SRV03 | request-path | 課程能力、先修 SRV02、SRV03 |

@@ -63,8 +63,9 @@
 | CN-0（架構，PR #46） | — | `network-protocol` capability、計算機網路島登錄為預備島嶼（[CN0_NETWORK_CAPABILITY](CN0_NETWORK_CAPABILITY.md)） |
 | CN-1（PR #47）、CN-2（PR #48）、CN-3（PR #49）、CN-4（PR #50）、CN-5，見 [NETWORKS_ISLAND](NETWORKS_ISLAND.md) | CN01–CN05、CN06–CN10、CN11–CN15、CN16–CN19、CN20 | 課程編號即位置，只能依序連續發布；同島先修都排在前面，所以依編號就是拓樸順序 |
 | AIF-0（架構） | — | `python-code` 能力、AI 基礎島登錄為預備島嶼（[AIF0_PYTHON_CAPABILITY](AIF0_PYTHON_CAPABILITY.md)） |
-| AIF-1 至 AIF-5（全島完成，見 [AI_FOUNDATIONS_ISLAND](AI_FOUNDATIONS_ISLAND.md)）至 AIF-5 | AIF01–05、06–10、11–15、16–19、20 | 依編號連續發布 |
+| AIF-1 至 AIF-5（全島完成，見 [AI_FOUNDATIONS_ISLAND](AI_FOUNDATIONS_ISLAND.md)） | AIF01–05、06–10、11–15、16–19、20 | 依編號連續發布 |
 | LNX-0（架構） | — | `terminal` 能力（模擬終端機的機器、重播的指令紀錄與以結果檢查的練習）、Linux 系統島登錄為預備島嶼（[LNX0_TERMINAL_CAPABILITY](LNX0_TERMINAL_CAPABILITY.md)）；LNX-1 至 LNX-5 依引擎階段 E1–E9 依序發布 |
+| LNX-1（見 [LINUX_SYSTEMS_ISLAND](LINUX_SYSTEMS_ISLAND.md)） | LNX01–04 | 引擎階段 E1（`files` profile）＋前四課；系統與雲端工程群島第一次有已開放的課 |
 | 之後 | 依 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 自動選擇 | 先修已滿足、能力已備妥、解鎖其他島最多的島優先；缺少的共用能力先做最小可用版本 |
 
 進度記錄在 [COURSE_PRODUCTION_PROGRESS](COURSE_PRODUCTION_PROGRESS.md)。

@@ -463,6 +463,14 @@ const aiFoundations: Outline[] = [
   pythonFromBlueprint('AIF20', '把整座島接成一個迷宮對戰代理人：以 A* 與可接受的曼哈頓距離規劃三條穿越路線，用深度限制的 alpha-beta 與 BFS 評估函數判斷守衛是最佳對手時何時能穿越，以隱馬可夫模型的前向演算法從雜訊讀數濾出守衛的位置並以期望效用選路，用價值迭代解出「穿越或等待」的 MDP 並與 minimax 規則比較，最後以固定種子的模擬分開報告成功、被抓與交給人類的比例，設計決策紀錄與人類監督，寫出含風險分級的設計報告。', 120, 'challenge-stages'),
 ];
 
+/** LNX-1 (2026-11-22): the Linux systems island's first lessons, written with the terminal capability (LNX0_TERMINAL_CAPABILITY.md). */
+const linuxSystems: Outline[] = [
+  terminalFromBlueprint('LNX01', '從核心、使用者空間與 GNU 工具說明 Linux 是什麼，比較 Debian／Ubuntu 與 RHEL 系發行版、LTS 版本的支援週期與伺服器和桌面的取捨，並在三台模擬機器上用 uname、hostname、/etc/os-release 與 df 辨認系統。', 40),
+  terminalFromBlueprint('LNX02', '分辨終端機、Shell 與主控台，讀懂 user@host:路徑$ 與 root 的 # 提示字元，拆解指令的短選項、長選項與參數（含空白與引號），用 man 與 --help 查出需要的選項，並從 command not found、invalid option、missing operand 等錯誤訊息找出打錯的地方。', 45),
+  terminalFromBlueprint('LNX03', '走一遍 FHS 的主要目錄（/etc、/var/log、/home、/root、/tmp、/opt、/srv，以及由核心產生的 /dev 與 /proc），用 pwd、cd 與 ls 的 -l、-a、-h、-d 以絕對與相對路徑（.、..、~）在目錄樹上移動，認識掛載點並以 df、df -h、df -T 找出路徑所在的檔案系統，再用 du -sh 估計目錄占用的空間。', 50),
+  terminalFromBlueprint('LNX04', '用 mkdir -p 與 touch 建立目錄與檔案，分辨 cp、mv 的複製、改名與搬移（含多個來源與悄悄覆寫），以萬用字元 * ? [...] 一次挑出一批檔案並看懂隱藏檔為什麼不被 * 選到，用 ln -s 與 readlink 管理符號連結、比較硬連結，並養成先列出再 rm 的習慣，避免無法復原的誤刪。', 55),
+];
+
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */
 function idAt(islandId: (typeof ISLAND_IDS)[number], index: number, blueprintId?: string): LessonId {
   const id = `${ISLAND_PREFIX[islandId]}${String(index + 1).padStart(2, '0')}` as LessonId;
@@ -472,7 +480,7 @@ function idAt(islandId: (typeof ISLAND_IDS)[number], index: number, blueprintId?
 /** F, D and A are taught in the program languages: every lesson there declares program-code. */
 const program = (list: Omit<Outline, 'capabilities'>[]): Outline[] => list.map(o => ({ ...o, capabilities: ['program-code'] }));
 const outlines: Record<(typeof ISLAND_IDS)[number], Outline[]> = {
-  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages, networks, 'ai-foundations': aiFoundations };
+  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages, networks, 'ai-foundations': aiFoundations, 'linux-systems': linuxSystems };
 
 /** Every lesson the blueprint outlines, written or not (validateCurriculum's recommended-lesson check). */
 export const outlinedLessonIds: readonly string[] = planning.plannedLessons.map(l => l.lessonId);

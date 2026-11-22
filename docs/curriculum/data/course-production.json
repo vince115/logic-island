@@ -223,6 +223,19 @@
       "tests": "驗證器、發布閘門 140/140、Vitest 2927（含 AIF20 Python 程式測試與雙種子比對）、E2E 桌機＋手機旗標關 435（候選頁 2 個像素比對失敗為 main 既有回歸 #36）、網路預覽＋P9＋區域世界旗標開 252、測驗 8 題逐題複核、洩漏掃描",
       "notes": "AIF-5：AI 基礎島綜合專題（python-code＋challenge-stages 五關：A* 與可接受啟發、深度限制 alpha-beta、HMM 前向濾波與期望效用選路、穿越或等待的 MDP、固定種子模擬分開報告成功／被抓／交給人類並設計決策紀錄與人類監督）；AI 基礎島 20/20 完成，mapState 維持 planned；學習路線沒有因此變成可完整學完（E、F、J 仍需其他 AI 島）",
       "merged": "605e65d"
+    },
+    {
+      "id": 16,
+      "date": "2026-11-22",
+      "lessons": [
+        "LNX01",
+        "LNX02",
+        "LNX03",
+        "LNX04"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "LNX-1：Linux 系統島首批，以 terminal 能力（LNX-0，PR #58）與引擎階段 E1（files profile：uname、hostname、man／--help、df／du、萬用字元、符號連結、多來源 cp／mv）撰寫；Linux 概論與發行版、終端機與 Shell、FHS 與掛載、檔案與目錄操作；範例重播到完全相同的輸出、練習以狀態與輸出（含變體）檢查；系統與雲端工程群島第一次有已開放的課（區域狀態 available），Linux 系統島 mapState 維持 planned；以 linux-systems 當「規劃中」範例的測試改用其他島"
     }
   ]
 }
