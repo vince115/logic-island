@@ -106,8 +106,9 @@
       "note": "LNX-0 built the capability on the P7 engine (14 commands, no pipes); LNX-1 added engine stage E1 (the files profile) and published LNX01–LNX04; LNX-2 added E2 (streams) and E3 (users) and published LNX05–LNX07; LNX-3 added E4–E6 (processes, packages, services) and published LNX08–LNX11; LNX-4 added E7–E9 (remote, scripting, scheduling) and published LNX12–LNX14; LNX-5 published the capstone LNX15: the island is complete; LNX-2 E2 and E3, LNX-3 E4–E6, LNX-4 E7–E9 (LNX0_TERMINAL_CAPABILITY.md)"
     },
     "docker-containers": {
-      "capability": "container simulation",
-      "status": "missing"
+      "capability": "terminal (engine stage E20 containers: images, the container lifecycle, a simulated Docker Hub, published ports, the docker group; then E21-E24) + network-protocol scenes; container-playground and case-study-board map to terminal-sim, architecture-diagram and pipeline-diagram to network-sequence",
+      "status": "prepared",
+      "note": "DKR-0 prepared the island on the existing terminal and network-protocol capabilities (dockerFromBlueprint) and built engine stage E20 for DKR-1 (DKR01-DKR04); E21 (Dockerfile build, layers, cache, history) for DKR05-DKR06, E22 (volumes, networks) for DKR07-DKR08, E23 (compose, multi-stage builds, registry) for DKR09-DKR11, E24 (inspect, health checks, limits, OOMKilled, restart policies) for DKR13-DKR14; DKR12 and the capstone DKR15 use what is built (DKR0_CONTAINER_CAPABILITY.md)"
     },
     "network-servers": {
       "capability": "terminal (engine stages E10 sockets, E11 dns, E12 http, then E13-E19) + network-protocol scenes; request-path and architecture-diagram map to network-sequence",

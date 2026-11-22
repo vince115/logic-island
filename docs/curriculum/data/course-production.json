@@ -456,7 +456,9 @@
       ],
       "commit": "TBD",
       "tests": "TBD",
-      "notes": "GEN-1：生成式 AI 島開放（llm-explorer；GEN02 是第一堂同時有 python-code 與探索器的課，Python 標準庫的字元取樣器、序列 log 機率、temperature／top-k／top-p 與偵測重複的 greedy）；生成模型概觀、自回歸生成模型兩課"
+      "notes": "GEN-1：生成式 AI 島開放（llm-explorer；GEN02 是第一堂同時有 python-code 與探索器的課，Python 標準庫的字元取樣器、序列 log 機率、temperature／top-k／top-p 與偵測重複的 greedy）；生成模型概觀、自回歸生成模型兩課",
+      "pr": "#78",
+      "merged": "5e4f35f"
     },
     {
       "id": 33,
@@ -515,6 +517,19 @@
       "commit": "TBD",
       "tests": "驗證器、發布閘門、TypeScript、ESLint、Vitest 134 檔 3860 passed／9 skipped（含 Chromium：35 堂網頁課的每個範例、參考解答、起始內容與常見錯誤，各在一般與傳統捲軸的瀏覽器跑一遍；指標步驟與模擬的指標捕捉、box 的至少／至多、按鍵的 code、對話框的 close 與 method=dialog）、Production build、E2E 桌機＋手機旗標關 511 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上每個練習各做一遍，含 MOB04 的指標練習；Mobile Navigation Simulator 的課程連結）、測驗 32 題逐題複核、洩漏掃描",
       "notes": "MOB-1：行動應用島開放（第三座以 web-code 撰寫的島）：行動情境與限制（單手操作、第一個畫面、連線失敗與重試、會停止的輪詢）、行動 UI 模式（分頁列、抽屜、dialog 做的底部面板、模式選擇）、觸控目標與手勢（WCAG 2.2 的目標尺寸、擴大點擊區域、touch-action、替代操作）、Pointer Events（指標捕捉、可取消的拖曳、鍵盤替代、被動監聽器）。引擎階段 W9：pointer 操作與依規格模擬的指標捕捉、box 的至少／至多、按鍵事件的 code、有 dialog 的頁面在操作後等一個畫格、method=dialog 的表單不再被攔下。分析型的課以「修一個有問題的頁面」教，不另建案例看板；mapState 維持 planned"
+    },
+    {
+      "id": 37,
+      "date": "2026-11-23",
+      "lessons": [
+        "DKR01",
+        "DKR02",
+        "DKR03",
+        "DKR04"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "DKR-1：Docker 容器島開放（terminal 能力，引擎階段 E20 containers：daemon 狀態、Image、模擬的 Registry、容器的檔案系統與可寫層、Docker CE 27.5.1 格式的 CLI、經 docker-proxy 的連接埠對應、docker 群組的 socket 權限）；容器概念、Docker 架構、Image 與 Container 的生命週期、Docker CLI 常用指令四課"
     }
   ]
 }

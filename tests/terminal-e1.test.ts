@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_SYSTEM, humanSize, initialState, LIMITS, MAX_LINK_HOPS, physicalPath, type FsNode, type FsState } from '@/lib/terminal/fs';
 import { expandGlob, hasMagic, matchName, type GlobIo } from '@/lib/terminal/glob';
 import { MANUAL } from '@/lib/terminal/manual';
-import { COMMANDS, DIAGNOSTICS_PROFILE, DNS_PROFILE, EDGE_PROFILE, E1_COMMANDS, FILES_PROFILE, FIREWALL_PROFILE, HTTP_PROFILE, LAB_PROFILE, NGINX_PROFILE, PACKAGES_PROFILE, PROCESSES_PROFILE, PROFILES, PROXY_PROFILE, REMOTE_PROFILE, run, SCHEDULING_PROFILE, SCRIPTING_PROFILE, SERVICES_PROFILE, SOCKETS_PROFILE, STREAMS_PROFILE, TLS_PROFILE, tokenize, TUNNELS_PROFILE, USERS_PROFILE } from '@/lib/terminal/shell';
+import { COMMANDS, CONTAINERS_PROFILE, DIAGNOSTICS_PROFILE, DNS_PROFILE, EDGE_PROFILE, E1_COMMANDS, FILES_PROFILE, FIREWALL_PROFILE, HTTP_PROFILE, LAB_PROFILE, NGINX_PROFILE, PACKAGES_PROFILE, PROCESSES_PROFILE, PROFILES, PROXY_PROFILE, REMOTE_PROFILE, run, SCHEDULING_PROFILE, SCRIPTING_PROFILE, SERVICES_PROFILE, SOCKETS_PROFILE, STREAMS_PROFILE, TLS_PROFILE, tokenize, TUNNELS_PROFILE, USERS_PROFILE } from '@/lib/terminal/shell';
 import {
   checkTerminalExercise, machineProblems, machineState, profileOf, replay, terminalContentProblems, type TerminalLessonContent, type TerminalMachine,
 } from '@/lib/terminal/lesson';
@@ -38,7 +38,7 @@ describe('profiles', () => {
     expect(FILES_PROFILE.features).toEqual(['glob', 'help-option', 'multi-source', 'ls-extra']);
     expect(PROFILES).toEqual({ lab: LAB_PROFILE, files: FILES_PROFILE, streams: STREAMS_PROFILE, users: USERS_PROFILE, processes: PROCESSES_PROFILE, packages: PACKAGES_PROFILE, services: SERVICES_PROFILE,
       remote: REMOTE_PROFILE, scripting: SCRIPTING_PROFILE, scheduling: SCHEDULING_PROFILE, sockets: SOCKETS_PROFILE, dns: DNS_PROFILE, http: HTTP_PROFILE, tls: TLS_PROFILE, nginx: NGINX_PROFILE,
-      proxy: PROXY_PROFILE, firewall: FIREWALL_PROFILE, tunnels: TUNNELS_PROFILE, edge: EDGE_PROFILE, diagnostics: DIAGNOSTICS_PROFILE });
+      proxy: PROXY_PROFILE, firewall: FIREWALL_PROFILE, tunnels: TUNNELS_PROFILE, edge: EDGE_PROFILE, diagnostics: DIAGNOSTICS_PROFILE, containers: CONTAINERS_PROFILE });
   });
   it('keeps the lab refusing every E1 command, glob, option and form', () => {
     for (const cmd of ['uname -a', 'hostname', 'man ls', 'df -h', 'du -s .', 'ln -s README.txt r', 'readlink r']) {

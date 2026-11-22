@@ -41,6 +41,7 @@ import type { NginxState } from './nginx';
 import type { FirewallState } from './firewall';
 import type { EdgeState } from './cache';
 import type { LinkState } from './diag';
+import type { DockerState } from './docker';
 
 export interface FsNode {
   /** E1: 'link' is a symbolic link (the lab never has one). */
@@ -167,6 +168,8 @@ export interface FsState {
   edge?: EdgeState;
   /** E18–E19: how far the machine is from the others (latency, ms) and, E19, the declared paths of hops to destinations. */
   links?: LinkState;
+  /** E20: the Docker daemon's images, containers and the simulated Docker Hub (only machines of the containers profile have one). */
+  docker?: DockerState;
 }
 /** E13: what certbot keeps (the simulated CA's certificate lifetime in days, its order counter). */
 export interface TlsState { lifetime: number; orders: number }
