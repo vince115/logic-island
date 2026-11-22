@@ -124,7 +124,7 @@ describe('world registry (F.0)', () => {
     // CN-5 published CN20, the last of 20: the computer-networks island is complete; its map stays planned too.
     // AIF-5 published AIF20, the last of 20: the AI foundations island is complete; its map stays planned too.
     // LNX-5 published LNX15, the last of 15: the Linux systems island is complete; its map stays planned too.
-    // SRV-1 published SRV01–SRV03 of 14: the network and servers island is open (available); its map stays planned.
+    // SRV-1 and SRV-2 published SRV01–SRV06 of 14: the network and servers island is open (available); its map stays planned.
     expect(subjectIslands.filter(i => i.status === 'available').map(i => i.id)).toEqual(['network-servers']);
     expect(getIsland('network-servers')).toMatchObject({ status: 'available', mapState: 'planned' });
     expect(getIsland('linux-systems')).toMatchObject({ status: 'complete', mapState: 'planned' });
