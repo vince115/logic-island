@@ -484,6 +484,19 @@
       "commit": "TBD",
       "tests": "驗證器、發布閘門、TypeScript、ESLint、Vitest 134 檔 3836 passed／9 skipped（含 Chromium：27 堂網頁課的每個範例、參考解答、起始內容與常見錯誤，各在一般與傳統捲軸的瀏覽器跑一遍）、Production build、E2E 桌機＋手機旗標關 491 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上每個練習各做一遍，含 699／700／701px 邊界的檢查；CSS Grid Playground 與 Responsive Layout Simulator 的課程連結）、測驗 32 題逐題複核、洩漏掃描",
       "notes": "RWD-2：響應式設計島的格線與查詢四課：CSS Grid 基礎（軌道、fr、格線編號放置）、CSS Grid 進階（命名區域、minmax、auto-fit 與 auto-fill、dense）、Media Query 與斷點策略（範圍語法、串接順序、內容導向斷點、偏好查詢）、Container Query（container-type、容器名稱、容器單位）。沒有新增引擎；每個練習在多個視窗寬度檢查，寬度條件的邊界（699／700／701）逐一量測；偏好查詢無法切換，只以課文與測驗教"
+    },
+    {
+      "id": 35,
+      "date": "2026-11-23",
+      "lessons": [
+        "RWD09",
+        "RWD10",
+        "RWD11",
+        "RWD12"
+      ],
+      "commit": "TBD",
+      "tests": "__TESTS__",
+      "notes": "RWD-3：流體字級與 clamp()（由兩個端點推出 rem＋vw 的偏好值、最小與最大值、可縮放性）、響應式圖片與媒體（流動圖片、aspect-ratio、object-fit、srcset／sizes、picture、延遲載入）、響應式導覽與表格（換行／橫向捲動／收合的選單按鈕、表格的水平捲動、隱藏欄位與重排）與響應式設計島綜合專題（web-code＋challenge-stages 五關：行動優先骨架、會收合的導覽、Grid 命名區域、容器查詢的商品卡、字級與圖片；以小島市集的首頁貫穿）；響應式設計島 12/12 完成，mapState 維持 planned。引擎階段 W8：檢查框架放在視窗內並等待畫面更新，picture 的來源與 sizes 的顯示寬度在斷點兩側以盒子量測"
     }
   ]
 }

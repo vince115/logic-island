@@ -412,6 +412,25 @@ describe('viewports (RWD-0)', () => {
   });
 });
 
+describe('images that depend on the viewport (RWD-3: W8)', () => {
+  // A data: address inside srcset has no spaces (a space ends a candidate).
+  const svg = (w: number, h: number) => `data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='${w}'%20height='${h}'%3E%3Crect%20width='${w}'%20height='${h}'%20fill='%2390caf9'/%3E%3C/svg%3E`;
+  const html = `<picture><source media="(min-width: 700px)" srcset="${svg(600, 200)}"><img id="art" alt="art" src="${svg(300, 300)}"></picture>
+<img id="fluid" alt="fluid" srcset="${svg(400, 200)} 400w, ${svg(800, 400)} 800w" sizes="(min-width: 700px) 50vw, 100vw">`;
+  const at = (width: number, name: string): WebStep[] => [
+    { check: 'box', selector: '#art', measure: 'width', value: width >= 700 ? 600 : 300, label: `${name}: the picture's source for ${width}` },
+    { check: 'box', selector: '#fluid', measure: 'width', value: width >= 700 ? width / 2 : width, label: `${name}: the sizes slot at ${width}` }];
+  inBrowser('a picture source and an image with sizes follow the viewport, on load and after every resize', async () => {
+    for (const first of [400, 1000]) {
+      const steps: WebStep[] = [...at(first, 'on load'), { do: 'resize', width: 1000 }, ...at(1000, 'wider'), { do: 'resize', width: 699 }, ...at(699, 'just below'), { do: 'resize', width: 700 }, ...at(700, 'at the condition')];
+      for (let again = 0; again < 3; again++) {
+        const r = await browser!.run({ files: { html, css: 'body { margin: 0; } img { display: block; }' }, steps, viewport: { width: first, height: 600 } });
+        expect(judge(steps, r.results).map(x => [x.label, x.ok, x.message])).toEqual(steps.filter(x => 'check' in x).map(x => [(x as { label: string }).label, true, '']));
+      }
+    }
+  }, 60_000);
+});
+
 describe('scroll bars that take room (RWD-1)', () => {
   // Headless Chromium hides scroll bars; a learner on a system with classic ones has them. This browser shows them.
   let classic: WebBrowser | null = null;
