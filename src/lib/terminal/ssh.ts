@@ -203,9 +203,39 @@ export interface SshdOptions {
   /** E17: AllowTcpForwarding (yes, all, local, remote, no; default yes) and GatewayPorts (no, yes, clientspecified; default no). */
   allowTcpForwarding?: 'yes' | 'all' | 'local' | 'remote' | 'no';
   gatewayPorts?: 'no' | 'yes' | 'clientspecified';
+  /** Fix (E19 batch, tunnels and above): PermitOpen (host:port targets of -L and -J; default any), DisableForwarding, Match blocks. */
+  permitOpen?: string[];
+  disableForwarding?: boolean;
+  matches?: MatchBlock[];
 }
+/** A Match block: its criteria (User and Address lists, or All) and the settings that override the global ones when they hold. */
+export interface MatchBlock { users?: string[]; addresses?: string[]; all?: true; settings: Partial<Omit<SshdOptions, 'matches'>> }
+/** The options sshd applies to a connection of user from address: the global ones overridden by the matching Match blocks (the first value wins). */
+export function optionsFor(o: SshdOptions, user: string, address: string): SshdOptions {
+  if (!o.matches?.length) return o;
+  const out: SshdOptions = { ...o }, set = new Set<string>();
+  const hit = (b: MatchBlock) => b.all || ((!b.users || b.users.some(u => matchName(u, user))) && (!b.addresses || b.addresses.some(a => a.includes('/') ? cidrHas(a, address) : matchName(a, address))));
+  for (const b of o.matches) {
+    if (!hit(b)) continue;
+    for (const [k, v] of Object.entries(b.settings)) if (!set.has(k)) { set.add(k); (out as unknown as Record<string, unknown>)[k] = v; }
+  }
+  return out;
+}
+const cidrHas = (spec: string, ip: string) => {
+  const [net, bits] = spec.split('/'), n = (a: string) => a.split('.').reduce((x, o) => x * 256 + Number(o), 0), size = 2 ** (32 - Number(bits));
+  return /^\d+\.\d+\.\d+\.\d+$/.test(ip) && Math.floor(n(ip) / size) === Math.floor(n(net) / size);
+};
+/** Whether PermitOpen allows a forward to host:port (any; none; host:port or host:* as the client wrote the host). */
+export function permitOpen(o: SshdOptions, host: string, port: number): boolean {
+  const list = o.permitOpen ?? ['any'];
+  if (list.includes('any')) return true;
+  if (list.includes('none')) return false;
+  return list.some(e => { const at = e.lastIndexOf(':'), h = e.slice(0, at), pt = e.slice(at + 1); return (h === '*' || h.toLowerCase() === host.toLowerCase()) && (pt === '*' || Number(pt) === port); });
+}
+/** The forwarding sshd allows a connection: DisableForwarding wins over AllowTcpForwarding. */
+export const forwardingOf = (o: SshdOptions) => o.disableForwarding ? 'no' as const : o.allowTcpForwarding ?? 'yes';
 /** A remote machine's sshd: its host key, and the options it runs with (read at start and at each reload, not on every edit). */
-export interface SshdState { publicLine: string; fingerprint: string; applied: SshdOptions }
+export interface SshdState { publicLine: string; fingerprint: string; applied: SshdOptions; /** Fix (E19 batch): the tunnels profile and above read PermitOpen, DisableForwarding and Match blocks. */ forwarding?: true }
 export const DEFAULT_SSHD: SshdOptions = {
   port: 22, permitRootLogin: 'prohibit-password', passwordAuthentication: true, pubkeyAuthentication: true, kbdInteractiveAuthentication: true, strictModes: true,
   authorizedKeysFiles: ['.ssh/authorized_keys', '.ssh/authorized_keys2'],
@@ -239,7 +269,7 @@ const ACCEPTED = ['acceptenv', 'addressfamily', 'allowagentforwarding', 'allowgr
  * Ubuntu's cloud images). A Match block is accepted but its settings are not modelled (everything after it is skipped).
  * errors are sshd -t's messages; fatal is set when sshd would stop at once.
  */
-export function readSshdConfig(nodes: ReadonlyMap<string, FsNode>): { options: SshdOptions; errors: string[]; missing?: true } {
+export function readSshdConfig(nodes: ReadonlyMap<string, FsNode>, forwarding = false): { options: SshdOptions; errors: string[]; missing?: true } {
   const options: SshdOptions = { ...DEFAULT_SSHD, authorizedKeysFiles: [...DEFAULT_SSHD.authorizedKeysFiles] }, errors: string[] = [], seen = new Set<string>();
   const fileText = (path: string) => { const n = nodes.get(physicalPath(nodes, path, true)); return n?.kind === 'file' ? n.content ?? '' : undefined; };
   if (fileText(SSHD_CONFIG) === undefined) return { options, errors: [`${SSHD_CONFIG}: No such file or directory`], missing: true };
@@ -254,7 +284,33 @@ export function readSshdConfig(nodes: ReadonlyMap<string, FsNode>): { options: S
       const m = /^(\S+?)(?:\s*=\s*|\s+)(.*)$/.exec(line) ?? [line, line, ''];
       const key = m[1].toLowerCase(), value = m[2].trim(), args = value.split(/\s+/).filter(Boolean);
       const once = !seen.has(key) && !inMatch;
+      // Fix (E19 batch): from the tunnels profile up a Match block (User, Address, All) keeps its settings for the connections it matches.
+      if (key === 'match' && forwarding) {
+        const words = args.map(w => w.toLowerCase()), block: MatchBlock = { settings: {} };
+        for (let k = 0; k < args.length; k++) {
+          const w = words[k];
+          if (w === 'all') { block.all = true; continue; }
+          if ((w === 'user' || w === 'address') && args[k + 1] !== undefined) { block[w === 'user' ? 'users' : 'addresses'] = args[++k].split(','); continue; }
+          errors.push(`${path} line ${at}: Unsupported Match attribute ${args[k]}`); fatal = true; return;
+        }
+        if (!args.length) { errors.push(`${path} line ${at}: One or more attributes required for Match`); fatal = true; return; }
+        inMatch = true;
+        options.matches = [...options.matches ?? [], block];
+        return;
+      }
       if (key === 'match') { inMatch = true; return; }
+      const block = forwarding && inMatch ? options.matches?.at(-1) : undefined;
+      if (block) {
+        // Inside a Match block: the keywords that may be overridden per connection (the first value in the block wins).
+        const MATCH_KEYS: Record<string, keyof MatchBlock['settings']> = { allowtcpforwarding: 'allowTcpForwarding', gatewayports: 'gatewayPorts', permitopen: 'permitOpen', disableforwarding: 'disableForwarding', passwordauthentication: 'passwordAuthentication', pubkeyauthentication: 'pubkeyAuthentication', permitrootlogin: 'permitRootLogin' };
+        if (key === 'port' || key === 'include' || key === 'listenaddress') { errors.push(`${path} line ${at}: Directive '${m[1]}' is not allowed within a Match block`); fatal = true; return; }
+        const name = MATCH_KEYS[key];
+        if (!name) { if (!ACCEPTED.includes(key) && !['allowusers', 'denyusers', 'authorizedkeysfile', 'kbdinteractiveauthentication', 'forcecommand', 'chrootdirectory', 'x11forwarding', 'allowagentforwarding'].includes(key)) { errors.push(`${path}: line ${at}: Bad configuration option: ${m[1]}`); bad++; } return; }
+        const v = (args[0] ?? '').toLowerCase();
+        const value = name === 'permitOpen' ? args : name === 'disableForwarding' || name === 'passwordAuthentication' || name === 'pubkeyAuthentication' ? v === 'yes' : name === 'permitRootLogin' && v === 'without-password' ? 'prohibit-password' : v;
+        if (block.settings[name] === undefined) (block.settings as Record<string, unknown>)[name] = value;
+        return;
+      }
       if (key === 'include') {
         for (const pattern of args) {
           const full = pattern.startsWith('/') ? pattern : `/etc/ssh/${pattern}`, dir = parentOf(full), part = baseName(full);
@@ -282,6 +338,16 @@ export function readSshdConfig(nodes: ReadonlyMap<string, FsNode>): { options: S
         const v = (args[0] ?? '').toLowerCase(), ok = key === 'allowtcpforwarding' ? ['yes', 'all', 'local', 'remote', 'no'] : ['yes', 'no', 'clientspecified'];
         if (!ok.includes(v)) { errors.push(`${path} line ${at}: unsupported option "${args[0] ?? ''}".`); fatal = true; return; }
         if (once) { if (key === 'allowtcpforwarding') options.allowTcpForwarding = v as SshdOptions['allowTcpForwarding']; else options.gatewayPorts = v as SshdOptions['gatewayPorts']; }
+      } else if (forwarding && (key === 'permitopen' || key === 'disableforwarding')) {
+        // Fix (E19 batch): what -L and -J may reach (PermitOpen) and the switch that turns every forwarding off.
+        if (key === 'disableforwarding') {
+          if (!['yes', 'no'].includes((args[0] ?? '').toLowerCase())) { errors.push(`${path} line ${at}: unsupported option "${args[0] ?? ''}".`); fatal = true; return; }
+          if (once) options.disableForwarding = args[0].toLowerCase() === 'yes';
+        } else {
+          if (!args.length) { errors.push(`${path} line ${at}: missing PermitOpen specification`); fatal = true; return; }
+          for (const a of args) if (!['any', 'none'].includes(a.toLowerCase()) && !/^[^:\s]+:(\d{1,5}|\*)$/.test(a)) { errors.push(`${path} line ${at}: ${a.includes(':') ? 'bad port number in PermitOpen' : 'missing host in PermitOpen'}`); fatal = true; return; }
+          if (once) options.permitOpen = args.map(a => ['any', 'none'].includes(a.toLowerCase()) ? a.toLowerCase() : a);
+        }
       } else if (key === 'allowusers' || key === 'denyusers') {
         // These accumulate, unlike the other keywords.
         if (!inMatch) { const list = key === 'allowusers' ? 'allowUsers' : 'denyUsers'; options[list] = [...options[list] ?? [], ...args]; }
@@ -398,6 +464,8 @@ interface Client {
   port?: number; identities: string[]; strict: 'ask' | 'yes' | 'no' | 'accept-new'; password: boolean; pubkey: boolean; batch: boolean; quiet: boolean; user?: string;
   /** E17: -L and -R specifications, -J, -F, -f, -N, -g, and which options the command line set (they win over ~/.ssh/config). */
   locals: string[]; remotes: string[]; jump?: string; config?: string; background: boolean; noCommand: boolean; gateway: boolean; set: Set<string>;
+  /** Fix (E19 batch): ExitOnForwardFailure — a forward that cannot be set up ends ssh (status 255) instead of a warning. */
+  exitOnFailure?: boolean;
 }
 const newClient = (): Client => ({ identities: [], strict: 'ask', password: true, pubkey: true, batch: false, quiet: false, locals: [], remotes: [], background: false, noCommand: false, gateway: false, set: new Set() });
 const CLIENT_OPTIONS = ['stricthostkeychecking', 'passwordauthentication', 'pubkeyauthentication', 'batchmode', 'port', 'user', 'identityfile', 'identitiesonly', 'loglevel', 'connecttimeout'];
@@ -413,6 +481,7 @@ function clientOption(c: Client, text: string, tunnels = false): string | null {
     else if (key === 'localforward') c.locals.push(value.replace(/\s+/, ':'));
     else if (key === 'remoteforward') c.remotes.push(value.replace(/\s+/, ':'));
     else if (key === 'gatewayports') c.gateway = v === 'yes';
+    else if (key === 'exitonforwardfailure') { if (v !== 'yes' && v !== 'no') return `command-line line 0: unsupported option "${value}".`; c.exitOnFailure = v === 'yes'; }
     return null;
   }
   if (!CLIENT_OPTIONS.includes(key) || /\s/.test(value)) return `command-line line 0: Bad configuration option: ${/\s/.test(value) ? text.trim() : m[1].toLowerCase()}`;
@@ -574,7 +643,7 @@ function connect(given: FsState, dest: string, c: Client, io: RemoteIo, only?: A
     else { local = added; say(`Warning: Permanently added '${field}' (ED25519) to the list of known hosts.`); }
   }
   // 2. Authentication.
-  const remoteBefore = host.state, o = sshd.applied, account = findUser(accountsOf(remoteBefore), user);
+  const remoteBefore = host.state, o = optionsFor(sshd.applied, user, source), account = findUser(accountsOf(remoteBefore), user);
   const conns = net!.connections + 1, sport = 50000 + conns, pid = nextPid(remoteBefore);
   let remote: FsState = { ...remoteBefore, lastPid: pid };
   const from = `from ${source} port ${sport}`;
@@ -676,7 +745,7 @@ function authorizedProblem(remote: FsState, user: string, key: Uint8Array, o: Ss
 export function loginProblem(state: FsState, host: string, user: string, method: Auth): string | null {
   const at = state.net ? findHost(state.net, host) : -1;
   if (at < 0) return '沒有這台主機';
-  const remote = state.net!.hosts[at].state, o = remote.sshd?.applied;
+  const remote = state.net!.hosts[at].state, o = remote.sshd ? optionsFor(remote.sshd.applied, user, sourceAddress(state, state.net!.hosts[at].address)) : undefined;
   if (!o || !sshdRunning(remote)) return 'sshd 沒有在執行';
   const account = findUser(accountsOf(remote), user);
   if (!account) return `遠端沒有使用者 ${user}`;
@@ -785,8 +854,9 @@ function ssh(state: FsState, args: readonly string[], io: RemoteIo): { state: Fs
     if (!r.conn) return { state: r.state, status: 255 };
     if (k < hops.length - 1) {
       // A jump host forwards the next connection (direct-tcpip): its sshd must allow TCP forwarding.
-      const allow = r.conn.remote.sshd?.applied.allowTcpForwarding ?? 'yes';
-      if (allow === 'no' || allow === 'remote') { io.err('channel 0: open failed: administratively prohibited: open failed'); io.err('stdio forwarding failed'); io.err('Connection closed by UNKNOWN port 65535'); return { state: r.state, status: 255 }; }
+      const jumpState = r.state.net!.hosts[r.conn.at], jo = r.conn.remote.sshd ? optionsFor(r.conn.remote.sshd.applied, r.conn.user, sourceAddress(r.state, jumpState.address)) : undefined;
+      const allow = jo ? forwardingOf(jo) : 'yes', next = hops[k + 1];
+      if (allow === 'no' || allow === 'remote' || (jo && !permitOpen(jo, next.dest.replace(/^[^@]*@/, ''), next.c.port ?? 22))) { io.err('channel 0: open failed: administratively prohibited: open failed'); io.err('stdio forwarding failed'); io.err('Connection closed by UNKNOWN port 65535'); return { state: r.state, status: 255 }; }
       via = r.conn.at;
     }
   }
@@ -931,8 +1001,10 @@ const overlaps = (a: string, b: string) => a === '0.0.0.0' || b === '0.0.0.0' ||
  * that holds the -L listeners; kill it and they close, and its -R listeners on the server go too).
  */
 function forwards(state: FsState, conn: Connection, c: Client, io: RemoteIo, args: readonly string[], command: boolean): { state: FsState } | { status: number } {
-  const remoteName = state.net!.hosts[conn.at].host, server = state.net!.hosts[conn.at].state, o = server.sshd!.applied;
-  const allow = o.allowTcpForwarding ?? 'yes', clock = clockOf(state);
+  const remoteName = state.net!.hosts[conn.at].host, server = state.net!.hosts[conn.at].state;
+  // Fix (E19 batch): the options of this connection (Match User/Address), DisableForwarding and PermitOpen.
+  const o = optionsFor(server.sshd!.applied, conn.user, sourceAddress(state, state.net!.hosts[conn.at].address));
+  const allow = forwardingOf(o), clock = clockOf(state);
   const localPid = c.background ? nextPid(state) : 0;
   const listen: Listen[] = [];
   for (const text of c.locals) {
@@ -945,9 +1017,11 @@ function forwards(state: FsState, conn: Connection, c: Client, io: RemoteIo, arg
       io.err(`bind [${address}]:${f.port}: ${denied ? 'Permission denied' : 'Address already in use'}`);
       io.err(`channel_setup_fwd_listener_tcpip: cannot listen to port: ${f.port}`);
       io.err('Could not request local forwarding.');
+      if (c.exitOnFailure) return { status: 255 };
       continue;
     }
-    listen.push({ port: f.port, ...address !== '0.0.0.0' ? { address } : {}, fd: 4 + listen.length, backlog: 128, forward: { via: remoteName, host: f.host, port: f.hostPort, ...allow === 'no' || allow === 'remote' ? { prohibited: true as const } : {} } });
+    const prohibited = allow === 'no' || allow === 'remote' || !permitOpen(o, f.host, f.hostPort);
+    listen.push({ port: f.port, ...address !== '0.0.0.0' ? { address } : {}, fd: 4 + listen.length, backlog: 128, forward: { via: remoteName, host: f.host, port: f.hostPort, ...prohibited ? { prohibited: true as const } : {} } });
   }
   let next = state;
   if (c.background) {
@@ -964,7 +1038,11 @@ function forwards(state: FsState, conn: Connection, c: Client, io: RemoteIo, arg
     const gp = o.gatewayPorts ?? 'no';
     const address = gp === 'yes' ? '0.0.0.0' : gp === 'clientspecified' && f.bind !== undefined ? bindAddress(f.bind, false) : '127.0.0.1';
     const taken = listenersOf(remote).some(l => l.proto === 'tcp' && l.local.port === f.port && overlaps(l.local.address, address));
-    if (allow === 'no' || allow === 'local' || taken || (f.port < 1024 && conn.user !== 'root')) { io.err(`Warning: remote port forwarding failed for listen port ${f.port}`); continue; }
+    if (allow === 'no' || allow === 'local' || taken || (f.port < 1024 && conn.user !== 'root')) {
+      if (c.exitOnFailure) { io.err(`Error: remote port forwarding failed for listen port ${f.port}`); return { status: 255 }; }
+      io.err(`Warning: remote port forwarding failed for listen port ${f.port}`);
+      continue;
+    }
     const pid = nextPid(remote);
     const sshdProc: Proc = { pid, ppid: 700, user: conn.user, command: `sshd: ${conn.user}${command ? '@notty' : c.noCommand ? '' : '@pts/1'}`, stat: 'S', cpu: 0, rss: 7168, vsz: 17920, shr: 5888, tty: '?', start: clock.now, time: 0, nice: 0,
       listen: [{ port: f.port, ...address !== '0.0.0.0' ? { address } : {}, fd: 9, backlog: 128, forward: { via: nameOf(next), host: f.host, port: f.hostPort, client: localPid } }] };
@@ -1150,7 +1228,7 @@ function sshd(state: FsState, args: readonly string[], io: RemoteIo): { state: F
   if (!state.sshd) { io.err('sshd: 這台機器沒有 OpenSSH 伺服器（模擬環境：只有課程宣告的遠端主機執行 sshd）'); return { state, status: 1 }; }
   if (args.length !== 1 || (args[0] !== '-t' && args[0] !== '-T')) { io.err('sshd: 模擬環境的 sshd 由 systemd 管理（systemctl status ssh）；只支援 sshd -t 與 sshd -T'); return { state, status: 1 }; }
   if (io.user !== 'root') { io.err('sshd: no hostkeys available -- exiting.'); return { state, status: 1 }; }
-  const r = readSshdConfig(state.nodes);
+  const r = readSshdConfig(state.nodes, !!state.sshd.forwarding);
   r.errors.forEach(e => io.err(e));
   if (r.errors.length) return { state, status: 255 };
   if (args[0] === '-T') effective(r.options).forEach(l => io.out(`${l}\n`));
@@ -1166,7 +1244,7 @@ export function sshdControl(state: FsState, args: readonly string[], user: strin
   const verb = args.find(a => !a.startsWith('-')), units = args.filter(a => !a.startsWith('-')).slice(1);
   if (!state.sshd || !verb || !['start', 'restart', 'reload', 'try-restart', 'reload-or-restart'].includes(verb) || !units.some(u => /^sshd?(\.service)?$/.test(u))) return { state };
   if (user !== 'root') return { state };
-  const r = readSshdConfig(state.nodes), now = clockOf(state).now, unit = 'ssh.service';
+  const r = readSshdConfig(state.nodes, !!state.sshd.forwarding), now = clockOf(state).now, unit = 'ssh.service';
   const log = (s: FsState, id: string, priority: number, message: string, pid?: number): FsState => s.journal ? { ...s, journal: [...s.journal, { time: now, unit, id, ...pid ? { pid } : {}, priority, message }].slice(-MAX_JOURNAL) } : s;
   if (phase === 'before') {
     if (!r.errors.length) return { state };

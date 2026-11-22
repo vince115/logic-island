@@ -11,6 +11,7 @@ import type { Program } from './services';
 import { describeWebCheck, expandWeb, webCheckProblems, webFailure, webProblems, webState, type WebCheck } from './web-lesson';
 import { describeNetCheck, expandNet, netCheckProblems, netFailure, netProblems, netState, sshConfigFiles, viewOfHost, type NetCheck } from './net-lesson';
 import { machineState } from './lesson';
+import { describeEdgeCheck, edgeCheckProblems, edgeFailure, edgeProblems, edgeState, expandEdge, type EdgeCheck } from './edge-lesson';
 
 /*
  * Engine stages E10–E12 as lesson data (docs/curriculum/SRV0_SERVER_CAPABILITY.md §9). A machine of the sockets profile is
@@ -32,7 +33,7 @@ export interface TerminalZone { zone: string; text: string }
 export type TerminalListen = Listen;
 export type TerminalResponder = Responder;
 /** Which of the stages a machine's profile has. */
-export interface ServerLevels { sockets: boolean; dns: boolean; http: boolean; tls: boolean; nginx: boolean; proxy: boolean; firewall: boolean; tunnels: boolean }
+export interface ServerLevels { sockets: boolean; dns: boolean; http: boolean; tls: boolean; nginx: boolean; proxy: boolean; firewall: boolean; tunnels: boolean; edge: boolean; diagnostics: boolean }
 
 /** E10–E12 (lesson checks). */
 export type ServerCheck =
@@ -40,12 +41,17 @@ export type ServerCheck =
   | { kind: 'listen'; port: number; proto?: 'tcp' | 'udp'; address?: string; process?: string; absent?: true; host?: string }
   /** E11: the name has these records (dig +short's text, in any order), or none of the type (absent). server: ask that host's named; else the local resolver. */
   | { kind: 'dns'; name: string; type?: RrType; values?: string[]; absent?: true; server?: string }
-  /** E12: a GET of the URL (no redirects followed) answers this status, header (name and value) and a body containing this text. */
-  | { kind: 'http'; url: string; status?: number; header?: [string, string]; body?: string; host?: string }
+  /**
+   * E12: a GET of the URL (no redirects followed) answers this status, header (name and value) and a body containing this text.
+   * E18 (edge): more headers that must be there, and request headers to send (a conditional request: If-None-Match…).
+   */
+  | { kind: 'http'; url: string; status?: number; header?: [string, string]; body?: string; host?: string; headers?: [string, string][]; requestHeaders?: [string, string][] }
   /** E13–E14: cert and nginx (web-lesson.ts). */
   | WebCheck
   /** E15–E17: reach, firewall and tunnel (net-lesson.ts). */
-  | NetCheck;
+  | NetCheck
+  /** E18: cache (edge-lesson.ts). */
+  | EdgeCheck;
 
 export const RESOLV_CONF = '# This is /run/systemd/resolve/stub-resolv.conf managed by man:systemd-resolved(8).\n# Do not edit.\n\nnameserver 127.0.0.53\noptions edns0 trust-ad\nsearch .\n';
 const NAMED_CONF = '// This is the primary configuration file for the BIND DNS server named.\n\ninclude "/etc/bind/named.conf.options";\ninclude "/etc/bind/named.conf.local";\n';
@@ -136,6 +142,8 @@ export function expandServer(m: TerminalMachine, lv: ServerLevels): TerminalMach
   // E16–E17: ufw's application profiles and /etc/nftables.conf; the learner's ~/.ssh/config.
   expandNet(m, lv, { file: add, dir });
   if (lv.tunnels) for (const f of sshConfigFiles(m, m.home ?? (m.user === 'root' ? '/root' : `/home/${m.user}`))) add(f);
+  // E19: the lesson's capture files.
+  expandEdge(m, lv, { file: add, dir });
   files.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
   return { ...m, files, processes: procs, programs, services, ...users.length || groups.length ? { accounts: { ...m.accounts, users, groups } } : {} };
 }
@@ -159,7 +167,7 @@ export function serverState(m: TerminalMachine, state: FsState, lv: ServerLevels
     if (m.named !== undefined) next = { ...next, dns: { ...next.dns!, named: loadNamed(next).zones } };
   }
   if (lv.http) next = { ...next, http: { responders: (m.responders ?? []).map(r => ({ ...r, routes: r.routes.map(x => ({ ...x })) })) } };
-  return netState(m, webState(m, next, lv), lv);
+  return edgeState(m, netState(m, webState(m, next, lv), lv), lv);
 }
 
 const LINE = (max: number) => (t: unknown) => typeof t === 'string' && t.length >= 1 && t.length <= max && !t.includes('\n');
@@ -167,8 +175,8 @@ const whole = (x: unknown, min: number, max: number) => Number.isInteger(x) && (
 const HEADER_NAME = /^[A-Za-z0-9!#$%&'*+.^_`|~-]{1,64}$/;
 
 /** E10–E12: the problems of a machine's (expanded) server data; `own` is whether listen addresses are checked against it. */
-export function serverProblems(m: TerminalMachine, lv: ServerLevels): string[] {
-  const problems: string[] = [...webProblems(m, lv), ...netProblems(m, lv, () => machineState(m))], fail = (what: string) => problems.push(what);
+export function serverProblems(m: TerminalMachine, lv: ServerLevels, names?: readonly string[]): string[] {
+  const problems: string[] = [...webProblems(m, lv), ...netProblems(m, lv, () => machineState(m)), ...edgeProblems(m, lv, names)], fail = (what: string) => problems.push(what);
   const listens = [...(m.processes ?? []).flatMap(p => p.listen ?? []), ...(m.programs ?? []).flatMap(p => p.listen ?? [])];
   if (!lv.sockets && (m.interfaces !== undefined || m.gateway !== undefined || m.connections !== undefined || m.resolved !== undefined || listens.length))
     fail('interfaces, gateway, connections, resolved and listen need the sockets profile (engine stage E10)');
@@ -243,7 +251,7 @@ export function serverProblems(m: TerminalMachine, lv: ServerLevels): string[] {
     if (!/^[a-z0-9][a-z0-9-]{0,31}$/.test(r.id) || ids.has(r.id)) fail(`${at}: needs a unique id of a-z, 0-9 and -`);
     ids.add(r.id);
     if (r.server !== undefined && !LINE(64)(r.server)) fail(`${at}: server needs 1..64 characters on one line`);
-    if (!Array.isArray(r.routes) || !r.routes.length || r.routes.length > 30) { fail(`${at}: needs 1..30 routes`); continue; }
+    if (!Array.isArray(r.routes) || (!r.routes.length && !(lv.edge && r.cdn)) || r.routes.length > 30) { fail(`${at}: needs 1..30 routes`); continue; }
     for (const x of r.routes) {
       const rt = `${at} route ${x.path}`;
       if (!LINE(200)(x.path) || !x.path.startsWith('/') || /\s/.test(x.path)) fail(`${rt}: the path must start with / and have no spaces`);
@@ -273,7 +281,10 @@ export function serverCheckProblems(c: ServerCheck, lv: ServerLevels, known: (ho
     case 'http':
       if (!lv.http || !(lv.tls ? /^https?:\/\/[^\s/]+/ : /^http:\/\/[^\s/]+/).test(c.url) || (c.status !== undefined && !whole(c.status, 100, 599)) || (c.host !== undefined && !known(c.host)))
         return 'an http check needs an http machine (engine stage E12), an http:// URL (https:// from the tls profile, E13), a status 100..599 and a known host';
+      if ((c.headers !== undefined || c.requestHeaders !== undefined) && (!lv.edge || [...c.headers ?? [], ...c.requestHeaders ?? []].some(h => !Array.isArray(h) || h.length !== 2 || !HEADER_NAME.test(h[0]) || !LINE(500)(h[1]))))
+        return 'headers and requestHeaders of an http check need an edge machine (engine stage E18) and [name, value] pairs';
       return null;
+    case 'cache': return edgeCheckProblems(c, lv, known);
     case 'cert': case 'nginx': return webCheckProblems(c, lv, known);
     case 'reach': case 'firewall': case 'tunnel': return netCheckProblems(c, lv, known);
   }
@@ -290,8 +301,10 @@ export function describeServerCheck(c: ServerCheck): string {
     }
     case 'http': {
       const parts = [c.status !== undefined ? `狀態碼 ${c.status}` : '', c.header ? `標頭 ${c.header[0]}: ${c.header[1]}` : '', c.body !== undefined ? `內容包含「${c.body}」` : ''].filter(Boolean);
-      return `${on(c.host)}GET ${c.url} 應該回應${parts.join('、') || '成功'}`;
+      const more = (c.headers ?? []).map(([k, v]) => `標頭 ${k}: ${v}`), sent = (c.requestHeaders ?? []).map(([k, v]) => `${k}: ${v}`);
+      return `${on(c.host)}GET ${c.url}${sent.length ? `（帶著 ${sent.join('、')}）` : ''} 應該回應${[...parts, ...more].join('、') || '成功'}`;
     }
+    case 'cache': return describeEdgeCheck(c);
     case 'cert': case 'nginx': return describeWebCheck(c);
     case 'reach': case 'firewall': case 'tunnel': return describeNetCheck(c);
   }
@@ -319,14 +332,15 @@ export function serverFailure(c: ServerCheck, end: FsState, hostState: (host: st
       // E16: from the firewall profile up, a request from another host goes through the network (firewalls, tunnels) as from there.
       const s = c.host ? (end.firewall ? viewOfHost(end, c.host) : hostState(c.host)) : end;
       if (!s) return `沒有 ${c.host} 這台主機`;
-      const r = probe(s, c.url, resolve, true);
+      const r = probe(s, c.url, resolve, true, c.requestHeaders ?? []);
       if ('error' in r) return r.error;
       if (c.status !== undefined && r.status !== c.status) return `狀態碼是 ${r.status}`;
-      if (c.header) { const v = responseHeader(r.headers, c.header[0]); if (v !== c.header[1]) return v === undefined ? `沒有 ${c.header[0]} 標頭` : `${c.header[0]} 是 ${v}`; }
+      for (const h of [...c.header ? [c.header] : [], ...c.headers ?? []]) { const v = responseHeader(r.headers, h[0]); if (v !== h[1]) return v === undefined ? `沒有 ${h[0]} 標頭` : `${h[0]} 是 ${v}`; }
       if (c.body !== undefined && !r.body.includes(c.body)) return '內容不包含題目要的文字';
       return null;
     }
     case 'cert': case 'nginx': return webFailure(c, end, hostState);
     case 'reach': case 'firewall': case 'tunnel': return netFailure(c, end);
+    case 'cache': return edgeFailure(c, end, resolve, h => h === undefined ? end : end.firewall ? viewOfHost(end, h) : hostState(h));
   }
 }

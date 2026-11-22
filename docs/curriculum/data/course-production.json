@@ -333,7 +333,21 @@
       ],
       "commit": "TBD",
       "tests": "TBD",
-      "notes": "SRV-3：引擎階段 E15（proxy：proxy_pass 的 URI 規則、轉送標頭與繼承、WebSocket 升級、upstream 負載平衡與被動健康檢查、502／504 與 error.log）、E16（firewall：ufw 的預設原則、編號規則、應用程式設定檔與 limit，nftables 規則集與 nft -c／-f，狀態追蹤與丟棄／拒絕）與 E17（tunnels：ssh -L／-R／-D／-J、ProxyJump 與 ~/.ssh/config、GatewayPorts 與 AllowTcpForwarding、背景通道）；反向代理、負載平衡、伺服器防火牆、SSH 通道與跳板機四課"
+      "notes": "SRV-3：引擎階段 E15（proxy：proxy_pass 的 URI 規則、轉送標頭與繼承、WebSocket 升級、upstream 負載平衡與被動健康檢查、502／504 與 error.log）、E16（firewall：ufw 的預設原則、編號規則、應用程式設定檔與 limit，nftables 規則集與 nft -c／-f，狀態追蹤與丟棄／拒絕）與 E17（tunnels：ssh -L／-R／-D／-J、ProxyJump 與 ~/.ssh/config、GatewayPorts 與 AllowTcpForwarding、背景通道）；反向代理、負載平衡、伺服器防火牆、SSH 通道與跳板機四課",
+      "pr": "#68",
+      "merged": "65d6736"
+    },
+    {
+      "id": 24,
+      "date": "2026-11-22",
+      "lessons": [
+        "SRV11",
+        "SRV12",
+        "SRV13"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "SRV-4：引擎階段 E18（edge：nginx proxy_cache 與 $upstream_cache_status、來源的 Cache-Control／Expires／Set-Cookie／Vary、expires、ETag 與 Last-Modified 的 304、泛用的 CDN 邊緣節點與虛構的清除 API、curl -w 的時間、sleep 推進時鐘）與 E19（diagnostics：ping、traceroute、mtr --report、tcpdump -r 與篩選語言、sed 子集），並修正 journalctl -g、ps 的 START、--no-legend、cron.d、set -u、grep -q、sshd 的 PermitOpen／DisableForwarding／Match、tcpdump 的 and／or 優先順序與 curl 在解析器快取命中時的查詢時間；CDN 與快取設定、網路診斷工具、伺服器故障排除方法三課"
     }
   ]
 }

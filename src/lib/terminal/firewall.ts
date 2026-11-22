@@ -25,7 +25,7 @@ export interface UfwRule {
   form: 'simple' | 'full';
 }
 export interface UfwState { enabled: boolean; incoming: Policy; outgoing: Policy; routed: Policy | 'disabled'; logging: string; rules: UfwRule[] }
-export interface NftMatch { ct?: string[]; iif?: string; saddr?: string[]; daddr?: string[]; proto?: Proto; dport?: string[]; sport?: string[] }
+export interface NftMatch { ct?: string[]; iif?: string; saddr?: string[]; daddr?: string[]; /** E19: icmp too (ping, traceroute -I). */ proto?: Proto | 'icmp'; dport?: string[]; sport?: string[] }
 export interface NftRule { handle: number; text: string; match: NftMatch; verdict?: Verdict }
 export interface NftChain { name: string; handle: number; base?: { type: string; hook: string; priority: string; policy: 'accept' | 'drop' }; rules: NftRule[] }
 export interface NftTable { family: string; name: string; handle: number; chains: NftChain[]; next: number }
@@ -70,7 +70,7 @@ function portSets(spec: string): { proto: Proto; ranges: [number, number][] }[] 
 // ------------------------------------------------------------------------------------------------------ deciding
 
 /** A connection as the firewall sees it: protocol, addresses, destination port, the interface it arrives on (lo for the machine itself). */
-export interface Packet { proto: Proto; src: string; dst: string; port: number; iface: string; state: 'new' | 'established' }
+export interface Packet { /** E19: icmp is an echo request (ping, traceroute -I, mtr); its port is 0. */ proto: Proto | 'icmp'; src: string; dst: string; port: number; iface: string; state: 'new' | 'established' }
 
 /** ufw's rules (one direction) compiled to the CN model: its before rules, the user's rules, the default; reject beside it. */
 function compileUfw(state: FsState, ufw: UfwState, direction: 'in' | 'out', iface: string): { parsed: ParsedRules; reject: boolean[] } {
@@ -79,6 +79,8 @@ function compileUfw(state: FsState, ufw: UfwState, direction: 'in' | 'out', ifac
   // ufw-before-input / -output: loopback and connection tracking.
   push({ action: 'allow', protocol: 'any', src: direction === 'in' ? '127.0.0.0/8' : 'any', dst: direction === 'in' ? 'any' : '127.0.0.0/8', established: false });
   push({ action: 'allow', protocol: 'any', src: 'any', dst: 'any', established: true });
+  // E19: ufw's before.rules accept ICMP echo requests coming in (ping is answered whatever the user's rules say).
+  if (direction === 'in') push({ action: 'allow', protocol: 'icmp', src: 'any', dst: 'any', established: false });
   const apps = appsOf(state);
   for (const r of ufw.rules.filter(x => !x.v6 && x.direction === direction && (!x.iface || x.iface === iface))) {
     const action = r.action === 'deny' || r.action === 'reject' ? 'deny' : 'allow';
@@ -94,7 +96,7 @@ function compileUfw(state: FsState, ufw: UfwState, direction: 'in' | 'out', ifac
 function ufwVerdict(state: FsState, ufw: UfwState, direction: 'in' | 'out', p: Packet): Verdict {
   if (!ufw.enabled) return 'accept';
   const { parsed, reject } = compileUfw(state, ufw, direction, p.iface);
-  const d = decidePacket(parsed, { label: '', protocol: p.proto, src: p.src, dst: p.dst, port: p.port, state: p.state });
+  const d = decidePacket(parsed, { label: '', protocol: p.proto, src: p.src, dst: p.dst, ...p.proto === 'icmp' ? {} : { port: p.port }, state: p.state });
   if (d.action === 'allow') return 'accept';
   return reject[d.rule < 0 ? reject.length - 1 : d.rule] ? 'reject' : 'drop';
 }
@@ -472,12 +474,20 @@ function parseRule(t: string[]): { match: NftMatch; verdict?: Verdict; text: str
     } else if (w === 'meta' && t[i.at] === 'l4proto') {
       i.at++;
       const v = t[i.at++];
-      if (v === 'tcp' || v === 'udp') { m.proto = v; shown.push(`meta l4proto ${v}`); } else shown.push(`meta l4proto ${v}`);
+      // Fix (E19): icmp is a protocol of its own (before, such a rule matched every packet).
+      if (v === 'tcp' || v === 'udp' || v === 'icmp') m.proto = v;
+      shown.push(`meta l4proto ${v}`);
     } else if (w === 'ip' && t[i.at] === 'protocol') {
       i.at++;
       const v = t[i.at++];
-      if (v === 'tcp' || v === 'udp') m.proto = v;
+      if (v === 'tcp' || v === 'udp' || v === 'icmp') m.proto = v;
       shown.push(`ip protocol ${v}`);
+    } else if (w === 'icmp' && t[i.at] === 'type') {
+      // E19: icmp type echo-request (the ping a server answers).
+      i.at++;
+      const vals = takeList(t, i);
+      if (vals.some(v => !['echo-request', 'echo-reply', 'destination-unreachable', 'time-exceeded'].includes(v))) throw new NftError(`syntax error, unexpected string`);
+      m.proto = 'icmp'; shown.push(`icmp type ${list(vals)}`);
     } else if (w === 'counter') { counter = true; while (t[i.at] === 'packets' || t[i.at] === 'bytes') i.at += 2; }
     else if (w === 'log') { const parts = ['log']; if (t[i.at] === 'prefix') { parts.push('prefix', `"${unquote(t[i.at + 1] ?? '')}"`); i.at += 2; } shown.push(parts.join(' ')); }
     else if (w === 'accept' || w === 'drop') verdict = w;

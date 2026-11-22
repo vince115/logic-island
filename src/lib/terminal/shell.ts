@@ -21,6 +21,8 @@ import { openssl } from './openssl';
 import { certbot } from './certbot';
 import { hupsMaster, masterOf, nginxCommand, nginxControl, reloadRunning } from './nginx';
 import { nft, ufw } from './firewall';
+import { mtr, ping, tcpdump, traceroute } from './diag';
+import { sed } from './sed';
 
 /*
  * P7 Linux Terminal Simulator: the command interpreter. A fixed table of commands works on the virtual file system in
@@ -97,14 +99,19 @@ export const E13_COMMANDS = ['openssl', 'certbot'] as const;
 export const E14_COMMANDS = ['nginx'] as const;
 /** E16: the host firewall (FIREWALL_PROFILE and above); E15 (proxy) and E17 (tunnels) add behaviour, not commands. */
 export const E16_COMMANDS = ['ufw', 'nft'] as const;
+/**
+ * E19: network diagnostics (DIAGNOSTICS_PROFILE); E18 (edge) adds behaviour, not commands. sed is a documented subset that
+ * only this profile and above list, so the `command not found` list of every lower profile (and of published lessons) stays.
+ */
+export const E19_COMMANDS = ['ping', 'traceroute', 'mtr', 'tcpdump', 'sed'] as const;
 /** The commands of the files profile (the manual of E1 covers exactly these). */
 export type FilesCommand = typeof COMMANDS[number] | typeof E1_COMMANDS[number];
 export type CommandName = FilesCommand | typeof E2_COMMANDS[number] | typeof E3_COMMANDS[number] | typeof E4_COMMANDS[number] | typeof E5_COMMANDS[number] | typeof E6_COMMANDS[number]
   | typeof E7_COMMANDS[number] | typeof E8_COMMANDS[number] | typeof E9_COMMANDS[number] | typeof E10_COMMANDS[number] | typeof E11_COMMANDS[number]
-  | typeof E12_COMMANDS[number] | typeof E13_COMMANDS[number] | typeof E14_COMMANDS[number] | typeof E16_COMMANDS[number];
+  | typeof E12_COMMANDS[number] | typeof E13_COMMANDS[number] | typeof E14_COMMANDS[number] | typeof E16_COMMANDS[number] | typeof E19_COMMANDS[number];
 /** Every command any profile may list. */
 export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS, ...E2_COMMANDS, ...E3_COMMANDS, ...E4_COMMANDS, ...E5_COMMANDS, ...E6_COMMANDS,
-  ...E7_COMMANDS, ...E8_COMMANDS, ...E9_COMMANDS, ...E10_COMMANDS, ...E11_COMMANDS, ...E12_COMMANDS, ...E13_COMMANDS, ...E14_COMMANDS, ...E16_COMMANDS];
+  ...E7_COMMANDS, ...E8_COMMANDS, ...E9_COMMANDS, ...E10_COMMANDS, ...E11_COMMANDS, ...E12_COMMANDS, ...E13_COMMANDS, ...E14_COMMANDS, ...E16_COMMANDS, ...E19_COMMANDS];
 
 /**
  * Behaviour a profile switches on besides its commands. E1: glob (* ? [...] and ~), help-option (指令 --help, long
@@ -113,10 +120,11 @@ export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS
  * E4: processes (the process table, jobs, $?). E5: packages. E6: services. E7: remote (ssh). E8: scripting (the Bash
  * interpreter, also at the prompt). E9: scheduling (time zones, cron, timers). E10: sockets. E11: dns. E12: http. E13: tls.
  * E14: nginx. E15: proxy (nginx's reverse proxy and upstreams). E16: firewall (ufw, nft; connections from other hosts). E17: tunnels
- * (ssh -L/-R/-J and ~/.ssh/config).
+ * (ssh -L/-R/-J and ~/.ssh/config). E18: edge (HTTP caching: nginx's proxy_cache, validators, a CDN edge, time that passes with
+ * sleep, curl -w timings). E19: diagnostics (ping, traceroute, mtr, tcpdump -r and a sed subset).
  */
 export type ShellFeature = 'glob' | 'help-option' | 'multi-source' | 'ls-extra' | 'pipes' | 'accounts' | 'processes' | 'packages' | 'services' | 'remote' | 'scripting' | 'scheduling'
-  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels';
+  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics';
 
 /** LNX-0: the commands a session may run (E1: and the features it switches on; none by default). */
 export interface ShellProfile { readonly id: string; readonly commands: readonly CommandName[]; readonly features?: readonly ShellFeature[] }
@@ -173,11 +181,15 @@ export const PROXY_PROFILE: ShellProfile = { id: 'proxy', commands: above(NGINX_
 export const FIREWALL_PROFILE: ShellProfile = { id: 'firewall', commands: above(PROXY_PROFILE, E16_COMMANDS), features: [...PROXY_PROFILE.features!, 'firewall'] };
 /** E17: the firewall profile plus SSH tunnels (-L, -R), jump hosts (-J, ProxyJump) and ~/.ssh/config. */
 export const TUNNELS_PROFILE: ShellProfile = { id: 'tunnels', commands: above(FIREWALL_PROFILE, []), features: [...FIREWALL_PROFILE.features!, 'tunnels'] };
+/** E18: the tunnels profile plus HTTP caching (proxy_cache, Cache-Control, validators, a CDN edge), sleep that moves the clock and curl -w timings. */
+export const EDGE_PROFILE: ShellProfile = { id: 'edge', commands: above(TUNNELS_PROFILE, []), features: [...TUNNELS_PROFILE.features!, 'edge'] };
+/** E19: the edge profile plus ping, traceroute, mtr, tcpdump -r and a documented subset of sed. */
+export const DIAGNOSTICS_PROFILE: ShellProfile = { id: 'diagnostics', commands: above(EDGE_PROFILE, E19_COMMANDS), features: [...EDGE_PROFILE.features!, 'diagnostics'] };
 /** The profiles a lesson machine may name (TerminalMachine.profile), from the narrowest. */
 export const PROFILES = {
   lab: LAB_PROFILE, files: FILES_PROFILE, streams: STREAMS_PROFILE, users: USERS_PROFILE, processes: PROCESSES_PROFILE, packages: PACKAGES_PROFILE, services: SERVICES_PROFILE,
   remote: REMOTE_PROFILE, scripting: SCRIPTING_PROFILE, scheduling: SCHEDULING_PROFILE, sockets: SOCKETS_PROFILE, dns: DNS_PROFILE, http: HTTP_PROFILE,
-  tls: TLS_PROFILE, nginx: NGINX_PROFILE, proxy: PROXY_PROFILE, firewall: FIREWALL_PROFILE, tunnels: TUNNELS_PROFILE,
+  tls: TLS_PROFILE, nginx: NGINX_PROFILE, proxy: PROXY_PROFILE, firewall: FIREWALL_PROFILE, tunnels: TUNNELS_PROFILE, edge: EDGE_PROFILE, diagnostics: DIAGNOSTICS_PROFILE,
 } as const;
 export type ProfileId = keyof typeof PROFILES;
 
@@ -271,6 +283,11 @@ const HELP: [CommandName | null, string][] = [
   ['nginx', '  nginx -t | -T | -s reload      檢查、印出與重新載入 nginx 的設定（需要 root）'],
   ['ufw', '  ufw status | allow | deny | enable | delete …  設定主機防火牆（需要 root）'],
   ['nft', '  nft list ruleset | add rule inet filter input …  以 nftables 設定封包過濾（需要 root）'],
+  ['ping', '  ping -c 次數 主機              送 ICMP echo，看主機回不回應、來回時間與遺失率'],
+  ['traceroute', '  traceroute [-n] [-I|-T] 主機    列出封包經過的每一個路由器'],
+  ['mtr', '  mtr --report -c 次數 [-n] [-w] 主機  每一跳的遺失率與延遲統計'],
+  ['tcpdump', '  tcpdump -r 擷取檔 [-n] [-A] [-c N] [過濾條件]  讀取擷取的封包'],
+  ['sed', '  sed [-n] [-i] [-E] \'Np\' | \'/樣式/p\' | \'s/舊/新/[g]\' [檔案…]  印出或取代行（模擬環境的子集）'],
   ['man', '  man 指令                顯示指令的說明頁（也可以用 指令 --help）'],
 ];
 /** The lines that change when a profile has the feature (the lab keeps its own lines). */
@@ -281,7 +298,9 @@ const HELP_FEATURE: [ShellFeature, CommandName, string][] = [
   ['pipes', 'cat', '  cat [-n] [檔案…]          顯示檔案內容；沒有檔案時讀標準輸入'],
   ['pipes', 'echo', '  echo [-n] [-e] 文字…       輸出一行文字；-n 不換行'],
   ['accounts', 'chmod', '  chmod [-R] 模式 路徑…      修改權限，例如 chmod 640 a.txt、chmod -R g+w 目錄'],
+  ['edge', 'date', '  date [-u] [+格式]          顯示機器的時間（sleep 會讓時鐘前進；有時區時依時區）'],
   ['scripting', 'date', '  date [-u] [+格式]          顯示機器的時間（固定不動；有時區時依時區）'],
+  ['edge', 'sleep', '  sleep 秒數 [&]           等待：模擬的時鐘前進這麼多秒（快取過期、Age 增加）；加 & 放到背景'],
   ['tunnels', 'ssh', '  ssh [-J 跳板機] [-L 埠:主機:埠] [-R 埠:主機:埠] [-f -N] [使用者@]主機 [指令]  登入、執行指令、建立 SSH 通道'],
 ];
 const HELP_LAST: CommandName[] = ['whoami', 'clear', 'help'];
@@ -496,7 +515,7 @@ const LONG: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   grep: {
     'ignore-case': 'i', 'invert-match': 'v', 'line-number': 'n', count: 'c', 'word-regexp': 'w', 'line-regexp': 'x', recursive: 'r', 'dereference-recursive': 'R',
     'files-with-matches': 'l', 'extended-regexp': 'E', 'fixed-strings': 'F', 'with-filename': 'H', 'no-filename': 'h', regexp: 'e',
-    'only-matching': 'o', 'after-context': 'A', 'before-context': 'B', context: 'C',
+    'only-matching': 'o', 'after-context': 'A', 'before-context': 'B', context: 'C', quiet: 'q', silent: 'q',
   },
   sort: { 'numeric-sort': 'n', reverse: 'r', unique: 'u', 'ignore-case': 'f', key: 'k', 'field-separator': 't' },
   uniq: { count: 'c', repeated: 'd', unique: 'u', 'ignore-case': 'i' },
@@ -508,7 +527,7 @@ const LONG: Readonly<Record<string, Readonly<Record<string, string>>>> = {
 };
 /** E2: the option letters (':' takes a value) of the commands parsed with text.getopt. */
 const SPEC: Readonly<Record<string, string>> = {
-  cat: 'n', less: '', head: 'n:c:v', tail: 'n:c:fv', grep: 'ivncwxrRlEFHhe:oA:B:C:', sort: 'nrufk:t:', uniq: 'cdui', wc: 'lwmc', cut: 'd:f:c:b:s', tr: 'dscC', tee: 'a', id: 'ugGn',
+  cat: 'n', less: '', head: 'n:c:v', tail: 'n:c:fv', grep: 'ivncwxrRlEFHhe:oA:B:C:q', sort: 'nrufk:t:', uniq: 'cdui', wc: 'lwmc', cut: 'd:f:c:b:s', tr: 'dscC', tee: 'a', id: 'ugGn',
 };
 
 const byteLength = (text: string) => new TextEncoder().encode(text).length;
@@ -660,7 +679,7 @@ interface Ctx {
 export interface Exec { state: FsState; events: Ev[]; status: number; clear?: true; notices?: string[] }
 
 /** E10–E12: the network commands and the module function of each. */
-const NET_COMMANDS = { ss, lsof, nc, ip, getent, dig, host, 'named-checkzone': namedCheckzone, rndc, resolvectl, curl, openssl, nginx: nginxCommand, ufw, nft } as const;
+const NET_COMMANDS = { ss, lsof, nc, ip, getent, dig, host, 'named-checkzone': namedCheckzone, rndc, resolvectl, curl, openssl, nginx: nginxCommand, ufw, nft, ping, traceroute, mtr, tcpdump } as const;
 
 /** E13: certbot.service's ExecStart=/usr/bin/certbot -q renew runs the simulation's certbot (its output goes to the journal). */
 function certbotService(profile: ShellProfile, ctx: Ctx) {
@@ -925,7 +944,12 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
       for (const target of args) {
         const w = walk(cur(), resolve(target));
         if ('error' in w) { fail(`touch: cannot touch '${target}': ${ERRNO[w.error]}`); continue; }
-        if (w.node) { if (!allowed(w.node, 'w') && w.node.owner !== state.user) fail(`touch: cannot touch '${target}': Permission denied`); continue; }
+        if (w.node) {
+          if (!allowed(w.node, 'w') && w.node.owner !== state.user) fail(`touch: cannot touch '${target}': Permission denied`);
+          // E18: touch gives the file the clock's time (nginx's Last-Modified changes, its ETag too).
+          else if (features.has('edge') && w.node.kind === 'file') nodes.set(w.path, { ...w.node, mtime: proc.clockOf(state).now });
+          continue;
+        }
         // E1: touching a dangling link creates its target.
         const path = w.path;
         const why = writableParent(path);
@@ -957,8 +981,10 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
       // E4: grep's status is 0 when a line was selected, 1 when none, 2 after an error.
       const o = parsed('grep');
       if (!o) { code = 2; return done(); }
-      const hit = text.grep(textIo(), o);
-      code = out.some(e => e.fd === 2) ? 2 : hit ? 0 : 1;
+      // Fix (E19 batch): -q prints nothing; a match makes the status 0 even after an error (GNU grep).
+      const quiet = o.flags.has('q'), io = textIo();
+      const hit = text.grep(quiet ? { ...io, out: () => {} } : io, o);
+      code = quiet && hit ? 0 : out.some(e => e.fd === 2) ? 2 : hit ? 0 : 1;
       return done();
     }
     case 'sort': { const o = parsed('sort'); if (o) text.sort(textIo(), o); return done(); }
@@ -1471,7 +1497,15 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
       const reloaded = master && r.status === 0 && masterOf(after)?.pid === master.pid && hupsMaster(cmd, args, master) ? reloadRunning(after) : after;
       return done(features.has('tunnels') && !reloaded.sshd ? closeOrphanForwards(reloaded) : reloaded);
     }
-    case 'sleep': { const p = proc.sleepProblem(args); if (p) usage(p); return done(); }
+    case 'sleep': {
+      const p = proc.sleepProblem(args);
+      if (p) { usage(p); return done(); }
+      // E18: from the edge profile up the simulated clock moves (every machine of the lesson), so caches expire and Age grows.
+      if (!features.has('edge')) return done();
+      const seconds = proc.sleepSeconds(args);
+      if (seconds > 366 * 86400) { fail('sleep：模擬環境一次最多前進 366 天'); return done(); }
+      return done(advanceClock(cur(), seconds));
+    }
     case 'jobs': code = proc.jobsCommand(cur(), args, pio()); return done();
     case 'fg': case 'bg': { const r = proc.fgBg(cur(), cmd as 'fg' | 'bg', args, pio()); code = r.status; return done(r.state); }
     case 'date':
@@ -1557,14 +1591,34 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
       return done(sameShell(r.state, cur()));
     }
     case 'ss': case 'lsof': case 'nc': case 'ip': case 'getent': case 'dig': case 'host': case 'named-checkzone': case 'rndc': case 'resolvectl': case 'curl':
-    case 'openssl': case 'nginx': case 'certbot': case 'ufw': case 'nft': {
+    case 'openssl': case 'nginx': case 'certbot': case 'ufw': case 'nft': case 'ping': case 'traceroute': case 'mtr': case 'tcpdump': {
       // E10–E14 (sockets.ts, dns.ts, http.ts, openssl.ts, certbot.ts, nginx.ts): names are looked up through /etc/hosts and, from the dns profile up, DNS.
-      const io: NetIo = { out: write, err: fail, user: state.user, tty: ctx.tty, resolve: features.has('dns') ? dnsResolver : basicResolver, stdin: ctx.stdin, ...features.has('tls') ? { tls: true } : {} };
+      // E18: edge (curl -w's timers); E19: the diagnostics of diag.ts.
+      const io: NetIo = { out: write, err: fail, user: state.user, tty: ctx.tty, resolve: features.has('dns') ? dnsResolver : basicResolver, stdin: ctx.stdin, ...features.has('tls') ? { tls: true } : {}, ...features.has('edge') ? { edge: true } : {} };
       // E13: certbot runs a deploy hook through the shell (as the user it runs as, root).
       const r = cmd === 'certbot' ? certbot(cur(), args, { ...io, hook: (s, source) => { const x = runText(s, source, profile, { parent: ctx }); return { state: x.state, status: x.status }; } })
         : NET_COMMANDS[cmd as keyof typeof NET_COMMANDS](cur(), args, io);
       code = r.status;
       return done(r.state);
+    }
+    case 'sed': {
+      // E19: a documented subset of GNU sed (sed.ts); -i writes through a temporary file in the same folder, as GNU sed does.
+      code = sed(args, {
+        out: write, err: fail,
+        read: name => name === '-' ? ctx.stdin === null ? { error: 'NOINPUT' } : { text: ctx.stdin, regular: ctx.stdinRegular } : readPath(cur(), name),
+        write: (name, content, backup) => {
+          const w = walk(cur(), resolve(name));
+          if ('error' in w || !w.node) return `sed: can't read ${name}: ${ERRNO['error' in w ? w.error : 'ENOENT']}`;
+          if (w.node.kind !== 'file') return `sed: couldn't edit ${name}: not a regular file`;
+          const dir = parentOf(w.path), why = writableParent(w.path);
+          if (why) return `sed: couldn't open temporary file ${dir === '/' ? '' : dir}/sedXXXXXX: ${ERRNO[why]}`;
+          if (backup !== undefined) nodes.set(`${w.path}${backup}`, { ...w.node });
+          // The new file is the user's (GNU sed cannot give it back to another owner unless it runs as root); the mode stays.
+          nodes.set(w.path, { ...w.node, content, ...state.user === 'root' ? {} : ownedBy(cur()) });
+          return null;
+        },
+      });
+      return commit();
     }
     case 'crontab': case 'cron-next': case 'cron-run': case 'flock': case 'timedatectl': case 'systemd-analyze': {
       // E9 (schedule.ts); flock runs its command like sudo does, a -c string through the interpreter.
@@ -1612,7 +1666,40 @@ const FIRST_UNKNOWN = 1000;
  * feature the line may be a pipeline with redirections.
  */
 export function run(state: FsState, input: string, profile: ShellProfile = LAB_PROFILE): RunResult {
-  return runInput(state, input, profile);
+  const r = runInput(state, input, profile);
+  // E18: a file whose content the line changed was modified now (nginx's Last-Modified and ETag read it).
+  return profile.features?.includes('edge') ? { ...r, state: stampTimes(state, r.state) } : r;
+}
+
+/** E18: sleep's time: every machine of the lesson (the local one and its network) moves its clock forward. */
+export function advanceClock(state: FsState, seconds: number): FsState {
+  const step = (s: FsState): FsState => ({ ...s, clock: { ...proc.clockOf(s), now: proc.clockOf(s).now + seconds } });
+  const next = step(state);
+  return next.net ? { ...next, net: { ...next.net, hosts: next.net.hosts.map(h => ({ ...h, state: step(h.state) })) } } : next;
+}
+/** E18: the files of the machines whose content changed get the clock's time as their mtime (touch sets it on its own). */
+function stampTimes(before: FsState, after: FsState): FsState {
+  const stamp = (b: FsState | undefined, a: FsState): FsState => {
+    if (b && b.nodes === a.nodes) return a;
+    const now = proc.clockOf(a).now;
+    let nodes: Map<string, FsNode> | undefined;
+    for (const [path, node] of a.nodes) {
+      if (node.kind !== 'file') continue;
+      const old = b?.nodes.get(path);
+      if (old === node) continue;
+      const changed = !old || old.kind !== 'file' || old.content !== node.content;
+      const mtime = changed ? now : node.mtime ?? old.mtime;
+      if (node.mtime === mtime || (mtime === undefined && node.mtime === undefined)) continue;
+      nodes ??= new Map(a.nodes);
+      const { mtime: _m, ...rest } = node;
+      void _m;
+      nodes.set(path, mtime === undefined ? rest : { ...rest, mtime });
+    }
+    return nodes ? { ...a, nodes } : a;
+  };
+  const root = stamp(before, after);
+  if (!root.net) return root;
+  return { ...root, net: { ...root.net, hosts: root.net.hosts.map((h, i) => { const s = stamp(before.net?.hosts[i]?.state, h.state); return s === h.state ? h : { ...h, state: s }; }) } };
 }
 
 /** run() with standard input for the line and without a terminal (E7: ssh host command runs with what was piped into ssh, no tty). */

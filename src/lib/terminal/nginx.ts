@@ -10,6 +10,8 @@ import { isIPv4, ownsAddress, type Listen, type NetIo, type NetResult } from './
 import { errorPage, httpDate, reasonOf, type Request, type Response } from './http';
 import { certsIn, keyIn, keyMatches, readAs, type Cert } from './tls';
 import { freshPeers, pickPeer, peerFailed, peerSucceeded, timeValue, type PeerState, type UpServer, type Upstream } from './proxy';
+import { cacheFile, cacheText, headerOf, md5, nginxEtag, notModified, storable, validFor, varyKey, varyNames, varyOf, writeCacheFile, type CacheZone, type NgEntry } from './cache';
+import { LIMITS } from './fs';
 
 /*
  * Engine stage E14 (docs/curriculum/SRV0_SERVER_CAPABILITY.md §12): nginx 1.24.0 as Ubuntu 24.04 packages it. The
@@ -24,6 +26,9 @@ import { freshPeers, pickPeer, peerFailed, peerSucceeded, timeValue, type PeerSt
  * upstream) is engine stage E15: below the proxy profile such a configuration fails the test with a message that says so;
  * from it up, proxy_pass sends the request to an upstream (round robin, least_conn, ip_hash, backup, passive health checks;
  * proxy.ts) through the caller's network (Exchange2.upstream) and answers 502/504 with nginx's error-log lines.
+ * E18 (the edge profile and above): proxy_cache (proxy_cache_path's zones, keys, proxy_cache_valid, bypass and no_cache,
+ * use_stale, background updates, revalidation; cache.ts) with $upstream_cache_status, `expires`, and the static module's
+ * Last-Modified, ETag and Accept-Ranges with conditional requests (304); fail_timeout passes with the clock.
  */
 
 export const NGINX_VERSION = 'nginx/1.24.0 (Ubuntu)';
@@ -74,6 +79,17 @@ const PROXY_SPEC: Record<string, Spec> = {
   proxy_hide_header: { ctx: HSL, min: 1, max: 1 }, proxy_pass_header: { ctx: HSL, min: 1, max: 1 }, proxy_buffer_size: { ctx: HSL, min: 1, max: 1 }, proxy_buffers: { ctx: HSL, min: 2, max: 2 },
   upstream: { ctx: ['http'], min: 1, max: 1, block: true }, map: { ctx: ['http'], min: 2, max: 2, block: true },
 };
+/** E18 (the edge profile and above): nginx's proxy cache and the validators of the static module. */
+const EDGE_SPEC: Record<string, Spec> = {
+  proxy_cache_path: { ctx: ['http'], min: 2, max: ANY }, proxy_cache: { ctx: HSL, min: 1, max: 1, once: true }, proxy_cache_key: { ctx: HSL, min: 1, max: 1, once: true },
+  proxy_cache_valid: { ctx: HSL, min: 1, max: ANY }, proxy_cache_bypass: { ctx: HSL, min: 1, max: ANY }, proxy_no_cache: { ctx: HSL, min: 1, max: ANY },
+  proxy_cache_use_stale: { ctx: HSL, min: 1, max: ANY }, proxy_cache_lock: { ctx: HSL, min: 1, max: 1, flag: true }, proxy_cache_lock_timeout: { ctx: HSL, min: 1, max: 1, once: true },
+  proxy_cache_lock_age: { ctx: HSL, min: 1, max: 1, once: true }, proxy_cache_background_update: { ctx: HSL, min: 1, max: 1, flag: true }, proxy_cache_revalidate: { ctx: HSL, min: 1, max: 1, flag: true },
+  proxy_cache_methods: { ctx: HSL, min: 1, max: ANY }, proxy_cache_min_uses: { ctx: HSL, min: 1, max: 1, once: true }, proxy_ignore_headers: { ctx: HSL, min: 1, max: ANY },
+  if_modified_since: { ctx: HSL, min: 1, max: 1, once: true },
+};
+/** Fix (E19 batch): directives that only an upstream block has ("not allowed here" elsewhere, from the proxy profile up). */
+const UPSTREAM_ONLY = ['least_conn', 'ip_hash', 'keepalive', 'zone', 'hash', 'random', 'least_time', 'sticky', 'ntlm'];
 /** E15: the directives of an upstream block. */
 const UPSTREAM_SPEC: Record<string, Spec> = {
   server: { ctx: ['upstream'], min: 1, max: ANY }, least_conn: { ctx: ['upstream'], min: 0, max: 0 }, ip_hash: { ctx: ['upstream'], min: 0, max: 0 },
@@ -129,7 +145,7 @@ function tokenize(text: string, file: string): Token[] {
 }
 
 /** What reading the configuration needs: the files as some user reads them (nginx -t as a user, the master as root). */
-export interface Reader { read(path: string): { text: string } | { error: string }; list(dir: string): string[] | null; isDir(path: string): boolean; /** E15: the machine has the proxy profile. */ proxy?: boolean }
+export interface Reader { read(path: string): { text: string } | { error: string }; list(dir: string): string[] | null; isDir(path: string): boolean; /** E15: the machine has the proxy profile. */ proxy?: boolean; /** E18: the edge profile. */ edge?: boolean }
 export function readerOf(state: FsState, user = 'root'): Reader {
   const acc = accountsOf(state), view: FsState = { ...state, user, groups: loginGroups(acc, user), cwd: '/' };
   return {
@@ -140,7 +156,7 @@ export function readerOf(state: FsState, user = 'root'): Reader {
       return childrenOf(state.nodes, w.path).map(baseName);
     },
     isDir: path => { const w = walk(view, physicalPath(state.nodes, path, true)); return !('error' in w) && w.node?.kind === 'dir'; },
-    ...state.nginx?.proxy ? { proxy: true } : {},
+    ...state.nginx?.proxy ? { proxy: true } : {}, ...state.nginx?.edge ? { edge: true } : {},
   };
 }
 
@@ -182,12 +198,13 @@ export function parseConfig(reader: Reader, conf = NGINX_CONF): Parsed {
         if (ctx === 'map' && d.args.length !== 1) throw new ConfError(`invalid number of the map parameters${at(d)}`);
         if (d.name !== 'include') { out.push(d); continue; }
       }
-      const proxy = reader.proxy === true;
+      const proxy = reader.proxy === true, edge = reader.edge === true;
+      if (proxy && ctx !== 'upstream' && UPSTREAM_ONLY.includes(d.name)) throw new ConfError(`"${d.name}" directive is not allowed here${at(d)}`);
       if (proxy && ctx === 'upstream' && !UPSTREAM_SPEC[d.name]) throw new ConfError(['hash', 'random', 'least_time', 'sticky', 'ntlm'].includes(d.name) ? `模擬環境的 upstream 支援 round robin、least_conn 與 ip_hash（"${d.name}" 不支援）${at(d)}` : `"${d.name}" directive is not allowed here${at(d)}`);
       if (proxy && ['fastcgi_pass', 'uwsgi_pass', 'grpc_pass', 'scgi_pass', 'memcached_pass'].includes(d.name)) throw new ConfError(`模擬環境只模擬 HTTP 的反向代理（proxy_pass）；"${d.name}" 不支援${at(d)}`);
       if (!proxy && E15.includes(d.name)) throw new ConfError(`模擬環境："${d.name}" 是反向代理的設定，在引擎階段 E15 才模擬${at(d)}`);
       if (UNSUPPORTED[d.name] && !(proxy && d.name === 'map')) throw new ConfError(`${UNSUPPORTED[d.name]}${at(d)}`);
-      const spec = proxy ? (ctx === 'upstream' ? UPSTREAM_SPEC[d.name] : PROXY_SPEC[d.name] ?? SPEC[d.name]) : SPEC[d.name];
+      const spec = proxy ? (ctx === 'upstream' ? UPSTREAM_SPEC[d.name] : (edge ? EDGE_SPEC[d.name] : undefined) ?? PROXY_SPEC[d.name] ?? SPEC[d.name]) : SPEC[d.name];
       if (!spec) throw new ConfError(`unknown directive "${d.name}"${at(d)}`);
       if (!spec.ctx.includes(ctx)) throw new ConfError(ctx === 'if' ? `模擬環境的 if 裡只支援 return 與 rewrite${at(d)}` : `"${d.name}" directive is not allowed here${at(d)}`);
       if (spec.block && end.special !== '{') throw new ConfError(`directive "${d.name}" has no opening "{"${at(d)}`);
@@ -248,23 +265,30 @@ export interface ProxyPass { url: string; scheme: 'http' | 'https'; upstream: st
 export interface MapDef { source: string; target: string; entries: { key: string; re?: RegExp; value: string }[]; def: string }
 export interface Srv { listens: NgListen[]; names: string[]; dirs: Dir[]; locs: Loc[]; file: string; line: number; cert?: { chain: Cert[]; path: string } }
 /** What the master runs with: the servers, the http and main directives, the worker user and count, the mime types and the files read. */
-export interface NgConf { main: Dir[]; http: Dir[]; servers: Srv[]; user: string; workers: number | 'auto'; mime: ReadonlyMap<string, string>; files: { path: string; text: string }[]; warnings: string[]; /** E15 */ upstreams: Upstream[]; maps: MapDef[] }
+export interface NgConf { main: Dir[]; http: Dir[]; servers: Srv[]; user: string; workers: number | 'auto'; mime: ReadonlyMap<string, string>; files: { path: string; text: string }[]; warnings: string[]; /** E15 */ upstreams: Upstream[]; maps: MapDef[]; /** E18 */ zones?: CacheZone[] }
 /**
  * E14: the running nginx's configuration and the connection counter of its error log (*N). E15: whether the machine has the
  * proxy profile, each upstream's peer table (reset by every start and reload) and the active connections the lesson
  * declares per upstream server (least_conn reads them; requests in the simulation are instantaneous and add none).
  */
-export interface NginxState { applied?: NgConf; connections: number; proxy?: true; peers?: Record<string, { primary: PeerState[]; backup: PeerState[] }>; conns?: Record<string, number> }
+export interface NginxState {
+  applied?: NgConf; connections: number; proxy?: true; peers?: Record<string, { primary: PeerState[]; backup: PeerState[] }>; conns?: Record<string, number>;
+  /** E18: the machine has the edge profile; each cache zone's entries; proxy_cache_min_uses' counts per zone and key. */
+  edge?: true; cache?: Record<string, NgEntry[]>; uses?: Record<string, number>;
+}
 
 const VARS = ['uri', 'request_uri', 'host', 'scheme', 'args', 'query_string', 'is_args', 'server_name', 'server_port', 'remote_addr', 'request_method', 'document_root', 'request_filename', 'http_host', 'server_addr', 'status'];
 /** E15: the proxy module's and upstream module's variables. */
 const PROXY_VARS = ['proxy_add_x_forwarded_for', 'proxy_host', 'proxy_port', 'upstream_addr', 'upstream_status', 'remote_port', 'server_protocol'];
+/** E18: the cache's variable. */
+const EDGE_VARS = ['upstream_cache_status'];
 /** Variables must be known: nginx's own, the named captures of the configuration's regexes (captures), $1..$9. */
 function checkVars(values: readonly string[], captureNames: ReadonlySet<string>) {
   for (const v of values) for (const m of v.matchAll(/\$(?:\{(\w+)\}|(\w+))/g)) {
     const name = m[1] ?? m[2];
     if (/^\d$/.test(name) || VARS.includes(name) || captureNames.has(name) || /^(http|arg|cookie|sent_http)_\w+$/.test(name)) continue;
     if (captureNames.has('\u0001proxy') && PROXY_VARS.includes(name)) continue;
+    if (captureNames.has('\u0001edge') && EDGE_VARS.includes(name)) continue;
     throw new ConfError(`unknown "${name}" variable`);
   }
 }
@@ -304,7 +328,7 @@ function buildLocs(dirs: Dir[], parent?: Loc): Loc[] {
   }
   return out;
 }
-const DIRECTIVE_VARS = ['try_files', 'return', 'rewrite', 'add_header', 'root', 'alias', 'index', 'error_page', 'proxy_set_header'];
+const DIRECTIVE_VARS = ['try_files', 'return', 'rewrite', 'add_header', 'root', 'alias', 'index', 'error_page', 'proxy_set_header', 'proxy_cache_key', 'proxy_cache_bypass', 'proxy_no_cache'];
 function checkLevel(dirs: Dir[], captures: ReadonlySet<string>) {
   for (const d of dirs) {
     if (d.name === 'if') { checkVars([ifCondition(d).variable], captures); checkLevel(d.block ?? [], captures); continue; }
@@ -334,7 +358,28 @@ function checkLevel(dirs: Dir[], captures: ReadonlySet<string>) {
     if (d.name === 'proxy_next_upstream') for (const a of d.args) if (!['error', 'timeout', 'invalid_header', 'http_500', 'http_502', 'http_503', 'http_504', 'http_403', 'http_404', 'http_429', 'non_idempotent', 'off'].includes(a)) throw new ConfError(`invalid value "${a}"${at(d)}`);
     if (d.name === 'proxy_redirect' && d.args.length === 1 && !['off', 'default'].includes(d.args[0])) throw new ConfError(`invalid parameter "${d.args[0]}"${at(d)}`);
     if (d.name === 'proxy_next_upstream_tries' && !/^\d+$/.test(d.args[0])) throw new ConfError(`invalid value "${d.args[0]}"${at(d)}`);
+    // E18: the cache's directives and expires (the nginx profile accepts expires without checking it, as before).
+    if (d.name === 'proxy_cache_valid') { const t = d.args.at(-1)!; if (timeValue(t) === undefined) throw new ConfError(`invalid time value "${t}" in "proxy_cache_valid" directive${at(d)}`); for (const c of d.args.slice(0, -1)) if (c !== 'any' && !/^[1-5]\d\d$/.test(c)) throw new ConfError(`invalid value "${c}"${at(d)}`); }
+    if (d.name === 'proxy_cache_use_stale') for (const a of d.args) if (!['error', 'timeout', 'invalid_header', 'updating', 'http_500', 'http_502', 'http_503', 'http_504', 'http_403', 'http_404', 'http_429', 'off'].includes(a)) throw new ConfError(`invalid value "${a}"${at(d)}`);
+    if (d.name === 'proxy_cache_methods') for (const a of d.args) if (!['GET', 'HEAD', 'POST'].includes(a)) throw new ConfError(`invalid value "${a}"${at(d)}`);
+    if (d.name === 'proxy_ignore_headers') for (const a of d.args) if (!['X-Accel-Redirect', 'X-Accel-Expires', 'X-Accel-Limit-Rate', 'X-Accel-Buffering', 'X-Accel-Charset', 'Expires', 'Cache-Control', 'Set-Cookie', 'Vary'].includes(a)) throw new ConfError(`invalid value "${a}"${at(d)}`);
+    if ((d.name === 'proxy_cache_lock_timeout' || d.name === 'proxy_cache_lock_age') && timeValue(d.args[0]) === undefined) throw new ConfError(`"${d.name}" directive invalid value${at(d)}`);
+    if (d.name === 'proxy_cache_min_uses' && !/^\d+$/.test(d.args[0])) throw new ConfError(`invalid value "${d.args[0]}"${at(d)}`);
+    if (d.name === 'if_modified_since' && !['off', 'exact', 'before'].includes(d.args[0])) throw new ConfError(`invalid value "${d.args[0]}" in "if_modified_since" directive, it must be "off", "exact" or "before"${at(d)}`);
+    if (d.name === 'expires' && captures.has('\u0001edge') && expiresOf(d) === undefined) throw new ConfError(`invalid value "${d.args.join(' ')}"${at(d)}`);
   }
+}
+/** E18: expires as nginx reads it: off, epoch, max, [modified] ±time (a negative or past time sends no-cache). */
+export type Expires = { kind: 'off' | 'epoch' | 'max' } | { kind: 'time'; seconds: number; modified: boolean };
+export function expiresOf(d: Dir): Expires | undefined {
+  const args = d.args, modified = args[0] === 'modified', v = modified ? args[1] : args[0];
+  if (args.length > (modified ? 2 : 1) || v === undefined) return undefined;
+  if (!modified && (v === 'off' || v === 'epoch' || v === 'max')) return { kind: v };
+  const m = /^([+-]?)(\d+(?:ms|s|m|h|d|w|M|y)?)$/.exec(v);
+  if (!m) return undefined;
+  const unit = /[a-zA-Z]+$/.exec(m[2])?.[0], n = Number(m[2].replace(/[a-zA-Z]+$/, ''));
+  const mult = unit === 'w' ? 604800 : unit === 'M' ? 2592000 : unit === 'y' ? 31536000 : unit === undefined ? 1 : timeValue(`1${unit}`) ?? 1;
+  return { kind: 'time', seconds: (m[1] === '-' ? -1 : 1) * n * mult, modified };
 }
 
 /** E15: a host name nginx resolves while it loads the configuration: an IPv4 address, localhost, or /etc/hosts (read as root). */
@@ -432,6 +477,31 @@ function buildMaps(http: Dir[]): MapDef[] {
   });
 }
 function walkLocs(locs: Loc[], f: (l: Loc) => void) { for (const l of locs) { f(l); walkLocs(l.children, f); } }
+const flatLocs = (locs: Loc[]): Loc[] => { const out: Loc[] = []; walkLocs(locs, l => out.push(l)); return out; };
+const dirs0 = (s: Dir) => (s.block ?? []).filter(d => d.name !== 'location');
+/** E18: proxy_cache_path path [levels=1:2] keys_zone=name:size [inactive=time] [max_size=size] [use_temp_path=on|off]… */
+function buildZones(http: Dir[], reader: Reader): CacheZone[] {
+  const out: CacheZone[] = [];
+  for (const d of http.filter(x => x.name === 'proxy_cache_path')) {
+    const [path, ...params] = d.args;
+    let name: string | undefined, levels: number[] = [], inactive = 600, maxSize: string | undefined;
+    for (const p of params) {
+      const [k, v = ''] = p.split(/=(.*)/s, 2);
+      if (k === 'levels') { const ls = v.split(':'); if (!ls.length || ls.length > 3 || ls.some(x => x !== '1' && x !== '2')) throw new ConfError(`invalid "levels" "${v}"${at(d)}`); levels = ls.map(Number); }
+      else if (k === 'keys_zone') { const m = /^([A-Za-z0-9_-]+):(\d+[kKmM]?)$/.exec(v); if (!m) throw new ConfError(`invalid keys zone size "${v}"${at(d)}`); name = m[1]; }
+      else if (k === 'inactive') { const t = timeValue(v); if (t === undefined) throw new ConfError(`invalid inactive value "${p}"${at(d)}`); inactive = t; }
+      else if (k === 'max_size') { if (!/^\d+[kKmMgG]?$/.test(v)) throw new ConfError(`invalid max_size value "${p}"${at(d)}`); maxSize = v; }
+      else if (['use_temp_path', 'min_free', 'manager_files', 'manager_sleep', 'manager_threshold', 'loader_files', 'loader_sleep', 'loader_threshold', 'purger'].includes(k)) continue;
+      else throw new ConfError(`invalid parameter "${p}"${at(d)}`);
+    }
+    if (!name) throw new ConfError(`"proxy_cache_path" must have "keys_zone" parameter${at(d)}`);
+    if (out.some(z => z.name === name)) throw new ConfError(`duplicate zone "${name}"${at(d)}`);
+    if (out.some(z => z.path === path)) throw new ConfError(`duplicate proxy_cache_path "${path}"${at(d)}`);
+    if (!path.startsWith('/') || !reader.isDir(parentOf(path))) throw new ConfError(`mkdir() "${path}" failed (2: No such file or directory)`);
+    out.push({ name, path: path.replace(/\/$/, ''), levels, inactive, ...maxSize ? { maxSize } : {}, file: d.file, line: d.line });
+  }
+  return out;
+}
 
 /**
  * The configuration test (nginx -t) and what a start or reload applies: parse, then the checks nginx makes while it
@@ -450,6 +520,9 @@ export function loadConfig(state: FsState, reader: Reader = readerOf(state), con
   const maps = reader.proxy ? buildMaps(http) : [];
   if (reader.proxy) { captures.add('\u0001proxy'); for (const m of maps) captures.add(m.target); }
   const upstreams = reader.proxy ? buildUpstreams(http, reader, warnings) : [];
+  // E18: proxy_cache_path's zones (the folder's parent must exist; nginx creates the folder itself).
+  if (reader.edge) captures.add('\u0001edge');
+  const zones = reader.edge ? buildZones(http, reader) : [];
   const userDir = main.find(d => d.name === 'user'), user = userDir?.args[0] ?? 'nobody';
   if (userDir && !findUser(accountsOf(state), user)) throw new ConfError(`getpwnam("${user}") failed${at(userDir)}`);
   const wp = main.find(d => d.name === 'worker_processes');
@@ -470,6 +543,10 @@ export function loadConfig(state: FsState, reader: Reader = readerOf(state), con
     walkLocs(locs, l => checkLevel(l.dirs, captures));
     // E15: each location's proxy_pass (nginx resolves its host now; an upstream block's name stands for the block).
     if (reader.proxy) walkLocs(locs, l => { const pp = l.dirs.find(d => d.name === 'proxy_pass'); if (pp) l.proxy = buildProxy(pp, l, upstreams, reader); });
+    // E18: proxy_cache names a zone of proxy_cache_path.
+    if (reader.edge) for (const level of [http, dirs0(s), ...flatLocs(locs).map(l => l.dirs)]) for (const d of level.filter(x => x.name === 'proxy_cache')) {
+      if (d.args[0] !== 'off' && !zones.some(z => z.name === d.args[0])) throw new ConfError(`"proxy_cache" zone "${d.args[0]}" is unknown${at(d)}`);
+    }
     servers.push({ listens, names: names.length ? names : [''], dirs, locs, file: s.file, line: s.line });
   }
   // Default servers and server names, per address and port.
@@ -511,7 +588,7 @@ export function loadConfig(state: FsState, reader: Reader = readerOf(state), con
   for (const s of servers) { collect(s.dirs); walkLocs(s.locs, l => collect(l.dirs)); }
   for (const p of logs) if (!reader.isDir(parentOf(p))) throw new ConfError(`open() "${p}" failed (2: No such file or directory)`);
   for (const m of maps) checkVars([m.source], captures);
-  return { main, http, servers, user, workers: wp?.args[0] === 'auto' || !wp ? (wp ? 'auto' : 1) : Number(wp.args[0]), mime, files: parsed.files, warnings, upstreams, maps };
+  return { main, http, servers, user, workers: wp?.args[0] === 'auto' || !wp ? (wp ? 'auto' : 1) : Number(wp.args[0]), mime, files: parsed.files, warnings, upstreams, maps, ...reader.edge ? { zones } : {} };
 }
 /** The configuration test's result as nginx -t prints it. */
 export function testConfig(state: FsState, reader: Reader = readerOf(state), conf = NGINX_CONF): { conf: NgConf } | { error: string } {
@@ -553,6 +630,8 @@ export function applyConfig(state: FsState, conf: NgConf, initial = false): FsSt
     last = Math.max(last, next);
   }
   const nodes = new Map(state.nodes);
+  // E18: the cache folders (owned by the worker user, as nginx's cache manager makes them).
+  for (const z of conf.zones ?? []) if (!nodes.has(z.path) && nodes.get(parentOf(z.path))?.kind === 'dir') nodes.set(z.path, { kind: 'dir', mode: 0o700, owner: conf.user });
   for (const p of logPaths(conf)) {
     const real = physicalPath(nodes, p, true);
     if (!nodes.has(real) && nodes.get(parentOf(real))?.kind === 'dir') nodes.set(real, { kind: 'file', mode: 0o644, owner: 'root', content: '' });
@@ -845,7 +924,7 @@ export type UpstreamResult = { kind: 'refused' } | { kind: 'timeout' } | { kind:
  * E15: how nginx's machine reaches an upstream server, given by the caller that knows the network (curl, the lesson checks):
  * proxyHost is the nginx machine's state now (an upstream on the same machine is served on it and handed back).
  */
-export type UpstreamFn = (proxyHost: FsState, address: string, port: number, scheme: 'http' | 'https', req: Request) => { result: UpstreamResult; host: FsState };
+export type UpstreamFn = (proxyHost: FsState, address: string, port: number, scheme: 'http' | 'https', req: Request) => { result: UpstreamResult; host: FsState; /** E18: the round trip to it (ms) */ ms?: number };
 export interface Exchange2 { address: string; port: number; https: boolean; client: string; req: Request; now: number; /** E15 */ upstream?: UpstreamFn }
 
 /** E14: nginx answers one request; the access and error logs are written on the host (its new state is returned). */
@@ -868,6 +947,9 @@ export function nginxServe(host0: FsState, x: Exchange2): Served {
   const logError = (msg: string, upstream?: string, level: 'error' | 'warn' = 'error') => errors.push({ msg, level, ...upstream !== undefined ? { upstream } : {} });
   // E15: what the proxy module tried ($upstream_addr, $upstream_status) and the variables of map blocks.
   let upstreamAddr = '', upstreamStatus = '', proxyHostVar = '', proxyPortVar = '';
+  // E18: the cache's verdict ($upstream_cache_status) and the time spent reaching upstreams (curl -w).
+  let cacheStatus = '', upstreamMs = 0;
+  const edge = !!host0.nginx?.edge;
   const vars = (c: Ctx2, captures: string[]) => (text: string): string => text.replace(/\$(?:\{(\w+)\}|(\w+))/g, (_m, a: string | undefined, b: string | undefined): string => {
     const name = a ?? b ?? '';
     if (/^\d$/.test(name)) return captures[Number(name) - 1] ?? sel.captures[name] ?? '';
@@ -891,6 +973,7 @@ export function nginxServe(host0: FsState, x: Exchange2): Served {
       case 'upstream_addr': return upstreamAddr;
       case 'upstream_status': return upstreamStatus;
       case 'server_protocol': return 'HTTP/1.1';
+      case 'upstream_cache_status': return cacheStatus;
       default: {
         const map = conf.maps?.find(m => m.target === name);
         if (map) {
@@ -900,6 +983,7 @@ export function nginxServe(host0: FsState, x: Exchange2): Served {
         }
         if (name.startsWith('http_')) return x.req.headers.find(([k]) => k.toLowerCase().replace(/-/g, '_') === name.slice(5))?.[1] ?? '';
         if (name.startsWith('arg_')) return new URLSearchParams(args).get(name.slice(4)) ?? '';
+        if (name.startsWith('cookie_')) { const jar = x.req.headers.find(([k]) => k.toLowerCase() === 'cookie')?.[1] ?? ''; return jar.split(';').map(c => c.trim().split('=')).find(([k]) => k === name.slice(7))?.[1] ?? ''; }
         return sel.captures[name] ?? '';
       }
     }
@@ -926,7 +1010,11 @@ export function nginxServe(host0: FsState, x: Exchange2): Served {
     const ext = /\.([^./]+)$/.exec(path)?.[1]?.toLowerCase();
     return (ext && conf.mime.get(ext)) ?? levelWith(c, 'default_type')[0]?.args[0] ?? 'text/plain';
   };
-  type Out = { status: number; body?: string; type?: string; location?: string; c: Ctx2; /** E15: an upstream's response (its other headers, in order) */ proxied?: { headers: [string, string][]; upgrade: boolean; length?: string } };
+  type Out = {
+    status: number; body?: string; type?: string; location?: string; c: Ctx2; /** E15: an upstream's response (its other headers, in order) */ proxied?: { headers: [string, string][]; upgrade: boolean; length?: string };
+    /** E18: a static file (its mtime and size give Last-Modified and ETag); a cached upstream response (nginx answers conditional requests for it). */
+    file?: { mtime: number; size: number }; cached?: true;
+  };
   const fail = (status: number, c: Ctx2): Out => ({ status, c });
   const access = (c: Ctx2): Out | null => {
     for (const d of [...levelWith(c, 'allow'), ...levelWith(c, 'deny')].sort((p, q) => p.line - q.line || (p.file < q.file ? -1 : 1))) {
@@ -965,7 +1053,8 @@ export function nginxServe(host0: FsState, x: Exchange2): Served {
     }
     if (!modeAllows(f.node, view)) { logError(`open() "${path}" failed (13: Permission denied)`); return fail(403, c); }
     if (x.req.method !== 'GET' && x.req.method !== 'HEAD') return fail(405, c);
-    return { status: 200, body: f.node.content ?? '', type: contentType(c, path), c };
+    const content = f.node.content ?? '';
+    return { status: 200, body: content, type: contentType(c, path), c, ...edge ? { file: { mtime: f.node.mtime ?? clockOf(host).boot, size: new TextEncoder().encode(content).length } } : {} };
   };
   const runRewrites = (dirs: Dir[], c: Ctx2, captures: string[]): Out | { last: string } | { brk: true } | null => {
     for (const d of dirs) {
@@ -1010,78 +1099,175 @@ export function nginxServe(host0: FsState, x: Exchange2): Served {
     const prefix = loc.mod === '' || loc.mod === '^~' || loc.mod === '=';
     const query = args ? `?${args}` : '';
     const path = rewritten ? uri + query : p.uri !== undefined ? p.uri + (prefix ? uri.slice(loc.path.length) : '') + query : rawUri;
+    // E18: the cache of this location (proxy_cache with a zone of proxy_cache_path), for the methods it caches.
+    const cdir = edge ? levelWith(c, 'proxy_cache')[0] : undefined;
+    const zone = cdir && cdir.args[0] !== 'off' ? conf.zones?.find(z => z.name === cdir.args[0]) : undefined;
+    const cacheMethods = new Set(['GET', 'HEAD', ...levelWith(c, 'proxy_cache_methods').flatMap(d => d.args)]);
+    const caching = !!zone && cacheMethods.has(x.req.method);
     const userSet = levelWith(c, 'proxy_set_header').map(d => [d.args[0], v(d.args[1])] as [string, string]);
     const body = x.req.body;
+    // With a cache nginx asks for the whole response itself: the client's conditional and range headers are not passed on.
+    const cacheDefaults: [string, string][] = caching ? [['If-Modified-Since', ''], ['If-Unmodified-Since', ''], ['If-None-Match', ''], ['If-Match', ''], ['Range', ''], ['If-Range', '']] : [];
     const defaults: [string, string][] = [['Host', p.hostPort], ['Connection', 'close'], ...body !== undefined ? [['Content-Length', String(new TextEncoder().encode(body).length)] as [string, string]] : [],
-      ['Transfer-Encoding', ''], ['TE', ''], ['Keep-Alive', ''], ['Expect', ''], ['Upgrade', '']];
+      ['Transfer-Encoding', ''], ['TE', ''], ['Keep-Alive', ''], ['Expect', ''], ['Upgrade', ''], ...cacheDefaults];
     const merged = [...userSet, ...defaults.filter(([k]) => !userSet.some(([u]) => u.toLowerCase() === k.toLowerCase()))];
     const keys = new Set(merged.map(([k]) => k.toLowerCase()));
     const headers: [string, string][] = [...merged.filter(([, val]) => val !== ''), ...x.req.headers.filter(([k]) => !keys.has(k.toLowerCase()))];
     const version = levelWith(c, 'proxy_http_version')[0]?.args[0] === '1.1' ? '1.1' : '1.0';
-    const req: Request = { method: x.req.method, path, headers, ...body !== undefined ? { body } : {}, version };
+    // proxy_cache_convert_head: a cached HEAD is fetched with GET.
+    const req: Request = { method: caching && x.req.method === 'HEAD' ? 'GET' : x.req.method, path, headers, ...body !== undefined ? { body } : {}, version };
     const time = (name: string, def: number) => { const d = levelWith(c, name)[0]; return d ? timeValue(d.args[0]) ?? def : def; };
     const connectTimeout = Math.min(time('proxy_connect_timeout', 60), 75), readTimeout = time('proxy_read_timeout', 60);
     const nextOn = levelWith(c, 'proxy_next_upstream').flatMap(d => d.args), retryOn = nextOn.length ? (nextOn.includes('off') ? [] : nextOn) : ['error', 'timeout'];
     const triesDir = levelWith(c, 'proxy_next_upstream_tries')[0], maxTries = triesDir ? Number(triesDir.args[0]) : 0;
     const idempotent = ['GET', 'HEAD', 'OPTIONS', 'TRACE', 'PUT', 'DELETE'].includes(x.req.method) || retryOn.includes('non_idempotent');
-    const n0 = host.nginx!, table = n0.peers?.[up.name] ?? { primary: freshPeers(up.servers.filter(z => !z.backup)), backup: freshPeers(up.servers.filter(z => z.backup)) };
-    const peers = { primary: table.primary.map(z => ({ ...z })), backup: table.backup.map(z => ({ ...z })) };
-    const peerOf = (i: number) => { const srv = up.servers[i], list = srv.backup ? peers.backup : peers.primary, group = up.servers.filter(z => z.backup === srv.backup); return { srv, state: list[group.indexOf(srv)], single: up.servers.length === 1 }; };
-    const tried = new Set<number>(), addrs: string[] = [], statuses: string[] = [];
-    let res: Response | undefined, last: 'error' | 'timeout' | undefined, waited = 0;
-    for (;;) {
-      const i = pickPeer(up, peers, tried, x.client, srv => n0.conns?.[`${up.name}/${srv.text}`] ?? 0);
-      if (i === undefined) {
-        if (!tried.size) { logError('no live upstreams while connecting to upstream', `${p.scheme}://${up.name}${path}`); addrs.push(up.name); last = 'error'; }
-        break;
+    /** The upstream request through the peers in turn (502/504 and their log lines); extra: conditional headers of a revalidation. */
+    const fetch = (extra: [string, string][] = []): { res?: Response; last?: 'error' | 'timeout'; seconds: number } => {
+      const n0 = host.nginx!, table = n0.peers?.[up.name] ?? { primary: freshPeers(up.servers.filter(z => !z.backup)), backup: freshPeers(up.servers.filter(z => z.backup)) };
+      const peers = { primary: table.primary.map(z => ({ ...z })), backup: table.backup.map(z => ({ ...z })) };
+      const peerOf = (i: number) => { const srv = up.servers[i], list = srv.backup ? peers.backup : peers.primary, group = up.servers.filter(z => z.backup === srv.backup); return { srv, state: list[group.indexOf(srv)], single: up.servers.length === 1 }; };
+      const tried = new Set<number>(), addrs: string[] = [], statuses: string[] = [];
+      const sent: Request = extra.length ? { ...req, headers: [...req.headers, ...extra] } : req;
+      let res: Response | undefined, last: 'error' | 'timeout' | undefined, waited = 0;
+      for (;;) {
+        const i = pickPeer(up, peers, tried, x.client, srv => n0.conns?.[`${up.name}/${srv.text}`] ?? 0, edge ? x.now : undefined);
+        if (i === undefined) {
+          if (!tried.size) { logError('no live upstreams while connecting to upstream', `${p.scheme}://${up.name}${path}`); addrs.push(up.name); last = 'error'; }
+          break;
+        }
+        tried.add(i);
+        const { srv, state: ps, single } = peerOf(i), upstreamUrl = `${p.scheme}://${srv.text}${path}`;
+        addrs.push(srv.text);
+        const r = x.upstream ? x.upstream(host, srv.address, srv.port, p.scheme, sent) : { result: { kind: 'refused' } as UpstreamResult, host };
+        host = r.host;
+        if (edge) upstreamMs += r.ms ?? 0;
+        const a = r.result;
+        if (a.kind === 'response' && a.delay < readTimeout) { res = a.res; waited += a.delay; statuses.push(String(a.res.status)); peerSucceeded(ps); break; }
+        const failure: { kind: 'error' | 'timeout'; msg: string; phase: string } =
+          a.kind === 'refused' ? { kind: 'error', msg: 'connect() failed (111: Connection refused) while connecting to upstream', phase: 'connecting to' }
+            : a.kind === 'timeout' ? { kind: 'timeout', msg: 'upstream timed out (110: Connection timed out) while connecting to upstream', phase: 'connecting to' }
+              : a.kind === 'closed' ? { kind: 'error', msg: 'upstream prematurely closed connection while reading response header from upstream', phase: 'reading response header from' }
+                : a.kind === 'plain' ? { kind: 'error', msg: 'SSL_do_handshake() failed (SSL: error:0A00010B:SSL routines::wrong version number) while SSL handshaking to upstream', phase: 'SSL handshaking to' }
+                  : { kind: 'timeout', msg: 'upstream timed out (110: Connection timed out) while reading response header from upstream', phase: 'reading response header from' };
+        waited += failure.kind === 'timeout' ? (a.kind === 'timeout' ? connectTimeout : readTimeout) : 0;
+        logError(failure.msg, upstreamUrl);
+        statuses.push(failure.kind === 'timeout' ? '504' : '502');
+        if (peerFailed(srv, ps, single, edge ? x.now : undefined)) logError(`upstream server temporarily disabled while ${failure.phase} upstream`, upstreamUrl, 'warn');
+        last = failure.kind;
+        const wasSent = a.kind === 'closed' || a.kind === 'response';
+        if (!retryOn.includes(failure.kind) || (wasSent && !idempotent) || (maxTries && tried.size >= maxTries)) break;
       }
-      tried.add(i);
-      const { srv, state: ps, single } = peerOf(i), upstreamUrl = `${p.scheme}://${srv.text}${path}`;
-      addrs.push(srv.text);
-      const r = x.upstream ? x.upstream(host, srv.address, srv.port, p.scheme, req) : { result: { kind: 'refused' } as UpstreamResult, host };
-      host = r.host;
-      const a = r.result;
-      if (a.kind === 'response' && a.delay < readTimeout) { res = a.res; waited += a.delay; statuses.push(String(a.res.status)); peerSucceeded(ps); break; }
-      const failure: { kind: 'error' | 'timeout'; msg: string; phase: string } =
-        a.kind === 'refused' ? { kind: 'error', msg: 'connect() failed (111: Connection refused) while connecting to upstream', phase: 'connecting to' }
-          : a.kind === 'timeout' ? { kind: 'timeout', msg: 'upstream timed out (110: Connection timed out) while connecting to upstream', phase: 'connecting to' }
-            : a.kind === 'closed' ? { kind: 'error', msg: 'upstream prematurely closed connection while reading response header from upstream', phase: 'reading response header from' }
-              : a.kind === 'plain' ? { kind: 'error', msg: 'SSL_do_handshake() failed (SSL: error:0A00010B:SSL routines::wrong version number) while SSL handshaking to upstream', phase: 'SSL handshaking to' }
-                : { kind: 'timeout', msg: 'upstream timed out (110: Connection timed out) while reading response header from upstream', phase: 'reading response header from' };
-      waited += failure.kind === 'timeout' ? (a.kind === 'timeout' ? connectTimeout : readTimeout) : 0;
-      logError(failure.msg, upstreamUrl);
-      statuses.push(failure.kind === 'timeout' ? '504' : '502');
-      if (peerFailed(srv, ps, single)) logError(`upstream server temporarily disabled while ${failure.phase} upstream`, upstreamUrl, 'warn');
-      last = failure.kind;
-      const sent = a.kind === 'closed' || a.kind === 'response';
-      if (!retryOn.includes(failure.kind) || (sent && !idempotent) || (maxTries && tried.size >= maxTries)) break;
-    }
-    host = { ...host, nginx: { ...host.nginx!, peers: { ...host.nginx!.peers, [up.name]: peers } } };
-    upstreamAddr = addrs.join(', ');
-    upstreamStatus = res ? statuses.join(', ') : statuses.length ? statuses.join(', ') : '';
-    wait += waited;
-    if (!res) return { status: last === 'timeout' ? 504 : 502, c };
-    // The upstream's response: nginx's own Server and Date, the hop-by-hop headers dropped, proxy_redirect on Location.
-    const hide = new Set(['server', 'date', 'connection', 'keep-alive', 'transfer-encoding', 'content-length', 'content-type', 'x-pad', 'x-accel-expires', 'x-accel-redirect', 'x-accel-limit-rate', 'x-accel-buffering', 'x-accel-charset',
-      ...levelWith(c, 'proxy_hide_header').map(d => d.args[0].toLowerCase())].filter(h => !levelWith(c, 'proxy_pass_header').some(d => d.args[0].toLowerCase() === h)));
-    const redirect = levelWith(c, 'proxy_redirect');
-    const rewriteLocation = (l: string) => {
-      if (redirect[0]?.args[0] === 'off') return l;
-      const rules = redirect.length && redirect[0].args[0] !== 'default' ? redirect.map(d => [d.args[0], d.args[1] ?? ''] as [string, string])
-        : [p.uri !== undefined ? [p.url, loc.path] as [string, string] : [`${p.url}/`, '/'] as [string, string]];
-      for (const [from, to] of rules) if (l.startsWith(from)) return to + l.slice(from.length);
-      return l;
+      host = { ...host, nginx: { ...host.nginx!, peers: { ...host.nginx!.peers, [up.name]: peers } } };
+      upstreamAddr = addrs.join(', ');
+      upstreamStatus = res ? statuses.join(', ') : statuses.length ? statuses.join(', ') : '';
+      return { ...res ? { res } : {}, ...last && !res ? { last } : {}, seconds: waited };
     };
-    const passed: [string, string][] = [];
-    let location: string | undefined;
-    for (const [k, val] of res.headers) {
-      const key = k.toLowerCase();
-      if (key === 'location') { location = rewriteLocation(val); if (!location.startsWith('/')) passed.push([k, location]); continue; }
-      if (res.status === 101 && key === 'upgrade') { passed.push([k, val]); continue; }
-      if (!hide.has(key)) passed.push([k, val]);
+    // The upstream's response: nginx's own Server and Date, the hop-by-hop headers dropped, proxy_redirect on Location.
+    const shape = (res: Response): Out => {
+      const hide = new Set(['server', 'date', 'connection', 'keep-alive', 'transfer-encoding', 'content-length', 'content-type', 'x-pad', 'x-accel-expires', 'x-accel-redirect', 'x-accel-limit-rate', 'x-accel-buffering', 'x-accel-charset',
+        ...levelWith(c, 'proxy_hide_header').map(d => d.args[0].toLowerCase())].filter(h => !levelWith(c, 'proxy_pass_header').some(d => d.args[0].toLowerCase() === h)));
+      const redirect = levelWith(c, 'proxy_redirect');
+      const rewriteLocation = (l: string) => {
+        if (redirect[0]?.args[0] === 'off') return l;
+        const rules = redirect.length && redirect[0].args[0] !== 'default' ? redirect.map(d => [d.args[0], d.args[1] ?? ''] as [string, string])
+          : [p.uri !== undefined ? [p.url, loc.path] as [string, string] : [`${p.url}/`, '/'] as [string, string]];
+        for (const [from, to] of rules) if (l.startsWith(from)) return to + l.slice(from.length);
+        return l;
+      };
+      const passed: [string, string][] = [];
+      let location: string | undefined;
+      for (const [k, val] of res.headers) {
+        const key = k.toLowerCase();
+        if (key === 'location') { location = rewriteLocation(val); if (!location.startsWith('/')) passed.push([k, location]); continue; }
+        if (res.status === 101 && key === 'upgrade') { passed.push([k, val]); continue; }
+        if (!hide.has(key)) passed.push([k, val]);
+      }
+      const type = res.headers.find(([k]) => k.toLowerCase() === 'content-type')?.[1], length = res.headers.find(([k]) => k.toLowerCase() === 'content-length')?.[1];
+      return { status: res.status, body: res.body, ...type !== undefined ? { type } : {}, ...location?.startsWith('/') ? { location } : {}, c, proxied: { headers: passed, upgrade: res.status === 101, ...length !== undefined ? { length } : {} } };
+    };
+    const failed = (last: 'error' | 'timeout' | undefined): Out => ({ status: last === 'timeout' ? 504 : 502, c });
+    if (!caching) {
+      const f = fetch();
+      wait += f.seconds;
+      return f.res ? shape(f.res) : failed(f.last);
     }
-    const type = res.headers.find(([k]) => k.toLowerCase() === 'content-type')?.[1], length = res.headers.find(([k]) => k.toLowerCase() === 'content-length')?.[1];
-    return { status: res.status, body: res.body, ...type !== undefined ? { type } : {}, ...location?.startsWith('/') ? { location } : {}, c, proxied: { headers: passed, upgrade: res.status === 101, ...length !== undefined ? { length } : {} } };
+    return cached(zone!, c, v, fetch, shape, failed);
+  };
+  /** E18: proxy_cache — HIT, MISS, EXPIRED, BYPASS, STALE, UPDATING and REVALIDATED, the entries and their files on the host. */
+  const cached = (zone: CacheZone, c: Ctx2, v: (t: string) => string, fetch: (extra?: [string, string][]) => { res?: Response; last?: 'error' | 'timeout'; seconds: number },
+    shape: (res: Response) => Out, failed: (last: 'error' | 'timeout' | undefined) => Out): Out => {
+    const now = x.now, key = v(levelWith(c, 'proxy_cache_key')[0]?.args[0] ?? '$scheme$proxy_host$request_uri');
+    const truthy = (name: string) => levelWith(c, name).flatMap(d => d.args).some(a => { const t = v(a); return t !== '' && t !== '0'; });
+    const bypass = truthy('proxy_cache_bypass'), noStore = truthy('proxy_no_cache');
+    const useStale = new Set(levelWith(c, 'proxy_cache_use_stale').flatMap(d => d.args));
+    const background = flag(c, 'proxy_cache_background_update', false), revalidate = flag(c, 'proxy_cache_revalidate', false);
+    const ignored = new Set(levelWith(c, 'proxy_ignore_headers').flatMap(d => d.args.map(a => a.toLowerCase())));
+    const validDirs = levelWith(c, 'proxy_cache_valid'), minUses = Number(levelWith(c, 'proxy_cache_min_uses')[0]?.args[0] ?? 1);
+    const nodes = new Map(host.nodes);
+    const uses = { ...host.nginx!.uses };
+    // The cache manager: entries not used for `inactive` go, and so does an entry whose file was deleted (rm is the purge of open-source nginx).
+    let entries = (host.nginx!.cache?.[zone.name] ?? []).filter(e => {
+      const ok = now - e.access <= zone.inactive && nodes.get(e.file)?.kind === 'file';
+      if (!ok) nodes.delete(e.file);
+      return ok;
+    }).map(e => e.next && now >= e.next.ready ? e.next.entry : e);
+    const found = entries.find(e => e.key === key && e.vary === varyOf(e.varyNames, x.req));
+    const store = (res: Response): NgEntry | undefined => {
+      if (noStore) return undefined;
+      const st = storable(res, now, ignored);
+      if (!st.store) return undefined;
+      const ttl = st.ttl ?? validFor(validDirs, res.status, timeValue);
+      if (!ttl) return undefined;
+      const counted = `${zone.name}\n${key}`;
+      uses[counted] = (uses[counted] ?? 0) + 1;
+      if (uses[counted] < minUses) return undefined;
+      const vary = varyKey(res, x.req, ignored), file = cacheFile(zone, md5(vary ? `${key}\n${vary}` : key));
+      if (!writeCacheFile(nodes, zone, file, cacheText(key, res), conf.user, LIMITS.nodes)) return undefined;
+      delete uses[counted];
+      return { key, vary, varyNames: ignored.has('vary') ? [] : varyNames(res), file, res, stored: now, valid: now + ttl, access: now };
+    };
+    const put = (e: NgEntry | undefined, replacing?: NgEntry) => { entries = [...entries.filter(z => z !== replacing && !(e && z.key === e.key && z.vary === e.vary)), ...e ? [e] : []]; };
+    const fromCache = (e: NgEntry, status: string): Out => { cacheStatus = status; put({ ...e, access: now }, e); return { ...shape(e.res), cached: true }; };
+    const fresh = (res: Response, status: string): Out => { cacheStatus = status; const e = store(res); if (e) put(e); return { ...shape(res), ...e ? { cached: true as const } : {} }; };
+    const staleFor = (r: { res?: Response; last?: 'error' | 'timeout' }) => r.res ? useStale.has(`http_${r.res.status}`) : useStale.has(r.last ?? 'error');
+    let out: Out;
+    if (bypass) {
+      cacheStatus = 'BYPASS';
+      const f = fetch();
+      wait += f.seconds;
+      out = f.res ? fresh(f.res, 'BYPASS') : failed(f.last);
+    } else if (found && now < found.valid) out = fromCache(found, 'HIT');
+    else if (found) {
+      const updating = found.next && now < found.next.ready;
+      if (updating && useStale.has('updating')) out = fromCache(found, 'UPDATING');
+      else if (background && useStale.has('updating')) {
+        // The client gets the stale response at once; a background request refreshes the entry (ready when the upstream has answered).
+        out = fromCache(found, 'STALE');
+        const saved = { upstreamAddr, upstreamStatus, upstreamMs };
+        const f = fetch();
+        ({ upstreamAddr, upstreamStatus, upstreamMs } = saved);
+        const e = f.res ? store(f.res) : undefined;
+        if (e) put({ ...found, access: now, next: { entry: e, ready: now + f.seconds } }, found);
+      } else {
+        const lm = headerOf(found.res.headers, 'Last-Modified'), etag = headerOf(found.res.headers, 'ETag');
+        const extra: [string, string][] = revalidate ? [...lm ? [['If-Modified-Since', lm] as [string, string]] : [], ...etag ? [['If-None-Match', etag] as [string, string]] : []] : [];
+        const f = fetch(extra);
+        wait += f.seconds;
+        if (f.res && f.res.status === 304 && extra.length) {
+          // REVALIDATED: the stored response is fresh again (the 304's own freshness, else proxy_cache_valid for the stored status).
+          const st = storable({ ...found.res, headers: [...found.res.headers.filter(([k]) => !f.res!.headers.some(([n]) => n.toLowerCase() === k.toLowerCase())), ...f.res.headers] }, now, ignored);
+          const ttl = (st.store ? st.ttl : 0) ?? validFor(validDirs, found.res.status, timeValue) ?? 0;
+          out = fromCache({ ...found, stored: now, valid: now + ttl }, 'REVALIDATED');
+        } else if ((!f.res || useStale.has(`http_${f.res.status}`)) && staleFor(f)) out = fromCache(found, 'STALE');
+        else out = f.res ? fresh(f.res, 'EXPIRED') : (cacheStatus = 'EXPIRED', failed(f.last));
+      }
+    } else {
+      const f = fetch();
+      wait += f.seconds;
+      out = f.res ? fresh(f.res, 'MISS') : (cacheStatus = 'MISS', failed(f.last));
+    }
+    host = { ...host, nodes, nginx: { ...host.nginx!, cache: { ...host.nginx!.cache, [zone.name]: entries }, uses } };
+    return out;
   };
   let wait = 0;
   const internal = (u: string, redirects: number, s: Srv): Out => {
@@ -1137,22 +1323,53 @@ export function nginxServe(host0: FsState, x: Exchange2): Served {
   const relative = out.location?.startsWith('/') ?? false;
   const scheme = x.https ? 'https' : 'http', portPart = (x.https && x.port === 443) || (!x.https && x.port === 80) ? '' : `:${x.port}`;
   const location = out.location === undefined ? undefined : relative ? `${scheme}://${hostName.toLowerCase() || x.address}${portPart}${out.location}` : out.location;
-  const noBody = status === 204 || status === 101 || status === 304;
+  // E18: the static module's validators, and the not_modified filter (a 304 for a matching conditional request).
+  const file = edge && status === 200 ? out.file : undefined;
+  const lastModified = file ? httpDate(file.mtime) : undefined, etag = file && flag(c, 'etag', true) ? nginxEtag(file.mtime, file.size) : undefined;
+  let final = status;
+  if (edge && status === 200 && (file || out.cached)) {
+    const validators: [string, string][] = [...lastModified ? [['Last-Modified', lastModified] as [string, string]] : [], ...etag ? [['ETag', etag] as [string, string]] : [], ...out.proxied?.headers ?? []];
+    const mode = (levelWith(c, 'if_modified_since')[0]?.args[0] ?? 'exact') as 'exact' | 'before' | 'off';
+    if (notModified(x.req, { status: 200, reason: 'OK', headers: validators, body: '', close: false }, mode)) final = 304;
+  }
+  const noBody = final === 204 || final === 101 || final === 304;
   const type = noBody ? undefined : out.proxied ? out.type : out.body !== undefined ? out.type ?? 'text/html' : 'text/html';
   const headers: [string, string][] = [['Server', serverHeader], ['Date', httpDate(x.now)]];
   if (noBody) body = '';
   if (type) headers.push(['Content-Type', type]);
   if (!noBody) headers.push(['Content-Length', out.proxied?.length ?? String(new TextEncoder().encode(body).length)]);
+  if (lastModified) headers.push(['Last-Modified', lastModified]);
   if (location && relative) headers.push(['Location', location]);
   headers.push(['Connection', out.proxied?.upgrade ? 'upgrade' : keepAlive ? 'keep-alive' : 'close']);
   if (location && !relative) headers.push(['Location', location]);
-  if (out.proxied) headers.push(...out.proxied.headers);
-  const always = [200, 201, 204, 206, 301, 302, 303, 304, 307, 308].includes(status);
+  if (etag) headers.push(['ETag', etag]);
+  const always = [200, 201, 204, 206, 301, 302, 303, 304, 307, 308].includes(final);
+  // E18: expires replaces the upstream's Expires and Cache-Control (nginx reuses those headers).
+  const expDir = edge && always ? levelWith(c, 'expires')[0] : undefined, exp = expDir ? expiresOf(expDir) : undefined;
+  const expHeaders: [string, string][] = [];
+  if (exp && exp.kind !== 'off') {
+    if (exp.kind === 'epoch') expHeaders.push(['Expires', 'Thu, 01 Jan 1970 00:00:01 GMT'], ['Cache-Control', 'no-cache']);
+    else if (exp.kind === 'max') expHeaders.push(['Expires', 'Thu, 31 Dec 2037 23:55:55 GMT'], ['Cache-Control', 'max-age=315360000']);
+    else if (exp.kind === 'time') {
+      const upstreamLm = out.proxied ? headerOf(out.proxied.headers, 'Last-Modified') : undefined;
+      const since = exp.modified ? file?.mtime ?? parseLm(upstreamLm) : x.now;
+      if (since !== undefined) {
+        const at = since + exp.seconds;
+        expHeaders.push(['Expires', httpDate(Math.max(0, at))], ['Cache-Control', exp.seconds < 0 || at < x.now ? 'no-cache' : `max-age=${at - x.now}`]);
+      }
+    }
+  }
+  if (out.proxied) headers.push(...expHeaders.length ? out.proxied.headers.filter(([k]) => !['expires', 'cache-control'].includes(k.toLowerCase())) : out.proxied.headers);
+  headers.push(...expHeaders);
   for (const d of levelWith(c, 'add_header')) if (always || d.args[2] === 'always') headers.push([d.args[0], vars(c, [])(d.args[1])]);
-  const res: Response = { status, reason: reasonOf(status, NGINX_VERSION), headers, body: x.req.method === 'HEAD' ? '' : body, close: !keepAlive || !!out.proxied?.upgrade, ...wait ? { wait } : {} };
+  if (file && final === 200) headers.push(['Accept-Ranges', 'bytes']);
+  const res: Response = {
+    status: final, reason: reasonOf(final, NGINX_VERSION), headers, body: x.req.method === 'HEAD' ? '' : body, close: !keepAlive || !!out.proxied?.upgrade, ...wait ? { wait } : {},
+    ...cacheStatus ? { cache: cacheStatus } : {}, ...upstreamMs ? { upstreamMs } : {},
+  };
   // Logs: the access log of the final context (combined format), the error log of that context.
   const ua = x.req.headers.find(([k]) => k.toLowerCase() === 'user-agent')?.[1] ?? '-', ref = x.req.headers.find(([k]) => k.toLowerCase() === 'referer')?.[1] ?? '-';
-  const line = `${x.client} - - [${timeLocal(host)}] "${x.req.method} ${rawUri} HTTP/1.1" ${status} ${new TextEncoder().encode(res.body).length} "${ref}" "${ua}"`;
+  const line = `${x.client} - - [${timeLocal(host)}] "${x.req.method} ${rawUri} HTTP/1.1" ${final} ${new TextEncoder().encode(res.body).length} "${ref}" "${ua}"`;
   const accessDirs = levelWith(c, 'access_log');
   const accessPaths = accessDirs.length ? accessDirs.filter(d => d.args[0] !== 'off').map(d => d.args[0]) : [DEFAULT_ACCESS];
   for (const p of accessPaths) host = appendLog(host, p, line);
@@ -1168,6 +1385,11 @@ export function nginxServe(host0: FsState, x: Exchange2): Served {
   return { res, host };
 }
 const ipNum = (ip: string) => ip.split('.').reduce((a, p) => a * 256 + Number(p), 0) >>> 0;
+/** An upstream's Last-Modified as seconds (expires modified). */
+function parseLm(text: string | undefined): number | undefined {
+  const m = /^\w{3}, (\d{2}) (\w{3}) (\d{4}) (\d{2}):(\d{2}):(\d{2}) GMT$/.exec(text ?? '');
+  return m ? Date.UTC(Number(m[3]), MONTHS.indexOf(m[2] as typeof MONTHS[number]), Number(m[1]), Number(m[4]), Number(m[5]), Number(m[6])) / 1000 : undefined;
+}
 function modeAllows(node: FsNode, view: FsState): boolean {
   const groups = view.groups ?? [view.user];
   if (view.user === 'root') return true;

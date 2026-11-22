@@ -377,7 +377,7 @@ export const psExample: TerminalExample = {
   id: 'ps', title: '找出吃 CPU 的行程', description: '`ps aux --sort=-%cpu` 把最忙的行程排在最前面。', machine: 'app',
   steps: [
     { command: 'ps', output: '    PID TTY          TIME CMD\n   1001 pts/0    00:00:00 bash\n   1050 pts/0    00:00:00 vim\n   1051 pts/0    00:00:00 ps' },
-    { command: 'ps aux --sort=-%cpu | head -n 3', output: 'USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND\nalice        701 97.5 12.5 612000 524288 pts/1    R    08:15 102:03 python3 report.py\nlearner      812  3.2  2.3 1032000 98304 ?        Sl   23:10  12:34 /usr/bin/node server.js' },
+    { command: 'ps aux --sort=-%cpu | head -n 3', output: 'USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND\nalice        701 97.5 12.5 612000 524288 pts/1    R    08:15 102:03 python3 report.py\nlearner      812  3.2  2.3 1032000 98304 ?        Sl   Nov21  12:34 /usr/bin/node server.js' },
     { command: 'pgrep -l python', output: '701 python3\n900 python3' },
   ],
 };

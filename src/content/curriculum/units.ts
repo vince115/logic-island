@@ -70,6 +70,7 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '位址、名稱與請求', summary: '公有與私有 IP、介面與路由、監聽埠與 socket、ss、lsof 與 nc；DNS 區域、A／CNAME／MX／TXT、TTL 與快取、dig；用 curl 讀懂 HTTP 請求、回應、狀態碼與重新導向', lessonIds: range('SRV', 1, 3) },
     { title: '憑證與網頁伺服器', summary: '憑證鏈、ACME 與 Let\'s Encrypt、certbot 自動更新、HSTS 與到期監控；網頁伺服器與應用伺服器、並行模型、逾時與 502／504；nginx 的 server 與 location、nginx -t 與 reload、存取與錯誤日誌', lessonIds: range('SRV', 4, 6) },
     { title: '代理、防火牆與通道', summary: '反向代理與 proxy_pass 的路徑規則、轉送標頭與 WebSocket、502 與 504；upstream 負載平衡、健康檢查與工作階段；ufw 與 nftables 的主機防火牆、規則順序與狀態追蹤；SSH 通道、ProxyJump 與跳板機', lessonIds: range('SRV', 7, 10) },
+    { title: '快取、診斷與故障排除', summary: 'Cache-Control、驗證器與 304、CDN 邊緣節點的命中與過期、版本化檔名與快取清除、nginx 的 proxy_cache；由下而上排查連線：ip、dig、ping、traceroute 與 mtr、nc 與 ss、curl -w、tcpdump；依症狀建立假設、分辨 502 與 504、資源與日誌的時間線、修復後驗證', lessonIds: range('SRV', 11, 13) },
   ],
   // CN-1 to CN-5: the whole island, CN01–CN20.
   networks: [
