@@ -77,7 +77,9 @@ terminal: {
 | `tests/terminal-capability.test.ts` | 以 `terminalFromBlueprint` 建立的合成 LNX 課（加上內容）通過 `validateContent`；在預備島嶼時被 `validateCurriculum` 拒絕；DB16 帶 `content.terminal` 被拒絕、LNX 課沒有內容也被拒絕；`terminal-sim` 需要 `terminal`；沒有已發布的課有 `terminal`；`validateCurriculum(curriculum)` 是 `[]`；一般的 `run` 仍拒絕管線 |
 | `tests/terminal-lesson-dom.test.tsx` | 範例的紀錄與文字樹；終端機的標籤、`aria-live`、指令歷史；輸入正解後「檢查」全部通過，「重設」還原；直接打出答案在變體上不通過 |
 | `tests/terminal-e1.test.ts` | E1：兩個 profile 的分界（實驗拒絕每個 E1 指令、萬用字元、選項與多來源）、`uname`／`hostname`、每個指令的 `man` 與 `--help`、`df`／`du` 的欄位與數字、萬用字元（無符合、隱藏檔、方括號、引號、跳脫）、符號連結（迴圈、懸空、跳數上限、`rm`／`mv`／`cp`）、多來源的錯誤、`ls -d`／`-h`、不改動輸入狀態與節點上限、機器新欄位的驗證 |
-| `tests/support/terminal-fixture.ts` | 合成的機器（web-01、devs 群組可寫的團隊目錄、只有 adm 能讀的日誌）、三段紀錄、兩個練習；E1 另有 `files` profile 的 srv-01（系統資訊、兩個掛載點、符號連結、日誌檔）、三段紀錄、三個練習；只供測試 |
+| `tests/terminal-e2.test.ts` | E2：`streams` profile 的分界（實驗與 `files` 仍拒絕管線與 E2 指令）、三段以上的管線、錯誤輸出的去向、每一種重新導向的排列（`2>&1` 的前後順序、`>&2`、`/dev/null`、目錄、權限、先截斷）、每個指令與選項、輸出與段數上限、子 Shell、不改動輸入狀態、`getopt`／`compilePattern`／`commandNames`、擬真度修正 1–5、`streams` 機器的課程資料 |
+| `tests/terminal-e3.test.ts` | E3：`users` profile 的分界、產生的帳號檔（`/etc/shadow` 讀不到）、`id`／`groups`／`whoami`、`sudo`（允許、拒絕、`-u`、內建指令、重新導向仍是自己的、`sudo tee`）、`useradd`／`usermod`（`-G` 與 `-aG`）／`groupadd`／`newgrp`、非 root 的 `chown` 被拒、擁有者改成自己所屬的群組、`-R`、`umask` 對新檔案與目錄的影響、群組位元、`chmod -R`、帳號資料與帳號檢查的驗證 |
+| `tests/support/terminal-fixture.ts` | 合成的機器（web-01、devs 群組可寫的團隊目錄、只有 adm 能讀的日誌）、三段紀錄、兩個練習；E1 另有 `files` profile 的 srv-01（系統資訊、兩個掛載點、符號連結、日誌檔）、三段紀錄、三個練習；E2 有 `streams` 的 log-01（存取日誌、CSV、只有 root 能讀的日誌）、三段紀錄、兩個練習；E3 有 `users` 的 team-01（learner 在 sudo、alice 在 devs、服務帳號、devs 的團隊目錄）、三段紀錄、三個練習；只供測試 |
 
 ## 7. 島嶼登錄
 
@@ -92,7 +94,7 @@ terminal: {
 | 批次 | 課程 | 需要的引擎階段 |
 |---|---|---|
 | LNX-1 | LNX01–LNX04 | **E1**（已完成，見 §9）：`uname`、`hostname`、`man`／`--help`、`df`／`du`、萬用字元（glob）、`ln -s`（啟用 `link`）、多來源的 `cp`／`mv` |
-| LNX-2 | LNX05–LNX07 | **E2** 資料流：管線、`<`、`2>&1`、`head`／`tail`／`grep`／`sort`／`uniq`／`wc`／`cut`；**E3** 使用者與群組（例如 `id`、`groups`、`chown`、`chgrp`、`sudo` 的模擬、`/etc/passwd`／`/etc/group`） |
+| LNX-2 | LNX05–LNX07 | **E2**（已完成，見 §10）`streams`：管線、重新導向（`>`、`>>`、`<`、`2>`、`2>>`、`2>&1`、`/dev/null`）、`less`／`head`／`tail`／`grep`／`sort`／`uniq`／`wc`／`cut`／`tr`／`tee`；**E3**（已完成，見 §11）`users`：使用者與群組資料、`/etc/passwd`／`/etc/group`、`id`、`groups`、`useradd`、`usermod`、`groupadd`、`newgrp`、`sudo`、`chown`、`chgrp`、`umask`；E2 同時修正 `files` 的五項擬真度（§10.6） |
 | LNX-3 | LNX08–LNX11 | **E4** 行程與訊號、**E5** 套件管理、**E6** systemd 與 journal（固定的模擬資料，不執行真實程式） |
 | LNX-4 | LNX12–LNX14 | **E7** SSH（金鑰與連線以網路情境與模擬機器呈現）、**E8** 有界的 Bash 直譯器（變數、條件、迴圈，有步數上限）、**E9** cron 與 systemd timer |
 | LNX-5 | LNX15 | 綜合專題（`challenge-stages`），單獨一批 |
@@ -159,4 +161,127 @@ terminal: {
 
 ### 9.6 仍不支援（之後的階段）
 
-管線、`<`、`2>&1`、`head`／`tail`／`grep` 等（E2）；`id`、`chown`、`sudo`（E3）；`ls -R`、`ls` 的 `total` 列、時間戳記（`ls -l` 沒有日期欄，`touch` 不改時間）、`mount` 指令、`df -i`、`du --max-depth`、`ln -n`／`-T`、硬連結、反斜線跳脫、大括號展開 `{a,b}`、`**`、`man -k`。
+（管線與重新導向已由 E2 的 `streams` 提供，使用者與群組由 E3 的 `users` 提供，見 §10、§11。）`ls -R`、`ls` 的 `total` 列、時間戳記（`ls -l` 沒有日期欄，`touch` 不改時間）、`mount` 指令、`df -i`、`du --max-depth`、`ln -n`／`-T`、硬連結、反斜線跳脫、大括號展開 `{a,b}`、`**`、`man -k`。
+
+## 10. 引擎階段 E2：`streams` profile
+
+> 2026-11-22。供 LNX05（文字處理、管線與重新導向）使用。實驗與 `files` 仍拒絕管線與重新導向（`tests/terminal.test.ts`、`tests/terminal-capability.test.ts` 不變）；在 `files` 機器上輸入 E2 的指令仍是 `command not found`。
+
+### 10.1 選用方式
+
+| 項目 | 內容 |
+|---|---|
+| `STREAMS_PROFILE`（`shell.ts`） | `id: 'streams'`；`files` 的全部指令加上 `less`、`head`、`tail`、`grep`、`sort`、`uniq`、`wc`、`cut`、`tr`、`tee`（`E2_COMMANDS`）；features 是 `files` 的四個加上 `pipes` |
+| `TerminalMachine.profile: 'streams'` | `streams` 包含 `files` 的一切：符號連結、`system`、`mounts` 都可以用（profile 的順序是 lab < files < streams < users） |
+| 驗證 | 範例、參考解答與常見錯誤的**每一段管線**以及 `sudo` 執行的指令都要在機器的 profile 裡（`commandNames`）；例如 `files` 機器上的 `ls \| grep x` 回報「`grep is not in the files profile of machine srv`」 |
+| 純文字指令 | `src/lib/terminal/text.ts`：`cat`、`less`、`head`／`tail`、`grep`、`sort`、`uniq`、`wc`、`cut`、`tr` 都是對文字的純函式，經由 `TextIo` 讀取檔案與標準輸入；`tee` 要寫檔，放在 `shell.ts` |
+
+### 10.2 管線與重新導向
+
+- **斷詞**：沒有引號的 `|`、`<`、`>`、`>>` 是運算子；緊接在 `>` 前、沒有引號的 `1` 或 `2` 指定檔案描述子（`2>`、`2>>`；`echo a2>f` 的 `a2` 仍是字）；`2>&1`、`>&2`（`1>&2`）複製描述子。仍拒絕 `;`、`&&`、`||`、`$`、反引號、背景的 `&`、`<<`（here-document）與 `>&檔案`，訊息說明管線與重新導向可以使用。
+- **語法錯誤**照 bash：`| wc` 與 `ls | | wc` 是 ``bash: syntax error near unexpected token `|'``；`ls >` 是 ``…token `newline'``；結尾的 `ls |` 是 `bash: syntax error: unexpected end of file`（真正的互動式 bash 會等下一行；模擬環境沒有續行）。有語法錯誤時整行都不執行。
+- **執行順序**：先由左至右處理**每一段**的重新導向（`>` 立刻截斷或建立檔案、`<` 讀入內容），再依序執行每一段，前一段的標準輸出是下一段的標準輸入。bash 是同時啟動每一段，所以 `cat f | sort > f` 在真實系統上「通常」會清空 f；模擬環境一律先截斷，結果固定是空檔案（`sort f > f` 也一樣）。
+- **描述子**照 bash 由左至右：`> f 2>&1` 兩者都進 f（依寫出的順序交錯）；`2>&1 > f` 錯誤仍在終端機、輸出進 f；`>&2` 讓輸出變成錯誤。終端機上的行依「最後送到哪個串流」標示為輸出或錯誤（`2>&1` 之後的錯誤顯示為輸出）。
+- **重新導向的錯誤**：`bash: X: No such file or directory`、`Permission denied`、`Is a directory`（寫入目錄或 `< 目錄`）、`File name too long`、`No space left on device`；印在那一刻的標準錯誤（`ls 2> /dev/null > /root/x` 什麼都不印），而且該段的指令不執行（已截斷的檔案維持截斷）。
+- **權限**：寫入已存在的檔案要 w（保留模式、擁有者、群組）；新檔案要所在目錄的 w 與 x，模式是 `666 & ~umask`（`streams` 一律 644），屬於使用者。寫入的一律是輸入這行指令的人：`sudo echo x > /etc/f` 仍是 Permission denied，`echo x | sudo tee /etc/f` 才是 root 寫入（§11）。
+- **`/dev/null`**：模擬環境沒有裝置檔；路徑是 `/dev/null`（機器沒有同名的節點時）的 `>`、`2>` 丟棄輸出，`<` 與 `cat /dev/null` 讀到空的內容。`ls /dev/null` 仍是 No such file or directory。
+- **子 Shell**：兩段以上的管線，每一段都是子 Shell：`cd`、`umask`、`newgrp` 不影響工作階段（`mkdir x | cd x` 之後仍在原處）；檔案系統與帳號的變更保留。`clear` 只在單獨一段、輸出到終端機時清除畫面。
+- **不是終端機時的 `ls`**：輸出到管線或檔案時一行一個名稱，而且不加 `/`、`@`（GNU `ls` 不是 tty 時就是 `-1`、沒有顏色）；`ls -l` 不變。
+- **萬用字元與 `~`** 在每一段各自展開（指令名稱與重新導向的檔名不做萬用字元展開，但會展開 `~`）。
+- **上限**：一行最多 `LIMITS.stages = 8` 段（超過時「此模擬器的管線最多 8 段」）；每個指令的輸出（標準輸出與錯誤合計）最多 `LIMITS.output = 20000` 個字元，超過的部分省略並加一行說明；重新導向寫入後超過 `LIMITS.fileLength` 時印 `bash: X: File too large（模擬環境上限 4000 字元）`，檔案維持截斷後的樣子。
+
+### 10.3 指令
+
+| 指令 | 行為與 GNU 的訊息 |
+|---|---|
+| `cat [-n] [檔案…]` | 原樣輸出（沒有換行結尾的檔案會和下一個檔案接在同一行，和 GNU 一樣）；沒有檔案或檔名是 `-` 時讀標準輸入；`-n` 是 `%6d` 加 Tab。沒有標準輸入（鍵盤）時：`cat: 模擬環境沒有鍵盤輸入：請指定檔案，或用管線（|）、< 提供輸入`（`head`、`grep` 等相同）。`files` 以下的 `cat` 不變 |
+| `less [檔案…]` | 不分頁，等於 `cat`；`Missing filename ("less --help" for help)`、`X: No such file or directory`、`X is a directory`（less 自己的格式） |
+| `head`／`tail` | `-n N`、`-N`（只在第一個參數，和 GNU 一樣）、`--lines=N`、`-c N`；`head -n -N` 是「除了最後 N 行」，`tail -n +N` 從第 N 行開始；多個檔案時加 `==> 名稱 <==`（標準輸入是 `standard input`），`-v` 一個也加；`head: invalid number of lines: 'x'`、`head: cannot open 'x' for reading: No such file or directory`、`head: error reading 'd': Is a directory`；`tail -f` 印出模擬環境不支援的說明 |
+| `grep` | 選項 `-i -v -n -c -l -w -x -r -R -E -F -H -h -e 樣式`（可重複）；有多個檔案或經由 `-r` 進入目錄時，每行加 `檔名:`；標準輸入的名稱是 `(standard input)`；`-r` 沒有檔案時搜尋 `.` 但名稱不加 `./`（GNU 的行為），目錄依名稱排序、不跟隨途中的符號連結（`-R` 會）；錯誤：`Usage: grep [OPTION]... PATTERNS [FILE]...` 加 Try 行、`grep: X: No such file or directory`、`grep: d: Is a directory`、`grep: X: Permission denied` |
+| `sort` | `-n -r -u -f`、`-t C`、`-k N[,M][nrf]`（可多個）；比較依碼位（C.UTF-8：大寫在小寫前、`10` 在 `9` 前）；鍵相同時以整行做最後的比較（GNU 的 last-resort，`-r` 也反轉它；`-u` 不做，留下輸入順序中的第一行）；沒有 `-t` 時欄位是「前導空白加一個字」；`-k` 有自己的 n/r/f 時不套用全域的選項；讀不到任何一個輸入就只印錯誤（GNU 先讀完全部輸入）：`sort: open failed: X: No such file or directory`、`sort: read failed: d: Is a directory`、`sort: multi-character tab 'ab'`、`sort: invalid number at field start: invalid count at start of 'x'`、`sort: field number is zero: …` |
+| `uniq` | 只合併相鄰的行；`-c`（`%7d ` 的格式）、`-d`、`-u`、`-i`；第二個檔名（輸出檔）不支援，請用 `>` |
+| `wc` | 依序為行數、字數、字元數（`-m`）、位元組數（`-c`），預設 `-l -w -c`；欄寬照 GNU：只有一個輸入而且只印一種數字時不補空白（`wc -l f` 是 `3 f`）；否則欄寬是一般檔案大小總和的位數，有非一般檔案（管線、目錄）時至少 7（`cat f \| wc` 是 `      3       8      48`，`wc < f` 是一般檔案）；第一個檔案讀不到時欄寬是 1；目錄印 `wc: d: Is a directory` 與一行 0；多個檔案加 `total` |
+| `cut` | `-f 清單`（`-d C`，預設 Tab；沒有分隔字元的行整行印出，`-s` 略過）、`-c 清單`、`-b 清單`；清單是 `N`、`N-M`、`N-`、`-M` 以逗號連接，依輸入順序輸出；錯誤加 Try 行：`you must specify a list of bytes, characters, or fields`、`only one list may be specified`、`the delimiter must be a single character`、`an input delimiter may be specified only when operating on fields`、`fields are numbered from 1`、`invalid decreasing range`、`invalid field value 'x'` |
+| `tr [-d] [-s] 集合1 [集合2]` | 只讀標準輸入（`tr a b 檔案` 是 `tr: extra operand '檔案'` 加 Try 行）；集合支援字元、`a-z`、`\n \t \r \\`、`[:lower:] [:upper:] [:digit:] [:alpha:] [:alnum:] [:space:] [:blank:] [:punct:]`（ASCII）；集合2 較短時以最後一個字元補齊；`-s` 壓縮最後一個集合的連續字元；`tr: missing operand after 'a'` 加 `Two strings must be given when translating.` |
+| `tee [-a] 檔案…` | 把標準輸入印出並寫入每個檔案（以執行 `tee` 的人的權限開檔，失敗的檔案印 `tee: X: Permission denied` 後繼續）|
+| `echo [-n] [-e] 文字…` | `streams` 起：`-n` 不換行、`-e` 解讀 `\n \t \\`；重新導向交給 Shell（不再是 `echo` 自己處理），所以引號裡的 `">"` 只是文字。`files` 以下的 `echo` 不變 |
+
+### 10.4 `grep` 的樣式（自行設計的子集）
+
+- **基本正規表示式**（預設）：一般字元、`.`、`*`（在開頭時是字面的 `*`）、`^`（只在開頭或 `\(`、`\|` 之後是錨點）、`$`（只在結尾或 `\)`、`\|` 之前是錨點）、方括號（`[abc]`、`[a-z]`、`[^…]`、開頭的 `]` 是字面、POSIX 類別 `[:alpha:] [:digit:] [:alnum:] [:upper:] [:lower:] [:space:] [:blank:] [:punct:] [:xdigit:]`）、`\` 讓特殊字元變字面、`\w \W \s \S`，以及 GNU 的延伸 `\+ \? \| \( \) \{n,m\}`。
+- **`-E`**：再加上 `+ ? | ( ) {n,m}`（不合格式的 `{` 是字面）。**`-F`**：整個樣式是字面文字。
+- **不支援**：反向參照（`\1`，回報「模擬環境不支援反向參照」）、`\<`、`\>`、`\b`、`\B`。錯誤用 GNU 的字：`Unmatched [, [^, [:, [., or [=`、`Unmatched ( or \(`、`Invalid range end`、`Invalid character class name`、`Trailing backslash`。
+- 實作：轉成 JavaScript 的 `RegExp`（`u` 旗標；`-i` 加 `i`）；`-w` 以「前面是行首或非字元、後面不是字元」判斷（字元是字母、數字與 `_`；不使用舊版 Safari 不支援的 lookbehind），`-x` 是整行。
+
+### 10.5 選項解析
+
+E2 指令以 `text.getopt` 解析，照 GNU `getopt_long`：選項可以在參數之間（重排）、`-abc` 合寫、需要值的選項接在後面或下一個字（`-k2,2n`、`-t ,`、`-n5`）、`--` 結束選項、單獨的 `-` 是參數、長選項 `--lines=5`；錯誤是 `invalid option -- 'x'`、`unrecognized option '--x'`、`option requires an argument -- 'n'`，後面加 Try 行。
+
+### 10.6 擬真度修正（`files` 以上，實驗不變）
+
+五項修正都掛在 E1 既有的 feature 上，所以 `files`、`streams`、`users` 都有，實驗（沒有任何 feature）逐字不變：
+
+| # | 修正 | 掛在 | 例子 |
+|---|---|---|---|
+| 1 | `--help` 以外的長選項：GNU 的名稱（`ls --all`／`--human-readable`／`--directory`、`mkdir --parents`、`rm --recursive`／`--force`、`cp --recursive`、`du --summarize`／`--human-readable`／`--all`、`df --human-readable`／`--print-type`、`uname --all` 等、`ln --symbolic`／`--force`、`readlink --canonicalize`）；不認得的是 `ls: unrecognized option '--color'` | `help-option` | 實驗的 `ls --all` 仍是 `ls: invalid option -- '-'` |
+| 2 | invalid option、unrecognized option、missing operand、extra operand、`chmod: invalid mode`、`du` 的 `-s` 與 `-a` 之後加 `Try 'CMD --help' for more information.`；`man` 是 `Try 'man --help' or 'man --usage' for more information.`；`whoami` 多了參數時是 `whoami: extra operand 'x'` | `help-option` | `hostname` 不變（真實的 net-tools 印整份用法） |
+| 3 | `~`、`~/路徑`、`~使用者`（自己、`root`；`users` 機器上是任何使用者）在指令執行前換成家目錄，所以 `du ~` 印 `/home/learner`、`cat ~/x` 的錯誤是 `cat: /home/learner/x: …`；引號裡的 `~` 與不認得的 `~名稱` 照字面 | `glob` | 實驗的 `echo ~` 仍印 `~` |
+| 4 | 檔案（不是目錄）`mv a dir/`、`cp a dir/` 而 `dir` 不存在：`mv: cannot move 'a' to 'dir/': Not a directory`、`cp: cannot create regular file 'dir/': Not a directory`；`dir` 是檔案：`failed to access 'dir/': Not a directory`；目錄可以照常改名成 `dir/` | `multi-source` | 實驗仍會改名成 `dir` |
+| 5 | 練習的變體可以改 `host` 與 `system`（uname 的欄位疊在機器的欄位上），所以 `output` 檢查可以用 `uname`／`hostname`；變體的 `system` 仍需要 `files` 以上 | `lesson.ts` | `{ label, files: [], host: 'srv-02', system: { release: '6.1.0-13-amd64' } }` |
+
+已發布的 LNX01–LNX04 因此重新重播：只有 LNX02 的範例 `lnx02-errors` 三步的輸出多了 Try 行（`mkdir`、`ls -z`、`cp notes.txt`）；LNX02 另有兩句說明模擬環境「只認得 `--help` 一個長選項」與「只印第一行」的文字已不正確，改成現在的行為。`tests/terminal-e1.test.ts` 只更新了因修正 2 改變的錯誤訊息（uname、df、du、ln、cp、mv）與 `PROFILES` 的內容。
+
+## 11. 引擎階段 E3：`users` profile
+
+> 2026-11-22。供 LNX06（使用者與群組）與 LNX07（Linux 權限與 chmod）使用。`users` 包含 `streams` 的一切（LNX06、LNX07 也需要管線，例如 `cut -d : -f 1 /etc/passwd`）。
+
+### 11.1 選用方式與資料模型
+
+| 項目 | 內容 |
+|---|---|
+| `USERS_PROFILE` | `id: 'users'`；`streams` 的指令加上 `chown`、`chgrp`、`umask`、`id`、`groups`、`useradd`、`usermod`、`groupadd`、`newgrp`、`sudo`（`E3_COMMANDS`）；features 加 `accounts`（目前只用於 `chmod -R`） |
+| `FsState.accounts` | 使用者（`name`、`uid`、`gid`、`comment`、`home`、`shell`）與群組（`name`、`gid`、`members`）的資料，依檔案順序；`accounts.ts` |
+| `FsState.groups` | 在 `users` 機器上是**工作階段**的群組（登入時的主要群組加上附加群組）。和 Linux 一樣，`usermod -aG` 只改資料：`id` 不加名稱時看工作階段（還沒有新群組），`id 名稱` 與 `groups 名稱` 看資料；`newgrp 群組` 重新讀取資料並以該群組為主要群組（新檔案屬於它），所以「加入群組後重新登入或 `newgrp`」可以練習 |
+| `FsState.umask` | `users` 機器預設 `0o022`；新檔案 `666 & ~umask`（`touch`、重新導向、`tee`、`cp` 的新檔案），新目錄 `777 & ~umask`，`mkdir -p` 的中間目錄另加 `u+wx`（GNU）；覆寫既有的檔案保留它的模式、擁有者與群組（`cp` 也一樣）。沒有 umask 的狀態（實驗、`files`、`streams`）新檔案仍是 644、目錄 755，`cp` 仍保留來源的模式 |
+| 擁有者 | 名稱（不是數字）；新節點屬於使用者，有 `accounts` 時群組是工作階段的主要群組（和使用者同名時省略，與之前相同） |
+| 帳號檔 | 每次帳號改變都重新產生 `/etc/passwd`（0644）、`/etc/group`（0644）、`/etc/shadow`（0640 root:shadow；沒有 shadow 群組時 0600 root）；`/etc` 不存在時建立。shadow 沒有密碼：系統帳號 `*`、其他 `!`，日期欄固定 `20000`。直接編輯這些檔案（例如 root 的 `echo >>`）不會改變資料，下一次帳號變更會覆寫 |
+| 基本資料 | 像 Ubuntu 的小集合：使用者 root(0)、daemon(1)、bin(2)、sys(3)、www-data(33)、nobody(65534)；群組 root、daemon、bin、sys、adm(4)、sudo(27)、www-data(33)、shadow(42)、users(100)、nogroup(65534)；機器的使用者（不是 root 時）是 uid／gid 1000、同名的私人群組、`/bin/bash`，排在最後 |
+
+### 11.2 指令
+
+| 指令 | 行為與訊息 |
+|---|---|
+| `id [-u\|-g\|-G] [-n] [使用者]` | `uid=1000(learner) gid=1000(learner) groups=1000(learner),27(sudo)`；`id: 'bob': no such user`；`-n` 單獨使用、兩個以上的 `-u -g -G` 是 GNU 的錯誤加 Try 行 |
+| `groups [使用者…]` | 工作階段的群組，或 `alice : alice devs` |
+| `whoami` | 使用者（`sudo whoami` 是 root） |
+| `useradd [-m] [-M] [-r] [-s shell] [-G 群組,…] [-g 群組] [-u UID] [-c 說明] [-d 家目錄] 名稱` | 只有 root；一般使用者印 `useradd: Permission denied.` 與 `useradd: cannot lock /etc/passwd; try again later.`（shadow-utils 的訊息）。UID：1000 以上目前最大的加一，`-r` 從 999 往下找第一個空號；沒有 `-g` 時建立同名群組（GID 盡量等於 UID）。預設 shell `/bin/sh`、家目錄 `/home/名稱` 但**不建立**；`-m` 建立 0750 的家目錄並複製 `/etc/skel`（Ubuntu 的 HOME_MODE）。錯誤：`user 'x' already exists`、`invalid user name 'X': use --badname to ignore`、`group 'x' does not exist`、`group x exists - if you want to add this user to that group, use -g.`、`UID 1001 is not unique`、家目錄已存在的警告、`Usage: useradd [options] LOGIN` |
+| `usermod [-a] [-G 群組,…] [-g 群組] [-s shell] [-c 說明] [-d 家目錄] 使用者` | 只有 root。`-aG` 附加；**沒有 `-a` 的 `-G` 把附加群組換成清單**（使用者會離開 sudo 等群組，這是教學重點；工作階段在下一次登入前仍保有原來的群組，所以 sudo 暫時仍可用）。`-a` 沒有 `-G`：`usermod: -a flag is ONLY allowed with the -G flag`；`user 'x' does not exist`、`group 'x' does not exist`、沒有選項是 `usermod: no changes`。`-g` 不會改家目錄裡檔案的群組，`-d` 不搬移檔案 |
+| `groupadd [-r] [-g GID] 名稱` | 只有 root（`cannot lock /etc/group`）；`group 'x' already exists`、`GID '27' already exists`、`'X' is not a valid group name` |
+| `newgrp [群組]` | 見上；不是成員時印模擬環境的說明（沒有群組密碼）；不加群組回到登入時的主要群組 |
+| `sudo [-u 使用者] 指令…` | root、或工作階段的群組有 `sudo`（Debian、Ubuntu）或 `wheel`（RHEL）時，以 root（或 `-u` 的使用者，帶該使用者的群組與家目錄）執行；不詢問密碼。其他人：`learner is not in the sudoers file.  This incident will be reported.`（sudo 1.9 原始碼的文字，句點後兩個空白）。`sudo cd`、`sudo umask` 等內建指令與 profile 外的指令：`sudo: cd: command not found`；`sudo: unknown user bob`。參數由學習者的 Shell 先展開（萬用字元用學習者的權限），重新導向也是學習者的；執行後使用者、群組、家目錄、目前位置都回到原樣。`su` 不支援 |
+| `chown [-R] 使用者[:群組] 路徑…`、`chgrp [-R] 群組 路徑…` | 照 Linux：只有 root 能改擁有者；檔案的擁有者可以把群組改成工作階段所屬的群組（`chgrp devs f`、`chown :devs f`、`chown 自己 f`）。`使用者:` 表示該使用者的主要群組；數字的 UID／GID 可以用。錯誤：`chown: changing ownership of 'f': Operation not permitted`、`chgrp: changing group of 'f': Operation not permitted`、`chown: invalid user: 'bob'`、`chown: invalid group: 'alice:ops'`、`chgrp: invalid group: 'ops'`、`cannot access`、缺少參數加 Try 行。`-R` 不跟隨途中的連結 |
+| `umask [-S] [模式]` | 顯示 `0022` 或 `u=rwx,g=rx,o=rx`；設定八進位或符號（描述要保留的權限，`u=rwx,g=rx,o=` 是 027）；`bash: umask: 999: octal number out of range`、``bash: umask: `u=z': invalid symbolic mode operator``；只影響這個工作階段（管線裡的 `umask` 是子 Shell） |
+| `chmod -R`（`accounts`） | 目錄與底下的一切（不跟隨連結）；每個不屬於自己的項目各印一次 Operation not permitted。`files`／`streams` 的 `chmod` 不變（`-R` 仍被當成模式） |
+
+權限檢查不變：擁有者用擁有者位元、工作階段群組含節點的群組時用群組位元、其他人用其他位元；建立與刪除需要目錄的 w 與 x；`ls -l` 顯示群組欄。
+
+### 11.3 課程資料（`lesson.ts`）
+
+```ts
+machines: [{ ..., profile: 'users',
+  accounts?: { users?: [{ name, uid?, group?, home?, shell?, comment? }], groups?: [{ name, gid?, members? }] },
+  umask?: 0o027 }]
+```
+
+| 規則 | 內容 |
+|---|---|
+| 疊加 | 機器的 `accounts` 疊在基本資料上：同名的基本使用者／群組（含機器的使用者）只改有寫的欄位；新的名稱必須有 `uid`／`gid`。使用者沒有 `group` 時屬於同名的私人群組（不存在就以 UID 為 GID 建立） |
+| 只在 `users` | `accounts`、`umask` 與 `user`／`group`／`umask` 檢查只能用在 `users` 機器（`accounts need the users profile (engine stage E3)`） |
+| `users` 機器 | 不可寫 `groups`（工作階段的群組來自資料）；不可列出 `/etc/passwd`、`/etc/group`、`/etc/shadow`（自動產生）；`/etc` 若列出必須是目錄；每個檔案的擁有者必須是使用者、群組必須是群組；名稱符合 `[a-z_][a-z0-9_-]{0,31}`；UID／GID 0–65534 且不重複；root 的 UID 是 0；家目錄與 shell 是絕對路徑；說明最多 64 字、不含 `:` 與換行；成員必須是使用者；最多 `LIMITS.users = 64` 個使用者、`LIMITS.groups = 64` 個群組 |
+| 檢查 `user` | `{ kind: 'user', name, absent?, uid?, group?, groups?, notGroups?, shell?, home? }`：讀資料（不必重新登入）；`groups` 是必須有的登入群組（主要群組也算），`notGroups` 是不可以有的 |
+| 檢查 `group` | `{ kind: 'group', name, absent?, gid?, members?, notMembers? }`：成員以「該使用者的登入群組含這個群組」判斷 |
+| 檢查 `umask` | `{ kind: 'umask', umask }`：最後的工作階段 umask |
+
+### 11.4 仍不支援
+
+`su`、`passwd`、`userdel`、`groupdel`、`gpasswd`、`visudo` 與 sudoers 檔、`sudo -i`／`-s`、密碼與群組密碼、setuid／setgid／sticky 位元（模式仍是 0–0777）、ACL、以數字顯示已刪除使用者的檔案、`usermod -l`／`-L`／`-m`、`adduser`（Debian 的互動式包裝）。

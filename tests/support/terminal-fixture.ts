@@ -184,3 +184,167 @@ export const readAllExercise: TerminalExercise = {
 export const filesContent = (): TerminalLessonContent => structuredClone({
   machines: [filesMachine], examples: [systemExample, diskExample, linkExample], exercises: [linkExercise, archiveExercise, readAllExercise],
 });
+
+/*
+ * Engine stage E2: a machine on the streams profile (an access log, a CSV file, notes and a root-only log), three
+ * transcripts and two exercises. Test data only.
+ */
+const ACCESS_LOG = [
+  '203.0.113.7 GET /index.html 200', '198.51.100.2 GET /login 401', '203.0.113.7 GET /about 200',
+  '192.0.2.9 POST /login 500', '198.51.100.2 GET /login 401', '203.0.113.7 GET /missing 404',
+].map(l => `${l}\n`).join('');
+export const streamsMachine: TerminalMachine = {
+  id: 'logs', title: '日誌伺服器 log-01', user: 'learner', host: 'log-01', cwd: '/home/learner', profile: 'streams',
+  files: [
+    { path: '/etc', kind: 'dir', mode: 0o755, owner: 'root' },
+    { path: '/etc/hostname', kind: 'file', mode: 0o644, owner: 'root', content: 'log-01\n' },
+    { path: '/home', kind: 'dir', mode: 0o755, owner: 'root' },
+    { path: '/home/learner', kind: 'dir', mode: 0o755, owner: 'learner' },
+    { path: '/home/learner/access.log', kind: 'file', mode: 0o644, owner: 'learner', content: ACCESS_LOG },
+    { path: '/home/learner/staff.csv', kind: 'file', mode: 0o644, owner: 'learner', content: 'name,dept,age\nann,ops,34\nbo,dev,28\ncy,dev,41\ndee,ops,25\n' },
+    { path: '/home/learner/notes.txt', kind: 'file', mode: 0o644, owner: 'learner', content: 'TODO: rotate logs\ndone: backup\nTODO: renew cert\n' },
+    { path: '/home/learner/reports', kind: 'dir', mode: 0o755, owner: 'learner' },
+    { path: '/var', kind: 'dir', mode: 0o755, owner: 'root' },
+    { path: '/var/log', kind: 'dir', mode: 0o755, owner: 'root' },
+    { path: '/var/log/auth.log', kind: 'file', mode: 0o600, owner: 'root', content: 'Failed password for root\n' },
+  ],
+};
+export const pipelineExample: TerminalExample = {
+  id: 'pipeline', title: '誰的請求最多', description: '取出第一欄、排序、計數、再依次數排序。', machine: 'logs',
+  steps: [
+    { command: "cut -d ' ' -f 1 access.log | sort | uniq -c | sort -rn", output: '      3 203.0.113.7\n      2 198.51.100.2\n      1 192.0.2.9' },
+    { command: 'grep -c 401 access.log', output: '2' },
+    { command: 'wc -l access.log staff.csv', output: '  6 access.log\n  5 staff.csv\n 11 total' },
+  ],
+};
+export const redirectExample: TerminalExample = {
+  id: 'redirect', title: '把錯誤另外存起來', description: '`2>` 只導向錯誤；`2>&1` 讓錯誤跟著輸出走。', machine: 'logs',
+  steps: [
+    { command: 'cat notes.txt /var/log/auth.log > all.txt 2> errors.txt', output: '' },
+    { command: 'cat errors.txt', output: 'cat: /var/log/auth.log: Permission denied' },
+    { command: 'cat /var/log/auth.log 2>&1 | wc -l', output: '1' },
+  ],
+};
+export const sortExample: TerminalExample = {
+  id: 'csv', title: '排序 CSV', description: '`tail -n +2` 略過標題，`sort -t , -k 3 -n` 依年齡排序。', machine: 'logs',
+  steps: [
+    { command: 'tail -n +2 staff.csv | sort -t , -k 3 -n', output: 'dee,ops,25\nbo,dev,28\nann,ops,34\ncy,dev,41' },
+    { command: 'cut -d , -f 2 staff.csv | tail -n +2 | sort -u', output: 'dev\nops' },
+  ],
+};
+export const topIpExercise: TerminalExercise = {
+  id: 'top-ip', title: '找出最常出現的位址', machine: 'logs',
+  statement: '用一行管線印出 `access.log` 裡請求最多的位址與它的次數（`uniq -c` 的格式，只要一行）。',
+  checks: [{ kind: 'output' }],
+  solution: ["cut -d ' ' -f 1 access.log | sort | uniq -c | sort -rn | head -n 1"],
+  variants: [{ label: '另一天的日誌', files: [{ path: '/home/learner/access.log', kind: 'file', mode: 0o644, owner: 'learner', content: '192.0.2.9 GET / 200\n192.0.2.9 GET /a 200\n203.0.113.7 GET / 200\n' }] }],
+  mistakes: [
+    { commands: ['echo "      3 203.0.113.7"'], why: '直接打出答案：換一天的日誌就不對了。' },
+    { commands: ["cut -d ' ' -f 1 access.log | uniq -c | sort -rn | head -n 1"], why: '沒有先排序：uniq 只合併相鄰的重複行。' },
+  ],
+  hints: ['`uniq -c` 只合併相鄰的行，所以先 `sort`。'],
+  explanation: '`cut` 取出位址，`sort` 讓相同的位址相鄰，`uniq -c` 計數，`sort -rn` 由多到少，`head -n 1` 留下第一行。',
+};
+export const todoExercise: TerminalExercise = {
+  id: 'todo', title: '把待辦事項存成檔案', machine: 'logs',
+  statement: '把 `notes.txt` 裡含有 `TODO` 的行寫進 `reports/todo.txt`。',
+  checks: [{ kind: 'content', path: '/home/learner/reports/todo.txt', content: 'TODO: rotate logs\nTODO: renew cert\n' }, { kind: 'unchanged', path: '/home/learner/notes.txt' }],
+  solution: ['grep TODO notes.txt > reports/todo.txt'],
+  mistakes: [
+    { commands: ['grep TODO notes.txt'], why: '只印在畫面上，沒有寫進檔案。' },
+    { commands: ['grep -v TODO notes.txt > reports/todo.txt'], why: '`-v` 選出的是不含 TODO 的行。' },
+  ],
+  hints: ['`>` 把指令的輸出寫進檔案。'],
+  explanation: '`grep TODO notes.txt` 選出兩行，`>` 把它們寫進 `reports/todo.txt`。',
+};
+export const streamsContent = (): TerminalLessonContent => structuredClone({
+  machines: [streamsMachine], examples: [pipelineExample, redirectExample, sortExample], exercises: [topIpExercise, todoExercise],
+});
+
+/*
+ * Engine stage E3: a machine on the users profile — learner in sudo, alice in devs, a service account, a team folder for
+ * devs — three transcripts and three exercises. Test data only.
+ */
+export const usersMachine: TerminalMachine = {
+  id: 'team', title: '團隊伺服器 team-01', user: 'learner', host: 'team-01', cwd: '/home/learner', profile: 'users',
+  accounts: {
+    users: [{ name: 'alice', uid: 1001, comment: 'Alice Chen' }, { name: 'svc-web', uid: 998, group: 'www-data', home: '/srv/www', shell: '/usr/sbin/nologin' }],
+    groups: [{ name: 'sudo', members: ['learner'] }, { name: 'devs', gid: 1100, members: ['alice'] }],
+  },
+  files: [
+    { path: '/etc', kind: 'dir', mode: 0o755, owner: 'root' },
+    { path: '/etc/skel', kind: 'dir', mode: 0o755, owner: 'root' },
+    { path: '/etc/skel/.bashrc', kind: 'file', mode: 0o644, owner: 'root', content: 'alias ll="ls -l"\n' },
+    { path: '/home', kind: 'dir', mode: 0o755, owner: 'root' },
+    { path: '/home/learner', kind: 'dir', mode: 0o750, owner: 'learner' },
+    { path: '/home/learner/notes.txt', kind: 'file', mode: 0o644, owner: 'learner', content: 'hello\n' },
+    { path: '/home/alice', kind: 'dir', mode: 0o750, owner: 'alice' },
+    { path: '/srv', kind: 'dir', mode: 0o755, owner: 'root' },
+    { path: '/srv/team', kind: 'dir', mode: 0o775, owner: 'root', group: 'devs' },
+    { path: '/srv/team/plan.txt', kind: 'file', mode: 0o660, owner: 'alice', group: 'devs', content: 'ship v2\n' },
+    { path: '/srv/www', kind: 'dir', mode: 0o755, owner: 'svc-web', group: 'www-data' },
+  ],
+};
+export const whoExample: TerminalExample = {
+  id: 'who', title: '我是誰', description: '`id` 看自己，`id alice` 看別人，`groups` 只看群組。', machine: 'team',
+  steps: [
+    { command: 'id', output: 'uid=1000(learner) gid=1000(learner) groups=1000(learner),27(sudo)' },
+    { command: 'id alice', output: 'uid=1001(alice) gid=1001(alice) groups=1001(alice),1100(devs)' },
+    { command: 'groups', output: 'learner sudo' },
+  ],
+};
+export const passwdExample: TerminalExample = {
+  id: 'passwd', title: '帳號存在哪裡', description: '`/etc/passwd` 每行七欄，以 `:` 分隔。', machine: 'team',
+  steps: [
+    { command: 'grep alice /etc/passwd', output: 'alice:x:1001:1001:Alice Chen:/home/alice:/bin/bash' },
+    { command: 'cut -d : -f 1,3,7 /etc/passwd | tail -n 3', output: 'learner:1000:/bin/bash\nalice:1001:/bin/bash\nsvc-web:998:/usr/sbin/nologin' },
+    { command: 'grep devs /etc/group', output: 'devs:x:1100:alice' },
+  ],
+};
+export const sudoExample: TerminalExample = {
+  id: 'sudo', title: 'sudo', description: '一般使用者讀不到 `/etc/shadow`；sudo 群組的成員可以用 sudo。', machine: 'team',
+  steps: [
+    { command: 'head -n 1 /etc/shadow', output: "head: cannot open '/etc/shadow' for reading: Permission denied" },
+    { command: 'sudo head -n 1 /etc/shadow', output: 'root:*:20000:0:99999:7:::' },
+    { command: 'sudo -u alice cat /srv/team/plan.txt', output: 'ship v2' },
+  ],
+};
+export const joinExercise: TerminalExercise = {
+  id: 'join-devs', title: '加入 devs 群組', machine: 'team',
+  statement: '讓 learner 加入 `devs` 群組，而且仍然可以使用 sudo。',
+  checks: [{ kind: 'user', name: 'learner', groups: ['devs', 'sudo'] }],
+  solution: ['sudo usermod -aG devs learner'],
+  mistakes: [
+    { commands: ['sudo usermod -G devs learner'], why: '沒有 `-a` 的 `-G` 會把附加群組換成 devs，learner 就離開了 sudo。' },
+    { commands: ['usermod -aG devs learner'], why: '修改帳號需要 root：沒有 sudo 只會印出 Permission denied。' },
+  ],
+  hints: ['`usermod -aG 群組 使用者`。'],
+  explanation: '`-a` 表示附加；新的群組在下一次登入（或 `newgrp devs`）後才出現在 `id` 裡。',
+};
+export const serviceExercise: TerminalExercise = {
+  id: 'service', title: '建立服務帳號', machine: 'team',
+  statement: '為備份程式建立系統帳號 `backup-agent`：不能登入（shell 是 `/usr/sbin/nologin`），也不需要家目錄。',
+  checks: [{ kind: 'user', name: 'backup-agent', shell: '/usr/sbin/nologin' }, { kind: 'absent', path: '/home/backup-agent' }],
+  solution: ['sudo useradd -r -s /usr/sbin/nologin backup-agent'],
+  mistakes: [
+    { commands: ['sudo useradd backup-agent'], why: '預設的 shell 是 /bin/sh，這個帳號可以登入。' },
+    { commands: ['sudo useradd -m -s /usr/sbin/nologin backup-agent'], why: '`-m` 建立了用不到的家目錄。' },
+  ],
+  hints: ['`-r` 建立系統帳號，`-s` 指定 shell。'],
+  explanation: '`useradd -r -s /usr/sbin/nologin backup-agent` 建立 UID 小於 1000 的系統帳號，沒有家目錄、不能登入。',
+};
+export const umaskExercise: TerminalExercise = {
+  id: 'umask', title: '預設不給其他人讀', machine: 'team',
+  statement: '調整這個工作階段的 umask，讓新檔案是 `rw-r-----`，再建立 `report.txt`。',
+  checks: [{ kind: 'umask', umask: 0o027 }, { kind: 'mode', path: '/home/learner/report.txt', mode: 0o640 }],
+  solution: ['umask 027', 'touch report.txt'],
+  mistakes: [
+    { commands: ['touch report.txt', 'chmod 640 report.txt'], why: '這個檔案對了，但之後的新檔案仍然是 644。' },
+    { commands: ['umask 077', 'touch report.txt'], why: '077 連群組的讀取權限也拿掉了，檔案是 600。' },
+  ],
+  hints: ['新檔案的權限是 666 去掉 umask。'],
+  explanation: '666 去掉 027 是 640（rw-r-----）；目錄則是 777 去掉 027，也就是 750。',
+};
+export const usersContent = (): TerminalLessonContent => structuredClone({
+  machines: [usersMachine], examples: [whoExample, passwdExample, sudoExample], exercises: [joinExercise, serviceExercise, umaskExercise],
+});
