@@ -2,7 +2,7 @@
 
 > 2026-11-22 起分批撰寫（自主課程生產，見 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md)）。大綱（標題、目標、概念、先修）取自藍圖，由 `lessons.ts` 的 `terminalFromBlueprint` 讀入。
 
-教學方式是 `terminal` 能力（[LNX0_TERMINAL_CAPABILITY](LNX0_TERMINAL_CAPABILITY.md)）：範例是模擬機器上重新執行後輸出完全一致的終端機紀錄，練習在內嵌主控台裡做，依執行後的檔案系統狀態與輸出判定（原機器與每個變體都要成立）。模擬器不執行真實的 Shell；每台機器選擇一個指令集（profile），LNX-1 使用引擎階段 E1 的 `files`，LNX-2 使用 E2 的 `streams`（管線與重新導向）與 E3 的 `users`（帳號與群組），LNX-3 使用 E4–E6 的 `processes`、`packages` 與 `services`（行程、apt、systemd 與 journal，時間固定在機器宣告的「現在」）。
+教學方式是 `terminal` 能力（[LNX0_TERMINAL_CAPABILITY](LNX0_TERMINAL_CAPABILITY.md)）：範例是模擬機器上重新執行後輸出完全一致的終端機紀錄，練習在內嵌主控台裡做，依執行後的檔案系統狀態與輸出判定（原機器與每個變體都要成立）。模擬器不執行真實的 Shell；每台機器選擇一個指令集（profile），LNX-1 使用引擎階段 E1 的 `files`，LNX-2 使用 E2 的 `streams`（管線與重新導向）與 E3 的 `users`（帳號與群組），LNX-3 使用 E4–E6 的 `processes`、`packages` 與 `services`（行程、apt、systemd 與 journal，時間固定在機器宣告的「現在」），LNX-4 使用 E7–E9 的 `remote`、`scripting` 與 `scheduling`（SSH 與遠端主機、Bash 指令稿直譯器、cron 與 systemd timer）。
 
 ## 已撰寫的課
 
@@ -19,6 +19,9 @@
 | LNX09 | 套件管理<br>`package-management` | 中級 | 55 分 | LNX06 | 3 台（packages，Ubuntu 24.04） | 6 段、5 個範例（套件索引、安裝與相依、移除與 purge、hold、核心更新）、4 個練習（在過期的主機安裝 jq、完整移除 apache2、列出可升級套件、鎖定 nodejs 後升級其他套件）、8 題；dnf 以對照表說明 | **完整 v1.0.0** |
 | LNX10 | systemd 與服務管理<br>`systemd-services` | 中級 | 60 分 | LNX08 | 5 台（services） | 6 段、5 個範例（unit 檔位置、status、enable 與 start、撰寫 unit、重新啟動與相依）、4 個練習（enable --now、撰寫並 daemon-reload 一個 unit、從 status 診斷失敗原因、找出 Main PID）、8 題 | **完整 v1.0.0** |
 | LNX11 | 日誌與 journalctl<br>`logs-and-journald` | 中級 | 50 分 | LNX05、LNX10 | 1 台（services，固定的現在時間） | 6 段、5 個範例（/var/log 與 journal、讀取權限、-u／-p／-n／-r、時間範圍、與管線組合）、4 個練習（今天第一次失敗的時間、最近一小時的 SSH 失敗登入、某服務的錯誤訊息、存成事件報告）、8 題 | **完整 v1.0.0** |
+| LNX12 | SSH 遠端連線與金鑰<br>`ssh-remote-access` | 中級 | 55 分 | LNX07 | 3 台（remote，含遠端主機）＋ 2 個 network-protocol 情境 | 6 段、7 個範例（5 段終端機紀錄、SSH 連線 12 步驟與中間人攻擊兩個情境）、5 個練習（設定金鑰登入、主機金鑰改變時先核對再更新、安全地改成只允許金鑰登入，以及兩個協定步驟題）、8 題 | **完整 v1.0.0** |
+| LNX13 | Bash Script 撰寫<br>`bash-scripting` | 中級 | 60 分 | LNX05、LNX07 | 5 台（scripting） | 6 段、5 個範例（第一支指令稿、變數與參數、test 與條件、迴圈與 case、set -euo pipefail）、4 個練習（帶日期的備份指令稿、統計日誌等級、修正含空白檔名的錯誤、遇到錯誤就停止的匯出）、7 題 | **完整 v1.0.0** |
+| LNX14 | 排程：cron 與 systemd timer<br>`cron-and-systemd-timers` | 中級 | 55 分 | LNX10、LNX13 | 3 台（scheduling，Asia/Taipei，固定的現在時間） | 6 段、5 個範例（cron 欄位、安裝 crontab、cron 的環境與輸出、timer 與 Persistent 補執行、flock）、4 個練習（平日 02:15 的備份、timer 與 service 一組、systemd-analyze calendar 的下次執行時間、以 flock -n 避免重疊）、8 題；cron-next、cron-run 是模擬器的教學輔助指令；夏令時間以文字說明 | **完整 v1.0.0** |
 
 ## 單元
 
@@ -30,6 +33,7 @@
 | 使用者、群組與權限 | LNX06–LNX07 |
 | 行程與套件 | LNX08–LNX09 |
 | 服務與日誌 | LNX10–LNX11 |
+| 遠端連線、指令稿與排程 | LNX12–LNX14 |
 
 ## 模擬器的已知差異（課文已說明）
 
@@ -41,6 +45,6 @@
 
 ## 後續批次
 
-LNX-2 發布 LNX05–LNX07（E2、E3，並修正長選項、`Try --help` 第二行、`~` 展開與 `mv a dir/` 的訊息，使 LNX02 的錯誤範例更接近 GNU）。LNX-3 發布 LNX08–LNX11（E4–E6）。其餘 4 堂依編號連續發布，各批需要的引擎階段見 [LNX0_TERMINAL_CAPABILITY](LNX0_TERMINAL_CAPABILITY.md)：LNX-3（LNX08–11）、LNX-4（LNX12–14）、LNX-5（LNX15 綜合專題）。
+LNX-2 發布 LNX05–LNX07（E2、E3，並修正長選項、`Try --help` 第二行、`~` 展開與 `mv a dir/` 的訊息，使 LNX02 的錯誤範例更接近 GNU）。LNX-3 發布 LNX08–LNX11（E4–E6），LNX-4 發布 LNX12–LNX14（E7–E9）。最後的 LNX15 綜合專題單獨成一批（LNX-5），各批需要的引擎階段見 [LNX0_TERMINAL_CAPABILITY](LNX0_TERMINAL_CAPABILITY.md)：LNX-3（LNX08–11）、LNX-4（LNX12–14）、LNX-5（LNX15 綜合專題）。
 
 課程狀態與 3D 地景分離：Linux 系統島的 `mapState` 仍是 `'planned'`。系統與雲端工程群島因此第一次有已開放的課（區域狀態 available），其他三座島仍是大綱。

@@ -264,7 +264,21 @@
       ],
       "commit": "adbfde1",
       "tests": "驗證器、發布閘門 151/151、Vitest 3146（含 E4 35、E5 16、E6 26 個引擎測試；每個範例重播到完全相同的輸出、每個練習的參考解答通過且常見錯誤不通過）、E2E 桌機＋手機旗標關 435（候選頁 2 個像素比對失敗為 main 既有回歸 #36）、網路預覽＋P9＋區域世界旗標開 251＋1（網路預覽的鍵盤測試在引擎實作同時執行時失敗一次，單獨重跑兩次 8/8 通過，未放寬；這是第二次在高負載下出現）、LNX10 的 systemd 練習在 1280 與 390 寬實際操作（全部通過、無溢位、無錯誤）、測驗 32 題逐題複核、洩漏掃描",
-      "notes": "LNX-3：引擎階段 E4（processes：行程表、ps、top -b -n 1、kill 與各訊號的反應、jobs／fg／bg、$?）、E5（packages：Ubuntu noble 的 apt、dpkg 版本規則、相依、hold、purge 與 rc）、E6（services：unit 檔與 daemon-reload、systemctl、Restart= 與啟動上限、Requires／Wants、journalctl -u -p -S -U -n -r -g），機器宣告固定的 now 與 boot；行程與訊號、套件管理、systemd、日誌四課"
+      "notes": "LNX-3：引擎階段 E4（processes：行程表、ps、top -b -n 1、kill 與各訊號的反應、jobs／fg／bg、$?）、E5（packages：Ubuntu noble 的 apt、dpkg 版本規則、相依、hold、purge 與 rc）、E6（services：unit 檔與 daemon-reload、systemctl、Restart= 與啟動上限、Requires／Wants、journalctl -u -p -S -U -n -r -g），機器宣告固定的 now 與 boot；行程與訊號、套件管理、systemd、日誌四課",
+      "pr": "#61",
+      "merged": "f124545"
+    },
+    {
+      "id": 19,
+      "date": "2026-11-22",
+      "lessons": [
+        "LNX12",
+        "LNX13",
+        "LNX14"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "LNX-4：引擎階段 E7（remote：遠端主機、ed25519 金鑰、ssh／ssh-copy-id／ssh-keyscan／scp、主機金鑰驗證、sshd 設定與 reload）、E8（scripting：Bash 指令稿的剖析與直譯，含 set -euo pipefail 與步驟上限）、E9（scheduling：Vixie cron、systemd-analyze calendar、timer 與 Persistent、flock、教學輔助指令 cron-next 與 cron-run）；E7 以上的參考解答改為每一步結束碼為 0；SSH（同時帶 network-protocol 情境）、Bash Script、cron 與 systemd timer 三課"
     }
   ]
 }

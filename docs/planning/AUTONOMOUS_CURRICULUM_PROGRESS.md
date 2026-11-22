@@ -13,7 +13,7 @@
 
 ## 總覽
 
-已發布 **151／520**（29.0%）；規劃中 369。
+已發布 **154／520**（29.6%）；規劃中 366。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
@@ -21,11 +21,11 @@
 | AI 人工智慧群島 | 20 | 140 | 12.5% |
 | 數位設計群島 | 0 | 56 | 0.0% |
 | 網頁與應用開發群島 | 0 | 55 | 0.0% |
-| 系統與雲端工程群島 | 11 | 78 | 12.4% |
+| 系統與雲端工程群島 | 14 | 75 | 15.7% |
 
 ## 下一批（自動選擇）
 
-**Linux 系統島（LNX）**：LNX12 SSH 遠端連線與金鑰、LNX13 Bash Script 撰寫、LNX14 排程：cron 與 systemd timer、LNX15 Linux 系統島綜合專題：維護一台伺服器。島嶼能力：可用；這幾堂解鎖其他島的 25 堂。
+**Linux 系統島（LNX）**：LNX15 Linux 系統島綜合專題：維護一台伺服器。島嶼能力：可用；這幾堂解鎖其他島的 0 堂。
 
 能力缺口中最優先的是 **大型語言模型島（LLM）**：需要 python-code + token, sampling and prompt explorers on recorded outputs (T3)；先修已滿足、可依序撰寫的有 3 堂，前 3 堂解鎖其他島的 58 堂。
 
@@ -58,11 +58,11 @@
 | 網頁與應用開發群島 | 前端開發島（FE） | 0／15 | web-code + state-flow trace | 缺少 | — | 缺少課程能力；FE01 需要尚未發布的 WEB09 |
 | 網頁與應用開發群島 | 響應式設計島（RWD） | 0／12 | web-code + responsive simulator (the standalone lab exists) | 缺少 | — | 缺少課程能力；RWD01 需要尚未發布的 WEB06 |
 | 網頁與應用開發群島 | 行動應用島（MOB） | 0／13 | web-code + case-analysis | 缺少 | — | 缺少課程能力；MOB01 需要尚未發布的 RWD01 |
-| 系統與雲端工程群島 | Linux 系統島（LNX） | 11／15 | terminal (machines as data, transcripts replayed to their exact output, exercises checked by replaying the learner's commands in the simulated shell) | 可用 | LNX12–LNX15（4 堂） | — |
+| 系統與雲端工程群島 | Linux 系統島（LNX） | 14／15 | terminal (machines as data, transcripts replayed to their exact output, exercises checked by replaying the learner's commands in the simulated shell) | 可用 | LNX15–LNX15（1 堂） | — |
 | 系統與雲端工程群島 | Docker 容器島（DKR） | 0／15 | container simulation | 缺少 | DKR01–DKR15（15 堂） | 缺少課程能力 |
-| 系統與雲端工程群島 | 網路與伺服器島（SRV） | 0／14 | request-path simulation + terminal | 缺少 | SRV01–SRV09（9 堂） | 缺少課程能力；SRV10 需要尚未發布的 LNX12 |
-| 系統與雲端工程群島 | 雲端基礎設施島（CLD） | 0／15 | architecture simulation | 缺少 | CLD01–CLD02（2 堂） | 缺少課程能力；CLD03 需要尚未發布的 LNX12 |
-| 系統與雲端工程群島 | DevOps 與 CI/CD 島（CICD） | 0／15 | pipeline simulation | 缺少 | CICD01–CICD03（3 堂） | 缺少課程能力；CICD04 需要尚未發布的 LNX13 |
+| 系統與雲端工程群島 | 網路與伺服器島（SRV） | 0／14 | request-path simulation + terminal | 缺少 | SRV01–SRV14（14 堂） | 缺少課程能力 |
+| 系統與雲端工程群島 | 雲端基礎設施島（CLD） | 0／15 | architecture simulation | 缺少 | CLD01–CLD03（3 堂） | 缺少課程能力；CLD04 需要尚未發布的 SRV01 |
+| 系統與雲端工程群島 | DevOps 與 CI/CD 島（CICD） | 0／15 | pipeline simulation | 缺少 | CICD01–CICD05（5 堂） | 缺少課程能力；CICD06 需要尚未發布的 DKR11 |
 | 系統與雲端工程群島 | Kubernetes 與可靠性工程島（KUB） | 0／15 | cluster simulation | 缺少 | — | 缺少課程能力；KUB01 需要尚未發布的 DKR09 |
 
 ## 能力缺口
@@ -76,15 +76,15 @@
 | 機器學習島（ML） | python-code + data-explorer (fixed datasets, metrics computed in the browser) | 25 | 39 | — |
 | Docker 容器島（DKR） | container simulation | 15 | 23 | — |
 | 系統分析與設計島（SA） | model-diagram (UML, DFD, BPMN, state and sequence models, checked by structure) | 20 | 20 | — |
-| 網路與伺服器島（SRV） | request-path simulation + terminal | 9 | 12 | — |
-| DevOps 與 CI/CD 島（CICD） | pipeline simulation | 3 | 7 | — |
+| 網路與伺服器島（SRV） | request-path simulation + terminal | 14 | 12 | — |
+| DevOps 與 CI/CD 島（CICD） | pipeline simulation | 5 | 7 | — |
 | 管理資訊系統島（MIS） | case-analysis (scenario data, decision tables, KPI calculations checked by value) | 20 | 0 | — |
 | 生成式 AI 島（GEN） | precomputed pipeline steps (T3) | 1 | 0 | — |
 | UI 設計島（UI） | design-lab (color contrast exists as a standalone lab; visual hierarchy and grid) | 15 | 0 | — |
 | UX 研究島（UX） | case-analysis + model-diagram | 15 | 0 | — |
 | 互動設計島（IXD） | case-analysis + a11y checks | 14 | 0 | — |
 | 設計系統島（DSY） | design-token board | 12 | 0 | — |
-| 雲端基礎設施島（CLD） | architecture simulation | 2 | 0 | — |
+| 雲端基礎設施島（CLD） | architecture simulation | 3 | 0 | — |
 
 ## 學習路線
 
@@ -99,9 +99,9 @@
 | 前端工程 | 7／62 | 否 |
 | 產品設計 | 0／56 | 否 |
 | AI 架構 | 20／66 | 否 |
-| 全端部署 | 26／62 | 否 |
-| AI 基礎設施 | 22／60 | 否 |
-| 雲端與 DevOps 基礎 | 15／48 | 否 |
+| 全端部署 | 28／62 | 否 |
+| AI 基礎設施 | 24／60 | 否 |
+| 雲端與 DevOps 基礎 | 16／48 | 否 |
 
 ## 先修依賴檢查
 
@@ -672,10 +672,10 @@
 | LNX09 | 套件管理 | 已發布（閘門通過） | LNX06 | terminal-sim | — |
 | LNX10 | systemd 與服務管理 | 已發布（閘門通過） | LNX08 | terminal-sim | — |
 | LNX11 | 日誌與 journalctl | 已發布（閘門通過） | LNX05、LNX10 | terminal-sim | — |
-| LNX12 | SSH 遠端連線與金鑰 | 大綱 | LNX07 | protocol-sequence | — |
-| LNX13 | Bash Script 撰寫 | 大綱 | LNX05、LNX07 | terminal-sim | — |
-| LNX14 | 排程：cron 與 systemd timer | 待先修 | LNX10、LNX13 | terminal-sim | 先修 LNX13 |
-| LNX15 | Linux 系統島綜合專題：維護一台伺服器 | 待先修 | LNX09、LNX11、LNX12、LNX14 | challenge-stages | 先修 LNX12、LNX14 |
+| LNX12 | SSH 遠端連線與金鑰 | 已發布（閘門通過） | LNX07 | network-sequence | — |
+| LNX13 | Bash Script 撰寫 | 已發布（閘門通過） | LNX05、LNX07 | terminal-sim | — |
+| LNX14 | 排程：cron 與 systemd timer | 已發布（閘門通過） | LNX10、LNX13 | terminal-sim | — |
+| LNX15 | Linux 系統島綜合專題：維護一台伺服器 | 大綱 | LNX09、LNX11、LNX12、LNX14 | challenge-stages | — |
 
 ### 系統與雲端工程群島 · Docker 容器島（DKR）
 
@@ -710,7 +710,7 @@
 | SRV07 | 反向代理 | 待能力 | SRV06 | request-path | 課程能力、先修 SRV06 |
 | SRV08 | 負載平衡 | 待能力 | SRV07 | request-path | 課程能力、先修 SRV07 |
 | SRV09 | 伺服器防火牆：ufw 與 nftables | 待能力 | SRV01、LNX07 | terminal-sim | 課程能力、先修 SRV01 |
-| SRV10 | SSH 通道與跳板機 | 待能力 | LNX12、SRV09 | protocol-sequence | 課程能力、先修 LNX12、SRV09 |
+| SRV10 | SSH 通道與跳板機 | 待能力 | LNX12、SRV09 | protocol-sequence | 課程能力、先修 SRV09 |
 | SRV11 | CDN 與快取設定 | 待能力 | SRV07 | request-path | 課程能力、先修 SRV07 |
 | SRV12 | 網路診斷工具 | 待能力 | SRV02、SRV03 | terminal-sim | 課程能力、先修 SRV02、SRV03 |
 | SRV13 | 伺服器故障排除方法 | 待能力 | SRV07、SRV12、LNX11 | case-study-board | 課程能力、先修 SRV07、SRV12 |
@@ -722,7 +722,7 @@
 |---|---|---|---|---|---|
 | CLD01 | 雲端運算概論與服務模型 | 待能力 | — | case-study-board | 課程能力 |
 | CLD02 | 區域、可用區與帳號結構 | 待能力 | CLD01 | architecture-diagram | 課程能力、先修 CLD01 |
-| CLD03 | 雲端虛擬機 | 待能力 | CLD02、LNX12 | deployment-simulator | 課程能力、先修 CLD02、LNX12 |
+| CLD03 | 雲端虛擬機 | 待能力 | CLD02、LNX12 | deployment-simulator | 課程能力、先修 CLD02 |
 | CLD04 | VPC 與雲端網路 | 待能力 | CLD02、SRV01 | architecture-diagram | 課程能力、先修 CLD02、SRV01 |
 | CLD05 | IAM 身分與權限 | 待能力 | CLD02 | decision-simulation | 課程能力、先修 CLD02 |
 | CLD06 | 物件儲存 | 待能力 | CLD05 | cost-calculator | 課程能力、先修 CLD05 |
@@ -743,7 +743,7 @@
 | CICD01 | DevOps 概念與文化 | 待能力 | — | case-study-board | 課程能力 |
 | CICD02 | 團隊 Git 工作流程 | 待能力 | CICD01 | decision-simulation | 課程能力、先修 CICD01 |
 | CICD03 | 持續整合 | 待能力 | CICD02 | pipeline-sim | 課程能力、先修 CICD02 |
-| CICD04 | GitHub Actions 入門 | 待能力 | CICD03、LNX13 | pipeline-sim | 課程能力、先修 CICD03、LNX13 |
+| CICD04 | GitHub Actions 入門 | 待能力 | CICD03、LNX13 | pipeline-sim | 課程能力、先修 CICD03 |
 | CICD05 | 管線中的自動化測試 | 待能力 | CICD04 | pipeline-sim | 課程能力、先修 CICD04 |
 | CICD06 | 建置管線與產出物 | 待能力 | CICD04、DKR11 | pipeline-sim | 課程能力、先修 CICD04、DKR11 |
 | CICD07 | 環境變數與設定管理 | 待能力 | CICD04 | pipeline-sim | 課程能力、先修 CICD04 |
