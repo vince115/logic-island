@@ -48,12 +48,14 @@
       "status": "missing"
     },
     "large-language-models": {
-      "capability": "python-code + token, sampling and prompt explorers on recorded outputs (T3)",
-      "status": "missing"
+      "capability": "llm-explorer (token-explorer: byte-level BPE from the lesson's merge table; sampling-explorer: a recorded toy model with temperature, top-k, top-p and a seeded generator; embedding-space: hand-written vectors, cosine similarity and a deterministic PCA; exercises checked by value), alone or with python-code",
+      "status": "prepared",
+      "note": "LLM-0 built the capability and prepared the island (llmFromBlueprint, LLM0_LANGUAGE_MODEL_CAPABILITY.md): LLM01–LLM03 can be written; LLM04 needs DL18 and attention-explorer, LLM05 needs LLM04; prompt-lab, rag-explorer, attention-explorer and the other activities are not built"
     },
     "generative-ai": {
-      "capability": "precomputed pipeline steps (T3)",
-      "status": "missing"
+      "capability": "llm-explorer for GEN01, GEN02 (sampling-explorer) and GEN08 (embedding-space); precomputed pipeline steps (T3) for the rest",
+      "status": "prepared",
+      "note": "LLM-0 prepared the island: GEN01 (quiz-only, a sampling explorer) can be written; GEN02 needs LLM01; diffusion-steps, latent-space, multimodal-pipeline and the other activities are not built"
     },
     "ai-agents": {
       "capability": "agent trace (tool calls and memory as fixed transcripts)",

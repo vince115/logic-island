@@ -15,6 +15,7 @@ import type { OpsTask } from '@/lib/ops/check';
 import { checkNetworkAnswer, expectedNetworkAnswer, LAYER_MODELS, networkSceneProblems, type NetworkScene, type NetworkTask } from '@/lib/network/model';
 import type { SqlValue } from '@/lib/sql/engine';
 import { terminalContentProblems, type TerminalLessonContent } from '@/lib/terminal/lesson';
+import { llmContentProblems, llmExplorers, type LlmLessonContent } from '@/lib/llm/lesson';
 
 /*
  * Phase E curriculum: the shape of the 60 lessons and of a lesson's full content, and the checks every lesson must
@@ -57,18 +58,20 @@ export const ISLAND_IDS = ['foundations', 'structures', 'algorithms', 'programmi
 // LNX-0 (2026-11-22): the Linux systems island, written with the terminal capability.
 // SRV-0 (2026-11-22): the network and servers island, written with the terminal capability (and network-protocol scenes).
 // SRV-1 (2026-11-22): the network and servers island joins with SRV01–SRV03 (prepared in SRV-0).
-export const PREPARED_ISLAND_IDS = [] as const;
+// LLM-0 (2026-11-22): the large-language-models and generative-ai islands, written with the llm-explorer capability
+// (alone, or with python-code), docs/curriculum/LLM0_LANGUAGE_MODEL_CAPABILITY.md.
+export const PREPARED_ISLAND_IDS = ['large-language-models', 'generative-ai'] as const;
 export type IslandId = typeof ISLAND_IDS[number] | typeof PREPARED_ISLAND_IDS[number];
 /**
  * F = 基礎程式島, D = 資料結構島, A = 演算法島, then a two-digit position (F01..F20). Phase F.0: the number is two digits in
  * the type too (it was any string, so DB01 or AG01 type-checked as a D or A lesson); IDs of every island, planned ones
  * included, are AnyLessonId in src/content/world/lesson-id.ts and are always parsed with their whole prefix.
  */
-export type LessonPrefixWritten = 'F' | 'D' | 'A' | 'DB' | 'PL' | 'CN' | 'AIF' | 'LNX' | 'SRV';
+export type LessonPrefixWritten = 'F' | 'D' | 'A' | 'DB' | 'PL' | 'CN' | 'AIF' | 'LNX' | 'SRV' | 'LLM' | 'GEN';
 export type LessonId = `${LessonPrefixWritten}${LessonNumber}`;
 /** 2026-11-20 (course production, batch 1): the programming-languages island (PL) joins with its first written lessons. */
 export const ISLAND_PREFIX: Record<IslandId, LessonPrefixWritten> = { foundations: 'F', structures: 'D', algorithms: 'A', databases: 'DB', 'programming-languages': 'PL', networks: 'CN', 'ai-foundations': 'AIF', 'linux-systems': 'LNX',
-  'network-servers': 'SRV' };
+  'network-servers': 'SRV', 'large-language-models': 'LLM', 'generative-ai': 'GEN' };
 
 /**
  * Phase F.1a: a lesson taught in a query language instead of the four programming languages. A SQL lesson has no program
@@ -81,7 +84,8 @@ export type QueryLanguage = typeof QUERY_LANGUAGES[number];
  * with an activity is a database lesson: no program tabs; Phase F.1b adds the ER builder and the normalization steps.
  */
 export const LESSON_ACTIVITIES = ['sql-playground', 'erd-builder', 'normalization-steps', 'query-plan', 'transaction-timeline',
-  'protocol-sequence', 'architecture-diagram', 'ds-comparison', 'challenge-stages', 'packet-journey', 'network-sequence', 'terminal-sim'] as const;
+  'protocol-sequence', 'architecture-diagram', 'ds-comparison', 'challenge-stages', 'packet-journey', 'network-sequence', 'terminal-sim',
+  'token-explorer', 'sampling-explorer', 'embedding-space'] as const;
 export type LessonActivity = typeof LESSON_ACTIVITIES[number];
 
 /**
@@ -102,10 +106,13 @@ export type LessonActivity = typeof LESSON_ACTIVITIES[number];
  * trips of the database lessons. AIF-0 adds python-code: a program lesson in Python only (supportedLanguages ['Python']),
  * for the islands whose blueprint exercises are code-python; program-code keeps requiring C++, Java and Python. LNX-0
  * adds terminal: small machines as data, transcripts replayed on them and exercises checked by replaying the learner's
- * commands in the simulated shell (`content.terminal`, src/lib/terminal/lesson.ts).
+ * commands in the simulated shell (`content.terminal`, src/lib/terminal/lesson.ts). LLM-0 adds llm-explorer: a BPE
+ * tokenizer, a recorded toy model's next-token distribution and hand-written embedding vectors, all illustrative data
+ * computed in the browser, with exercises checked by value (`content.llm`, src/lib/llm/lesson.ts). It is the one
+ * capability python-code may be combined with (an LLM lesson may also implement BPE or cosine similarity in Python).
  */
 export const LESSON_CAPABILITIES = ['program-code', 'sql', 'er-diagram', 'normalization', 'query-plan', 'transaction-timeline',
-  'driver-code', 'protocol-sequence', 'architecture-diagram', 'visualization', 'network-protocol', 'python-code', 'terminal'] as const;
+  'driver-code', 'protocol-sequence', 'architecture-diagram', 'visualization', 'network-protocol', 'python-code', 'terminal', 'llm-explorer'] as const;
 export type LessonCapability = typeof LESSON_CAPABILITIES[number];
 export const hasCapability = (lesson: Pick<LessonMeta, 'capabilities'>, capability: LessonCapability) => lesson.capabilities.includes(capability);
 /**
@@ -120,7 +127,12 @@ const CAPABILITY_ACTIVITY: Record<LessonActivity, LessonCapability> = { 'sql-pla
   // CN-0: a network lesson's packets through the layers and its message sequences are both drawn from network scenes.
   'packet-journey': 'network-protocol', 'network-sequence': 'network-protocol',
   // LNX-0: a Linux lesson's commands run in the simulated terminal.
-  'terminal-sim': 'terminal' };
+  'terminal-sim': 'terminal',
+  // LLM-0: the three explorers of the language-model lessons.
+  'token-explorer': 'llm-explorer', 'sampling-explorer': 'llm-explorer', 'embedding-space': 'llm-explorer' };
+/** LLM-0: the activities of the llm-explorer capability, and the explorers of `content.llm` each one needs. */
+export const LLM_ACTIVITIES = ['token-explorer', 'sampling-explorer', 'embedding-space'] as const satisfies readonly LessonActivity[];
+const LLM_ACTIVITY_PART = { 'token-explorer': 'tokenizers', 'sampling-explorer': 'samplers', 'embedding-space': 'embeddings' } as const;
 /** The shared visualizations a database lesson may show (with the visualization capability). */
 export const DATABASE_VISUALIZATIONS = ['ds-comparison', 'challenge-stages'] as const;
 
@@ -476,6 +488,8 @@ export interface LessonContent {
   network?: NetworkLessonContent;
   /** LNX-0: machines, transcripts replayed on them (shown in sections by id) and exercises checked in the simulated shell. */
   terminal?: TerminalLessonContent;
+  /** LLM-0: token, sampling and embedding explorers (shown in sections by id) and exercises checked by value. */
+  llm?: LlmLessonContent;
 }
 
 export interface IslandMeta { id: IslandId; name: string; englishName: string; summary: string }
@@ -545,9 +559,11 @@ export function validateCurriculum({ islands, lessons, contents, visualizations,
     const capabilities = lesson.capabilities ?? [];
     if (!capabilities.length || capabilities.some(c => !LESSON_CAPABILITIES.includes(c)) || new Set(capabilities).size !== capabilities.length)
       fail(at, `capabilities must be distinct values of ${LESSON_CAPABILITIES.join(', ')}`);
-    const program = capabilities.includes('program-code'), python = capabilities.includes('python-code');
+    const program = capabilities.includes('program-code'), python = capabilities.includes('python-code'), llm = capabilities.includes('llm-explorer');
     if (program && capabilities.length > 1) fail(at, 'program-code stands alone');
-    if (python && capabilities.length > 1) fail(at, 'python-code stands alone');
+    // LLM-0: python-code keeps standing alone, except that an LLM lesson may pair it with its explorers (llm-explorer).
+    if (python && capabilities.some(c => c !== 'python-code' && c !== 'llm-explorer')) fail(at, 'python-code stands alone (llm-explorer is its only companion)');
+    if (llm && !(LLM_ACTIVITIES as readonly string[]).includes(lesson.activity ?? '')) fail(at, `an llm-explorer lesson names one of ${LLM_ACTIVITIES.join(', ')} as its activity`);
     if (program && LANGUAGES.some(l => !lesson.supportedLanguages.includes(l))) fail(at, `supportedLanguages must include ${LANGUAGES.join(', ')}`);
     if (python && lesson.supportedLanguages.join() !== PYTHON_LANGUAGES.join()) fail(at, 'a python-code lesson offers Python only');
     if (!program && !python && lesson.supportedLanguages.length) fail(at, 'only a program-code or python-code lesson has program languages');
@@ -638,10 +654,12 @@ export function validateDatabaseContent(lesson: LessonMeta, content: LessonConte
     if (!sql.presets.length) fail('the playground needs preset queries');
     for (const p of sql.presets) if (!p.label.trim() || !p.sql.trim()) fail('a preset needs a label and SQL');
   }
-  const { driverCode, sequences, ops, network, terminal } = content;
+  const { driverCode, sequences, ops, network, terminal, llm } = content;
+  // LLM-0: an explorer counts as an example (its data is checked by llmContentProblems, in validateContent).
   const examples = [...sql?.examples ?? [], ...er?.diagrams ?? [], ...normalization?.examples ?? [],
     ...queryPlan?.trees ?? [], ...transactions?.timelines ?? [], ...transactions?.schedules ?? [],
-    ...driverCode?.examples ?? [], ...sequences ?? [], ...ops?.replication ?? [], ...ops?.backups ?? [], ...network?.scenes ?? [], ...terminal?.examples ?? []];
+    ...driverCode?.examples ?? [], ...sequences ?? [], ...ops?.replication ?? [], ...ops?.backups ?? [], ...network?.scenes ?? [], ...terminal?.examples ?? [],
+    ...llm ? llmExplorers(llm) : []];
   for (const scene of network?.scenes ?? []) for (const p of networkSceneProblems(scene)) fail(p);
   if (terminal) for (const p of replayedTerminalProblems(terminal)) fail(p);
   for (const e of driverCode?.examples ?? []) {
@@ -681,7 +699,8 @@ export function validateDatabaseContent(lesson: LessonMeta, content: LessonConte
     if (!Number.isInteger(question.answer) || question.answer < 0 || question.answer >= question.options.length) fail(`quiz ${question.id} answer out of range`);
     if (!question.explanation.trim()) fail(`quiz ${question.id} has no explanation`);
   }
-  const exercises = [...sql?.exercises ?? [], ...er?.exercises ?? [], ...normalization?.exercises ?? [], ...transactions?.exercises ?? [], ...ops?.exercises ?? [], ...network?.exercises ?? [], ...terminal?.exercises ?? []];
+  const exercises = [...sql?.exercises ?? [], ...er?.exercises ?? [], ...normalization?.exercises ?? [], ...transactions?.exercises ?? [], ...ops?.exercises ?? [], ...network?.exercises ?? [], ...terminal?.exercises ?? [],
+    ...llm?.exercises ?? []];
   // CN-0: each network exercise's answer comes from the scenes (or is computed), and each typical mistake is rejected.
   for (const exercise of network?.exercises ?? []) {
     try {
@@ -740,22 +759,31 @@ export function validateContent(lesson: LessonMeta, content: LessonContent, visu
   // Phase F.1b: each declared capability has its content, and no content appears without its capability.
   const parts: [LessonCapability, boolean][] = [['sql', !!content.sql], ['er-diagram', !!content.er], ['normalization', !!content.normalization],
     ['query-plan', !!content.queryPlan], ['transaction-timeline', !!content.transactions], ['driver-code', !!content.driverCode],
-    ['protocol-sequence', !!content.sequences], ['architecture-diagram', !!content.ops], ['network-protocol', !!content.network], ['terminal', !!content.terminal]];
+    ['protocol-sequence', !!content.sequences], ['architecture-diagram', !!content.ops], ['network-protocol', !!content.network], ['terminal', !!content.terminal],
+    ['llm-explorer', !!content.llm]];
   // A database lesson shows a shared visualization only with the visualization capability (program lessons always may).
   if (!hasProgramCode(lesson) && hasCapability(lesson, 'visualization') !== !!content.visualization)
     fail(content.visualization ? 'has a visualization without the visualization capability' : 'the visualization capability needs a visualization');
   for (const [capability, present] of parts) if (hasCapability(lesson, capability) !== present)
     fail(present ? `has ${capability} content without the ${capability} capability` : `the ${capability} capability needs its content`);
+  // LLM-0: the explorers' data and the exercises' answers, on either path below; the lesson's activity names an explorer it has.
+  if (content.llm) {
+    for (const p of llmContentProblems(content.llm)) fail(p);
+    const part = lesson.activity && (LLM_ACTIVITIES as readonly string[]).includes(lesson.activity) ? LLM_ACTIVITY_PART[lesson.activity as typeof LLM_ACTIVITIES[number]] : undefined;
+    if (part && !content.llm[part]?.length) fail(`the ${lesson.activity} activity needs at least one of content.llm.${part}`);
+  }
   if (!hasProgramCode(lesson)) return [...problems, ...validateDatabaseContent(lesson, content)];
   // AIF-0: a trace shows a language the lesson teaches (PL15's JavaScript trace is one of its languages).
   if (content.visualization && 'language' in content.visualization && !(lesson.supportedLanguages as string[]).includes(content.visualization.language))
     fail(`the visualization traces ${content.visualization.language}, which this lesson does not teach`);
   const examples = new Set(content.examples.map(e => e.id));
+  // LLM-0: a python-code lesson with llm-explorer shows its explorers in sections too, like its code examples.
+  const explorers = content.llm ? llmExplorers(content.llm) : [];
   for (const section of content.sections) {
     unique(section.id);
     if (!section.blocks.length) fail(`section ${section.id} is empty`);
     for (const block of section.blocks) {
-      if (block.type === 'example' && !examples.has(block.id)) fail(`section ${section.id} shows unknown example ${block.id}`);
+      if (block.type === 'example' && !examples.has(block.id) && !explorers.some(x => x.id === block.id)) fail(`section ${section.id} shows unknown example ${block.id}`);
       if (block.type === 'table' && block.rows.some(row => row.length !== block.head.length)) fail(`section ${section.id} has a ragged table`);
     }
   }
@@ -768,6 +796,11 @@ export function validateContent(lesson: LessonMeta, content: LessonContent, visu
     if (!example.output.trim()) fail(`example ${example.id} has no expected output`);
     if (!content.sections.some(s => s.blocks.some(b => b.type === 'example' && b.id === example.id))) fail(`example ${example.id} is never shown`);
   }
+  for (const explorer of explorers) {
+    unique(explorer.id);
+    if (!content.sections.some(s => s.blocks.some(b => b.type === 'example' && b.id === explorer.id))) fail(`example ${explorer.id} is never shown`);
+  }
+  for (const exercise of content.llm?.exercises ?? []) unique(exercise.id);
   if (content.quiz.length < MIN_QUIZ) fail(`needs at least ${MIN_QUIZ} quiz questions`);
   for (const question of content.quiz) {
     unique(question.id);

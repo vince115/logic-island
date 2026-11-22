@@ -73,6 +73,10 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '快取、診斷與故障排除', summary: 'Cache-Control、驗證器與 304、CDN 邊緣節點的命中與過期、版本化檔名與快取清除、nginx 的 proxy_cache；由下而上排查連線：ip、dig、ping、traceroute 與 mtr、nc 與 ss、curl -w、tcpdump；依症狀建立假設、分辨 502 與 504、資源與日誌的時間線、修復後驗證', lessonIds: range('SRV', 11, 13) },
     { title: '綜合專題', summary: '架設並維運一個 HTTPS 網站：修好網域並取得憑證、反向代理與負載平衡、防火牆與跳板機、CDN 與快取，追蹤一個請求經過的每一段，再找出只壞了一台後端的故障', lessonIds: range('SRV', 14, 14) },
   ],
+  // LLM-0 (2026-11-22): the large-language-models and generative-ai islands are prepared for authoring; their units come
+  // with their first lessons.
+  'large-language-models': [],
+  'generative-ai': [],
   // CN-1 to CN-5: the whole island, CN01–CN20.
   networks: [
     { title: '分層模型與實體層', summary: '網路為什麼分層、OSI 與 TCP/IP、封裝與 PDU；訊號與媒介、頻寬、延遲、吞吐量與頻寬延遲乘積', lessonIds: range('CN', 1, 2) },

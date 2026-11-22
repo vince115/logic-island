@@ -1,7 +1,7 @@
 import type { AlgorithmId } from '@/lib/engine';
 import planning from '@/content/world/planning-data.json';
 import type { AnyLessonId } from '@/content/world/lesson-id';
-import { DATABASE_VISUALIZATIONS, LANGUAGES, LESSON_ACTIVITIES, OPTIONAL_LANGUAGES, ISLAND_PREFIX, ISLAND_IDS, PYTHON_LANGUAGES, type ApcsRelevance, type Difficulty, type LessonActivity, type LessonCapability, type LessonId, type LessonMeta, type LessonStatus, type VisualizationType } from './schema';
+import { DATABASE_VISUALIZATIONS, LANGUAGES, LESSON_ACTIVITIES, LLM_ACTIVITIES, OPTIONAL_LANGUAGES, ISLAND_PREFIX, ISLAND_IDS, PYTHON_LANGUAGES, type ApcsRelevance, type Difficulty, type LessonActivity, type LessonCapability, type LessonId, type LessonMeta, type LessonStatus, type VisualizationType } from './schema';
 
 /*
  * The lessons in recommended order (F01..F20, D01..D20, A01..A20, then the database island's written lessons from DB01).
@@ -391,6 +391,27 @@ export function terminalFromBlueprint(lessonId: string, summary: string, minutes
 export function serverFromBlueprint(lessonId: string, summary: string, minutes: number): Outline {
   return terminalOutline(lessonId, summary, minutes, 'network-servers', 'network and servers');
 }
+/**
+ * LLM-0 (2026-11-22): a lesson of the large-language-models or generative-ai island written from its blueprint outline.
+ * Slug, title, objectives, concepts, difficulty and prerequisites are the blueprint's. Its body is the llm-explorer
+ * capability (docs/curriculum/LLM0_LANGUAGE_MODEL_CAPABILITY.md): the blueprint's token-explorer, sampling-explorer and
+ * embedding-space stay the lesson's activity. A lesson whose blueprint exercises are code-python also has python-code
+ * (Python examples and exercises beside the explorers, e.g. BPE merges or cosine similarity with the standard library);
+ * `python` overrides that. Other blueprint activities (attention-explorer, prompt-lab, rag-explorer…) are not built:
+ * their lessons cannot be written with this builder yet.
+ */
+export const LLM_ISLANDS = ['large-language-models', 'generative-ai'] as const;
+export function llmFromBlueprint(lessonId: string, summary: string, minutes: number, python?: boolean): Outline {
+  const b = planning.plannedLessons.find(l => l.lessonId === lessonId);
+  if (!b || !(LLM_ISLANDS as readonly string[]).includes(b.islandId)) throw new Error(`${lessonId} is not a large-language-models or generative-ai lesson of the blueprint`);
+  if (!(LLM_ACTIVITIES as readonly string[]).includes(b.activity)) throw new Error(`${lessonId}: no llm-explorer lesson shape for the blueprint activity ${b.activity}`);
+  const withPython = python ?? b.exerciseType === 'code-python';
+  return { slug: b.slug, title: b.title, summary, objectives: b.learningObjectives, concepts: b.concepts, difficulty: b.difficulty as Difficulty,
+    minutes, prerequisites: b.prerequisites as LessonId[], recommended: b.recommended as AnyLessonId[], apcs: ['none'], visualization: 'none',
+    status: 'complete', version: '1.0.0', activity: b.activity as LessonActivity,
+    capabilities: withPython ? ['python-code', 'llm-explorer'] : ['llm-explorer'], blueprintId: lessonId };
+}
+
 /** Batches 1–5: the programming-languages island's written lessons, PL20 its capstone. */
 const programmingLanguages: Outline[] = [
   programFromBlueprint('PL01', '用同一個「偶數平方和」問題比較命令式、程序式、物件導向與函數式寫法，認識宣告式的 SQL 與邏輯式的 Prolog，看懂 C++、Java、Python、JavaScript 各自支援的典範組合，並依可讀性與可變狀態選擇合適的風格。', 45, 'variable-state'),
