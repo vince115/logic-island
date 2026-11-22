@@ -25,7 +25,8 @@
 | 網路工程（CN、SRV） | 封包欄位、協定往返（`protocol-sequence`）、資料流圖；實際指令的輸出用固定的範例資料 | CN：`network-protocol` 能力（CN-0）；SRV：沿用 `terminal`（引擎階段 E10 起的 socket、DNS、HTTP）加上 `network-protocol` 的情境（SRV-0），不需要新的 capability |
 | Linux／Docker（LNX、DKR） | 命令、設定檔與執行結果；可用 Linux Terminal Simulator 的模擬檔案系統 | LNX：`terminal` 能力（LNX-0），範例重播到完全相同的輸出、練習以結果檢查；DKR 需要新增 capability（§4） |
 | AI | 資料、模型與推論流程；數值用預先計算的小資料，不呼叫真實模型 | AIF：`python-code`（AIF-0）；LLM 與 GEN 的分詞、取樣、向量課：`llm-explorer`（LLM-0，可再加 `python-code`），資料一律標示為示意資料；其他需要新增 capability（§4） |
-| UI／UX、網頁 | 設計案例與互動比較；CSS 範例可在 Flexbox、Grid、Responsive 實驗中重現 | 需要新增 capability（§4） |
+| 網頁（WEB，之後的 FE、RWD、MOB） | HTML、CSS、JavaScript 的小頁面，在瀏覽器的沙盒框架裡執行，旁邊是瀏覽器建立的 DOM 樹 | WEB：`web-code` 能力（WEB-0）：範例的陳述與練習的參考解答、常見錯誤都由測試在真實的 Chromium 裡執行 |
+| UI／UX | 設計案例與互動比較；CSS 範例可在 Flexbox、Grid、Responsive 實驗中重現 | 需要新增 capability（§4） |
 
 ## 3. 互動：先重用
 
@@ -78,6 +79,7 @@
 | LLM-1 | LLM01–03 | 課程能力 LLM-0（`llm-explorer`）＋三課 |
 | SRV-0（架構） | — | 網路與伺服器島登錄為預備島嶼，沿用 `terminal` 與 `network-protocol` 能力（`serverFromBlueprint`）；引擎階段 E10–E12（`sockets`、`dns`、`http`）先完成（[SRV0_SERVER_CAPABILITY](SRV0_SERVER_CAPABILITY.md)）；SRV-1 至 SRV-5 依引擎階段 E10–E19 依序發布 |
 | LLM-0（架構） | — | 大型語言模型島與生成式 AI 島登錄為預備島嶼；新能力 `llm-explorer`：位元組層級 BPE（`token-explorer`）、錄好的玩具模型與 temperature／top-k／top-p／種子取樣（`sampling-explorer`）、手寫向量與 PCA（`embedding-space`），練習以數值比對（`llmFromBlueprint`，[LLM0_LANGUAGE_MODEL_CAPABILITY](LLM0_LANGUAGE_MODEL_CAPABILITY.md)）；LLM-1 為 LLM01–LLM03，GEN-1 為 GEN01 |
+| WEB-0（架構） | — | `web-code` 能力（沙盒框架裡的 HTML、CSS、JavaScript 頁面，以瀏覽器建立的結果檢查的練習，迴圈保護）、網頁基礎島登錄為預備島嶼（[WEB0_WEB_CODE_CAPABILITY](WEB0_WEB_CODE_CAPABILITY.md)）；WEB-1 至 WEB-5 依引擎階段 W1–W6 依序發布 |
 | 之後 | 依 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 自動選擇 | 先修已滿足、能力已備妥、解鎖其他島最多的島優先；缺少的共用能力先做最小可用版本 |
 
 進度記錄在 [COURSE_PRODUCTION_PROGRESS](COURSE_PRODUCTION_PROGRESS.md)。

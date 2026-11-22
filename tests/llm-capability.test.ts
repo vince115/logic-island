@@ -386,7 +386,8 @@ describe('the large-language-models island: prepared in LLM-0, written in batche
 
 describe('the generative-ai island: prepared in LLM-0, not published', () => {
   it('is registered for authoring with its prefix and no units, lessons or pages', () => {
-    expect(PREPARED_ISLAND_IDS).toEqual(['generative-ai']);
+    // WEB-0 (merged beside LLM-1) prepared the web foundations island too.
+    expect(PREPARED_ISLAND_IDS).toEqual(['generative-ai', 'web-foundations']);
     expect(ISLAND_IDS as readonly string[]).not.toContain('generative-ai');
     expect(ISLAND_PREFIX['generative-ai']).toBe('GEN');
     expect(UNITS['generative-ai']).toEqual([]);

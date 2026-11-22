@@ -8,7 +8,8 @@ import { TOKEN_KINDS, type HlLines, type TokenKind } from './kinds';
  * so it runs during the build.
  */
 // Phase F.1a: SQL for the database island's examples, exercises and quiz snippets.
-const LANGS = { 'C++': 'cpp', Java: 'java', Python: 'python', JavaScript: 'javascript', SQL: 'sql' } as const;
+// WEB-0: HTML and CSS for the web-code lessons' pages and quiz snippets.
+const LANGS = { 'C++': 'cpp', Java: 'java', Python: 'python', JavaScript: 'javascript', SQL: 'sql', HTML: 'html', CSS: 'css' } as const;
 export type HighlightLanguage = keyof typeof LANGS;
 
 /** A unique placeholder colour per kind: #00000k. */
@@ -25,17 +26,22 @@ const SCOPES: Partial<Record<TokenKind, string[]>> = {
     // Word operators read as keywords: static_cast, new, delete, typeof, instanceof, in, not, and, or.
     'keyword.operator.cast', 'keyword.operator.wordlike', 'keyword.operator.new', 'keyword.operator.delete', 'keyword.operator.expression',
     'keyword.operator.logical.python', 'keyword.operator.instanceof',
+    // WEB-0: an HTML tag name, and an element selector in CSS.
+    'entity.name.tag',
   ],
   type: [
     'storage.type.primitive', 'storage.type.built-in', 'storage.type.built-in.primitive', 'support.type.primitive',
     'support.type.builtin', 'support.type.python', 'storage.type.java', 'storage.type.generic.java', 'storage.type.object.array.java',
     'entity.name.type.numeric', 'support.type.posix-reserved', 'storage.type.numeric',
+    // WEB-0: an HTML attribute name, and a class, id or pseudo-class selector in CSS.
+    'entity.other.attribute-name',
   ],
   operator: ['keyword.operator', 'punctuation.accessor', 'punctuation.separator.dot-access'],
   function: ['entity.name.function', 'meta.function-call.generic', 'support.function.magic'],
   class: ['entity.name.type', 'entity.name.class', 'entity.other.inherited-class', 'support.class', 'entity.name.type.class', 'entity.name.namespace', 'entity.name.scope-resolution'],
   builtin: ['support.function', 'support.class.console', 'support.variable', 'support.function.builtin', 'support.type.object.console', 'variable.other.object.console'],
-  variable: ['variable', 'variable.parameter', 'variable.other', 'meta.definition.variable'],
+  // WEB-0: a CSS property name.
+  variable: ['variable', 'variable.parameter', 'variable.other', 'meta.definition.variable', 'support.type.property-name'],
 };
 const THEME: ThemeRegistration = {
   name: 'logic-island-kinds',
