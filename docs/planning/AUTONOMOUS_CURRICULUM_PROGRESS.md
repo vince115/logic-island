@@ -13,7 +13,7 @@
 
 ## 總覽
 
-已發布 **147／520**（28.3%）；規劃中 373。
+已發布 **151／520**（29.0%）；規劃中 369。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
@@ -21,11 +21,11 @@
 | AI 人工智慧群島 | 20 | 140 | 12.5% |
 | 數位設計群島 | 0 | 56 | 0.0% |
 | 網頁與應用開發群島 | 0 | 55 | 0.0% |
-| 系統與雲端工程群島 | 7 | 82 | 7.9% |
+| 系統與雲端工程群島 | 11 | 78 | 12.4% |
 
 ## 下一批（自動選擇）
 
-**Linux 系統島（LNX）**：LNX08 Process 管理與訊號、LNX09 套件管理、LNX10 systemd 與服務管理、LNX11 日誌與 journalctl、LNX12 SSH 遠端連線與金鑰。島嶼能力：可用；這幾堂解鎖其他島的 49 堂。
+**Linux 系統島（LNX）**：LNX12 SSH 遠端連線與金鑰、LNX13 Bash Script 撰寫、LNX14 排程：cron 與 systemd timer、LNX15 Linux 系統島綜合專題：維護一台伺服器。島嶼能力：可用；這幾堂解鎖其他島的 25 堂。
 
 能力缺口中最優先的是 **大型語言模型島（LLM）**：需要 python-code + token, sampling and prompt explorers on recorded outputs (T3)；先修已滿足、可依序撰寫的有 3 堂，前 3 堂解鎖其他島的 58 堂。
 
@@ -58,9 +58,9 @@
 | 網頁與應用開發群島 | 前端開發島（FE） | 0／15 | web-code + state-flow trace | 缺少 | — | 缺少課程能力；FE01 需要尚未發布的 WEB09 |
 | 網頁與應用開發群島 | 響應式設計島（RWD） | 0／12 | web-code + responsive simulator (the standalone lab exists) | 缺少 | — | 缺少課程能力；RWD01 需要尚未發布的 WEB06 |
 | 網頁與應用開發群島 | 行動應用島（MOB） | 0／13 | web-code + case-analysis | 缺少 | — | 缺少課程能力；MOB01 需要尚未發布的 RWD01 |
-| 系統與雲端工程群島 | Linux 系統島（LNX） | 7／15 | terminal (machines as data, transcripts replayed to their exact output, exercises checked by replaying the learner's commands in the simulated shell) | 可用 | LNX08–LNX15（8 堂） | — |
-| 系統與雲端工程群島 | Docker 容器島（DKR） | 0／15 | container simulation | 缺少 | — | 缺少課程能力；DKR01 需要尚未發布的 LNX08 |
-| 系統與雲端工程群島 | 網路與伺服器島（SRV） | 0／14 | request-path simulation + terminal | 缺少 | SRV01–SRV05（5 堂） | 缺少課程能力；SRV06 需要尚未發布的 LNX10 |
+| 系統與雲端工程群島 | Linux 系統島（LNX） | 11／15 | terminal (machines as data, transcripts replayed to their exact output, exercises checked by replaying the learner's commands in the simulated shell) | 可用 | LNX12–LNX15（4 堂） | — |
+| 系統與雲端工程群島 | Docker 容器島（DKR） | 0／15 | container simulation | 缺少 | DKR01–DKR15（15 堂） | 缺少課程能力 |
+| 系統與雲端工程群島 | 網路與伺服器島（SRV） | 0／14 | request-path simulation + terminal | 缺少 | SRV01–SRV09（9 堂） | 缺少課程能力；SRV10 需要尚未發布的 LNX12 |
 | 系統與雲端工程群島 | 雲端基礎設施島（CLD） | 0／15 | architecture simulation | 缺少 | CLD01–CLD02（2 堂） | 缺少課程能力；CLD03 需要尚未發布的 LNX12 |
 | 系統與雲端工程群島 | DevOps 與 CI/CD 島（CICD） | 0／15 | pipeline simulation | 缺少 | CICD01–CICD03（3 堂） | 缺少課程能力；CICD04 需要尚未發布的 LNX13 |
 | 系統與雲端工程群島 | Kubernetes 與可靠性工程島（KUB） | 0／15 | cluster simulation | 缺少 | — | 缺少課程能力；KUB01 需要尚未發布的 DKR09 |
@@ -74,8 +74,9 @@
 | 大型語言模型島（LLM） | python-code + token, sampling and prompt explorers on recorded outputs (T3) | 3 | 58 | — |
 | 網頁基礎島（WEB） | web-code (HTML, CSS and DOM in a sandboxed frame, checked by DOM queries) | 15 | 40 | — |
 | 機器學習島（ML） | python-code + data-explorer (fixed datasets, metrics computed in the browser) | 25 | 39 | — |
+| Docker 容器島（DKR） | container simulation | 15 | 23 | — |
 | 系統分析與設計島（SA） | model-diagram (UML, DFD, BPMN, state and sequence models, checked by structure) | 20 | 20 | — |
-| 網路與伺服器島（SRV） | request-path simulation + terminal | 5 | 12 | — |
+| 網路與伺服器島（SRV） | request-path simulation + terminal | 9 | 12 | — |
 | DevOps 與 CI/CD 島（CICD） | pipeline simulation | 3 | 7 | — |
 | 管理資訊系統島（MIS） | case-analysis (scenario data, decision tables, KPI calculations checked by value) | 20 | 0 | — |
 | 生成式 AI 島（GEN） | precomputed pipeline steps (T3) | 1 | 0 | — |
@@ -98,9 +99,9 @@
 | 前端工程 | 7／62 | 否 |
 | 產品設計 | 0／56 | 否 |
 | AI 架構 | 20／66 | 否 |
-| 全端部署 | 23／62 | 否 |
-| AI 基礎設施 | 20／60 | 否 |
-| 雲端與 DevOps 基礎 | 12／48 | 否 |
+| 全端部署 | 26／62 | 否 |
+| AI 基礎設施 | 22／60 | 否 |
+| 雲端與 DevOps 基礎 | 15／48 | 否 |
 
 ## 先修依賴檢查
 
@@ -667,24 +668,24 @@
 | LNX05 | 文字處理、管線與重新導向 | 已發布（閘門通過） | LNX04 | terminal-sim | — |
 | LNX06 | 使用者與群組 | 已發布（閘門通過） | LNX04 | terminal-sim | — |
 | LNX07 | Linux 權限與 chmod | 已發布（閘門通過） | LNX06 | terminal-sim | — |
-| LNX08 | Process 管理與訊號 | 大綱 | LNX05 | terminal-sim | — |
-| LNX09 | 套件管理 | 大綱 | LNX06 | terminal-sim | — |
-| LNX10 | systemd 與服務管理 | 待先修 | LNX08 | terminal-sim | 先修 LNX08 |
-| LNX11 | 日誌與 journalctl | 待先修 | LNX05、LNX10 | terminal-sim | 先修 LNX10 |
+| LNX08 | Process 管理與訊號 | 已發布（閘門通過） | LNX05 | terminal-sim | — |
+| LNX09 | 套件管理 | 已發布（閘門通過） | LNX06 | terminal-sim | — |
+| LNX10 | systemd 與服務管理 | 已發布（閘門通過） | LNX08 | terminal-sim | — |
+| LNX11 | 日誌與 journalctl | 已發布（閘門通過） | LNX05、LNX10 | terminal-sim | — |
 | LNX12 | SSH 遠端連線與金鑰 | 大綱 | LNX07 | protocol-sequence | — |
 | LNX13 | Bash Script 撰寫 | 大綱 | LNX05、LNX07 | terminal-sim | — |
-| LNX14 | 排程：cron 與 systemd timer | 待先修 | LNX10、LNX13 | terminal-sim | 先修 LNX10、LNX13 |
-| LNX15 | Linux 系統島綜合專題：維護一台伺服器 | 待先修 | LNX09、LNX11、LNX12、LNX14 | challenge-stages | 先修 LNX09、LNX11、LNX12、LNX14 |
+| LNX14 | 排程：cron 與 systemd timer | 待先修 | LNX10、LNX13 | terminal-sim | 先修 LNX13 |
+| LNX15 | Linux 系統島綜合專題：維護一台伺服器 | 待先修 | LNX09、LNX11、LNX12、LNX14 | challenge-stages | 先修 LNX12、LNX14 |
 
 ### 系統與雲端工程群島 · Docker 容器島（DKR）
 
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
-| DKR01 | 容器概念：與虛擬機的差異 | 待能力 | LNX08 | architecture-diagram | 課程能力、先修 LNX08 |
+| DKR01 | 容器概念：與虛擬機的差異 | 待能力 | LNX08 | architecture-diagram | 課程能力 |
 | DKR02 | Docker 架構：Client、Daemon 與 Registry | 待能力 | DKR01 | architecture-diagram | 課程能力、先修 DKR01 |
 | DKR03 | Image 與 Container 的生命週期 | 待能力 | DKR02 | container-playground | 課程能力、先修 DKR02 |
 | DKR04 | Docker CLI 常用指令 | 待能力 | DKR03 | container-playground | 課程能力、先修 DKR03 |
-| DKR05 | 撰寫 Dockerfile | 待能力 | DKR04、LNX09 | container-playground | 課程能力、先修 DKR04、LNX09 |
+| DKR05 | 撰寫 Dockerfile | 待能力 | DKR04、LNX09 | container-playground | 課程能力、先修 DKR04 |
 | DKR06 | Image 分層與建置快取 | 待能力 | DKR05 | container-playground | 課程能力、先修 DKR05 |
 | DKR07 | Volume 與資料保存 | 待能力 | DKR04、LNX07 | container-playground | 課程能力、先修 DKR04 |
 | DKR08 | 容器網路 | 待能力 | DKR04 | container-playground | 課程能力、先修 DKR04 |
@@ -692,7 +693,7 @@
 | DKR10 | 多階段建置 | 待能力 | DKR06 | container-playground | 課程能力、先修 DKR06 |
 | DKR11 | Container Registry 與版本標籤 | 待能力 | DKR05 | pipeline-diagram | 課程能力、先修 DKR05 |
 | DKR12 | 容器安全 | 待能力 | DKR10、LNX07 | case-study-board | 課程能力、先修 DKR10 |
-| DKR13 | 容器除錯 | 待能力 | DKR09、LNX11 | container-playground | 課程能力、先修 DKR09、LNX11 |
+| DKR13 | 容器除錯 | 待能力 | DKR09、LNX11 | container-playground | 課程能力、先修 DKR09 |
 | DKR14 | 健康檢查、資源限制與優雅關閉 | 待能力 | DKR13 | container-playground | 課程能力、先修 DKR13 |
 | DKR15 | Docker 容器島綜合專題：容器化並準備上線 | 待能力 | DKR11、DKR12、DKR14 | challenge-stages | 課程能力、先修 DKR11、DKR12、DKR14 |
 
@@ -705,14 +706,14 @@
 | SRV03 | 用 curl 觀察 HTTP 請求與回應 | 待能力 | SRV01 | request-path | 課程能力、先修 SRV01 |
 | SRV04 | TLS 憑證實務：申請、安裝與更新 | 待能力 | SRV02、SRV03 | request-path | 課程能力、先修 SRV02、SRV03 |
 | SRV05 | 網頁伺服器架構 | 待能力 | SRV03 | architecture-diagram | 課程能力、先修 SRV03 |
-| SRV06 | Nginx 設定入門 | 待能力 | SRV05、LNX10 | request-path | 課程能力、先修 SRV05、LNX10 |
+| SRV06 | Nginx 設定入門 | 待能力 | SRV05、LNX10 | request-path | 課程能力、先修 SRV05 |
 | SRV07 | 反向代理 | 待能力 | SRV06 | request-path | 課程能力、先修 SRV06 |
 | SRV08 | 負載平衡 | 待能力 | SRV07 | request-path | 課程能力、先修 SRV07 |
 | SRV09 | 伺服器防火牆：ufw 與 nftables | 待能力 | SRV01、LNX07 | terminal-sim | 課程能力、先修 SRV01 |
 | SRV10 | SSH 通道與跳板機 | 待能力 | LNX12、SRV09 | protocol-sequence | 課程能力、先修 LNX12、SRV09 |
 | SRV11 | CDN 與快取設定 | 待能力 | SRV07 | request-path | 課程能力、先修 SRV07 |
 | SRV12 | 網路診斷工具 | 待能力 | SRV02、SRV03 | terminal-sim | 課程能力、先修 SRV02、SRV03 |
-| SRV13 | 伺服器故障排除方法 | 待能力 | SRV07、SRV12、LNX11 | case-study-board | 課程能力、先修 SRV07、SRV12、LNX11 |
+| SRV13 | 伺服器故障排除方法 | 待能力 | SRV07、SRV12、LNX11 | case-study-board | 課程能力、先修 SRV07、SRV12 |
 | SRV14 | 網路與伺服器島綜合專題：架設 HTTPS 網站並追蹤請求 | 待能力 | SRV04、SRV08、SRV10、SRV11、SRV13 | challenge-stages | 課程能力、先修 SRV04、SRV08、SRV10、SRV11、SRV13 |
 
 ### 系統與雲端工程群島 · 雲端基礎設施島（CLD）

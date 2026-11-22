@@ -15,7 +15,15 @@
  * Engine stage E3 (§11): a state may carry its user and group database (accounts: /etc/passwd and /etc/group as data)
  * and a umask. `groups` is then the session's groups as they were at login (the kernel's view: joining a group takes
  * effect at the next login or with newgrp, as on Linux). Only the users profile's machines have them.
+ *
+ * Engine stages E4–E6 (§12–§14): a state may carry the last exit status, a fixed clock, a process table and jobs
+ * (processes.ts), a package database (packages.ts), and systemd's loaded units, their run state and the journal
+ * (services.ts). Only machines of the processes, packages and services profiles have them.
  */
+
+import type { Clock, Job, Proc } from './processes';
+import type { PackageDb } from './packages';
+import type { JournalEntry, ServiceDb } from './services';
 
 export interface FsNode {
   /** E1: 'link' is a symbolic link (the lab never has one). */
@@ -91,6 +99,22 @@ export interface FsState {
   accounts?: Accounts;
   /** E3: the session's umask (the users profile); new files are 666 & ~umask, new folders 777 & ~umask. Default 022. */
   umask?: number;
+  /** E4: the exit status of the last command line ($?), from the processes profile up. */
+  status?: number;
+  /** E4: the machine's fixed clock, load average and memory. */
+  clock?: Clock;
+  /** E4: the process table. */
+  processes?: readonly Proc[];
+  /** E4: the last pid handed out (new processes get the next one; pids are never reused). */
+  lastPid?: number;
+  /** E4: the session's background jobs (sleep N &). */
+  jobs?: readonly Job[];
+  /** E5: repositories, available and installed packages, holds. */
+  packages?: PackageDb;
+  /** E6: what systemd has loaded, each unit's run state, and the programs services run. */
+  services?: ServiceDb;
+  /** E6: the journal, oldest first. */
+  journal?: readonly JournalEntry[];
 }
 
 export const DEFAULT_HOST = 'logic-island';

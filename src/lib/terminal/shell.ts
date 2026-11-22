@@ -6,6 +6,10 @@ import { ACCOUNT_NAME, accountsOf, findGroup, findUser, groupById, loginGroups, 
 import { escapeGlob, expandGlob, hasMagic, type GlobIo } from './glob';
 import { helpPage, manualPage } from './manual';
 import * as text from './text';
+import * as proc from './processes';
+import { dateText } from './clock';
+import { apt, aptMark, dpkg } from './packages';
+import { afterSignal, journalctl, systemctl, type SysIo } from './services';
 
 /*
  * P7 Linux Terminal Simulator: the command interpreter. A fixed table of commands works on the virtual file system in
@@ -28,6 +32,9 @@ import * as text from './text';
  * (> >> < 2> 2>> 2>&1 >&2, /dev/null), standard input for the readers, and the text commands of text.ts plus tee.
  * Engine stage E3 (§11): USERS_PROFILE adds the feature accounts — the user and group database, id, groups, useradd,
  * usermod, groupadd, newgrp, sudo, chown, chgrp and umask.
+ * Engine stages E4–E6 (§12–§14): PROCESSES_PROFILE adds the feature processes — the process table, signals, jobs
+ * (sleep N &), the fixed clock and the exit status ($?, the only $ the lexer accepts); PACKAGES_PROFILE adds packages
+ * (apt, apt-mark, dpkg); SERVICES_PROFILE adds services (systemctl, journalctl). Each includes the profile below it.
  */
 
 export interface Line { text: string; kind: 'out' | 'err' }
@@ -40,18 +47,25 @@ export const E1_COMMANDS = ['uname', 'hostname', 'man', 'df', 'du', 'ln', 'readl
 export const E2_COMMANDS = ['less', 'head', 'tail', 'grep', 'sort', 'uniq', 'wc', 'cut', 'tr', 'tee'] as const;
 /** E3: the user, group and ownership commands (USERS_PROFILE). */
 export const E3_COMMANDS = ['id', 'groups', 'useradd', 'usermod', 'groupadd', 'newgrp', 'sudo', 'chown', 'chgrp', 'umask'] as const;
+/** E4: processes, signals, jobs and the fixed clock (PROCESSES_PROFILE and above). */
+export const E4_COMMANDS = ['ps', 'top', 'kill', 'pgrep', 'pidof', 'pkill', 'sleep', 'jobs', 'fg', 'bg', 'date', 'uptime'] as const;
+/** E5: package management (PACKAGES_PROFILE and above). */
+export const E5_COMMANDS = ['apt', 'apt-mark', 'dpkg'] as const;
+/** E6: systemd and the journal (SERVICES_PROFILE). */
+export const E6_COMMANDS = ['systemctl', 'journalctl'] as const;
 /** The commands of the files profile (the manual of E1 covers exactly these). */
 export type FilesCommand = typeof COMMANDS[number] | typeof E1_COMMANDS[number];
-export type CommandName = FilesCommand | typeof E2_COMMANDS[number] | typeof E3_COMMANDS[number];
+export type CommandName = FilesCommand | typeof E2_COMMANDS[number] | typeof E3_COMMANDS[number] | typeof E4_COMMANDS[number] | typeof E5_COMMANDS[number] | typeof E6_COMMANDS[number];
 /** Every command any profile may list. */
-export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS, ...E2_COMMANDS, ...E3_COMMANDS];
+export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS, ...E2_COMMANDS, ...E3_COMMANDS, ...E4_COMMANDS, ...E5_COMMANDS, ...E6_COMMANDS];
 
 /**
  * Behaviour a profile switches on besides its commands. E1: glob (* ? [...] and ~), help-option (指令 --help, long
  * options, GNU's Try line), multi-source (cp and mv with several sources into a folder), ls-extra (ls -h -d, operands
  * grouped like GNU ls). E2: pipes (pipelines, redirection, standard input). E3: accounts (users, groups, umask).
+ * E4: processes (the process table, jobs, $?). E5: packages. E6: services.
  */
-export type ShellFeature = 'glob' | 'help-option' | 'multi-source' | 'ls-extra' | 'pipes' | 'accounts';
+export type ShellFeature = 'glob' | 'help-option' | 'multi-source' | 'ls-extra' | 'pipes' | 'accounts' | 'processes' | 'packages' | 'services';
 
 /** LNX-0: the commands a session may run (E1: and the features it switches on; none by default). */
 export interface ShellProfile { readonly id: string; readonly commands: readonly CommandName[]; readonly features?: readonly ShellFeature[] }
@@ -77,8 +91,17 @@ export const USERS_PROFILE: ShellProfile = {
     'chown', 'chgrp', 'umask', 'id', 'groups', 'whoami', 'useradd', 'usermod', 'groupadd', 'newgrp', 'sudo', 'man', 'clear', 'help'],
   features: ['glob', 'help-option', 'multi-source', 'ls-extra', 'pipes', 'accounts'],
 };
+const LAST: readonly CommandName[] = ['man', 'clear', 'help'];
+/** A profile's commands with more added before man, clear and help. */
+const above = (below: ShellProfile, added: readonly CommandName[]): CommandName[] => [...below.commands.filter(c => !LAST.includes(c)), ...added, ...LAST];
+/** E4: the users profile plus processes, signals, jobs, the clock and $?. */
+export const PROCESSES_PROFILE: ShellProfile = { id: 'processes', commands: above(USERS_PROFILE, E4_COMMANDS), features: [...USERS_PROFILE.features!, 'processes'] };
+/** E5: the processes profile plus apt, apt-mark and dpkg. */
+export const PACKAGES_PROFILE: ShellProfile = { id: 'packages', commands: above(PROCESSES_PROFILE, E5_COMMANDS), features: [...PROCESSES_PROFILE.features!, 'packages'] };
+/** E6: the packages profile plus systemctl and journalctl. */
+export const SERVICES_PROFILE: ShellProfile = { id: 'services', commands: above(PACKAGES_PROFILE, E6_COMMANDS), features: [...PACKAGES_PROFILE.features!, 'services'] };
 /** The profiles a lesson machine may name (TerminalMachine.profile), from the narrowest. */
-export const PROFILES = { lab: LAB_PROFILE, files: FILES_PROFILE, streams: STREAMS_PROFILE, users: USERS_PROFILE } as const;
+export const PROFILES = { lab: LAB_PROFILE, files: FILES_PROFILE, streams: STREAMS_PROFILE, users: USERS_PROFILE, processes: PROCESSES_PROFILE, packages: PACKAGES_PROFILE, services: SERVICES_PROFILE } as const;
 export type ProfileId = keyof typeof PROFILES;
 
 /** Each help line with the command it describes (null: the heading); a profile prints the lines of its own commands. */
@@ -121,6 +144,23 @@ const HELP: [CommandName | null, string][] = [
   ['groupadd', '  groupadd [-r] 名稱        建立群組（需要 root）'],
   ['newgrp', '  newgrp [群組]            以新的群組身分繼續（剛加入的群組不必重新登入）'],
   ['sudo', '  sudo [-u 使用者] 指令…     以 root（或指定的使用者）身分執行'],
+  ['ps', '  ps [aux | -ef] [-u 使用者] [-p PID] [-o 欄位] [--sort=-%cpu]  列出行程'],
+  ['top', '  top -b -n 1 [-o %MEM]     一次的行程快照（依 %CPU 排序）'],
+  ['kill', '  kill [-訊號] PID|%工作…    送訊號（預設 SIGTERM，-9 是 SIGKILL）；kill -l 列出訊號'],
+  ['pgrep', '  pgrep [-l] [-a] [-f] 樣式   依名稱找出行程的 PID'],
+  ['pidof', '  pidof 程式               列出程式的 PID'],
+  ['pkill', '  pkill [-訊號] [-f] 樣式    依名稱送訊號'],
+  ['sleep', '  sleep 秒數 [&]           等待（模擬時鐘不前進，立即結束）；加 & 放到背景'],
+  ['jobs', '  jobs [-l]                列出背景工作'],
+  ['fg', '  fg [%N]                  把背景工作移到前景'],
+  ['bg', '  bg [%N]                  讓停止的工作在背景繼續'],
+  ['date', '  date                     顯示機器的時間（固定不動）'],
+  ['uptime', '  uptime                   開機多久與平均負載'],
+  ['apt', '  apt update|install|remove|purge|autoremove|upgrade|list|show|policy  套件管理（變更需要 root）'],
+  ['apt-mark', '  apt-mark hold|unhold|showhold 套件  鎖定套件的版本'],
+  ['dpkg', '  dpkg -l [樣式] | -L 套件 | -s 套件  查看已安裝的套件'],
+  ['systemctl', '  systemctl start|stop|restart|status|enable|disable|daemon-reload 服務  管理 systemd 服務'],
+  ['journalctl', '  journalctl [-u 服務] [-p err] [--since 時間] [-n N] [-r]  查詢 journal 日誌'],
   ['man', '  man 指令                顯示指令的說明頁（也可以用 指令 --help）'],
 ];
 /** The lines that change when a profile has the feature (the lab keeps its own lines). */
@@ -201,24 +241,34 @@ function lex(input: string): { words: Word[] } | { error: string } {
 const REFUSED = '此模擬器不支援管線、指令串接、變數與背景執行（| ; && $ `）；一次輸入一個指令。';
 /** E2: what the pipes feature still refuses. */
 const REFUSED_PIPES = '此模擬器不支援指令串接、變數、命令替換與背景執行（; && || $ ` &）；管線（|）與重新導向（> >> < 2> 2>&1）可以使用。';
+/** E4: what the processes feature still refuses ($? and a final & are allowed). */
+const REFUSED_STATUS = '此模擬器不支援指令串接、變數（$? 以外）與命令替換（; && || $ `）；背景執行只能在行尾（sleep 300 &）；管線與重新導向可以使用。';
 
 /**
  * E2: the words of a line for the pipes feature. Unquoted | < > >> are operators; a word that is just an unquoted 1 or 2
  * right before > makes it a redirection of that descriptor (2> 2>>), and >&1 >&2 duplicate one. ; && || $ ` and a
  * background & are refused, as are here-documents (<<).
  */
-function lexLine(input: string): { words: Word[] } | { error: string } {
+function lexLine(input: string, opts: { status?: number } = {}): { words: Word[]; background?: true } | { error: string } {
   const words: Word[] = [];
   let word = '', pattern = '', quote: '"' | "'" | null = null, started = false, quoted = false, tilde = false;
+  // E4 (processes): $? becomes the last exit status (not inside single quotes), and a final & runs the line in the background.
+  const status = opts.status !== undefined ? String(opts.status) : null, refused = status === null ? REFUSED_PIPES : REFUSED_STATUS;
   const reset = () => { word = ''; pattern = ''; started = false; quoted = false; tilde = false; };
   const end = () => { if (started) words.push({ text: word, pattern, ...tilde ? { tilde } : {} }); reset(); };
   const cs = Array.from(input);
   for (let i = 0; i < cs.length; i++) {
     const ch = cs[i];
+    if (status !== null && ch === '$' && cs[i + 1] === '?' && quote !== "'") { word += status; pattern += status; started = true; i++; continue; }
     if (quote) { if (ch === quote) quote = null; else { word += ch; pattern += escapeGlob(ch); } continue; }
     if (ch === '"' || ch === "'") { quote = ch; started = true; quoted = true; continue; }
     if (/\s/.test(ch)) { end(); continue; }
-    if (ch === ';' || ch === '`' || ch === '$' || ch === '&' || (ch === '|' && cs[i + 1] === '|') || (ch === '<' && cs[i + 1] === '<')) return { error: REFUSED_PIPES };
+    if (status !== null && ch === '&' && cs[i + 1] !== '&' && cs[i - 1] !== '&' && cs.slice(i + 1).every(c => /\s/.test(c))) {
+      end();
+      if (!words.length) return { error: 'bash: syntax error near unexpected token `&\'' };
+      return { words, background: true };
+    }
+    if (ch === ';' || ch === '`' || ch === '$' || ch === '&' || (ch === '|' && cs[i + 1] === '|') || (ch === '<' && cs[i + 1] === '<')) return { error: refused };
     if (ch === '|' || ch === '<') { end(); words.push({ text: ch, pattern: ch, op: ch }); continue; }
     if (ch === '>') {
       const fd = started && !quoted && (word === '1' || word === '2') ? word : '';
@@ -226,7 +276,7 @@ function lexLine(input: string): { words: Word[] } | { error: string } {
       let op = fd === '2' ? '2>' : '>';
       if (cs[i + 1] === '>') { op += '>'; i++; }
       else if (cs[i + 1] === '&') {
-        if (cs[i + 2] !== '1' && cs[i + 2] !== '2') return { error: REFUSED_PIPES };
+        if (cs[i + 2] !== '1' && cs[i + 2] !== '2') return { error: refused };
         op = `${fd === '2' ? '2' : ''}>&${cs[i + 2]}`;
         i += 2;
       }
@@ -281,7 +331,7 @@ function parseLine(words: Word[]): { stages: Stage[] } | { error: string } {
 
 /** E2: the command names a line runs — each stage of a pipeline and the command sudo runs (for the lesson validator). */
 export function commandNames(input: string): string[] {
-  const lexed = lexLine(input), parsed = 'error' in lexed ? null : parseLine(lexed.words);
+  const lexed = lexLine(input, { status: 0 }), parsed = 'error' in lexed ? null : parseLine(lexed.words);
   if (!parsed || 'error' in parsed) {
     const t = tokenize(input);
     return 'words' in t && t.words.length ? [t.words[0]] : [];
@@ -478,11 +528,16 @@ interface Ctx {
   stdinRegular: boolean;
   /** E2: whether standard output is the terminal (ls prints one name per line, without / and @, when it is not). */
   tty: boolean;
+  /** E4: the command words of every stage of the line (ps lists them as processes). */
+  peers?: string[][];
+  /** E4: run by sudo (kill is then /bin/kill, not bash's builtin). */
+  sudo?: boolean;
 }
-interface Exec { state: FsState; events: Ev[]; clear?: true }
+/** status: the exit status (E4: $?). notices: bash's job notices ([1]+  Terminated …), printed on the terminal. */
+interface Exec { state: FsState; events: Ev[]; status: number; clear?: true; notices?: string[] }
 
 /** Shell builtins: sudo cannot run them (sudo: cd: command not found, as on Linux). */
-const BUILTINS = ['cd', 'umask', 'help', 'newgrp'];
+const BUILTINS = ['cd', 'umask', 'help', 'newgrp', 'jobs', 'fg', 'bg'];
 
 /** The command line as one command: runs argv[0] of the profile with its arguments, standard input and output. */
 function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
@@ -490,6 +545,9 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
   const pipes = features.has('pipes'), gnu = features.has('help-option');
   const out: Ev[] = [];
   let size = 0, clipped = false;
+  /** E4: the exit status when it is not the default (1 after an error message, else 0; ls and sort use 2). */
+  let code: number | undefined;
+  const notices: string[] = [];
   const push = (ev: Ev) => {
     if (pipes) {
       if (clipped) return;
@@ -501,11 +559,12 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
   const print = (line: string) => push({ fd: 1, data: `${line}\n` });
   const write = (data: string) => { if (data) push({ fd: 1, data }); };
   const fail = (line: string) => push({ fd: 2, data: `${line}\n` });
-  const done = (next: FsState = state): Exec => {
-    if (clipped) out.push({ fd: 2, data: `（模擬環境：輸出超過 ${LIMITS.output} 個字元，其餘省略）\n` });
-    return { state: next, events: out };
-  };
   const [cmd, ...args] = words;
+  const done = (next: FsState = state): Exec => {
+    const failed = out.some(e => e.fd === 2);
+    if (clipped) out.push({ fd: 2, data: `（模擬環境：輸出超過 ${LIMITS.output} 個字元，其餘省略）\n` });
+    return { state: next, events: out, status: code ?? (failed ? (cmd === 'ls' || cmd === 'sort' ? 2 : 1) : 0), ...notices.length ? { notices } : {} };
+  };
   /** Fix 2: GNU follows a usage error with this line. */
   const usage = (line: string) => { fail(line); if (gnu) fail(`Try '${cmd} --help' for more information.`); };
   const badOption = (o: { bad: string; long?: true }) => usage(o.long ? `${cmd}: unrecognized option '${o.bad}'` : `${cmd}: invalid option -- '${o.bad}'`);
@@ -552,6 +611,9 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
     return o;
   };
   const accounts = (): Accounts => accountsOf(state);
+  /** E4–E6: how the process, package and service commands write and as whom they run. */
+  const pio = (): proc.ProcIo => ({ out: print, err: fail, user: state.user, ...ctx.sudo ? { sudo: true } : {} });
+  const sio = (): SysIo => ({ out: print, err: fail, user: state.user, tty: ctx.tty });
   /** E3: useradd, usermod and groupadd as an ordinary user (shadow-utils' messages). */
   const notRoot = (file: string) => { fail(`${cmd}: Permission denied.`); fail(`${cmd}: cannot lock ${file}; try again later.`); };
   const saveAccounts = (next: Accounts): Exec => { writeAccountFiles(nodes, next); return done({ ...state, nodes, accounts: next }); };
@@ -577,7 +639,7 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
     case 'whoami':
       if (gnu && args.length) { usage(`whoami: extra operand '${args[0]}'`); return done(); }
       print(state.user); return done();
-    case 'clear': return { state, events: [], clear: true };
+    case 'clear': return { state, events: [], status: 0, clear: true };
     case 'pwd': print(state.cwd); return done();
 
     case 'echo': {
@@ -747,7 +809,14 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
 
     case 'less': { const o = parsed('less'); if (o) text.less(textIo(), o); return done(); }
     case 'head': case 'tail': { const o = parsed(cmd, text.countShorthand(args)); if (o) text.headTail(textIo(), cmd as 'head' | 'tail', o); return done(); }
-    case 'grep': { const o = parsed('grep'); if (o) text.grep(textIo(), o); return done(); }
+    case 'grep': {
+      // E4: grep's status is 0 when a line was selected, 1 when none, 2 after an error.
+      const o = parsed('grep');
+      if (!o) { code = 2; return done(); }
+      const hit = text.grep(textIo(), o);
+      code = out.some(e => e.fd === 2) ? 2 : hit ? 0 : 1;
+      return done();
+    }
     case 'sort': { const o = parsed('sort'); if (o) text.sort(textIo(), o); return done(); }
     case 'uniq': { const o = parsed('uniq'); if (o) text.uniq(textIo(), o); return done(); }
     case 'wc': { const o = parsed('wc'); if (o) text.wc(textIo(), o); return done(); }
@@ -920,7 +989,7 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
       }
       if (!o.operands.length) { fail('What manual page do you want?'); fail("For example, try 'man man'."); return done(); }
       o.operands.forEach((page, i) => {
-        if (!(profile.commands as readonly string[]).includes(page)) { fail(`No manual entry for ${page}`); return; }
+        if (!(profile.commands as readonly string[]).includes(page)) { fail(`No manual entry for ${page}`); code = 16; return; }
         if (i && out.some(l => l.fd === 1)) print('');
         manualPage(page as CommandName, features).forEach(print);
       });
@@ -1193,8 +1262,10 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
       if (!who) { fail(`sudo: unknown user ${target}`); return done(); }
       if (BUILTINS.includes(rest[0]) || !(profile.commands as readonly string[]).includes(rest[0])) { fail(`sudo: ${rest[0]}: command not found`); return done(); }
       // The command runs as the target with the target's groups and home; the arguments were expanded by the learner's shell.
-      const r = exec({ ...cur(), user: who.name, groups: loginGroups(acc, who.name), home: who.home }, rest, ctx);
+      const r = exec({ ...cur(), user: who.name, groups: loginGroups(acc, who.name), home: who.home }, rest, { ...ctx, sudo: true });
       r.events.forEach(push);
+      code = r.status;
+      notices.push(...r.notices ?? []);
       const { user: _u, groups: _g, home: _h, ...kept } = r.state;
       void _u; void _g; void _h;
       return done({ ...kept, user: state.user, home: state.home, ...state.groups ? { groups: state.groups } : {} });
@@ -1239,8 +1310,44 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
       return commit();
     }
 
+    case 'ps': code = proc.ps(cur(), args, pio(), ctx.peers ?? [[...words]]); return done();
+    case 'top': code = proc.top(cur(), args, pio()); return done();
+    case 'pgrep': code = proc.pgrep(cur(), 'pgrep', args, pio()).status; return done();
+    case 'pidof': code = proc.pidof(cur(), args, pio()); return done();
+    case 'kill': case 'pkill': {
+      const r = cmd === 'kill' ? proc.kill(cur(), args, pio()) : proc.pgrep(cur(), 'pkill', args, pio());
+      notices.push(...r.notices);
+      code = r.status;
+      // E6: systemd notices when a service's main process ends (and Restart= may start it again).
+      return done(afterSignal(r.state, r.ended));
+    }
+    case 'sleep': { const p = proc.sleepProblem(args); if (p) usage(p); return done(); }
+    case 'jobs': code = proc.jobsCommand(cur(), args, pio()); return done();
+    case 'fg': case 'bg': { const r = proc.fgBg(cur(), cmd as 'fg' | 'bg', args, pio()); code = r.status; return done(r.state); }
+    case 'date':
+      if (args.length && !(args.length === 1 && args[0] === '-u')) { fail('date: 模擬環境的 date 只顯示機器固定的時間（不接受格式與設定）'); return done(); }
+      print(dateText(proc.clockOf(state).now)); return done();
+    case 'uptime':
+      if (args.length) { usage(`uptime: invalid option -- '${args[0].replace(/^-+/, '').slice(0, 1)}'`); return done(); }
+      print(` ${proc.uptimeLine(state)}`); return done();
+    case 'apt': { const r = apt(cur(), args, sio()); code = r.status; return done(r.state); }
+    case 'apt-mark': { const r = aptMark(cur(), args, sio()); code = r.status; return done(r.state); }
+    case 'dpkg': code = dpkg(cur(), args, sio()); return done();
+    case 'systemctl': { const r = systemctl(cur(), args, sio()); code = r.status; return done(r.state); }
+    case 'journalctl': code = journalctl(cur(), args, sio()); return done();
+
     default:
+      // E4: a path is a program to execute: bash's 127 when it is missing, 126 when it cannot be executed.
+      if (features.has('processes') && cmd.includes('/')) {
+        const w = walk(cur(), resolve(cmd));
+        if ('error' in w || !w.node) { fail(`bash: ${cmd}: ${ERRNO['error' in w ? w.error : 'ENOENT']}`); code = 'error' in w && w.error !== 'ENOENT' ? 126 : 127; }
+        else if (w.node.kind === 'dir') { fail(`bash: ${cmd}: Is a directory`); code = 126; }
+        else if (!allowed(w.node, 'x') || !(w.node.mode & 0o111)) { fail(`bash: ${cmd}: Permission denied`); code = 126; }
+        else { fail(`bash: ${cmd}: 模擬環境不執行程式檔（指令稿的直譯在之後的引擎階段）`); code = 126; }
+        return done();
+      }
       fail(`bash: ${cmd}: command not found（模擬環境支援：${profile.commands.join('、')}）`);
+      code = 127;
       return done();
   }
 }
@@ -1280,13 +1387,26 @@ type Target = { t: 'term'; kind: Line['kind'] } | { t: 'pipe' } | { t: 'null' } 
  * A stage of a pipeline with more than one stage is a subshell: cd, umask and newgrp there do not change the session.
  */
 function runLine(state: FsState, input: string, profile: ShellProfile, features: ReadonlySet<ShellFeature>): RunResult {
-  const fail = (text: string): RunResult => ({ state, lines: [{ text, kind: 'err' }] });
-  const lexed = lexLine(input);
+  // E4 (processes): every line sets $? (a syntax error is 2, as in bash; an empty line keeps it).
+  const statusMode = features.has('processes');
+  const withStatus = (s: FsState, status: number): FsState => statusMode ? { ...s, status } : s;
+  const fail = (text: string, status = 2): RunResult => ({ state: withStatus(state, status), lines: [{ text, kind: 'err' }] });
+  const lexed = lexLine(input, statusMode ? { status: state.status ?? 0 } : {});
   if ('error' in lexed) return fail(lexed.error);
   if (!lexed.words.length) return { state, lines: [] };
   const line = parseLine(lexed.words);
   if ('error' in line) return fail(line.error);
   if (line.stages.length > LIMITS.stages) return fail(`此模擬器的管線最多 ${LIMITS.stages} 段`);
+  if (lexed.background) {
+    // E4: only sleep runs in the background (it is the one program that would keep running); bash prints [job] pid.
+    const only = line.stages.length === 1 && !line.stages[0].redirects.length && line.stages[0].argv[0]?.text === 'sleep';
+    if (!only) return fail('bash: 模擬環境的背景執行（&）只支援 sleep，例如 sleep 300 &', 1);
+    const argv = expand(state, line.stages[0].argv, features, j => j === 0), problem = proc.sleepProblem(argv.slice(1));
+    if (problem) return { state: withStatus(state, 1), lines: [{ text: problem, kind: 'err' }, { text: "Try 'sleep --help' for more information.", kind: 'err' }] };
+    if (proc.tableOf(state).length >= proc.MAX_PROCESSES) return fail(`bash: fork: 模擬環境最多 ${proc.MAX_PROCESSES} 個行程`, 1);
+    const r = proc.startJob(state, argv);
+    return { state: withStatus(r.state, 0), lines: [{ text: r.notice, kind: 'out' }] };
+  }
   const shown: Shown[] = [];
   const route = (fds: readonly Target[], ev: Ev, piped: { data: string }) => {
     const to = fds[ev.fd];
@@ -1322,17 +1442,21 @@ function runLine(state: FsState, input: string, profile: ShellProfile, features:
     return { stage, fds, sinks, early, stdin, stdinRegular, ok };
   });
   // 2. The commands, one stage after another.
-  let cur: FsState = opened, pipe: string | null = null, clear = false;
+  let cur: FsState = opened, pipe: string | null = null, clear = false, status = 0;
+  const peers = line.stages.map(st => st.argv.map(w => w.text));
   for (const plan of plans) {
     const piped = { data: '' };
     plan.early.forEach(ev => route(plan.fds, ev, piped));
     let work = cur;
+    status = plan.ok ? 0 : 1;
     if (plan.ok && plan.stage.argv.length) {
       const argv = expand(work, plan.stage.argv, features, j => j === 0);
       const stdin = plan.stdin !== undefined ? plan.stdin : pipe;
-      const r = exec(work, argv, { profile, features, stdin, stdinRegular: plan.stdin !== undefined && plan.stdinRegular, tty: plan.fds[1].t === 'term' });
+      const r = exec(work, argv, { profile, features, stdin, stdinRegular: plan.stdin !== undefined && plan.stdinRegular, tty: plan.fds[1].t === 'term', peers });
       work = r.state;
+      status = r.status;
       r.events.forEach(ev => route(plan.fds, ev, piped));
+      for (const n of r.notices ?? []) shown.push({ kind: 'out', data: `${n}\n` });
       if (r.clear && plans.length === 1 && plan.fds[1].t === 'term') clear = true;
     }
     if (plan.sinks.length) {
@@ -1349,7 +1473,7 @@ function runLine(state: FsState, input: string, profile: ShellProfile, features:
     pipe = piped.data;
     cur = plans.length > 1 ? sameShell(work, state) : work;
   }
-  return { state: cur, lines: render(shown), ...clear ? { clear: true } : {} };
+  return { state: withStatus(cur, status), lines: render(shown), ...clear ? { clear: true } : {} };
 }
 
 /** E2: the state after a subshell: its file system and accounts, the shell's own working directory, umask and groups. */
