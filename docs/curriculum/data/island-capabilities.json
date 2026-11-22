@@ -98,7 +98,7 @@
     "linux-systems": {
       "capability": "terminal (machines as data, transcripts replayed to their exact output, exercises checked by replaying the learner's commands in the simulated shell)",
       "status": "ready",
-      "note": "LNX-0 built the capability on the P7 engine (14 commands, no pipes); LNX-1 added engine stage E1 (the files profile) and published LNX01–LNX04; LNX-2 added E2 (streams) and E3 (users) and published LNX05–LNX07; LNX-2 E2 and E3, LNX-3 E4–E6, LNX-4 E7–E9 (LNX0_TERMINAL_CAPABILITY.md)"
+      "note": "LNX-0 built the capability on the P7 engine (14 commands, no pipes); LNX-1 added engine stage E1 (the files profile) and published LNX01–LNX04; LNX-2 added E2 (streams) and E3 (users) and published LNX05–LNX07; LNX-3 added E4–E6 (processes, packages, services) and published LNX08–LNX11; LNX-2 E2 and E3, LNX-3 E4–E6, LNX-4 E7–E9 (LNX0_TERMINAL_CAPABILITY.md)"
     },
     "docker-containers": {
       "capability": "container simulation",

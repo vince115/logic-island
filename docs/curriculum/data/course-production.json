@@ -249,7 +249,22 @@
       ],
       "commit": "343d3d0",
       "tests": "驗證器、發布閘門 147/147、Vitest 3069（含 E2 40 個、E3 34 個引擎測試；每個範例重播到完全相同的輸出、每個練習的參考解答通過且常見錯誤不通過）、E2E 桌機＋手機旗標關 435（候選頁 2 個像素比對失敗為 main 既有回歸 #36）、網路預覽＋P9＋區域世界旗標開 252、LNX05 管線練習在 1280 與 390 寬實際操作（全部通過、無溢位、無錯誤）、測驗 24 題逐題複核、洩漏掃描",
-      "notes": "LNX-2：引擎階段 E2（streams：最多 8 段的管線、任何指令的 > >> < 2> 2>> 2>&1 與 /dev/null、head／tail／grep／sort／uniq／wc／cut／tr／tee）與 E3（users：帳號資料庫與重新產生的 /etc/passwd、/etc/group、/etc/shadow，id、groups、useradd、usermod、groupadd、newgrp、sudo、chown、chgrp、umask），並修正長選項、Try --help 第二行、~ 展開與 mv a dir/ 的訊息（LNX02 三個錯誤範例的輸出因此多一行）；文字處理與管線、使用者與群組、權限與 chmod 三課"
+      "notes": "LNX-2：引擎階段 E2（streams：最多 8 段的管線、任何指令的 > >> < 2> 2>> 2>&1 與 /dev/null、head／tail／grep／sort／uniq／wc／cut／tr／tee）與 E3（users：帳號資料庫與重新產生的 /etc/passwd、/etc/group、/etc/shadow，id、groups、useradd、usermod、groupadd、newgrp、sudo、chown、chgrp、umask），並修正長選項、Try --help 第二行、~ 展開與 mv a dir/ 的訊息（LNX02 三個錯誤範例的輸出因此多一行）；文字處理與管線、使用者與群組、權限與 chmod 三課",
+      "pr": "#60",
+      "merged": "5546e10"
+    },
+    {
+      "id": 18,
+      "date": "2026-11-22",
+      "lessons": [
+        "LNX08",
+        "LNX09",
+        "LNX10",
+        "LNX11"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "LNX-3：引擎階段 E4（processes：行程表、ps、top -b -n 1、kill 與各訊號的反應、jobs／fg／bg、$?）、E5（packages：Ubuntu noble 的 apt、dpkg 版本規則、相依、hold、purge 與 rc）、E6（services：unit 檔與 daemon-reload、systemctl、Restart= 與啟動上限、Requires／Wants、journalctl -u -p -S -U -n -r -g），機器宣告固定的 now 與 boot；行程與訊號、套件管理、systemd、日誌四課"
     }
   ]
 }

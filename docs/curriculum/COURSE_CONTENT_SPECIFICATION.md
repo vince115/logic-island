@@ -67,6 +67,7 @@
 | LNX-0（架構） | — | `terminal` 能力（模擬終端機的機器、重播的指令紀錄與以結果檢查的練習）、Linux 系統島登錄為預備島嶼（[LNX0_TERMINAL_CAPABILITY](LNX0_TERMINAL_CAPABILITY.md)）；LNX-1 至 LNX-5 依引擎階段 E1–E9 依序發布 |
 | LNX-1（見 [LINUX_SYSTEMS_ISLAND](LINUX_SYSTEMS_ISLAND.md)） | LNX01–04 | 引擎階段 E1（`files` profile）＋前四課；系統與雲端工程群島第一次有已開放的課 |
 | LNX-2 | LNX05–07 | 引擎階段 E2（`streams`）、E3（`users`）＋三課 |
+| LNX-3 | LNX08–11 | 引擎階段 E4–E6（`processes`、`packages`、`services`）＋四課 |
 | 之後 | 依 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 自動選擇 | 先修已滿足、能力已備妥、解鎖其他島最多的島優先；缺少的共用能力先做最小可用版本 |
 
 進度記錄在 [COURSE_PRODUCTION_PROGRESS](COURSE_PRODUCTION_PROGRESS.md)。
