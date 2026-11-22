@@ -13,19 +13,19 @@
 
 ## 總覽
 
-已發布 **173／520**（33.3%）；規劃中 347。
+已發布 **176／520**（33.8%）；規劃中 344。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
 | 程式與資訊群島 | 120 | 40 | 75.0% |
 | AI 人工智慧群島 | 20 | 140 | 12.5% |
 | 數位設計群島 | 0 | 56 | 0.0% |
-| 網頁與應用開發群島 | 4 | 51 | 7.3% |
+| 網頁與應用開發群島 | 7 | 48 | 12.7% |
 | 系統與雲端工程群島 | 29 | 60 | 32.6% |
 
 ## 下一批（自動選擇）
 
-**網頁基礎島（WEB）**：WEB05 CSS 選擇器、串接與特異性、WEB06 盒模型與一般排版流、WEB07 定位與堆疊順序、WEB08 JavaScript 與 DOM：選取與修改、WEB09 事件與事件委派。島嶼能力：可用；這幾堂解鎖其他島的 40 堂。
+**網頁基礎島（WEB）**：WEB08 JavaScript 與 DOM：選取與修改、WEB09 事件與事件委派、WEB10 非同步 JavaScript：Promise 與 async／await、WEB11 fetch、JSON 與 API、WEB12 瀏覽器儲存：localStorage 與 Cookie。島嶼能力：可用；這幾堂解鎖其他島的 19 堂。
 
 能力缺口中最優先的是 **大型語言模型島（LLM）**：需要 python-code + token, sampling and prompt explorers on recorded outputs (T3)；先修已滿足、可依序撰寫的有 3 堂，前 3 堂解鎖其他島的 58 堂。
 
@@ -54,9 +54,9 @@
 | 數位設計群島 | UX 研究島（UX） | 0／15 | case-analysis + model-diagram | 缺少 | UX01–UX15（15 堂） | 缺少課程能力 |
 | 數位設計群島 | 互動設計島（IXD） | 0／14 | case-analysis + a11y checks | 缺少 | IXD01–IXD14（14 堂） | 缺少課程能力 |
 | 數位設計群島 | 設計系統島（DSY） | 0／12 | design-token board | 缺少 | DSY01–DSY12（12 堂） | 缺少課程能力 |
-| 網頁與應用開發群島 | 網頁基礎島（WEB） | 4／15 | web-code (HTML, CSS and JavaScript pages in a sandboxed frame beside the DOM the browser built; exercises checked by steps on that page, verified in Chromium) | 可用 | WEB05–WEB15（11 堂） | — |
+| 網頁與應用開發群島 | 網頁基礎島（WEB） | 7／15 | web-code (HTML, CSS and JavaScript pages in a sandboxed frame beside the DOM the browser built; exercises checked by steps on that page, verified in Chromium) | 可用 | WEB08–WEB15（8 堂） | — |
 | 網頁與應用開發群島 | 前端開發島（FE） | 0／15 | web-code + state-flow trace | 缺少 | — | 缺少課程能力；FE01 需要尚未發布的 WEB09 |
-| 網頁與應用開發群島 | 響應式設計島（RWD） | 0／12 | web-code + responsive simulator (the standalone lab exists) | 缺少 | — | 缺少課程能力；RWD01 需要尚未發布的 WEB06 |
+| 網頁與應用開發群島 | 響應式設計島（RWD） | 0／12 | web-code + responsive simulator (the standalone lab exists) | 缺少 | RWD01–RWD12（12 堂） | 缺少課程能力 |
 | 網頁與應用開發群島 | 行動應用島（MOB） | 0／13 | web-code + case-analysis | 缺少 | — | 缺少課程能力；MOB01 需要尚未發布的 RWD01 |
 | 系統與雲端工程群島 | Linux 系統島（LNX） | 15／15 | terminal (machines as data, transcripts replayed to their exact output, exercises checked by replaying the learner's commands in the simulated shell) | 可用 | 全島完成 | — |
 | 系統與雲端工程群島 | Docker 容器島（DKR） | 0／15 | container simulation | 缺少 | DKR01–DKR15（15 堂） | 缺少課程能力 |
@@ -75,6 +75,7 @@
 | 機器學習島（ML） | python-code + data-explorer (fixed datasets, metrics computed in the browser) | 25 | 39 | — |
 | Docker 容器島（DKR） | container simulation | 15 | 23 | — |
 | 系統分析與設計島（SA） | model-diagram (UML, DFD, BPMN, state and sequence models, checked by structure) | 20 | 20 | — |
+| 響應式設計島（RWD） | web-code + responsive simulator (the standalone lab exists) | 12 | 13 | — |
 | DevOps 與 CI/CD 島（CICD） | pipeline simulation | 5 | 7 | — |
 | 管理資訊系統島（MIS） | case-analysis (scenario data, decision tables, KPI calculations checked by value) | 20 | 0 | — |
 | 生成式 AI 島（GEN） | precomputed pipeline steps (T3) | 1 | 0 | — |
@@ -94,7 +95,7 @@
 | 企業資訊系統 | 44／84 | 否 |
 | AI 研究 | 57／142 | 否 |
 | AI 應用工程 | 28／89 | 否 |
-| 前端工程 | 11／62 | 否 |
+| 前端工程 | 14／62 | 否 |
 | 產品設計 | 0／56 | 否 |
 | AI 架構 | 20／66 | 否 |
 | 全端部署 | 37／62 | 否 |
@@ -588,16 +589,16 @@
 | WEB02 | HTML 文件結構與語意元素 | 已發布（閘門通過） | WEB01 | dom-explorer | — |
 | WEB03 | 文字、連結、圖片與媒體 | 已發布（閘門通過） | WEB02 | dom-explorer | — |
 | WEB04 | 表單元素與原生驗證 | 已發布（閘門通過） | WEB02 | dom-explorer | — |
-| WEB05 | CSS 選擇器、串接與特異性 | 大綱 | WEB02 | dom-explorer | — |
-| WEB06 | 盒模型與一般排版流 | 待先修 | WEB05 | dom-explorer | 先修 WEB05 |
-| WEB07 | 定位與堆疊順序 | 待先修 | WEB06 | dom-explorer | 先修 WEB06 |
+| WEB05 | CSS 選擇器、串接與特異性 | 已發布（閘門通過） | WEB02 | dom-explorer | — |
+| WEB06 | 盒模型與一般排版流 | 已發布（閘門通過） | WEB05 | dom-explorer | — |
+| WEB07 | 定位與堆疊順序 | 已發布（閘門通過） | WEB06 | dom-explorer | — |
 | WEB08 | JavaScript 與 DOM：選取與修改 | 大綱 | WEB02、F13 | dom-explorer | — |
 | WEB09 | 事件與事件委派 | 待先修 | WEB08 | dom-explorer | 先修 WEB08 |
 | WEB10 | 非同步 JavaScript：Promise 與 async／await | 待先修 | WEB09 | concurrency-timeline | 先修 WEB09 |
 | WEB11 | fetch、JSON 與 API | 待先修 | WEB10 | protocol-sequence | 先修 WEB10 |
 | WEB12 | 瀏覽器儲存：localStorage 與 Cookie | 待先修 | WEB10 | memory-inspector | 先修 WEB10 |
 | WEB13 | 語意 HTML 與 ARIA 的無障礙實作 | 待先修 | WEB04、WEB09 | a11y-checker | 先修 WEB09 |
-| WEB14 | 網頁效能基礎：載入與 Core Web Vitals | 待先修 | WEB07、WEB11 | metric-explorer | 先修 WEB07、WEB11 |
+| WEB14 | 網頁效能基礎：載入與 Core Web Vitals | 待先修 | WEB07、WEB11 | metric-explorer | 先修 WEB11 |
 | WEB15 | 網頁基礎島綜合專題：無框架的小型網站 | 待先修 | WEB11、WEB13 | challenge-stages | 先修 WEB11、WEB13 |
 
 ### 網頁與應用開發群島 · 前端開發島（FE）
@@ -624,11 +625,11 @@
 
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
-| RWD01 | 響應式原則與行動優先 | 待能力 | WEB06 | responsive-sim | 課程能力、先修 WEB06 |
+| RWD01 | 響應式原則與行動優先 | 待能力 | WEB06 | responsive-sim | 課程能力 |
 | RWD02 | viewport 與相對單位 | 待能力 | RWD01 | responsive-sim | 課程能力、先修 RWD01 |
-| RWD03 | Flexbox 基礎：主軸與交錯軸 | 待能力 | WEB06 | flexbox-playground | 課程能力、先修 WEB06 |
+| RWD03 | Flexbox 基礎：主軸與交錯軸 | 待能力 | WEB06 | flexbox-playground | 課程能力 |
 | RWD04 | Flexbox 進階：伸縮、換行與對齊 | 待能力 | RWD03 | flexbox-playground | 課程能力、先修 RWD03 |
-| RWD05 | CSS Grid 基礎 | 待能力 | WEB06 | grid-playground | 課程能力、先修 WEB06 |
+| RWD05 | CSS Grid 基礎 | 待能力 | WEB06 | grid-playground | 課程能力 |
 | RWD06 | CSS Grid 進階：區域與自動排列 | 待能力 | RWD05 | grid-playground | 課程能力、先修 RWD05 |
 | RWD07 | Media Query 與斷點策略 | 待能力 | RWD02 | responsive-sim | 課程能力、先修 RWD02 |
 | RWD08 | Container Query | 待能力 | RWD07 | responsive-sim | 課程能力、先修 RWD07 |

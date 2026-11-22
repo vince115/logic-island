@@ -549,12 +549,15 @@ const networkServers: Outline[] = [
   serverFromBlueprint('SRV14', '把搬家當天的網域修好並用 certbot --nginx 取得 HTTPS 憑證，以 nginx 終止 TLS、把請求與轉送標頭交給私有網段的兩台應用伺服器（max_fails 與 backup），用 ufw 與 ssh -J 讓 22 只經由跳板機、8080 只給網頁伺服器，依資源設定 Cache-Control 並確認 CDN 邊緣節點的 HIT，以 dig、mtr、curl -v／-w、access.log 與 X-Forwarded-For 追蹤一個請求經過的每一段，最後依故障排除方法找出只壞了一台後端的防火牆規則並修好原因。', 90),
 ];
 
-/** WEB-1 (2026-11-23): the web foundations island's first lessons, written with the web-code capability (WEB0_WEB_CODE_CAPABILITY.md). */
+/** WEB-1 (2026-11-23): the web foundations island's first lessons, written with the web-code capability (WEB0_WEB_CODE_CAPABILITY.md); WEB-2 adds WEB05–WEB07. */
 const webFoundations: Outline[] = [
   webFromBlueprint('WEB01', '用同一個「小島圖書館」頁面依序加上 HTML、CSS 與 JavaScript，分清內容、外觀與行為的分工，走一遍瀏覽器從網址、解析 HTML 建立 DOM、計算樣式、版面配置到繪製的頁面載入流程，看懂原始碼與 DOM 為何不同，並用開發者工具的 Elements、Console 與 Network 面板檢查網頁。', 40),
   webFromBlueprint('WEB02', '寫出含 DOCTYPE、lang、charset 與 title 的文件骨架，分清元素、標籤、屬性與巢狀規則，用 header、nav、main、article、section、aside、footer 取代無意義的 div，並以不跳級的 h1–h6 標題層級與地標區域，讓頁面不靠外觀也讀得出結構。', 45),
   webFromBlueprint('WEB03', '用 em、strong、清單與 blockquote 標出文字的意義，以 a 與 href 寫出文字清楚的連結與頁內錨點，分辨相對與絕對路徑並安全地另開分頁，為圖片寫替代文字、標出 width 與 height、加上圖說，再用 audio、video、source 與 track 嵌入影音並提供字幕。', 45),
   webFromBlueprint('WEB04', '用 form、name 與送出按鈕組成表單並讀懂送出的資料，以 label 關聯每個欄位，依資料選擇 email、number、date、radio、select 等輸入類型，再用 required、min／max、pattern 等原生驗證屬性讓瀏覽器擋下漏填與格式錯誤，並確認表單只靠鍵盤也能填寫與送出。', 50),
+  webFromBlueprint('WEB05', '用型別、class、id、後代與子代選擇器及虛擬類別選取元素，依重要性、特異性與原始碼順序判斷串接時哪一條宣告勝出，分辨會繼承與不會繼承的屬性，並以低特異性的 class 寫法取代 id 與 !important。', 50),
+  webFromBlueprint('WEB06', '用內容、內距、邊框與外距四層算出元素的實際寬高，以 box-sizing: border-box 讓 width 代表整個盒子，分辨區塊與行內盒子在一般排版流中的排法並用 display 切換成 inline-block，預測上下相鄰與父子之間的外距合併，再用 margin: 0 auto 把有寬度的區塊置中。', 50),
+  webFromBlueprint('WEB07', '用 position 的 static、relative、absolute、fixed、sticky 讓盒子位移、離開一般排版流或在捲動時留在畫面上，找出絕對定位的包含區塊，做出角落徽章與固定頁首，並用堆疊順序、z-index 與堆疊環境判斷誰蓋住誰、z-index 為何無效。', 55),
 ];
 
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */

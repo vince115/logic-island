@@ -73,10 +73,11 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '快取、診斷與故障排除', summary: 'Cache-Control、驗證器與 304、CDN 邊緣節點的命中與過期、版本化檔名與快取清除、nginx 的 proxy_cache；由下而上排查連線：ip、dig、ping、traceroute 與 mtr、nc 與 ss、curl -w、tcpdump；依症狀建立假設、分辨 502 與 504、資源與日誌的時間線、修復後驗證', lessonIds: range('SRV', 11, 13) },
     { title: '綜合專題', summary: '架設並維運一個 HTTPS 網站：修好網域並取得憑證、反向代理與負載平衡、防火牆與跳板機、CDN 與快取，追蹤一個請求經過的每一段，再找出只壞了一台後端的故障', lessonIds: range('SRV', 14, 14) },
   ],
-  // WEB-1 (2026-11-23): the web foundations island's first unit.
+  // WEB-1 (2026-11-23): the web foundations island's first units; WEB-2 adds the CSS unit.
   'web-foundations': [
     { title: '網頁如何運作與 HTML 結構', summary: 'HTML、CSS 與 JavaScript 的分工、頁面載入流程、DOM 與開發者工具；文件骨架、語意元素、地標區域與標題層級', lessonIds: range('WEB', 1, 2) },
     { title: '內容與表單', summary: '文字的語意、連結與錨點、相對與絕對路徑、圖片的替代文字與尺寸、影音與字幕；表單控制項、label 關聯、輸入類型與原生驗證', lessonIds: range('WEB', 3, 4) },
+    { title: 'CSS：樣式、盒子與定位', summary: '選擇器、串接、特異性與繼承；盒模型、box-sizing、區塊與行內、外距合併；position 的五種值、包含區塊、z-index 與堆疊環境', lessonIds: range('WEB', 5, 7) },
   ],
   // CN-1 to CN-5: the whole island, CN01–CN20.
   networks: [

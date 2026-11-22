@@ -56,6 +56,7 @@ webCode: {
 | `check` | 讓核取方塊或選項按鈕成為指定狀態（需要時點擊） |
 | `key` | 在元素上觸發 `keydown`、`keyup`；指令稿產生的鍵盤事件沒有預設行為，所以模擬最常用的兩種：Enter／Space 啟動按鈕；欄位裡的 Enter 依瀏覽器的隱式送出規則送出表單（WEB-1：表單有送出按鈕時經由第一個送出按鈕，按鈕停用就不送出；沒有送出按鈕時，只有單一單行欄位的表單會送出） |
 | `submit` | 和送出按鈕相同的 `requestSubmit`（先原生驗證，再 `submit` 事件） |
+| `scroll` | 把頁面（`selector: ':page'`）或可捲動的元素捲到指定的垂直位置（WEB-2） |
 | `wait` | 讓計時器執行（每步最多 1000 ms，全部最多 3000 ms） |
 
 | 檢查 `check` | 看什麼 |
@@ -64,7 +65,8 @@ webCode: {
 | `text` | 第一個符合元素的文字（空白合併後相等或包含） |
 | `attr` | 屬性存在、等於、包含或不存在 |
 | `style` | `getComputedStyle` 的值；期望值可以用瀏覽器會解析成同一個值的任何寫法（`red`、`#f00`、`bold`／`700`），支援 `::before`、`::after` |
-| `box` | `getBoundingClientRect` 的寬、高或邊的位置（CSS 像素，預設容許 1px；可相對於另一個元素） |
+| `box` | `getBoundingClientRect` 的寬、高或邊的位置（CSS 像素，預設容許 1px）：預設從頁面的角落量（捲動不影響），`from: ':viewport'` 從視窗的角落量（WEB-2，捲動後檢查 fixed 與 sticky），`from: '<選擇器>'` 從另一個元素的角落量 |
+| `hit` | 元素中心點上畫在最上面的是哪一個元素（WEB-2，`document.elementFromPoint`）：檢查重疊與 z-index |
 | `value` | 表單控制項的值，或是否勾選 |
 | `label` | 表單控制項的標籤文字，依輔助科技讀取的順序：`aria-labelledby`、`aria-label`、對應的 `<label>`（`for` 或包住控制項） |
 | `headings` | 標題形成大綱：只有一個 `h1` 且在最前面，之後每個標題最多比前一個深一層 |
@@ -156,7 +158,7 @@ Chromium 是 Playwright 的 headless Chromium，頁面的載入方式和課程�
 | 批次 | 課 | 引擎 |
 |---|---|---|
 | WEB-1 | WEB01–WEB04 | W1（需要的部分） |
-| WEB-2 | WEB05–WEB07 | —（`style`、`box` 檢查已具備） |
+| WEB-2 | WEB05–WEB07 | `hit`、`scroll`、相對於視窗的 `box` |
 | WEB-3 | WEB08–WEB10 | W1、W2 |
 | WEB-4 | WEB11–WEB13 | W3、W4、W5 |
 | WEB-5 | WEB14–WEB15 | W6；綜合專題 |
