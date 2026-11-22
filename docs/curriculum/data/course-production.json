@@ -276,9 +276,9 @@
         "LNX13",
         "LNX14"
       ],
-      "commit": "TBD",
-      "tests": "TBD",
-      "notes": "LNX-4：引擎階段 E7（remote：遠端主機、ed25519 金鑰、ssh／ssh-copy-id／ssh-keyscan／scp、主機金鑰驗證、sshd 設定與 reload）、E8（scripting：Bash 指令稿的剖析與直譯，含 set -euo pipefail 與步驟上限）、E9（scheduling：Vixie cron、systemd-analyze calendar、timer 與 Persistent、flock、教學輔助指令 cron-next 與 cron-run）；E7 以上的參考解答改為每一步結束碼為 0；SSH（同時帶 network-protocol 情境）、Bash Script、cron 與 systemd timer 三課"
+      "commit": "9b8d25f",
+      "tests": "驗證器、發布閘門 154/154、Vitest 3210（含 E7 21、E8 25、E9 19 個引擎測試）、E2E 桌機＋手機旗標關 434＋旗標開 251：「所有完整教材」在手機抓到 LNX12 寬 518 px（題目段落裡的 SSH 指紋不能斷行、檔案樹撐寬欄位），修正 CSS 後課程、navigation、sql 125 與旗標開的課程、navigation、區域世界、島嶼互動 161 全過；其餘失敗僅候選頁 2 個像素比對（main 既有回歸 #36）、LNX13 的腳本練習在 1280 與 390 寬實際操作（全部通過、無溢位、無錯誤）、測驗 23 題逐題複核、洩漏掃描",
+      "notes": "LNX-4：引擎階段 E7（remote：遠端主機、ed25519 金鑰、ssh／ssh-copy-id／ssh-keyscan／scp、主機金鑰驗證、sshd 設定與 reload）、E8（scripting：Bash 指令稿的剖析與直譯，含 set -euo pipefail 與步驟上限）、E9（scheduling：Vixie cron、systemd-analyze calendar、timer 與 Persistent、flock、教學輔助指令 cron-next 與 cron-run）；E7 以上的參考解答改為每一步結束碼為 0；SSH（同時帶 network-protocol 情境）、Bash Script、cron 與 systemd timer 三課；LNX12 題目中的長指紋讓手機版頁面變寬：段落與清單改為長字可斷行、終端機檔案樹限制在欄寬內捲動"
     }
   ]
 }
