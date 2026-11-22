@@ -233,8 +233,8 @@
         "LNX03",
         "LNX04"
       ],
-      "commit": "TBD",
-      "tests": "TBD",
+      "commit": "c6a378e",
+      "tests": "驗證器、發布閘門 144/144、Vitest 2995（含 E1 引擎 37 個與 terminal 能力測試；每個範例重播到完全相同的輸出、每個練習的參考解答通過且常見錯誤不通過）、E2E 桌機＋手機旗標關 435（候選頁 2 個像素比對失敗為 main 既有回歸 #36）、網路預覽＋P9＋區域世界旗標開 252、練習主控台在 1280 與 390 寬實際操作（全部通過、無溢位、無錯誤）、測驗 32 題逐題複核、洩漏掃描",
       "notes": "LNX-1：Linux 系統島首批，以 terminal 能力（LNX-0，PR #58）與引擎階段 E1（files profile：uname、hostname、man／--help、df／du、萬用字元、符號連結、多來源 cp／mv）撰寫；Linux 概論與發行版、終端機與 Shell、FHS 與掛載、檔案與目錄操作；範例重播到完全相同的輸出、練習以狀態與輸出（含變體）檢查；系統與雲端工程群島第一次有已開放的課（區域狀態 available），Linux 系統島 mapState 維持 planned；以 linux-systems 當「規劃中」範例的測試改用其他島"
     }
   ]
