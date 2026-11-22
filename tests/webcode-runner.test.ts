@@ -176,6 +176,13 @@ describe('actions and what the frame records', () => {
     expect(r.console.slice(8).map(l => l.text)).toEqual(['micro', 'macro']);
     expect(r.results.slice(1).map(x => x.ok)).toEqual([true, false]);
   });
+  inBrowser('an uncaught error or rejection is the page\'s own: shown in its console, never reported against the page that hosts the frame', async () => {
+    const before = browser!.hostErrors().length;
+    const r = await page({ html: '<p>x</p>', js: "Promise.reject(new Error('later'));\nsetTimeout(() => { throw new TypeError('in a timer'); }, 0);\nmissing();" }, [{ do: 'wait', ms: 50 }, { check: 'count', selector: 'p', count: 1, label: 'p' }]);
+    expect(r.console.map(l => l.kind)).toEqual(['error', 'error', 'error']);
+    expect(r.console.map(l => l.text).sort()).toEqual(['Uncaught (in promise) Error: later', 'Uncaught ReferenceError: missing is not defined', 'Uncaught TypeError: in a timer']);
+    expect(browser!.hostErrors().slice(before)).toEqual([]);
+  });
   inBrowser('a link is recorded, never followed; a fragment link scrolls on the same page', async () => {
     const html = '<a id="out" href="https://example.com/next" target="_blank">外部</a> <a id="in" href="#bottom">往下</a><div style="height:2000px"></div><p id="bottom">底</p>';
     const steps: WebStep[] = [{ do: 'click', selector: '#out' }, { check: 'navigated', href: 'https://example.com/next', label: 'n1' }, { check: 'count', selector: '#bottom', count: 1, label: 'still here' },
@@ -196,6 +203,23 @@ describe('actions and what the frame records', () => {
     const r = await page({ html }, steps);
     expect(judge(steps, r.results).map(s => s.ok)).toEqual([true, true, true, true, true, false, true, true]);
     expect(r.submissions[0]).toEqual({ form: '<form#f>', handled: false, method: 'post', action: '/signup', data: [['email', 'a@example.com'], ['plan', 'free'], ['via', 'button']] });
+  });
+});
+
+describe('implicit submission', () => {
+  inBrowser('Enter in a field submits through the first submit button; without one, only a form with a single one-line field submits', async () => {
+    const enter = async (form: string) => {
+      const steps: WebStep[] = [{ do: 'key', selector: '#a', key: 'Enter' }, { check: 'submitted', count: 1, label: 'submitted' }];
+      const r = await page({ html: `<form>${form}</form>` }, steps);
+      return [r.results[1].ok, r.submissions[0]?.data.map(d => d.join('=')).join('&') ?? ''];
+    };
+    expect(await enter('<input id="a" name="a" value="1"><input name="b" value="2"><button name="go" value="yes">送出</button>')).toEqual([true, 'a=1&b=2&go=yes']);
+    expect(await enter('<input id="a" name="a" value="1">')).toEqual([true, 'a=1']);
+    expect(await enter('<input id="a" name="a" value="1"><input type="checkbox" name="c" checked><textarea name="t">x</textarea>')).toEqual([true, 'a=1&c=on&t=x']);
+    expect(await enter('<input id="a" name="a" value="1"><input name="b" value="2">')).toEqual([false, '']);
+    expect(await enter('<input id="a" name="a" value="1"><button disabled>送出</button>')).toEqual([false, '']);
+    expect(await enter('<input id="a" name="a" value="1"><input name="b"><button type="button">不是送出</button>')).toEqual([false, '']);
+    expect(await enter('<input id="a" name="a" required value=""><button>送出</button>')).toEqual([false, '']);
   });
 });
 
