@@ -270,7 +270,10 @@ export function clientAddress(state: FsState, at: 'self' | number, dest: string)
 export function upstreamOf(get: () => FsState, set: (s: FsState) => void, at: 'self' | number, depth = 0): UpstreamFn {
   return (proxyHost, address, port, scheme, req) => {
     const stripNet = (s: FsState): FsState => { const { net: _n, ...rest } = s; void _n; return rest; };
-    const origin = at === 'self' ? proxyHost : viewFrom(withHost(get(), at, proxyHost), at);
+    // SRV-5 fix: the root machine reached from elsewhere (a CDN edge, another proxy) comes without its network; nginx
+    // there proxies on exactly as for a local request, through the network of the root.
+    const bare = at === 'self' && !proxyHost.net && !!get().net;
+    const origin = placed(get, at, proxyHost);
     const done = (result: UpstreamResult, host = proxyHost) => ({ result, host });
     const r = reach(origin, address, port);
     if (r.result === 'timeout') return done({ kind: 'timeout' });
@@ -302,7 +305,7 @@ export function upstreamOf(get: () => FsState, set: (s: FsState) => void, at: 's
       res = a.res; served = a.host;
     }
     const delay = (res.wait ?? 0) + (res.upstreamMs ?? 0) / 1000;
-    if (r.at === 'self') return { ...done({ kind: 'response', res, delay }, at === 'self' ? served : stripNet(served)), ms };
+    if (r.at === 'self') return { ...done({ kind: 'response', res, delay }, at === 'self' && !bare ? served : stripNet(served)), ms };
     const idx = indexByName(get(), nameOf(r.host));
     if (idx !== undefined) {
       const root = get();
@@ -310,6 +313,16 @@ export function upstreamOf(get: () => FsState, set: (s: FsState) => void, at: 's
     }
     return { ...done({ kind: 'response', res, delay }), ms };
   };
+}
+
+/**
+ * A machine of the network rooted at get() as it sees the network from its place: a host of it through viewFrom, the root
+ * itself with the root's network (the root reached from another machine arrives without it, its net stripped).
+ */
+function placed(get: () => FsState, at: 'self' | number, host: FsState): FsState {
+  if (at !== 'self') return viewFrom(withHost(get(), at, host), at);
+  const net = get().net;
+  return host.net || !net ? host : { ...host, net };
 }
 
 /**
@@ -323,18 +336,19 @@ export function serveResponder(get: () => FsState, set: (s: FsState) => void, at
     if (depth >= 3) return { res: respond({ ...r, routes: [] }, req, now), host };
     const cfg = r.cdn;
     const fetch = (originReq: Request): OriginResult => {
-      const view = at === 'self' ? host : viewFrom(withHost(get(), at, host), at);
+      const view = placed(get, at, host);
       const found = isIPv4(cfg.origin) ? cfg.origin : (() => { const x = basicResolver(view, cfg.origin, 4); return 'found' in x ? x.found.address : undefined; })();
       if (!found) return { kind: 'failed', status: 502, ms: 0 };
       const fwd: Request = { ...originReq, headers: [...originReq.headers.filter(([k]) => k.toLowerCase() !== 'x-forwarded-for'), ['X-Forwarded-For', [header(req.headers, 'X-Forwarded-For'), client].filter(Boolean).join(', ')]] };
       const u = upstreamOf(get, set, at, depth + 1)(host, found, cfg.port ?? (cfg.scheme === 'https' ? 443 : 80), cfg.scheme ?? 'http', fwd);
       host = u.host;
       const ms = u.ms ?? 0;
-      if (u.result.kind === 'response') return { kind: 'response', res: u.result.res, ms: ms + u.result.delay * 1000 };
+      // SRV-5 fix: the origin's time (its waits and its own upstreams) counted once, as the edge's wait; ms is the network.
+      if (u.result.kind === 'response') return { kind: 'response', res: u.result.res, ms, ...u.result.delay ? { wait: u.result.delay } : {} };
       return { kind: 'failed', status: u.result.kind === 'timeout' ? 504 : 502, ms: ms + (u.result.kind === 'timeout' ? 60000 : 0) };
     };
     const out = cdnServe(host, r.id, cfg, req, fetch);
-    return { res: { ...out.res, ...out.ms ? { upstreamMs: out.ms } : {} }, host: out.host };
+    return { res: { ...out.res, ...out.ms ? { upstreamMs: out.ms } : {}, ...out.wait ? { wait: out.wait } : {} }, host: out.host };
   }
   const route = routeOf(r, req);
   if (route?.purge && (route.methods ?? ['POST']).includes(req.method)) return purgeApi(get, set, at, host, r, route, req, now);
