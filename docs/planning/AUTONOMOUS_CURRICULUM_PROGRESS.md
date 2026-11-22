@@ -25,7 +25,7 @@
 
 ## 下一批（自動選擇）
 
-目前沒有能力已備妥、先修已滿足的島嶼；先處理「能力缺口」的第一項。
+**網頁基礎島（WEB）**：WEB01 網頁如何運作：瀏覽器、HTML、CSS、JS、WEB02 HTML 文件結構與語意元素、WEB03 文字、連結、圖片與媒體、WEB04 表單元素與原生驗證、WEB05 CSS 選擇器、串接與特異性。島嶼能力：已備妥（可開始撰寫）；這幾堂解鎖其他島的 40 堂。
 
 能力缺口中最優先的是 **大型語言模型島（LLM）**：需要 python-code + token, sampling and prompt explorers on recorded outputs (T3)；先修已滿足、可依序撰寫的有 3 堂，前 3 堂解鎖其他島的 58 堂。
 
@@ -54,7 +54,7 @@
 | 數位設計群島 | UX 研究島（UX） | 0／15 | case-analysis + model-diagram | 缺少 | UX01–UX15（15 堂） | 缺少課程能力 |
 | 數位設計群島 | 互動設計島（IXD） | 0／14 | case-analysis + a11y checks | 缺少 | IXD01–IXD14（14 堂） | 缺少課程能力 |
 | 數位設計群島 | 設計系統島（DSY） | 0／12 | design-token board | 缺少 | DSY01–DSY12（12 堂） | 缺少課程能力 |
-| 網頁與應用開發群島 | 網頁基礎島（WEB） | 0／15 | web-code (HTML, CSS and DOM in a sandboxed frame, checked by DOM queries) | 缺少 | WEB01–WEB15（15 堂） | 缺少課程能力 |
+| 網頁與應用開發群島 | 網頁基礎島（WEB） | 0／15 | web-code (HTML, CSS and JavaScript pages in a sandboxed frame beside the DOM the browser built; exercises checked by steps on that page, verified in Chromium) | 已備妥（可開始撰寫） | WEB01–WEB15（15 堂） | — |
 | 網頁與應用開發群島 | 前端開發島（FE） | 0／15 | web-code + state-flow trace | 缺少 | — | 缺少課程能力；FE01 需要尚未發布的 WEB09 |
 | 網頁與應用開發群島 | 響應式設計島（RWD） | 0／12 | web-code + responsive simulator (the standalone lab exists) | 缺少 | — | 缺少課程能力；RWD01 需要尚未發布的 WEB06 |
 | 網頁與應用開發群島 | 行動應用島（MOB） | 0／13 | web-code + case-analysis | 缺少 | — | 缺少課程能力；MOB01 需要尚未發布的 RWD01 |
@@ -72,7 +72,6 @@
 | 島嶼 | 需要的能力 | 可依序撰寫 | 解鎖其他島 | 備註 |
 |---|---|---|---|---|
 | 大型語言模型島（LLM） | python-code + token, sampling and prompt explorers on recorded outputs (T3) | 3 | 58 | — |
-| 網頁基礎島（WEB） | web-code (HTML, CSS and DOM in a sandboxed frame, checked by DOM queries) | 15 | 40 | — |
 | 機器學習島（ML） | python-code + data-explorer (fixed datasets, metrics computed in the browser) | 25 | 39 | — |
 | Docker 容器島（DKR） | container simulation | 15 | 23 | — |
 | 系統分析與設計島（SA） | model-diagram (UML, DFD, BPMN, state and sequence models, checked by structure) | 20 | 20 | — |
@@ -585,21 +584,21 @@
 
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
-| WEB01 | 網頁如何運作：瀏覽器、HTML、CSS、JS | 待能力 | — | pipeline-diagram | 課程能力 |
-| WEB02 | HTML 文件結構與語意元素 | 待能力 | WEB01 | dom-explorer | 課程能力、先修 WEB01 |
-| WEB03 | 文字、連結、圖片與媒體 | 待能力 | WEB02 | dom-explorer | 課程能力、先修 WEB02 |
-| WEB04 | 表單元素與原生驗證 | 待能力 | WEB02 | dom-explorer | 課程能力、先修 WEB02 |
-| WEB05 | CSS 選擇器、串接與特異性 | 待能力 | WEB02 | dom-explorer | 課程能力、先修 WEB02 |
-| WEB06 | 盒模型與一般排版流 | 待能力 | WEB05 | dom-explorer | 課程能力、先修 WEB05 |
-| WEB07 | 定位與堆疊順序 | 待能力 | WEB06 | dom-explorer | 課程能力、先修 WEB06 |
-| WEB08 | JavaScript 與 DOM：選取與修改 | 待能力 | WEB02、F13 | dom-explorer | 課程能力、先修 WEB02 |
-| WEB09 | 事件與事件委派 | 待能力 | WEB08 | dom-explorer | 課程能力、先修 WEB08 |
-| WEB10 | 非同步 JavaScript：Promise 與 async／await | 待能力 | WEB09 | concurrency-timeline | 課程能力、先修 WEB09 |
-| WEB11 | fetch、JSON 與 API | 待能力 | WEB10 | protocol-sequence | 課程能力、先修 WEB10 |
-| WEB12 | 瀏覽器儲存：localStorage 與 Cookie | 待能力 | WEB10 | memory-inspector | 課程能力、先修 WEB10 |
-| WEB13 | 語意 HTML 與 ARIA 的無障礙實作 | 待能力 | WEB04、WEB09 | a11y-checker | 課程能力、先修 WEB04、WEB09 |
-| WEB14 | 網頁效能基礎：載入與 Core Web Vitals | 待能力 | WEB07、WEB11 | metric-explorer | 課程能力、先修 WEB07、WEB11 |
-| WEB15 | 網頁基礎島綜合專題：無框架的小型網站 | 待能力 | WEB11、WEB13 | challenge-stages | 課程能力、先修 WEB11、WEB13 |
+| WEB01 | 網頁如何運作：瀏覽器、HTML、CSS、JS | 大綱 | — | pipeline-diagram | — |
+| WEB02 | HTML 文件結構與語意元素 | 待先修 | WEB01 | dom-explorer | 先修 WEB01 |
+| WEB03 | 文字、連結、圖片與媒體 | 待先修 | WEB02 | dom-explorer | 先修 WEB02 |
+| WEB04 | 表單元素與原生驗證 | 待先修 | WEB02 | dom-explorer | 先修 WEB02 |
+| WEB05 | CSS 選擇器、串接與特異性 | 待先修 | WEB02 | dom-explorer | 先修 WEB02 |
+| WEB06 | 盒模型與一般排版流 | 待先修 | WEB05 | dom-explorer | 先修 WEB05 |
+| WEB07 | 定位與堆疊順序 | 待先修 | WEB06 | dom-explorer | 先修 WEB06 |
+| WEB08 | JavaScript 與 DOM：選取與修改 | 待先修 | WEB02、F13 | dom-explorer | 先修 WEB02 |
+| WEB09 | 事件與事件委派 | 待先修 | WEB08 | dom-explorer | 先修 WEB08 |
+| WEB10 | 非同步 JavaScript：Promise 與 async／await | 待先修 | WEB09 | concurrency-timeline | 先修 WEB09 |
+| WEB11 | fetch、JSON 與 API | 待先修 | WEB10 | protocol-sequence | 先修 WEB10 |
+| WEB12 | 瀏覽器儲存：localStorage 與 Cookie | 待先修 | WEB10 | memory-inspector | 先修 WEB10 |
+| WEB13 | 語意 HTML 與 ARIA 的無障礙實作 | 待先修 | WEB04、WEB09 | a11y-checker | 先修 WEB04、WEB09 |
+| WEB14 | 網頁效能基礎：載入與 Core Web Vitals | 待先修 | WEB07、WEB11 | metric-explorer | 先修 WEB07、WEB11 |
+| WEB15 | 網頁基礎島綜合專題：無框架的小型網站 | 待先修 | WEB11、WEB13 | challenge-stages | 先修 WEB11、WEB13 |
 
 ### 網頁與應用開發群島 · 前端開發島（FE）
 

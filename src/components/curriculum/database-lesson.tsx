@@ -2,6 +2,7 @@ import { islands, lessons } from '@/content/curriculum';
 import { hasCapability, type DriverExample, type ErDiagramExample, type LessonCode, type ErExercise, type LessonContent, type LessonMeta, type NetworkExercise, type NfExercise, type OpsExercise, type TxExercise } from '@/content/curriculum/schema';
 import type { NetworkScene } from '@/lib/network/model';
 import type { TerminalExercise, TerminalMachine } from '@/lib/terminal/lesson';
+import { mergeFiles, type WebExercise, type WebFilesPart } from '@/lib/webcode/lesson';
 import { highlightAll } from '@/lib/highlight/server';
 import { buildModel } from '@/lib/er/model';
 import { analyzeDecomposition, showSet } from '@/lib/normalization/fd';
@@ -10,6 +11,7 @@ import { BackupPlanner, BPlusExplorer, ErBuilder, NfExerciseBox, NfExplorer, Ops
 import { CodeTabs, LessonLanguages } from './code';
 import { NetworkExerciseBox, NetworkSceneView } from './network-protocol';
 import { TerminalCommands, TerminalExampleView, TerminalExerciseBox } from './terminal-lesson';
+import { WebExampleView, WebExerciseBox, WebSolution, type WebTokens } from './webcode-lesson';
 import { ChallengeStages, DsComparison } from './visualizations';
 import { ErDiagram, ErLegend } from './er-diagram';
 import { DecompositionSummary, NfStepsView, PartAnalysis, RelationHeader } from './normalization-view';
@@ -44,7 +46,15 @@ export function databaseExamples(content: LessonContent): Map<string, React.Reac
     // LNX-0: a transcript replayed on its machine (the validator guarantees the machine exists).
     ...(content.terminal?.examples ?? []).map(e => [e.id,
       <TerminalExampleView key={e.id} example={e} machine={content.terminal!.machines.find(m => m.id === e.machine)!}/>] as const),
+    // WEB-0: a page, its files highlighted here on the server, running in a sandboxed frame in the browser.
+    ...(content.webCode?.examples ?? []).map(e => [e.id, <WebExampleView key={e.id} example={e} tokens={webTokens(e.files)}/>] as const),
   ]);
+}
+
+/** WEB-0: a page's files highlighted on the server (colours only), for the client components that show them. */
+function webTokens(files: WebFilesPart): WebTokens {
+  return { ...(files.html !== undefined ? { html: highlight(files.html, 'HTML') } : {}), ...(files.css !== undefined ? { css: highlight(files.css, 'CSS') } : {}),
+    ...(files.js !== undefined ? { js: highlight(files.js, 'JavaScript') } : {}) };
 }
 
 /**
@@ -164,6 +174,20 @@ function TerminalExerciseView({ exercise, machines }: { exercise: TerminalExerci
   </article>;
 }
 
+function WebExerciseView({ exercise }: { exercise: WebExercise }) {
+  return <article className={styles.exercise} aria-labelledby={`${exercise.id}-title`}>
+    <h3 id={`${exercise.id}-title`}>{exercise.title}</h3>
+    <p><Rich text={exercise.statement}/></p>
+    <WebExerciseBox exercise={exercise} tokens={webTokens(exercise.fixed ?? {})}/>
+    <Hints hints={exercise.hints}/>
+    <details className={styles.details}><summary>常見錯誤（{exercise.mistakes.length}）</summary><ul>{exercise.mistakes.map(m => <li key={m.why}><Rich text={m.why}/></li>)}</ul></details>
+    <details className={styles.details}><summary>參考解答</summary>
+      <WebSolution exercise={exercise} tokens={webTokens(mergeFiles(undefined, exercise.solution))}/>
+      <p><Rich text={exercise.explanation}/></p>
+    </details>
+  </article>;
+}
+
 export function DatabaseLessonBody({ lesson, content, renderSection }: {
   lesson: LessonMeta; content: LessonContent; renderSection: (section: LessonContent['sections'][number]) => React.ReactNode;
 }) {
@@ -176,8 +200,9 @@ export function DatabaseLessonBody({ lesson, content, renderSection }: {
   const ops = hasCapability(lesson, 'architecture-diagram') ? content.ops : undefined;
   const network = hasCapability(lesson, 'network-protocol') ? content.network : undefined;
   const terminal = hasCapability(lesson, 'terminal') ? content.terminal : undefined;
+  const webCode = hasCapability(lesson, 'web-code') ? content.webCode : undefined;
   const viz = hasCapability(lesson, 'visualization') ? content.visualization : undefined;
-  const onlySql = !er?.exercises.length && !normalization?.exercises.length && !transactions?.exercises.length && !ops?.exercises.length && !network?.exercises.length && !terminal?.exercises.length;
+  const onlySql = !er?.exercises.length && !normalization?.exercises.length && !transactions?.exercises.length && !ops?.exercises.length && !network?.exercises.length && !terminal?.exercises.length && !webCode?.exercises.length;
   return <>
     <nav className={styles.toc} aria-label="本課內容">
       <ol>{content.sections.map(s => <li key={s.id}><a href={`#${s.id}`}>{s.title}</a></li>)}
@@ -215,6 +240,7 @@ export function DatabaseLessonBody({ lesson, content, renderSection }: {
         ops?.exercises.length ? '備份與複寫練習的答案由模擬器算出（還原步驟、複本延遲、切換時遺失的寫入），再和你的答案比對。' : '',
         network?.exercises.length ? '網路練習的答案從課內的網路情境讀出（某一步某一層的標頭欄位、協定所在的層）或計算（子網路位址），再和你的答案比對；大小寫與空白不影響結果。課程不連線到任何真實網路。' : '',
         terminal?.exercises.length ? '終端機練習在這個瀏覽器裡的模擬環境執行，不是真實的 Shell：按「檢查」時，重設之後輸入的指令會在練習的機器上重新執行一次，只看結果（檔案、權限、擁有者、內容、目前位置與印出的輸出），不看寫法；有些練習還會換一台檔案內容不同的機器再執行一次，確認輸出不是直接打出來的。' : '',
+        webCode?.exercises.length ? '網頁練習在這個瀏覽器的沙盒框架裡執行你寫的 HTML、CSS 與 JavaScript：框架不能讀取這個網站的資料，也不能連線到網路。按「檢查」時，你目前的檔案會載入一份全新、固定大小的頁面，依序做練習列出的步驟，只看瀏覽器實際建立的結果（元素、文字、屬性、計算後的樣式、盒子大小、主控台輸出），不看寫法，所以不同的正確寫法都會通過；有些練習還會換一份頁面資料再做一次，確認答案不是直接寫死的。不會結束的迴圈會被停止並顯示錯誤。' : '',
         sql?.exercises.some(e => e.plan || e.probes?.some(p => p.plan)) ? '有些 SQL 練習還會檢查查詢計畫（EXPLAIN QUERY PLAN）：只看是否用上索引、是否還要額外排序，不看索引的名稱。' : '',
         '網站不會上傳或儲存你的答案；練習不計入學習進度。',
       ].join('')}</p>
@@ -225,6 +251,7 @@ export function DatabaseLessonBody({ lesson, content, renderSection }: {
       {ops?.exercises.map(e => <OpsExerciseView key={e.id} exercise={e}/>)}
       {network?.exercises.map(e => <NetworkExerciseView key={e.id} exercise={e} scenes={network.scenes}/>)}
       {terminal?.exercises.map(e => <TerminalExerciseView key={e.id} exercise={e} machines={terminal.machines}/>)}
+      {webCode?.exercises.map(e => <WebExerciseView key={e.id} exercise={e}/>)}
     </section>
     <LessonCompletion lessonId={lesson.lessonId} quizTotal={content.quiz.length}
       island={{ name: island.name, lessonIds: lessons.filter(l => l.islandId === lesson.islandId && l.lessonStatus === 'complete').map(l => l.lessonId) }}/>

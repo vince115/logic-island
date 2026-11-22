@@ -391,6 +391,33 @@ export function terminalFromBlueprint(lessonId: string, summary: string, minutes
 export function serverFromBlueprint(lessonId: string, summary: string, minutes: number): Outline {
   return terminalOutline(lessonId, summary, minutes, 'network-servers', 'network and servers');
 }
+/**
+ * WEB-0 (2026-11-23): a web foundations lesson written from its blueprint outline (slug, title, objectives, concepts,
+ * difficulty, prerequisites). Its body is the web-code capability: pages in a sandboxed frame beside the DOM the browser
+ * built, and exercises checked on that page. dom-explorer is that activity. The island's other blueprint activities
+ * (pipeline-diagram, concurrency-timeline, memory-inspector, a11y-checker, metric-explorer) are not built: they stay in
+ * INTERACTIVE_LAB_ROADMAP and the lesson uses pages instead, never a stand-in; protocol-sequence (WEB11, fetch) becomes
+ * network-sequence with network scenes beside the pages; the capstone adds challenge-stages.
+ */
+const WEB_SHAPES: Readonly<Record<string, Pick<Outline, 'activity' | 'capabilities' | 'visualization'>>> = {
+  'dom-explorer': { activity: 'dom-explorer', capabilities: ['web-code'], visualization: 'none' },
+  'pipeline-diagram': { activity: 'dom-explorer', capabilities: ['web-code'], visualization: 'none' },
+  'concurrency-timeline': { activity: 'dom-explorer', capabilities: ['web-code'], visualization: 'none' },
+  'memory-inspector': { activity: 'dom-explorer', capabilities: ['web-code'], visualization: 'none' },
+  'a11y-checker': { activity: 'dom-explorer', capabilities: ['web-code'], visualization: 'none' },
+  'metric-explorer': { activity: 'dom-explorer', capabilities: ['web-code'], visualization: 'none' },
+  'protocol-sequence': { activity: 'network-sequence', capabilities: ['web-code', 'network-protocol'], visualization: 'none' },
+  'challenge-stages': { activity: 'challenge-stages', capabilities: ['web-code', 'visualization'], visualization: 'challenge-stages' },
+};
+export function webFromBlueprint(lessonId: string, summary: string, minutes: number): Outline {
+  const b = planning.plannedLessons.find(l => l.lessonId === lessonId);
+  if (!b || b.islandId !== 'web-foundations') throw new Error(`${lessonId} is not a web foundations lesson of the blueprint`);
+  const s = WEB_SHAPES[b.activity];
+  if (!s) throw new Error(`${lessonId}: no web lesson shape for the blueprint activity ${b.activity}`);
+  return { slug: b.slug, title: b.title, summary, objectives: b.learningObjectives, concepts: b.concepts, difficulty: b.difficulty as Difficulty,
+    minutes, prerequisites: b.prerequisites as LessonId[], recommended: b.recommended as AnyLessonId[], apcs: ['none'],
+    status: 'complete', version: '1.0.0', ...s, blueprintId: lessonId };
+}
 /** Batches 1–5: the programming-languages island's written lessons, PL20 its capstone. */
 const programmingLanguages: Outline[] = [
   programFromBlueprint('PL01', '用同一個「偶數平方和」問題比較命令式、程序式、物件導向與函數式寫法，認識宣告式的 SQL 與邏輯式的 Prolog，看懂 C++、Java、Python、JavaScript 各自支援的典範組合，並依可讀性與可變狀態選擇合適的風格。', 45, 'variable-state'),

@@ -51,6 +51,11 @@ jobs:
           distribution: temurin
           java-version: '25'
       - run: pnpm install --frozen-lockfile
+      # WEB-0: the web-code lessons' pages are checked in a real browser (tests/curriculum-webcode.test.ts and
+      # tests/webcode-runner.test.ts): Playwright's headless Chromium and the system libraries it needs. With CI set, those
+      # tests fail instead of skipping when the browser is missing.
+      - name: Chromium for the web-code lesson tests
+        run: pnpm exec playwright install --with-deps --only-shell chromium
       # T.3J: this job never has the private bank; if a checkout ever held one, its gates would not be the public ones.
       - name: No private bank in this checkout
         run: test ! -e private && test -z "${LOGIC_ISLAND_PRIVATE_BANK:-}"

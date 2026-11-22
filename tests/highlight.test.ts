@@ -36,14 +36,15 @@ describe('syntax highlighting', () => {
   it('colours keywords, types, functions, strings, numbers, comments and operators in each language', () => {
     const kinds = (code: string, language: HighlightLanguage) =>
       new Set(highlight(code, language).flat().filter(p => p[1]).map(p => TOKEN_KINDS[p[1]]));
-    const samples: Record<HighlightLanguage, string> = {
+    // WEB-0: HTML and CSS have no functions or operators; they have their own test below.
+    const samples: Record<Exclude<HighlightLanguage, 'HTML' | 'CSS'>, string> = {
       'C++': 'int main() {\n    std::string s = "hi"; // note\n    return s.size() + 1;\n}',
       Java: 'public class Main {\n    static int f(String s) { return s.length() + 1; } // note\n    static String g() { return "hi"; }\n}',
       Python: 'def f(s):\n    return len(s) + 1  # note\nprint(f("hi"), True)',
       JavaScript: 'function f(s) {\n    return s.length + 1; // note\n}\nconsole.log(f("hi"), true);',
       SQL: "SELECT name, COUNT(*) + 1 FROM students -- note\nWHERE grade >= 10 AND email = 'x'\nGROUP BY name;",
     };
-    for (const [language, code] of Object.entries(samples) as [HighlightLanguage, string][]) {
+    for (const [language, code] of Object.entries(samples) as [keyof typeof samples, string][]) {
       const found = kinds(code, language);
       // SQL: COUNT and the other functions are the grammar's built-ins.
       for (const kind of ['keyword', language === 'SQL' ? 'builtin' : 'function', 'string', 'number', 'comment', 'operator']) expect(found, `${language} ${kind}`).toContain(kind);
@@ -53,5 +54,17 @@ describe('syntax highlighting', () => {
     expect(kinds(samples.Python, 'Python')).toContain('constant');
     // Lower-case identifiers the SQL grammar lists as keywords (name) stay plain; upper-case keywords are coloured.
     expect(highlight('SELECT name FROM students;', 'SQL')[0]).toEqual([['SELECT ', 1], ['name ', 0], ['FROM', 1], [' students;', 0]]);
+  });
+
+  it('colours HTML tags, attribute names, values and comments, and CSS selectors, properties, numbers and comments (WEB-0)', () => {
+    const kinds = (code: string, language: HighlightLanguage) => new Set(highlight(code, language).flat().filter(p => p[1]).map(p => TOKEN_KINDS[p[1]]));
+    const html = '<!DOCTYPE html>\n<main class="page" id="top"> <!-- note -->\n  <a href="#top">連結</a>\n</main>';
+    const css = '/* note */\nmain .page > a:hover { color: #336699; margin: 0 auto 12px; content: "x"; }';
+    for (const kind of ['keyword', 'type', 'string', 'comment']) expect(kinds(html, 'HTML'), `HTML ${kind}`).toContain(kind);
+    for (const kind of ['keyword', 'type', 'variable', 'string', 'number', 'comment']) expect(kinds(css, 'CSS'), `CSS ${kind}`).toContain(kind);
+    for (const [code, language] of [[html, 'HTML'], [css, 'CSS']] as const)
+      highlight(code, language).forEach((line, i) => expect(line.map(p => p[0]).join(''), `${language} line ${i + 1}`).toBe(code.split('\n')[i]));
+    // Text between tags stays plain.
+    expect(highlight('<p>while (x) {}</p>', 'HTML')[0].find(p => p[0].includes('while'))![1]).toBe(0);
   });
 });
