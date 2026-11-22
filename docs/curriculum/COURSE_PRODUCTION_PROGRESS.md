@@ -6,11 +6,11 @@
 
 | 項目 | 數量 |
 |---|---|
-| 已發布課程 | 193 |
-| 規劃中課程 | 327 |
+| 已發布課程 | 197 |
+| 規劃中課程 | 323 |
 | 課程總數 | 520 |
-| 整體覆蓋率 | 37.1% |
-| 最近一批（第 33 批）完成 | 4 堂（RWD01、RWD02、RWD03、RWD04） |
+| 整體覆蓋率 | 37.9% |
+| 最近一批（第 34 批）完成 | 4 堂（RWD05、RWD06、RWD07、RWD08） |
 | 可完整學完的學習路線 | 2 條（APCS／資訊科學基礎、網路與系統）／12 條 |
 
 ## 批次
@@ -49,7 +49,8 @@
 | 30 | 2026-11-23 | WEB11、WEB12、WEB13 | `TBD` | #76 | `9ab9e93` | 驗證器、發布閘門、TypeScript、ESLint、Vitest（併入 main 之前的 WEB-4 樹：131 檔 3694 passed／9 skipped，含 Chromium：十三堂網頁課的每個頁面，以及模擬伺服器、儲存空間、無障礙名稱／角色與 Tab 順序的測試）、Production build、E2E 桌機＋手機旗標關 467 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上 52 個練習各做一遍）；併入 main（LLM-1）後重跑 TypeScript、ESLint、完整 Vitest 與 E2E、測驗 24 題逐題複核、洩漏掃描 |
 | 31 | 2026-11-23 | WEB14、WEB15 | `TBD` | #77 | `9fbf05d` | 驗證器、發布閘門、TypeScript、ESLint、Vitest（併入 main 之前的 WEB-5 樹：131 檔 3696 passed／9 skipped，含 Chromium：十五堂網頁課的每個頁面）、Production build、E2E 桌機＋手機旗標關 471 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上 61 個練習各做一遍）；併入 main（LLM-1）後重跑 TypeScript、ESLint、完整 Vitest 與 E2E、測驗 16 題逐題複核、洩漏掃描 |
 | 32 | 2026-11-23 | GEN01、GEN02 | `TBD` | — | 未合併 | TBD |
-| 33 | 2026-11-23 | RWD01、RWD02、RWD03、RWD04 | `TBD` | — | 未合併 | 驗證器、發布閘門、TypeScript、ESLint、Vitest 134 檔 3828 passed／9 skipped（併入 main 的 GEN-1 之後；含 Chromium：23 堂網頁課的每個範例、參考解答、起始內容與常見錯誤，各在一般與傳統捲軸的瀏覽器跑一遍；resize、預覽寬度、捲軸與站台減少動態規則的測試）、Production build、E2E 桌機＋手機旗標關 483 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上每個練習各做一遍，含多個寬度的檢查；預覽寬度、實驗頁的課程連結）、測驗 32 題逐題複核、洩漏掃描 |
+| 33 | 2026-11-23 | RWD01、RWD02、RWD03、RWD04 | `TBD` | #79 | 未合併 | 驗證器、發布閘門、TypeScript、ESLint、Vitest 134 檔 3828 passed／9 skipped（併入 main 的 GEN-1 之後；含 Chromium：23 堂網頁課的每個範例、參考解答、起始內容與常見錯誤，各在一般與傳統捲軸的瀏覽器跑一遍；resize、預覽寬度、捲軸與站台減少動態規則的測試）、Production build、E2E 桌機＋手機旗標關 483 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上每個練習各做一遍，含多個寬度的檢查；預覽寬度、實驗頁的課程連結）、測驗 32 題逐題複核、洩漏掃描 |
+| 34 | 2026-11-23 | RWD05、RWD06、RWD07、RWD08 | `TBD` | — | 未合併 | __TESTS__ |
 
 ## 各區域與島嶼
 
@@ -76,7 +77,7 @@
 | 數位設計群島 | 設計系統島 | DSY | 0 | 12 | 0.0% |
 | 網頁與應用開發群島 | 網頁基礎島 | WEB | 15 | 0 | 100.0% |
 | 網頁與應用開發群島 | 前端開發島 | FE | 0 | 15 | 0.0% |
-| 網頁與應用開發群島 | 響應式設計島 | RWD | 4 | 8 | 33.3% |
+| 網頁與應用開發群島 | 響應式設計島 | RWD | 8 | 4 | 66.7% |
 | 網頁與應用開發群島 | 行動應用島 | MOB | 0 | 13 | 0.0% |
 | 系統與雲端工程群島 | Linux 系統島 | LNX | 15 | 0 | 100.0% |
 | 系統與雲端工程群島 | Docker 容器島 | DKR | 0 | 15 | 0.0% |
@@ -347,10 +348,10 @@
 | RWD02 | viewport 與相對單位 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已完成（待合併） |
 | RWD03 | Flexbox 基礎：主軸與交錯軸 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已完成（待合併） |
 | RWD04 | Flexbox 進階：伸縮、換行與對齊 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已完成（待合併） |
-| RWD05 | CSS Grid 基礎 | 規劃中 | 大綱 | — | — | — | 規劃中 |
-| RWD06 | CSS Grid 進階：區域與自動排列 | 規劃中 | 大綱 | — | — | — | 規劃中 |
-| RWD07 | Media Query 與斷點策略 | 規劃中 | 大綱 | — | — | — | 規劃中 |
-| RWD08 | Container Query | 規劃中 | 大綱 | — | — | — | 規劃中 |
+| RWD05 | CSS Grid 基礎 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已完成（待合併） |
+| RWD06 | CSS Grid 進階：區域與自動排列 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已完成（待合併） |
+| RWD07 | Media Query 與斷點策略 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已完成（待合併） |
+| RWD08 | Container Query | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已完成（待合併） |
 | RWD09 | 流體字級與 clamp() | 規劃中 | 大綱 | — | — | — | 規劃中 |
 | RWD10 | 響應式圖片與媒體 | 規劃中 | 大綱 | — | — | — | 規劃中 |
 | RWD11 | 響應式導覽與表格 | 規劃中 | 大綱 | — | — | — | 規劃中 |
