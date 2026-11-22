@@ -1,3 +1,4 @@
+import type { Listen } from './sockets';
 import { childrenOf, groupsOf, physicalPath, type FsNode, type FsState } from './fs';
 import { accountsOf, findUser } from './accounts';
 import { DAY, isoStamp, journalStamp, parseSpan, parseWhen, relativeText, systemdStamp, type Seconds } from './clock';
@@ -38,6 +39,8 @@ export interface Program {
   fail?: { message: string; status?: number; unless?: string };
   /** Messages it journals after a successful start (info). */
   log?: readonly string[];
+  /** E10: the sockets the started process listens on (a port another process holds makes the start fail). */
+  listen?: readonly Listen[];
 }
 /** The run state of a unit, as systemctl status shows it. */
 export interface UnitRun {
@@ -299,6 +302,14 @@ function spawn(w: Work, name: string, c: UnitConfig): Spawn {
     log(w, name, commOf(exe.path), 3, program.fail!.message, pid);
     return { ok: false, pid, status: program.fail!.status ?? 1 };
   }
+  // E10: a port another running process listens on cannot be bound (EADDRINUSE), so the program exits at once.
+  const taken = program?.listen?.find(l => w.procs.some(p => !p.stat.startsWith('Z') && p.listen?.some(o => (o.proto ?? 'tcp') === (l.proto ?? 'tcp') && o.port === l.port
+    && ((o.address ?? '0.0.0.0') === '0.0.0.0' || (l.address ?? '0.0.0.0') === '0.0.0.0' || o.address === l.address))));
+  if (taken) {
+    if (c.type !== 'oneshot') sys(w, name, 6, `Started ${title}.`);
+    log(w, name, commOf(exe.path), 3, `bind() to ${taken.address ?? '0.0.0.0'}:${taken.port} failed (98: Address already in use)`, pid);
+    return { ok: false, pid, status: 1 };
+  }
   if (c.type === 'oneshot') {
     sys(w, name, 6, `${name}: Deactivated successfully.`);
     sys(w, name, 6, `Finished ${title}.`);
@@ -309,6 +320,7 @@ function spawn(w: Work, name: string, c: UnitConfig): Spawn {
   w.procs.push({
     pid, ppid: 1, user, command: program?.title ?? line.replace(/^[-@+!:]+/, ''), stat: 'Ss', cpu: program?.cpu ?? 0, rss: program?.rss ?? 4096, vsz: program?.vsz ?? 16384, shr: 2048,
     tty: '?', start: w.now, time: 0, nice: 0, unit: name, ...program?.term ? { term: program.term } : {}, ...program?.hup ? { hup: program.hup } : {},
+    ...program?.listen ? { listen: program.listen } : {},
   });
   for (const message of program?.log ?? []) log(w, name, commOf(exe.path), 6, message, pid);
   w.runtime[name] = { active: 'active', sub: 'running', since: w.now, main: pid };

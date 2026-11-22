@@ -5,6 +5,7 @@ import { matchName } from './glob';
 import { getopt } from './text';
 import { ERRNO, maskOf, readPath, runInput, walk, type Line, type RunResult, type ShellProfile } from './shell';
 import { MAX_JOURNAL } from './services';
+import { dnsResolver } from './dns';
 
 /*
  * Engine stage E7 (docs/curriculum/LNX0_TERMINAL_CAPABILITY.md §15): SSH between the machines of one lesson. Nothing
@@ -310,6 +311,18 @@ export function activeState(state: FsState): FsState {
   return at >= 0 ? state.net!.hosts[at].state : state;
 }
 const findHost = (net: Network, name: string) => net.hosts.findIndex(h => h.host === name || h.address === name || h.aliases.includes(name));
+/**
+ * E11: from the dns profile up, ssh looks a host name up like glibc (/etc/hosts, then DNS) and goes to the machine with that
+ * address (none: the connection times out); below it, as in E7, by the lesson's names, aliases and addresses.
+ */
+function lookupHost(state: FsState, name: string, io: Pick<RemoteIo, 'profile'>): { state: FsState; at: number } | { state: FsState; error: string } {
+  const net = state.net;
+  if (!io.profile.features?.includes('dns')) { const at = net ? findHost(net, name) : -1; return at < 0 ? { state, error: 'Name or service not known' } : { state, at }; }
+  const r = dnsResolver(state, name, 4);
+  if ('error' in r) return { state: r.state, error: r.error === 'notfound' ? 'Name or service not known' : 'Temporary failure in name resolution' };
+  const at = net ? net.hosts.findIndex(h => h.address === r.found.address || (h.state.sockets?.interfaces ?? []).some(i => i.address === r.found.address)) : -1;
+  return { state: r.state, at };
+}
 const withHost = (state: FsState, at: number, remote: FsState): FsState => ({ ...state, net: { ...state.net!, hosts: state.net!.hosts.map((h, i) => i === at ? { ...h, state: remote } : h) } });
 
 /** A remote state with a user logged in: home and working directory, login groups, a fresh shell. */
@@ -431,11 +444,13 @@ type Connected = { state: FsState; conn?: Connection; status: number; failedAt?:
  * local user's known_hosts, then authentication as the remote sshd's applied options allow. Prints what ssh prints on
  * standard error; returns the new local state (known_hosts, the remote journal) and the connection, or the exit status.
  */
-function connect(state: FsState, dest: string, c: Client, io: RemoteIo, only?: Auth[]): Connected {
-  const net = state.net;
+function connect(given: FsState, dest: string, c: Client, io: RemoteIo, only?: Auth[]): Connected {
+  const net = given.net;
   const userAt = dest.lastIndexOf('@'), name = userAt >= 0 ? dest.slice(userAt + 1) : dest, user = userAt >= 0 ? dest.slice(0, userAt) : c.user ?? io.user;
-  const at = net ? findHost(net, name) : -1;
-  if (!net || at < 0) { io.err(`ssh: Could not resolve hostname ${name}: Name or service not known`); return { state, status: 255, failedAt: 'host' }; }
+  const found = lookupHost(given, name, io), state = found.state;
+  if ('error' in found) { io.err(`ssh: Could not resolve hostname ${name}: ${found.error}`); return { state, status: 255, failedAt: 'host' }; }
+  const at = found.at;
+  if (!net || at < 0) { io.err(`ssh: connect to host ${name} port ${c.port ?? 22}: Connection timed out`); return { state, status: 255, failedAt: 'host' }; }
   const host = net.hosts[at], sshd = host.state.sshd, port = c.port ?? 22;
   if (!sshd || !sshdRunning(host.state) || sshd.applied.port !== port) { io.err(`ssh: connect to host ${name} port ${port}: Connection refused`); return { state, status: 255, failedAt: 'host' }; }
   let local = state;
@@ -807,8 +822,11 @@ function keyscan(state: FsState, args: readonly string[], io: RemoteIo): { state
   const port = Number(o.flags.get('p')?.at(-1) ?? 22), type = o.flags.get('t')?.at(-1);
   let status = 0;
   for (const name of o.operands) {
-    const at = state.net ? findHost(state.net, name) : -1, host = at >= 0 ? state.net!.hosts[at] : undefined;
-    if (!host) { io.err(`getaddrinfo ${name}: Name or service not known`); status = 1; continue; }
+    const found = lookupHost(state, name, io);
+    state = found.state;
+    if ('error' in found) { io.err(`getaddrinfo ${name}: ${found.error}`); status = 1; continue; }
+    const host = found.at >= 0 ? state.net!.hosts[found.at] : undefined;
+    if (!host) { status = 1; continue; }
     if (!host.state.sshd || !sshdRunning(host.state) || host.state.sshd.applied.port !== port) { status = 1; continue; }
     io.err(`# ${name}:${port} ${SSH_VERSION}`);
     if (type && !type.split(',').includes('ed25519')) continue;

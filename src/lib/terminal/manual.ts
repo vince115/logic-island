@@ -293,6 +293,65 @@ export const LATER_MANUAL: Record<'ssh' | 'ssh-keygen' | 'ssh-copy-id' | 'ssh-ke
   },
 };
 
+/** E10–E12 (SRV0_SERVER_CAPABILITY.md §6–§8): the network commands of the sockets, dns and http profiles. */
+export const SERVER_MANUAL: Record<'ss' | 'lsof' | 'nc' | 'ip' | 'getent' | 'dig' | 'host' | 'named-checkzone' | 'rndc' | 'resolvectl' | 'curl', ManualEntry> = {
+  ss: {
+    usage: 'ss [-t] [-u] [-l] [-a] [-n] [-p] [-4] [-H] [sport = :埠 | dport = :埠]', summary: '列出 socket（取代 netstat）',
+    description: ['預設只列出已建立的連線；-l 只列監聽中的 socket，-a 兩者都列。UDP 先列，再列 TCP。', '-p 的 users:((…)) 只顯示你能查看的行程：一般使用者只看到自己的，要看 root 或別人的行程請用 sudo。', 'Local Address 是 0.0.0.0 表示接受每個位址的連線；127.0.0.1 只接受本機自己的連線。'],
+    options: [['-t', 'TCP'], ['-u', 'UDP'], ['-l', '監聽中的 socket'], ['-a', '全部'], ['-n', '連接埠以數字顯示（不查 /etc/services）'], ['-p', '顯示使用 socket 的行程'], ['-H', '不印標題列']],
+  },
+  lsof: {
+    usage: 'lsof -i [4][tcp|udp][:埠] [-n] [-P] [-sTCP:LISTEN]', summary: '列出開啟網路 socket 的行程',
+    description: ['依 PID 排序；一般使用者只看到自己的行程，sudo lsof -i 才看得到全部。找不到時不印任何東西，結束碼 1。', 'NAME 欄的 * 表示所有位址；預設把埠換成 /etc/services 的名稱、位址換成 /etc/hosts 的名稱。'],
+    options: [['-i', '網路 socket（可加 :埠、tcp、udp）'], ['-n', '位址不換成名稱'], ['-P', '連接埠不換成名稱'], ['-s', '依狀態過濾，例如 -sTCP:LISTEN']],
+  },
+  nc: {
+    usage: 'nc -z [-v] [-n] [-w 秒] 主機 埠[-埠]', summary: '檢查能不能連到主機的 TCP 連接埠（netcat）',
+    description: ['succeeded：有程式在監聽；Connection refused：主機在，但那個位址與埠沒有程式在監聽；timed out：沒有機器回應這個位址。', '模擬環境沒有鍵盤輸入，只支援 -z 的連接埠檢查。'],
+    options: [['-z', '只檢查能否連線'], ['-v', '印出結果'], ['-n', '不查名稱（主機必須是位址）'], ['-w', '連線逾時的秒數']],
+  },
+  ip: {
+    usage: 'ip [-4] [-br] address|link|route [show [dev 介面]] | ip route get 位址', summary: '顯示網路介面、位址與路由（iproute2）',
+    description: ['lo 是本機的迴路介面（127.0.0.1/8）；inet 是 IPv4 位址與前綴長度，brd 是廣播位址。', 'ip route 的 default via 是預設閘道；ip route get 位址 顯示送到該位址會走哪個介面與閘道。模擬環境只能查看，不能修改。'],
+    options: [['-4', '只顯示 IPv4'], ['-br', '一個介面一行的簡短格式']],
+  },
+  getent: {
+    usage: 'getent hosts [名稱|位址…] | getent services [名稱|埠…]', summary: '依系統的設定查詢名稱資料庫',
+    description: ['hosts 依 /etc/hosts、再依 DNS（引擎階段 E11 起）找名稱，和 ssh、curl 找主機的方式相同；先找 IPv6 再找 IPv4。', 'services 查 /etc/services 的服務名稱與連接埠。找不到時結束碼 2。'],
+    options: [],
+  },
+  dig: {
+    usage: 'dig [@伺服器] 名稱 [類型] [+short] [+noall +answer] [+norecurse]', summary: '查詢 DNS 記錄',
+    description: ['沒有 @ 時問 /etc/resolv.conf 的 nameserver（Ubuntu 是本機的 127.0.0.53）；@伺服器 直接問那台 DNS 伺服器。', 'dig 不讀 /etc/hosts（本機的 127.0.0.53 會）。ANSWER 的第二欄是 TTL：經過快取時是剩下的秒數。', '支援的類型：A、AAAA、CNAME、MX、TXT、NS、SOA。'],
+    options: [['+short', '只印資料'], ['+noall', '關閉所有段落'], ['+answer', '印出 ANSWER 段落'], ['+norecurse', '不要求遞迴']],
+  },
+  host: {
+    usage: 'host [-t 類型] 名稱 [伺服器]', summary: '以簡短的句子查詢 DNS',
+    description: ['不指定類型時查 A、AAAA 與 MX；名稱不存在時印 not found: 3(NXDOMAIN)，結束碼 1。'],
+    options: [['-t', '記錄類型']],
+  },
+  'named-checkzone': {
+    usage: 'named-checkzone [-q] 區域 檔案', summary: '檢查 BIND 的區域檔',
+    description: ['和 named 載入時相同的檢查：語法、SOA 與 NS、CNAME 不能和其他記錄同名、NS 與 MX 指向的名稱要有位址。通過時印 loaded serial 與 OK。', '沒有結尾句點的名稱會接上 $ORIGIN（www.example.com 會變成 www.example.com.example.com.）。'],
+    options: [['-q', '不印訊息，只看結束碼']],
+  },
+  rndc: {
+    usage: 'rndc reload [區域]', summary: '控制執行中的 named',
+    description: ['named 只在啟動或 reload 時讀取區域檔：改了檔案之後要 sudo rndc reload（或 sudo systemctl reload named）。載入失敗的區域保留舊的資料。'],
+    options: [],
+  },
+  resolvectl: {
+    usage: 'resolvectl flush-caches', summary: '控制本機的解析器 systemd-resolved',
+    description: ['flush-caches 清除快取：之後的查詢重新向權威伺服器取得最新的記錄。模擬環境只支援 flush-caches。'],
+    options: [],
+  },
+  curl: {
+    usage: 'curl [-v] [-s] [-I] [-i] [-L] [-f] [-o 檔案] [-w 格式] [-H 標頭] [-X 方法] [-d 資料] [--resolve 主機:埠:位址] 網址…', summary: '送出 HTTP 請求並顯示回應',
+    description: ['-v 印出連線（*）、送出的請求（>）與收到的回應標頭（<）；-I 只送 HEAD 並印出回應標頭；-L 跟隨重新導向。', '-w 可用 %{http_code}、%{url_effective}、%{redirect_url}、%{num_redirects}、%{content_type}、%{size_download}、%{remote_ip}、%header{名稱} 等。', 'https:// 的 TLS 在引擎階段 E13 才模擬。模擬環境不印進度表。'],
+    options: [['-v', '詳細過程'], ['-s', '安靜（不印錯誤，加 -S 仍印）'], ['-I', '只要標頭（HEAD）'], ['-i', '輸出也包含回應標頭'], ['-L', '跟隨重新導向'], ['-o', '把內容寫入檔案'], ['-w', '結束後印出指定的資訊'], ['-H', '加上請求標頭'], ['-X', '請求方法'], ['-d', '以 POST 送出資料']],
+  },
+};
+
 /** The pages a feature changes: cat reads standard input and echo has -n with pipes; chmod has -R with accounts. */
 const FEATURE_MANUAL: [ShellFeature, CommandName, ManualEntry][] = [
   ['pipes', 'cat', { usage: 'cat [-n] [檔案]…', summary: '顯示檔案內容', description: ['依序印出每個檔案；沒有檔案（或檔名是 -）時讀標準輸入。'], options: [['-n', '在每一行前面加上行號']] }],
@@ -307,7 +366,7 @@ export function manualEntry(cmd: CommandName, features: Iterable<ShellFeature> =
   const special = FEATURE_MANUAL.find(([f, c]) => c === cmd && have.has(f));
   if (special) return special[2];
   return (MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd] ?? (STREAM_MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd] ?? (USER_MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd]
-    ?? (SYSTEM_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (LATER_MANUAL as Record<string, ManualEntry>)[cmd];
+    ?? (SYSTEM_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (LATER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (SERVER_MANUAL as Record<string, ManualEntry>)[cmd];
 }
 
 const optionLines = (options: [string, string][], indent: string, width: number) => options.map(([flag, text]) => `${indent}${flag.padEnd(width)}${text}`);

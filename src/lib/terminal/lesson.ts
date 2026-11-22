@@ -10,6 +10,11 @@ import { parseCron, sameCron, toLocal, zoneNamed, zoneOf } from './calendar';
 import { isoText } from './clock';
 import { allJobs } from './schedule';
 import { scriptCommandNames } from './script';
+import {
+  describeServerCheck, expandServer, interfacesOfMachine, serverCheckProblems, serverFailure, serverProblems, serverState,
+  type ServerCheck, type ServerLevels, type TerminalCacheEntry, type TerminalConnection, type TerminalInterface, type TerminalListen, type TerminalResponder, type TerminalZone,
+} from './server-lesson';
+import { dnsResolver } from './dns';
 
 /*
  * LNX-0 (2026-11-22): the terminal lesson capability (docs/curriculum/LNX0_TERMINAL_CAPABILITY.md). A Linux lesson
@@ -39,6 +44,12 @@ import { scriptCommandNames } from './script';
  * remote's files (host) and ask whether a login method is allowed (ssh) or a host is trusted (known-host). A scripting
  * machine runs scripts (and its prompt is the interpreter). A scheduling machine has a time zone and timers; checks may
  * ask for a cron job or a timer. A variant may replace a remote machine (another host key) or the clock (another now).
+ *
+ * Engine stages E10–E12 (SRV0_SERVER_CAPABILITY.md §9): the profiles 'sockets', 'dns' and 'http'. A sockets machine has
+ * interfaces, processes and programs that listen, connections, and gets Ubuntu's /etc/hosts, /etc/services and
+ * systemd-resolved unless listed (server-lesson.ts); a dns machine a resolver cache, the internet's zones and optionally
+ * named; an http machine HTTP responders. Checks may ask what listens (listen), what a name resolves to (dns) and what a
+ * URL answers (http). A variant may replace the resolver cache.
  */
 
 /** A file, folder or (from engine stage E1, not before) symbolic link of a machine. Paths are absolute and normalized. */
@@ -120,6 +131,22 @@ export interface TerminalMachine {
   timezone?: string;
   /** E9: whether the machine can send mail (cron mails a job's output; without one cron discards it). */
   mta?: boolean;
+  /** E10: interface addresses (default eth0 with address/24); lo is always there. */
+  interfaces?: TerminalInterface[];
+  /** E10: the default gateway (default the first address of eth0's network). */
+  gateway?: string;
+  /** E10: established or closing TCP connections (ss -tan, lsof -i). */
+  connections?: TerminalConnection[];
+  /** E10: whether systemd-resolved runs on 127.0.0.53 (default true). */
+  resolved?: boolean;
+  /** E11: a BIND server (zones from /etc/bind/named.conf.local), running or stopped. */
+  named?: true | 'stopped';
+  /** E11: the resolver's cache. */
+  dnsCache?: TerminalCacheEntry[];
+  /** E11 (the local machine): zones of the rest of the internet. */
+  internet?: TerminalZone[];
+  /** E12: the HTTP responders that listening sockets name (listen.http). */
+  responders?: TerminalResponder[];
 }
 
 /**
@@ -142,6 +169,18 @@ export interface TerminalRemote {
   /** Whether sshd runs (default true). */
   sshd?: boolean;
   journal?: TerminalJournalEntry[];
+  /** E10 (sockets and above): its interfaces, more processes, programs and services, connections, systemd-resolved. */
+  interfaces?: TerminalInterface[];
+  processes?: TerminalProcess[];
+  programs?: Program[];
+  services?: TerminalService[];
+  connections?: TerminalConnection[];
+  resolved?: boolean;
+  /** E11: a BIND server on it, and its resolver's cache. */
+  named?: true | 'stopped';
+  dnsCache?: TerminalCacheEntry[];
+  /** E12: its HTTP responders. */
+  responders?: TerminalResponder[];
 }
 
 /** E4: a process. Defaults: ppid 1, stat S, cpu 0, rss 0, vsz the rss, shr 0, tty ?, start the boot time, time 0, nice 0. */
@@ -153,6 +192,8 @@ export interface TerminalProcess {
   term?: 'exit' | 'ignore'; hup?: 'exit' | 'reload' | 'ignore'; int?: 'exit' | 'ignore';
   /** E9 (scheduling machines): lock files it holds (flock -n on them fails while it runs). */
   locks?: string[];
+  /** E10 (sockets machines): the sockets it listens on (its children of the same name hold them too). */
+  listen?: TerminalListen[];
 }
 /** E5: a machine's package data. stale: the lists were never fetched (apt sees nothing until apt update). */
 export interface TerminalPackages {
@@ -212,9 +253,11 @@ export type TerminalCheck =
   /** E9: a cron job (of user, in source: a path or "crontab" for users' crontabs) runs at this schedule (same times) with a command containing this text. */
   | { kind: 'cron'; user?: string; source?: string; schedule?: string; command?: string; absent?: true }
   /** E9: a timer is (not) active / enabled, its next elapse is this local time (YYYY-MM-DD HH:MM:SS). */
-  | { kind: 'timer'; unit: string; active?: boolean; enabled?: boolean; next?: string };
+  | { kind: 'timer'; unit: string; active?: boolean; enabled?: boolean; next?: string }
+  /** E10–E12: listen, dns and http (server-lesson.ts). */
+  | ServerCheck;
 export const TERMINAL_CHECK_KINDS = ['exists', 'absent', 'mode', 'owner', 'content', 'cwd', 'output', 'unchanged', 'link', 'user', 'group', 'umask', 'process', 'package', 'service',
-  'ssh', 'known-host', 'cron', 'timer'] as const satisfies readonly TerminalCheck['kind'][];
+  'ssh', 'known-host', 'cron', 'timer', 'listen', 'dns', 'http'] as const satisfies readonly TerminalCheck['kind'][];
 /** E7: the checks of files that may name a remote machine (host). */
 const PATH_KINDS = ['exists', 'absent', 'mode', 'owner', 'content', 'unchanged', 'link'];
 
@@ -226,6 +269,7 @@ export interface TerminalVariant {
   label: string; files: TerminalFile[]; host?: string; system?: Partial<SystemInfo>; /** E4 */ processes?: TerminalProcess[]; /** E6 */ journal?: TerminalJournalEntry[];
   /** E7: remote machines replaced by host (e.g. another host key). */ remotes?: TerminalRemote[];
   /** E9: another clock (next run times differ). */ now?: string;
+  /** E11: another resolver cache (other TTLs left). */ dnsCache?: TerminalCacheEntry[];
 }
 
 export interface TerminalExercise {
@@ -259,8 +303,10 @@ const SYSTEM_FIELDS = ['kernel', 'release', 'version', 'machine', 'os'] as const
 /** E1: the shell profile a machine's sessions use (lab unless it says files, streams or users). */
 export const profileOf = (machine: Pick<TerminalMachine, 'profile'>): ShellProfile => PROFILES[machine.profile ?? 'lab'] ?? LAB_PROFILE;
 /** Each profile includes the ones before it: files (E1) < streams (E2) < users (E3) < processes (E4) < packages (E5) < services (E6). */
-const RANK: Record<ProfileId, number> = { lab: 0, files: 1, streams: 2, users: 3, processes: 4, packages: 5, services: 6, remote: 7, scripting: 8, scheduling: 9 };
+const RANK: Record<ProfileId, number> = { lab: 0, files: 1, streams: 2, users: 3, processes: 4, packages: 5, services: 6, remote: 7, scripting: 8, scheduling: 9, sockets: 10, dns: 11, http: 12 };
 const rankOf = (machine: Pick<TerminalMachine, 'profile'>) => RANK[machine.profile ?? 'lab'] ?? 0;
+/** E10–E12: which of the server stages a machine's profile has. */
+const levelsOf = (machine: Pick<TerminalMachine, 'profile'>): ServerLevels => ({ sockets: rankOf(machine) >= RANK.sockets, dns: rankOf(machine) >= RANK.dns, http: rankOf(machine) >= RANK.http });
 
 /** E3: a users machine's database: the base and its user (defaultAccounts) with the machine's groups and users laid over it. */
 export function machineAccounts(machine: TerminalMachine): Accounts {
@@ -287,7 +333,9 @@ export function machineAccounts(machine: TerminalMachine): Accounts {
 }
 
 /** The machine as an engine state: / plus its files, its user, groups, host, home and working directory. */
-export function machineState(machine: TerminalMachine): FsState {
+export function machineState(given: TerminalMachine): FsState {
+  // E10–E12: what an Ubuntu server has unless the lesson lists it (nothing below the sockets profile).
+  const machine = expandServer(given, levelsOf(given));
   const nodes = new Map<string, FsNode>([['/', { kind: 'dir', mode: 0o755, owner: 'root' }]]);
   for (const f of machine.files) {
     nodes.set(f.path, {
@@ -311,7 +359,8 @@ export function machineState(machine: TerminalMachine): FsState {
   // E7: the other machines, each a whole state with its sshd; E9: the time zone.
   const scheduled: FsState = rankOf(machine) >= RANK.scheduling ? { ...system, schedule: { timezone: machine.timezone ?? 'UTC', mta: !!machine.mta } } : system;
   const hosts: RemoteHost[] = (machine.remotes ?? []).map(r => ({ host: r.host, address: r.address, aliases: [...r.aliases ?? []], passwords: [...r.passwords ?? []], state: remoteState(machine, r) }));
-  return { ...scheduled, net: { address: machine.address ?? '10.0.0.10', seed: machine.keySeed ?? machine.id, hosts, connections: 0 } };
+  const lv = levelsOf(machine), address = machine.address ?? (lv.sockets ? interfacesOfMachine(machine)[0]?.address : undefined) ?? '10.0.0.10';
+  return serverState(machine, { ...scheduled, net: { address, seed: machine.keySeed ?? machine.id, hosts, connections: 0 } }, lv);
 }
 
 const fileOf = (path: string, content: string, mode = 0o644): TerminalFile => ({ path, kind: 'file', mode, owner: 'root', content });
@@ -331,14 +380,20 @@ export function remoteMachine(machine: TerminalMachine, r: TerminalRemote): Term
   const listed = new Set(r.files.map(f => f.path));
   const files = [...r.files, ...generated.filter(f => !listed.has(f.path))].sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
   const running = r.sshd !== false;
+  // E10–E12: the remote's own interfaces, processes, services, DNS and HTTP data (only machines of those profiles have them).
+  const server = {
+    ...rankOf(machine) >= RANK.sockets ? { address: r.address } : {}, ...r.interfaces ? { interfaces: r.interfaces } : {}, ...r.programs ? { programs: r.programs } : {},
+    ...r.connections ? { connections: r.connections } : {}, ...r.resolved !== undefined ? { resolved: r.resolved } : {}, ...r.named !== undefined ? { named: r.named } : {},
+    ...r.dnsCache ? { dnsCache: r.dnsCache } : {}, ...r.responders ? { responders: r.responders } : {},
+  };
   return {
     id: `${machine.id}/${r.host}`, title: r.title ?? r.host, user: 'root', cwd: '/root', host: r.host, profile: machine.profile, files,
     ...r.accounts ? { accounts: r.accounts } : {}, ...machine.now ? { now: machine.now } : {}, ...machine.boot ? { boot: machine.boot } : {},
     ...machine.timezone ? { timezone: machine.timezone } : {},
     processes: [{ pid: 1, ppid: 0, user: 'root', command: '/sbin/init', stat: 'Ss' },
-      ...running ? [{ pid: 700, user: 'root', command: 'sshd: /usr/sbin/sshd -D [listener] 0 of 10-100 startups', stat: 'Ss', unit: 'ssh.service' }] : []],
-    services: [{ unit: 'ssh.service', active: running ? 'active' : 'inactive' }],
-    ...r.journal ? { journal: r.journal } : {},
+      ...running ? [{ pid: 700, user: 'root', command: 'sshd: /usr/sbin/sshd -D [listener] 0 of 10-100 startups', stat: 'Ss', unit: 'ssh.service' }] : [], ...r.processes ?? []],
+    services: [{ unit: 'ssh.service', active: running ? 'active' : 'inactive' }, ...r.services ?? []],
+    ...r.journal ? { journal: r.journal } : {}, ...server,
   };
 }
 /** E7: a remote machine's state: its own machine state (no network of its own) with its sshd's key and applied options. */
@@ -355,7 +410,7 @@ function systemState(machine: TerminalMachine, base: FsState): FsState {
     pid: p.pid, ppid: p.ppid ?? 1, user: p.user, command: p.command, stat: p.stat ?? 'S', cpu: p.cpu ?? 0, rss: p.rss ?? 0, vsz: p.vsz ?? p.rss ?? 0, shr: p.shr ?? 0,
     tty: p.tty ?? '?', start: p.start !== undefined ? parseTime(p.start)! : boot, time: p.time ?? 0, nice: p.nice ?? 0,
     ...p.unit ? { unit: unitName(p.unit) } : {}, ...p.term ? { term: p.term } : {}, ...p.hup ? { hup: p.hup } : {}, ...p.int ? { int: p.int } : {},
-    ...p.locks ? { locks: [...p.locks] } : {},
+    ...p.locks ? { locks: [...p.locks] } : {}, ...p.listen ? { listen: p.listen.map(l => ({ ...l })) } : {},
   }));
   let state: FsState = {
     ...base, status: 0, processes, lastPid: Math.max(0, ...processes.map(p => p.pid)),
@@ -407,7 +462,7 @@ export function variantMachine(machine: TerminalMachine, variant: TerminalVarian
     ...variant.host !== undefined ? { host: variant.host } : {}, ...variant.system ? { system: { ...machine.system, ...variant.system } } : {},
     ...variant.processes ? { processes: variant.processes } : {}, ...variant.journal ? { journal: variant.journal } : {},
     ...variant.remotes ? { remotes: (machine.remotes ?? []).map(r => variant.remotes!.find(v => v.host === r.host) ?? r) } : {},
-    ...variant.now !== undefined ? { now: variant.now } : {},
+    ...variant.now !== undefined ? { now: variant.now } : {}, ...variant.dnsCache ? { dnsCache: variant.dnsCache } : {},
   };
 }
 
@@ -440,6 +495,7 @@ export function describeCheck(check: TerminalCheck): string {
 }
 function describe(check: TerminalCheck): string {
   switch (check.kind) {
+    case 'listen': case 'dns': case 'http': return describeServerCheck(check);
     case 'exists': return `${check.path} 應該存在${check.type === 'dir' ? '（目錄）' : check.type === 'file' ? '（檔案）' : ''}`;
     case 'absent': return `${check.path} 應該不存在`;
     case 'mode': return `${check.path} 的權限應該是 ${octal(check.mode)}`;
@@ -500,6 +556,7 @@ function failure(check: TerminalCheck, start0: FsState, end0: FsState, outputs: 
   const node = 'path' in check ? end.nodes.get(check.path) : undefined;
   const kindName = (n: FsNode) => n.kind === 'dir' ? '目錄' : n.kind === 'link' ? '符號連結' : '檔案';
   switch (check.kind) {
+    case 'listen': case 'dns': case 'http': return serverFailure(check, end, h => hostState(end, h), dnsResolver);
     case 'exists':
       if (!node) return '它還不存在';
       return check.type && node.kind !== check.type ? `它是${kindName(node)}` : null;
@@ -636,7 +693,9 @@ export function checkTerminalExercise(exercise: TerminalExercise, machines: read
 }
 
 /** Problems with one machine's data (empty when it can be built). */
-export function machineProblems(machine: TerminalMachine): string[] {
+export function machineProblems(given: TerminalMachine): string[] {
+  // E10–E12: the machine as it runs, with what Ubuntu adds (the lesson's own data is validated with it).
+  const machine = expandServer(given, levelsOf(given));
   const problems: string[] = [];
   const fail = (what: string) => problems.push(`machine ${machine.id}: ${what}`);
   if (!machine.id.trim() || !machine.title.trim()) fail('needs an id and a title');
@@ -675,6 +734,7 @@ export function machineProblems(machine: TerminalMachine): string[] {
   problems.push(...accountProblems(machine, kinds).map(p => `machine ${machine.id}: ${p}`));
   if (!problems.length) problems.push(...systemProblems(machine).map(p => `machine ${machine.id}: ${p}`));
   if (!problems.length) problems.push(...laterProblems(machine).map(p => `machine ${machine.id}: ${p}`));
+  if (!problems.length) problems.push(...serverProblems(machine, levelsOf(machine)).map(p => `machine ${machine.id}: ${p}`));
   if (!normalized(homeOf(machine)) || kinds.get(homeOf(machine)) !== 'dir') fail(`the home ${homeOf(machine)} is not a folder of the machine`);
   if (machine.mounts !== undefined) {
     if (!files) fail('mounts need the files profile (engine stage E1)');
@@ -810,11 +870,15 @@ function laterProblems(machine: TerminalMachine): string[] {
   for (const s of machine.services ?? []) if (s.last !== undefined) { const t = parseTime(s.last); if (!unitName(s.unit).endsWith('.timer') || t === undefined || t > now) fail(`service ${s.unit}: last is a time not after now, for a timer`); }
   if (rank >= RANK.scripting) problems.push(...scriptProblems(machine.files, profileOf(machine), ''));
   const remotes = machine.remotes ?? [];
-  if (remotes.length > 4) fail('at most 4 remote machines');
-  const names = new Set<string>([machine.host ?? 'logic-island', machine.address ?? '10.0.0.10']);
+  // E10: a server lesson may need a few more machines (client, web, database, DNS…).
+  const most = rank >= RANK.sockets ? 6 : 4;
+  if (remotes.length > most) fail(`at most ${most} remote machines`);
+  const own = rank >= RANK.sockets ? interfacesOfMachine(machine).map(i => i.address) : [];
+  const names = new Set<string>([machine.host ?? 'logic-island', machine.address ?? '10.0.0.10', ...own]);
   for (const r of remotes) {
     const at = `remote ${r.host}`;
-    for (const n of [r.host, r.address, ...r.aliases ?? []]) { if (names.has(n)) fail(`${at}: the name or address ${n} is used twice`); names.add(n); }
+    const extra = rank >= RANK.sockets && r.interfaces ? interfacesOfMachine({ ...r, id: r.host }).map(i => i.address).filter(a => a !== r.address) : [];
+    for (const n of [r.host, r.address, ...r.aliases ?? [], ...extra]) { if (names.has(n)) fail(`${at}: the name or address ${n} is used twice`); names.add(n); }
     if (!HOST.test(r.host)) fail(`${at}: invalid host name`);
     if (!IPV4.test(r.address)) fail(`${at}: address ${r.address} is not an IPv4 address`);
     for (const a of r.aliases ?? []) if (!HOST.test(a) && !/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(a)) fail(`${at}: invalid alias ${a}`);
@@ -987,6 +1051,7 @@ export function terminalContentProblems(content: TerminalLessonContent, given?: 
       if (c.kind === 'ssh' && (!ACCOUNT_NAME.test(c.user) || !['publickey', 'password'].includes(c.method) || typeof c.allowed !== 'boolean')) fail(`${at}: an ssh check needs a user, a method (publickey or password) and allowed`);
       if (c.kind === 'cron' && (machineRank < RANK.scheduling || (c.schedule !== undefined && 'error' in parseCron(c.schedule.trim().split(/\s+/))) || (c.user !== undefined && !ACCOUNT_NAME.test(c.user)))) fail(`${at}: a cron check needs a scheduling machine (engine stage E9) and a valid schedule`);
       if (c.kind === 'timer' && (machineRank < RANK.scheduling || !TIMER.test(c.unit) || (c.next !== undefined && parseTime(c.next) === undefined))) fail(`${at}: a timer check needs a scheduling machine (engine stage E9), a unit like backup.timer and a next time YYYY-MM-DD HH:MM:SS`);
+      if (c.kind === 'listen' || c.kind === 'dns' || c.kind === 'http') { const p = serverCheckProblems(c, levelsOf(valid.get(x.machine) ?? {}), known); if (p) fail(`${at}: ${p}`); }
     }
     if (!x.solution.length || x.solution.length > TERMINAL_LIMITS.solution) fail(`${at}: the solution needs 1..${TERMINAL_LIMITS.solution} commands`);
     if (!x.mistakes.length) fail(`${at}: needs at least one typical mistake`);
@@ -1001,6 +1066,7 @@ export function terminalContentProblems(content: TerminalLessonContent, given?: 
     for (const v of x.variants ?? []) {
       if (!v.label.trim()) fail(`${at}: a variant needs a label`);
       if (v.now !== undefined && rankOf(machine) < RANK.processes) fail(`${at}: variant ${v.label}: now needs the processes profile (engine stage E4)`);
+      if (v.dnsCache !== undefined && rankOf(machine) < RANK.dns) fail(`${at}: variant ${v.label}: dnsCache needs the dns profile (engine stage E11)`);
       for (const r of v.remotes ?? []) if (!(machine.remotes ?? []).some(m => m.host === r.host)) fail(`${at}: variant ${v.label}: remote ${r.host} is not a remote of the machine`);
       const p = machineProblems(variantMachine(machine, v));
       if (p.length) { variantsOk = false; for (const q of p) fail(`${at}: variant ${v.label}: ${q}`); }

@@ -12,6 +12,7 @@ P7 的 Linux Terminal Simulator（`/learn/linux-terminal`）已經有純函式�
 | `src/lib/terminal/shell.ts` | 指令直譯器：`pwd`、`ls`、`cd`、`mkdir`、`touch`、`cat`、`cp`、`mv`、`rm`、`chmod`、`echo`（含 `>`、`>>`）、`whoami`、`clear`、`help`；拒絕管線、串接、變數與背景執行 |
 | `src/lib/terminal/tasks.ts` | 實驗的 7 個練習任務，只看檔案系統的結果 |
 | `src/lib/terminal/ssh.ts`、`script.ts`、`calendar.ts`、`schedule.ts` | E7–E9 新增（§15–§17）：SSH 與金鑰、Bash 直譯器、時區與 cron／calendar 運算式、排程的指令 |
+| `src/lib/terminal/sockets.ts`、`dns.ts`、`http.ts`、`server-lesson.ts` | E10–E12 新增（網路與伺服器島，見 §18 與 [SRV0_SERVER_CAPABILITY](SRV0_SERVER_CAPABILITY.md)）：socket、DNS、HTTP |
 
 LNX-0 把它變成課程能力，不改實驗的行為（`tests/terminal.test.ts` 與實驗元件不變）。
 
@@ -666,3 +667,12 @@ machines: [{ ..., profile: 'scheduling', timezone?: 'Asia/Taipei', mta?: false,
 - `tests/terminal-e9.test.ts`：profile 的分界、時區的偏移與兩種夏令時間規則（跳過與重複的一小時）、`date`／`TZ=`／`+格式`、`timedatectl`、cron 欄位與錯誤、日與週的 OR／AND 規則、夏令時間下的下一次、crontab 行（環境、使用者欄位、`bad command`、`premature EOF`）、systemd.time(7) 的正規化表、`systemd-analyze calendar` 的輸出、`crontab` 的安裝、標頭、權限與錯誤、`cron-next`（含 `-l` 與 CRON_TZ 的說明）、`cron-run`（PATH、`%`、MTA、MAILTO、journal）、`flock`、timer 的列表、狀態、`enable --now`、Persistent 的補執行、指令稿服務的 journal、沒有服務的 timer、解析警告、journal 的時區與 `--since`、課程資料與檢查。
 
 `tests/terminal-e1.test.ts` 只把 `PROFILES` 的期望值加上三個新 profile（和 E2–E6 時相同的更新方式）。已發布的 LNX01–LNX11 沒有修改，`terminalContentProblems` 都是空的；E7–E9 的 profile 都要求課程選用，較低的 profile、實驗與已發布的課逐字不變。
+
+## 18. 引擎階段 E10–E12（網路與伺服器島）
+
+> 2026-11-22。E10 起的引擎階段屬於網路與伺服器島（SRV），完整的說明只放在 [SRV0_SERVER_CAPABILITY](SRV0_SERVER_CAPABILITY.md)（§5 決定論的規則、§6 `sockets`、§7 `dns`、§8 `http`、§9 課程資料與檢查、§10 測試）。這裡只記錄和本文件的關係：
+
+- 線性鏈延續：lab < files < streams < users < processes < packages < services < remote < scripting < scheduling < `sockets`（E10）< `dns`（E11）< `http`（E12）；`RANK` 只比較名次，較高的 profile 包含較低的一切。
+- 較低的 profile 與已發布的 LNX01–LNX15 逐字不變：E10–E12 的指令在 `scheduling` 以下是 `command not found`，機器不會多出 `/etc/hosts`、`/etc/services`、systemd-resolved 等產生的東西，E7 的 ssh 仍依機器名稱找主機（從 `dns` 起才經由 `/etc/hosts` 與 DNS）。
+- E6 的 `programs` 與 E4 的行程可以宣告 `listen`（只有 `sockets` 以上的機器）；E7 的遠端機器在 `sockets` 以上可以有自己的行程、程式、服務、介面、named 與 HTTP 回應者，最多 6 台。
+- `tests/terminal-e1.test.ts` 的 `PROFILES` 期望值加上三個新 profile，和之前每個階段相同。

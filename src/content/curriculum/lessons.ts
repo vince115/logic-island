@@ -347,27 +347,49 @@ export function networkFromBlueprint(lessonId: string, summary: string, minutes:
     capabilities: capstone ? ['network-protocol', 'visualization'] : ['network-protocol'], blueprintId: lessonId };
 }
 /**
- * LNX-0 (2026-11-22): a Linux lesson written from its blueprint outline. Slug, title, objectives, concepts, difficulty
- * and prerequisites are the blueprint's. Its body is the terminal capability (machines, replayed transcripts, exercises
- * checked in the simulated shell). Activities: terminal-sim stays; the overview's case-study-board is not built (it stays
- * in INTERACTIVE_LAB_ROADMAP) and the lesson uses the terminal instead; SSH's protocol-sequence becomes network-sequence
- * with network scenes beside the terminal (protocol-sequence keeps meaning the database lessons' SQL round trips); the
- * capstone adds the challenge-stages visualization.
+ * LNX-0 and SRV-0 (2026-11-22): the lesson shapes of the terminal capability, by blueprint activity. terminal-sim stays; an
+ * overview's case-study-board is not built (it stays in INTERACTIVE_LAB_ROADMAP) and the lesson uses the terminal instead;
+ * protocol-sequence (LNX12 SSH, SRV10 tunnels) and the server island's request-path and architecture-diagram become
+ * network-sequence with network scenes beside the terminal (protocol-sequence keeps meaning the database lessons' SQL round
+ * trips, and architecture-diagram the database island's backup simulations: content.ops); a capstone adds challenge-stages.
  */
-export function terminalFromBlueprint(lessonId: string, summary: string, minutes: number): Outline {
+const TERMINAL_SHAPES: Readonly<Record<string, Pick<Outline, 'activity' | 'capabilities' | 'visualization'>>> = {
+  'terminal-sim': { activity: 'terminal-sim', capabilities: ['terminal'], visualization: 'none' },
+  'case-study-board': { activity: 'terminal-sim', capabilities: ['terminal'], visualization: 'none' },
+  'protocol-sequence': { activity: 'network-sequence', capabilities: ['terminal', 'network-protocol'], visualization: 'none' },
+  'request-path': { activity: 'network-sequence', capabilities: ['terminal', 'network-protocol'], visualization: 'none' },
+  'architecture-diagram': { activity: 'network-sequence', capabilities: ['terminal', 'network-protocol'], visualization: 'none' },
+  'challenge-stages': { activity: 'challenge-stages', capabilities: ['terminal', 'visualization'], visualization: 'challenge-stages' },
+};
+/** The activities each terminal island maps (the Linux island's blueprint has no request-path or architecture-diagram). */
+const TERMINAL_ACTIVITIES: Readonly<Record<'linux-systems' | 'network-servers', readonly string[]>> = {
+  'linux-systems': ['terminal-sim', 'case-study-board', 'protocol-sequence', 'challenge-stages'],
+  'network-servers': ['terminal-sim', 'case-study-board', 'protocol-sequence', 'request-path', 'architecture-diagram', 'challenge-stages'],
+};
+function terminalOutline(lessonId: string, summary: string, minutes: number, island: 'linux-systems' | 'network-servers', what: string): Outline {
   const b = planning.plannedLessons.find(l => l.lessonId === lessonId);
-  if (!b || b.islandId !== 'linux-systems') throw new Error(`${lessonId} is not a Linux systems lesson of the blueprint`);
-  const shape: Record<string, Pick<Outline, 'activity' | 'capabilities' | 'visualization'>> = {
-    'terminal-sim': { activity: 'terminal-sim', capabilities: ['terminal'], visualization: 'none' },
-    'case-study-board': { activity: 'terminal-sim', capabilities: ['terminal'], visualization: 'none' },
-    'protocol-sequence': { activity: 'network-sequence', capabilities: ['terminal', 'network-protocol'], visualization: 'none' },
-    'challenge-stages': { activity: 'challenge-stages', capabilities: ['terminal', 'visualization'], visualization: 'challenge-stages' },
-  };
-  const s = shape[b.activity];
+  if (!b || b.islandId !== island) throw new Error(`${lessonId} is not a ${what} lesson of the blueprint`);
+  const s = TERMINAL_ACTIVITIES[island].includes(b.activity) ? TERMINAL_SHAPES[b.activity] : undefined;
   if (!s) throw new Error(`${lessonId}: no terminal lesson shape for the blueprint activity ${b.activity}`);
   return { slug: b.slug, title: b.title, summary, objectives: b.learningObjectives, concepts: b.concepts, difficulty: b.difficulty as Difficulty,
     minutes, prerequisites: b.prerequisites as LessonId[], recommended: b.recommended as AnyLessonId[], apcs: ['none'],
     status: 'complete', version: '1.0.0', ...s, blueprintId: lessonId };
+}
+/**
+ * LNX-0 (2026-11-22): a Linux lesson written from its blueprint outline. Slug, title, objectives, concepts, difficulty
+ * and prerequisites are the blueprint's. Its body is the terminal capability (machines, replayed transcripts, exercises
+ * checked in the simulated shell); the activity follows TERMINAL_SHAPES.
+ */
+export function terminalFromBlueprint(lessonId: string, summary: string, minutes: number): Outline {
+  return terminalOutline(lessonId, summary, minutes, 'linux-systems', 'Linux systems');
+}
+/**
+ * SRV-0 (2026-11-22): a network and servers lesson written from its blueprint outline, the same way: the terminal
+ * capability (the engine stages E10–E19 of docs/curriculum/SRV0_SERVER_CAPABILITY.md), with network-protocol scenes for
+ * the request paths, the architecture overview (SRV05) and the tunnels (SRV10).
+ */
+export function serverFromBlueprint(lessonId: string, summary: string, minutes: number): Outline {
+  return terminalOutline(lessonId, summary, minutes, 'network-servers', 'network and servers');
 }
 /** Batches 1–5: the programming-languages island's written lessons, PL20 its capstone. */
 const programmingLanguages: Outline[] = [
