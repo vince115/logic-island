@@ -14,6 +14,9 @@ import { formatDate, UTC_ZONE, zoneDate, zoneNamed, zoneOf } from './calendar';
 import { activeState, remoteCommand, remoteRun, sshdControl } from './ssh';
 import { runBash, runExecutable, runInteractive, runText, scriptInPath, serviceScript, type ScriptCtx } from './script';
 import { scheduleCommand } from './schedule';
+import { basicResolver, getent, ip, lsof, nc, ss, type NetIo } from './sockets';
+import { afterSystemctl, dig, dnsResolver, host, namedCheckzone, resolvectl, rndc } from './dns';
+import { curl } from './http';
 
 /*
  * P7 Linux Terminal Simulator: the command interpreter. A fixed table of commands works on the virtual file system in
@@ -43,6 +46,10 @@ import { scheduleCommand } from './schedule';
  * known_hosts, sshd_config; ssh.ts); SCRIPTING_PROFILE adds scripting — a bounded Bash interpreter for script files and
  * for the prompt itself (script.ts); SCHEDULING_PROFILE adds scheduling — time zones, crontabs and systemd timers
  * (schedule.ts, calendar.ts). Each again includes the profile below it.
+ * Engine stages E10–E12 (docs/curriculum/SRV0_SERVER_CAPABILITY.md): SOCKETS_PROFILE adds the feature sockets — interfaces
+ * and listening sockets derived from processes (ss, lsof, nc -z, ip, getent; sockets.ts); DNS_PROFILE adds dns — zone
+ * files served by named, a caching stub resolver and name lookups through /etc/hosts and DNS (dig, host, named-checkzone,
+ * rndc, resolvectl; dns.ts); HTTP_PROFILE adds http — HTTP/1.1 responders and curl (http.ts).
  */
 
 export interface Line { text: string; kind: 'out' | 'err' }
@@ -67,22 +74,30 @@ export const E7_COMMANDS = ['ssh', 'ssh-keygen', 'ssh-copy-id', 'ssh-keyscan', '
 export const E8_COMMANDS = ['bash', 'sh', 'test', '[', 'printf', 'true', 'false'] as const;
 /** E9: scheduling (SCHEDULING_PROFILE); cron-next and cron-run are the simulation's teaching helpers, not real commands. */
 export const E9_COMMANDS = ['crontab', 'cron-next', 'cron-run', 'flock', 'timedatectl', 'systemd-analyze'] as const;
+/** E10: sockets, interfaces and ports (SOCKETS_PROFILE and above). */
+export const E10_COMMANDS = ['ss', 'lsof', 'nc', 'ip', 'getent'] as const;
+/** E11: DNS (DNS_PROFILE and above). */
+export const E11_COMMANDS = ['dig', 'host', 'named-checkzone', 'rndc', 'resolvectl'] as const;
+/** E12: HTTP with curl (HTTP_PROFILE). */
+export const E12_COMMANDS = ['curl'] as const;
 /** The commands of the files profile (the manual of E1 covers exactly these). */
 export type FilesCommand = typeof COMMANDS[number] | typeof E1_COMMANDS[number];
 export type CommandName = FilesCommand | typeof E2_COMMANDS[number] | typeof E3_COMMANDS[number] | typeof E4_COMMANDS[number] | typeof E5_COMMANDS[number] | typeof E6_COMMANDS[number]
-  | typeof E7_COMMANDS[number] | typeof E8_COMMANDS[number] | typeof E9_COMMANDS[number];
+  | typeof E7_COMMANDS[number] | typeof E8_COMMANDS[number] | typeof E9_COMMANDS[number] | typeof E10_COMMANDS[number] | typeof E11_COMMANDS[number]
+  | typeof E12_COMMANDS[number];
 /** Every command any profile may list. */
 export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS, ...E2_COMMANDS, ...E3_COMMANDS, ...E4_COMMANDS, ...E5_COMMANDS, ...E6_COMMANDS,
-  ...E7_COMMANDS, ...E8_COMMANDS, ...E9_COMMANDS];
+  ...E7_COMMANDS, ...E8_COMMANDS, ...E9_COMMANDS, ...E10_COMMANDS, ...E11_COMMANDS, ...E12_COMMANDS];
 
 /**
  * Behaviour a profile switches on besides its commands. E1: glob (* ? [...] and ~), help-option (指令 --help, long
  * options, GNU's Try line), multi-source (cp and mv with several sources into a folder), ls-extra (ls -h -d, operands
  * grouped like GNU ls). E2: pipes (pipelines, redirection, standard input). E3: accounts (users, groups, umask).
  * E4: processes (the process table, jobs, $?). E5: packages. E6: services. E7: remote (ssh). E8: scripting (the Bash
- * interpreter, also at the prompt). E9: scheduling (time zones, cron, timers).
+ * interpreter, also at the prompt). E9: scheduling (time zones, cron, timers). E10: sockets. E11: dns. E12: http.
  */
-export type ShellFeature = 'glob' | 'help-option' | 'multi-source' | 'ls-extra' | 'pipes' | 'accounts' | 'processes' | 'packages' | 'services' | 'remote' | 'scripting' | 'scheduling';
+export type ShellFeature = 'glob' | 'help-option' | 'multi-source' | 'ls-extra' | 'pipes' | 'accounts' | 'processes' | 'packages' | 'services' | 'remote' | 'scripting' | 'scheduling'
+  | 'sockets' | 'dns' | 'http';
 
 /** LNX-0: the commands a session may run (E1: and the features it switches on; none by default). */
 export interface ShellProfile { readonly id: string; readonly commands: readonly CommandName[]; readonly features?: readonly ShellFeature[] }
@@ -123,10 +138,16 @@ export const REMOTE_PROFILE: ShellProfile = { id: 'remote', commands: above(SERV
 export const SCRIPTING_PROFILE: ShellProfile = { id: 'scripting', commands: above(REMOTE_PROFILE, E8_COMMANDS), features: [...REMOTE_PROFILE.features!, 'scripting'] };
 /** E9: the scripting profile plus crontab, systemd timers, time zones and flock. */
 export const SCHEDULING_PROFILE: ShellProfile = { id: 'scheduling', commands: above(SCRIPTING_PROFILE, E9_COMMANDS), features: [...SCRIPTING_PROFILE.features!, 'scheduling'] };
+/** E10: the scheduling profile plus interfaces, listening sockets, ss, lsof, nc -z, ip and getent. */
+export const SOCKETS_PROFILE: ShellProfile = { id: 'sockets', commands: above(SCHEDULING_PROFILE, E10_COMMANDS), features: [...SCHEDULING_PROFILE.features!, 'sockets'] };
+/** E11: the sockets profile plus zones, named, the stub resolver's cache, dig, host, named-checkzone, rndc and resolvectl. */
+export const DNS_PROFILE: ShellProfile = { id: 'dns', commands: above(SOCKETS_PROFILE, E11_COMMANDS), features: [...SOCKETS_PROFILE.features!, 'dns'] };
+/** E12: the dns profile plus HTTP responders and curl. */
+export const HTTP_PROFILE: ShellProfile = { id: 'http', commands: above(DNS_PROFILE, E12_COMMANDS), features: [...DNS_PROFILE.features!, 'http'] };
 /** The profiles a lesson machine may name (TerminalMachine.profile), from the narrowest. */
 export const PROFILES = {
   lab: LAB_PROFILE, files: FILES_PROFILE, streams: STREAMS_PROFILE, users: USERS_PROFILE, processes: PROCESSES_PROFILE, packages: PACKAGES_PROFILE, services: SERVICES_PROFILE,
-  remote: REMOTE_PROFILE, scripting: SCRIPTING_PROFILE, scheduling: SCHEDULING_PROFILE,
+  remote: REMOTE_PROFILE, scripting: SCRIPTING_PROFILE, scheduling: SCHEDULING_PROFILE, sockets: SOCKETS_PROFILE, dns: DNS_PROFILE, http: HTTP_PROFILE,
 } as const;
 export type ProfileId = keyof typeof PROFILES;
 
@@ -204,6 +225,17 @@ const HELP: [CommandName | null, string][] = [
   ['flock', '  flock [-n] 鎖檔 指令…       取得鎖才執行，避免重疊執行'],
   ['timedatectl', '  timedatectl              顯示時間與時區'],
   ['systemd-analyze', '  systemd-analyze calendar 運算式  計算 OnCalendar= 接下來的觸發時間'],
+  ['ss', '  ss [-t] [-u] [-l] [-a] [-n] [-p]  列出 socket（-tlnp：監聽中的 TCP 埠與程式）'],
+  ['lsof', '  lsof -i [:埠] [-n] [-P]        列出開啟網路 socket 的行程（看別人的行程要 sudo）'],
+  ['nc', '  nc -zv 主機 埠               檢查能不能連到主機的 TCP 埠'],
+  ['ip', '  ip addr | ip -br addr | ip route  顯示介面位址與路由'],
+  ['getent', '  getent hosts 名稱 | services 名稱  依 /etc/hosts、DNS 與 /etc/services 查詢'],
+  ['dig', '  dig [@伺服器] 名稱 [類型] [+short]  查詢 DNS 記錄'],
+  ['host', '  host [-t 類型] 名稱 [伺服器]     以簡短的句子查詢 DNS'],
+  ['named-checkzone', '  named-checkzone 區域 檔案        檢查區域檔'],
+  ['rndc', '  rndc reload [區域]             讓 named 重新載入區域檔（需要 root）'],
+  ['resolvectl', '  resolvectl flush-caches        清除本機解析器的快取（需要 root）'],
+  ['curl', '  curl [-v] [-I] [-L] [-s] [-o 檔案] [-w 格式] 網址  送出 HTTP 請求'],
   ['man', '  man 指令                顯示指令的說明頁（也可以用 指令 --help）'],
 ];
 /** The lines that change when a profile has the feature (the lab keeps its own lines). */
@@ -589,6 +621,9 @@ interface Ctx {
 }
 /** status: the exit status (E4: $?). notices: bash's job notices ([1]+  Terminated …), printed on the terminal. */
 export interface Exec { state: FsState; events: Ev[]; status: number; clear?: true; notices?: string[] }
+
+/** E10–E12: the network commands and the module function of each. */
+const NET_COMMANDS = { ss, lsof, nc, ip, getent, dig, host, 'named-checkzone': namedCheckzone, rndc, resolvectl, curl } as const;
 
 /** Shell builtins: sudo cannot run them (sudo: cd: command not found, as on Linux). */
 const BUILTINS = ['cd', 'umask', 'help', 'newgrp', 'jobs', 'fg', 'bg'];
@@ -1415,7 +1450,9 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
       }
       const r = systemctl(cur(), args, { ...sio(), ...features.has('scripting') ? { script: serviceScript(profile) } : {} });
       code = r.status;
-      return done(remote ? sshdControl(r.state, args, state.user, 'after', r.status).state : r.state);
+      // E11: named (re)started or reloaded by systemd loads its zones.
+      const after = features.has('dns') ? afterSystemctl(cur(), r.state, args, r.status) : r.state;
+      return done(remote ? sshdControl(after, args, state.user, 'after', r.status).state : after);
     }
     case 'journalctl': code = journalctl(cur(), args, sio()); return done();
 
@@ -1455,6 +1492,13 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
       notices.push(...r.notices ?? []);
       code = r.status;
       return done(sameShell(r.state, cur()));
+    }
+    case 'ss': case 'lsof': case 'nc': case 'ip': case 'getent': case 'dig': case 'host': case 'named-checkzone': case 'rndc': case 'resolvectl': case 'curl': {
+      // E10–E12 (sockets.ts, dns.ts, http.ts): names are looked up through /etc/hosts and, from the dns profile up, DNS.
+      const io: NetIo = { out: write, err: fail, user: state.user, tty: ctx.tty, resolve: features.has('dns') ? dnsResolver : basicResolver };
+      const r = NET_COMMANDS[cmd as keyof typeof NET_COMMANDS](cur(), args, io);
+      code = r.status;
+      return done(r.state);
     }
     case 'crontab': case 'cron-next': case 'cron-run': case 'flock': case 'timedatectl': case 'systemd-analyze': {
       // E9 (schedule.ts); flock runs its command like sudo does, a -c string through the interpreter.

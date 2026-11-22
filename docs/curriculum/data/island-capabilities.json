@@ -105,8 +105,9 @@
       "status": "missing"
     },
     "network-servers": {
-      "capability": "request-path simulation + terminal",
-      "status": "missing"
+      "capability": "terminal (engine stages E10 sockets, E11 dns, E12 http, then E13-E19) + network-protocol scenes; request-path and architecture-diagram map to network-sequence",
+      "status": "prepared",
+      "note": "SRV-0 prepared the island on the existing terminal and network-protocol capabilities (serverFromBlueprint) and built engine stages E10-E12 for SRV-1 (SRV01-SRV03); SRV-2 needs E13-E14, SRV-3 E15-E17, SRV-4 E18-E19, SRV-5 is the capstone (SRV0_SERVER_CAPABILITY.md)"
     },
     "cloud-infrastructure": {
       "capability": "architecture simulation",

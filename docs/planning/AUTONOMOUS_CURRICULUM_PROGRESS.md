@@ -25,7 +25,7 @@
 
 ## 下一批（自動選擇）
 
-目前沒有能力已備妥、先修已滿足的島嶼；先處理「能力缺口」的第一項。
+**網路與伺服器島（SRV）**：SRV01 伺服器端的網路基礎：IP、Port 與 Socket、SRV02 網域與 DNS 記錄管理、SRV03 用 curl 觀察 HTTP 請求與回應、SRV04 TLS 憑證實務：申請、安裝與更新、SRV05 網頁伺服器架構。島嶼能力：已備妥（可開始撰寫）；這幾堂解鎖其他島的 12 堂。
 
 能力缺口中最優先的是 **大型語言模型島（LLM）**：需要 python-code + token, sampling and prompt explorers on recorded outputs (T3)；先修已滿足、可依序撰寫的有 3 堂，前 3 堂解鎖其他島的 58 堂。
 
@@ -60,7 +60,7 @@
 | 網頁與應用開發群島 | 行動應用島（MOB） | 0／13 | web-code + case-analysis | 缺少 | — | 缺少課程能力；MOB01 需要尚未發布的 RWD01 |
 | 系統與雲端工程群島 | Linux 系統島（LNX） | 15／15 | terminal (machines as data, transcripts replayed to their exact output, exercises checked by replaying the learner's commands in the simulated shell) | 可用 | 全島完成 | — |
 | 系統與雲端工程群島 | Docker 容器島（DKR） | 0／15 | container simulation | 缺少 | DKR01–DKR15（15 堂） | 缺少課程能力 |
-| 系統與雲端工程群島 | 網路與伺服器島（SRV） | 0／14 | request-path simulation + terminal | 缺少 | SRV01–SRV14（14 堂） | 缺少課程能力 |
+| 系統與雲端工程群島 | 網路與伺服器島（SRV） | 0／14 | terminal (engine stages E10 sockets, E11 dns, E12 http, then E13-E19) + network-protocol scenes; request-path and architecture-diagram map to network-sequence | 已備妥（可開始撰寫） | SRV01–SRV14（14 堂） | — |
 | 系統與雲端工程群島 | 雲端基礎設施島（CLD） | 0／15 | architecture simulation | 缺少 | CLD01–CLD03（3 堂） | 缺少課程能力；CLD04 需要尚未發布的 SRV01 |
 | 系統與雲端工程群島 | DevOps 與 CI/CD 島（CICD） | 0／15 | pipeline simulation | 缺少 | CICD01–CICD05（5 堂） | 缺少課程能力；CICD06 需要尚未發布的 DKR11 |
 | 系統與雲端工程群島 | Kubernetes 與可靠性工程島（KUB） | 0／15 | cluster simulation | 缺少 | — | 缺少課程能力；KUB01 需要尚未發布的 DKR09 |
@@ -76,7 +76,6 @@
 | 機器學習島（ML） | python-code + data-explorer (fixed datasets, metrics computed in the browser) | 25 | 39 | — |
 | Docker 容器島（DKR） | container simulation | 15 | 23 | — |
 | 系統分析與設計島（SA） | model-diagram (UML, DFD, BPMN, state and sequence models, checked by structure) | 20 | 20 | — |
-| 網路與伺服器島（SRV） | request-path simulation + terminal | 14 | 12 | — |
 | DevOps 與 CI/CD 島（CICD） | pipeline simulation | 5 | 7 | — |
 | 管理資訊系統島（MIS） | case-analysis (scenario data, decision tables, KPI calculations checked by value) | 20 | 0 | — |
 | 生成式 AI 島（GEN） | precomputed pipeline steps (T3) | 1 | 0 | — |
@@ -701,20 +700,20 @@
 
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
-| SRV01 | 伺服器端的網路基礎：IP、Port 與 Socket | 待能力 | LNX02 | terminal-sim | 課程能力 |
-| SRV02 | 網域與 DNS 記錄管理 | 待能力 | SRV01 | request-path | 課程能力、先修 SRV01 |
-| SRV03 | 用 curl 觀察 HTTP 請求與回應 | 待能力 | SRV01 | request-path | 課程能力、先修 SRV01 |
-| SRV04 | TLS 憑證實務：申請、安裝與更新 | 待能力 | SRV02、SRV03 | request-path | 課程能力、先修 SRV02、SRV03 |
-| SRV05 | 網頁伺服器架構 | 待能力 | SRV03 | architecture-diagram | 課程能力、先修 SRV03 |
-| SRV06 | Nginx 設定入門 | 待能力 | SRV05、LNX10 | request-path | 課程能力、先修 SRV05 |
-| SRV07 | 反向代理 | 待能力 | SRV06 | request-path | 課程能力、先修 SRV06 |
-| SRV08 | 負載平衡 | 待能力 | SRV07 | request-path | 課程能力、先修 SRV07 |
-| SRV09 | 伺服器防火牆：ufw 與 nftables | 待能力 | SRV01、LNX07 | terminal-sim | 課程能力、先修 SRV01 |
-| SRV10 | SSH 通道與跳板機 | 待能力 | LNX12、SRV09 | protocol-sequence | 課程能力、先修 SRV09 |
-| SRV11 | CDN 與快取設定 | 待能力 | SRV07 | request-path | 課程能力、先修 SRV07 |
-| SRV12 | 網路診斷工具 | 待能力 | SRV02、SRV03 | terminal-sim | 課程能力、先修 SRV02、SRV03 |
-| SRV13 | 伺服器故障排除方法 | 待能力 | SRV07、SRV12、LNX11 | case-study-board | 課程能力、先修 SRV07、SRV12 |
-| SRV14 | 網路與伺服器島綜合專題：架設 HTTPS 網站並追蹤請求 | 待能力 | SRV04、SRV08、SRV10、SRV11、SRV13 | challenge-stages | 課程能力、先修 SRV04、SRV08、SRV10、SRV11、SRV13 |
+| SRV01 | 伺服器端的網路基礎：IP、Port 與 Socket | 大綱 | LNX02 | terminal-sim | — |
+| SRV02 | 網域與 DNS 記錄管理 | 待先修 | SRV01 | request-path | 先修 SRV01 |
+| SRV03 | 用 curl 觀察 HTTP 請求與回應 | 待先修 | SRV01 | request-path | 先修 SRV01 |
+| SRV04 | TLS 憑證實務：申請、安裝與更新 | 待先修 | SRV02、SRV03 | request-path | 先修 SRV02、SRV03 |
+| SRV05 | 網頁伺服器架構 | 待先修 | SRV03 | architecture-diagram | 先修 SRV03 |
+| SRV06 | Nginx 設定入門 | 待先修 | SRV05、LNX10 | request-path | 先修 SRV05 |
+| SRV07 | 反向代理 | 待先修 | SRV06 | request-path | 先修 SRV06 |
+| SRV08 | 負載平衡 | 待先修 | SRV07 | request-path | 先修 SRV07 |
+| SRV09 | 伺服器防火牆：ufw 與 nftables | 待先修 | SRV01、LNX07 | terminal-sim | 先修 SRV01 |
+| SRV10 | SSH 通道與跳板機 | 待先修 | LNX12、SRV09 | protocol-sequence | 先修 SRV09 |
+| SRV11 | CDN 與快取設定 | 待先修 | SRV07 | request-path | 先修 SRV07 |
+| SRV12 | 網路診斷工具 | 待先修 | SRV02、SRV03 | terminal-sim | 先修 SRV02、SRV03 |
+| SRV13 | 伺服器故障排除方法 | 待先修 | SRV07、SRV12、LNX11 | case-study-board | 先修 SRV07、SRV12 |
+| SRV14 | 網路與伺服器島綜合專題：架設 HTTPS 網站並追蹤請求 | 待先修 | SRV04、SRV08、SRV10、SRV11、SRV13 | challenge-stages | 先修 SRV04、SRV08、SRV10、SRV11、SRV13 |
 
 ### 系統與雲端工程群島 · 雲端基礎設施島（CLD）
 

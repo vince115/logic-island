@@ -65,6 +65,8 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '遠端連線、指令稿與排程', summary: 'SSH 的協定步驟、ed25519 金鑰、known_hosts 與只允許金鑰登入；Bash 指令稿的變數、條件、迴圈、函式與 set -euo pipefail；crontab、systemd timer、時區與 flock', lessonIds: range('LNX', 12, 14) },
     { title: '綜合專題', summary: '接手一台伺服器並完成一天的維護：帳號與權限、SSH 金鑰、部署服務、從日誌追查故障、排程備份、套件更新與變更紀錄', lessonIds: range('LNX', 15, 15) },
   ],
+  // SRV-0 (2026-11-22): the network and servers island is prepared for authoring; its units come with its first lessons.
+  'network-servers': [],
   // CN-1 to CN-5: the whole island, CN01–CN20.
   networks: [
     { title: '分層模型與實體層', summary: '網路為什麼分層、OSI 與 TCP/IP、封裝與 PDU；訊號與媒介、頻寬、延遲、吞吐量與頻寬延遲乘積', lessonIds: range('CN', 1, 2) },

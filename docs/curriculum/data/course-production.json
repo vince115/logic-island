@@ -290,7 +290,9 @@
       ],
       "commit": "81b5427",
       "tests": "驗證器、發布閘門 155/155、Vitest 3212（含步驟控制的鍵盤焦點 DOM 測試）、E2E 桌機＋手機旗標關 435（候選頁 2 個像素比對失敗為 main 既有回歸 #36）、網路預覽＋P9＋區域世界旗標開 252（修正步驟控制的焦點後，網路預覽的鍵盤測試不再失敗）、測驗 8 題逐題複核、洩漏掃描",
-      "notes": "LNX-5：Linux 系統島綜合專題（terminal＋challenge-stages 六關：帳號與權限、SSH 金鑰與只允許金鑰登入、以專屬帳號與 Restart=on-failure 部署服務、從 status、journal 與 sudo 紀錄追查撞到啟動上限的停擺、set -euo pipefail 的備份搭配 /etc/cron.d 與 flock -n、apt-mark hold 後套用更新並寫變更紀錄）；Linux 系統島 15/15 完成，mapState 維持 planned；同批修正步驟控制：步驟改變讓有焦點的按鈕被停用時（最後一步的下一步、第一步的上一步），把焦點移到仍可用的按鈕，網路預覽鍵盤 E2E 三次在高負載下失敗的原因"
+      "notes": "LNX-5：Linux 系統島綜合專題（terminal＋challenge-stages 六關：帳號與權限、SSH 金鑰與只允許金鑰登入、以專屬帳號與 Restart=on-failure 部署服務、從 status、journal 與 sudo 紀錄追查撞到啟動上限的停擺、set -euo pipefail 的備份搭配 /etc/cron.d 與 flock -n、apt-mark hold 後套用更新並寫變更紀錄）；Linux 系統島 15/15 完成，mapState 維持 planned；同批修正步驟控制：步驟改變讓有焦點的按鈕被停用時（最後一步的下一步、第一步的上一步），把焦點移到仍可用的按鈕，網路預覽鍵盤 E2E 三次在高負載下失敗的原因",
+      "pr": "#63",
+      "merged": "98f43ce"
     }
   ]
 }

@@ -1,3 +1,4 @@
+import type { Listen } from './sockets';
 import type { FsState } from './fs';
 import { accountsOf, findUser } from './accounts';
 import { clockText, DEFAULT_NOW, parseTime, startLabel, uptimeText, type Seconds } from './clock';
@@ -45,6 +46,8 @@ export interface Proc {
   pending?: number;
   /** E9: the lock files it holds (flock); a lock is free again when the process ends. */
   locks?: readonly string[];
+  /** E10: the sockets it listens on (its children of the same name hold them too); they close when it ends. */
+  listen?: readonly Listen[];
 }
 
 /** A background job of the session (only `sleep N &` makes one). */

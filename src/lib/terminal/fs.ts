@@ -23,6 +23,10 @@
  * Engine stages E7–E9 (§15–§17): a state may carry the other machines of the lesson (each a whole state of its own,
  * reached with ssh), an ssh session in progress, a remote machine's sshd, the interactive shell's variables and functions
  * (the scripting profile) and a time zone (the scheduling profile).
+ *
+ * Engine stages E10–E12 (docs/curriculum/SRV0_SERVER_CAPABILITY.md §6–§8): a state may carry its interfaces and
+ * connections (sockets), its DNS (resolver cache, named's zones) and its HTTP responders. Only the sockets, dns and http
+ * profiles' machines have them.
  */
 
 import type { Clock, Job, Proc } from './processes';
@@ -30,6 +34,9 @@ import type { PackageDb } from './packages';
 import type { JournalEntry, ServiceDb } from './services';
 import type { Network, SshdState } from './ssh';
 import type { ShellMemory } from './script';
+import type { SocketState } from './sockets';
+import type { DnsState } from './dns';
+import type { Responder } from './http';
 
 export interface FsNode {
   /** E1: 'link' is a symbolic link (the lab never has one). */
@@ -135,6 +142,12 @@ export interface FsState {
   shell?: ShellMemory;
   /** E9: the machine's time zone and whether it can send mail (an MTA for cron's output). */
   schedule?: { timezone: string; mta: boolean };
+  /** E10: the machine's interfaces, default route and declared connections (listening sockets come from its processes). */
+  sockets?: SocketState;
+  /** E11: the resolver cache, the zones named loaded, the internet's zones (the lesson's local machine). */
+  dns?: DnsState;
+  /** E12: the HTTP responders its listening sockets name. */
+  http?: { responders: readonly Responder[] };
 }
 
 export const DEFAULT_HOST = 'logic-island';
