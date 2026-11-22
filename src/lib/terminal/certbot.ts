@@ -3,8 +3,8 @@ import { DAY, isoText, type Seconds } from './clock';
 import { clockOf } from './processes';
 import { dnsValues } from './dns';
 import { reach, type NetIo, type NetResult } from './sockets';
-import { findResponder, fileReader, parseUrl, respond, tlsServer, type Request, type Response } from './http';
-import { masterOf, nginxServe, plainOnTls, readerOf, testConfig, applyConfig, NGINX_CONF, parseConfig, ConfError } from './nginx';
+import { findResponder, fileReader, parseUrl, respond, tlsServer, upstreamOf, type Request, type Response } from './http';
+import { masterOf, nginxServe, plainOnTls, readerOf, testConfig, applyConfig, NGINX_CONF, parseConfig, ConfError, type Dir } from './nginx';
 import { certPem, certsIn, keyPem, leIssuer, serialFrom, skiOf, readAs, type Cert, type KeyType } from './tls';
 import { base64, sha256 } from './ssh';
 
@@ -114,7 +114,7 @@ function caGet(state: FsState, address: string, url: string): Response | 'refuse
   if (https && 'plain' in tlsServer(reached, address, u.host)) return 'garbage';
   if (reached.socket.nginx && reached.host.nginx?.applied) {
     const x = { address, port: u.port, https, client: CA_ADDRESS, req, now };
-    return !https && reached.socket.ssl ? plainOnTls(reached.host, x) : nginxServe(reached.host, x).res;
+    return !https && reached.socket.ssl ? plainOnTls(reached.host, x) : nginxServe(reached.host, { ...x, upstream: upstreamOf(() => state, () => {}, reached.at) }).res;
   }
   const r = findResponder(reached.host, reached.socket);
   if (!r) return 'garbage';
@@ -239,7 +239,9 @@ export function certbot(state0: FsState, args: readonly string[], io: CertbotIo)
     say('Certificate not yet due for renewal'); say(''); say(DASHES); say('Certificate not yet due for renewal; no action taken.'); say(DASHES);
     return { state, status: 0 };
   }
-  say(`${o.dryRun ? 'Simulating a certificate request' : 'Requesting a certificate'} for ${joinDomains(o.domains)}`);
+  // Fix (E15 batch): an existing lineage with the same names is renewed, as certbot says so.
+  const renewing = !!existing && [...existing.l.domains].sort().join() === [...o.domains].sort().join();
+  say(`${renewing ? (o.dryRun ? 'Simulating renewal of an existing certificate' : 'Renewing an existing certificate') : o.dryRun ? 'Simulating a certificate request' : 'Requesting a certificate'} for ${joinDomains(o.domains)}`);
   const lineage: Lineage = { name, domains: o.domains, version: (existing?.l.version ?? 0) + 1, authenticator: o.authenticator, webroot: o.webroot, ...o.hook ? { hook: o.hook } : {}, keyType: o.keyType };
   const v = challenge(state, lineage);
   state = v.state;
@@ -326,8 +328,10 @@ function deployNginx(state0: FsState, l: Lineage, say: (l: string) => void, io: 
   const nodes = new Map(state.nodes);
   if (!nodes.has(`${LE}/options-ssl-nginx.conf`)) nodes.set(`${LE}/options-ssl-nginx.conf`, fileNode(OPTIONS_SSL_NGINX));
   if (!nodes.has(`${LE}/ssl-dhparams.pem`)) nodes.set(`${LE}/ssl-dhparams.pem`, fileNode(DHPARAMS));
+  // Fix (E15 batch): the names of one server block get the TLS lines once and share one redirect block.
+  const http = parsed.main.find(x => x.name === 'http')?.block ?? [];
+  const groups: { srv: Dir; names: string[] }[] = [];
   for (const d of l.domains) {
-    const http = parsed.main.find(x => x.name === 'http')?.block ?? [];
     const srv = http.find(s => s.name === 'server' && (s.block ?? []).some(x => x.name === 'server_name' && x.args.some(a => a.toLowerCase() === d)));
     if (!srv) {
       io.err(`Could not install certificate`);
@@ -336,11 +340,17 @@ function deployNginx(state0: FsState, l: Lineage, say: (l: string) => void, io: 
       askHelp(io);
       return { state: { ...state, nodes }, status: 1 };
     }
-    if ((srv.block ?? []).some(x => x.name === 'ssl_certificate')) { say(`Successfully deployed certificate for ${d} to ${srv.file}`); continue; }
-    const real = physicalPath(nodes, srv.file, true), text = nodes.get(real)?.content ?? '';
-    nodes.set(real, { ...nodes.get(real)!, content: installInto(text, srv.line, l.name, d) });
-    say(`Successfully deployed certificate for ${d} to ${srv.file}`);
+    const g = groups.find(x => x.srv === srv);
+    if (g) g.names.push(d); else groups.push({ srv, names: [d] });
   }
+  // Later blocks of a file first, so the line numbers of the earlier ones stay right.
+  for (const g of [...groups].sort((a, b) => a.srv.file === b.srv.file ? b.srv.line - a.srv.line : 0)) {
+    if (!(g.srv.block ?? []).some(x => x.name === 'ssl_certificate')) {
+      const real = physicalPath(nodes, g.srv.file, true), text = nodes.get(real)?.content ?? '';
+      nodes.set(real, { ...nodes.get(real)!, content: installInto(text, g.srv.line, l.name, g.names) });
+    }
+  }
+  for (const d of l.domains) say(`Successfully deployed certificate for ${d} to ${groups.find(g => g.names.includes(d))!.srv.file}`);
   state = { ...state, nodes };
   say(`Congratulations! You have successfully enabled HTTPS on ${l.domains.map(d => `https://${d}`).join(' and ')}`);
   const t = testConfig(state);
@@ -348,7 +358,7 @@ function deployNginx(state0: FsState, l: Lineage, say: (l: string) => void, io: 
   return { state, status: 0 };
 }
 /** The text edit certbot's nginx installer makes: listen 80 lines move to a new redirect block, the TLS lines go in. */
-function installInto(text: string, line: number, name: string, domain: string): string {
+function installInto(text: string, line: number, name: string, domains: readonly string[]): string {
   const lines = text.split('\n');
   const start = line - 1;
   let depth = 0, end = -1;
@@ -366,11 +376,18 @@ function installInto(text: string, line: number, name: string, domain: string): 
   const managed = [`${indent}listen 443 ssl; # managed by Certbot`, `${indent}ssl_certificate ${LE}/live/${name}/fullchain.pem; # managed by Certbot`,
     `${indent}ssl_certificate_key ${LE}/live/${name}/privkey.pem; # managed by Certbot`, `${indent}include ${LE}/options-ssl-nginx.conf; # managed by Certbot`,
     `${indent}ssl_dhparam ${LE}/ssl-dhparams.pem; # managed by Certbot`, ''];
-  const redirect = ['server {', `    if ($host = ${domain}) {`, '        return 301 https://$host$request_uri;', '    } # managed by Certbot', '', '',
-    ...(moved.length ? moved : ['listen 80;']).map(l => `    ${l}`), `    server_name ${domain};`, '    return 404; # managed by Certbot', '', '', '}'];
+  // certbot adds each name's if at the top of the redirect block: the last name comes first.
+  const redirect = ['server {', ...[...domains].reverse().flatMap(d => [`    if ($host = ${d}) {`, '        return 301 https://$host$request_uri;', '    } # managed by Certbot', '', '']),
+    ...(moved.length ? moved : ['listen 80;']).map(l => `    ${l}`), `    server_name ${domains.join(' ')};`, '    return 404; # managed by Certbot', '', '', '}'];
   return [...lines.slice(0, start + 1), ...body, '', ...managed, lines[end], ...redirect, ...lines.slice(end + 1)].join('\n');
 }
 
+/** The executable scripts of /etc/letsencrypt/renewal-hooks/deploy, by name (certbot skips names ending in ~). */
+function deployHooks(state: FsState): string[] {
+  const dir = `${LE}/renewal-hooks/deploy`;
+  if (state.nodes.get(dir)?.kind !== 'dir') return [];
+  return childrenOf(state.nodes, dir).filter(p => { const n = state.nodes.get(p); return n?.kind === 'file' && (n.mode & 0o111) !== 0 && !p.endsWith('~'); }).sort();
+}
 function runHook(state: FsState, hook: string, io: CertbotIo, say: (l: string) => void): FsState {
   say(`Running deploy-hook command: ${hook}`);
   if (!io.hook) return state;
@@ -430,14 +447,17 @@ function renew(state0: FsState, o: Opts, io: CertbotIo, say: (l: string) => void
       failed.push(x.l.name);
       continue;
     }
+    // Fix (E15 batch): renew --deploy-hook runs (and is saved as renew_hook); the scripts of renewal-hooks/deploy run first.
+    const hook = o.hook ?? x.l.hook, dirHooks = deployHooks(state);
     if (!o.dryRun) {
       const nodes = new Map(state.nodes);
-      writeLineage(nodes, { ...x.l, version: x.l.version + 1 }, now, lifetime, `${state.host ?? 'logic-island'}/${state.tls!.orders}`);
+      writeLineage(nodes, { ...x.l, version: x.l.version + 1, ...hook ? { hook } : {} }, now, lifetime, `${state.host ?? 'logic-island'}/${state.tls!.orders}`);
       state = { ...state, nodes };
       // The nginx installer reloads nginx; with webroot only a deploy hook does.
       if (x.l.authenticator === 'nginx') { const t = testConfig(state); if ('conf' in t) state = applyConfig(state, t.conf); }
-      if (x.l.hook) state = runHook(state, x.l.hook, io, say);
-    } else if (x.l.hook) say(`Dry run: skipping deploy hook command: ${x.l.hook}`);
+      for (const h of dirHooks) state = runHook(state, h, io, say);
+      if (hook && !dirHooks.includes(hook)) state = runHook(state, hook, io, say);
+    } else for (const h of [...dirHooks, ...hook && !dirHooks.includes(hook) ? [hook] : []]) say(`Dry run: skipping deploy hook command: ${h}`);
     renewed.push(x.l.name);
   }
   say('');

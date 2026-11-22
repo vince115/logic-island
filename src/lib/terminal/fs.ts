@@ -38,6 +38,7 @@ import type { SocketState } from './sockets';
 import type { DnsState } from './dns';
 import type { Responder } from './http';
 import type { NginxState } from './nginx';
+import type { FirewallState } from './firewall';
 
 export interface FsNode {
   /** E1: 'link' is a symbolic link (the lab never has one). */
@@ -153,6 +154,8 @@ export interface FsState {
   tls?: TlsState;
   /** E14: the configuration the running nginx applied and its connection counter. */
   nginx?: NginxState;
+  /** E16: the machine's firewall (ufw and the nftables ruleset); only machines of the firewall profile have one. */
+  firewall?: FirewallState;
 }
 /** E13: what certbot keeps (the simulated CA's certificate lifetime in days, its order counter). */
 export interface TlsState { lifetime: number; orders: number }

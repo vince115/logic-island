@@ -305,13 +305,44 @@ export function grep(io: TextIo, o: Parsed): boolean {
   };
   for (const name of names) visit(name, true);
   const prefix = !o.flags.has('h') && (o.flags.has('H') || names.length > 1 || viaFolder);
+  // Fix (E15 batch): -o prints each match on its own line; -A/-B/-C N print context lines (name-N- and -- between groups).
+  const context = (f: string) => { const v = o.flags.get(f)?.at(-1); return v === undefined ? undefined : /^\d+$/.test(v) ? Number(v) : NaN; };
+  const after = context('A') ?? context('C') ?? 0, before = context('B') ?? context('C') ?? 0;
+  for (const [f, v] of [['A', after], ['B', before]] as const) if (Number.isNaN(v)) { io.err(`grep: ${o.flags.get(f)?.at(-1) ?? o.flags.get('C')?.at(-1)}: invalid context length argument`); return false; }
+  let only: RegExp | undefined;
+  if (o.flags.has('o')) {
+    const body = sources.map(x => `(?:${x})`).join('|');
+    const src = o.flags.has('x') ? `^(${body})$` : o.flags.has('w') ? `(?:^|[^${WORD.slice(1, -1)}])(${body})(?!${WORD})` : `(${body})`;
+    only = new RegExp(src, o.flags.has('i') ? 'giu' : 'gu');
+  }
   let selected = false;
   for (const f of files) {
-    const hits = splitLines(f.text).map((l, n) => [bare(l), n + 1] as const).filter(([l]) => re.test(l) !== invert);
+    const all = splitLines(f.text).map(bare);
+    const hits = all.map((l, n) => [l, n + 1] as const).filter(([l]) => re.test(l) !== invert);
     if (hits.length) selected = true;
     if (o.flags.has('l')) { if (hits.length) io.out(`${f.name}\n`); continue; }
     if (o.flags.has('c')) { io.out(`${prefix ? `${f.name}:` : ''}${hits.length}\n`); continue; }
-    for (const [line, n] of hits) io.out(`${prefix ? `${f.name}:` : ''}${o.flags.has('n') ? `${n}:` : ''}${line}\n`);
+    const head = (n: number, sep: string) => `${prefix ? `${f.name}${sep}` : ''}${o.flags.has('n') ? `${n}${sep}` : ''}`;
+    if (only) {
+      if (invert) continue;
+      for (const [line, n] of hits) {
+        only.lastIndex = 0;
+        for (let m = only.exec(line); m; m = only.exec(line)) {
+          if (m[1]) io.out(`${head(n, ':')}${m[1]}\n`);
+          if (m[0] === '') only.lastIndex++;
+        }
+      }
+      continue;
+    }
+    if (!['A', 'B', 'C'].some(x => o.flags.has(x))) { for (const [line, n] of hits) io.out(`${head(n, ':')}${line}\n`); continue; }
+    const shown = new Set<number>(), hitSet = new Set(hits.map(([, n]) => n));
+    for (const [, n] of hits) for (let k = Math.max(1, n - before); k <= Math.min(all.length, n + after); k++) shown.add(k);
+    let last = 0;
+    for (const n of [...shown].sort((a, b) => a - b)) {
+      if (last && n > last + 1) io.out('--\n');
+      io.out(`${head(n, hitSet.has(n) ? ':' : '-')}${all[n - 1]}\n`);
+      last = n;
+    }
   }
   return selected;
 }
@@ -505,7 +536,7 @@ export function expandSet(spec: string): { chars: string[] } | { error: string }
 
 /** tr [-d] [-s] SET1 [SET2]: standard input only, character by character. */
 export function tr(io: TextIo, o: Parsed) {
-  const del = o.flags.has('d'), squeeze = o.flags.has('s'), n = o.operands.length;
+  const del = o.flags.has('d'), squeeze = o.flags.has('s'), complement = o.flags.has('c') || o.flags.has('C'), n = o.operands.length;
   const want = del ? (squeeze ? 2 : 1) : squeeze ? (n >= 2 ? 2 : 1) : 2;
   if (!n) { io.usage('tr: missing operand'); return; }
   if (n < want) {
@@ -523,13 +554,15 @@ export function tr(io: TextIo, o: Parsed) {
   const r = io.read('-');
   if ('error' in r) { io.err(noInput('tr')); return; }
   let chars = Array.from(r.text);
-  if (del) chars = chars.filter(c => !sets[0].includes(c));
+  // Fix (E15 batch): -c (-C) is the complement of set 1: delete (-cd) or translate (to set 2's last character) everything else.
+  const inSet1 = (c: string) => complement ? !sets[0].includes(c) : sets[0].includes(c);
+  if (del) chars = chars.filter(c => !inSet1(c));
   else if (sets.length === 2) {
     const to = sets[1];
     if (!to.length) { io.err('tr: when not truncating set1, string2 must be non-empty'); return; }
     const map = new Map<string, string>();
     sets[0].forEach((c, i) => map.set(c, to[Math.min(i, to.length - 1)]));
-    chars = chars.map(c => map.get(c) ?? c);
+    chars = chars.map(c => complement ? (inSet1(c) ? to[to.length - 1] : c) : map.get(c) ?? c);
   }
   if (squeeze) {
     const set = sets[sets.length - 1];

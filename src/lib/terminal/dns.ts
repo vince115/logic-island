@@ -542,6 +542,8 @@ type DigSection = typeof DIG_SECTIONS[number];
  */
 export function dig(state0: FsState, args: readonly string[], io: NetIo): NetResult {
   let server: string | undefined, name: string | undefined, type: RrType | undefined, short = false, recurse = true;
+  // Fix (E15 batch): dig a b [type] asks for every name (each name takes the type written after it).
+  const more: { name: string; type?: RrType }[] = [];
   const show = new Set<DigSection>(DIG_SECTIONS);
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
@@ -561,11 +563,24 @@ export function dig(state0: FsState, args: readonly string[], io: NetIo): NetRes
     }
     if (a.startsWith('-')) { io.err(`Invalid option: ${a}`); io.err('Usage:  dig [@global-server] [domain] [q-type] [q-class] {q-opt}'); return { state: state0, status: 1 }; }
     const up = a.toUpperCase();
-    if (name !== undefined && (RR_TYPES as readonly string[]).includes(up) && type === undefined) { type = up as RrType; continue; }
+    if (more.length && (RR_TYPES as readonly string[]).includes(up) && more.at(-1)!.type === undefined) { more.at(-1)!.type = up as RrType; continue; }
+    if (name !== undefined && (RR_TYPES as readonly string[]).includes(up) && type === undefined && !more.length) { type = up as RrType; continue; }
     if (name !== undefined && up === 'IN') continue;
     if (name === undefined && (RR_TYPES as readonly string[]).includes(up) && args.slice(i + 1).some(x => !x.startsWith('+') && !x.startsWith('@'))) { type = up as RrType; continue; }
     if (name !== undefined && ['PTR', 'SRV', 'CAA', 'ANY', 'AXFR', 'DS', 'DNSKEY'].includes(up)) { io.err(`dig: 模擬環境的 dig 支援 ${RR_TYPES.join('、')}（${up}）`); return { state: state0, status: 1 }; }
+    if (name !== undefined) { more.push({ name: a }); continue; }
     name = a;
+  }
+  if (more.length) {
+    // One lookup after another, with the same options (the first prints dig's header line, as dig does).
+    const opts = args.filter(a => a.startsWith('+') || a.startsWith('@'));
+    let state = state0, status = 0;
+    for (const [k, q] of [{ name: name!, type }, ...more].entries()) {
+      const r = dig(state, [...opts, ...k ? ['+nocmd'] : [], q.name, ...q.type ? [q.type] : []], io);
+      state = r.state;
+      status = r.status || status;
+    }
+    return { state, status };
   }
   const qname = absolute(name ?? '.'), qtype: RrType = type ?? (name === undefined ? 'NS' : 'A');
   const problem = nameProblem(qname);

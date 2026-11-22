@@ -213,7 +213,7 @@ interface Work {
   script?: ServiceScript;
 }
 /** E8: how a service's script runs: the new state, its output lines (to the journal), its status and journal identifier. */
-export type ServiceScript = (state: FsState, execStart: string, user: string) => { state: FsState; lines: string[]; status: number; id: string } | undefined;
+export type ServiceScript = (state: FsState, execStart: string, user: string) => { state: FsState; lines: string[]; status: number; id: string; /** the program's whole state counts (certbot's deploy hooks may reload nginx) */ full?: true } | undefined;
 /** E9: the machine has timers (a scheduling machine: it has a time zone). */
 const timersOn = (state: FsState) => !!state.schedule;
 
@@ -287,6 +287,12 @@ function spawn(w: Work, name: string, c: UnitConfig): Spawn {
       w.nodes = new Map(r.state.nodes);
       w.procs = [...tableOf(r.state)];
       w.lastPid = Math.max(w.lastPid, r.state.lastPid ?? 0);
+      // Fix (E15 batch): what certbot's deploy hooks did (systemctl reload nginx…) stays: the services, the journal, nginx.
+      if (r.full) {
+        w.state = r.state;
+        w.journal = [...r.state.journal ?? []];
+        if (r.state.services) { w.loaded = { ...r.state.services.loaded }; w.runtime = { ...r.state.services.runtime }; }
+      }
       for (const l of r.lines) log(w, name, r.id, 6, l, pid);
       if (r.status !== 0) return { ok: false, pid, status: r.status };
       sys(w, name, 6, `${name}: Deactivated successfully.`);

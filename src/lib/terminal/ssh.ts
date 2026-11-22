@@ -1,11 +1,13 @@
 import { baseName, can, groupsOf, joinPath, parentOf, physicalPath, resolvePath, type FsNode, type FsState } from './fs';
 import { accountsOf, findUser, loginGroups } from './accounts';
-import { clockOf, nextPid } from './processes';
+import { clockOf, nextPid, tableOf, type Proc } from './processes';
 import { matchName } from './glob';
 import { getopt } from './text';
 import { ERRNO, maskOf, readPath, runInput, walk, type Line, type RunResult, type ShellProfile } from './shell';
 import { MAX_JOURNAL } from './services';
 import { dnsResolver } from './dns';
+import { basicResolver, fromView, indexByName, interfacesOf, listenersOf, nameOf, reach, sourceAddress, viewFrom, type Listen } from './sockets';
+import { decideIn } from './firewall';
 
 /*
  * Engine stage E7 (docs/curriculum/LNX0_TERMINAL_CAPABILITY.md §15): SSH between the machines of one lesson. Nothing
@@ -198,6 +200,9 @@ export interface SshdOptions {
   authorizedKeysFiles: string[];
   allowUsers?: string[];
   denyUsers?: string[];
+  /** E17: AllowTcpForwarding (yes, all, local, remote, no; default yes) and GatewayPorts (no, yes, clientspecified; default no). */
+  allowTcpForwarding?: 'yes' | 'all' | 'local' | 'remote' | 'no';
+  gatewayPorts?: 'no' | 'yes' | 'clientspecified';
 }
 /** A remote machine's sshd: its host key, and the options it runs with (read at start and at each reload, not on every edit). */
 export interface SshdState { publicLine: string; fingerprint: string; applied: SshdOptions }
@@ -223,8 +228,8 @@ const FLAGS: Readonly<Record<string, keyof SshdOptions>> = {
   challengeresponseauthentication: 'kbdInteractiveAuthentication', strictmodes: 'strictModes',
 };
 /** Keywords sshd accepts that change nothing in the simulation. */
-const ACCEPTED = ['acceptenv', 'addressfamily', 'allowagentforwarding', 'allowgroups', 'allowtcpforwarding', 'banner', 'ciphers', 'clientalivecountmax', 'clientaliveinterval',
-  'compression', 'denygroups', 'gatewayports', 'hostbasedauthentication', 'hostkey', 'ignorerhosts', 'kexalgorithms', 'listenaddress', 'loglevel', 'logingracetime', 'macs',
+const ACCEPTED = ['acceptenv', 'addressfamily', 'allowagentforwarding', 'allowgroups', 'banner', 'ciphers', 'clientalivecountmax', 'clientaliveinterval',
+  'compression', 'denygroups', 'hostbasedauthentication', 'hostkey', 'ignorerhosts', 'kexalgorithms', 'listenaddress', 'loglevel', 'logingracetime', 'macs',
   'maxauthtries', 'maxsessions', 'maxstartups', 'permitemptypasswords', 'permittty', 'permittunnel', 'permituserenvironment', 'pidfile', 'printlastlog', 'printmotd',
   'subsystem', 'syslogfacility', 'tcpkeepalive', 'usedns', 'usepam', 'x11displayoffset', 'x11forwarding', 'x11uselocalhost', 'authenticationmethods'];
 
@@ -272,6 +277,11 @@ export function readSshdConfig(nodes: ReadonlyMap<string, FsNode>): { options: S
         if (once) options.port = n;
       } else if (key === 'authorizedkeysfile') {
         if (once && args.length) options.authorizedKeysFiles = args;
+      } else if (key === 'allowtcpforwarding' || key === 'gatewayports') {
+        // E17: what tunnels the server allows (sshd -T is unchanged: it prints only the settings of E7).
+        const v = (args[0] ?? '').toLowerCase(), ok = key === 'allowtcpforwarding' ? ['yes', 'all', 'local', 'remote', 'no'] : ['yes', 'no', 'clientspecified'];
+        if (!ok.includes(v)) { errors.push(`${path} line ${at}: unsupported option "${args[0] ?? ''}".`); fatal = true; return; }
+        if (once) { if (key === 'allowtcpforwarding') options.allowTcpForwarding = v as SshdOptions['allowTcpForwarding']; else options.gatewayPorts = v as SshdOptions['gatewayPorts']; }
       } else if (key === 'allowusers' || key === 'denyusers') {
         // These accumulate, unlike the other keywords.
         if (!inMatch) { const list = key === 'allowusers' ? 'allowUsers' : 'denyUsers'; options[list] = [...options[list] ?? [], ...args]; }
@@ -315,13 +325,13 @@ const findHost = (net: Network, name: string) => net.hosts.findIndex(h => h.host
  * E11: from the dns profile up, ssh looks a host name up like glibc (/etc/hosts, then DNS) and goes to the machine with that
  * address (none: the connection times out); below it, as in E7, by the lesson's names, aliases and addresses.
  */
-function lookupHost(state: FsState, name: string, io: Pick<RemoteIo, 'profile'>): { state: FsState; at: number } | { state: FsState; error: string } {
+function lookupHost(state: FsState, name: string, io: Pick<RemoteIo, 'profile'>): { state: FsState; at: number; address?: string } | { state: FsState; error: string } {
   const net = state.net;
-  if (!io.profile.features?.includes('dns')) { const at = net ? findHost(net, name) : -1; return at < 0 ? { state, error: 'Name or service not known' } : { state, at }; }
+  if (!io.profile.features?.includes('dns')) { const at = net ? findHost(net, name) : -1; return at < 0 ? { state, error: 'Name or service not known' } : { state, at, address: net!.hosts[at].address }; }
   const r = dnsResolver(state, name, 4);
   if ('error' in r) return { state: r.state, error: r.error === 'notfound' ? 'Name or service not known' : 'Temporary failure in name resolution' };
   const at = net ? net.hosts.findIndex(h => h.address === r.found.address || (h.state.sockets?.interfaces ?? []).some(i => i.address === r.found.address)) : -1;
-  return { state: r.state, at };
+  return { state: r.state, at, address: r.found.address };
 }
 const withHost = (state: FsState, at: number, remote: FsState): FsState => ({ ...state, net: { ...state.net!, hosts: state.net!.hosts.map((h, i) => i === at ? { ...h, state: remote } : h) } });
 
@@ -341,26 +351,72 @@ function loggedIn(remote: FsState, user: string): { state: FsState; homeMissing:
 export function remoteRun(state: FsState, input: string, profile: ShellProfile): RunResult {
   const session = state.session!, at = findHost(state.net!, session.host);
   if (at < 0) { const { session: _s, ...rest } = state; void _s; return { state: rest, lines: [{ text: `Connection to ${session.name} closed.`, kind: 'err' }] }; }
-  const r = runInput(state.net!.hosts[at].state, input, profile);
-  if (r.state.logout === undefined) return { ...r, state: withHost(state, at, r.state) };
+  // E16: from the firewall profile up the remote machine sees the lesson's network (curl, nc and ufw's effects from there),
+  // and a firewall that drops the session's own packets (nft without ct state established) freezes it: the line never arrives.
+  const viewing = !!profile.features?.includes('firewall');
+  if (viewing && sessionCut(state, at)) {
+    const { session: _s, ...local } = closeSessionForwards(state, at);
+    void _s;
+    return { state: { ...local, ...state.status !== undefined ? { status: 255 } : {} }, lines: [{ text: '（模擬環境：這個工作階段的封包被防火牆丟棄，終端機沒有回應；等 TCP 重送逾時之後）', kind: 'err' }, { text: 'client_loop: send disconnect: Broken pipe', kind: 'err' }] };
+  }
+  const place = (remote: FsState) => viewing ? fromView(state, at, remote) : withHost(state, at, remote);
+  const r = runInput(viewing ? viewFrom(state, at) : state.net!.hosts[at].state, input, profile);
+  if (r.state.logout === undefined) return { ...r, state: place(r.state) };
   const { logout, login: _l, ...remote } = r.state;
   void _l;
-  const { session: _s, ...local } = withHost(state, at, remote);
+  const { session: _s, ...local } = closeSessionForwards(place(remote), at);
   void _s;
   return { state: { ...local, ...state.status !== undefined ? { status: logout } : {} }, lines: [...r.lines, { text: 'logout', kind: 'out' }, { text: `Connection to ${session.name} closed.`, kind: 'err' }] };
+}
+/** E16: whether the session's established packets (from this machine to the remote's ssh port) are dropped by the remote's firewall. */
+function sessionCut(state: FsState, at: number): boolean {
+  const h = state.net!.hosts[at], remote = h.state;
+  if (!remote.firewall) return false;
+  const port = remote.sshd?.applied.port ?? 22;
+  return decideIn(remote, { proto: 'tcp', src: sourceAddress(state, h.address), dst: h.address, port, iface: interfacesOf(remote).find(i => i.address === h.address)?.name ?? 'eth0', state: 'established' }) !== 'accept';
+}
+/** E17: the -R listeners of an interactive session end with it (sshd's session process goes). */
+function closeSessionForwards(state: FsState, at: number): FsState {
+  const remote = state.net!.hosts[at].state;
+  if (!tableOf(remote).some(p => p.listen?.some(l => l.forward?.client === 0))) return state;
+  return withHost(state, at, { ...remote, processes: tableOf(remote).filter(p => !p.listen?.some(l => l.forward?.client === 0)) });
+}
+/** E17: the -R listeners whose client (a background ssh of the local machine) is gone close too (after kill or pkill). */
+export function closeOrphanForwards(state: FsState): FsState {
+  if (!state.net) return state;
+  const alive = new Set(tableOf(state).map(p => p.pid));
+  const orphan = (p: Proc) => !!p.listen?.some(l => l.forward?.client !== undefined && l.forward.client !== 0 && !alive.has(l.forward.client));
+  if (!state.net.hosts.some(h => tableOf(h.state).some(orphan))) return state;
+  return { ...state, net: { ...state.net, hosts: state.net.hosts.map(h => tableOf(h.state).some(orphan) ? { ...h, state: { ...h.state, processes: tableOf(h.state).filter(p => !orphan(p)) } } : h) } };
 }
 
 /** What the ssh family writes, as whom, and whether it may open an interactive session (alone on the line, on a terminal). */
 export interface RemoteIo { out(data: string): void; err(line: string): void; user: string; tty: boolean; stdin: string | null; profile: ShellProfile; alone: boolean }
 
 /** ssh's client options (-o and their command-line forms). */
-interface Client { port?: number; identities: string[]; strict: 'ask' | 'yes' | 'no' | 'accept-new'; password: boolean; pubkey: boolean; batch: boolean; quiet: boolean; user?: string }
+interface Client {
+  port?: number; identities: string[]; strict: 'ask' | 'yes' | 'no' | 'accept-new'; password: boolean; pubkey: boolean; batch: boolean; quiet: boolean; user?: string;
+  /** E17: -L and -R specifications, -J, -F, -f, -N, -g, and which options the command line set (they win over ~/.ssh/config). */
+  locals: string[]; remotes: string[]; jump?: string; config?: string; background: boolean; noCommand: boolean; gateway: boolean; set: Set<string>;
+}
+const newClient = (): Client => ({ identities: [], strict: 'ask', password: true, pubkey: true, batch: false, quiet: false, locals: [], remotes: [], background: false, noCommand: false, gateway: false, set: new Set() });
 const CLIENT_OPTIONS = ['stricthostkeychecking', 'passwordauthentication', 'pubkeyauthentication', 'batchmode', 'port', 'user', 'identityfile', 'identitiesonly', 'loglevel', 'connecttimeout'];
-function clientOption(c: Client, text: string): string | null {
-  const m = /^([A-Za-z]+)(?:\s*=\s*|\s+)(\S+)$/.exec(text.trim());
+/** E17: the options of tunnels (on the command line with -o, and in ~/.ssh/config). */
+const TUNNEL_OPTIONS = ['proxyjump', 'localforward', 'remoteforward', 'gatewayports', 'exitonforwardfailure', 'serveraliveinterval', 'serveralivecountmax', 'forwardagent', 'hostname', 'userknownhostsfile', 'addkeystoagent', 'compression', 'requesttty'];
+function clientOption(c: Client, text: string, tunnels = false): string | null {
+  const m = (tunnels ? /^([A-Za-z]+)(?:\s*=\s*|\s+)(\S+(?:\s+\S+)?)$/ : /^([A-Za-z]+)(?:\s*=\s*|\s+)(\S+)$/).exec(text.trim());
   if (!m) return `command-line line 0: Bad configuration option: ${text}`;
   const key = m[1].toLowerCase(), value = m[2], v = value.toLowerCase();
-  if (!CLIENT_OPTIONS.includes(key)) return `command-line line 0: Bad configuration option: ${m[1].toLowerCase()}`;
+  if (tunnels && TUNNEL_OPTIONS.includes(key)) {
+    c.set.add(key);
+    if (key === 'proxyjump') c.jump = value;
+    else if (key === 'localforward') c.locals.push(value.replace(/\s+/, ':'));
+    else if (key === 'remoteforward') c.remotes.push(value.replace(/\s+/, ':'));
+    else if (key === 'gatewayports') c.gateway = v === 'yes';
+    return null;
+  }
+  if (!CLIENT_OPTIONS.includes(key) || /\s/.test(value)) return `command-line line 0: Bad configuration option: ${/\s/.test(value) ? text.trim() : m[1].toLowerCase()}`;
+  c.set.add(key);
   const yesNo = () => { if (v !== 'yes' && v !== 'no') return `command-line line 0: unsupported option "${value}".`; return null; };
   switch (key) {
     case 'stricthostkeychecking': {
@@ -444,15 +500,43 @@ type Connected = { state: FsState; conn?: Connection; status: number; failedAt?:
  * local user's known_hosts, then authentication as the remote sshd's applied options allow. Prints what ssh prints on
  * standard error; returns the new local state (known_hosts, the remote journal) and the connection, or the exit status.
  */
-function connect(given: FsState, dest: string, c: Client, io: RemoteIo, only?: Auth[]): Connected {
+function connect(given: FsState, dest: string, c: Client, io: RemoteIo, only?: Auth[], via?: number): Connected {
   const net = given.net;
   const userAt = dest.lastIndexOf('@'), name = userAt >= 0 ? dest.slice(userAt + 1) : dest, user = userAt >= 0 ? dest.slice(0, userAt) : c.user ?? io.user;
-  const found = lookupHost(given, name, io), state = found.state;
-  if ('error' in found) { io.err(`ssh: Could not resolve hostname ${name}: ${found.error}`); return { state, status: 255, failedAt: 'host' }; }
-  const at = found.at;
-  if (!net || at < 0) { io.err(`ssh: connect to host ${name} port ${c.port ?? 22}: Connection timed out`); return { state, status: 255, failedAt: 'host' }; }
-  const host = net.hosts[at], sshd = host.state.sshd, port = c.port ?? 22;
-  if (!sshd || !sshdRunning(host.state) || sshd.applied.port !== port) { io.err(`ssh: connect to host ${name} port ${port}: Connection refused`); return { state, status: 255, failedAt: 'host' }; }
+  const port = c.port ?? 22, firewall = !!io.profile.features?.includes('firewall');
+  let state = given, at: number, source = net?.address ?? '10.0.0.10';
+  if (via !== undefined) {
+    // E17: through a jump host (ProxyJump): it looks the name up and opens the connection (its stdio forwarding).
+    const origin = viewFrom(given, via);
+    const lost = (why: string): Connected => { io.err(`channel 0: open failed: connect failed: ${why}`); io.err('stdio forwarding failed'); io.err('Connection closed by UNKNOWN port 65535'); return { state, status: 255, failedAt: 'host' }; };
+    const r = basicResolver(origin, name, 4);
+    if ('error' in r) return lost('Name or service not known');
+    const t = reach(origin, r.found.address, port);
+    if (t.result === 'timeout') return lost('Connection timed out');
+    if (t.result === 'refused') return lost('Connection refused');
+    const i = indexByName(given, nameOf(t.host));
+    if (typeof i !== 'number') return lost('Connection refused');
+    at = i;
+    source = sourceAddress(origin, r.found.address);
+  } else {
+    const found = lookupHost(given, name, io);
+    state = found.state;
+    if ('error' in found) { io.err(`ssh: Could not resolve hostname ${name}: ${found.error}`); return { state, status: 255, failedAt: 'host' }; }
+    at = found.at;
+    if (!net || at < 0) { io.err(`ssh: connect to host ${name} port ${c.port ?? 22}: Connection timed out`); return { state, status: 255, failedAt: 'host' }; }
+    // E16: the firewalls (and E17's private networks) decide first: a drop times out, a reject is refused.
+    if (firewall) {
+      const address = found.address ?? net.hosts[at].address, t = reach(state, address, port);
+      if (t.result !== 'ok') { io.err(`ssh: connect to host ${name} port ${port}: ${t.result === 'timeout' ? 'Connection timed out' : 'Connection refused'}`); return { state, status: 255, failedAt: 'host' }; }
+      source = sourceAddress(state, address);
+    }
+  }
+  const host = net!.hosts[at], sshd = host.state.sshd;
+  if (!sshd || !sshdRunning(host.state) || sshd.applied.port !== port) {
+    if (via !== undefined) { io.err('channel 0: open failed: connect failed: Connection refused'); io.err('stdio forwarding failed'); io.err('Connection closed by UNKNOWN port 65535'); }
+    else io.err(`ssh: connect to host ${name} port ${port}: Connection refused`);
+    return { state, status: 255, failedAt: 'host' };
+  }
   let local = state;
   const say = (line: string) => { if (!c.quiet) io.err(line); };
   // 1. The host key.
@@ -491,9 +575,9 @@ function connect(given: FsState, dest: string, c: Client, io: RemoteIo, only?: A
   }
   // 2. Authentication.
   const remoteBefore = host.state, o = sshd.applied, account = findUser(accountsOf(remoteBefore), user);
-  const conns = net.connections + 1, sport = 50000 + conns, pid = nextPid(remoteBefore);
+  const conns = net!.connections + 1, sport = 50000 + conns, pid = nextPid(remoteBefore);
   let remote: FsState = { ...remoteBefore, lastPid: pid };
-  const from = `from ${net.address} port ${sport}`;
+  const from = `from ${source} port ${sport}`;
   const done = (ok: boolean, how?: string): Connected => {
     if (how) remote = journal(remote, how, pid);
     const placed = withHost(local, at, remote), next = { ...placed, net: { ...placed.net!, connections: conns } };
@@ -522,13 +606,13 @@ function connect(given: FsState, dest: string, c: Client, io: RemoteIo, only?: A
   if (passwords) {
     if (!host.passwords.includes(user) || !allowedUser) {
       io.err(`${user}@${name}'s password: （模擬環境：課程沒有提供這個帳號的密碼）`);
-      return done(false, `Connection closed by ${allowedUser ? 'authenticating' : 'invalid'} user ${user} ${net.address} port ${sport} [preauth]`);
+      return done(false, `Connection closed by ${allowedUser ? 'authenticating' : 'invalid'} user ${user} ${source} port ${sport} [preauth]`);
     }
     io.err(`${user}@${name}'s password: （模擬環境代為輸入課程提供的密碼）`);
     if (rootBlocks('password')) return done(false, `Failed password for root ${from} ssh2`);
     return done(true, `Accepted password for ${user} ${from} ssh2`);
   }
-  return done(false, account ? `Connection closed by authenticating user ${user} ${net.address} port ${sport} [preauth]` : undefined);
+  return done(false, account ? `Connection closed by authenticating user ${user} ${source} port ${sport} [preauth]` : undefined);
 }
 
 /** The client's usable keys (-i files, else ~/.ssh/id_ed25519), with ssh's warnings for files it cannot use. */
@@ -601,7 +685,7 @@ export function loginProblem(state: FsState, host: string, user: string, method:
   if (method === 'password') return o.passwordAuthentication || o.kbdInteractiveAuthentication ? null : 'sshd 不接受密碼登入';
   if (!o.pubkeyAuthentication) return 'sshd 不接受金鑰登入';
   const silent: RemoteIo = { out: () => {}, err: () => {}, user: state.user, tty: false, stdin: null, profile: { id: 'check', commands: [] }, alone: false };
-  const keys = identities(state, state.user, { identities: [], strict: 'ask', password: false, pubkey: true, batch: true, quiet: true }, silent);
+  const keys = identities(state, state.user, { ...newClient(), password: false, batch: true, quiet: true }, silent);
   if (!keys.length) return '本機沒有可用的私鑰（~/.ssh/id_ed25519 不存在、權限太寬或格式不對）';
   const why = authorizedProblem(remote, user, keys[0], o);
   return why === null ? null : why ?? 'authorized_keys 裡沒有這把公鑰';
@@ -637,8 +721,8 @@ export function remoteCommand(cmd: string, state: FsState, args: readonly string
 }
 
 /** Parses ssh's options; the destination and the command words come back as operands (options stop at the destination). */
-function clientArgs(args: readonly string[], valueFlags: string, boolFlags: string, io: RemoteIo, cmd = 'ssh'): { c: Client; rest: string[] } | null {
-  const c: Client = { identities: [], strict: 'ask', password: true, pubkey: true, batch: false, quiet: false };
+function clientArgs(args: readonly string[], valueFlags: string, boolFlags: string, io: RemoteIo, cmd = 'ssh', tunnels = false): { c: Client; rest: string[] } | null {
+  const c = newClient();
   let i = 0;
   for (; i < args.length; i++) {
     const a = args[i];
@@ -649,41 +733,86 @@ function clientArgs(args: readonly string[], valueFlags: string, boolFlags: stri
       const value = a.length > 2 ? a.slice(2) : args[++i];
       if (value === undefined) { io.err(`${cmd}: option requires an argument -- ${f}`); return null; }
       if (f === 'i') c.identities.push(value);
-      else if (f === 'p' || f === 'P') c.port = Number(value);
-      else if (f === 'l') c.user = value;
-      else if (f === 'o') { const e = clientOption(c, value); if (e) { io.err(e); return null; } }
+      else if (f === 'p' || f === 'P') { c.port = Number(value); c.set.add('port'); }
+      else if (f === 'l') { c.user = value; c.set.add('user'); }
+      else if (f === 'o') { const e = clientOption(c, value, tunnels); if (e) { io.err(e); return null; } }
+      // E17: tunnels, jump hosts and another configuration file.
+      else if (f === 'L') c.locals.push(value);
+      else if (f === 'R') c.remotes.push(value);
+      else if (f === 'J') { c.jump = value; c.set.add('proxyjump'); }
+      else if (f === 'F') c.config = value;
       continue;
     }
     for (const g of a.slice(1)) {
       if (!boolFlags.includes(g)) { io.err(`${cmd}: unknown option -- ${g}`); return null; }
       if (g === 'q') c.quiet = true;
+      if (tunnels && g === 'f') c.background = true;
+      if (tunnels && g === 'N') c.noCommand = true;
+      if (tunnels && g === 'g') c.gateway = true;
     }
   }
   return { c, rest: args.slice(i) };
 }
 
+const SSH_USAGE = 'usage: ssh [-46AaCfGgKkMNnqsTtVvXxYy] [-i identity_file] [-l login_name] [-o option] [-p port] destination [command [argument ...]]';
+const SSH_USAGE_TUNNELS = 'usage: ssh [-46AaCfGgKkMNnqsTtVvXxYy] [-F configfile] [-i identity_file] [-J destination] [-L address] [-l login_name] [-o option] [-p port] [-R address] destination [command [argument ...]]';
+
 function ssh(state: FsState, args: readonly string[], io: RemoteIo): { state: FsState; status: number } {
-  if (state.sshd && !state.net) { io.err('ssh: 模擬環境不支援從遠端主機再用 ssh 連線到別台主機（請先 exit 回到本機）'); return { state, status: 255 }; }
-  const parsed = clientArgs(args, 'ilop', '46AaCfGgKkMNnqsTtVvXxYy', io);
-  if (!parsed) { io.err('usage: ssh [-46AaCfGgKkMNnqsTtVvXxYy] [-i identity_file] [-l login_name] [-o option] [-p port] destination [command [argument ...]]'); return { state, status: 255 }; }
-  const { c, rest } = parsed;
-  if (!rest.length) { io.err('usage: ssh [-46AaCfGgKkMNnqsTtVvXxYy] [-i identity_file] [-l login_name] [-o option] [-p port] destination [command [argument ...]]'); return { state, status: 255 }; }
-  const [dest, ...command] = rest;
-  if (!command.length && !(io.alone && io.tty && io.stdin === null) && io.stdin === null) { io.err('ssh: 模擬環境的互動式 ssh 只能單獨在提示字元使用；要在遠端執行指令請寫成 ssh 主機 指令'); return { state, status: 255 }; }
-  const r = connect(state, dest, c, io);
-  if (!r.conn) return r;
-  const { conn } = r, login = loggedIn(conn.remote, conn.user);
-  if (login.homeMissing) io.err(`Could not chdir to home directory ${findUser(accountsOf(conn.remote), conn.user)!.home}: No such file or directory`);
+  const tunnels = !!io.profile.features?.includes('tunnels');
+  if (state.sshd) { io.err(tunnels ? 'ssh: 模擬環境不支援從遠端主機再用 ssh 連線到別台主機；請先 exit 回到本機，再用 ssh -J 跳板機 目的主機（ProxyJump）' : 'ssh: 模擬環境不支援從遠端主機再用 ssh 連線到別台主機（請先 exit 回到本機）'); return { state, status: 255 }; }
+  const parsed = clientArgs(args, tunnels ? 'ilopJLRF' : 'ilop', '46AaCfGgKkMNnqsTtVvXxYy', io, 'ssh', tunnels);
+  if (!parsed) { io.err(tunnels ? SSH_USAGE_TUNNELS : SSH_USAGE); return { state, status: 255 }; }
+  const { rest } = parsed;
+  if (!rest.length) { io.err(tunnels ? SSH_USAGE_TUNNELS : SSH_USAGE); return { state, status: 255 }; }
+  let c = parsed.c, dest = rest[0];
+  const command = rest.slice(1);
+  // E17: ~/.ssh/config (Host blocks: HostName, User, Port, IdentityFile, ProxyJump, LocalForward…), then the jump hosts.
+  let hops: { dest: string; c: Client }[] = [{ dest, c }];
+  if (tunnels) {
+    const r = withConfig(state, dest, c, io);
+    if ('status' in r) return { state, status: r.status };
+    ({ c, dest } = r);
+    const chain = jumpHops(state, c, io, 0);
+    if ('status' in chain) return { state, status: chain.status };
+    hops = [...chain.hops, { dest, c }];
+    if (c.background && !c.noCommand && !command.length) { io.err('Cannot fork into background without a command to execute.'); return { state, status: 255 }; }
+    if (c.noCommand && !c.background) { io.err('ssh：模擬環境的 ssh -N 會一直佔住這個終端機（要按 Ctrl-C 才結束）；請加 -f 讓它在背景執行：ssh -f -N …'); return { state, status: 255 }; }
+  }
+  if (!command.length && !c.noCommand && !(io.alone && io.tty && io.stdin === null) && io.stdin === null) { io.err('ssh: 模擬環境的互動式 ssh 只能單獨在提示字元使用；要在遠端執行指令請寫成 ssh 主機 指令'); return { state, status: 255 }; }
+  let r: Connected = { state, status: 255 }, via: number | undefined;
+  for (const [k, hop] of hops.entries()) {
+    r = connect(k ? r.state : state, hop.dest, hop.c, io, undefined, via);
+    if (!r.conn) return { state: r.state, status: 255 };
+    if (k < hops.length - 1) {
+      // A jump host forwards the next connection (direct-tcpip): its sshd must allow TCP forwarding.
+      const allow = r.conn.remote.sshd?.applied.allowTcpForwarding ?? 'yes';
+      if (allow === 'no' || allow === 'remote') { io.err('channel 0: open failed: administratively prohibited: open failed'); io.err('stdio forwarding failed'); io.err('Connection closed by UNKNOWN port 65535'); return { state: r.state, status: 255 }; }
+      via = r.conn.at;
+    }
+  }
+  const { conn } = r as Required<Pick<Connected, 'conn'>> & Connected;
+  // E17: the forwards: -L listens here (or a background ssh with -f), -R on the server (held by sshd).
+  let base = r.state;
+  if (tunnels && (c.locals.length || c.remotes.length || c.background)) {
+    const f = forwards(base, conn, c, io, args, command.length > 0 || io.stdin !== null);
+    if ('status' in f) return { state: base, status: f.status };
+    base = f.state;
+    if (c.background) return { state: base, status: 0 };
+  }
+  const remoteNow = base.net!.hosts[conn.at].state, login = loggedIn(remoteNow, conn.user);
+  if (login.homeMissing) io.err(`Could not chdir to home directory ${findUser(accountsOf(remoteNow), conn.user)!.home}: No such file or directory`);
   const say = (l: Line) => l.kind === 'out' ? io.out(`${l.text}\n`) : io.err(l.text);
-  const host = r.state.net!.hosts[conn.at].host;
+  const host = base.net!.hosts[conn.at].host;
   if (!command.length && io.stdin === null) {
     // An interactive session: the next lines run on the remote machine until exit.
     const motd = login.state.nodes.get('/etc/motd');
     if (motd?.kind === 'file' && motd.content) io.out(motd.content.endsWith('\n') ? motd.content : `${motd.content}\n`);
-    return { state: { ...withHost(r.state, conn.at, { ...login.state, login: state.host ?? 'logic-island' }), session: { host, name: conn.name } }, status: 0 };
+    return { state: { ...withHost(base, conn.at, { ...login.state, login: state.host ?? 'logic-island' }), session: { host, name: conn.name } }, status: 0 };
   }
   // A command (its words joined, as ssh does) or, without one, the lines of standard input, run by the remote shell.
-  let remote = login.state, status = 0;
+  // E16: from the firewall profile up it runs in a view of the network from the remote machine.
+  const viewing = !!io.profile.features?.includes('firewall');
+  let remote = viewing ? viewFrom(withHost(base, conn.at, login.state), conn.at) : login.state, status = 0;
   const lines = command.length ? [command.join(' ')] : (io.stdin ?? '').split('\n').filter(l => l.trim());
   if (!command.length) io.err('Pseudo-terminal will not be allocated because stdin is not a terminal.');
   for (const line of lines) {
@@ -696,7 +825,152 @@ function ssh(state: FsState, args: readonly string[], io: RemoteIo): { state: Fs
   }
   const { logout: _o, login: _l, ...kept } = remote;
   void _o; void _l;
-  return { state: withHost(r.state, conn.at, kept), status };
+  const placed = viewing ? fromView(base, conn.at, kept) : withHost(base, conn.at, kept);
+  // -R listeners of a command end with it.
+  return { state: tunnels && c.remotes.length ? closeSessionForwards(placed, conn.at) : placed, status };
+}
+
+// ---------------------------------------------------------------------------------------------------- E17 tunnels
+
+/** ~/.ssh/config (or -F): Host blocks in order; the first value of a keyword wins, IdentityFile and the forwards add up. */
+interface ConfigBlock { patterns: string[]; opts: [string, string][] }
+const CONFIG_KEYS = ['hostname', 'user', 'port', 'identityfile', 'proxyjump', 'localforward', 'remoteforward', 'stricthostkeychecking', 'identitiesonly', 'passwordauthentication', 'pubkeyauthentication', 'batchmode',
+  'loglevel', 'connecttimeout', 'gatewayports', 'exitonforwardfailure', 'serveraliveinterval', 'serveralivecountmax', 'forwardagent', 'userknownhostsfile', 'addkeystoagent', 'compression', 'requesttty', 'hostkeyalgorithms'];
+function readConfig(state: FsState, io: RemoteIo, file?: string): ConfigBlock[] | { status: number } {
+  const path = file ? resolvePath(state, file) : `${state.home}/.ssh/config`;
+  const r = readAs(state, io.user, path);
+  if ('error' in r) {
+    if (file) { io.err(`Can't open user config file ${file}: No such file or directory`); return { status: 255 }; }
+    return [];
+  }
+  if ((r.node.owner !== io.user && r.node.owner !== 'root') || r.node.mode & 0o022) { io.err(`Bad owner or permissions on ${path}`); return { status: 255 }; }
+  const blocks: ConfigBlock[] = [{ patterns: ['*'], opts: [] }], bad: string[] = [];
+  let skipping = false;
+  r.text.split('\n').forEach((raw, i) => {
+    const line = raw.replace(/#.*/, '').trim();
+    if (!line) return;
+    const m = /^(\S+?)(?:\s*=\s*|\s+)(.*)$/.exec(line) ?? [line, line, ''];
+    const key = m[1].toLowerCase(), value = m[2].trim().replace(/^"(.*)"$/, '$1');
+    if (key === 'host') { blocks.push({ patterns: value.split(/\s+/), opts: [] }); skipping = false; return; }
+    if (key === 'match') { skipping = true; return; }
+    if (key === 'include') return;
+    if (skipping) return;
+    if (!CONFIG_KEYS.includes(key)) { io.err(`${path}: line ${i + 1}: Bad configuration option: ${key}`); bad.push(key); return; }
+    blocks.at(-1)!.opts.push([key, value]);
+  });
+  if (bad.length) { io.err(`${path}: terminating, ${bad.length} bad configuration options`); return { status: 255 }; }
+  return blocks;
+}
+/** ssh_config's Host patterns: * and ?, !negation; a block applies when a pattern matches and no negated one does. */
+const hostMatches = (patterns: readonly string[], host: string) => {
+  const hit = (p: string) => new RegExp(`^${p.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')}$`, 'i').test(host);
+  return patterns.some(p => !p.startsWith('!') && hit(p)) && !patterns.some(p => p.startsWith('!') && hit(p.slice(1)));
+};
+/** The destination and client options after ~/.ssh/config (the command line wins: it was read first). */
+function withConfig(state: FsState, dest: string, given: Client, io: RemoteIo): { dest: string; c: Client } | { status: number } {
+  const blocks = readConfig(state, io, given.config);
+  if ('status' in blocks) return blocks;
+  const at = dest.lastIndexOf('@'), host = at >= 0 ? dest.slice(at + 1) : dest, userGiven = at >= 0 ? dest.slice(0, at) : undefined;
+  const got = new Map<string, string>(), c: Client = { ...given, identities: [...given.identities], locals: [...given.locals], remotes: [...given.remotes], set: new Set(given.set) };
+  for (const b of blocks) {
+    if (!hostMatches(b.patterns, host)) continue;
+    for (const [k, v] of b.opts) {
+      if (k === 'identityfile') { c.identities.push(v.replace(/^~(?=\/)/, state.home).replace(/%d/g, state.home)); continue; }
+      if (k === 'localforward') { c.locals.push(v.replace(/\s+/, ':')); continue; }
+      if (k === 'remoteforward') { c.remotes.push(v.replace(/\s+/, ':')); continue; }
+      if (!got.has(k)) got.set(k, v);
+    }
+  }
+  const get = (k: string) => c.set.has(k) ? undefined : got.get(k);
+  const hostname = (got.get('hostname') ?? host).replace(/%h/g, host), user = userGiven ?? c.user ?? got.get('user');
+  if (get('port') !== undefined) { if (!/^\d+$/.test(get('port')!)) { io.err(`${state.home}/.ssh/config: Badly formatted port number.`); return { status: 255 }; } c.port = Number(get('port')); }
+  const jump = get('proxyjump');
+  if (jump !== undefined) c.jump = jump.toLowerCase() === 'none' ? undefined : jump;
+  if (c.jump?.toLowerCase() === 'none') c.jump = undefined;
+  for (const k of ['stricthostkeychecking', 'passwordauthentication', 'pubkeyauthentication', 'batchmode', 'loglevel']) {
+    const v = get(k);
+    if (v !== undefined) clientOption(c, `${k} ${v}`);
+  }
+  if (got.get('gatewayports')?.toLowerCase() === 'yes') c.gateway = true;
+  return { dest: user ? `${user}@${hostname}` : hostname, c };
+}
+/** The jump hosts before a destination (-J a,b or ProxyJump), each with its own configuration (and its own ProxyJump). */
+function jumpHops(state: FsState, c: Client, io: RemoteIo, depth: number): { hops: { dest: string; c: Client }[] } | { status: number } {
+  if (!c.jump) return { hops: [] };
+  if (depth > 3) { io.err('ssh：模擬環境的 ProxyJump 最多 4 層'); return { status: 255 }; }
+  const hops: { dest: string; c: Client }[] = [];
+  for (const spec of c.jump.split(',')) {
+    const m = /^(?:ssh:\/\/)?(?:([^@]+)@)?([^:@]+)(?::(\d+))?$/.exec(spec.trim());
+    if (!m) { io.err(`ssh: Invalid ProxyJump "${spec}"`); return { status: 255 }; }
+    const base = newClient();
+    if (m[3]) { base.port = Number(m[3]); base.set.add('port'); }
+    const r = withConfig(state, m[1] ? `${m[1]}@${m[2]}` : m[2], base, io);
+    if ('status' in r) return r;
+    const inner = jumpHops(state, r.c, io, depth + 1);
+    if ('status' in inner) return inner;
+    hops.push(...inner.hops, { dest: r.dest, c: { ...r.c, jump: undefined } });
+  }
+  return { hops };
+}
+/** [bind:]port:host:hostport of -L and -R. */
+function forwardSpec(text: string): { bind?: string; port: number; host: string; hostPort: number } | null {
+  const parts = text.replace(/^\[([^\]]*)\]/, '$1').split(':');
+  if (parts.length < 3 || parts.length > 4) return null;
+  const [bind, port, host, hostPort] = parts.length === 4 ? parts : [undefined, ...parts];
+  if (!/^\d+$/.test(port!) || !/^\d+$/.test(hostPort!) || !host || Number(port) > 65535 || Number(hostPort) < 1 || Number(hostPort) > 65535) return null;
+  return { ...bind !== undefined ? { bind } : {}, port: Number(port), host: host.replace(/^\[|\]$/g, ''), hostPort: Number(hostPort) };
+}
+const bindAddress = (bind: string | undefined, gateway: boolean) => bind === undefined ? (gateway ? '0.0.0.0' : '127.0.0.1') : bind === '' || bind === '*' || bind === '0.0.0.0' ? '0.0.0.0' : bind === 'localhost' ? '127.0.0.1' : bind;
+const overlaps = (a: string, b: string) => a === '0.0.0.0' || b === '0.0.0.0' || a === b;
+
+/**
+ * E17: ssh's forwards once it is logged in. -L: a listener on this machine (127.0.0.1 unless -g or a bind address) whose
+ * connections the server opens to host:port; -R: a listener on the server (127.0.0.1 unless its GatewayPorts says
+ * otherwise) whose connections come back to host:port from here. The server's AllowTcpForwarding decides; a port that is
+ * taken (or below 1024 without root) fails as ssh reports it. With -f the ssh client stays in the background (a process
+ * that holds the -L listeners; kill it and they close, and its -R listeners on the server go too).
+ */
+function forwards(state: FsState, conn: Connection, c: Client, io: RemoteIo, args: readonly string[], command: boolean): { state: FsState } | { status: number } {
+  const remoteName = state.net!.hosts[conn.at].host, server = state.net!.hosts[conn.at].state, o = server.sshd!.applied;
+  const allow = o.allowTcpForwarding ?? 'yes', clock = clockOf(state);
+  const localPid = c.background ? nextPid(state) : 0;
+  const listen: Listen[] = [];
+  for (const text of c.locals) {
+    const f = forwardSpec(text);
+    if (!f) { io.err(`Bad local forwarding specification '${text}'`); return { status: 255 }; }
+    const address = bindAddress(f.bind, c.gateway);
+    const taken = listenersOf(state).some(l => l.proto === 'tcp' && l.local.port === f.port && overlaps(l.local.address, address)) || listen.some(l => l.port === f.port);
+    const denied = f.port < 1024 && io.user !== 'root';
+    if (taken || denied) {
+      io.err(`bind [${address}]:${f.port}: ${denied ? 'Permission denied' : 'Address already in use'}`);
+      io.err(`channel_setup_fwd_listener_tcpip: cannot listen to port: ${f.port}`);
+      io.err('Could not request local forwarding.');
+      continue;
+    }
+    listen.push({ port: f.port, ...address !== '0.0.0.0' ? { address } : {}, fd: 4 + listen.length, backlog: 128, forward: { via: remoteName, host: f.host, port: f.hostPort, ...allow === 'no' || allow === 'remote' ? { prohibited: true as const } : {} } });
+  }
+  let next = state;
+  if (c.background) {
+    const proc: Proc = { pid: localPid, ppid: 1, user: io.user, command: `ssh ${args.join(' ')}`, stat: 'Ss', cpu: 0, rss: 6016, vsz: 15360, shr: 5248, tty: '?', start: clock.now, time: 0, nice: 0, ...listen.length ? { listen } : {} };
+    next = { ...next, processes: [...tableOf(next), proc], lastPid: localPid };
+    if (!command && !c.noCommand) return { state: next };
+  }
+  // Without -f the -L listeners would live as long as the session, which runs on the server: nothing here could use them.
+  if (!c.remotes.length) return { state: next };
+  let remote = next.net!.hosts[conn.at].state;
+  for (const text of c.remotes) {
+    const f = forwardSpec(text);
+    if (!f) { io.err(`Bad remote forwarding specification '${text}'`); return { status: 255 }; }
+    const gp = o.gatewayPorts ?? 'no';
+    const address = gp === 'yes' ? '0.0.0.0' : gp === 'clientspecified' && f.bind !== undefined ? bindAddress(f.bind, false) : '127.0.0.1';
+    const taken = listenersOf(remote).some(l => l.proto === 'tcp' && l.local.port === f.port && overlaps(l.local.address, address));
+    if (allow === 'no' || allow === 'local' || taken || (f.port < 1024 && conn.user !== 'root')) { io.err(`Warning: remote port forwarding failed for listen port ${f.port}`); continue; }
+    const pid = nextPid(remote);
+    const sshdProc: Proc = { pid, ppid: 700, user: conn.user, command: `sshd: ${conn.user}${command ? '@notty' : c.noCommand ? '' : '@pts/1'}`, stat: 'S', cpu: 0, rss: 7168, vsz: 17920, shr: 5888, tty: '?', start: clock.now, time: 0, nice: 0,
+      listen: [{ port: f.port, ...address !== '0.0.0.0' ? { address } : {}, fd: 9, backlog: 128, forward: { via: nameOf(next), host: f.host, port: f.hostPort, client: localPid } }] };
+    remote = { ...remote, processes: [...tableOf(remote), sshdProc], lastPid: pid };
+  }
+  return { state: withHost(next, conn.at, remote) };
 }
 
 function keygen(state: FsState, args: readonly string[], io: RemoteIo): { state: FsState; status: number } {

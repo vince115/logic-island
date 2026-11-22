@@ -294,7 +294,7 @@ export const LATER_MANUAL: Record<'ssh' | 'ssh-keygen' | 'ssh-copy-id' | 'ssh-ke
 };
 
 /** E10–E12 (SRV0_SERVER_CAPABILITY.md §6–§8): the network commands of the sockets, dns and http profiles. */
-export const SERVER_MANUAL: Record<'ss' | 'lsof' | 'nc' | 'ip' | 'getent' | 'dig' | 'host' | 'named-checkzone' | 'rndc' | 'resolvectl' | 'curl' | 'openssl' | 'certbot' | 'nginx', ManualEntry> = {
+export const SERVER_MANUAL: Record<'ss' | 'lsof' | 'nc' | 'ip' | 'getent' | 'dig' | 'host' | 'named-checkzone' | 'rndc' | 'resolvectl' | 'curl' | 'openssl' | 'certbot' | 'nginx' | 'ufw' | 'nft', ManualEntry> = {
   ss: {
     usage: 'ss [-t] [-u] [-l] [-a] [-n] [-p] [-4] [-H] [sport = :埠 | dport = :埠]', summary: '列出 socket（取代 netstat）',
     description: ['預設只列出已建立的連線；-l 只列監聽中的 socket，-a 兩者都列。UDP 先列，再列 TCP。', '-p 的 users:((…)) 只顯示你能查看的行程：一般使用者只看到自己的，要看 root 或別人的行程請用 sudo。', 'Local Address 是 0.0.0.0 表示接受每個位址的連線；127.0.0.1 只接受本機自己的連線。'],
@@ -372,6 +372,20 @@ export const SERVER_MANUAL: Record<'ss' | 'lsof' | 'nc' | 'ip' | 'getent' | 'dig
       '模擬環境：proxy_pass 與 upstream 在引擎階段 E15 才模擬；log_format、map、set 不支援，if 只支援 return 與 rewrite。'],
     options: [['-t', '檢查設定'], ['-T', '檢查並印出設定'], ['-s', '送訊號給執行中的 nginx（reload、stop、quit、reopen）'], ['-q', '檢查時只印錯誤'], ['-c', '指定設定檔']],
   },
+  ufw: {
+    usage: 'ufw status [verbose|numbered] | default deny|allow|reject incoming|outgoing | allow|deny|reject|limit 規則 | delete 編號|規則 | [--force] enable | disable | reload | app list|info 名稱', summary: 'Ubuntu 的主機防火牆（Uncomplicated Firewall）',
+    description: ['規則依順序比對，第一個符合的決定；都不符合時用預設原則（deny 丟棄封包：對方逾時；reject 回絕：對方立刻得到 Connection refused）。已建立的連線（狀態追蹤）與 lo 一律放行。',
+      '規則的寫法：ufw allow 22/tcp、ufw allow OpenSSH、ufw allow \'Nginx Full\'、ufw allow from 10.0.0.0/24 to any port 22 proto tcp、ufw limit ssh。啟用前先允許 SSH，否則新的 SSH 連線會被擋在外面。',
+      '在 SSH 工作階段中 enable 會先詢問；模擬環境沒有鍵盤，請用 sudo ufw --force enable（或 echo y | sudo ufw enable）。需要 root。'],
+    options: [['status', '狀態與規則（numbered 加上編號，verbose 加上預設原則）'], ['default', '預設原則'], ['allow', '允許'], ['deny', '丟棄'], ['reject', '回絕'], ['limit', '限制連線頻率（30 秒內 6 次）'], ['delete', '刪除規則'], ['insert', '插入到第 N 條'], ['enable', '啟用（開機時也啟用）'], ['disable', '停用']],
+  },
+  nft: {
+    usage: 'nft [-a] list ruleset | add table inet filter | add chain inet filter input \'{ type filter hook input priority 0; policy drop; }\' | add rule inet filter input 條件 動作 | delete rule inet filter input handle N | -f 檔案', summary: 'nftables：Linux 核心的封包過濾規則',
+    description: ['input 鏈的規則依順序比對：ct state established,related accept（狀態追蹤）、iif lo accept、ip saddr 10.0.0.0/24 tcp dport 22 accept、tcp dport { 80, 443 } accept；都不符合時用鏈的 policy（drop 丟棄）。',
+      '先加 ct state established,related accept 再把 policy 改成 drop，否則連目前的 SSH 工作階段也會被切斷。sudo nft -f /etc/nftables.conf 一次載入整份設定。',
+      '模擬環境支援 inet／ip 表的 input 與 output 鏈；jump、set、named counter 等不支援。'],
+    options: [['-a', '列出 handle（刪除規則時要用）'], ['-f', '從檔案載入'], ['-c', '只檢查檔案的語法']],
+  },
 };
 
 /** The pages a feature changes: cat reads standard input and echo has -n with pipes; chmod has -R with accounts. */
@@ -384,6 +398,21 @@ const FEATURE_MANUAL: [ShellFeature, CommandName, ManualEntry][] = [
     description: ['-v 印出連線與 TLS 交握（*）、送出的請求（>）與收到的回應標頭（<）；-I 只送 HEAD；-L 跟隨重新導向。',
       'https:// 依信任庫（/etc/ssl/certs/ca-certificates.crt，或 --cacert）驗證憑證鏈與名稱：失敗時是錯誤 60；-k 不驗證（只用來除錯）。模擬環境不印進度表。'],
     options: [['-v', '詳細過程'], ['-s', '安靜（不印錯誤，加 -S 仍印）'], ['-k', '不驗證伺服器的憑證'], ['-I', '只要標頭（HEAD）'], ['-i', '輸出也包含回應標頭'], ['-L', '跟隨重新導向'], ['-o', '把第一個網址的內容寫入檔案'], ['-w', '結束後印出指定的資訊'], ['-H', '加上或取代請求標頭'], ['-X', '請求方法'], ['-d', '以 POST 送出資料']],
+  }],
+  ['proxy', 'nginx', {
+    ...SERVER_MANUAL.nginx,
+    description: ['-t 檢查設定（/etc/nginx/nginx.conf 與 include 的檔案）；-T 檢查並印出全部設定。修改設定之後先 nginx -t，再 systemctl reload nginx（或 nginx -s reload）才會生效。',
+      'reload 失敗時 nginx 繼續用舊的設定；restart 失敗則 nginx 停止，網站中斷。一般使用者執行 nginx -t 會因為 log 與 pid 檔失敗，請用 sudo。',
+      '反向代理：proxy_pass、proxy_set_header、upstream（round robin、least_conn、ip_hash、backup、max_fails）；後端拒絕連線是 502，逾時是 504，原因寫在 error.log。模擬環境不支援 log_format 與 set，map 只支援精確值、~正規表示式與 default。'],
+  }],
+  ['tunnels', 'ssh', {
+    usage: 'ssh [-i 私鑰] [-p 連接埠] [-o 選項] [-F 設定檔] [-J 跳板機] [-L [位址:]埠:主機:埠] [-R [位址:]埠:主機:埠] [-f] [-N] [-g] [使用者@]主機 [指令…]', summary: '以 SSH 登入遠端主機、執行指令、建立通道',
+    description: [
+      '第一次連線時先核對主機指紋（known_hosts）；模擬環境沒有鍵盤，請用 -o StrictHostKeyChecking=accept-new 或 ssh-keyscan 加入 known_hosts（跳板機不會沿用命令列的 -o，和 OpenSSH 相同）。',
+      '~/.ssh/config 的 Host 區塊可以設定 HostName、User、Port、IdentityFile、ProxyJump、LocalForward；命令列的選項優先，同一個設定第一個出現的值生效。',
+      '-J 跳板機：經由跳板機連到只有它連得到的主機。-L 本機埠:主機:埠：在本機（127.0.0.1）監聽，連線由伺服器那一端連到主機:埠；-R 遠端埠:主機:埠：在伺服器監聽，連線回到本機這一端。通道要配合 -f -N 在背景執行，kill 那個 ssh 就關閉。',
+    ],
+    options: [['-J 主機', '經由跳板機（ProxyJump）'], ['-L 規格', '本機轉送'], ['-R 規格', '遠端轉送'], ['-f', '登入後在背景執行'], ['-N', '不執行遠端指令（只建立通道）'], ['-g', '本機轉送也接受其他主機的連線'], ['-F 檔案', '另一個設定檔']],
   }],
   ['scripting', 'date', { usage: 'date [-u] [+格式]', summary: '顯示機器的時間（固定不動）', description: ['+%F 是 2026-11-22、+%H:%M 是時與分、+%s 是 1970 年起的秒數；有時區的機器顯示當地時間，-u 顯示 UTC，TZ=時區 date 換時區顯示。'], options: [['-u', '顯示 UTC']] }],
 ];

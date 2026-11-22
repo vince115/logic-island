@@ -11,7 +11,7 @@ import { dateText } from './clock';
 import { apt, aptMark, dpkg } from './packages';
 import { afterSignal, journalctl, systemctl, type SysIo } from './services';
 import { formatDate, UTC_ZONE, zoneDate, zoneNamed, zoneOf } from './calendar';
-import { activeState, remoteCommand, remoteRun, sshdControl } from './ssh';
+import { activeState, closeOrphanForwards, remoteCommand, remoteRun, sshdControl } from './ssh';
 import { runBash, runExecutable, runInteractive, runText, scriptInPath, serviceScript, type ScriptCtx } from './script';
 import { scheduleCommand } from './schedule';
 import { basicResolver, getent, ip, lsof, nc, ss, type NetIo } from './sockets';
@@ -20,6 +20,7 @@ import { curl } from './http';
 import { openssl } from './openssl';
 import { certbot } from './certbot';
 import { hupsMaster, masterOf, nginxCommand, nginxControl, reloadRunning } from './nginx';
+import { nft, ufw } from './firewall';
 
 /*
  * P7 Linux Terminal Simulator: the command interpreter. A fixed table of commands works on the virtual file system in
@@ -56,6 +57,10 @@ import { hupsMaster, masterOf, nginxCommand, nginxControl, reloadRunning } from 
  * Engine stages E13–E14 (SRV0_SERVER_CAPABILITY.md §11–§12): TLS_PROFILE adds tls — certificates as simulated PEM files, a
  * trust store, openssl x509/s_client/verify, curl's real HTTPS and certbot's ACME HTTP-01 (tls.ts, openssl.ts, certbot.ts);
  * NGINX_PROFILE adds nginx — a parsed nginx configuration that serves files, nginx -t/-T/-s and reload semantics (nginx.ts).
+ * Engine stages E15–E17 (SRV0_SERVER_CAPABILITY.md §16–§18): PROXY_PROFILE adds proxy — nginx's proxy_pass and upstream
+ * blocks (nginx.ts, proxy.ts); FIREWALL_PROFILE adds firewall — ufw and an nft subset deciding what other hosts reach
+ * (firewall.ts), and remote sessions that see the lesson's network; TUNNELS_PROFILE adds tunnels — ssh -L/-R/-J and
+ * ~/.ssh/config (tunnels.ts).
  */
 
 export interface Line { text: string; kind: 'out' | 'err' }
@@ -88,16 +93,18 @@ export const E11_COMMANDS = ['dig', 'host', 'named-checkzone', 'rndc', 'resolvec
 export const E12_COMMANDS = ['curl'] as const;
 /** E13: certificates and ACME (TLS_PROFILE and above). */
 export const E13_COMMANDS = ['openssl', 'certbot'] as const;
-/** E14: nginx (NGINX_PROFILE). */
+/** E14: nginx (NGINX_PROFILE and above). */
 export const E14_COMMANDS = ['nginx'] as const;
+/** E16: the host firewall (FIREWALL_PROFILE and above); E15 (proxy) and E17 (tunnels) add behaviour, not commands. */
+export const E16_COMMANDS = ['ufw', 'nft'] as const;
 /** The commands of the files profile (the manual of E1 covers exactly these). */
 export type FilesCommand = typeof COMMANDS[number] | typeof E1_COMMANDS[number];
 export type CommandName = FilesCommand | typeof E2_COMMANDS[number] | typeof E3_COMMANDS[number] | typeof E4_COMMANDS[number] | typeof E5_COMMANDS[number] | typeof E6_COMMANDS[number]
   | typeof E7_COMMANDS[number] | typeof E8_COMMANDS[number] | typeof E9_COMMANDS[number] | typeof E10_COMMANDS[number] | typeof E11_COMMANDS[number]
-  | typeof E12_COMMANDS[number] | typeof E13_COMMANDS[number] | typeof E14_COMMANDS[number];
+  | typeof E12_COMMANDS[number] | typeof E13_COMMANDS[number] | typeof E14_COMMANDS[number] | typeof E16_COMMANDS[number];
 /** Every command any profile may list. */
 export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS, ...E2_COMMANDS, ...E3_COMMANDS, ...E4_COMMANDS, ...E5_COMMANDS, ...E6_COMMANDS,
-  ...E7_COMMANDS, ...E8_COMMANDS, ...E9_COMMANDS, ...E10_COMMANDS, ...E11_COMMANDS, ...E12_COMMANDS, ...E13_COMMANDS, ...E14_COMMANDS];
+  ...E7_COMMANDS, ...E8_COMMANDS, ...E9_COMMANDS, ...E10_COMMANDS, ...E11_COMMANDS, ...E12_COMMANDS, ...E13_COMMANDS, ...E14_COMMANDS, ...E16_COMMANDS];
 
 /**
  * Behaviour a profile switches on besides its commands. E1: glob (* ? [...] and ~), help-option (指令 --help, long
@@ -105,10 +112,11 @@ export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS
  * grouped like GNU ls). E2: pipes (pipelines, redirection, standard input). E3: accounts (users, groups, umask).
  * E4: processes (the process table, jobs, $?). E5: packages. E6: services. E7: remote (ssh). E8: scripting (the Bash
  * interpreter, also at the prompt). E9: scheduling (time zones, cron, timers). E10: sockets. E11: dns. E12: http. E13: tls.
- * E14: nginx.
+ * E14: nginx. E15: proxy (nginx's reverse proxy and upstreams). E16: firewall (ufw, nft; connections from other hosts). E17: tunnels
+ * (ssh -L/-R/-J and ~/.ssh/config).
  */
 export type ShellFeature = 'glob' | 'help-option' | 'multi-source' | 'ls-extra' | 'pipes' | 'accounts' | 'processes' | 'packages' | 'services' | 'remote' | 'scripting' | 'scheduling'
-  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx';
+  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels';
 
 /** LNX-0: the commands a session may run (E1: and the features it switches on; none by default). */
 export interface ShellProfile { readonly id: string; readonly commands: readonly CommandName[]; readonly features?: readonly ShellFeature[] }
@@ -159,11 +167,17 @@ export const HTTP_PROFILE: ShellProfile = { id: 'http', commands: above(DNS_PROF
 export const TLS_PROFILE: ShellProfile = { id: 'tls', commands: above(HTTP_PROFILE, E13_COMMANDS), features: [...HTTP_PROFILE.features!, 'tls'] };
 /** E14: the tls profile plus nginx's configuration, nginx -t/-T/-s and the files it serves. */
 export const NGINX_PROFILE: ShellProfile = { id: 'nginx', commands: above(TLS_PROFILE, E14_COMMANDS), features: [...TLS_PROFILE.features!, 'nginx'] };
+/** E15: the nginx profile plus reverse proxying (proxy_pass, upstream blocks, forwarding headers, 502/504). */
+export const PROXY_PROFILE: ShellProfile = { id: 'proxy', commands: above(NGINX_PROFILE, []), features: [...NGINX_PROFILE.features!, 'proxy'] };
+/** E16: the proxy profile plus the host firewall (ufw, nft) and connections that other hosts make. */
+export const FIREWALL_PROFILE: ShellProfile = { id: 'firewall', commands: above(PROXY_PROFILE, E16_COMMANDS), features: [...PROXY_PROFILE.features!, 'firewall'] };
+/** E17: the firewall profile plus SSH tunnels (-L, -R), jump hosts (-J, ProxyJump) and ~/.ssh/config. */
+export const TUNNELS_PROFILE: ShellProfile = { id: 'tunnels', commands: above(FIREWALL_PROFILE, []), features: [...FIREWALL_PROFILE.features!, 'tunnels'] };
 /** The profiles a lesson machine may name (TerminalMachine.profile), from the narrowest. */
 export const PROFILES = {
   lab: LAB_PROFILE, files: FILES_PROFILE, streams: STREAMS_PROFILE, users: USERS_PROFILE, processes: PROCESSES_PROFILE, packages: PACKAGES_PROFILE, services: SERVICES_PROFILE,
   remote: REMOTE_PROFILE, scripting: SCRIPTING_PROFILE, scheduling: SCHEDULING_PROFILE, sockets: SOCKETS_PROFILE, dns: DNS_PROFILE, http: HTTP_PROFILE,
-  tls: TLS_PROFILE, nginx: NGINX_PROFILE,
+  tls: TLS_PROFILE, nginx: NGINX_PROFILE, proxy: PROXY_PROFILE, firewall: FIREWALL_PROFILE, tunnels: TUNNELS_PROFILE,
 } as const;
 export type ProfileId = keyof typeof PROFILES;
 
@@ -255,6 +269,8 @@ const HELP: [CommandName | null, string][] = [
   ['openssl', '  openssl x509 -in 檔案 -noout -dates | s_client -connect 主機:443 | verify  查看與驗證憑證'],
   ['certbot', '  certbot certonly --webroot -w 目錄 -d 網域 | --nginx | certificates | renew  向 Let\'s Encrypt 取得與更新憑證（需要 root）'],
   ['nginx', '  nginx -t | -T | -s reload      檢查、印出與重新載入 nginx 的設定（需要 root）'],
+  ['ufw', '  ufw status | allow | deny | enable | delete …  設定主機防火牆（需要 root）'],
+  ['nft', '  nft list ruleset | add rule inet filter input …  以 nftables 設定封包過濾（需要 root）'],
   ['man', '  man 指令                顯示指令的說明頁（也可以用 指令 --help）'],
 ];
 /** The lines that change when a profile has the feature (the lab keeps its own lines). */
@@ -266,6 +282,7 @@ const HELP_FEATURE: [ShellFeature, CommandName, string][] = [
   ['pipes', 'echo', '  echo [-n] [-e] 文字…       輸出一行文字；-n 不換行'],
   ['accounts', 'chmod', '  chmod [-R] 模式 路徑…      修改權限，例如 chmod 640 a.txt、chmod -R g+w 目錄'],
   ['scripting', 'date', '  date [-u] [+格式]          顯示機器的時間（固定不動；有時區時依時區）'],
+  ['tunnels', 'ssh', '  ssh [-J 跳板機] [-L 埠:主機:埠] [-R 埠:主機:埠] [-f -N] [使用者@]主機 [指令]  登入、執行指令、建立 SSH 通道'],
 ];
 const HELP_LAST: CommandName[] = ['whoami', 'clear', 'help'];
 
@@ -479,18 +496,19 @@ const LONG: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   grep: {
     'ignore-case': 'i', 'invert-match': 'v', 'line-number': 'n', count: 'c', 'word-regexp': 'w', 'line-regexp': 'x', recursive: 'r', 'dereference-recursive': 'R',
     'files-with-matches': 'l', 'extended-regexp': 'E', 'fixed-strings': 'F', 'with-filename': 'H', 'no-filename': 'h', regexp: 'e',
+    'only-matching': 'o', 'after-context': 'A', 'before-context': 'B', context: 'C',
   },
   sort: { 'numeric-sort': 'n', reverse: 'r', unique: 'u', 'ignore-case': 'f', key: 'k', 'field-separator': 't' },
   uniq: { count: 'c', repeated: 'd', unique: 'u', 'ignore-case': 'i' },
   wc: { lines: 'l', words: 'w', chars: 'm', bytes: 'c' },
   cut: { delimiter: 'd', fields: 'f', characters: 'c', bytes: 'b', 'only-delimited': 's' },
-  tr: { delete: 'd', 'squeeze-repeats': 's' },
+  tr: { delete: 'd', 'squeeze-repeats': 's', complement: 'c' },
   tee: { append: 'a' },
   id: { user: 'u', group: 'g', groups: 'G', name: 'n' },
 };
 /** E2: the option letters (':' takes a value) of the commands parsed with text.getopt. */
 const SPEC: Readonly<Record<string, string>> = {
-  cat: 'n', less: '', head: 'n:c:v', tail: 'n:c:fv', grep: 'ivncwxrRlEFHhe:', sort: 'nrufk:t:', uniq: 'cdui', wc: 'lwmc', cut: 'd:f:c:b:s', tr: 'ds', tee: 'a', id: 'ugGn',
+  cat: 'n', less: '', head: 'n:c:v', tail: 'n:c:fv', grep: 'ivncwxrRlEFHhe:oA:B:C:', sort: 'nrufk:t:', uniq: 'cdui', wc: 'lwmc', cut: 'd:f:c:b:s', tr: 'dscC', tee: 'a', id: 'ugGn',
 };
 
 const byteLength = (text: string) => new TextEncoder().encode(text).length;
@@ -642,7 +660,7 @@ interface Ctx {
 export interface Exec { state: FsState; events: Ev[]; status: number; clear?: true; notices?: string[] }
 
 /** E10–E12: the network commands and the module function of each. */
-const NET_COMMANDS = { ss, lsof, nc, ip, getent, dig, host, 'named-checkzone': namedCheckzone, rndc, resolvectl, curl, openssl, nginx: nginxCommand } as const;
+const NET_COMMANDS = { ss, lsof, nc, ip, getent, dig, host, 'named-checkzone': namedCheckzone, rndc, resolvectl, curl, openssl, nginx: nginxCommand, ufw, nft } as const;
 
 /** E13: certbot.service's ExecStart=/usr/bin/certbot -q renew runs the simulation's certbot (its output goes to the journal). */
 function certbotService(profile: ShellProfile, ctx: Ctx) {
@@ -654,7 +672,7 @@ function certbotService(profile: ShellProfile, ctx: Ctx) {
       out: d => lines.push(...d.replace(/\n$/, '').split('\n')), err: l => lines.push(l), user, tty: false, resolve: dnsResolver, stdin: null, tls: true,
       hook: (st, source) => { const x = runText(st, source, profile, { parent: ctx }); return { state: x.state, status: x.status }; },
     });
-    return { state: r.state, lines, status: r.status, id: 'certbot' };
+    return { state: r.state, lines, status: r.status, id: 'certbot', full: true as const };
   };
 }
 
@@ -1449,8 +1467,9 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
       code = r.status;
       // E6: systemd notices when a service's main process ends (and Restart= may start it again).
       const after = afterSignal(r.state, r.ended);
-      // E14: SIGHUP makes nginx's master reload its configuration.
-      return done(master && r.status === 0 && masterOf(after)?.pid === master.pid && hupsMaster(cmd, args, master) ? reloadRunning(after) : after);
+      // E14: SIGHUP makes nginx's master reload its configuration. E17: a background ssh that ends takes its -R listeners on the server.
+      const reloaded = master && r.status === 0 && masterOf(after)?.pid === master.pid && hupsMaster(cmd, args, master) ? reloadRunning(after) : after;
+      return done(features.has('tunnels') && !reloaded.sshd ? closeOrphanForwards(reloaded) : reloaded);
     }
     case 'sleep': { const p = proc.sleepProblem(args); if (p) usage(p); return done(); }
     case 'jobs': code = proc.jobsCommand(cur(), args, pio()); return done();
@@ -1538,7 +1557,7 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
       return done(sameShell(r.state, cur()));
     }
     case 'ss': case 'lsof': case 'nc': case 'ip': case 'getent': case 'dig': case 'host': case 'named-checkzone': case 'rndc': case 'resolvectl': case 'curl':
-    case 'openssl': case 'nginx': case 'certbot': {
+    case 'openssl': case 'nginx': case 'certbot': case 'ufw': case 'nft': {
       // E10–E14 (sockets.ts, dns.ts, http.ts, openssl.ts, certbot.ts, nginx.ts): names are looked up through /etc/hosts and, from the dns profile up, DNS.
       const io: NetIo = { out: write, err: fail, user: state.user, tty: ctx.tty, resolve: features.has('dns') ? dnsResolver : basicResolver, stdin: ctx.stdin, ...features.has('tls') ? { tls: true } : {} };
       // E13: certbot runs a deploy hook through the shell (as the user it runs as, root).
