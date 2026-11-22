@@ -30,7 +30,7 @@ export function runFrameJob(job: FrameJob): Promise<WebRun> {
       else if (data.kind === 'result') {
         done();
         resolve({ results: data.results, console: data.console, tree: data.tree, height: data.height, navigations: data.navigations,
-          submissions: data.submissions, title: data.title, standards: data.standards });
+          submissions: data.submissions, title: data.title, standards: data.standards, requests: data.requests, storage: data.storage });
       }
     }
     frame.setAttribute('sandbox', job.sandbox);
@@ -53,7 +53,7 @@ export function newNonce(): string {
 }
 
 /** The runner the lesson page uses: the learner's own browser. */
-export const runInFrame: WebRunner = ({ files, steps, viewport }) => {
+export const runInFrame: WebRunner = ({ files, steps, viewport, setup }) => {
   const nonce = newNonce();
-  return runFrameJob({ sandbox: WEB_SANDBOX, srcdoc: webDocument(files, nonce), nonce, steps, width: viewport.width, height: viewport.height, timeoutMs: WEB_LIMITS.timeoutMs });
+  return runFrameJob({ sandbox: WEB_SANDBOX, srcdoc: webDocument(files, nonce, false, setup), nonce, steps, width: viewport.width, height: viewport.height, timeoutMs: WEB_LIMITS.timeoutMs });
 };

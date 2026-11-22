@@ -56,6 +56,7 @@ webCode: {
 | `check` | 讓核取方塊或選項按鈕成為指定狀態（需要時點擊） |
 | `key` | 在元素上觸發 `keydown`、`keyup`；指令稿產生的鍵盤事件沒有預設行為，所以模擬最常用的兩種：Enter／Space 啟動按鈕；欄位裡的 Enter 依瀏覽器的隱式送出規則送出表單（WEB-1：表單有送出按鈕時經由第一個送出按鈕，按鈕停用就不送出；沒有送出按鈕時，只有單一單行欄位的表單會送出） |
 | `submit` | 和送出按鈕相同的 `requestSubmit`（先原生驗證，再 `submit` 事件） |
+| `tab` | 按下 Tab（`shift: true` 是 Shift+Tab）（W5）：先把 `keydown` 送給目前有焦點的元素（頁面取消它就不移動，可用來做焦點陷阱），再把焦點移到 Tab 順序的下一個：正數 `tabindex` 在前，其餘依文件順序；停用、隱藏與 `tabindex="-1"` 的元素略過，一組選項按鈕只停一次 |
 | `scroll` | 把頁面（`selector: ':page'`）或可捲動的元素捲到指定的垂直位置（WEB-2） |
 | `dispatch` | 在元素上觸發任何型別的事件（`mouseover`、`dblclick`、自訂事件；會冒泡，本來就不冒泡的 `mouseenter`、`focus` 等除外）（WEB-3） |
 | `wait` | 讓頁面的計時器執行這麼久（每步最多 10000 ms，全部最多 60000 ms）。檢查用的是虛擬時鐘（W2，WEB-3）：不會真的等待，計時器依時間先後、同時間依設定的先後執行，Promise 的回呼在計時器之間照常執行；第一步之前，延遲 0 的計時器已經執行過。預覽裡的計時器是真的。`Date.now()` 不是虛擬的 |
@@ -69,6 +70,10 @@ webCode: {
 | `box` | `getBoundingClientRect` 的寬、高或邊的位置（CSS 像素，預設容許 1px）：預設從頁面的角落量（捲動不影響），`from: ':viewport'` 從視窗的角落量（WEB-2，捲動後檢查 fixed 與 sticky），`from: '<選擇器>'` 從另一個元素的角落量 |
 | `hit` | 元素中心點上畫在最上面的是哪一個元素（WEB-2，`document.elementFromPoint`）：檢查重疊與 z-index |
 | `value` | 表單控制項的值，或是否勾選 |
+| `name` | 元素的無障礙名稱（W5，規則的簡化版）：`aria-labelledby`、`aria-label`、元素自己提供的（圖片的 `alt`、控制項的 `<label>`、`legend`、`caption`、按鈕／連結／標題等的文字），最後是 `title` |
+| `role` | 元素的角色（W5）：`role` 屬性，或標籤隱含的角色（`button`、有 `href` 的 `link`、`heading`、`navigation`、`textbox`、`checkbox`…；沒有角色是 `generic`） |
+| `request` | 頁面用 `fetch` 送出的請求（W3）：對某個方法與路徑至少一次（或剛好 `count` 次）；`body` 比對最後一次送出的 JSON |
+| `storage`、`cookie` | localStorage／sessionStorage 的項目、頁面讀得到的 Cookie（W4）：存在、等於某值或不存在 |
 | `label` | 表單控制項的標籤文字，依輔助科技讀取的順序：`aria-labelledby`、`aria-label`、對應的 `<label>`（`for` 或包住控制項） |
 | `headings` | 標題形成大綱：只有一個 `h1` 且在最前面，之後每個標題最多比前一個深一層 |
 | `focus` | 目前取得焦點的元素 |
@@ -78,6 +83,14 @@ webCode: {
 | `doctype` | 文件有 `<!DOCTYPE html>` |
 
 每個檢查都有 `label`（用學習者的話說明檢查什麼），在按「檢查」之前就列在練習裡；失敗時顯示瀏覽器裡實際看到的值，不直接給答案。
+
+### 頁面周圍的東西（`setup`，WEB-4）
+
+範例、練習與每個變體都可以帶 `setup: { api?, storage?, cookies? }`：
+
+- `api`（W3）：頁面的模擬伺服器。框架沒有網路，`fetch` 由這些路由回答：`{ method?, path, status?, body?, delay?, fail?, headers? }`。沒有查詢字串的路徑符合任何查詢字串；沒有路由的位址回 404；`fail` 是網路錯誤（`fetch` 被拒絕）；`delay` 走頁面的時鐘（檢查裡是虛擬的）。回應是只有常用成員的物件（`status`、`ok`、`headers`、`json()`、`text()`），不是真的 `Response`：真的回應本文是串流，讀取需要真實時間，虛擬時鐘無法計入。GET／HEAD 帶本文會像瀏覽器一樣被拒絕。預覽下方列出每個請求與它得到的狀態碼。
+- `storage`、`cookies`（W4）：頁面有自己在記憶體裡的 `localStorage`、`sessionStorage` 與 `document.cookie`（不透明來源讀不到真的），開始時是 `setup` 所說「上次造訪留下的」內容。預覽重新執行時保留 localStorage 與 Cookie（像重新整理），可以按鈕清除；檢查每次都從 `setup` 開始。
+- 變體可以帶自己的 `setup`（另一份伺服器資料、壞掉的伺服器、回訪的使用者），不一定要換固定檔案。
 
 ### 檢查怎麼執行
 
@@ -129,8 +142,9 @@ Chromium 是 Playwright 的 headless Chromium，頁面的載入方式和課程�
 ## 8. 已知限制
 
 - 自動測試只在 Chromium 驗證。課程只使用各瀏覽器行為一致的功能；`box` 檢查只量明確指定大小的盒子（不依賴字型的文字寬度），未捕捉錯誤的訊息文字各瀏覽器不同，檢查不比對錯誤訊息。
-- 圖片、字型與媒體只能用 `data:` URI；頁面不能載入外部資源（`fetch` 會失敗）。需要 API 的課（WEB11）要在框架裡提供固定回應的 `fetch`，是之後的引擎階段。
-- 框架沒有 `localStorage` 與 Cookie（不透明來源）；WEB12 需要記憶體中的替代品，是之後的引擎階段。
+- 圖片、字型與媒體只能用 `data:` URI；頁面不能載入外部資源。`fetch` 只會得到課程宣告的模擬回應（W3）：伺服器不解析查詢字串與請求本文，請求的標頭不記錄，沒有 CORS、快取與 `AbortController`。
+- 儲存空間是記憶體中的替代品（W4）：只支援方法（不支援 `localStorage.name`），沒有 `storage` 事件與容量限制；Cookie 的 `path`、`Secure`、`SameSite` 不模擬，`HttpOnly` 的寫入會被忽略。
+- 無障礙的 `name` 與 `role` 是規則的簡化版（W5），不是完整的稽核；即時區域的朗讀、焦點外框與真正的螢幕閱讀器行為無法檢查。
 - 迴圈保護不涵蓋行內事件屬性、無窮遞迴的 Promise 與 `for…of` 無限的產生器；這些情況仍可能讓分頁沒有回應，重新整理即可。
 - 鍵盤操作是指令稿產生的事件，只模擬 §3 列出的預設行為；Tab 移動焦點不模擬。
 - `input` 操作以程式設定欄位的值：瀏覽器只對使用者親手輸入的文字套用 `minlength`／`maxlength` 的驗證，所以這兩個屬性無法用檢查重現。
@@ -142,9 +156,9 @@ Chromium 是 Playwright 的 headless Chromium，頁面的載入方式和課程�
 |---|---|---|
 | W1（WEB-1、WEB-3 完成） | 框架內的錯誤只算在頁面自己的主控台、Enter 的隱式送出；`script.js` 在頁面載入它的位置執行（`<head>` 裡先於 body、`defer` 以「body 結尾執行」模擬、`type="module"` 由瀏覽器延後）；未捕捉的錯誤附上 script.js 的行號；harness 壓成一行，不佔文件的行數 | WEB03–WEB04、WEB08 |
 | W2（WEB-3 完成） | 虛擬時鐘：檢查裡的 `setTimeout`／`setInterval` 排在虛擬時鐘上，由 `wait` 推進 | WEB10 |
-| W3 | 框架裡固定回應的 `fetch`（路由、狀態碼、延遲、失敗），配合 `network-protocol` 情境 | WEB11 |
-| W4 | 記憶體中的 `localStorage`、`sessionStorage` 與 Cookie | WEB12 |
-| W5 | 無障礙檢查：可存取名稱、角色、標題層級、標籤關聯、鍵盤順序 | WEB13 |
+| W3（WEB-4 完成） | 框架裡固定回應的 `fetch`（路由、狀態碼、延遲、失敗）、`request` 檢查與預覽的請求清單 | WEB11 |
+| W4（WEB-4 完成） | 記憶體中的 `localStorage`、`sessionStorage` 與 Cookie、`storage`／`cookie` 檢查、預覽保留儲存的資料 | WEB12 |
+| W5（WEB-4 完成） | 無障礙檢查：`name`、`role`，以及 `tab` 操作的 Tab 順序 | WEB13 |
 | W6 | 載入時間軸與指標的模型（不是量測） | WEB14 |
 
 ## 10. 藍圖活動的對應（`webFromBlueprint`）
@@ -153,7 +167,7 @@ Chromium 是 Playwright 的 headless Chromium，頁面的載入方式和課程�
 |---|---|---|
 | `dom-explorer` | WEB02–WEB09 | `dom-explorer`，`['web-code']` |
 | `pipeline-diagram`、`concurrency-timeline`、`memory-inspector`、`a11y-checker`、`metric-explorer` | WEB01、WEB10、WEB12、WEB13、WEB14 | 這些互動尚未建立（見 [INTERACTIVE_LAB_ROADMAP](INTERACTIVE_LAB_ROADMAP.md)）；課改用頁面（`dom-explorer`），不放替身 |
-| `protocol-sequence` | WEB11 | `network-sequence`，`['web-code', 'network-protocol']`：頁面旁邊是請求與回應的情境 |
+| `protocol-sequence` | WEB11 | `dom-explorer`，`['web-code']`（WEB-4 決定）：頁面向模擬伺服器送出請求，預覽列出每個請求與回應的狀態碼，這份清單就是請求與回應的順序，不另外加 `network-protocol` 情境 |
 | `challenge-stages` | WEB15 | `['web-code', 'visualization']` |
 
 ## 11. 批次規劃（依編號連續發布）
@@ -163,7 +177,7 @@ Chromium 是 Playwright 的 headless Chromium，頁面的載入方式和課程�
 | WEB-1 | WEB01–WEB04 | W1（需要的部分） |
 | WEB-2 | WEB05–WEB07 | `hit`、`scroll`、相對於視窗的 `box` |
 | WEB-3 | WEB08–WEB10 | W1（錯誤行號、`defer`）、W2（虛擬時鐘）、`dispatch` |
-| WEB-4 | WEB11–WEB13 | W3、W4、W5 |
+| WEB-4 | WEB11–WEB13 | W3（模擬伺服器）、W4（儲存空間）、W5（名稱、角色、Tab） |
 | WEB-5 | WEB14–WEB15 | W6；綜合專題 |
 
 WEB01 發布時，網頁基礎島從 `PREPARED_ISLAND_IDS` 移到 `ISLAND_IDS`，網頁與應用開發群島第一次有已開放的課。

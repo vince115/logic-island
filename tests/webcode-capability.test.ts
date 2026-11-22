@@ -75,10 +75,10 @@ describe('the web-code capability', () => {
     c.quiz[0].code = { language: 'HTML', text: '<p>x</p>' };
     expect(validateContent(db01, c, curriculum.visualizations)).toContain(`DB01: quiz ${c.quiz[0].id}: a database lesson shows SQL snippets only`);
   });
-  it('maps the blueprint activities: dom-explorer stays, unbuilt activities use pages, fetch adds network scenes, the capstone its stages', () => {
+  it('maps the blueprint activities: dom-explorer stays, the other activities use pages, the capstone adds its stages', () => {
     expect(webFromBlueprint('WEB05', 's', 50)).toMatchObject({ activity: 'dom-explorer', capabilities: ['web-code'], visualization: 'none', blueprintId: 'WEB05' });
-    for (const id of ['WEB01', 'WEB10', 'WEB12', 'WEB13', 'WEB14']) expect(webFromBlueprint(id, 's', 40), id).toMatchObject({ activity: 'dom-explorer', capabilities: ['web-code'] });
-    expect(webFromBlueprint('WEB11', 's', 60)).toMatchObject({ activity: 'network-sequence', capabilities: ['web-code', 'network-protocol'], visualization: 'none' });
+    // WEB-4: WEB11 (fetch) is taught on pages with a pretend server, like the others.
+    for (const id of ['WEB01', 'WEB10', 'WEB11', 'WEB12', 'WEB13', 'WEB14']) expect(webFromBlueprint(id, 's', 40), id).toMatchObject({ activity: 'dom-explorer', capabilities: ['web-code'], visualization: 'none' });
     expect(webFromBlueprint('WEB15', 's', 120)).toMatchObject({ activity: 'challenge-stages', capabilities: ['web-code', 'visualization'], visualization: 'challenge-stages' });
     expect(() => webFromBlueprint('CN01', 's', 40)).toThrow(/not a web foundations lesson/);
     // The outline is the blueprint's: title, objectives and prerequisites cannot drift.
@@ -107,8 +107,8 @@ describe('isolation from the other capabilities', () => {
     for (const l of lessons) {
       const web = l.islandId === 'web-foundations';
       expect(l.capabilities.includes('web-code'), l.lessonId).toBe(web);
-      // WEB11 (fetch) pairs its pages with a network scene and WEB15 is the capstone: their activities differ.
-      expect(l.activity === 'dom-explorer', l.lessonId).toBe(web && !['WEB11', 'WEB15'].includes(l.lessonId));
+      // WEB15 is the capstone: its activity is challenge-stages.
+      expect(l.activity === 'dom-explorer', l.lessonId).toBe(web && l.lessonId !== 'WEB15');
       expect(!!curriculum.contents[l.lessonId]?.webCode, l.lessonId).toBe(web);
     }
   });
