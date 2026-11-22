@@ -32,6 +32,8 @@ export type WebAction =
   | { do: 'key'; selector: string; key: string }
   /** Submits a form the way its submit button does (validation first, then the submit event). */
   | { do: 'submit'; selector: string }
+  /** Scrolls the page (`selector: ':page'`) or a scrolling element to a vertical offset in pixels. */
+  | { do: 'scroll'; selector: string; top: number }
   /** Lets timers run (at most 1000 ms a step). */
   | { do: 'wait'; ms: number };
 
@@ -45,8 +47,10 @@ export type WebCheck = { label: string } & (
   | { check: 'attr'; selector: string; name: string; value?: string; match?: 'equals' | 'includes' | 'absent' }
   /** The first match's computed style; the value may be written any way the browser resolves to the same thing (red, #f00). */
   | { check: 'style'; selector: string; property: string; value: string | string[]; pseudo?: '::before' | '::after' }
-  /** A box measurement in CSS pixels at the exercise's viewport, from the page's top-left corner or from another element's. */
+  /** A box measurement in CSS pixels at the exercise's viewport, from the page's top-left corner, from the viewport's (`from: ':viewport'`, after a scroll) or from another element's. */
   | { check: 'box'; selector: string; measure: 'width' | 'height' | 'left' | 'top' | 'right' | 'bottom'; value: number; tolerance?: number; from?: string }
+  /** What is drawn on top at the centre of `selector`: the element `top` (or something inside it). For stacking order and overlap. */
+  | { check: 'hit'; selector: string; top: string }
   /** A form control's value, or whether it is checked. */
   | { check: 'value'; selector: string; value: string | boolean }
   /** A form control's label as assistive technology reads it: aria-labelledby, then aria-label, then its `<label>` (for=, or wrapped around it). */
@@ -193,6 +197,7 @@ export interface WebVerdict {
 const quote = (s: string) => `「${s}」`;
 const actionText = (a: WebAction) => a.do === 'click' ? `點擊 \`${a.selector}\`` : a.do === 'input' ? `在 \`${a.selector}\` 輸入${quote(a.value)}`
   : a.do === 'select' ? `在 \`${a.selector}\` 選擇${quote(a.value)}` : a.do === 'check' ? `${a.checked ? '勾選' : '取消勾選'} \`${a.selector}\``
+  : a.do === 'scroll' ? `把${a.selector === ':page' ? '頁面' : ` \`${a.selector}\` `}往下捲到 ${a.top}px`
   : a.do === 'key' ? `在 \`${a.selector}\` 按下 ${a.key === ' ' ? 'Space' : a.key}` : a.do === 'submit' ? `送出 \`${a.selector}\`` : `等待 ${a.ms} 毫秒`;
 /** What a list of steps does before its checks, for the exercise's "how it is checked" note. */
 export const describeAction = actionText;
@@ -201,12 +206,13 @@ export const describeAction = actionText;
 function failure(step: WebCheck, raw: WebRawResult): string {
   if (raw.error === 'selector') return `選擇器 \`${'selector' in step ? step.selector : ''}\` 無法使用。`;
   if (raw.error) return '這個檢查無法執行。';
-  if (raw.missing) return `頁面上找不到 \`${raw.from && step.check === 'box' ? step.from : 'selector' in step ? step.selector : ''}\`。`;
+  if (raw.missing) return `頁面上找不到 \`${raw.from && step.check === 'box' ? step.from : raw.from && step.check === 'hit' ? step.top : 'selector' in step ? step.selector : ''}\`。`;
   switch (step.check) {
     case 'count': return `目前有 ${raw.actual} 個 \`${step.selector}\`。`;
     case 'text': return `\`${step.selector}\` 目前的文字是${quote(raw.actual ?? '')}。`;
     case 'attr': return step.match === 'absent' ? `\`${step.selector}\` 仍然有 ${step.name} 屬性。` : raw.absent ? `\`${step.selector}\` 沒有 ${step.name} 屬性。` : `\`${step.selector}\` 的 ${step.name} 目前是${quote(raw.actual ?? '')}。`;
     case 'style': return `\`${step.selector}\`${step.pseudo ?? ''} 的 ${step.property} 計算後是 ${raw.actual || '（空白）'}。`;
+    case 'hit': return raw.actual ? `\`${step.selector}\` 的中心點上，畫在最上面的是 ${raw.actual}。` : `\`${step.selector}\` 的中心點不在畫面內。`;
     case 'box': return `\`${step.selector}\` 的${BOX[step.measure]}目前是 ${raw.actual}px。`;
     case 'value': return typeof step.value === 'boolean' ? `\`${step.selector}\` 目前${raw.actual === 'true' ? '已勾選' : '沒有勾選'}。` : `\`${step.selector}\` 目前的值是${quote(raw.actual ?? '')}。`;
     case 'label': return raw.actual ? `\`${step.selector}\` 目前的標籤文字是${quote(raw.actual)}。` : `\`${step.selector}\` 沒有標籤（沒有對應的 label，也沒有 aria-label）。`;
@@ -258,8 +264,8 @@ export async function checkWebExercise(exercise: WebExercise, edited: WebFilesPa
 export const TIMEOUT_MESSAGE = '頁面沒有在時間內完成載入與檢查（可能有不會結束的迴圈）。';
 
 // ---- validation -------------------------------------------------------------------------------------------------
-const ACTIONS = ['click', 'input', 'select', 'check', 'key', 'submit', 'wait'];
-const CHECKS = ['count', 'text', 'attr', 'style', 'box', 'value', 'label', 'headings', 'focus', 'console', 'submitted', 'navigated', 'doctype'];
+const ACTIONS = ['click', 'input', 'select', 'check', 'key', 'submit', 'scroll', 'wait'];
+const CHECKS = ['count', 'text', 'attr', 'style', 'box', 'hit', 'value', 'label', 'headings', 'focus', 'console', 'submitted', 'navigated', 'doctype'];
 
 function stepProblems(steps: WebStep[], where: string): string[] {
   const problems: string[] = [];
@@ -274,12 +280,14 @@ function stepProblems(steps: WebStep[], where: string): string[] {
       if ('selector' in s && !s.selector.trim()) problems.push(`${at} needs a selector`);
       if (s.check === 'count' && (!Number.isInteger(s.count) || s.count < 0)) problems.push(`${at} needs a count of 0 or more`);
       if (s.check === 'box' && !Number.isFinite(s.value)) problems.push(`${at} needs a number`);
+      if (s.check === 'hit' && !s.top?.trim()) problems.push(`${at} needs the element expected on top`);
       if (s.check === 'style' && (!s.property.trim() || ![s.value].flat().every(v => v.trim()))) problems.push(`${at} needs a property and a value`);
       if (s.check === 'console' && !Array.isArray(s.lines)) problems.push(`${at} needs its lines`);
       if (s.check === 'attr' && !s.name.trim()) problems.push(`${at} needs an attribute name`);
     } else {
       if (!ACTIONS.includes(s.do)) problems.push(`${at} is an unknown action ${(s as { do: string }).do}`);
       if (s.do === 'wait') { waited += s.ms; if (!(s.ms > 0 && s.ms <= 1000)) problems.push(`${at} waits 1–1000 ms`); }
+      else if (s.do === 'scroll' && !(Number.isFinite(s.top) && s.top >= 0)) problems.push(`${at} scrolls to an offset of 0 or more`);
       else if (!s.selector?.trim()) problems.push(`${at} needs a selector`);
     }
   });

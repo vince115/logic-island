@@ -206,6 +206,35 @@ describe('actions and what the frame records', () => {
   });
 });
 
+describe('layout checks for positioning (WEB-2)', () => {
+  inBrowser('hit says what is drawn on top; scroll moves the page or a box; box can measure from the viewport', async () => {
+    const html = '<header id="bar">bar</header><div id="a"></div><div id="b"><span id="inner">x</span></div><div id="tall"></div><div id="pane"><div id="long"></div></div>';
+    const css = 'body { margin: 0; } #bar { position: sticky; top: 0; height: 40px; background: #eee; z-index: 3; }'
+      + '#a, #b { position: absolute; width: 100px; height: 100px; } #a { left: 0; top: 60px; background: red; z-index: 2; } #b { left: 50px; top: 110px; background: blue; z-index: 1; }'
+      + '#inner { display: block; width: 100px; height: 100px; } #tall { height: 1500px; } #pane { position: absolute; left: 300px; top: 60px; width: 100px; height: 100px; overflow: auto; } #long { height: 500px; }';
+    const steps: WebStep[] = [
+      { check: 'hit', selector: '#a', top: '#a', label: 'a is on top at its own centre' },
+      { check: 'hit', selector: '#b', top: '#b', label: 'b at its centre (through its child)' },
+      { check: 'hit', selector: '#b', top: '#a', label: 'not a' },
+      { check: 'box', selector: '#bar', measure: 'top', value: 0, label: 'bar at the top of the page' },
+      { do: 'scroll', selector: ':page', top: 300 },
+      { check: 'box', selector: '#bar', measure: 'top', value: 300, label: 'sticky: 300 down the page' },
+      { check: 'box', selector: '#bar', measure: 'top', value: 0, from: ':viewport', label: 'sticky: still at the top of the viewport' },
+      { check: 'box', selector: '#a', measure: 'top', value: -240, from: ':viewport', label: 'a scrolled up out of view' },
+      { check: 'hit', selector: '#a', top: '#a', label: 'a is off screen now' },
+      { do: 'scroll', selector: '#pane', top: 120 },
+      { check: 'box', selector: '#long', measure: 'top', value: -120, from: '#pane', label: 'the pane scrolled its content' },
+      { do: 'scroll', selector: '#nope', top: 1 }, { check: 'hit', selector: '#b', top: '#nope', label: 'missing top' },
+    ];
+    const r = await page({ html, css }, steps);
+    const shown = judge(steps, r.results);
+    expect(shown.map(s => s.ok)).toEqual([true, true, false, true, true, true, true, false, true, false]);
+    expect(shown[2].message).toBe('`#b` 的中心點上，畫在最上面的是 <span#inner>。');
+    expect(shown[7].message).toBe('`#a` 的中心點不在畫面內。');
+    expect(shown[9].message).toBe('無法把 `#nope` 往下捲到 1px：頁面上找不到這個元素。');
+  });
+});
+
 describe('implicit submission', () => {
   inBrowser('Enter in a field submits through the first submit button; without one, only a form with a single one-line field submits', async () => {
     const enter = async (form: string) => {

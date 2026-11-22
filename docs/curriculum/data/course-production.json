@@ -372,7 +372,21 @@
       ],
       "commit": "TBD",
       "tests": "驗證器、發布閘門 173/173、TypeScript、ESLint、Vitest 131 檔 3672 passed／9 skipped（含 Chromium：四堂課的每個範例、參考解答、起始內容與常見錯誤）、Production build、E2E 桌機＋手機旗標關 449 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；e2e/webcode-lessons.spec.ts 在課程頁上把 16 個練習各做一遍）、測驗 32 題逐題複核、洩漏掃描",
-      "notes": "WEB-1：網頁基礎島前四課（web-code 能力，WEB-0 PR #71）：網頁如何運作、HTML 文件結構與語意元素、文字連結圖片與媒體、表單元素與原生驗證；每課 5 個可修改的頁面範例、4 個以瀏覽器結果檢查的練習、8 題測驗。同批引擎調整：框架內未捕捉的錯誤只顯示在頁面自己的主控台、Enter 的隱式送出依瀏覽器規則（有送出按鈕才經由它送出）、srcdoc 框架一律標準模式的說明。網頁與應用開發群島第一次有已開放的課，mapState 維持 planned"
+      "notes": "WEB-1：網頁基礎島前四課（web-code 能力，WEB-0 PR #71）：網頁如何運作、HTML 文件結構與語意元素、文字連結圖片與媒體、表單元素與原生驗證；每課 5 個可修改的頁面範例、4 個以瀏覽器結果檢查的練習、8 題測驗。同批引擎調整：框架內未捕捉的錯誤只顯示在頁面自己的主控台、Enter 的隱式送出依瀏覽器規則（有送出按鈕才經由它送出）、srcdoc 框架一律標準模式的說明。網頁與應用開發群島第一次有已開放的課，mapState 維持 planned",
+      "pr": "#72",
+      "merged": "228673b"
+    },
+    {
+      "id": 27,
+      "date": "2026-11-23",
+      "lessons": [
+        "WEB05",
+        "WEB06",
+        "WEB07"
+      ],
+      "commit": "TBD",
+      "tests": "驗證器、發布閘門 176/176、TypeScript、ESLint、Vitest 131 檔 3677 passed／9 skipped（含 Chromium：七堂網頁課的每個範例、參考解答、起始內容與常見錯誤）、Production build、E2E 桌機＋手機旗標關 754 項：執行到第 749 項時被中斷，當時只有 main 既有回歸 #36 的兩項失敗；尾端的 webcode-lessons 與 device-tool 兩個規格補跑 34 passed／2 skipped（e2e/webcode-lessons.spec.ts 在課程頁上把 28 個練習各做一遍）、測驗 24 題逐題複核、洩漏掃描",
+      "notes": "WEB-2：網頁基礎島的 CSS 三課：選擇器、串接與特異性（含繼承與低特異性的寫法）；盒模型與一般排版流（box-sizing、區塊與行內、外距合併、auto 置中）；定位與堆疊順序（五種 position、包含區塊、z-index 與堆疊環境、固定與黏貼頁首）。引擎新增 hit 檢查（中心點上畫在最上面的元素）、scroll 操作與相對於視窗的 box；練習固定 HTML、學習者只改 style.css"
     }
   ]
 }

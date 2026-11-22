@@ -164,9 +164,10 @@ const SOURCE = String.raw`(function () {
   function fire(el, type) { el.dispatchEvent(new Event(type, { bubbles: true })); }
   function act(s) {
     if (s.do === 'wait') return new Promise(function (r) { setTimeout(function () { r({ ok: true }); }, Math.max(0, Math.min(1000, Number(s.ms) || 0))); });
-    var el = one(s.selector);
+    var el = s.do === 'scroll' && s.selector === ':page' ? document.documentElement : one(s.selector);
     if (!el) return Promise.resolve({ ok: false, missing: true });
-    if (s.do === 'click') { if (el.focus) el.focus(); el.click(); }
+    if (s.do === 'scroll') { if (s.selector === ':page') window.scrollTo(0, Number(s.top) || 0); else el.scrollTop = Number(s.top) || 0; }
+    else if (s.do === 'click') { if (el.focus) el.focus(); el.click(); }
     else if (s.do === 'input') { if (el.focus) el.focus(); setValue(el, s.value); fire(el, 'input'); fire(el, 'change'); }
     else if (s.do === 'select') { if (el.focus) el.focus(); setValue(el, s.value); fire(el, 'input'); fire(el, 'change'); }
     else if (s.do === 'check') { if (el.focus) el.focus(); if (!!el.checked !== !!s.checked) el.click(); }
@@ -294,9 +295,17 @@ const SOURCE = String.raw`(function () {
       }
       return { ok: hit, actual: actual };
     }
+    if (s.check === 'hit') {
+      // What is drawn on top at the centre of the element: the element itself (or something inside it), or whatever covers it.
+      var area = el.getBoundingClientRect(), top = document.elementFromPoint(area.left + area.width / 2, area.top + area.height / 2);
+      var want = document.querySelector(s.top);
+      if (!want) return { ok: false, missing: true, from: true };
+      return { ok: !!top && (top === want || want.contains(top)), actual: top ? describe(top) : '' };
+    }
     if (s.check === 'box') {
-      var rect = el.getBoundingClientRect(), ox = -window.scrollX, oy = -window.scrollY;
-      if (s.from) {
+      // From the page's corner by default (so scrolling does not change it), or from the viewport's, or from another element's.
+      var rect = el.getBoundingClientRect(), ox = s.from === ':viewport' ? 0 : -window.scrollX, oy = s.from === ':viewport' ? 0 : -window.scrollY;
+      if (s.from && s.from !== ':viewport') {
         var base = one(s.from);
         if (!base) return { ok: false, missing: true, from: true };
         var b = base.getBoundingClientRect(); ox = b.left; oy = b.top;
