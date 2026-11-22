@@ -33,14 +33,15 @@ describe('the document in the frame', () => {
     // The page's own script sees one script element: its own.
     expect(r.console).toEqual([{ kind: 'log', text: '1' }]);
   });
-  inBrowser('keeps a whole document as written: its head, its title, and quirks mode when the doctype is missing', async () => {
+  inBrowser('keeps a whole document as written: its head, its title, and a missing doctype stays missing (a srcdoc frame is in standards mode either way)', async () => {
     const full = await page({ html: '<!DOCTYPE html>\n<html lang="en">\n<head><title>Hi</title></head>\n<body><main><p>x</p></main></body>\n</html>', css: 'p { margin: 0 }' },
       [{ check: 'doctype', label: 'doctype' }, { check: 'count', selector: 'head > title', count: 1, label: 'title in head' }]);
     expect(full.results.map(r => r.ok)).toEqual([true, true]);
     expect(full.title).toBe('Hi');
     expect(treeLines(full.tree).slice(0, 4)).toEqual(['html [lang="en"]', '  head', '    style [data-file="style.css"]', '    title  "Hi"']);
-    const quirks = await page({ html: '<html><head><title>Old</title></head><body><p>x</p></body></html>' }, [{ check: 'doctype', label: 'doctype' }]);
-    expect(quirks.results[0].ok).toBe(false);
+    const quirks = await page({ html: '<html><head><title>Old</title></head><body><p id="m">x</p><script>document.querySelector("#m").textContent = document.compatMode</script></body></html>' },
+      [{ check: 'doctype', label: 'doctype' }, { check: 'text', selector: '#m', text: 'CSS1Compat', label: 'standards mode all the same' }]);
+    expect(quirks.results.map(r => r.ok)).toEqual([false, true]);
     expect(quirks.standards).toBe(false);
   });
   inBrowser('puts the style sheet and the script where the page links them', async () => {

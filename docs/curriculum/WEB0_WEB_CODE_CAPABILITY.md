@@ -43,7 +43,7 @@ webCode: {
 }
 ```
 
-- **檔案**：`html` 可以是完整文件（有 `<!DOCTYPE>`、`html`、`head` 或 `body` 任一標籤），也可以是 body 的片段（會包進標準模式的文件）。完整文件照原樣保留：沒有 doctype 就是相容模式，這正是 WEB02 要教的事。`css` 與 `js` 是 `style.css` 與 `script.js`：HTML 裡有 `<link rel="stylesheet" href="style.css">`、`<script src="script.js"></script>` 時放在那個位置，否則樣式表放在 `head` 開頭、指令稿放在 `body` 結尾。
+- **檔案**：`html` 可以是完整文件（有 `<!DOCTYPE>`、`html`、`head` 或 `body` 任一標籤），也可以是 body 的片段（會包進標準模式的文件）。完整文件照原樣保留，沒有 doctype 就不會補上（`doctype` 檢查看的就是它）。注意 `srcdoc` 框架裡的文件依 HTML 標準一律是標準模式，所以預覽無法重現相容模式（quirks mode）：DOM 樹下方只會提示「直接開啟這樣的檔案時會以相容模式顯示」。`css` 與 `js` 是 `style.css` 與 `script.js`：HTML 裡有 `<link rel="stylesheet" href="style.css">`、`<script src="script.js"></script>` 時放在那個位置，否則樣式表放在 `head` 開頭、指令稿放在 `body` 結尾。
 - **範例的 `observe`**：這個頁面在瀏覽器裡成立的事實（至少一項檢查）。它們列在課程頁上，並由測試在 Chromium 裡逐項驗證，所以範例說的事不會和瀏覽器的行為脫節。範例若刻意示範錯誤，標 `expectErrors`；否則主控台出現未捕捉的錯誤就算失敗。
 - **練習**：`starter` 的檔案是可編輯的，`fixed` 是唯讀的；`solution` 與每個 `mistakes[].files` 取代 `starter`。答案只看結果：不同的正確寫法都會通過。
 
@@ -72,7 +72,7 @@ webCode: {
 | `console` | 主控台輸出（完全相等，或依序包含） |
 | `submitted` | 表單送出的次數、最後一次送出的資料 |
 | `navigated` | 最後點擊的連結的 `href` |
-| `doctype` | 有 `<!DOCTYPE html>` 且以標準模式顯示 |
+| `doctype` | 文件有 `<!DOCTYPE html>` |
 
 每個檢查都有 `label`（用學習者的話說明檢查什麼），在按「檢查」之前就列在練習裡；失敗時顯示瀏覽器裡實際看到的值，不直接給答案。
 

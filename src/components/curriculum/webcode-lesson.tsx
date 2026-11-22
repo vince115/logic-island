@@ -82,7 +82,8 @@ function LivePage({ files, title, height, run }: { files: WebFiles; title: strin
     <details className={styles.dom}>
       <summary>瀏覽器建立的 DOM 樹</summary>
       {report ? <pre className={styles.tree}>{shownText(treeLines(report.tree).join('\n'))}</pre> : <p className={styles.note}>頁面載入後會顯示。</p>}
-      {report && !report.standards && <p className={styles.note}>這份文件沒有 <code>&lt;!DOCTYPE html&gt;</code>，瀏覽器以相容模式（quirks mode）顯示它。</p>}
+      {/* A srcdoc frame is always in standards mode, so the note is about the file opened on its own. */}
+      {report && !report.standards && <p className={styles.note}>這份文件沒有 <code>&lt;!DOCTYPE html&gt;</code>：直接用瀏覽器開啟這樣的檔案時，會以相容模式（quirks mode）顯示；這裡的預覽一律是標準模式。</p>}
     </details>
   </div>;
 }

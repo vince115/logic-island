@@ -61,7 +61,7 @@ export type WebCheck = { label: string } & (
   | { check: 'submitted'; count?: number; data?: Record<string, string> }
   /** The last link followed (recorded, never navigated to). */
   | { check: 'navigated'; href: string }
-  /** The page has <!DOCTYPE html> and renders in standards mode. */
+  /** The page has <!DOCTYPE html>. (A srcdoc frame renders in standards mode with or without it, so the doctype itself is what is checked.) */
   | { check: 'doctype' }
 );
 export type WebStep = WebAction | WebCheck;
@@ -120,7 +120,8 @@ const SCRIPT = /<script\b[^>]*\bsrc\s*=\s*(["'])(?:\.\/)?script\.js\1[^>]*>\s*<\
  * removes itself, so the tree is the page's own. The style sheet takes the place of `<link rel="stylesheet"
  * href="style.css">` and the script of `<script src="script.js"></script>` where the HTML has them; otherwise the style
  * sheet is added at the start of the head and the script at the end of the body. An HTML fragment (no doctype, html,
- * head or body tag) is wrapped in a standards-mode document; a whole document is kept as written, doctype or not.
+ * head or body tag) is wrapped in a document with a doctype; a whole document is kept as written, doctype or not (the
+ * frame cannot show quirks mode: the HTML standard puts every srcdoc document in standards mode).
  * The frame starts each line of the script file one line down (the opening tag's line), which only shifts line numbers.
  */
 export function webDocument(files: WebFiles, nonce: string, live = false): string {

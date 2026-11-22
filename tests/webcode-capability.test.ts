@@ -6,6 +6,7 @@ import { UNITS } from '@/content/curriculum/units';
 import { publishProblems } from '@/lib/curriculum/publish-gate';
 import { getIsland } from '@/content/world';
 import { lessonsOfIsland } from '@/content/world/catalog';
+import { validateTerminalLessonsFirst } from './support/terminal-replays';
 import { webContent } from './support/webcode-fixture';
 
 /*
@@ -33,6 +34,9 @@ const content = (): LessonContent => ({
   quiz: [1, 2, 3, 4].map(question), webCode: webContent(),
 });
 const swap = (id: string, patch: Partial<LessonMeta>) => validateCurriculum({ ...curriculum, lessons: lessons.map(l => l.lessonId === id ? { ...l, ...patch } : l) }).join('\n');
+
+// This file validates the whole curriculum several times: replay each terminal lesson once first (see the helper).
+validateTerminalLessonsFirst();
 
 describe('the web-code capability', () => {
   it('validates a web lesson built from the blueprint with pages and exercises, and it passes the publish gate', () => {

@@ -140,6 +140,7 @@ const SOURCE = String.raw`(function () {
   }
   function post(kind, extra) {
     var message = { li: NONCE, kind: kind, console: lines.slice(), tree: outline(), height: height(), navigations: navigations.slice(),
+      // "standards": the document has a doctype. (compatMode is CSS1Compat in a srcdoc frame even without one.)
       submissions: submissions.slice(), title: document.title, standards: document.compatMode === 'CSS1Compat' && !!document.doctype };
     if (extra) for (var k in extra) message[k] = extra[k];
     window.parent.postMessage(message, '*');
