@@ -1,9 +1,11 @@
 import {
   baseName, can, childrenOf, DEFAULT_HOST, DEFAULT_SYSTEM, depthOf, groupOf, groupsOf, humanSize, isInside, joinPath, LIMITS, linkTarget,
-  MAX_LINK_HOPS, modeString, parentOf, physicalPath, resolvePath, subtreeOf, validName, type Access, type FsNode, type FsState, type Mount,
+  MAX_LINK_HOPS, modeString, parentOf, physicalPath, resolvePath, subtreeOf, validName, type Access, type Accounts, type FsNode, type FsState, type Mount,
 } from './fs';
-import { escapeGlob, expandGlob, hasMagic } from './glob';
+import { ACCOUNT_NAME, accountsOf, findGroup, findUser, groupById, loginGroups, nextId, umaskSymbolic, writeAccountFiles } from './accounts';
+import { escapeGlob, expandGlob, hasMagic, type GlobIo } from './glob';
 import { helpPage, manualPage } from './manual';
+import * as text from './text';
 
 /*
  * P7 Linux Terminal Simulator: the command interpreter. A fixed table of commands works on the virtual file system in
@@ -19,36 +21,64 @@ import { helpPage, manualPage } from './manual';
  * Engine stage E1: FILES_PROFILE adds uname, hostname, man, df, du, ln and readlink, and the features glob (* ? [...]),
  * help-option (指令 --help), multi-source (cp/mv a b dir/) and ls-extra (ls -h -d, GNU grouping of the operands).
  * Symbolic links are followed by every command (with a hop limit); in the lab there are none, so nothing changes there.
+ * Fidelity fixes of E2 (§10.6) ride on those features: help-option also brings GNU's long options and its "Try '… --help'"
+ * line, glob also brings tilde expansion (~, ~/x, ~user), multi-source also brings GNU's `cp a nodir/` errors.
+ *
+ * Engine stage E2 (§10): STREAMS_PROFILE adds the feature pipes — pipelines (a | b | c), redirection on any command
+ * (> >> < 2> 2>> 2>&1 >&2, /dev/null), standard input for the readers, and the text commands of text.ts plus tee.
+ * Engine stage E3 (§11): USERS_PROFILE adds the feature accounts — the user and group database, id, groups, useradd,
+ * usermod, groupadd, newgrp, sudo, chown, chgrp and umask.
  */
 
 export interface Line { text: string; kind: 'out' | 'err' }
 export interface RunResult { state: FsState; lines: Line[]; clear?: true }
 
 export const COMMANDS = ['pwd', 'ls', 'cd', 'mkdir', 'touch', 'cat', 'cp', 'mv', 'rm', 'chmod', 'echo', 'whoami', 'clear', 'help'] as const;
-/** E1: the commands engine stage E1 adds (only FILES_PROFILE has them). */
+/** E1: the commands engine stage E1 adds (only FILES_PROFILE and the profiles above it have them). */
 export const E1_COMMANDS = ['uname', 'hostname', 'man', 'df', 'du', 'ln', 'readlink'] as const;
-export type CommandName = typeof COMMANDS[number] | typeof E1_COMMANDS[number];
+/** E2: the text and stream commands (STREAMS_PROFILE and USERS_PROFILE). */
+export const E2_COMMANDS = ['less', 'head', 'tail', 'grep', 'sort', 'uniq', 'wc', 'cut', 'tr', 'tee'] as const;
+/** E3: the user, group and ownership commands (USERS_PROFILE). */
+export const E3_COMMANDS = ['id', 'groups', 'useradd', 'usermod', 'groupadd', 'newgrp', 'sudo', 'chown', 'chgrp', 'umask'] as const;
+/** The commands of the files profile (the manual of E1 covers exactly these). */
+export type FilesCommand = typeof COMMANDS[number] | typeof E1_COMMANDS[number];
+export type CommandName = FilesCommand | typeof E2_COMMANDS[number] | typeof E3_COMMANDS[number];
 /** Every command any profile may list. */
-export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS];
+export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS, ...E2_COMMANDS, ...E3_COMMANDS];
 
 /**
- * E1: behaviour a profile switches on besides its commands. glob: * ? [...] in arguments; help-option: 指令 --help;
- * multi-source: cp and mv with several sources into a folder; ls-extra: ls -h and -d, and operands grouped like GNU ls.
+ * Behaviour a profile switches on besides its commands. E1: glob (* ? [...] and ~), help-option (指令 --help, long
+ * options, GNU's Try line), multi-source (cp and mv with several sources into a folder), ls-extra (ls -h -d, operands
+ * grouped like GNU ls). E2: pipes (pipelines, redirection, standard input). E3: accounts (users, groups, umask).
  */
-export type ShellFeature = 'glob' | 'help-option' | 'multi-source' | 'ls-extra';
+export type ShellFeature = 'glob' | 'help-option' | 'multi-source' | 'ls-extra' | 'pipes' | 'accounts';
 
 /** LNX-0: the commands a session may run (E1: and the features it switches on; none by default). */
 export interface ShellProfile { readonly id: string; readonly commands: readonly CommandName[]; readonly features?: readonly ShellFeature[] }
 /** The P7 lab's table: every command above, no pipes. run() uses it when no profile is given. */
 export const LAB_PROFILE: ShellProfile = { id: 'lab', commands: COMMANDS };
 /** E1: the lab's commands plus file-system and system-information commands, globs, --help and multi-source cp/mv. */
-export const FILES_PROFILE: ShellProfile = {
+export const FILES_PROFILE = {
   id: 'files',
-  commands: ['pwd', 'ls', 'cd', 'mkdir', 'touch', 'cat', 'cp', 'mv', 'rm', 'ln', 'readlink', 'chmod', 'echo', 'du', 'df', 'uname', 'hostname', 'whoami', 'man', 'clear', 'help'],
-  features: ['glob', 'help-option', 'multi-source', 'ls-extra'],
+  commands: ['pwd', 'ls', 'cd', 'mkdir', 'touch', 'cat', 'cp', 'mv', 'rm', 'ln', 'readlink', 'chmod', 'echo', 'du', 'df', 'uname', 'hostname', 'whoami', 'man', 'clear', 'help'] as readonly FilesCommand[],
+  features: ['glob', 'help-option', 'multi-source', 'ls-extra'] as readonly ShellFeature[],
+} satisfies ShellProfile;
+/** E2: the files profile plus pipelines, redirection and the text commands. */
+export const STREAMS_PROFILE: ShellProfile = {
+  id: 'streams',
+  commands: ['pwd', 'ls', 'cd', 'mkdir', 'touch', 'cat', 'less', 'head', 'tail', 'grep', 'sort', 'uniq', 'wc', 'cut', 'tr', 'tee', 'cp', 'mv', 'rm', 'ln', 'readlink',
+    'chmod', 'echo', 'du', 'df', 'uname', 'hostname', 'whoami', 'man', 'clear', 'help'],
+  features: ['glob', 'help-option', 'multi-source', 'ls-extra', 'pipes'],
 };
-/** The profiles a lesson machine may name (TerminalMachine.profile). */
-export const PROFILES = { lab: LAB_PROFILE, files: FILES_PROFILE } as const;
+/** E3: the streams profile plus users, groups, sudo, ownership and umask. */
+export const USERS_PROFILE: ShellProfile = {
+  id: 'users',
+  commands: [...STREAMS_PROFILE.commands.filter(c => c !== 'whoami' && c !== 'man' && c !== 'clear' && c !== 'help'),
+    'chown', 'chgrp', 'umask', 'id', 'groups', 'whoami', 'useradd', 'usermod', 'groupadd', 'newgrp', 'sudo', 'man', 'clear', 'help'],
+  features: ['glob', 'help-option', 'multi-source', 'ls-extra', 'pipes', 'accounts'],
+};
+/** The profiles a lesson machine may name (TerminalMachine.profile), from the narrowest. */
+export const PROFILES = { lab: LAB_PROFILE, files: FILES_PROFILE, streams: STREAMS_PROFILE, users: USERS_PROFILE } as const;
 export type ProfileId = keyof typeof PROFILES;
 
 /** Each help line with the command it describes (null: the heading); a profile prints the lines of its own commands. */
@@ -60,24 +90,47 @@ const HELP: [CommandName | null, string][] = [
   ['mkdir', '  mkdir [-p] 目錄…        建立目錄；-p 一併建立中間的目錄'],
   ['touch', '  touch 檔案…             建立空檔案'],
   ['cat', '  cat 檔案…               顯示檔案內容'],
+  ['less', '  less 檔案…              顯示檔案內容（模擬環境不分頁，和 cat 相同）'],
+  ['head', '  head [-n 行數] [檔案…]    顯示開頭幾行（預設 10 行）'],
+  ['tail', '  tail [-n 行數] [檔案…]    顯示最後幾行；-n +N 從第 N 行開始'],
+  ['grep', '  grep [-i] [-v] [-n] [-c] [-w] 樣式 [檔案…]  找出含有樣式的行'],
+  ['sort', '  sort [-n] [-r] [-u] [-t 字元] [-k 欄] [檔案…]  排序各行'],
+  ['uniq', '  uniq [-c] [-d] [-u] [檔案]  合併相鄰的重複行；-c 計算次數'],
+  ['wc', '  wc [-l] [-w] [-m] [-c] [檔案…]  計算行數、字數、字元數與位元組數'],
+  ['cut', '  cut -d 字元 -f 欄位 | -c 位置 [檔案…]  取出部分欄位或字元'],
+  ['tr', '  tr [-d] [-s] 集合1 [集合2]  轉換或刪除字元（只讀標準輸入）'],
+  ['tee', '  tee [-a] 檔案…           把標準輸入同時印出並寫入檔案'],
   ['echo', '  echo 文字 [> 或 >> 檔案]  輸出文字，或寫入（>）、附加（>>）到檔案'],
   ['cp', '  cp [-r] 來源 目的地       複製；複製目錄要加 -r'],
   ['mv', '  mv 來源 目的地           移動或改名'],
   ['rm', '  rm [-r] [-f] 路徑…       刪除；刪除目錄要加 -r（無法復原）'],
   ['chmod', '  chmod 模式 路徑…         修改權限，例如 chmod 644 a.txt、chmod u+x run.sh'],
+  ['chown', '  chown [-R] 使用者[:群組] 路徑…  修改擁有者與群組'],
+  ['chgrp', '  chgrp [-R] 群組 路徑…      修改群組'],
+  ['umask', '  umask [-S] [模式]         顯示或設定新檔案的權限遮罩'],
   ['ln', '  ln -s 目標 連結名稱       建立符號連結'],
   ['readlink', '  readlink [-f] 連結       顯示連結指向的目標'],
   ['du', '  du [-s] [-h] [-a] [路徑…]  估計目錄占用的空間'],
   ['df', '  df [-h] [-T] [路徑…]      顯示各個檔案系統的空間用量'],
   ['uname', '  uname [-a] [-s] [-r] [-m]  顯示核心與系統資訊'],
   ['hostname', '  hostname               顯示主機名稱'],
+  ['id', '  id [使用者]              顯示 UID、GID 與所屬的群組'],
+  ['groups', '  groups [使用者…]         顯示所屬的群組'],
+  ['useradd', '  useradd [-m] [-s shell] [-G 群組] [-r] 名稱  建立使用者（需要 root）'],
+  ['usermod', '  usermod -aG 群組 使用者     把使用者加入群組；沒有 -a 的 -G 會取代原有的群組'],
+  ['groupadd', '  groupadd [-r] 名稱        建立群組（需要 root）'],
+  ['newgrp', '  newgrp [群組]            以新的群組身分繼續（剛加入的群組不必重新登入）'],
+  ['sudo', '  sudo [-u 使用者] 指令…     以 root（或指定的使用者）身分執行'],
   ['man', '  man 指令                顯示指令的說明頁（也可以用 指令 --help）'],
 ];
-/** E1: the lines that change when a profile has the feature (the lab keeps its own lines). */
+/** The lines that change when a profile has the feature (the lab keeps its own lines). */
 const HELP_FEATURE: [ShellFeature, CommandName, string][] = [
   ['ls-extra', 'ls', '  ls [-l] [-a] [-h] [-d] [路徑…]  列出目錄內容；-l 詳細資料，-a 隱藏項目，-h 易讀的大小，-d 目錄本身'],
   ['multi-source', 'cp', '  cp [-r] 來源… 目的地      複製；複製目錄要加 -r；多個來源時目的地必須是目錄'],
   ['multi-source', 'mv', '  mv 來源… 目的地          移動或改名；多個來源時目的地必須是目錄'],
+  ['pipes', 'cat', '  cat [-n] [檔案…]          顯示檔案內容；沒有檔案時讀標準輸入'],
+  ['pipes', 'echo', '  echo [-n] [-e] 文字…       輸出一行文字；-n 不換行'],
+  ['accounts', 'chmod', '  chmod [-R] 模式 路徑…      修改權限，例如 chmod 640 a.txt、chmod -R g+w 目錄'],
 ];
 const HELP_LAST: CommandName[] = ['whoami', 'clear', 'help'];
 
@@ -85,8 +138,11 @@ type Errno = 'ENOENT' | 'ENOTDIR' | 'EACCES' | 'ELOOP';
 type Fail = { error: Errno };
 /** The node (if any) and its real path: every link on the way followed (the last one too when following). */
 type Found = { node: FsNode | undefined; path: string };
+/** E2: why a file could not be opened for writing. */
+type OpenErrno = Errno | 'EISDIR' | 'ENAMETOOLONG' | 'ENOSPC';
 
 const ERRNO = { ENOENT: 'No such file or directory', ENOTDIR: 'Not a directory', EACCES: 'Permission denied', ELOOP: 'Too many levels of symbolic links' } as const;
+const OPEN_TEXT: Record<OpenErrno, string> = { ...ERRNO, EISDIR: 'Is a directory', ENAMETOOLONG: 'File name too long', ENOSPC: 'No space left on device' };
 
 /**
  * Walks to a path: every folder on the way must exist and be searchable (x). The node itself may be missing. E1: a
@@ -112,13 +168,17 @@ function walk(state: Pick<FsState, 'nodes' | 'user' | 'groups'>, path: string, f
   return { node: state.nodes.get(at), path: at };
 }
 
-interface Word { text: string; pattern: string }
+/**
+ * A word of a command line with its glob pattern (quoted characters escaped). E1: `tilde` when it starts with an
+ * unquoted ~. E2: `op` for an operator of the pipes feature (| < > >> 2> 2>> 2>&1 >&2), which quoting never produces.
+ */
+interface Word { text: string; pattern: string; tilde?: true; op?: string }
 
 /** The words of a command line, each with its glob pattern (quoted characters escaped); see tokenize. */
 function lex(input: string): { words: Word[] } | { error: string } {
   const words: Word[] = [];
-  let word = '', pattern = '', quote: '"' | "'" | null = null, started = false, lastRedirect = false;
-  const end = () => { if (started) { words.push({ text: word, pattern }); word = ''; pattern = ''; started = false; } };
+  let word = '', pattern = '', quote: '"' | "'" | null = null, started = false, lastRedirect = false, tilde = false;
+  const end = () => { if (started) { words.push({ text: word, pattern, ...tilde ? { tilde } : {} }); word = ''; pattern = ''; started = false; tilde = false; } };
   for (const ch of input) {
     if (quote) { if (ch === quote) quote = null; else { word += ch; pattern += escapeGlob(ch); } continue; }
     if (ch === '>') {
@@ -129,11 +189,55 @@ function lex(input: string): { words: Word[] } | { error: string } {
     lastRedirect = false;
     if (ch === '"' || ch === "'") { quote = ch; started = true; continue; }
     if (/\s/.test(ch)) { end(); continue; }
+    if (!started && ch === '~') tilde = true;
     // Unquoted, only a backslash is escaped (this tokenizer gives it no meaning); * ? [ ] keep their glob meaning.
     word += ch; pattern += ch === '\\' ? '\\\\' : ch; started = true;
   }
   if (quote) return { error: 'bash: unexpected EOF while looking for matching quote' };
-  if (started) words.push({ text: word, pattern });
+  end();
+  return { words };
+}
+
+const REFUSED = '此模擬器不支援管線、指令串接、變數與背景執行（| ; && $ `）；一次輸入一個指令。';
+/** E2: what the pipes feature still refuses. */
+const REFUSED_PIPES = '此模擬器不支援指令串接、變數、命令替換與背景執行（; && || $ ` &）；管線（|）與重新導向（> >> < 2> 2>&1）可以使用。';
+
+/**
+ * E2: the words of a line for the pipes feature. Unquoted | < > >> are operators; a word that is just an unquoted 1 or 2
+ * right before > makes it a redirection of that descriptor (2> 2>>), and >&1 >&2 duplicate one. ; && || $ ` and a
+ * background & are refused, as are here-documents (<<).
+ */
+function lexLine(input: string): { words: Word[] } | { error: string } {
+  const words: Word[] = [];
+  let word = '', pattern = '', quote: '"' | "'" | null = null, started = false, quoted = false, tilde = false;
+  const reset = () => { word = ''; pattern = ''; started = false; quoted = false; tilde = false; };
+  const end = () => { if (started) words.push({ text: word, pattern, ...tilde ? { tilde } : {} }); reset(); };
+  const cs = Array.from(input);
+  for (let i = 0; i < cs.length; i++) {
+    const ch = cs[i];
+    if (quote) { if (ch === quote) quote = null; else { word += ch; pattern += escapeGlob(ch); } continue; }
+    if (ch === '"' || ch === "'") { quote = ch; started = true; quoted = true; continue; }
+    if (/\s/.test(ch)) { end(); continue; }
+    if (ch === ';' || ch === '`' || ch === '$' || ch === '&' || (ch === '|' && cs[i + 1] === '|') || (ch === '<' && cs[i + 1] === '<')) return { error: REFUSED_PIPES };
+    if (ch === '|' || ch === '<') { end(); words.push({ text: ch, pattern: ch, op: ch }); continue; }
+    if (ch === '>') {
+      const fd = started && !quoted && (word === '1' || word === '2') ? word : '';
+      if (fd) reset(); else end();
+      let op = fd === '2' ? '2>' : '>';
+      if (cs[i + 1] === '>') { op += '>'; i++; }
+      else if (cs[i + 1] === '&') {
+        if (cs[i + 2] !== '1' && cs[i + 2] !== '2') return { error: REFUSED_PIPES };
+        op = `${fd === '2' ? '2' : ''}>&${cs[i + 2]}`;
+        i += 2;
+      }
+      words.push({ text: op, pattern: op, op });
+      continue;
+    }
+    if (!started && ch === '~') tilde = true;
+    word += ch; pattern += ch === '\\' ? '\\\\' : ch; started = true;
+  }
+  if (quote) return { error: 'bash: unexpected EOF while looking for matching quote' };
+  end();
   return { words };
 }
 
@@ -147,18 +251,101 @@ export function tokenize(input: string): { words: string[] } | { error: string }
   return 'error' in lexed ? lexed : { words: lexed.words.map(w => w.text) };
 }
 
-/** Leading -abc options (any order, combinable) and the remaining operands; `--` ends the options. */
-function options(args: string[], allowed: string): { flags: Set<string>; operands: string[] } | { bad: string } {
+const REDIRECTS = ['<', '>', '>>', '2>', '2>>'];
+interface Stage { argv: Word[]; redirects: { op: string; word?: Word }[] }
+
+/** E2: a line's pipeline (stages split at |, each with its redirections in order), or bash's syntax error. */
+function parseLine(words: Word[]): { stages: Stage[] } | { error: string } {
+  const stages: Stage[] = [{ argv: [], redirects: [] }];
+  const empty = (s: Stage) => !s.argv.length && !s.redirects.length;
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i], stage = stages.at(-1)!;
+    if (w.op === '|') {
+      if (empty(stage)) return { error: 'bash: syntax error near unexpected token `|\'' };
+      stages.push({ argv: [], redirects: [] });
+      continue;
+    }
+    if (w.op && REDIRECTS.includes(w.op)) {
+      const target = words[i + 1];
+      if (!target || target.op) return { error: `bash: syntax error near unexpected token \`${target?.op ?? 'newline'}'` };
+      stage.redirects.push({ op: w.op, word: target });
+      i++;
+      continue;
+    }
+    if (w.op) { stage.redirects.push({ op: w.op }); continue; }
+    stage.argv.push(w);
+  }
+  if (stages.length > 1 && empty(stages.at(-1)!)) return { error: 'bash: syntax error: unexpected end of file' };
+  return { stages };
+}
+
+/** E2: the command names a line runs — each stage of a pipeline and the command sudo runs (for the lesson validator). */
+export function commandNames(input: string): string[] {
+  const lexed = lexLine(input), parsed = 'error' in lexed ? null : parseLine(lexed.words);
+  if (!parsed || 'error' in parsed) {
+    const t = tokenize(input);
+    return 'words' in t && t.words.length ? [t.words[0]] : [];
+  }
+  return parsed.stages.flatMap(s => {
+    const argv = s.argv.map(w => w.text);
+    if (argv[0] !== 'sudo') return argv.slice(0, 1);
+    let i = 1;
+    while (i < argv.length && argv[i].startsWith('-')) i += argv[i] === '-u' ? 2 : 1;
+    return argv[i] ? ['sudo', argv[i]] : ['sudo'];
+  });
+}
+
+/** Leading -abc options (any order, combinable) and the remaining operands; `--` ends the options. With `gnu` (help-option), --name is a long option. */
+function options(args: string[], allowed: string, longs: Readonly<Record<string, string>> = {}, gnu = false): { flags: Set<string>; operands: string[] } | { bad: string; long?: true } {
   const flags = new Set<string>(), operands: string[] = [];
   let done = false;
   for (const arg of args) {
     if (!done && arg === '--') { done = true; continue; }
+    if (gnu && !done && arg.startsWith('--')) {
+      const f = longs[arg.slice(2)];
+      if (f === undefined) return { bad: arg, long: true };
+      flags.add(f);
+      continue;
+    }
     if (!done && arg.startsWith('-') && arg.length > 1) {
       for (const f of arg.slice(1)) { if (!allowed.includes(f)) return { bad: f }; flags.add(f); }
     } else operands.push(arg);
   }
   return { flags, operands };
 }
+/** Fix 1: the long options each E1 command knows (GNU's names). */
+const LONG: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  ls: { all: 'a', 'human-readable': 'h', directory: 'd' },
+  mkdir: { parents: 'p' },
+  cp: { recursive: 'r' },
+  rm: { recursive: 'r', force: 'f' },
+  du: { summarize: 's', 'human-readable': 'h', all: 'a' },
+  df: { 'human-readable': 'h', 'print-type': 'T' },
+  uname: { all: 'a', 'kernel-name': 's', nodename: 'n', 'kernel-release': 'r', 'kernel-version': 'v', machine: 'm', 'operating-system': 'o' },
+  ln: { symbolic: 's', force: 'f' },
+  readlink: { canonicalize: 'f' },
+  chown: { recursive: 'R' },
+  chgrp: { recursive: 'R' },
+  cat: { number: 'n' },
+  less: {},
+  head: { lines: 'n', bytes: 'c', verbose: 'v' },
+  tail: { lines: 'n', bytes: 'c', follow: 'f', verbose: 'v' },
+  grep: {
+    'ignore-case': 'i', 'invert-match': 'v', 'line-number': 'n', count: 'c', 'word-regexp': 'w', 'line-regexp': 'x', recursive: 'r', 'dereference-recursive': 'R',
+    'files-with-matches': 'l', 'extended-regexp': 'E', 'fixed-strings': 'F', 'with-filename': 'H', 'no-filename': 'h', regexp: 'e',
+  },
+  sort: { 'numeric-sort': 'n', reverse: 'r', unique: 'u', 'ignore-case': 'f', key: 'k', 'field-separator': 't' },
+  uniq: { count: 'c', repeated: 'd', unique: 'u', 'ignore-case': 'i' },
+  wc: { lines: 'l', words: 'w', chars: 'm', bytes: 'c' },
+  cut: { delimiter: 'd', fields: 'f', characters: 'c', bytes: 'b', 'only-delimited': 's' },
+  tr: { delete: 'd', 'squeeze-repeats': 's' },
+  tee: { append: 'a' },
+  id: { user: 'u', group: 'g', groups: 'G', name: 'n' },
+};
+/** E2: the option letters (':' takes a value) of the commands parsed with text.getopt. */
+const SPEC: Readonly<Record<string, string>> = {
+  cat: 'n', less: '', head: 'n:c:v', tail: 'n:c:fv', grep: 'ivncwxrRlEFHhe:', sort: 'nrufk:t:', uniq: 'cdui', wc: 'lwmc', cut: 'd:f:c:b:s', tr: 'ds', tee: 'a', id: 'ugGn',
+};
 
 const byteLength = (text: string) => new TextEncoder().encode(text).length;
 /** E1: a path as the learner wrote it with a name after it (du, ln, glob). */
@@ -166,6 +353,13 @@ const joinShown = (at: string, name: string) => at.endsWith('/') ? at + name : `
 /** E1: du's block rule: a folder takes 4K, a file its size rounded up to whole 4K blocks, a link nothing (KiB). */
 const blocksOf = (node: FsNode) => node.kind === 'dir' ? 4 : node.kind === 'link' ? 0 : Math.ceil(byteLength(node.content ?? '') / 4096) * 4;
 const HOST_NAME = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+/** E3: the session's umask (022 when the state has none, which gives the lab's 644 files and 755 folders). */
+const maskOf = (state: Pick<FsState, 'umask'>) => state.umask ?? 0o022;
+/** E3: who owns a new node: the user, and with accounts the session's primary group when it is not the user's own name. */
+function ownedBy(state: FsState): Pick<FsNode, 'owner' | 'group'> {
+  const primary = state.accounts ? groupsOf(state)[0] : undefined;
+  return primary && primary !== state.user ? { owner: state.user, group: primary } : { owner: state.user };
+}
 
 /** Applies an octal (644) or symbolic (u+x, go-w, a=r, +x; clauses joined by commas) mode; undefined if invalid. */
 export function applyMode(mode: number, spec: string): number | undefined {
@@ -199,28 +393,127 @@ function dfTable(mounts: readonly Mount[], human: boolean, types: boolean): stri
   return rows.map(r => r.map((cell, i) => i === r.length - 1 ? cell : right[i] ? cell.padStart(widths[i]) : cell.padEnd(widths[i])).join(' '));
 }
 
-/**
- * Runs one command line against the state and returns the new state and what the terminal prints. Only the profile's
- * commands run (default: LAB_PROFILE, the lab's whole table); any other is "command not found".
- */
-export function run(state: FsState, input: string, profile: ShellProfile = LAB_PROFILE): RunResult {
-  const out: Line[] = [];
-  const print = (text: string) => out.push({ text, kind: 'out' });
-  const fail = (text: string) => out.push({ text, kind: 'err' });
-  const done = (next: FsState = state): RunResult => ({ state: next, lines: out });
-  const features = new Set(profile.features ?? []);
+/** E1: what a glob may see: readable folders' names, what exists (a dangling link too), what is a folder. */
+function globIo(state: FsState): GlobIo {
+  const resolve = (p: string) => physicalPath(state.nodes, resolvePath(state, p));
+  return {
+    list: p => {
+      const v = walk(state, resolve(p || '.'));
+      return 'error' in v || v.node?.kind !== 'dir' || !can(v.node, state.user, 'r', groupsOf(state)) ? null : childrenOf(state.nodes, v.path).map(baseName);
+    },
+    exists: p => { const v = walk(state, resolve(p), false); return !('error' in v) && !!v.node; },
+    isDir: p => { const v = walk(state, resolve(p)); return !('error' in v) && v.node?.kind === 'dir'; },
+  };
+}
 
-  if (input.length > LIMITS.input) { fail(`輸入太長：一行最多 ${LIMITS.input} 個字元`); return done(); }
-  const tokens = lex(input);
-  if ('error' in tokens) { fail(tokens.error); return done(); }
-  if (!tokens.words.length) return done();
-  if (tokens.words.some(w => ['|', ';', '&&', '||', '&', '<'].includes(w.text)) || /[|;&<`$]/.test(input.replace(/(["']).*?\1/g, '')))
-  { fail('此模擬器不支援管線、指令串接、變數與背景執行（| ; && $ `）；一次輸入一個指令。'); return done(); }
+/** Fix 3 (glob feature): ~ ~/x and ~user at the start of an unquoted word become the home folder, as bash expands them. */
+function tilde(state: FsState, word: Word): Word {
+  if (!word.tilde) return word;
+  const cut = (s: string) => { const at = s.indexOf('/'); return at < 0 ? s.length : at; };
+  const name = word.text.slice(1, cut(word.text));
+  const home = !name || name === state.user ? state.home
+    : state.accounts ? findUser(state.accounts, name)?.home : name === 'root' ? '/root' : undefined;
+  if (home === undefined) return word;
+  return { text: home + word.text.slice(cut(word.text)), pattern: Array.from(home).map(escapeGlob).join('') + word.pattern.slice(cut(word.pattern)) };
+}
+
+/** E1: tilde and pathname expansion of the words (the glob feature); `literal` words are only tilde-expanded. */
+function expand(state: FsState, words: readonly Word[], features: ReadonlySet<ShellFeature>, literal: (i: number) => boolean): string[] {
+  if (!features.has('glob')) return words.map(w => w.text);
+  return words.flatMap((w0, i) => {
+    const w = tilde(state, w0);
+    if (literal(i) || !hasMagic(w.pattern)) return [w.text];
+    const found = expandGlob(w.pattern, state.home, globIo(state));
+    return found.length ? found : [w.text];
+  });
+}
+
+/** E2: reads a file for a command or for <; /dev/null is empty (the simulation has no device files). */
+function readPath(state: FsState, word: string): text.ReadResult {
+  const logical = resolvePath(state, word);
+  if (logical === '/dev/null' && !state.nodes.has('/dev/null')) return { text: '', regular: false };
+  const w = walk(state, physicalPath(state.nodes, logical));
+  if ('error' in w) return w;
+  if (!w.node) return { error: 'ENOENT' };
+  if (w.node.kind === 'dir') return { error: 'EISDIR' };
+  if (!can(w.node, state.user, 'r', groupsOf(state))) return { error: 'EACCES' };
+  return { text: w.node.content ?? '', regular: true };
+}
+
+/**
+ * E2: opens a file for writing the way bash does for > and >> (and tee): an existing file needs w (it is truncated unless
+ * appending; it keeps its mode, owner and group); a new one needs w and x on its folder and is 666 & ~umask, owned by
+ * the user. Changes `nodes`; path null is /dev/null (output discarded).
+ */
+function openWrite(nodes: Map<string, FsNode>, who: FsState, word: string, append: boolean): { path: string | null } | { error: OpenErrno } {
+  const logical = resolvePath(who, word);
+  if (logical === '/dev/null' && !nodes.has('/dev/null')) return { path: null };
+  const view = { ...who, nodes };
+  const w = walk(view, physicalPath(nodes, logical));
+  if ('error' in w) return w;
+  if (w.node?.kind === 'dir') return { error: 'EISDIR' };
+  if (w.node) {
+    if (!can(w.node, who.user, 'w', groupsOf(who))) return { error: 'EACCES' };
+    if (!append) nodes.set(w.path, { ...w.node, content: '' });
+    return { path: w.path };
+  }
+  const parent = walk(view, parentOf(w.path));
+  if ('error' in parent) return parent;
+  if (!parent.node) return { error: 'ENOENT' };
+  if (parent.node.kind !== 'dir') return { error: 'ENOTDIR' };
+  if (!can(parent.node, who.user, 'w', groupsOf(who)) || !can(parent.node, who.user, 'x', groupsOf(who))) return { error: 'EACCES' };
+  if (!validName(baseName(w.path)) || depthOf(w.path) > LIMITS.depth) return { error: 'ENAMETOOLONG' };
+  if (nodes.size + 1 > LIMITS.nodes) return { error: 'ENOSPC' };
+  nodes.set(w.path, { kind: 'file', mode: 0o666 & ~maskOf(who), ...ownedBy(who), content: '' });
+  return { path: w.path };
+}
+
+/** One write of a command: fd 1 is standard output (raw text), fd 2 standard error (whole lines with their newline). */
+interface Ev { fd: 1 | 2; data: string }
+interface Ctx {
+  profile: ShellProfile;
+  features: ReadonlySet<ShellFeature>;
+  /** E2: standard input; null is the keyboard, which the simulation does not have. */
+  stdin: string | null;
+  stdinRegular: boolean;
+  /** E2: whether standard output is the terminal (ls prints one name per line, without / and @, when it is not). */
+  tty: boolean;
+}
+interface Exec { state: FsState; events: Ev[]; clear?: true }
+
+/** Shell builtins: sudo cannot run them (sudo: cd: command not found, as on Linux). */
+const BUILTINS = ['cd', 'umask', 'help', 'newgrp'];
+
+/** The command line as one command: runs argv[0] of the profile with its arguments, standard input and output. */
+function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
+  const { profile, features } = ctx;
+  const pipes = features.has('pipes'), gnu = features.has('help-option');
+  const out: Ev[] = [];
+  let size = 0, clipped = false;
+  const push = (ev: Ev) => {
+    if (pipes) {
+      if (clipped) return;
+      if (size + ev.data.length > LIMITS.output) { clipped = true; return; }
+      size += ev.data.length;
+    }
+    out.push(ev);
+  };
+  const print = (line: string) => push({ fd: 1, data: `${line}\n` });
+  const write = (data: string) => { if (data) push({ fd: 1, data }); };
+  const fail = (line: string) => push({ fd: 2, data: `${line}\n` });
+  const done = (next: FsState = state): Exec => {
+    if (clipped) out.push({ fd: 2, data: `（模擬環境：輸出超過 ${LIMITS.output} 個字元，其餘省略）\n` });
+    return { state: next, events: out };
+  };
+  const [cmd, ...args] = words;
+  /** Fix 2: GNU follows a usage error with this line. */
+  const usage = (line: string) => { fail(line); if (gnu) fail(`Try '${cmd} --help' for more information.`); };
+  const badOption = (o: { bad: string; long?: true }) => usage(o.long ? `${cmd}: unrecognized option '${o.bad}'` : `${cmd}: invalid option -- '${o.bad}'`);
 
   const nodes = new Map(state.nodes);
   /** The state as it is now (commands with several operands see their own earlier changes). */
   const cur = (): FsState => ({ ...state, nodes });
-  const commit = (cwd = state.cwd): RunResult => done({ ...state, nodes, cwd });
+  const commit = (cwd = state.cwd): Exec => done({ ...state, nodes, cwd });
   /** E1: the real path of what an operand names: links on the way followed, the last part as it is (the lab: just resolvePath). */
   const resolve = (p: string) => physicalPath(nodes, resolvePath(state, p));
   /** E1: the real working directory (the prompt and pwd keep the path as cd was given it, like bash). */
@@ -239,29 +532,36 @@ export function run(state: FsState, input: string, profile: ShellProfile = LAB_P
   const tooDeep = (path: string) => depthOf(path) > LIMITS.depth;
   /** E1: whether an operand names a folder (following links). */
   const isFolder = (p: string) => { const w = walk(cur(), resolve(p)); return !('error' in w) && w.node?.kind === 'dir'; };
+  /** E2: the TextIo of the text commands. */
+  const textIo = (): text.TextIo => ({
+    out: write, err: fail, usage, stdinRegular: ctx.stdinRegular,
+    read: name => name === '-' ? ctx.stdin === null ? { error: 'NOINPUT' } : { text: ctx.stdin, regular: ctx.stdinRegular } : readPath(cur(), name),
+    entry: (name, follow) => {
+      const w = walk(cur(), physicalPath(nodes, resolvePath(state, name)), follow);
+      if ('error' in w) return w;
+      if (!w.node) return { error: 'ENOENT' };
+      if (w.node.kind === 'link') return { kind: 'link' };
+      if (w.node.kind === 'file') return allowed(w.node, 'r') ? { kind: 'file', text: w.node.content ?? '' } : { error: 'EACCES' };
+      return { kind: 'dir', names: allowed(w.node, 'r') && allowed(w.node, 'x') ? childrenOf(nodes, w.path).map(baseName) : null };
+    },
+  });
+  /** E2: parses the options of a text command (GNU getopt), printing the usage error. */
+  const parsed = (name: string, rest: readonly string[] = args): text.Parsed | null => {
+    const o = text.getopt(rest, SPEC[name], LONG[name]);
+    if ('error' in o) { usage(`${name}: ${o.error}`); return null; }
+    return o;
+  };
+  const accounts = (): Accounts => accountsOf(state);
+  /** E3: useradd, usermod and groupadd as an ordinary user (shadow-utils' messages). */
+  const notRoot = (file: string) => { fail(`${cmd}: Permission denied.`); fail(`${cmd}: cannot lock ${file}; try again later.`); };
+  const saveAccounts = (next: Accounts): Exec => { writeAccountFiles(nodes, next); return done({ ...state, nodes, accounts: next }); };
 
-  // E1: pathname expansion of the arguments (not of the command name or of a redirection's file).
-  const words = features.has('glob')
-    ? tokens.words.flatMap((w, i, all) => {
-      if (!i || !hasMagic(w.pattern) || ['>', '>>'].includes(all[i - 1].text)) return [w.text];
-      const found = expandGlob(w.pattern, state.home, {
-        list: p => {
-          const v = walk(state, resolve(p || '.'));
-          return 'error' in v || v.node?.kind !== 'dir' || !allowed(v.node, 'r') ? null : childrenOf(state.nodes, v.path).map(baseName);
-        },
-        exists: p => { const v = walk(state, resolve(p), false); return !('error' in v) && !!v.node; },
-        isDir: p => isFolder(p),
-      });
-      return found.length ? found : [w.text];
-    })
-    : tokens.words.map(w => w.text);
-
-  const [cmd, ...args] = words;
   const known = (profile.commands as readonly string[]).includes(cmd);
-  // E1: 指令 --help prints the command's short help (echo prints it as text, as in bash).
+  // E1: 指令 --help prints the command's short help (echo prints it as text, as in bash; sudo only before its command).
   if (known && features.has('help-option') && cmd !== 'echo') {
-    const at = args.indexOf('--help'), stop = args.indexOf('--');
-    if (at >= 0 && (stop < 0 || at < stop)) { helpPage(cmd as CommandName).forEach(print); return done(); }
+    const stop = args.indexOf('--'), limit = cmd === 'sudo' ? args.findIndex(a => !a.startsWith('-')) : -1;
+    const at = args.indexOf('--help');
+    if (at >= 0 && (stop < 0 || at < stop) && (limit < 0 || at < limit)) { helpPage(cmd as CommandName, features).forEach(print); return done(); }
   }
 
   switch (known ? cmd as CommandName : undefined) {
@@ -271,16 +571,28 @@ export function run(state: FsState, input: string, profile: ShellProfile = LAB_P
       const last = HELP_LAST.filter(c => profile.commands.includes(c));
       if (last.length) print(`  ${last.join('、')}`);
       if (features.has('glob')) print('  萬用字元：* 任意多個字元、? 一個字元、[abc] 或 [a-z] 其中一個字元');
+      if (pipes) print('  管線與重新導向：a | b、> 檔案、>> 檔案、< 檔案、2> 檔案、2>&1、> /dev/null');
       return done();
     }
-    case 'whoami': print(state.user); return done();
-    case 'clear': return { state, lines: [], clear: true };
+    case 'whoami':
+      if (gnu && args.length) { usage(`whoami: extra operand '${args[0]}'`); return done(); }
+      print(state.user); return done();
+    case 'clear': return { state, events: [], clear: true };
     case 'pwd': print(state.cwd); return done();
 
     case 'echo': {
+      if (pipes) {
+        // E2: bash's echo: leading -n (no newline), -e (\n \t \\) and -E; redirection is the shell's.
+        let i = 0, newline = true, escapes = false;
+        for (; i < args.length && /^-[neE]+$/.test(args[i]); i++) for (const f of args[i].slice(1)) { if (f === 'n') newline = false; else escapes = f === 'e'; }
+        let line = args.slice(i).join(' ');
+        if (escapes) line = line.replace(/\\([nt\\])/g, (_, c: string) => c === 'n' ? '\n' : c === 't' ? '\t' : '\\');
+        write(line + (newline ? '\n' : ''));
+        return done();
+      }
       const at = args.findIndex(a => a === '>' || a === '>>');
-      const text = (at < 0 ? args : args.slice(0, at)).join(' ');
-      if (at < 0) { print(text); return done(); }
+      const line = (at < 0 ? args : args.slice(0, at)).join(' ');
+      if (at < 0) { print(line); return done(); }
       const target = args[at + 1];
       if (!target || args.length > at + 2) { fail('bash: syntax error near unexpected token `newline\''); return done(); }
       const w = walk(cur(), resolve(target));
@@ -295,7 +607,7 @@ export function run(state: FsState, input: string, profile: ShellProfile = LAB_P
         if (!validName(baseName(path)) || tooDeep(path)) { fail(`bash: ${shown(target)}: File name too long`); return done(); }
         if (!room(1)) { fail(`bash: ${shown(target)}: No space left on device`); return done(); }
       }
-      const content = (args[at] === '>>' ? w.node?.content ?? '' : '') + text + '\n';
+      const content = (args[at] === '>>' ? w.node?.content ?? '' : '') + line + '\n';
       if (content.length > LIMITS.fileLength) { fail(`bash: ${shown(target)}: File too large（模擬環境上限 ${LIMITS.fileLength} 字元）`); return done(); }
       // An existing file keeps its mode, owner and group; a new one is the user's.
       nodes.set(path, w.node ? { ...w.node, content } : { kind: 'file', mode: 0o644, owner: state.user, content });
@@ -315,16 +627,18 @@ export function run(state: FsState, input: string, profile: ShellProfile = LAB_P
 
     case 'ls': {
       const extra = features.has('ls-extra');
-      const o = options(args, extra ? 'lahd' : 'la');
-      if ('bad' in o) { fail(`ls: invalid option -- '${o.bad}'`); return done(); }
+      const o = options(args, extra ? 'lahd' : 'la', LONG.ls, gnu);
+      if ('bad' in o) { badOption(o); return done(); }
       const long = o.flags.has('l'), all = o.flags.has('a'), human = o.flags.has('h'), self = o.flags.has('d');
       const targets = o.operands.length ? o.operands : ['.'];
       const size = (node: FsNode) => node.kind === 'dir' ? 4096 : byteLength((node.kind === 'link' ? node.target : node.content) ?? '');
       // Folders end in / (like ls -F) so the listing reads without colours; . and .. stay as they are; E1: links end in @.
-      const label = (name: string, node: FsNode) => node.kind === 'dir' && name !== '.' && name !== '..' && !name.endsWith('/') ? `${name}/` : node.kind === 'link' ? `${name}@` : name;
+      // E2: not to a terminal (a pipe or a file), ls prints plain names, one per line, as GNU ls does.
+      const label = (name: string, node: FsNode) => !ctx.tty ? name : node.kind === 'dir' && name !== '.' && name !== '..' && !name.endsWith('/') ? `${name}/` : node.kind === 'link' ? `${name}@` : name;
       const entry = (name: string, node: FsNode) => long
         ? `${modeString(node)} ${node.owner.padEnd(7)} ${groupOf(node).padEnd(7)} ${(human ? humanSize(size(node)) : String(size(node))).padStart(5)} ${node.kind === 'link' ? `${name} -> ${node.target ?? ''}` : label(name, node)}`
         : label(name, node);
+      const row = (entries: string[]) => { if (long || !ctx.tty) entries.forEach(print); else if (entries.length) print(entries.join('  ')); };
       /** An operand: a link is followed when it leads to a folder (not with -l or -d, unless it ends in /), like GNU ls. */
       const look = (target: string): Fail | Found => {
         const path = resolve(target), w = walk(state, path, false);
@@ -337,8 +651,7 @@ export function run(state: FsState, input: string, profile: ShellProfile = LAB_P
         const rows: [string, FsNode][] = childrenOf(state.nodes, dir.path).map(p => [baseName(p), state.nodes.get(p)!]);
         if (all) rows.unshift(['.', dir.node], ['..', state.nodes.get(parentOf(dir.path))!]);
         const shownRows = all ? rows : rows.filter(([name]) => !name.startsWith('.'));
-        if (long) shownRows.forEach(([name, node]) => print(entry(name, node)));
-        else if (shownRows.length) print(shownRows.map(([name, node]) => entry(name, node)).join('  '));
+        row(shownRows.map(([name, node]) => entry(name, node)));
       };
       if (!extra) {
         targets.forEach((target, i) => {
@@ -361,8 +674,7 @@ export function run(state: FsState, input: string, profile: ShellProfile = LAB_P
       }
       const byName = <T>(a: [string, T], b: [string, T]) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0;
       files.sort(byName); dirs.sort(byName);
-      if (long) files.forEach(([name, node]) => print(entry(name, node)));
-      else if (files.length) print(files.map(([name, node]) => entry(name, node)).join('  '));
+      row(files.map(([name, node]) => entry(name, node)));
       let printed = files.length > 0;
       for (const [target, dir] of dirs) {
         if (!allowed(dir.node, 'r')) { fail(`ls: cannot open directory '${target}': Permission denied`); continue; }
@@ -374,9 +686,11 @@ export function run(state: FsState, input: string, profile: ShellProfile = LAB_P
     }
 
     case 'mkdir': {
-      const o = options(args, 'p');
-      if ('bad' in o) { fail(`mkdir: invalid option -- '${o.bad}'`); return done(); }
-      if (!o.operands.length) { fail('mkdir: missing operand'); return done(); }
+      const o = options(args, 'p', LONG.mkdir, gnu);
+      if ('bad' in o) { badOption(o); return done(); }
+      if (!o.operands.length) { usage('mkdir: missing operand'); return done(); }
+      // E3: 777 & ~umask (755 with the default 022); -p's parents also get u+wx, as GNU mkdir gives them.
+      const mode = 0o777 & ~maskOf(state);
       for (const target of o.operands) {
         const path = resolve(target);
         const chain = o.flags.has('p') ? path.split('/').filter(Boolean).map((_, i, all) => '/' + all.slice(0, i + 1).join('/')) : [path];
@@ -394,14 +708,14 @@ export function run(state: FsState, input: string, profile: ShellProfile = LAB_P
           if (why) { fail(`mkdir: cannot create directory '${target}': ${ERRNO[why]}`); break; }
           if (!validName(baseName(step)) || tooDeep(step)) { fail(`mkdir: cannot create directory '${target}': File name too long`); break; }
           if (!room(1)) { fail(`mkdir: cannot create directory '${target}': No space left on device`); break; }
-          nodes.set(step, { kind: 'dir', mode: 0o755, owner: state.user });
+          nodes.set(step, { kind: 'dir', mode: step === path ? mode : mode | 0o300, ...ownedBy(cur()) });
         }
       }
       return commit();
     }
 
     case 'touch': {
-      if (!args.length) { fail('touch: missing file operand'); return done(); }
+      if (!args.length) { usage('touch: missing file operand'); return done(); }
       for (const target of args) {
         const w = walk(cur(), resolve(target));
         if ('error' in w) { fail(`touch: cannot touch '${target}': ${ERRNO[w.error]}`); continue; }
@@ -412,29 +726,58 @@ export function run(state: FsState, input: string, profile: ShellProfile = LAB_P
         if (why) { fail(`touch: cannot touch '${target}': ${ERRNO[why]}`); continue; }
         if (!validName(baseName(path)) || tooDeep(path)) { fail(`touch: cannot touch '${target}': File name too long`); continue; }
         if (!room(1)) { fail(`touch: cannot touch '${target}': No space left on device`); continue; }
-        nodes.set(path, { kind: 'file', mode: 0o644, owner: state.user, content: '' });
+        nodes.set(path, { kind: 'file', mode: 0o666 & ~maskOf(state), ...ownedBy(cur()), content: '' });
       }
       return commit();
     }
 
     case 'cat': {
+      if (pipes) { const o = parsed('cat'); if (o) text.cat(textIo(), o); return done(); }
       if (!args.length) { fail('cat: 模擬環境沒有標準輸入，請指定檔案，例如 cat README.txt'); return done(); }
       for (const target of args) {
         const w = walk(state, resolve(target));
         if ('error' in w || !w.node) { fail(`cat: ${target}: ${ERRNO['error' in w ? w.error : 'ENOENT']}`); continue; }
         if (w.node.kind === 'dir') { fail(`cat: ${target}: Is a directory`); continue; }
         if (!allowed(w.node, 'r')) { fail(`cat: ${target}: Permission denied`); continue; }
-        const text = w.node.content ?? '';
-        (text.endsWith('\n') ? text.slice(0, -1) : text).split('\n').forEach(l => text && print(l));
+        const content = w.node.content ?? '';
+        (content.endsWith('\n') ? content.slice(0, -1) : content).split('\n').forEach(l => content && print(l));
       }
       return done();
     }
 
+    case 'less': { const o = parsed('less'); if (o) text.less(textIo(), o); return done(); }
+    case 'head': case 'tail': { const o = parsed(cmd, text.countShorthand(args)); if (o) text.headTail(textIo(), cmd as 'head' | 'tail', o); return done(); }
+    case 'grep': { const o = parsed('grep'); if (o) text.grep(textIo(), o); return done(); }
+    case 'sort': { const o = parsed('sort'); if (o) text.sort(textIo(), o); return done(); }
+    case 'uniq': { const o = parsed('uniq'); if (o) text.uniq(textIo(), o); return done(); }
+    case 'wc': { const o = parsed('wc'); if (o) text.wc(textIo(), o); return done(); }
+    case 'cut': { const o = parsed('cut'); if (o) text.cut(textIo(), o); return done(); }
+    case 'tr': { const o = parsed('tr'); if (o) text.tr(textIo(), o); return done(); }
+
+    case 'tee': {
+      const o = parsed('tee');
+      if (!o) return done();
+      if (ctx.stdin === null) { fail(text.noInput('tee')); return done(); }
+      const data = ctx.stdin, targets: [string, string][] = [];
+      for (const name of o.operands) {
+        const opened = openWrite(nodes, cur(), name, o.flags.has('a'));
+        if ('error' in opened) fail(`tee: ${name}: ${OPEN_TEXT[opened.error]}`);
+        else if (opened.path) targets.push([name, opened.path]);
+      }
+      for (const [name, path] of targets) {
+        const node = nodes.get(path)!, content = (node.content ?? '') + data;
+        if (content.length > LIMITS.fileLength) fail(`tee: ${name}: File too large（模擬環境上限 ${LIMITS.fileLength} 字元）`);
+        else nodes.set(path, { ...node, content });
+      }
+      write(data);
+      return commit();
+    }
+
     case 'cp': case 'mv': {
-      const o = options(args, cmd === 'cp' ? 'r' : '');
-      if ('bad' in o) { fail(`${cmd}: invalid option -- '${o.bad}'`); return done(); }
+      const o = options(args, cmd === 'cp' ? 'r' : '', LONG[cmd] ?? {}, gnu);
+      if ('bad' in o) { badOption(o); return done(); }
       const multi = features.has('multi-source'), n = o.operands.length;
-      if (multi && n < 2) { fail(n ? `${cmd}: missing destination file operand after '${o.operands[0]}'` : `${cmd}: missing file operand`); return done(); }
+      if (multi && n < 2) { usage(n ? `${cmd}: missing destination file operand after '${o.operands[0]}'` : `${cmd}: missing file operand`); return done(); }
       if (!multi && n !== 2) { fail(`${cmd}: ${n < 2 ? 'missing destination file operand' : '模擬環境一次只處理一個來源'}`); return done(); }
       const to = o.operands[n - 1], sources = o.operands.slice(0, -1);
       if (sources.length > 1) {
@@ -453,6 +796,12 @@ export function run(state: FsState, input: string, profile: ShellProfile = LAB_P
         if (real === '/') { fail(`${cmd}: cannot ${cmd === 'cp' ? 'copy' : 'move'} '/'`); continue; }
         const dw = walk(cur(), resolve(to));
         if ('error' in dw) { fail(`${cmd}: cannot ${cmd === 'cp' ? 'create regular file' : 'move'} '${to}': ${ERRNO[dw.error]}`); continue; }
+        // Fix 4 (multi-source): a destination written with a trailing / must be a folder for a file (a folder may be renamed to it).
+        if (multi && to.endsWith('/') && node.kind !== 'dir' && dw.node?.kind !== 'dir') {
+          if (dw.node) fail(`${cmd}: failed to access '${to}': Not a directory`);
+          else fail(cmd === 'mv' ? `mv: cannot move '${from}' to '${to}': Not a directory` : `cp: cannot create regular file '${to}': Not a directory`);
+          continue;
+        }
         // Into a folder (following a link to one), keeping the name; cp writes through a link to a file, mv replaces the link.
         const dest = dw.node?.kind === 'dir' ? joinPath(dw.path, baseName(src)) : cmd === 'cp' ? dw.path : resolve(to);
         if (dest === real) { fail(`${cmd}: '${from}' and '${to}' are the same file`); continue; }
@@ -473,10 +822,16 @@ export function run(state: FsState, input: string, profile: ShellProfile = LAB_P
         { fail(`cp: cannot open '${from}' 中的部分檔案: Permission denied`); continue; }
         const physical = physicalPath(before, cwd, true), moved = cmd === 'mv' && isInside(physical, real);
         for (const p of tree) {
-          const each = before.get(p)!;
+          const each = before.get(p)!, target = dest + p.slice(real.length);
           if (cmd === 'mv') nodes.delete(p);
-          // A copy belongs to the user (and, LNX-0, to the user's own group); a move keeps the node as it was.
-          nodes.set(dest + p.slice(real.length), cmd === 'cp' ? copyOf(each, state.user) : each);
+          // A copy belongs to the user (and, LNX-0, to the user's own group); a move keeps the node as it was. E3 (a state
+          // with a umask): a new copy is masked by it, an existing file keeps its mode, owner and group, like GNU cp.
+          if (cmd === 'mv') nodes.set(target, each);
+          else if (state.umask !== undefined) {
+            const old = nodes.get(target);
+            nodes.set(target, old && old.kind === 'file' && each.kind === 'file' ? { ...old, content: each.content }
+              : { ...copyOf(each, state.user), ...ownedBy(cur()), mode: each.kind === 'link' ? each.mode : each.mode & ~state.umask });
+          } else nodes.set(target, copyOf(each, state.user));
         }
         if (moved) cwd = dest + physical.slice(real.length);
       }
@@ -484,10 +839,10 @@ export function run(state: FsState, input: string, profile: ShellProfile = LAB_P
     }
 
     case 'rm': {
-      const o = options(args, 'rfR');
-      if ('bad' in o) { fail(`rm: invalid option -- '${o.bad}'`); return done(); }
+      const o = options(args, 'rfR', LONG.rm, gnu);
+      if ('bad' in o) { badOption(o); return done(); }
       const recursive = o.flags.has('r') || o.flags.has('R'), force = o.flags.has('f');
-      if (!o.operands.length) { if (!force) fail('rm: missing operand'); return done(); }
+      if (!o.operands.length) { if (!force) usage('rm: missing operand'); return done(); }
       for (const target of o.operands) {
         const path = resolve(target);
         if (baseName(target) === '.' || baseName(target) === '..') { fail(`rm: refusing to remove '.' or '..' directory: skipping '${target}'`); continue; }
@@ -509,8 +864,11 @@ export function run(state: FsState, input: string, profile: ShellProfile = LAB_P
     }
 
     case 'chmod': {
-      if (args.length < 2) { fail(args.length ? `chmod: missing operand after '${args[0]}'` : 'chmod: missing operand'); return done(); }
-      const [spec, ...targets] = args;
+      // E3 (accounts): chmod -R applies the mode to the folder and everything under it (links are not followed).
+      const recursive = features.has('accounts') && (args[0] === '-R' || args[0] === '--recursive');
+      const rest = recursive ? args.slice(1) : args;
+      if (rest.length < 2) { usage(rest.length ? `chmod: missing operand after '${rest[0]}'` : 'chmod: missing operand'); return done(); }
+      const [spec, ...targets] = rest;
       for (const target of targets) {
         const path = resolve(target), w = walk(cur(), path);
         if ('error' in w || !w.node) {
@@ -519,19 +877,24 @@ export function run(state: FsState, input: string, profile: ShellProfile = LAB_P
           else fail(`chmod: cannot access '${target}': ${ERRNO['error' in w ? w.error : 'ENOENT']}`);
           continue;
         }
-        const mode = applyMode(w.node.mode, spec);
-        if (mode === undefined) { fail(`chmod: invalid mode: '${spec}'`); return commit(); }
-        if (w.node.owner !== state.user && state.user !== 'root') { fail(`chmod: changing permissions of '${target}': Operation not permitted`); continue; }
-        // E1: chmod changes what a link points to (a link's own mode is always 777).
-        nodes.set(w.path, { ...w.node, mode });
+        if (applyMode(w.node.mode, spec) === undefined) { usage(`chmod: invalid mode: '${spec}'`); return commit(); }
+        const paths = recursive && w.node.kind === 'dir' ? subtreeOf(nodes, w.path) : [w.path];
+        for (const p of paths) {
+          const node = nodes.get(p)!;
+          if (node.kind === 'link') continue;
+          const name = p === w.path ? target : joinShown(target, p.slice(w.path.length + 1));
+          if (node.owner !== state.user && state.user !== 'root') { fail(`chmod: changing permissions of '${name}': Operation not permitted`); continue; }
+          // E1: chmod changes what a link points to (a link's own mode is always 777).
+          nodes.set(p, { ...node, mode: applyMode(node.mode, spec)! });
+        }
       }
       return commit();
     }
 
     case 'uname': {
-      const o = options(args, 'asnrvmo');
-      if ('bad' in o) { fail(`uname: invalid option -- '${o.bad}'`); return done(); }
-      if (o.operands.length) { fail(`uname: extra operand '${o.operands[0]}'`); return done(); }
+      const o = options(args, 'asnrvmo', LONG.uname, gnu);
+      if ('bad' in o) { badOption(o); return done(); }
+      if (o.operands.length) { usage(`uname: extra operand '${o.operands[0]}'`); return done(); }
       const sys = { ...DEFAULT_SYSTEM, ...state.system }, every = o.flags.has('a');
       const fields: [string, string][] = [['s', sys.kernel], ['n', state.host ?? DEFAULT_HOST], ['r', sys.release], ['v', sys.version], ['m', sys.machine], ['o', sys.os]];
       const chosen = fields.filter(([f]) => every || o.flags.has(f));
@@ -549,20 +912,24 @@ export function run(state: FsState, input: string, profile: ShellProfile = LAB_P
     }
 
     case 'man': {
-      const o = options(args, '');
-      if ('bad' in o) { fail(`man: invalid option -- '${o.bad}'`); return done(); }
+      const o = options(args, '', {}, gnu);
+      if ('bad' in o) {
+        fail(o.long ? `man: unrecognized option '${o.bad}'` : `man: invalid option -- '${o.bad}'`);
+        if (gnu) fail("Try 'man --help' or 'man --usage' for more information.");
+        return done();
+      }
       if (!o.operands.length) { fail('What manual page do you want?'); fail("For example, try 'man man'."); return done(); }
       o.operands.forEach((page, i) => {
         if (!(profile.commands as readonly string[]).includes(page)) { fail(`No manual entry for ${page}`); return; }
-        if (i && out.some(l => l.kind === 'out')) print('');
-        manualPage(page as CommandName).forEach(print);
+        if (i && out.some(l => l.fd === 1)) print('');
+        manualPage(page as CommandName, features).forEach(print);
       });
       return done();
     }
 
     case 'df': {
-      const o = options(args, 'hT');
-      if ('bad' in o) { fail(`df: invalid option -- '${o.bad}'`); return done(); }
+      const o = options(args, 'hT', LONG.df, gnu);
+      if ('bad' in o) { badOption(o); return done(); }
       const mounts = state.mounts ?? [];
       if (!mounts.length) { fail('df: no file systems processed'); return done(); }
       const rows = !o.operands.length ? [...mounts] : o.operands.flatMap(target => {
@@ -576,10 +943,10 @@ export function run(state: FsState, input: string, profile: ShellProfile = LAB_P
     }
 
     case 'du': {
-      const o = options(args, 'sha');
-      if ('bad' in o) { fail(`du: invalid option -- '${o.bad}'`); return done(); }
+      const o = options(args, 'sha', LONG.du, gnu);
+      if ('bad' in o) { badOption(o); return done(); }
       const summary = o.flags.has('s'), every = o.flags.has('a'), human = o.flags.has('h');
-      if (summary && every) { fail('du: cannot both summarize and show all entries'); return done(); }
+      if (summary && every) { usage('du: cannot both summarize and show all entries'); return done(); }
       const line = (kib: number, name: string) => print(`${human ? humanSize(kib * 1024) : kib}\t${name}`);
       // Post-order like GNU du (a folder after its contents), names sorted; links are counted as 0 and never followed.
       const visit = (path: string, name: string, node: FsNode, top: boolean): number => {
@@ -599,11 +966,11 @@ export function run(state: FsState, input: string, profile: ShellProfile = LAB_P
     }
 
     case 'ln': {
-      const o = options(args, 'sf');
-      if ('bad' in o) { fail(`ln: invalid option -- '${o.bad}'`); return done(); }
+      const o = options(args, 'sf', LONG.ln, gnu);
+      if ('bad' in o) { badOption(o); return done(); }
       if (!o.flags.has('s')) { fail('ln: 模擬環境只支援符號連結，請使用 ln -s 目標 連結名稱（硬連結只在課文中說明）'); return done(); }
       const n = o.operands.length;
-      if (!n) { fail('ln: missing file operand'); return done(); }
+      if (!n) { usage('ln: missing file operand'); return done(); }
       const nameOf = (target: string) => baseName(target.replace(/\/+$/, '') || '/');
       let jobs: [string, string, string][];
       if (n === 1) jobs = [[o.operands[0], resolve(nameOf(o.operands[0])), `./${nameOf(o.operands[0])}`]];
@@ -624,15 +991,15 @@ export function run(state: FsState, input: string, profile: ShellProfile = LAB_P
         if (why) { fail(`${at}: ${ERRNO[why]}`); continue; }
         if (!validName(baseName(path)) || tooDeep(path)) { fail(`${at}: File name too long`); continue; }
         if (!w.node && !room(1)) { fail(`${at}: No space left on device`); continue; }
-        nodes.set(path, { kind: 'link', mode: 0o777, owner: state.user, target });
+        nodes.set(path, { kind: 'link', mode: 0o777, ...ownedBy(cur()), target });
       }
       return commit();
     }
 
     case 'readlink': {
-      const o = options(args, 'f');
-      if ('bad' in o) { fail(`readlink: invalid option -- '${o.bad}'`); return done(); }
-      if (!o.operands.length) { fail('readlink: missing operand'); return done(); }
+      const o = options(args, 'f', LONG.readlink, gnu);
+      if ('bad' in o) { badOption(o); return done(); }
+      if (!o.operands.length) { usage('readlink: missing operand'); return done(); }
       // Like GNU readlink: nothing is printed (and nothing is an error message) when the path is not a link.
       for (const target of o.operands) {
         if (o.flags.has('f')) { const w = walk(state, resolvePath(state, target)); if (!('error' in w)) print(w.path); continue; }
@@ -642,10 +1009,374 @@ export function run(state: FsState, input: string, profile: ShellProfile = LAB_P
       return done();
     }
 
+    case 'id': {
+      const o = parsed('id');
+      if (!o) return done();
+      const acc = accounts();
+      if (o.operands.length > 1) { usage(`id: extra operand '${o.operands[1]}'`); return done(); }
+      const which = ['u', 'g', 'G'].filter(f => o.flags.has(f));
+      if (which.length > 1) { usage('id: cannot print "only" of more than one choice'); return done(); }
+      if (o.flags.has('n') && !which.length) { usage('id: printing only names or real IDs requires -u, -g, or -G'); return done(); }
+      // With a name: the database (what the next login gets). Without: the session (groups as they were at login).
+      const name = o.operands[0], user = findUser(acc, name ?? state.user);
+      if (name !== undefined && !user) { fail(`id: '${name}': no such user`); return done(); }
+      const groups = name !== undefined ? loginGroups(acc, name) : [...groupsOf(state)];
+      const uid = user?.uid ?? FIRST_UNKNOWN, gidOf = (g: string) => findGroup(acc, g)?.gid;
+      const both = (id: number | undefined, label: string) => id === undefined ? label : `${id}(${label})`;
+      const named = o.flags.has('n');
+      if (which[0] === 'u') print(named ? user?.name ?? state.user : String(uid));
+      else if (which[0] === 'g') print(named ? groups[0] ?? '' : String(gidOf(groups[0]) ?? user?.gid ?? ''));
+      else if (which[0] === 'G') print(groups.map(g => named ? g : String(gidOf(g) ?? g)).join(' '));
+      else print(`uid=${both(uid, user?.name ?? state.user)} gid=${both(gidOf(groups[0]) ?? user?.gid, groups[0] ?? '')} groups=${groups.map(g => both(gidOf(g), g)).join(',')}`);
+      return done();
+    }
+
+    case 'groups': {
+      const o = options(args, '', {}, gnu);
+      if ('bad' in o) { badOption(o); return done(); }
+      const acc = accounts();
+      if (!o.operands.length) { print(groupsOf(state).join(' ')); return done(); }
+      for (const name of o.operands) {
+        if (!findUser(acc, name)) fail(`groups: '${name}': no such user`);
+        else print(`${name} : ${loginGroups(acc, name).join(' ')}`);
+      }
+      return done();
+    }
+
+    case 'useradd': {
+      const o = text.getopt(args, 'mMrs:G:g:u:c:d:', { 'create-home': 'm', 'no-create-home': 'M', system: 'r', shell: 's', groups: 'G', gid: 'g', uid: 'u', comment: 'c', 'home-dir': 'd' });
+      if ('error' in o) { fail(`useradd: ${o.error}`); fail('Usage: useradd [options] LOGIN'); return done(); }
+      if (o.operands.length !== 1) { fail('Usage: useradd [options] LOGIN'); return done(); }
+      if (state.user !== 'root') { notRoot('/etc/passwd'); return done(); }
+      const acc = accounts(), name = o.operands[0], one = (f: string) => o.flags.get(f)?.at(-1), system = o.flags.has('r');
+      if (!ACCOUNT_NAME.test(name)) { fail(`useradd: invalid user name '${name}': use --badname to ignore`); return done(); }
+      if (findUser(acc, name)) { fail(`useradd: user '${name}' already exists`); return done(); }
+      if (acc.users.length >= LIMITS.users) { fail(`useradd: 模擬環境最多 ${LIMITS.users} 個使用者`); return done(); }
+      const extra = (one('G') ?? '').split(',').filter(Boolean);
+      const missing = extra.find(g => !findGroup(acc, g));
+      if (missing) { fail(`useradd: group '${missing}' does not exist`); return done(); }
+      let groups = acc.groups, gid: number | undefined;
+      const given = one('g');
+      if (given !== undefined) {
+        const g = findGroup(acc, given) ?? (/^\d+$/.test(given) ? groupById(acc, Number(given)) : undefined);
+        if (!g) { fail(`useradd: group '${given}' does not exist`); return done(); }
+        gid = g.gid;
+      } else if (findGroup(acc, name)) { fail(`useradd: group ${name} exists - if you want to add this user to that group, use -g.`); return done(); }
+      const wanted = one('u');
+      if (wanted !== undefined && (!/^\d+$/.test(wanted) || Number(wanted) > 65534)) { fail(`useradd: invalid user ID '${wanted}'`); return done(); }
+      const uid = wanted !== undefined ? Number(wanted) : nextId(acc.users.map(u => u.uid), system);
+      if (uid === undefined) { fail("useradd: can't get unique UID (no more available UIDs)"); return done(); }
+      if (wanted !== undefined && acc.users.some(u => u.uid === uid)) { fail(`useradd: UID ${uid} is not unique`); return done(); }
+      const home = one('d') ?? `/home/${name}`, shell = one('s') ?? '/bin/sh', comment = one('c') ?? '';
+      if (!home.startsWith('/') || home.includes(':')) { fail(`useradd: invalid home directory '${home}'`); return done(); }
+      if (!shell.startsWith('/') || shell.includes(':')) { fail(`useradd: invalid shell '${shell}'`); return done(); }
+      if (/[:\n]/.test(comment) || comment.length > 64) { fail(`useradd: invalid comment '${comment}'`); return done(); }
+      if (gid === undefined) {
+        if (acc.groups.length >= LIMITS.groups) { fail(`useradd: 模擬環境最多 ${LIMITS.groups} 個群組`); return done(); }
+        // A user private group, with the uid as its gid when that is free (USERGROUPS_ENAB).
+        const used = acc.groups.map(g => g.gid);
+        gid = used.includes(uid) ? nextId(used, system) : uid;
+        if (gid === undefined) { fail("useradd: can't create group"); return done(); }
+        groups = [...groups, { name, gid, members: [] }];
+      }
+      groups = groups.map(g => extra.includes(g.name) && !g.members.includes(name) ? { ...g, members: [...g.members, name] } : g);
+      const next: Accounts = { users: [...acc.users, { name, uid, gid, comment, home, shell }], groups };
+      if (o.flags.has('m') && !o.flags.has('M')) {
+        const path = resolvePath({ cwd: '/', home: '/' }, home), primary = groupById(next, gid)?.name ?? name;
+        const own = (n: FsNode): FsNode => ({ ...n, owner: name, ...primary !== name ? { group: primary } : {} });
+        const skel = subtreeOf(nodes, '/etc/skel').slice(1);
+        if (nodes.has(path)) { fail(`useradd: warning: the home directory ${home} already exists.`); fail('useradd: Not copying any file from skel directory into it.'); }
+        else if (nodes.get(parentOf(path))?.kind !== 'dir' || tooDeep(path) || !room(1 + skel.length)) fail(`useradd: cannot create directory ${home}`);
+        else {
+          // Ubuntu's HOME_MODE is 0750; the files of /etc/skel are copied in, owned by the new user.
+          nodes.set(path, own({ kind: 'dir', mode: 0o750, owner: name }));
+          for (const p of skel) nodes.set(path + p.slice('/etc/skel'.length), own(copyOf(nodes.get(p)!, name)));
+        }
+      }
+      return saveAccounts(next);
+    }
+
+    case 'usermod': {
+      const o = text.getopt(args, 'aG:g:s:c:d:', { append: 'a', groups: 'G', gid: 'g', shell: 's', comment: 'c', home: 'd' });
+      if ('error' in o) { fail(`usermod: ${o.error}`); fail('Usage: usermod [options] LOGIN'); return done(); }
+      if (o.operands.length !== 1) { fail('Usage: usermod [options] LOGIN'); return done(); }
+      if (o.flags.has('a') && !o.flags.has('G')) { fail('usermod: -a flag is ONLY allowed with the -G flag'); fail('Usage: usermod [options] LOGIN'); return done(); }
+      if (state.user !== 'root') { notRoot('/etc/passwd'); return done(); }
+      const acc = accounts(), name = o.operands[0], one = (f: string) => o.flags.get(f)?.at(-1);
+      const user = findUser(acc, name);
+      if (!user) { fail(`usermod: user '${name}' does not exist`); return done(); }
+      if (!o.flags.size) { fail('usermod: no changes'); return done(); }
+      let groups = acc.groups, changed = { ...user };
+      const list = one('G');
+      if (list !== undefined) {
+        const wanted = list.split(',').filter(Boolean), missing = wanted.find(g => !findGroup(acc, g));
+        if (missing) { fail(`usermod: group '${missing}' does not exist`); return done(); }
+        // -aG adds; -G alone makes these the user's only supplementary groups (the classic way to lose sudo).
+        groups = groups.map(g => {
+          const member = g.members.includes(name), want = wanted.includes(g.name) || (o.flags.has('a') && member);
+          return want === member ? g : { ...g, members: want ? [...g.members, name] : g.members.filter(m => m !== name) };
+        });
+      }
+      const primary = one('g');
+      if (primary !== undefined) {
+        const g = findGroup(acc, primary) ?? (/^\d+$/.test(primary) ? groupById(acc, Number(primary)) : undefined);
+        if (!g) { fail(`usermod: group '${primary}' does not exist`); return done(); }
+        changed = { ...changed, gid: g.gid };
+      }
+      const shell = one('s'), comment = one('c'), home = one('d');
+      if (shell !== undefined) { if (!shell.startsWith('/') || shell.includes(':')) { fail(`usermod: invalid field '${shell}'`); return done(); } changed = { ...changed, shell }; }
+      if (comment !== undefined) { if (/[:\n]/.test(comment) || comment.length > 64) { fail(`usermod: invalid field '${comment}'`); return done(); } changed = { ...changed, comment }; }
+      if (home !== undefined) { if (!home.startsWith('/') || home.includes(':')) { fail(`usermod: invalid field '${home}'`); return done(); } changed = { ...changed, home }; }
+      return saveAccounts({ users: acc.users.map(u => u.name === name ? changed : u), groups });
+    }
+
+    case 'groupadd': {
+      const o = text.getopt(args, 'rg:', { system: 'r', gid: 'g' });
+      if ('error' in o) { fail(`groupadd: ${o.error}`); fail('Usage: groupadd [options] GROUP'); return done(); }
+      if (o.operands.length !== 1) { fail('Usage: groupadd [options] GROUP'); return done(); }
+      if (state.user !== 'root') { notRoot('/etc/group'); return done(); }
+      const acc = accounts(), name = o.operands[0], given = o.flags.get('g')?.at(-1);
+      if (!ACCOUNT_NAME.test(name)) { fail(`groupadd: '${name}' is not a valid group name`); return done(); }
+      if (findGroup(acc, name)) { fail(`groupadd: group '${name}' already exists`); return done(); }
+      if (acc.groups.length >= LIMITS.groups) { fail(`groupadd: 模擬環境最多 ${LIMITS.groups} 個群組`); return done(); }
+      if (given !== undefined && (!/^\d+$/.test(given) || Number(given) > 65534)) { fail(`groupadd: invalid group ID '${given}'`); return done(); }
+      if (given !== undefined && groupById(acc, Number(given))) { fail(`groupadd: GID '${given}' already exists`); return done(); }
+      const gid = given !== undefined ? Number(given) : nextId(acc.groups.map(g => g.gid), o.flags.has('r'));
+      if (gid === undefined) { fail("groupadd: can't create group"); return done(); }
+      return saveAccounts({ users: acc.users, groups: [...acc.groups, { name, gid, members: [] }] });
+    }
+
+    case 'newgrp': {
+      if (args.length > 1) { fail('usage: newgrp [-] [group]'); return done(); }
+      const acc = accounts(), mine = loginGroups(acc, state.user), group = args[0];
+      // Like logging in again: the database's groups (with `group` as the primary one), so a group just joined counts.
+      if (group === undefined) return done({ ...state, groups: mine });
+      if (!findGroup(acc, group)) { fail(`newgrp: group '${group}' does not exist`); return done(); }
+      if (!mine.includes(group) && state.user !== 'root') { fail(`newgrp: 你不在 ${group} 群組裡（模擬環境沒有群組密碼）`); return done(); }
+      return done({ ...state, groups: [group, ...mine.filter(g => g !== group)] });
+    }
+
+    case 'umask': {
+      const symbolic = args[0] === '-S', rest = symbolic ? args.slice(1) : args, mask = maskOf(state);
+      if (rest[0]?.startsWith('-') && rest[0] !== '-') { fail(`bash: umask: ${rest[0]}: invalid option`); fail('umask: usage: umask [-p] [-S] [mode]'); return done(); }
+      if (!rest.length) { print(symbolic ? umaskSymbolic(mask) : mask.toString(8).padStart(4, '0')); return done(); }
+      const spec = rest[0];
+      if (/^\d/.test(spec)) {
+        if (!/^[0-7]+$/.test(spec) || parseInt(spec, 8) > 0o777) { fail(`bash: umask: ${spec}: octal number out of range`); return done(); }
+        return done({ ...state, umask: parseInt(spec, 8) });
+      }
+      // A symbolic mode describes the permissions to keep (umask u=rwx,g=rx,o= is 027).
+      const kept = applyMode(~mask & 0o777, spec);
+      if (kept === undefined) { fail(`bash: umask: \`${spec}': invalid symbolic mode operator`); return done(); }
+      return done({ ...state, umask: ~kept & 0o777 });
+    }
+
+    case 'sudo': {
+      let i = 0, target = 'root';
+      for (; i < args.length && args[i].startsWith('-'); i++) {
+        const a = args[i];
+        if (a === '--') { i++; break; }
+        if (a === '-u' && i + 1 < args.length) { target = args[++i]; continue; }
+        if (a.startsWith('-u') && a.length > 2) { target = a.slice(2); continue; }
+        fail(a === '-u' ? "sudo: option requires an argument -- 'u'" : `sudo: invalid option -- '${a.startsWith('--') ? a.slice(2) : a.slice(1, 2)}'`);
+        fail('usage: sudo [-u 使用者] 指令 [參數…]');
+        return done();
+      }
+      const rest = args.slice(i);
+      if (!rest.length) { fail('usage: sudo [-u 使用者] 指令 [參數…]'); return done(); }
+      // sudoers: root, and the members of sudo (Debian, Ubuntu) or wheel (RHEL) as the session has them; no password prompt.
+      if (state.user !== 'root' && !groupsOf(state).some(g => g === 'sudo' || g === 'wheel')) {
+        fail(`${state.user} is not in the sudoers file.  This incident will be reported.`);
+        return done();
+      }
+      const acc = accounts(), who = findUser(acc, target);
+      if (!who) { fail(`sudo: unknown user ${target}`); return done(); }
+      if (BUILTINS.includes(rest[0]) || !(profile.commands as readonly string[]).includes(rest[0])) { fail(`sudo: ${rest[0]}: command not found`); return done(); }
+      // The command runs as the target with the target's groups and home; the arguments were expanded by the learner's shell.
+      const r = exec({ ...cur(), user: who.name, groups: loginGroups(acc, who.name), home: who.home }, rest, ctx);
+      r.events.forEach(push);
+      const { user: _u, groups: _g, home: _h, ...kept } = r.state;
+      void _u; void _g; void _h;
+      return done({ ...kept, user: state.user, home: state.home, ...state.groups ? { groups: state.groups } : {} });
+    }
+
+    case 'chown': case 'chgrp': {
+      const o = options(args, 'R', LONG[cmd], gnu);
+      if ('bad' in o) { badOption(o); return done(); }
+      if (o.operands.length < 2) { usage(o.operands.length ? `${cmd}: missing operand after '${o.operands[0]}'` : `${cmd}: missing operand`); return done(); }
+      const acc = accounts(), [spec, ...targets] = o.operands;
+      const userNamed = (n: string) => findUser(acc, n) ?? (/^\d+$/.test(n) ? acc.users.find(u => u.uid === Number(n)) : undefined);
+      const groupNamed = (n: string) => findGroup(acc, n) ?? (/^\d+$/.test(n) ? groupById(acc, Number(n)) : undefined);
+      let owner: string | undefined, group: string | undefined;
+      if (cmd === 'chgrp') {
+        const g = groupNamed(spec);
+        if (!g) { fail(`chgrp: invalid group: '${spec}'`); return done(); }
+        group = g.name;
+      } else {
+        const [u, g, more] = spec.split(':');
+        if (more !== undefined) { fail(`chown: invalid spec: '${spec}'`); return done(); }
+        if (u) { const found = userNamed(u); if (!found) { fail(`chown: invalid user: '${spec}'`); return done(); } owner = found.name; }
+        if (g) { const found = groupNamed(g); if (!found) { fail(`chown: invalid group: '${spec}'`); return done(); } group = found.name; }
+        // user: (a colon and no group) means the user's login group.
+        else if (g === '' && owner) group = groupById(acc, findUser(acc, owner)!.gid)?.name;
+      }
+      for (const target of targets) {
+        const w = walk(cur(), resolve(target));
+        if ('error' in w || !w.node) { fail(`${cmd}: cannot access '${target}': ${ERRNO['error' in w ? w.error : 'ENOENT']}`); continue; }
+        const paths = o.flags.has('R') && w.node.kind === 'dir' ? subtreeOf(nodes, w.path) : [w.path];
+        for (const p of paths) {
+          const node = nodes.get(p)!, name = p === w.path ? target : joinShown(target, p.slice(w.path.length + 1));
+          if (node.kind === 'link' && p !== w.path) continue;
+          // As on Linux: only root may give a file away; its owner may change its group to a group the owner is in.
+          const newOwner = owner ?? node.owner, newGroup = group ?? groupOf(node);
+          const ok = state.user === 'root' || (node.owner === state.user && newOwner === node.owner && (newGroup === groupOf(node) || groupsOf(state).includes(newGroup)));
+          if (!ok) { fail(`${cmd}: ${newOwner !== node.owner ? 'changing ownership' : 'changing group'} of '${name}': Operation not permitted`); continue; }
+          const { group: _g, ...rest } = node;
+          void _g;
+          nodes.set(p, { ...rest, owner: newOwner, ...newGroup !== newOwner ? { group: newGroup } : {} });
+        }
+      }
+      return commit();
+    }
+
     default:
       fail(`bash: ${cmd}: command not found（模擬環境支援：${profile.commands.join('、')}）`);
       return done();
   }
+}
+/** id for a session user missing from the database (never on a lesson machine). */
+const FIRST_UNKNOWN = 1000;
+
+/**
+ * Runs one command line against the state and returns the new state and what the terminal prints. Only the profile's
+ * commands run (default: LAB_PROFILE, the lab's whole table); any other is "command not found". E2: with the pipes
+ * feature the line may be a pipeline with redirections.
+ */
+export function run(state: FsState, input: string, profile: ShellProfile = LAB_PROFILE): RunResult {
+  const features = new Set(profile.features ?? []);
+  if (input.length > LIMITS.input) return { state, lines: [{ text: `輸入太長：一行最多 ${LIMITS.input} 個字元`, kind: 'err' }] };
+  if (features.has('pipes')) return runLine(state, input, profile, features);
+  const tokens = lex(input);
+  if ('error' in tokens) return { state, lines: [{ text: tokens.error, kind: 'err' }] };
+  if (!tokens.words.length) return { state, lines: [] };
+  if (tokens.words.some(w => ['|', ';', '&&', '||', '&', '<'].includes(w.text)) || /[|;&<`$]/.test(input.replace(/(["']).*?\1/g, '')))
+    return { state, lines: [{ text: REFUSED, kind: 'err' }] };
+  // E1: pathname expansion of the arguments (not of the command name or of a redirection's file).
+  const words = expand(state, tokens.words, features, i => !i || ['>', '>>'].includes(tokens.words[i - 1].text));
+  const r = exec(state, words, { profile, features, stdin: null, stdinRegular: false, tty: true });
+  return { state: r.state, lines: r.events.map(e => ({ text: e.data.slice(0, -1), kind: e.fd === 1 ? 'out' : 'err' })), ...r.clear ? { clear: true } : {} };
+}
+
+type Sink = { path: string; shown: string; data: string };
+/** Where a descriptor writes: the terminal (shown as output or as an error, by the stream it was opened as), the next stage, nowhere or a file. */
+type Target = { t: 'term'; kind: Line['kind'] } | { t: 'pipe' } | { t: 'null' } | { t: 'file'; sink: Sink };
+
+/**
+ * E2: a line of the pipes feature. First every stage's redirections are applied, stage by stage and left to right (bash
+ * starts all the stages at once, so a file written at the end of a pipeline is usually truncated before the start of it
+ * reads it: cat f | sort > f empties f; here it always does). A failed redirection prints bash's message on that
+ * stage's standard error and skips its command. Then the stages run in turn, each on the state the previous one left and
+ * with the previous one's standard output as its standard input; standard error reaches the terminal unless redirected.
+ * A stage of a pipeline with more than one stage is a subshell: cd, umask and newgrp there do not change the session.
+ */
+function runLine(state: FsState, input: string, profile: ShellProfile, features: ReadonlySet<ShellFeature>): RunResult {
+  const fail = (text: string): RunResult => ({ state, lines: [{ text, kind: 'err' }] });
+  const lexed = lexLine(input);
+  if ('error' in lexed) return fail(lexed.error);
+  if (!lexed.words.length) return { state, lines: [] };
+  const line = parseLine(lexed.words);
+  if ('error' in line) return fail(line.error);
+  if (line.stages.length > LIMITS.stages) return fail(`此模擬器的管線最多 ${LIMITS.stages} 段`);
+  const shown: Shown[] = [];
+  const route = (fds: readonly Target[], ev: Ev, piped: { data: string }) => {
+    const to = fds[ev.fd];
+    if (to.t === 'term') shown.push({ kind: to.kind, data: ev.data });
+    else if (to.t === 'pipe') piped.data += ev.data;
+    else if (to.t === 'file') to.sink.data += ev.data;
+  };
+  // 1. Redirections, in order, on one copy of the file system.
+  const nodes = new Map(state.nodes), opened = { ...state, nodes };
+  const plans = line.stages.map((stage, i) => {
+    const fds: Target[] = [{ t: 'null' }, i === line.stages.length - 1 ? { t: 'term', kind: 'out' } : { t: 'pipe' }, { t: 'term', kind: 'err' }];
+    const sinks: Sink[] = [], early: Ev[] = [];
+    let stdin: string | null | undefined, stdinRegular = false, ok = true;
+    for (const r of stage.redirects) {
+      if (r.op === '2>&1') { fds[2] = fds[1]; continue; }
+      if (r.op === '>&2') { fds[1] = fds[2]; continue; }
+      if (!r.word) continue;
+      const target = tilde(opened, r.word).text;
+      const problem = (why: string) => { early.push({ fd: 2, data: `bash: ${target}: ${why}\n` }); ok = false; };
+      if (r.op === '<') {
+        const read = readPath(opened, target);
+        if ('error' in read) { problem(text.ERROR_TEXT[read.error]); break; }
+        stdin = read.text; stdinRegular = read.regular;
+        continue;
+      }
+      const result = openWrite(nodes, opened, target, r.op.endsWith('>>'));
+      if ('error' in result) { problem(OPEN_TEXT[result.error]); break; }
+      const fd = r.op.startsWith('2') ? 2 : 1;
+      if (result.path === null) fds[fd] = { t: 'null' };
+      else { const sink = { path: result.path, shown: target, data: '' }; sinks.push(sink); fds[fd] = { t: 'file', sink }; }
+    }
+    // A failed redirection stops the list there, so its message goes where standard error pointed at that moment.
+    return { stage, fds, sinks, early, stdin, stdinRegular, ok };
+  });
+  // 2. The commands, one stage after another.
+  let cur: FsState = opened, pipe: string | null = null, clear = false;
+  for (const plan of plans) {
+    const piped = { data: '' };
+    plan.early.forEach(ev => route(plan.fds, ev, piped));
+    let work = cur;
+    if (plan.ok && plan.stage.argv.length) {
+      const argv = expand(work, plan.stage.argv, features, j => j === 0);
+      const stdin = plan.stdin !== undefined ? plan.stdin : pipe;
+      const r = exec(work, argv, { profile, features, stdin, stdinRegular: plan.stdin !== undefined && plan.stdinRegular, tty: plan.fds[1].t === 'term' });
+      work = r.state;
+      r.events.forEach(ev => route(plan.fds, ev, piped));
+      if (r.clear && plans.length === 1 && plan.fds[1].t === 'term') clear = true;
+    }
+    if (plan.sinks.length) {
+      const flushed = new Map(work.nodes);
+      for (const sink of plan.sinks) {
+        const node = flushed.get(sink.path);
+        if (node?.kind !== 'file' || !sink.data) continue;
+        const content = (node.content ?? '') + sink.data;
+        if (content.length > LIMITS.fileLength) { shown.push({ kind: 'err', data: `bash: ${sink.shown}: File too large（模擬環境上限 ${LIMITS.fileLength} 字元）\n` }); continue; }
+        flushed.set(sink.path, { ...node, content });
+      }
+      work = { ...work, nodes: flushed };
+    }
+    pipe = piped.data;
+    cur = plans.length > 1 ? sameShell(work, state) : work;
+  }
+  return { state: cur, lines: render(shown), ...clear ? { clear: true } : {} };
+}
+
+/** E2: the state after a subshell: its file system and accounts, the shell's own working directory, umask and groups. */
+function sameShell(next: FsState, shell: FsState): FsState {
+  const { umask: _m, groups: _g, ...rest } = next;
+  void _m; void _g;
+  return { ...rest, cwd: shell.cwd, ...shell.umask !== undefined ? { umask: shell.umask } : {}, ...shell.groups ? { groups: shell.groups } : {} };
+}
+
+/** E2: what reached the terminal, and as which stream (2>&1 shows errors as output, >&2 output as errors). */
+type Shown = { kind: Line['kind']; data: string };
+/** E2: what reaches the terminal, as lines: output split at newlines (a last line without one too), errors in order. */
+function render(events: readonly Shown[]): Line[] {
+  const lines: Line[] = [];
+  let partial = '';
+  for (const e of events) {
+    if (e.kind === 'out') {
+      const parts = (partial + e.data).split('\n');
+      partial = parts.pop()!;
+      for (const p of parts) lines.push({ text: p, kind: 'out' });
+      continue;
+    }
+    if (partial) { lines.push({ text: partial, kind: 'out' }); partial = ''; }
+    for (const p of e.data.replace(/\n$/, '').split('\n')) lines.push({ text: p, kind: 'err' });
+  }
+  if (partial) lines.push({ text: partial, kind: 'out' });
+  return lines;
 }
 
 /** A copied node: the same kind, mode and content, owned by the user, in the user's own group (no group field). */

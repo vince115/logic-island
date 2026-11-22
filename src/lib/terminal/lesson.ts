@@ -1,5 +1,6 @@
-import { baseName, depthOf, groupOf, LIMITS, linkTarget, parentOf, resolvePath, subtreeOf, validName, type FsNode, type FsState, type Mount, type SystemInfo } from './fs';
-import { ALL_COMMANDS, LAB_PROFILE, PROFILES, prompt, run, tokenize, type Line, type ProfileId, type ShellProfile } from './shell';
+import { baseName, depthOf, groupOf, LIMITS, linkTarget, parentOf, resolvePath, subtreeOf, validName, type Accounts, type FsNode, type FsState, type GroupEntry, type Mount, type SystemInfo } from './fs';
+import { ACCOUNT_FILES, ACCOUNT_NAME, defaultAccounts, findGroup, findUser, groupById, loginGroups, nextId, writeAccountFiles } from './accounts';
+import { ALL_COMMANDS, commandNames, LAB_PROFILE, PROFILES, prompt, run, type Line, type ProfileId, type ShellProfile } from './shell';
 
 /*
  * LNX-0 (2026-11-22): the terminal lesson capability (docs/curriculum/LNX0_TERMINAL_CAPABILITY.md). A Linux lesson
@@ -12,6 +13,11 @@ import { ALL_COMMANDS, LAB_PROFILE, PROFILES, prompt, run, tokenize, type Line, 
  * Engine stage E1: a machine names its profile (default lab; 'files' is FILES_PROFILE), and only a files machine may have
  * symbolic links, system information (uname) and a mount table (df). Examples, exercises and the console use the profile
  * of their machine.
+ *
+ * Engine stages E2 and E3 (§10, §11): the profiles 'streams' (pipes and redirection) and 'users' (accounts) include
+ * everything of the profiles below them. Only a users machine has a user and group database (accounts, laid over a small
+ * Ubuntu-like base and written to /etc/passwd, /etc/group and /etc/shadow) and a umask, and only its exercises may check
+ * users, groups and the umask. A variant may also change the host name and the uname fields.
  */
 
 /** A file, folder or (from engine stage E1, not before) symbolic link of a machine. Paths are absolute and normalized. */
@@ -28,6 +34,15 @@ export interface TerminalFile {
   /** Links only (engine stage E1): where it points, as written; it may dangle. A link's mode is always 0o777. */
   target?: string;
 }
+
+/**
+ * E3: a user of a users machine. A name of the base (root, daemon, bin, sys, www-data, nobody) or the machine's user
+ * changes that account (unset fields keep its values); any other name is a new account and needs a uid. group is the
+ * primary group's name (default: a group named after the user, created with the uid as its gid when it does not exist).
+ */
+export interface TerminalUser { name: string; uid?: number; group?: string; home?: string; shell?: string; comment?: string }
+/** E3: a group of a users machine; a base group (root, adm, sudo, www-data, users…) is changed, any other needs a gid. */
+export interface TerminalGroup { name: string; gid?: number; members?: string[] }
 
 export interface TerminalMachine {
   id: string;
@@ -50,6 +65,10 @@ export interface TerminalMachine {
   system?: Partial<SystemInfo>;
   /** E1 (files profile): the mount table df prints; sizes in 1K blocks; must include /. */
   mounts?: Mount[];
+  /** E3 (users profile): users and groups over the base database; the session's groups are the user's login groups. */
+  accounts?: { users?: TerminalUser[]; groups?: TerminalGroup[] };
+  /** E3 (users profile): the session's umask; default 0o022. */
+  umask?: number;
 }
 
 /** One command of a transcript and exactly what the terminal prints for it (lines joined by \n; '' for nothing). */
@@ -74,11 +93,24 @@ export type TerminalCheck =
    * E1: the path is a symbolic link to the place this target names (relative targets count from the link's folder), so
    * reports/today.txt and /home/learner/reports/today.txt both pass for /home/learner/current.
    */
-  | { kind: 'link'; path: string; target: string };
-export const TERMINAL_CHECK_KINDS = ['exists', 'absent', 'mode', 'owner', 'content', 'cwd', 'output', 'unchanged', 'link'] as const satisfies readonly TerminalCheck['kind'][];
+  | { kind: 'link'; path: string; target: string }
+  /**
+   * E3 (users machines): the account exists (absent: it does not) with these fields; groups are login groups the user
+   * must have (the primary one counts), notGroups ones it must not have. Read from the database, so it holds without a
+   * new login.
+   */
+  | { kind: 'user'; name: string; absent?: true; uid?: number; group?: string; groups?: string[]; notGroups?: string[]; shell?: string; home?: string }
+  /** E3 (users machines): the group exists (absent: it does not) with this gid; members must be in it (as a login group). */
+  | { kind: 'group'; name: string; absent?: true; gid?: number; members?: string[]; notMembers?: string[] }
+  /** E3 (users machines): the session's umask at the end. */
+  | { kind: 'umask'; umask: number };
+export const TERMINAL_CHECK_KINDS = ['exists', 'absent', 'mode', 'owner', 'content', 'cwd', 'output', 'unchanged', 'link', 'user', 'group', 'umask'] as const satisfies readonly TerminalCheck['kind'][];
 
-/** The same machine with some files replaced or added; the learner's commands are replayed on it as well. */
-export interface TerminalVariant { label: string; files: TerminalFile[] }
+/**
+ * The same machine with some files replaced or added (and, fix 5, another host name or other uname fields); the
+ * learner's commands are replayed on it as well.
+ */
+export interface TerminalVariant { label: string; files: TerminalFile[]; host?: string; system?: Partial<SystemInfo> }
 
 export interface TerminalExercise {
   id: string;
@@ -108,8 +140,35 @@ const homeOf = (machine: Pick<TerminalMachine, 'user' | 'home'>) => machine.home
 const SYSTEM_TEXT = /^[\x21-\x7e](?:[\x20-\x7e]{0,62}[\x21-\x7e])?$/;
 const SYSTEM_FIELDS = ['kernel', 'release', 'version', 'machine', 'os'] as const satisfies readonly (keyof SystemInfo)[];
 
-/** E1: the shell profile a machine's sessions use (lab unless it says files). */
+/** E1: the shell profile a machine's sessions use (lab unless it says files, streams or users). */
 export const profileOf = (machine: Pick<TerminalMachine, 'profile'>): ShellProfile => PROFILES[machine.profile ?? 'lab'] ?? LAB_PROFILE;
+/** Each profile includes the ones before it: files (E1) < streams (E2) < users (E3). */
+const RANK: Record<ProfileId, number> = { lab: 0, files: 1, streams: 2, users: 3 };
+const rankOf = (machine: Pick<TerminalMachine, 'profile'>) => RANK[machine.profile ?? 'lab'] ?? 0;
+
+/** E3: a users machine's database: the base and its user (defaultAccounts) with the machine's groups and users laid over it. */
+export function machineAccounts(machine: TerminalMachine): Accounts {
+  const base = defaultAccounts(machine.user, homeOf(machine));
+  const groups: GroupEntry[] = [...base.groups], users = [...base.users];
+  for (const g of machine.accounts?.groups ?? []) {
+    const at = groups.findIndex(x => x.name === g.name), old = groups[at];
+    const entry = { name: g.name, gid: g.gid ?? old?.gid ?? 0, members: [...g.members ?? old?.members ?? []] };
+    if (at >= 0) groups[at] = entry; else groups.push(entry);
+  }
+  for (const u of machine.accounts?.users ?? []) {
+    const at = users.findIndex(x => x.name === u.name), old = users[at];
+    const uid = u.uid ?? old?.uid ?? 0;
+    const groupName = u.group ?? (old ? groupById({ users, groups }, old.gid)?.name : undefined) ?? u.name;
+    // A user private group, with the uid as its gid when that is free (as useradd makes it).
+    if (!groups.some(g => g.name === groupName)) groups.push({ name: groupName, gid: groups.some(g => g.gid === uid) ? nextId(groups.map(g => g.gid), uid < 1000) ?? uid : uid, members: [] });
+    const entry = {
+      name: u.name, uid, gid: groups.find(g => g.name === groupName)!.gid, comment: u.comment ?? old?.comment ?? '',
+      home: u.home ?? old?.home ?? `/home/${u.name}`, shell: u.shell ?? old?.shell ?? '/bin/bash',
+    };
+    if (at >= 0) users[at] = entry; else users.push(entry);
+  }
+  return { users, groups };
+}
 
 /** The machine as an engine state: / plus its files, its user, groups, host, home and working directory. */
 export function machineState(machine: TerminalMachine): FsState {
@@ -121,16 +180,24 @@ export function machineState(machine: TerminalMachine): FsState {
       ...(f.kind === 'link' ? { target: f.target ?? '' } : {}),
     });
   }
-  return {
+  const state: FsState = {
     nodes, cwd: machine.cwd, user: machine.user, home: homeOf(machine), ...(machine.host ? { host: machine.host } : {}), ...(machine.groups ? { groups: machine.groups } : {}),
     ...(machine.system ? { system: { ...machine.system } } : {}), ...(machine.mounts ? { mounts: machine.mounts.map(m => ({ ...m })) } : {}),
   };
+  if (machine.profile !== 'users') return state;
+  // E3: the database, its files, the login groups of the session and the umask.
+  const accounts = machineAccounts(machine);
+  writeAccountFiles(nodes, accounts);
+  return { ...state, accounts, groups: loginGroups(accounts, machine.user), umask: machine.umask ?? 0o022 };
 }
 
-/** The machine with a variant's files replacing or adding to its own. */
+/** The machine with a variant's files replacing or adding to its own (fix 5: and its host name and uname fields). */
 export function variantMachine(machine: TerminalMachine, variant: TerminalVariant): TerminalMachine {
-  const paths = new Set(variant.files.map(f => f.path));
-  return { ...machine, files: [...machine.files.filter(f => !paths.has(f.path)), ...variant.files] };
+  const files = variant.files, paths = new Set(files.map(f => f.path));
+  return {
+    ...machine, files: [...machine.files.filter(f => !paths.has(f.path)), ...files],
+    ...variant.host !== undefined ? { host: variant.host } : {}, ...variant.system ? { system: { ...machine.system, ...variant.system } } : {},
+  };
 }
 
 export interface ReplayedStep { prompt: string; command: string; lines: Line[]; output: string }
@@ -166,6 +233,18 @@ export function describeCheck(check: TerminalCheck): string {
     case 'output': return '應該有一個指令印出題目要的輸出';
     case 'unchanged': return `${check.path} 應該維持原樣`;
     case 'link': return `${check.path} 應該是指向 ${check.target} 的符號連結`;
+    case 'user': {
+      if (check.absent) return `使用者 ${check.name} 應該不存在`;
+      const parts = [check.uid !== undefined ? `UID 是 ${check.uid}` : '', check.group ? `主要群組是 ${check.group}` : '', check.groups?.length ? `屬於 ${check.groups.join('、')}` : '',
+        check.notGroups?.length ? `不屬於 ${check.notGroups.join('、')}` : '', check.shell ? `shell 是 ${check.shell}` : '', check.home ? `家目錄是 ${check.home}` : ''].filter(Boolean);
+      return `使用者 ${check.name} 應該存在${parts.length ? `（${parts.join('，')}）` : ''}`;
+    }
+    case 'group': {
+      if (check.absent) return `群組 ${check.name} 應該不存在`;
+      const parts = [check.gid !== undefined ? `GID 是 ${check.gid}` : '', check.members?.length ? `成員有 ${check.members.join('、')}` : '', check.notMembers?.length ? `成員沒有 ${check.notMembers.join('、')}` : ''].filter(Boolean);
+      return `群組 ${check.name} 應該存在${parts.length ? `（${parts.join('，')}）` : ''}`;
+    }
+    case 'umask': return `umask 應該是 ${octal(check.umask).padStart(4, '0')}`;
   }
 }
 
@@ -198,6 +277,32 @@ function failure(check: TerminalCheck, start: FsState, end: FsState, outputs: st
       if (!node) return '它不存在';
       if (node.kind !== 'link') return `它是${kindName(node)}`;
       return linkTarget(parentOf(check.path), node.target ?? '') === linkTarget(parentOf(check.path), check.target) ? null : `它指向 ${node.target}`;
+    case 'user': {
+      const acc = end.accounts, user = acc && findUser(acc, check.name);
+      if (check.absent) return user ? '它還在' : null;
+      if (!acc || !user) return '這個使用者不存在';
+      const groups = loginGroups(acc, check.name), primary = groupById(acc, user.gid)?.name ?? String(user.gid);
+      if (check.uid !== undefined && user.uid !== check.uid) return `UID 是 ${user.uid}`;
+      if (check.group && primary !== check.group) return `主要群組是 ${primary}`;
+      const missing = check.groups?.find(g => !groups.includes(g)), extra = check.notGroups?.find(g => groups.includes(g));
+      if (missing) return `不在 ${missing} 群組裡`;
+      if (extra) return `仍在 ${extra} 群組裡`;
+      if (check.shell && user.shell !== check.shell) return `shell 是 ${user.shell}`;
+      if (check.home && user.home !== check.home) return `家目錄是 ${user.home}`;
+      return null;
+    }
+    case 'group': {
+      const acc = end.accounts, group = acc && findGroup(acc, check.name);
+      if (check.absent) return group ? '它還在' : null;
+      if (!acc || !group) return '這個群組不存在';
+      if (check.gid !== undefined && group.gid !== check.gid) return `GID 是 ${group.gid}`;
+      const missing = check.members?.find(m => !loginGroups(acc, m).includes(check.name) || !findUser(acc, m));
+      const extra = check.notMembers?.find(m => findUser(acc, m) && loginGroups(acc, m).includes(check.name));
+      if (missing) return `${missing} 不在這個群組裡`;
+      if (extra) return `${extra} 仍在這個群組裡`;
+      return null;
+    }
+    case 'umask': return (end.umask ?? 0o022) === check.umask ? null : `目前是 ${octal(end.umask ?? 0o022).padStart(4, '0')}`;
   }
 }
 
@@ -236,7 +341,7 @@ export function machineProblems(machine: TerminalMachine): string[] {
   if (!NAME.test(machine.user)) fail(`invalid user ${machine.user}`);
   if (machine.host !== undefined && !HOST.test(machine.host)) fail(`invalid host ${machine.host}`);
   for (const g of machine.groups ?? []) if (!NAME.test(g)) fail(`invalid group ${g}`);
-  const files = (machine.profile ?? 'lab') === 'files';
+  const files = rankOf(machine) >= RANK.files, users = machine.profile === 'users';
   if (machine.profile !== undefined && !Object.hasOwn(PROFILES, machine.profile)) fail(`unknown profile ${machine.profile}`);
   if (machine.system !== undefined) {
     if (!files) fail('system information needs the files profile (engine stage E1)');
@@ -265,6 +370,7 @@ export function machineProblems(machine: TerminalMachine): string[] {
     kinds.set(f.path, f.kind);
   }
   if (!normalized(machine.cwd) || kinds.get(machine.cwd) !== 'dir') fail(`the working directory ${machine.cwd} is not a folder of the machine`);
+  problems.push(...accountProblems(machine, kinds).map(p => `machine ${machine.id}: ${p}`));
   if (!normalized(homeOf(machine)) || kinds.get(homeOf(machine)) !== 'dir') fail(`the home ${homeOf(machine)} is not a folder of the machine`);
   if (machine.mounts !== undefined) {
     if (!files) fail('mounts need the files profile (engine stage E1)');
@@ -281,6 +387,55 @@ export function machineProblems(machine: TerminalMachine): string[] {
       const whole = (x: number) => Number.isInteger(x) && x >= 0 && x <= TERMINAL_LIMITS.mountSize;
       if (!whole(m.size) || !whole(m.used) || m.used > m.size) fail(`${at}: size and used must be whole 1K blocks, 0 ≤ used ≤ size ≤ 2^36`);
     }
+  }
+  return problems;
+}
+
+/** E3: the problems of a machine's accounts and umask (only a users machine may have them; its files' owners must exist). */
+function accountProblems(machine: TerminalMachine, kinds: ReadonlyMap<string, TerminalFile['kind']>): string[] {
+  const problems: string[] = [], fail = (what: string) => problems.push(what);
+  const users = machine.profile === 'users';
+  if (machine.accounts !== undefined && !users) fail('accounts need the users profile (engine stage E3)');
+  if (machine.umask !== undefined && !users) fail('a umask needs the users profile (engine stage E3)');
+  if (!users) return problems;
+  if (machine.groups !== undefined) fail('on a users machine the session\'s groups come from accounts: remove groups and list the memberships in accounts.groups');
+  if (machine.umask !== undefined && (!Number.isInteger(machine.umask) || machine.umask < 0 || machine.umask > 0o777)) fail('umask must be 0..0777');
+  for (const path of ACCOUNT_FILES) if (kinds.has(path)) fail(`file ${path}: generated from accounts on a users machine (do not list it)`);
+  if (kinds.has('/etc') && kinds.get('/etc') !== 'dir') fail('/etc must be a folder (the account files are written there)');
+  const base = defaultAccounts(machine.user, homeOf(machine));
+  const extraUsers = machine.accounts?.users ?? [], extraGroups = machine.accounts?.groups ?? [];
+  const seen = new Set<string>();
+  for (const g of extraGroups) {
+    const at = `group ${g.name}`;
+    if (!ACCOUNT_NAME.test(g.name)) fail(`${at}: invalid name`);
+    if (seen.has(`g:${g.name}`)) fail(`${at}: listed twice`);
+    seen.add(`g:${g.name}`);
+    if (g.gid === undefined ? !findGroup(base, g.name) : !Number.isInteger(g.gid) || g.gid < 0 || g.gid > 65534) fail(`${at}: needs a gid of 0..65534 (only a base group may leave it out)`);
+  }
+  for (const u of extraUsers) {
+    const at = `user ${u.name}`;
+    if (!ACCOUNT_NAME.test(u.name)) fail(`${at}: invalid name`);
+    if (seen.has(`u:${u.name}`)) fail(`${at}: listed twice`);
+    seen.add(`u:${u.name}`);
+    if (u.uid === undefined ? !findUser(base, u.name) : !Number.isInteger(u.uid) || u.uid < 0 || u.uid > 65534) fail(`${at}: needs a uid of 0..65534 (only a base user or the machine's user may leave it out)`);
+    if (u.name === 'root' && u.uid !== undefined && u.uid !== 0) fail('user root: its uid is 0');
+    if (u.home !== undefined && !normalized(u.home)) fail(`${at}: the home must be an absolute, normalized path`);
+    if (u.shell !== undefined && (!normalized(u.shell) || u.shell.includes(':'))) fail(`${at}: the shell must be an absolute path`);
+    if (u.comment !== undefined && (/[:\n]/.test(u.comment) || u.comment.length > 64)) fail(`${at}: the comment must be at most 64 characters without : or a new line`);
+  }
+  const named = new Set([...base.groups, ...extraGroups].map(g => g.name));
+  for (const u of extraUsers) if (u.group !== undefined && !named.has(u.group)) fail(`user ${u.name}: group ${u.group} is not a group of the machine`);
+  if (problems.length) return problems;
+  const acc = machineAccounts(machine);
+  if (acc.users.length > LIMITS.users || acc.groups.length > LIMITS.groups) fail(`at most ${LIMITS.users} users and ${LIMITS.groups} groups`);
+  for (const [list, what] of [[acc.users.map(u => u.uid), 'uid'], [acc.groups.map(g => g.gid), 'gid']] as const) {
+    const dup = list.find((id, i) => list.indexOf(id) !== i);
+    if (dup !== undefined) fail(`two accounts share the ${what} ${dup}`);
+  }
+  for (const g of acc.groups) for (const m of g.members) if (!findUser(acc, m)) fail(`group ${g.name}: member ${m} is not a user of the machine`);
+  for (const f of machine.files) {
+    if (!findUser(acc, f.owner)) fail(`file ${f.path}: owner ${f.owner} is not a user of the machine`);
+    if (!findGroup(acc, f.group ?? f.owner)) fail(`file ${f.path}: group ${f.group ?? f.owner} is not a group of the machine`);
   }
   return problems;
 }
@@ -304,12 +459,13 @@ export function terminalContentProblems(content: TerminalLessonContent, given?: 
   }
   const valid = new Map(machines.filter(m => !machineProblems(m).length).map(m => [m.id, m]));
   const commandProblem = (c: string) => !c.trim() ? 'an empty command' : c.length > LIMITS.input ? `a command longer than ${LIMITS.input}` : null;
-  /** E1: a command of another stage used on a machine whose profile does not have it (a typo may still show its error). */
-  const outsideProfile = (commands: readonly string[], machine: TerminalMachine, profile: ShellProfile) => commands.flatMap(c => {
-    const t = tokenize(c), name = 'words' in t ? t.words[0] : undefined;
-    return name && (ALL_COMMANDS as readonly string[]).includes(name) && !(profile.commands as readonly string[]).includes(name)
-      ? [`${name} is not in the ${profile.id} profile of machine ${machine.id}`] : [];
-  });
+  /**
+   * E1: a command of another stage used on a machine whose profile does not have it (a typo may still show its error).
+   * E2: every stage of a pipeline counts, and the command sudo runs.
+   */
+  const outsideProfile = (commands: readonly string[], machine: TerminalMachine, profile: ShellProfile) => commands.flatMap(c =>
+    commandNames(c).filter(name => (ALL_COMMANDS as readonly string[]).includes(name) && !(profile.commands as readonly string[]).includes(name))
+      .map(name => `${name} is not in the ${profile.id} profile of machine ${machine.id}`));
   for (const e of examples) {
     const at = `example ${e.id}`;
     if (!ids.has(e.machine)) { fail(`${at}: unknown machine ${e.machine}`); continue; }
@@ -335,6 +491,10 @@ export function terminalContentProblems(content: TerminalLessonContent, given?: 
       if (c.kind === 'mode' && (!Number.isInteger(c.mode) || c.mode < 0 || c.mode > 0o777)) fail(`${at}: check mode must be 0..0777`);
       if (c.kind === 'owner' && (!NAME.test(c.owner) || (c.group !== undefined && !NAME.test(c.group)))) fail(`${at}: invalid owner or group in a check`);
       if (c.kind === 'link' && (typeof c.target !== 'string' || !c.target)) fail(`${at}: a link check needs a target`);
+      if ((c.kind === 'user' || c.kind === 'group' || c.kind === 'umask') && valid.get(x.machine)?.profile !== 'users') fail(`${at}: a ${c.kind} check needs a users machine (engine stage E3)`);
+      if (c.kind === 'user' && (!ACCOUNT_NAME.test(c.name) || [c.group, ...c.groups ?? [], ...c.notGroups ?? []].some(g => g !== undefined && !ACCOUNT_NAME.test(g)))) fail(`${at}: invalid user or group name in a user check`);
+      if (c.kind === 'group' && (!ACCOUNT_NAME.test(c.name) || [...c.members ?? [], ...c.notMembers ?? []].some(m => !ACCOUNT_NAME.test(m)))) fail(`${at}: invalid group or user name in a group check`);
+      if (c.kind === 'umask' && (!Number.isInteger(c.umask) || c.umask < 0 || c.umask > 0o777)) fail(`${at}: check umask must be 0..0777`);
     }
     if (!x.solution.length || x.solution.length > TERMINAL_LIMITS.solution) fail(`${at}: the solution needs 1..${TERMINAL_LIMITS.solution} commands`);
     if (!x.mistakes.length) fail(`${at}: needs at least one typical mistake`);

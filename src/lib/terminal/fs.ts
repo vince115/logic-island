@@ -11,6 +11,10 @@
  * Engine stage E1 (docs/curriculum/LNX0_TERMINAL_CAPABILITY.md §9): a node may be a symbolic link (kind 'link' with the
  * target text exactly as written), and a state may describe its system (uname) and its mount table (df). The lab never
  * has either: only the E1 profile can create a link, and only a lesson machine on that profile may declare them.
+ *
+ * Engine stage E3 (§11): a state may carry its user and group database (accounts: /etc/passwd and /etc/group as data)
+ * and a umask. `groups` is then the session's groups as they were at login (the kernel's view: joining a group takes
+ * effect at the next login or with newgrp, as on Linux). Only the users profile's machines have them.
  */
 
 export interface FsNode {
@@ -54,6 +58,22 @@ export interface Mount {
   used: number;
 }
 
+/** E3: one line of /etc/passwd. */
+export interface Account {
+  name: string;
+  uid: number;
+  /** The primary group's id. */
+  gid: number;
+  /** The GECOS field (a comment such as a full name). */
+  comment: string;
+  home: string;
+  shell: string;
+}
+/** E3: one line of /etc/group; members are the users who have it as a supplementary group. */
+export interface GroupEntry { name: string; gid: number; members: readonly string[] }
+/** E3: the user and group database, in file order. */
+export interface Accounts { users: readonly Account[]; groups: readonly GroupEntry[] }
+
 export interface FsState {
   nodes: ReadonlyMap<string, FsNode>;
   cwd: string;
@@ -67,6 +87,10 @@ export interface FsState {
   system?: Partial<SystemInfo>;
   /** E1: the mount table df reads, in the order df lists it. */
   mounts?: readonly Mount[];
+  /** E3: the user and group database (the users profile). */
+  accounts?: Accounts;
+  /** E3: the session's umask (the users profile); new files are 666 & ~umask, new folders 777 & ~umask. Default 022. */
+  umask?: number;
 }
 
 export const DEFAULT_HOST = 'logic-island';
@@ -76,7 +100,7 @@ export const groupOf = (node: FsNode) => node.group ?? node.owner;
 export const groupsOf = (state: Pick<FsState, 'user' | 'groups'>): readonly string[] => state.groups ?? [state.user];
 
 /** Hard limits that keep the simulation small whatever the learner types. */
-export const LIMITS = { nodes: 400, nameLength: 64, depth: 16, fileLength: 4000, input: 500 } as const;
+export const LIMITS = { nodes: 400, nameLength: 64, depth: 16, fileLength: 4000, input: 500, output: 20000, stages: 8, users: 64, groups: 64 } as const;
 
 export const USER = 'learner';
 export const HOME = `/home/${USER}`;

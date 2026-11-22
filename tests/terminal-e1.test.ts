@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_SYSTEM, humanSize, initialState, LIMITS, MAX_LINK_HOPS, physicalPath, type FsNode, type FsState } from '@/lib/terminal/fs';
 import { expandGlob, hasMagic, matchName, type GlobIo } from '@/lib/terminal/glob';
 import { MANUAL } from '@/lib/terminal/manual';
-import { COMMANDS, E1_COMMANDS, FILES_PROFILE, LAB_PROFILE, PROFILES, run, tokenize } from '@/lib/terminal/shell';
+import { COMMANDS, E1_COMMANDS, FILES_PROFILE, LAB_PROFILE, PROFILES, run, STREAMS_PROFILE, tokenize, USERS_PROFILE } from '@/lib/terminal/shell';
 import {
   checkTerminalExercise, machineProblems, machineState, profileOf, replay, terminalContentProblems, type TerminalLessonContent, type TerminalMachine,
 } from '@/lib/terminal/lesson';
@@ -36,7 +36,7 @@ describe('profiles', () => {
     expect(LAB_PROFILE).toEqual({ id: 'lab', commands: COMMANDS });
     expect([...FILES_PROFILE.commands].sort()).toEqual([...COMMANDS, ...E1_COMMANDS].sort());
     expect(FILES_PROFILE.features).toEqual(['glob', 'help-option', 'multi-source', 'ls-extra']);
-    expect(PROFILES).toEqual({ lab: LAB_PROFILE, files: FILES_PROFILE });
+    expect(PROFILES).toEqual({ lab: LAB_PROFILE, files: FILES_PROFILE, streams: STREAMS_PROFILE, users: USERS_PROFILE });
   });
   it('keeps the lab refusing every E1 command, glob, option and form', () => {
     for (const cmd of ['uname -a', 'hostname', 'man ls', 'df -h', 'du -s .', 'ln -s README.txt r', 'readlink r']) {
@@ -77,8 +77,8 @@ describe('uname and hostname', () => {
     expect(srv('uname -mr').last.out).toEqual(['6.8.0-45-generic x86_64']);
     expect(srv('uname -o -s -n').last.out).toEqual(['Linux srv-01 GNU/Linux']);
     expect(srv('uname -v').last.out).toEqual(['#45-Ubuntu SMP PREEMPT_DYNAMIC']);
-    expect(srv('uname -p').last.err).toEqual(["uname: invalid option -- 'p'"]);
-    expect(srv('uname now').last.err).toEqual(["uname: extra operand 'now'"]);
+    expect(srv('uname -p').last.err).toEqual(["uname: invalid option -- 'p'", "Try 'uname --help' for more information."]);
+    expect(srv('uname now').last.err).toEqual(["uname: extra operand 'now'", "Try 'uname --help' for more information."]);
     expect(session(initialState(), 'uname -a').last.out).toEqual([`Linux logic-island ${DEFAULT_SYSTEM.release} ${DEFAULT_SYSTEM.version} x86_64 GNU/Linux`]);
   });
   it('prints the host name; only root may change it', () => {
@@ -149,7 +149,7 @@ describe('df and du', () => {
       '/dev/sdb1       100G  1.0G   99G   2% /srv', '/dev/sda1        20G  4.7G   15G  24% /']);
     expect(srv('df /nope').last.lines).toEqual(['df: /nope: No such file or directory']);
     expect(session(initialState(), 'df').last.err).toEqual(['df: no file systems processed']);
-    expect(srv('df -i').last.err).toEqual(["df: invalid option -- 'i'"]);
+    expect(srv('df -i').last.err).toEqual(["df: invalid option -- 'i'", "Try 'df --help' for more information."]);
     const tiny = { ...machineState(filesMachine), mounts: [{ path: '/', device: 'tmpfs', type: 'tmpfs', size: 0, used: 0 }, { path: '/srv', device: 'x', type: 'ext4', size: 3, used: 1 }] };
     expect(session(tiny, 'df').last.out).toEqual(['Filesystem     1K-blocks  Used Available Use% Mounted on', 'tmpfs                  0     0         0    - /', 'x                      3     1         2  34% /srv']);
   });
@@ -171,7 +171,7 @@ describe('df and du', () => {
   it('reports what it cannot read or access, and refuses -s with -a', () => {
     expect(srv('chmod 300 logs', 'du logs').last.lines).toEqual(["du: cannot read directory 'logs': Permission denied", '4\tlogs']);
     expect(srv('du nope').last.err).toEqual(["du: cannot access 'nope': No such file or directory"]);
-    expect(srv('du -sa').last.err).toEqual(['du: cannot both summarize and show all entries']);
+    expect(srv('du -sa').last.err).toEqual(['du: cannot both summarize and show all entries', "Try 'du --help' for more information."]);
   });
 });
 
@@ -244,7 +244,7 @@ describe('symbolic links', () => {
     expect(srv('ln -s x /etc/x').last.err).toEqual(["ln: failed to create symbolic link '/etc/x': Permission denied"]);
     expect(srv('ln -s x nowhere/x').last.err).toEqual(["ln: failed to create symbolic link 'nowhere/x': No such file or directory"]);
     expect(srv('ln -s a b c').last.err).toEqual(["ln: target 'c' is not a directory"]);
-    expect(srv('ln -s').last.err).toEqual(['ln: missing file operand']);
+    expect(srv('ln -s').last.err).toEqual(['ln: missing file operand', "Try 'ln --help' for more information."]);
     expect(srv('ln -s "" e').last.err).toEqual(["ln: failed to create symbolic link 'e': No such file or directory"]);
     expect(srv('ln logs/web.log hard').last.err[0]).toMatch(/^ln: 模擬環境只支援符號連結/);
     expect(srv('ln -s a b logs', 'ls logs').last.out).toEqual(['a@  app-1.log  app-2.log  b@  web.log']);
@@ -315,8 +315,8 @@ describe('cp and mv with several sources, ls -d and -h', () => {
     expect(srv('mv logs/app-1.log logs/app-2.log reports/today.txt').last.err).toEqual(["mv: target 'reports/today.txt' is not a directory"]);
     expect(srv('cp a b /etc/hidden/').last.err).toEqual(["cp: target '/etc/hidden/' is not a directory"]);
     expect(srv('chmod 600 reports', 'cp latest notes.txt reports/x').last.err).toEqual(["cp: failed to access 'reports/x': Permission denied"]);
-    expect(srv('cp').last.err).toEqual(['cp: missing file operand']);
-    expect(srv('mv logs').last.err).toEqual(["mv: missing destination file operand after 'logs'"]);
+    expect(srv('cp').last.err).toEqual(['cp: missing file operand', "Try 'cp --help' for more information."]);
+    expect(srv('mv logs').last.err).toEqual(["mv: missing destination file operand after 'logs'", "Try 'mv --help' for more information."]);
     const partly = srv('mkdir box', 'cp logs/app-1.log nope.txt logs box', 'ls box');
     expect(partly.log[1].err).toEqual(["cp: cannot stat 'nope.txt': No such file or directory", "cp: -r not specified; omitting directory 'logs'"]);
     expect(partly.last.out).toEqual(['app-1.log']);
