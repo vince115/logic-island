@@ -59,6 +59,7 @@ webCode: {
 | `tab` | 按下 Tab（`shift: true` 是 Shift+Tab）（W5）：先把 `keydown` 送給目前有焦點的元素（頁面取消它就不移動，可用來做焦點陷阱），再把焦點移到 Tab 順序的下一個：正數 `tabindex` 在前，其餘依文件順序；停用、隱藏與 `tabindex="-1"` 的元素略過，一組選項按鈕只停一次 |
 | `scroll` | 把頁面（`selector: ':page'`）或可捲動的元素捲到指定的垂直位置（WEB-2） |
 | `resize` | 把檢查頁面的視窗改成另一個寬度（240–1600，可同時指定高度 200–1200）（RWD-0）：同一份頁面在新的寬度重新排版，媒體查詢、百分比、`vw`、flex 換行、grid 的 `auto-fit` 與容器查詢都會跟著變，頁面自己的指令稿也看得到新的 `innerWidth` 與 `resize` 事件 |
+| `pointer` | 一支指標在元素上按下、移動、放開或被取消（`type: 'down' \| 'move' \| 'up' \| 'cancel'`，W9，MOB-1）：送出真正的 `PointerEvent`（`pointerId` 1、`isPrimary`、按著時 `buttons` 1），位置是元素的中心或距離左上角 `x`、`y`，`pointerType` 是 `mouse`（預設）、`touch` 或 `pen`。指標捕捉依規格模擬：按著時 `setPointerCapture` 之後的 `move`／`up`／`cancel` 都送到捕捉的元素，並觸發 `gotpointercapture`／`lostpointercapture`；手指或觸控筆已離開時呼叫會丟出 `NotFoundError`，滑鼠沒按著時呼叫沒有效果。不模擬瀏覽器接著做的事：沒有 `click`、相容用的滑鼠事件、捲動、`touch-action` 的效果，只有一支指標 |
 | `dispatch` | 在元素上觸發任何型別的事件（`mouseover`、`dblclick`、自訂事件；會冒泡，本來就不冒泡的 `mouseenter`、`focus` 等除外）（WEB-3） |
 | `wait` | 讓頁面的計時器執行這麼久（每步最多 10000 ms，全部最多 60000 ms）。檢查用的是虛擬時鐘（W2，WEB-3）：不會真的等待，計時器依時間先後、同時間依設定的先後執行，Promise 的回呼在計時器之間照常執行；第一步之前，延遲 0 的計時器已經執行過。預覽裡的計時器是真的。`Date.now()` 不是虛擬的 |
 
@@ -68,7 +69,7 @@ webCode: {
 | `text` | 第一個符合元素的文字（空白合併後相等或包含） |
 | `attr` | 屬性存在、等於、包含或不存在 |
 | `style` | `getComputedStyle` 的值；期望值可以用瀏覽器會解析成同一個值的任何寫法（`red`、`#f00`、`bold`／`700`），支援 `::before`、`::after` |
-| `box` | `getBoundingClientRect` 的寬、高或邊的位置（CSS 像素，預設容許 1px）：預設從頁面的角落量（捲動不影響），`from: ':viewport'` 從視窗的角落量（WEB-2，捲動後檢查 fixed 與 sticky），`from: '<選擇器>'` 從另一個元素的角落量 |
+| `box` | `getBoundingClientRect` 的寬、高或邊的位置（CSS 像素，預設容許 1px；`op: 'min'` 是「至少」、`op: 'max'` 是「至多」，W9）：預設從頁面的角落量（捲動不影響），`from: ':viewport'` 從視窗的角落量（WEB-2，捲動後檢查 fixed 與 sticky），`from: '<選擇器>'` 從另一個元素的角落量 |
 | `hit` | 元素中心點上畫在最上面的是哪一個元素（WEB-2，`document.elementFromPoint`）：檢查重疊與 z-index |
 | `value` | 表單控制項的值，或是否勾選 |
 | `name` | 元素的無障礙名稱（W5，規則的簡化版）：`aria-labelledby`、`aria-label`、元素自己提供的（圖片的 `alt`、控制項的 `<label>`、`legend`、`caption`、按鈕／連結／標題等的文字），最後是 `title` |
@@ -104,6 +105,8 @@ webCode: {
 **捲軸不佔寬度（RWD-1）。** 檢查用的框架剛好是視窗的大小。在捲軸會佔位置的系統上，比檢查視窗高的頁面原本會窄約 15px（360px 的視窗只剩 345px），寫對的答案會在寬度檢查失敗。所以檢查框架不畫自己的捲軸（harness 以文件採用的樣式表設定 `scrollbar-width: none`，不在頁面上加任何元素或屬性；頁面仍然可以捲動），媒體查詢看到的寬度和排版的寬度一致。頁面裡自己會捲動的元素不受影響。預覽不做這件事。
 
 **會隨視窗改變的圖片（W8，RWD-3）。** 瀏覽器不替看不見的框架更新畫面，而 `<picture>` 的 `media`、`srcset` 與 `sizes` 選哪個來源是在畫面更新時才重新決定的；檢查框架放在畫面外的時候，這些圖片在載入與 `resize` 之後都停在舊的來源。所以檢查框架改放在視窗裡（`position: fixed; left: 0; top: 0; z-index: -1; opacity: 0; pointer-events: none`，仍然看不見、點不到），而且頁面有 `picture`、`img[srcset]` 或 `img[sizes]` 時，harness 在回報 ready 之前與每次 `resize` 之後等待「兩個 animation frame → 所有圖片載入 → 再兩個 animation frame」（每一段都有時限，分頁在背景時只是比較慢）。沒有這類圖片的頁面不等待。`srcset` 裡的 `data:` 網址不能有空白（空白會結束一個候選），要寫成 `%20`。
+
+**對話框與按鍵（W9，MOB-1）。** 頁面有 `<dialog>` 時，每個操作之後多等一個畫格：瀏覽器在下一個畫格才送出 `close` 事件，等過之後，`close` 監聽器寫下的結果下一項檢查就看得到。`method="dialog"` 的表單（或 `formmethod="dialog"` 的按鈕）不再被當成送出攔下，由瀏覽器關閉對話框並設定 `returnValue`。`key` 操作的事件除了 `key` 也帶 `code`（`ArrowRight`、`Enter`、`Space`、`KeyA`、`Digit7`…）。瀏覽器自己對 Escape 的處理（關閉強制回應的對話框）仍然需要真的按鍵，檢查做不到。
 
 載入或檢查超過 6 秒視為逾時，所有檢查以「頁面沒有在時間內完成載入與檢查」不通過。
 
@@ -170,6 +173,7 @@ Chromium 是 Playwright 的 headless Chromium，頁面的載入方式和課程�
 | W5（WEB-4 完成） | 無障礙檢查：`name`、`role`，以及 `tab` 操作的 Tab 順序 | WEB13 |
 | W7（RWD-0、RWD-1 完成） | `resize` 操作（同一份答案在多個寬度檢查）、預覽寬度切換 `widths`、切換後回報頁面高度；檢查框架不畫自己的捲軸 | RWD01– |
 | W8（RWD-3 完成） | 檢查框架放在視窗內並做畫面更新：`picture` 的來源與 `sizes` 的顯示寬度在載入與 `resize` 之後都能以盒子量測 | RWD10 |
+| W9（MOB-1 完成） | `pointer` 操作與模擬的指標捕捉、`box` 的 `op: 'min' \| 'max'`（觸控目標）、按鍵的 `code`、對話框的 `close` 事件與 `method="dialog"` | MOB01– |
 | W6（未建立） | 載入時間軸與指標的模型（不是量測）。WEB14 改以頁面呈現順序與版面位移，量測交給真實的開發者工具；模型留在 [INTERACTIVE_LAB_ROADMAP](INTERACTIVE_LAB_ROADMAP.md) 的 `metric-explorer` | — |
 
 ## 10. 藍圖活動的對應（`webFromBlueprint`）

@@ -13,19 +13,19 @@
 
 ## 總覽
 
-已發布 **201／520**（38.7%）；規劃中 319。
+已發布 **205／520**（39.4%）；規劃中 315。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
 | 程式與資訊群島 | 120 | 40 | 75.0% |
 | AI 人工智慧群島 | 25 | 135 | 15.6% |
 | 數位設計群島 | 0 | 56 | 0.0% |
-| 網頁與應用開發群島 | 27 | 28 | 49.1% |
+| 網頁與應用開發群島 | 31 | 24 | 56.4% |
 | 系統與雲端工程群島 | 29 | 60 | 32.6% |
 
 ## 下一批（自動選擇）
 
-目前沒有能力已備妥、先修已滿足的島嶼；先處理「能力缺口」的第一項。
+**行動應用島（MOB）**：MOB05 行動表單與虛擬鍵盤、MOB06 安全區域、方向與動態視窗高度、MOB07 原生、跨平台與 PWA 的選擇、MOB08 PWA 基礎：Manifest 與安裝、MOB09 Service Worker 與離線。島嶼能力：可用；這幾堂解鎖其他島的 0 堂。
 
 能力缺口中最優先的是 **機器學習島（ML）**：需要 python-code + data-explorer (fixed datasets, metrics computed in the browser)；先修已滿足、可依序撰寫的有 25 堂，前 5 堂解鎖其他島的 39 堂。
 
@@ -57,7 +57,7 @@
 | 網頁與應用開發群島 | 網頁基礎島（WEB） | 15／15 | web-code (HTML, CSS and JavaScript pages in a sandboxed frame beside the DOM the browser built; exercises checked by steps on that page, verified in Chromium) | 可用 | 全島完成 | — |
 | 網頁與應用開發群島 | 前端開發島（FE） | 0／15 | web-code + state-flow trace | 缺少 | FE01–FE15（15 堂） | 缺少課程能力 |
 | 網頁與應用開發群島 | 響應式設計島（RWD） | 12／12 | web-code with preview widths and the resize step (one answer checked at several viewport widths); the standalone labs stay as further practice | 可用 | 全島完成 | — |
-| 網頁與應用開發群島 | 行動應用島（MOB） | 0／13 | web-code + case-analysis | 缺少 | MOB01–MOB13（13 堂） | 缺少課程能力 |
+| 網頁與應用開發群島 | 行動應用島（MOB） | 4／13 | web-code at phone sizes: pointer steps with modelled capture, touch targets measured with at least and at most, dialogs; analysis lessons are cases a learner repairs on a page | 可用 | MOB05–MOB13（9 堂） | — |
 | 系統與雲端工程群島 | Linux 系統島（LNX） | 15／15 | terminal (machines as data, transcripts replayed to their exact output, exercises checked by replaying the learner's commands in the simulated shell) | 可用 | 全島完成 | — |
 | 系統與雲端工程群島 | Docker 容器島（DKR） | 0／15 | container simulation | 缺少 | DKR01–DKR15（15 堂） | 缺少課程能力 |
 | 系統與雲端工程群島 | 網路與伺服器島（SRV） | 14／14 | terminal (engine stages E10 sockets, E11 dns, E12 http, then E13-E19) + network-protocol scenes; request-path and architecture-diagram map to network-sequence | 可用 | 全島完成 | — |
@@ -81,7 +81,6 @@
 | 互動設計島（IXD） | case-analysis + a11y checks | 14 | 0 | — |
 | 設計系統島（DSY） | design-token board | 12 | 0 | — |
 | 前端開發島（FE） | web-code + state-flow trace | 15 | 0 | — |
-| 行動應用島（MOB） | web-code + case-analysis | 13 | 0 | — |
 | 雲端基礎設施島（CLD） | architecture simulation | 15 | 0 | — |
 
 ## 學習路線
@@ -94,7 +93,7 @@
 | 企業資訊系統 | 44／84 | 否 |
 | AI 研究 | 62／142 | 否 |
 | AI 應用工程 | 31／89 | 否 |
-| 前端工程 | 34／62 | 否 |
+| 前端工程 | 38／62 | 否 |
 | 產品設計 | 0／56 | 否 |
 | AI 架構 | 23／66 | 否 |
 | 全端部署 | 39／62 | 否 |
@@ -641,19 +640,19 @@
 
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
-| MOB01 | 行動情境與限制 | 待能力 | RWD01 | case-study-board | 課程能力 |
-| MOB02 | 行動 UI 模式：Tab bar、Drawer、Bottom sheet | 待能力 | MOB01 | mobile-nav-sim | 課程能力、先修 MOB01 |
-| MOB03 | 觸控目標與手勢的實作 | 待能力 | MOB02 | mobile-nav-sim | 課程能力、先修 MOB02 |
-| MOB04 | Pointer Events 與觸控事件 | 待能力 | MOB03、WEB09 | dom-explorer | 課程能力、先修 MOB03 |
-| MOB05 | 行動表單與虛擬鍵盤 | 待能力 | MOB02、WEB04 | case-study-board | 課程能力、先修 MOB02 |
-| MOB06 | 安全區域、方向與動態視窗高度 | 待能力 | RWD07 | responsive-sim | 課程能力 |
-| MOB07 | 原生、跨平台與 PWA 的選擇 | 待能力 | MOB01 | decision-simulation | 課程能力、先修 MOB01 |
-| MOB08 | PWA 基礎：Manifest 與安裝 | 待能力 | MOB07、WEB11 | case-study-board | 課程能力、先修 MOB07 |
-| MOB09 | Service Worker 與離線 | 待能力 | MOB08 | protocol-sequence | 課程能力、先修 MOB08 |
-| MOB10 | 行動效能與省電 | 待能力 | MOB06 | metric-explorer | 課程能力、先修 MOB06 |
-| MOB11 | 行動無障礙：螢幕閱讀器與縮放 | 待能力 | MOB02 | a11y-checker | 課程能力、先修 MOB02 |
-| MOB12 | 行動裝置測試：模擬器與真機 | 待能力 | MOB06 | case-study-board | 課程能力、先修 MOB06 |
-| MOB13 | 行動應用島綜合專題：一個可離線的 PWA | 待能力 | MOB05、MOB09、MOB11 | challenge-stages | 課程能力、先修 MOB05、MOB09、MOB11 |
+| MOB01 | 行動情境與限制 | 已發布（閘門通過） | RWD01 | dom-explorer | — |
+| MOB02 | 行動 UI 模式：Tab bar、Drawer、Bottom sheet | 已發布（閘門通過） | MOB01 | dom-explorer | — |
+| MOB03 | 觸控目標與手勢的實作 | 已發布（閘門通過） | MOB02 | dom-explorer | — |
+| MOB04 | Pointer Events 與觸控事件 | 已發布（閘門通過） | MOB03、WEB09 | dom-explorer | — |
+| MOB05 | 行動表單與虛擬鍵盤 | 大綱 | MOB02、WEB04 | case-study-board | — |
+| MOB06 | 安全區域、方向與動態視窗高度 | 大綱 | RWD07 | responsive-sim | — |
+| MOB07 | 原生、跨平台與 PWA 的選擇 | 大綱 | MOB01 | decision-simulation | — |
+| MOB08 | PWA 基礎：Manifest 與安裝 | 待先修 | MOB07、WEB11 | case-study-board | 先修 MOB07 |
+| MOB09 | Service Worker 與離線 | 待先修 | MOB08 | protocol-sequence | 先修 MOB08 |
+| MOB10 | 行動效能與省電 | 待先修 | MOB06 | metric-explorer | 先修 MOB06 |
+| MOB11 | 行動無障礙：螢幕閱讀器與縮放 | 大綱 | MOB02 | a11y-checker | — |
+| MOB12 | 行動裝置測試：模擬器與真機 | 待先修 | MOB06 | case-study-board | 先修 MOB06 |
+| MOB13 | 行動應用島綜合專題：一個可離線的 PWA | 待先修 | MOB05、MOB09、MOB11 | challenge-stages | 先修 MOB05、MOB09、MOB11 |
 
 ### 系統與雲端工程群島 · Linux 系統島（LNX）
 

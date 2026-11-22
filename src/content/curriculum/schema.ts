@@ -51,7 +51,8 @@ export const PYTHON_LANGUAGES = ['Python'] as const satisfies readonly Language[
 // WEB-1 (2026-11-23): the web foundations island joins with WEB01–WEB04 (prepared in WEB-0); in the world registry's order it comes before the systems region.
 // LLM-1 (2026-11-22): the large-language-models island joins with LLM01–LLM03 (prepared in LLM-0), after AI foundations in the AI region.
 // RWD-1 (2026-11-23): the responsive design island joins with RWD01–RWD04, after web foundations in the web region.
-export const ISLAND_IDS = ['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'large-language-models', 'generative-ai', 'web-foundations', 'responsive-design', 'linux-systems', 'network-servers'] as const;
+// MOB-1 (2026-11-23): the mobile apps island joins with MOB01–MOB04, after responsive design in the web region.
+export const ISLAND_IDS = ['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'large-language-models', 'generative-ai', 'web-foundations', 'responsive-design', 'mobile-apps', 'linux-systems', 'network-servers'] as const;
 /**
  * CN-0 (2026-11-21): islands registered for authoring before their first lesson is written. Their prefix and lesson
  * capability are known (so their lessons can be written and validated), but they are not curriculum islands yet: no
@@ -75,11 +76,11 @@ export type IslandId = typeof ISLAND_IDS[number] | typeof PREPARED_ISLAND_IDS[nu
  * the type too (it was any string, so DB01 or AG01 type-checked as a D or A lesson); IDs of every island, planned ones
  * included, are AnyLessonId in src/content/world/lesson-id.ts and are always parsed with their whole prefix.
  */
-export type LessonPrefixWritten = 'F' | 'D' | 'A' | 'DB' | 'PL' | 'CN' | 'AIF' | 'LNX' | 'SRV' | 'LLM' | 'GEN' | 'WEB' | 'RWD';
+export type LessonPrefixWritten = 'F' | 'D' | 'A' | 'DB' | 'PL' | 'CN' | 'AIF' | 'LNX' | 'SRV' | 'LLM' | 'GEN' | 'WEB' | 'RWD' | 'MOB';
 export type LessonId = `${LessonPrefixWritten}${LessonNumber}`;
 /** 2026-11-20 (course production, batch 1): the programming-languages island (PL) joins with its first written lessons. */
 export const ISLAND_PREFIX: Record<IslandId, LessonPrefixWritten> = { foundations: 'F', structures: 'D', algorithms: 'A', databases: 'DB', 'programming-languages': 'PL', networks: 'CN', 'ai-foundations': 'AIF', 'linux-systems': 'LNX',
-  'network-servers': 'SRV', 'large-language-models': 'LLM', 'generative-ai': 'GEN', 'web-foundations': 'WEB', 'responsive-design': 'RWD' };
+  'network-servers': 'SRV', 'large-language-models': 'LLM', 'generative-ai': 'GEN', 'web-foundations': 'WEB', 'responsive-design': 'RWD', 'mobile-apps': 'MOB' };
 
 /**
  * Phase F.1a: a lesson taught in a query language instead of the four programming languages. A SQL lesson has no program

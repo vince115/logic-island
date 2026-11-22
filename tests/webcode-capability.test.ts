@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { curriculum, lessons } from '@/content/curriculum';
-import { responsiveFromBlueprint, webFromBlueprint } from '@/content/curriculum/lessons';
+import { mobileFromBlueprint, responsiveFromBlueprint, webFromBlueprint } from '@/content/curriculum/lessons';
 import { ISLAND_IDS, ISLAND_PREFIX, LESSON_ACTIVITIES, LESSON_CAPABILITIES, PREPARED_ISLAND_IDS, validateContent, validateCurriculum, type LessonContent, type LessonMeta } from '@/content/curriculum/schema';
 import { UNITS } from '@/content/curriculum/units';
 import { publishProblems } from '@/lib/curriculum/publish-gate';
@@ -105,10 +105,10 @@ describe('isolation from the other capabilities', () => {
     expect(validateCurriculum(curriculum)).toEqual([]);
     // WEB-1: only the web foundations island's lessons use the web-code capability; RWD-1: and the responsive design island's.
     for (const l of lessons) {
-      const web = l.islandId === 'web-foundations' || l.islandId === 'responsive-design';
+      const web = l.islandId === 'web-foundations' || l.islandId === 'responsive-design' || l.islandId === 'mobile-apps';
       expect(l.capabilities.includes('web-code'), l.lessonId).toBe(web);
       // WEB15 is the capstone: its activity is challenge-stages.
-      expect(l.activity === 'dom-explorer', l.lessonId).toBe(web && l.lessonId !== 'WEB15' && l.lessonId !== 'RWD12');
+      expect(l.activity === 'dom-explorer', l.lessonId).toBe(web && l.lessonId !== 'WEB15' && l.lessonId !== 'RWD12' && l.lessonId !== 'MOB13');
       expect(!!curriculum.contents[l.lessonId]?.webCode, l.lessonId).toBe(web);
     }
   });
@@ -160,6 +160,33 @@ describe('the responsive-design island: written in batches from RWD-1 on the web
       const web = curriculum.contents[l.lessonId]!.webCode!;
       expect([...web.examples, ...web.exercises].some(x => x.widths?.length), `${l.lessonId} widths`).toBe(true);
       expect(web.exercises.some(x => x.steps.some(s => 'do' in s && s.do === 'resize')), `${l.lessonId} resize`).toBe(true);
+    }
+  });
+});
+
+describe('the mobile-apps island: written in batches from MOB-1 on the web-code capability', () => {
+  it('is a curriculum island with its first lessons written in id order; the rest stay planned outlines without a page', () => {
+    expect(ISLAND_PREFIX['mobile-apps']).toBe('MOB');
+    expect(ISLAND_IDS).toContain('mobile-apps');
+    const written = lessons.filter(l => l.islandId === 'mobile-apps');
+    expect(written.map(l => l.lessonId)).toEqual(written.map((_, i) => `MOB${String(i + 1).padStart(2, '0')}`));
+    expect(written.length).toBeGreaterThanOrEqual(4);
+    expect(UNITS['mobile-apps'].flatMap(u => u.lessonIds)).toEqual(written.map(l => l.lessonId));
+    expect(lessonsOfIsland('mobile-apps')).toHaveLength(13);
+    expect(lessonsOfIsland('mobile-apps').slice(written.length).every(l => l.lessonStatus === 'planned' && !l.href)).toBe(true);
+    expect(getIsland('mobile-apps')).toMatchObject({ status: written.length < 13 ? 'available' : 'complete', mapState: 'planned' });
+  });
+  it('reads every outline of the island from the blueprint: analysis lessons are taught on pages too, the capstone in stages', () => {
+    const shapes = Array.from({ length: 13 }, (_, i) => mobileFromBlueprint(`MOB${String(i + 1).padStart(2, '0')}`, '測試用大綱。', 45));
+    expect(shapes.slice(0, 12).every(o => o.activity === 'dom-explorer' && o.capabilities.join() === 'web-code' && o.visualization === 'none')).toBe(true);
+    expect([shapes[12].activity, shapes[12].capabilities]).toEqual(['challenge-stages', ['web-code', 'visualization']]);
+    expect(() => mobileFromBlueprint('RWD01', 'x', 45)).toThrow(/RWD01 is not a mobile apps lesson/);
+    expect(() => responsiveFromBlueprint('MOB01', 'x', 45)).toThrow(/MOB01 is not a responsive design lesson/);
+  });
+  it('lays its pages out for a phone: every lesson has an exercise checked in a 360 by 640 viewport', () => {
+    for (const l of lessons.filter(l => l.islandId === 'mobile-apps')) {
+      const web = curriculum.contents[l.lessonId]!.webCode!;
+      expect(web.exercises.some(x => x.viewport?.width === 360 && x.viewport.height === 640), l.lessonId).toBe(true);
     }
   });
 });

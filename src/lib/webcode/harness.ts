@@ -226,6 +226,9 @@ const SOURCE = String.raw`(function () {
   }, true);
   window.addEventListener('submit', function (e) {
     var form = e.target, data = [];
+    // MOB-0: a form whose method is dialog sends nothing: it closes its dialog. That is the browser's to do.
+    var how = (e.submitter && e.submitter.getAttribute && e.submitter.getAttribute('formmethod')) || (form.getAttribute && form.getAttribute('method')) || '';
+    if (String(how).toLowerCase() === 'dialog') return;
     try {
       var fd;
       try { fd = new FormData(form, e.submitter || undefined); } catch (x) { fd = new FormData(form); }
@@ -303,6 +306,17 @@ const SOURCE = String.raw`(function () {
     });
   }
   // Only a page with such images waits (some hundred milliseconds); every other page goes on at once.
+  // MOB-0: a dialog tells of its closing (the close event) with the next frame, not at once; on a page with a dialog an
+  // action therefore waits for one frame, so that what a close listener writes is there for the next check.
+  function acted() {
+    if (!document.querySelector('dialog')) return tick();
+    return new Promise(function (r) {
+      var over = false;
+      function end() { if (!over) { over = true; r(); } }
+      realFrame(end);
+      realSetTimeout(end, 150);
+    }).then(tick);
+  }
   function settled() { return document.querySelector('picture, img[srcset], img[sizes]') ? rendered().then(loaded).then(rendered) : tick(); }
 
   // W5: what assistive technology is told about an element. A simplified reading of the accessible-name and role rules,
@@ -379,6 +393,57 @@ const SOURCE = String.raw`(function () {
     if (d && d.set) d.set.call(el, value); else el.value = value;
   }
   function fire(el, type) { el.dispatchEvent(new Event(type, { bubbles: true })); }
+  // MOB-0: a key press names its physical key too (event.code), as on a common keyboard: a handler may read either.
+  function codeOf(key) {
+    var k = String(key);
+    if (k === ' ') return 'Space';
+    if (/^[a-zA-Z]$/.test(k)) return 'Key' + k.toUpperCase();
+    if (/^[0-9]$/.test(k)) return 'Digit' + k;
+    return k.length > 1 ? k : '';
+  }
+  // W9 (MOB-0): one pointer, as a finger or a mouse would drive it. A script cannot make the browser's own pointer, so
+  // the events are made here: at a point of the element (its centre, or an offset from its top-left corner), with the
+  // pointer type the step names. Pointer capture is modelled, because a real capture needs a real pointer: after
+  // setPointerCapture the following events of this pointer go to the capturing element, wherever the step aims them,
+  // until the pointer is lifted or cancelled, or the capture is released.
+  var POINTER = 1, captured = null, pressed = false, at = { x: 0, y: 0, kind: 'mouse' };
+  function pointerEvent(type, target, x, y, kind, down) {
+    var init = { bubbles: true, cancelable: type !== 'pointercancel' && type !== 'gotpointercapture' && type !== 'lostpointercapture', composed: true, clientX: x, clientY: y, screenX: x, screenY: y,
+      pointerId: POINTER, pointerType: kind, isPrimary: true, button: type === 'pointerdown' || type === 'pointerup' ? 0 : -1, buttons: down ? 1 : 0, pressure: down ? 0.5 : 0, width: kind === 'touch' ? 24 : 1, height: kind === 'touch' ? 24 : 1 };
+    var e = typeof PointerEvent === 'function' ? new PointerEvent(type, init) : new MouseEvent(type, init);
+    target.dispatchEvent(e);
+    return e;
+  }
+  function uncapture(x, y, kind) {
+    if (!captured) return;
+    var was = captured;
+    captured = null;
+    if (was.isConnected) pointerEvent('lostpointercapture', was, x, y, kind, false);
+  }
+  if (!LIVE && typeof Element === 'function') {
+    Element.prototype.setPointerCapture = function (id) {
+      // A mouse is there whether or not its button is down; a finger or a pen exists only while it touches. Capturing a
+      // pointer that does not exist is an error; capturing one whose button is not down does nothing.
+      if (id !== POINTER || (!pressed && at.kind !== 'mouse')) throw new DOMException('No active pointer with the given id is found.', 'NotFoundError');
+      if (!pressed) return;
+      if (captured === this) return;
+      uncapture(at.x, at.y, at.kind);
+      captured = this;
+      pointerEvent('gotpointercapture', this, at.x, at.y, at.kind, true);
+    };
+    Element.prototype.releasePointerCapture = function (id) { if (id === POINTER && captured === this) uncapture(at.x, at.y, at.kind); };
+    Element.prototype.hasPointerCapture = function (id) { return id === POINTER && captured === this; };
+  }
+  function point(el, s) {
+    var r = el.getBoundingClientRect(), kind = s.pointerType === 'touch' || s.pointerType === 'pen' ? s.pointerType : 'mouse';
+    var x = r.left + (typeof s.x === 'number' ? s.x : r.width / 2), y = r.top + (typeof s.y === 'number' ? s.y : r.height / 2);
+    var target = captured && captured.isConnected ? captured : el;
+    at = { x: x, y: y, kind: kind };
+    if (s.type === 'down') { pressed = true; pointerEvent('pointerdown', el, x, y, kind, true); }
+    else if (s.type === 'move') { pointerEvent('pointermove', target, x, y, kind, pressed); }
+    else if (s.type === 'up') { pointerEvent('pointerup', target, x, y, kind, false); pressed = false; uncapture(x, y, kind); }
+    else { pointerEvent('pointercancel', target, x, y, kind, false); pressed = false; uncapture(x, y, kind); }
+  }
   function act(s) {
     if (s.do === 'wait') {
       var ms = Math.max(0, Math.min(60000, Number(s.ms) || 0));
@@ -403,12 +468,12 @@ const SOURCE = String.raw`(function () {
     if (s.do === 'tab') {
       // The key goes to the focused element first: a page that cancels it (a focus trap) decides where focus goes.
       var from = document.activeElement && document.activeElement !== document.body ? document.activeElement : document.body;
-      var went = from.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: !!s.shift, bubbles: true, cancelable: true }));
+      var went = from.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', code: 'Tab', shiftKey: !!s.shift, bubbles: true, cancelable: true }));
       if (went) {
         var order = tabStops(), here = order.indexOf(document.activeElement), next = s.shift ? (here < 0 ? order.length - 1 : here - 1) : here + 1;
         if (next >= 0 && next < order.length) order[next].focus(); else if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
       }
-      from.dispatchEvent(new KeyboardEvent('keyup', { key: 'Tab', shiftKey: !!s.shift, bubbles: true, cancelable: true }));
+      from.dispatchEvent(new KeyboardEvent('keyup', { key: 'Tab', code: 'Tab', shiftKey: !!s.shift, bubbles: true, cancelable: true }));
       return tick().then(function () { return { ok: true }; });
     }
     var el = s.do === 'scroll' && s.selector === ':page' ? document.documentElement : one(s.selector);
@@ -418,6 +483,7 @@ const SOURCE = String.raw`(function () {
     else if (s.do === 'input') { if (el.focus) el.focus(); setValue(el, s.value); fire(el, 'input'); fire(el, 'change'); }
     else if (s.do === 'select') { if (el.focus) el.focus(); setValue(el, s.value); fire(el, 'input'); fire(el, 'change'); }
     else if (s.do === 'check') { if (el.focus) el.focus(); if (!!el.checked !== !!s.checked) el.click(); }
+    else if (s.do === 'pointer') { point(el, s); }
     else if (s.do === 'dispatch') {
       var type = String(s.event), mouse = /^(click|dblclick|contextmenu|mouse|pointer)/.test(type), stays = type === 'mouseenter' || type === 'mouseleave' || type === 'focus' || type === 'blur';
       el.dispatchEvent(mouse ? new MouseEvent(type, { bubbles: !stays, cancelable: true }) : new Event(type, { bubbles: !stays, cancelable: true }));
@@ -429,7 +495,7 @@ const SOURCE = String.raw`(function () {
     }
     else if (s.do === 'key') {
       if (el.focus) el.focus();
-      var down = new KeyboardEvent('keydown', { key: s.key, bubbles: true, cancelable: true });
+      var down = new KeyboardEvent('keydown', { key: s.key, code: codeOf(s.key), bubbles: true, cancelable: true });
       var go = el.dispatchEvent(down);
       // A script-made key event has no default action; the two every page relies on are emulated: Enter and Space
       // activate a button, and Enter in a one-line field submits its form the way a browser does (see below).
@@ -451,10 +517,10 @@ const SOURCE = String.raw`(function () {
         }
         else if (tag === 'A' && s.key === 'Enter') el.click();
       }
-      el.dispatchEvent(new KeyboardEvent('keyup', { key: s.key, bubbles: true, cancelable: true }));
+      el.dispatchEvent(new KeyboardEvent('keyup', { key: s.key, code: codeOf(s.key), bubbles: true, cancelable: true }));
     }
     else return Promise.resolve({ ok: false, error: 'unknown-action' });
-    return tick().then(function () { return { ok: true }; });
+    return acted().then(function () { return { ok: true }; });
   }
   function resolvedStyle(property, value) {
     try {
@@ -592,7 +658,7 @@ const SOURCE = String.raw`(function () {
       var m = s.measure, got = m === 'width' ? rect.width : m === 'height' ? rect.height : m === 'left' ? rect.left - ox : m === 'right' ? rect.right - ox
         : m === 'top' ? rect.top - oy : rect.bottom - oy;
       var tolerance = typeof s.tolerance === 'number' ? s.tolerance : 1;
-      return { ok: Math.abs(got - s.value) <= tolerance, actual: String(Math.round(got * 100) / 100) };
+      return { ok: s.op === 'min' ? got >= s.value - tolerance : s.op === 'max' ? got <= s.value + tolerance : Math.abs(got - s.value) <= tolerance, actual: String(Math.round(got * 100) / 100) };
     }
     return { ok: false, error: 'unknown-check' };
   }
