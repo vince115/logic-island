@@ -388,8 +388,55 @@ export const SERVER_MANUAL: Record<'ss' | 'lsof' | 'nc' | 'ip' | 'getent' | 'dig
   },
 };
 
+/** E19: the diagnostics profile's commands. */
+export const DIAG_MANUAL: Record<'ping' | 'traceroute' | 'mtr' | 'tcpdump' | 'sed', ManualEntry> = {
+  ping: {
+    usage: 'ping -c 次數 [-i 間隔] [-W 秒] [-s 大小] [-n] [-q] 主機', summary: '送出 ICMP echo request，看主機是否回應（iputils）',
+    description: ['每個回應印一行：位元組數、序號（icmp_seq）、TTL 與來回時間；最後是統計：送出與收到的數目、遺失率與 rtt min/avg/max/mdev。',
+      '模擬環境的時間來自課程宣告的延遲（每台機器離網路核心多遠、或宣告的路徑），每一次的小差異是固定的。沒有 Ctrl-C，所以一定要加 -c。',
+      'ufw 一律回應 ping（before.rules）；nft 的 policy drop 沒有放行 icmp 時收不到回應。ping 不通不代表服務壞了，ping 得通也不代表服務正常。'],
+    options: [['-c', '次數'], ['-i', '間隔秒數'], ['-W', '等待回應的秒數'], ['-s', '資料的位元組數（預設 56）'], ['-n', '只顯示位址'], ['-q', '只印統計']],
+  },
+  traceroute: {
+    usage: 'traceroute [-n] [-I | -T [-p 埠]] [-m 最多跳數] [-q 次數] 主機', summary: '列出封包到達主機途中經過的路由器',
+    description: ['每一跳送三個探測，印出回應的路由器與三個來回時間；* 是那個探測沒有回應（路由器不回應、遺失或被防火牆丟棄）。',
+      '預設送 UDP（33434 埠起）：目的地的防火牆丟棄時最後幾跳都是 * * *；-I 改用 ICMP echo，-T 用 TCP SYN（預設 80 埠，需要 root）。_gateway 是 systemd-resolved 給預設閘道的名稱。'],
+    options: [['-n', '只顯示位址'], ['-I', '用 ICMP echo'], ['-T', '用 TCP SYN（需要 root）'], ['-p', '目的埠'], ['-m', '最多幾跳（預設 30）'], ['-q', '每一跳的探測次數（預設 3）']],
+  },
+  mtr: {
+    usage: 'mtr --report [-c 次數] [-w] [-n] [-b] [-T | -u] 主機', summary: '結合 ping 與 traceroute：每一跳的遺失率與延遲統計（mtr 0.95）',
+    description: ['報告的欄位：Loss%（遺失率）、Snt（送出）、Last、Avg、Best、Wrst（毫秒）與 StDev。',
+      '只有中間某一跳遺失、之後各跳都沒有遺失，通常是那台路由器限制回應 ICMP 的速度，不是真的掉封包；遺失一路持續到目的地才是問題。??? 是完全沒有回應的一跳。',
+      '模擬環境沒有全螢幕介面，請用報告模式（-r、--report，或 -rw 寬版）。'],
+    options: [['-r', '報告模式'], ['-w', '寬版報告（不截斷名稱）'], ['-c', '每一跳的探測次數（預設 10）'], ['-n', '只顯示位址'], ['-b', '名稱與位址都顯示'], ['-T', '用 TCP'], ['-u', '用 UDP']],
+  },
+  tcpdump: {
+    usage: 'tcpdump -r 擷取檔 [-n] [-A] [-c N] [-t | -tttt] [-w 檔案] [過濾條件]', summary: '讀取擷取的封包（tcpdump 4.99）',
+    description: ['每個封包一行：時間、來源 > 目的、TCP 的旗標（S 是 SYN、. 是 ACK、P 是 PUSH、F 是 FIN、R 是 RST）、序號、視窗與長度；DNS 與 ICMP 有各自的寫法。',
+      '過濾條件：host、net、port（可加 src／dst、tcp／udp），tcp、udp、icmp，and、or、not 與括號，例如 tcpdump -nn -r web.pcap \'tcp port 80 and host 10.0.0.12\'。',
+      '模擬環境不能即時擷取（tcpdump -i）；擷取檔是課程提供的模擬檔案（不是真的 libpcap 格式）。-A 只印出資料本身（不含 IP 與 TCP 標頭的位元組）。'],
+    options: [['-r', '讀取擷取檔'], ['-n', '不把位址與埠換成名稱（-nn 相同）'], ['-A', '以文字印出資料'], ['-c', '最多幾個封包'], ['-t', '不印時間'], ['-w', '把符合的封包寫到另一個擷取檔']],
+  },
+  sed: {
+    usage: 'sed [-n] [-i[後綴]] [-E] [-e 指令稿]… 指令稿 [檔案…]', summary: '逐行處理文字：印出、刪除或取代（模擬環境支援的子集）',
+    description: ['指令：p（印出）、d（刪除）、s/樣式/取代/[g][p][N][I]（& 是符合的文字，\\1 是第一組括號）、q（結束）、=（行號）；可以加位址：N、$、/樣式/、N,M、/a/,/b/，或在指令前加 ! 反過來。',
+      '-n 只印 p 要印的行，所以 sed -n \'5p\' 只印第 5 行、sed -n \'/error/p\' 像 grep。-i 直接改檔案（在同一個資料夾寫暫存檔再換掉，所以資料夾要可以寫入）；-i.bak 留下備份。',
+      '模擬環境不支援分支、hold space、y、a、i、c、w 等指令。'],
+    options: [['-n', '不自動印出每一行'], ['-i', '直接修改檔案'], ['-E', '延伸的正規表示式（-r 相同）'], ['-e', '加上一段指令稿']],
+  },
+};
+
 /** The pages a feature changes: cat reads standard input and echo has -n with pipes; chmod has -R with accounts. */
 const FEATURE_MANUAL: [ShellFeature, CommandName, ManualEntry][] = [
+  ['edge', 'sleep', { usage: 'sleep 秒數[smhd]', summary: '等待一段時間', description: ['從 edge 階段起，sleep 讓模擬的時鐘前進（課程裡每一台機器一起）：快取會過期、Age 會增加、date 與日誌的時間跟著改變。sleep 300 & 仍然只是一個背景工作，不會讓時間前進。'], options: [] }],
+  ['edge', 'date', { usage: 'date [-u] [+格式]', summary: '顯示機器的時間', description: ['+%F 是 2026-11-22、+%H:%M 是時與分、+%s 是 1970 年起的秒數；有時區的機器顯示當地時間，-u 顯示 UTC。從 edge 階段起 sleep 會讓時鐘前進。'], options: [['-u', '顯示 UTC']] }],
+  ['edge', 'curl', {
+    usage: 'curl [-v] [-s] [-k] [-I] [-i] [-L] [-f] [-o 檔案] [-w 格式] [-H 標頭] [-X 方法] [-d 資料] [--cacert 檔案] [--resolve 主機:埠:位址] 網址…', summary: '送出 HTTP／HTTPS 請求並顯示回應',
+    description: ['-v 印出連線與 TLS 交握（*）、送出的請求（>）與收到的回應標頭（<）；-I 只送 HEAD；-L 跟隨重新導向；-H \'If-None-Match: "…"\' 送出條件式請求（相符時 304）。',
+      '-w 的時間變數 %{time_namelookup}、%{time_connect}、%{time_appconnect}、%{time_starttransfer}、%{time_total}（秒）由課程宣告的延遲與伺服器的處理時間算出，每次都一樣。',
+      'https:// 依信任庫驗證憑證鏈與名稱：失敗時是錯誤 60；-k 不驗證（只用來除錯）。模擬環境不印進度表。'],
+    options: [['-v', '詳細過程'], ['-s', '安靜（不印錯誤，加 -S 仍印）'], ['-k', '不驗證伺服器的憑證'], ['-I', '只要標頭（HEAD）'], ['-i', '輸出也包含回應標頭'], ['-L', '跟隨重新導向'], ['-o', '把第一個網址的內容寫入檔案'], ['-w', '結束後印出指定的資訊'], ['-H', '加上或取代請求標頭'], ['-X', '請求方法'], ['-d', '以 POST 送出資料']],
+  }],
   ['pipes', 'cat', { usage: 'cat [-n] [檔案]…', summary: '顯示檔案內容', description: ['依序印出每個檔案；沒有檔案（或檔名是 -）時讀標準輸入。'], options: [['-n', '在每一行前面加上行號']] }],
   ['pipes', 'echo', { usage: 'echo [-n] [-e] [文字]…', summary: '輸出一行文字', description: ['把文字印到標準輸出；要寫入檔案請用重新導向 > 或 >>。echo 不認得 --help，會把它當成文字印出。'], options: [['-n', '最後不換行'], ['-e', '解讀 \\n 與 \\t']] }],
   ['accounts', 'chmod', { ...MANUAL.chmod, usage: 'chmod [-R] 模式 路徑…', options: [['-R', '包含目錄裡的一切']] }],
@@ -423,7 +470,7 @@ export function manualEntry(cmd: CommandName, features: Iterable<ShellFeature> =
   const special = FEATURE_MANUAL.find(([f, c]) => c === cmd && have.has(f));
   if (special) return special[2];
   return (MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd] ?? (STREAM_MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd] ?? (USER_MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd]
-    ?? (SYSTEM_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (LATER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (SERVER_MANUAL as Record<string, ManualEntry>)[cmd];
+    ?? (SYSTEM_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (LATER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (SERVER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (DIAG_MANUAL as Record<string, ManualEntry>)[cmd];
 }
 
 const optionLines = (options: [string, string][], indent: string, width: number) => options.map(([flag, text]) => `${indent}${flag.padEnd(width)}${text}`);

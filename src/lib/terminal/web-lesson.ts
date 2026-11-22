@@ -43,7 +43,7 @@ export interface TerminalCertificate {
 }
 /** E13: certbot on the machine: the CA's lifetime (days), its timer, an existing ACME account, earlier certificates. */
 export interface TerminalCertbot { lifetime?: number; timer?: boolean; account?: boolean; certificates?: { domains: string[]; webroot?: string; nginx?: boolean; issued: string; hook?: string }[] }
-export interface WebLevels { tls: boolean; nginx: boolean; /** E15 */ proxy?: boolean }
+export interface WebLevels { tls: boolean; nginx: boolean; /** E15 */ proxy?: boolean; /** E18 */ edge?: boolean }
 
 export type WebCheck =
   /** E13: the certificate file (as root): names it covers, when it expires, its issuer's CN, and whether its chain verifies for a name on the machine. */
@@ -317,7 +317,7 @@ export function webState(m: TerminalMachine, state: FsState, lv: WebLevels): FsS
   if (!lv.tls) return state;
   let next = m.certbot ? { ...state, tls: { lifetime: m.certbot.lifetime ?? 90, orders: 0 } } : state;
   if (lv.nginx && m.nginx !== undefined) {
-    next = { ...next, nginx: { connections: 0, ...lv.proxy ? { proxy: true as const } : {} } };
+    next = { ...next, nginx: { connections: 0, ...lv.proxy ? { proxy: true as const } : {}, ...lv.edge ? { edge: true as const } : {} } };
     if (masterOf(next)) { const t = testConfig(next); if ('conf' in t) next = applyConfig(next, t.conf, true); }
   }
   return next;

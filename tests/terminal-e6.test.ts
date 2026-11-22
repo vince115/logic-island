@@ -261,8 +261,9 @@ describe('listing units', () => {
       '        SUB    → The low-level unit activation state, values depend on unit type.', '', '3 loaded units listed. Pass --all to see loaded but inactive units, too.',
       "To show all installed unit files use 'systemctl list-unit-files'.",
     ]);
-    expect(out('systemctl list-units --all --no-legend')).toHaveLength(7);
-    expect(out('systemctl --failed --no-legend')).toEqual(['  UNIT           LOAD   ACTIVE SUB    DESCRIPTION', '● report.service loaded failed failed Nightly report']);
+    // Fix (E19 batch): --no-legend leaves out the header line too (systemd 255), and the columns fit the rows alone.
+    expect(out('systemctl list-units --all --no-legend')).toHaveLength(6);
+    expect(out('systemctl --failed --no-legend')).toEqual(['● report.service loaded failed failed Nightly report']);
     expect(out('systemctl list-units --state=failed --no-legend')).toEqual(out('systemctl list-units --failed --no-legend'));
     expect(out('systemctl list-unit-files')).toEqual(['UNIT FILE        STATE    PRESET', 'api.service      disabled enabled', 'db.service       static   -', 'nginx.service    enabled  enabled',
       'report.service   enabled  enabled', 'stubborn.service static   -', 'worker.service   disabled enabled', '', '6 unit files listed.']);

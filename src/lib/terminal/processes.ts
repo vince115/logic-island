@@ -1,7 +1,8 @@
 import type { Listen } from './sockets';
 import type { FsState } from './fs';
 import { accountsOf, findUser } from './accounts';
-import { clockText, DEFAULT_NOW, parseTime, startLabel, uptimeText, type Seconds } from './clock';
+import { clockText, DEFAULT_NOW, fields, MONTHS, parseTime, uptimeText, WEEKDAYS, type Seconds } from './clock';
+import { toLocal, zoneOf } from './calendar';
 import { compilePattern, getopt } from './text';
 
 /*
@@ -131,7 +132,23 @@ export const nextPid = (state: Pick<FsState, 'lastPid' | 'processes'>) => (state
 interface Column { header: string; width: number; right: boolean; value: (p: Proc) => string }
 const PS_USAGE = ['', 'Usage:', ' ps [options]', '', " Try 'ps --help <simple|list|output|threads|misc|all>'", "  or 'ps --help <s|l|o|t|m|a>'", ' for additional help text.', '', 'For more details see ps(1).'];
 
-function columns(clock: Clock): Record<string, Column> {
+/**
+ * Fix (E19 batch): ps's START and STIME as procps-ng's pr_stime prints them — in the machine's local time (its time zone,
+ * UTC without one): HH:MM on the same day as now, MonDD in the same year, else the year.
+ */
+function startText(state: FsState, start: Seconds, now: Seconds): string {
+  const z = zoneOf(state), s = fields(toLocal(z, start)), n = fields(toLocal(z, now)), two = (x: number) => String(x).padStart(2, '0');
+  const day = (f: typeof s) => Date.UTC(f.year, f.month, f.day);
+  if (s.year !== n.year) return String(s.year);
+  return day(s) === day(n) ? `${two(s.hour)}:${two(s.minute)}` : `${MONTHS[s.month]}${two(s.day)}`;
+}
+/** Fix (E19 batch): ps -o lstart, ctime's text in local time (Sun Nov 22 09:00:00 2026). */
+function lstartText(state: FsState, start: Seconds): string {
+  const f = fields(toLocal(zoneOf(state), start)), two = (x: number) => String(x).padStart(2, '0');
+  return `${WEEKDAYS[f.weekday]} ${MONTHS[f.month]} ${String(f.day).padStart(2)} ${two(f.hour)}:${two(f.minute)}:${two(f.second)} ${f.year}`;
+}
+
+function columns(clock: Clock, state?: FsState): Record<string, Column> {
   const col = (header: string, width: number, right: boolean, value: (p: Proc) => string): Column => ({ header, width, right, value });
   const args = (p: Proc) => p.command;
   return {
@@ -144,6 +161,10 @@ function columns(clock: Clock): Record<string, Column> {
     time: col('TIME', 8, true, p => longTime(p.time)), comm: col('COMMAND', 15, false, p => commOf(p.command)),
     args: col('COMMAND', 0, false, args), command: col('COMMAND', 0, false, args), cmd: col('CMD', 0, false, args),
     c: col('C', 2, true, p => String(Math.min(99, Math.floor(p.cpu)))),
+    ...state ? {
+      lstart: col('STARTED', 24, true, p => lstartText(state, p.start)), start_time: col('START', 5, true, p => startText(state, p.start, clock.now)),
+      stime: col('STIME', 5, false, p => startText(state, p.start, clock.now)),
+    } : {},
   };
 }
 
@@ -177,7 +198,7 @@ function sorter(keys: readonly string[], clock: Clock): ((a: Proc, b: Proc) => n
  * next free pids. Returns the exit status.
  */
 export function ps(state: FsState, args: readonly string[], io: ProcIo, peers: readonly string[][]): number {
-  const clock = clockOf(state), cols = columns(clock);
+  const clock = clockOf(state), cols = columns(clock, state);
   const bad = (line: string) => { io.err(line); PS_USAGE.forEach(l => io.err(l)); return 1; };
   let rest = [...args], bsd: string | null = null;
   if (rest[0] && !rest[0].startsWith('-')) {
@@ -223,8 +244,8 @@ export function ps(state: FsState, args: readonly string[], io: ProcIo, peers: r
   }).sort(order);
   const tty = { ...cols.tty, header: 'TTY' };
   const layout = fields.length ? fields.map(f => cols[f])
-    : bsd !== null ? [cols.user, cols.pid, cols['%cpu'], cols['%mem'], cols.vsz, cols.rss, tty, cols.stat, { header: 'START', width: 5, right: true, value: (p: Proc) => startLabel(p.start, clock.now) }, { header: 'TIME', width: 6, right: true, value: (p: Proc) => shortTime(p.time) }, cols.command]
-      : o.flags.has('f') ? [cols.uid, cols.pid, cols.ppid, cols.c, { header: 'STIME', width: 5, right: false, value: (p: Proc) => startLabel(p.start, clock.now) }, tty, cols.time, cols.cmd]
+    : bsd !== null ? [cols.user, cols.pid, cols['%cpu'], cols['%mem'], cols.vsz, cols.rss, tty, cols.stat, { header: 'START', width: 5, right: true, value: (p: Proc) => startText(state, p.start, clock.now) }, { header: 'TIME', width: 6, right: true, value: (p: Proc) => shortTime(p.time) }, cols.command]
+      : o.flags.has('f') ? [cols.uid, cols.pid, cols.ppid, cols.c, { header: 'STIME', width: 5, right: false, value: (p: Proc) => startText(state, p.start, clock.now) }, tty, cols.time, cols.cmd]
         : [cols.pid, tty, cols.time, { ...cols.comm, header: 'CMD' }];
   table(selected, layout).forEach(l => io.out(l));
   return pids.length && !selected.length ? 1 : 0;
@@ -468,6 +489,11 @@ export function sleepProblem(args: readonly string[]): string | null {
   if (!args.length) return 'sleep: missing operand';
   const bad = args.find(a => !SLEEP.test(a));
   return bad === undefined ? null : `sleep: invalid time interval '${bad}'`;
+}
+
+/** E18: sleep's operands in seconds (GNU sleep adds them up; s, m, h, d suffixes). */
+export function sleepSeconds(args: readonly string[]): number {
+  return args.reduce((n, a) => { const m = SLEEP.exec(a)!; return n + Number(m[1]) * ({ '': 1, s: 1, m: 60, h: 3600, d: 86400 } as Record<string, number>)[m[2]]; }, 0);
 }
 
 /** `sleep N &`: a background job and its process; returns bash's "[1] 2041". */

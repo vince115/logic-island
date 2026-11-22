@@ -39,6 +39,8 @@ import type { DnsState } from './dns';
 import type { Responder } from './http';
 import type { NginxState } from './nginx';
 import type { FirewallState } from './firewall';
+import type { EdgeState } from './cache';
+import type { LinkState } from './diag';
 
 export interface FsNode {
   /** E1: 'link' is a symbolic link (the lab never has one). */
@@ -52,6 +54,11 @@ export interface FsNode {
   content?: string;
   /** E1, links only: where the link points, as written (relative targets are relative to the link's folder). */
   target?: string;
+  /**
+   * E18 (the edge profile and above, files only): when the content last changed (seconds, the machine's clock). Absent:
+   * the machine's boot time. nginx's Last-Modified and ETag read it; lower profiles never set it.
+   */
+  mtime?: number;
 }
 
 /** E1: what uname prints; every field has a default (DEFAULT_SYSTEM). No dates: the kernel version is a fixed string. */
@@ -149,13 +156,17 @@ export interface FsState {
   /** E11: the resolver cache, the zones named loaded, the internet's zones (the lesson's local machine). */
   dns?: DnsState;
   /** E12: the HTTP responders its listening sockets name. */
-  http?: { responders: readonly Responder[] };
+  http?: { responders: readonly Responder[]; /** E18: the machine has the edge profile (validators, conditional requests, CDN responders). */ edge?: true };
   /** E13: certbot's settings (the lifetime Let's Encrypt gives) and how many ACME orders it has made (the challenge tokens). */
   tls?: TlsState;
   /** E14: the configuration the running nginx applied and its connection counter. */
   nginx?: NginxState;
   /** E16: the machine's firewall (ufw and the nftables ruleset); only machines of the firewall profile have one. */
   firewall?: FirewallState;
+  /** E18: the CDN edge caches of its responders (responder id → entries). */
+  edge?: EdgeState;
+  /** E18–E19: how far the machine is from the others (latency, ms) and, E19, the declared paths of hops to destinations. */
+  links?: LinkState;
 }
 /** E13: what certbot keeps (the simulated CA's certificate lifetime in days, its order counter). */
 export interface TlsState { lifetime: number; orders: number }

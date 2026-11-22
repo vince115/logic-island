@@ -330,6 +330,8 @@ export interface NetIo {
   stdin?: string | null;
   /** E13: the machine's profile has TLS (curl completes HTTPS; below it stops with E12's error 35). */
   tls?: boolean;
+  /** E18: the edge profile (curl -w's timing variables, from the lesson's latencies). */
+  edge?: boolean;
 }
 export type NetResult = { state: FsState; status: number };
 const lines = (io: NetIo, rows: readonly string[]) => rows.forEach(r => io.out(`${r.replace(/\s+$/, '')}\n`));

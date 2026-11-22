@@ -1,6 +1,6 @@
-# SRV-0：網路與伺服器島的課程能力與引擎階段 E10–E17
+# SRV-0：網路與伺服器島的課程能力與引擎階段 E10–E19
 
-> 2026-11-22。目標：讓網路與伺服器島（`network-servers`，前綴 SRV，14 堂）可以撰寫、驗證、發布。本島**不需要新的課程能力或活動**：沿用 LNX-0 的 `terminal` 能力（[LNX0_TERMINAL_CAPABILITY](LNX0_TERMINAL_CAPABILITY.md)）與 CN-0 的 `network-protocol` 情境。本文件也是終端機引擎階段 **E10–E17**（`sockets`、`dns`、`http`、`tls`、`nginx`、`proxy`、`firewall`、`tunnels`）的唯一說明處；E1–E9 仍在 LNX0 文件（§9–§17），LNX0 的 §18 只指向這裡。之後的進度與下一批由 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 計算。
+> 2026-11-22。目標：讓網路與伺服器島（`network-servers`，前綴 SRV，14 堂）可以撰寫、驗證、發布。本島**不需要新的課程能力或活動**：沿用 LNX-0 的 `terminal` 能力（[LNX0_TERMINAL_CAPABILITY](LNX0_TERMINAL_CAPABILITY.md)）與 CN-0 的 `network-protocol` 情境。本文件也是終端機引擎階段 **E10–E19**（`sockets`、`dns`、`http`、`tls`、`nginx`、`proxy`、`firewall`、`tunnels`、`edge`、`diagnostics`）的唯一說明處；E1–E9 仍在 LNX0 文件（§9–§17），LNX0 的 §18 只指向這裡。之後的進度與下一批由 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 計算。
 
 ## 1. 範圍
 
@@ -15,6 +15,8 @@
 | E15 `proxy` | nginx 的反向代理：`proxy_pass` 的 URI 規則、轉送標頭、WebSocket 升級、502／504 與 error.log、`upstream`（round robin、least_conn、ip_hash、backup、down、被動健康檢查）、`map`；§16 |
 | E16 `firewall` | 主機防火牆：`ufw`、`nft` 子集；別台主機的連線由防火牆決定（丟棄逾時、REJECT 拒絕），狀態追蹤；遠端工作階段看得到課程的網路；§17 |
 | E17 `tunnels` | `ssh -L`／`-R`／`-J`、`-f -N`、`~/.ssh/config`（Host 區塊、ProxyJump）、只有跳板機連得到的私有網段、sshd 的 AllowTcpForwarding／GatewayPorts；§18 |
+| E18 `edge` | HTTP 快取：`sleep` 讓模擬時鐘前進、nginx 的 `proxy_cache`（`$upstream_cache_status`）、`expires`、靜態檔的 `Last-Modified`／`ETag` 與 304、CDN 邊緣節點（`Age`、`X-Cache`）與虛構的清除 API、`curl -w` 的時間變數；§23 |
+| E19 `diagnostics` | `ping`、`traceroute`、`mtr --report`、讀課程擷取檔的 `tcpdump -r`、`sed` 的子集；延遲與路徑由課程宣告；§24 |
 
 不新增任何執行期套件；所有輸出由課程資料與固定時鐘決定（§5）。
 
@@ -43,25 +45,25 @@
 
 ## 4. 批次與引擎階段
 
-課程編號即位置，依序連續發布；每一批先完成它需要的引擎階段（各自的 profile 與測試），再寫課。profile 延續 LNX 的**線性鏈**：lab < files < streams < users < processes < packages < services < remote < scripting < scheduling < **sockets < dns < http < tls < nginx < proxy < firewall < tunnels** < …（E18 起依序接在後面）。
+課程編號即位置，依序連續發布；每一批先完成它需要的引擎階段（各自的 profile 與測試），再寫課。profile 延續 LNX 的**線性鏈**：lab < files < streams < users < processes < packages < services < remote < scripting < scheduling < **sockets < dns < http < tls < nginx < proxy < firewall < tunnels < edge < diagnostics**。
 
 | 批次 | 課程 | 引擎階段 |
 |---|---|---|
 | SRV-1 | SRV01–SRV03 | **E10** `sockets`（已完成，§6）、**E11** `dns`（已完成，§7）、**E12** `http`（已完成，§8） |
 | SRV-2 | SRV04–SRV06 | **E13** `tls`（已完成，§11）、**E14** `nginx`（已完成，§12）；課程資料與檢查 §13 |
 | SRV-3 | SRV07–SRV10 | **E15** `proxy`（已完成，§16）、**E16** `firewall`（已完成，§17）、**E17** `tunnels`（已完成，§18）；課程資料與檢查 §19、同批的修正 §20 |
-| SRV-4 | SRV11–SRV13 | E18 `edge`（CDN 的 Cache-Control、Age、X-Cache、purge）、E19 `diagnostics`（`ping`、`traceroute`、`mtr --report`、讀擷取資料的 `tcpdump -r`） |
+| SRV-4 | SRV11–SRV13 | **E18** `edge`（已完成，§23）、**E19** `diagnostics`（已完成，§24）；課程資料與檢查 §25、同批的修正 §26 |
 | SRV-5 | SRV14 | 綜合專題，單獨一批 |
 
 先修：SRV01 需要 LNX02；SRV 的同島先修都排在前面（`scripts/curriculum-queue.ts` 檢查）。發布 SRV-1 時，`tests/terminal-capability.test.ts` 與 `tests/curriculum.test.ts` 裡「只有 Linux 島用 `terminal`」的斷言要一起更新。
 
 ## 5. 決定論的規則
 
-- **固定時鐘**（E4 §12.2）：DNS 快取的剩餘 TTL、HTTP 的 `Date`、`dig` 的 `WHEN` 都由機器的 `now` 算出；時鐘不前進，所以剛快取的記錄剩餘 TTL 就是完整的 TTL。
+- **固定時鐘**（E4 §12.2）：DNS 快取的剩餘 TTL、HTTP 的 `Date`、`dig` 的 `WHEN` 都由機器的 `now` 算出；時鐘不前進，所以剛快取的記錄剩餘 TTL 就是完整的 TTL。**`edge` 起**只有 `sleep` 讓時鐘前進（課程的每一台機器一起，§23.2），仍然是決定論的。
 - **沒有亂數**：DNS 查詢的 id 是「主機、查詢次數、名稱、類型」的 SHA-256；MAC 位址由「主機／介面名稱」算出（`52:54:00:…`）；socket 的 inode（`lsof` 的 DEVICE）由「主機／PID／協定／位址／埠」算出。
 - **固定的時間值**：`dig` 的 Query time：從快取或直接問權威伺服器是 0 msec，解析器必須去問時是 24 msec；`curl` 連不到不存在的位址時是 `after 127000 ms`（Linux 預設 6 次 SYN 重送約 127 秒），有 `--connect-timeout N` 時是 `after N000 ms`，被拒絕是 `after 0 ms`。
 - **不印尾端空白**：真實的 `ip`、`host`、`curl -v`（`> `、`< `）會在行尾留空白；模擬環境一律去掉（課文的紀錄因此可以直接比對）。
-- **沒有進度表**：`curl` 的進度表含真實的速度與時間，模擬環境不印（等於 `--no-progress-meter`）；`-w` 也不提供 `time_*`、`speed_*`（印說明）。
+- **沒有進度表**：`curl` 的進度表含真實的速度與時間，模擬環境不印（等於 `--no-progress-meter`）；`-w` 也不提供 `time_*`、`speed_*`（印說明）。**`edge` 起** `-w` 的時間變數由課程宣告的延遲算出（§23.7）。
 - 欄寬由內容決定、欄與欄之間一個空白、最後一欄不補空白；但保留真實工具的對齊方式（`ss` 的位址靠右對齊冒號、埠靠左；`lsof` 的 PID、USER、FD、DEVICE、SIZE/OFF、NODE 靠右）。真實的 `ss` 會把剩下的終端機寬度平均分給各欄，這部分不模擬。
 
 ## 6. 引擎階段 E10：`sockets` profile（`src/lib/terminal/sockets.ts`）
@@ -541,4 +543,167 @@ machines: [{ ..., profile: 'proxy' | 'firewall' | 'tunnels',
 
 ## 22. E15–E17 仍不支援
 
+（`edge` 起，`proxy_cache` 與 fail_timeout 經過後的再試已經支援，見 §23；以下是 `tunnels` 以下的情形。）
+
 nginx：`log_format`、`set`、`if` 裡的 `proxy_pass`、同一個 location 的 `try_files` 與 `proxy_pass`（請用 `try_files $uri @app` 與具名 location）、`proxy_pass` 的變數與 unix socket、`proxy_cache`、`stream`（L4）、upstream 的 `hash`、`random`、`sticky`、`slow_start`、主動健康檢查（nginx Plus）、fail_timeout 經過後的再試（時鐘不前進）、keepalive 連線的重用細節、真實的 WebSocket 資料框。防火牆：`ufw route`、limit 的頻率、`/etc/ufw/*.rules` 檔案、`ufw.service`／`nftables.service`、IPv6 的判斷、UDP 的連線檢查、nft 的 jump、set、map、NAT、prerouting／forward 的判斷、`iptables` 指令（請用 ufw 或 nft）、雲端的安全群組。通道：`-D`（SOCKS）、`-W`、agent 轉送、在遠端工作階段中再 ssh（請用 `-J`）、`&` 背景執行 ssh、ssh 連線本身的 socket 列、互動式工作階段的 `-L`、HAProxy。
+
+## 23. 引擎階段 E18：`edge` profile（`src/lib/terminal/cache.ts`、`nginx.ts`、`http.ts`）
+
+### 23.1 選用方式
+
+| 項目 | 內容 |
+|---|---|
+| `EDGE_PROFILE` | `tunnels` 的一切，**沒有新指令**；feature `edge`。機器狀態的 `nginx.edge` 讓設定解析器接受快取的指令，`http.edge` 讓回應者有驗證器、條件式請求、CDN 與清除 API。`tunnels` 以下全部不變：`proxy_cache_path` 仍是 E15 的 `unknown directive`、`expires`／`etag` 仍然接受而沒有作用、`sleep` 立即結束、`curl -w '%{time_total}'` 仍印說明 |
+
+### 23.2 時間：`sleep`
+
+- **選擇**：從 `edge` 起，`sleep N`（GNU 的寫法：多個運算元相加，`s`／`m`／`h`／`d` 後綴、小數）讓**課程的每一台機器**的模擬時鐘一起前進 N 秒；一次最多 366 天（`sleep：模擬環境一次最多前進 366 天`）。在 ssh 的工作階段裡也一樣（遠端看到的網路是同一組機器）。這是唯一讓時間前進的方式：快取過期、`Age` 增加、`date`、日誌與 `Date` 標頭跟著改變。
+- `sleep 300 &` 仍然只是背景工作，不會讓時間前進，背景的 sleep 也不會因為時間前進而結束；cron 與 systemd timer 不會因為時間前進而自動執行（仍用 `cron-run`）。
+- **檔案的修改時間**：`FsNode.mtime`（只有 `edge` 起才設定）。課程可以宣告 `files[].mtime`，沒有寫時是開機時間；指令改變了檔案內容時，那一行執行完時的時間就是它的 mtime；`touch` 一個已存在的檔案也設成現在。nginx 的 `Last-Modified` 與 `ETag` 由它算出。
+- **`fail_timeout`**：時鐘會前進之後，nginx 的被動健康檢查照 nginx 的規則運作——`max_fails` 次失敗的伺服器在 `fail_timeout` 之後重新可以選擇（它的 effective_weight 從失敗時降低的值慢慢回升，所以平滑輪詢不一定立刻選它）。`proxy` profile 的 E15 行為不變（到下次 reload 為止）。
+
+### 23.3 nginx 的 `proxy_cache`
+
+| 指令 | 內容 |
+|---|---|
+| `proxy_cache_path 路徑 [levels=1:2] keys_zone=名稱:大小 [inactive=10m] [max_size=…] [use_temp_path=off]…` | http 層。路徑的上一層必須存在（否則 `mkdir() "…" failed (2: No such file or directory)`），nginx 啟動或 reload 時建立資料夾（worker 的使用者，0700）。錯誤：`invalid "levels" "1:3"`、`"proxy_cache_path" must have "keys_zone" parameter`、`invalid parameter "x"`、`duplicate zone "x"`。`max_size` 接受、只受模擬環境的節點數限制 |
+| `proxy_cache 名稱\|off`、`proxy_cache_key`（預設 `$scheme$proxy_host$request_uri`）、`proxy_cache_valid [代碼…\|any] 時間`（只寫時間是 200 301 302）、`proxy_cache_methods`、`proxy_cache_min_uses`、`proxy_cache_bypass`、`proxy_no_cache`、`proxy_cache_use_stale`（error timeout updating http_5xx…）、`proxy_cache_background_update`、`proxy_cache_revalidate`、`proxy_cache_lock`（接受，見下）、`proxy_ignore_headers`、`if_modified_since` | `"proxy_cache" zone "x" is unknown`（行號是 proxy_cache 那一行）、`invalid time value "ten" in "proxy_cache_valid" directive` |
+| `$upstream_cache_status` | MISS、HIT、EXPIRED、BYPASS、STALE、UPDATING、REVALIDATED；沒有經過快取時是空字串。通常用 `add_header X-Cache-Status $upstream_cache_status always;` 看 |
+
+- **能不能存**（nginx 的順序）：`X-Accel-Expires` → `Cache-Control` 的 `no-store`／`no-cache`／`private`（不存）、`s-maxage` 優先於 `max-age`（0 不存）→ `Expires − Date` → `proxy_cache_valid`；`Set-Cookie` 與 `Vary: *` 不存；`proxy_ignore_headers` 可以忽略其中幾個。`Vary` 依請求標頭分成不同的變體。
+- **查詢**：新鮮 → HIT（不連上游，`$upstream_addr` 是空的）；過期 → EXPIRED（連上游、存新的）；`proxy_cache_bypass` 的值非空且不是 0 → BYPASS（仍可能存下）；上游失敗而 `proxy_cache_use_stale` 有那一種失敗、又有過期的副本 → STALE；`proxy_cache_background_update on` 加 `use_stale updating` → 立刻回過期的副本（STALE），背景的請求在「上游花的時間」之後才完成，這段期間的請求是 UPDATING；`proxy_cache_revalidate on` 帶 `If-None-Match`／`If-Modified-Since` 問上游，304 → REVALIDATED。有快取時 nginx 不把用戶端的條件式與 Range 標頭送給上游，HEAD 以 GET 取得。
+- **`proxy_cache_lock`**：接受，但沒有可見的效果——模擬環境的請求一個接一個完成，唯一「同時」的請求是背景更新。
+- **快取檔**：`路徑/c/29/<key 的 MD5>`（levels=1:2 取 MD5 的最後 1 字與再前 2 字；純 JS 的 MD5），worker 的使用者，0600，資料夾 0700。**內容是文字**：`KEY: 鍵`、上游的狀態行、標頭、空行、本文（真實的檔案有二進位的檔頭），所以 `sudo grep -r "KEY:" /var/cache/nginx` 可以找到網址對應的檔案。
+- **清除**（purge）：開源版的 nginx 沒有清除指令，做法是刪掉快取檔——檔案不見的項目下次是 MISS。**注意**：`sudo rm -rf /var/cache/nginx/app/*` 的 `*` 由學習者自己的 Shell 展開，而一般使用者讀不到 0700 的資料夾，所以什麼都沒刪（真實的伺服器也一樣）；要寫成 `sudo bash -c 'rm -rf /var/cache/nginx/app/*'`。`inactive` 時間內沒有被用到的項目由 cache manager 刪除（模擬環境在下一個請求時檢查）。
+
+### 23.4 `expires` 與靜態檔的驗證器
+
+- `expires 時間|-1|0|epoch|max|off|modified 時間`（`edge` 起才有作用；`nginx`／`proxy` profile 仍然接受而不檢查）：`Expires` 與 `Cache-Control: max-age=N`（負數或過去的時間是 `no-cache`、`epoch` 是 1970 年與 `no-cache`、`max` 是 2037 年與 `max-age=315360000`）；只加在 200、201、204、206、301、302、303、304、307、308（和沒有 `always` 的 `add_header` 相同），並取代上游的 `Expires`、`Cache-Control`。`add_header Cache-Control "…" always` 照 E14 的規則。錯誤：`invalid value "soon"`。
+- 靜態檔的 200 從 `edge` 起有 `Last-Modified`（Content-Length 之後）、`ETag: "mtime 的十六進位-大小的十六進位"`（Connection 之後；`etag off` 不送）與最後的 `Accept-Ranges: bytes`。nginx 的標頭順序：Server、Date、Content-Type、Content-Length、Last-Modified、Location、Connection、ETag、Expires、Cache-Control、add_header、Accept-Ranges。
+- **條件式請求**（nginx 的 not_modified filter）：`If-None-Match`（弱比較，`*` 也算）與 `If-Modified-Since` 每一個都要成立才是 304；`if_modified_since exact`（預設）要時間完全相同，`before` 是不晚於，`off` 不看。304 沒有 Content-Type、Content-Length、Accept-Ranges，仍有 Last-Modified、ETag、Expires、Cache-Control 與 add_header。從快取回答的上游回應也一樣（nginx 對可快取的回應才做，沒有快取時條件式標頭照常送給上游）。
+
+### 23.5 回應者的驗證器與 CDN 邊緣節點
+
+- 路由的 `etag: true`（本文 SHA-256 的前 16 個十六進位字）或 `'"v1"'`、`lastModified: 'YYYY-MM-DD HH:MM:SS'`；GET／HEAD 的 200 依 RFC 9110 回 304（`If-None-Match` 優先，否則 `If-Modified-Since` 不早於 Last-Modified）。
+- **CDN 邊緣節點**（通用、沒有任何服務商的品牌）：回應者的 `cdn: { origin, port?, scheme?, originHost?, defaultTtl? }`（沒有路由）。它從**自己在網路中的位置**連到來源（防火牆、私有網段都算），把 `Host`（或 `originHost`）與 `X-Forwarded-For` 送過去；快取的鍵是 Host 加路徑（含查詢字串），Vary 分變體。能不能存和 §23.3 相同（`private`、`no-store`、`no-cache`、`Set-Cookie` 不存；`s-maxage` 優先），來源沒說時用 `defaultTtl`（預設 0：不存）；只存 200、203、204、300、301、404、410。回應保留來源的標頭（**包括來源的 `Date`**），換上 `Connection: keep-alive`，最後加 `Age`（存了多久加上來源給的 Age）與 `X-Cache: HIT`／`MISS`。來源連不到：`502`／`504` 與一個說明的頁面（`X-Cache: MISS`），不回過期的副本。課程可以用 `cdnCache` 放入開始時已經在快取裡的回應（例如還沒更新的舊 CSS）。
+- **清除（purge）的選擇**：一個**明白是虛構的通用 API**——課程在一台機器（例如 `cdn-api`）放一個路由 `{ path: '/purge', methods: ['POST'], purge: { edges: ['edge-01'], token: 'demo-token' } }`，`curl -X POST -H 'Authorization: Bearer demo-token' http://cdn-api/purge -d 'url=http://www.example.com/app.css'`（或 JSON `{"url": …}`、`all=1`、結尾 `*` 的前綴）讓列出的邊緣節點忘掉那些網址，回 `{"status":"ok","purged":N}`；權杖不對 `401 {"error":"unauthorized"}`、少了網址 `400 {"error":"missing url"}`。它不模仿任何真實服務的網址或欄位；真實的 CDN 各有自己的 API，課文說明概念。nginx 自己的快取則用刪除檔案清除（§23.3）。
+
+### 23.6 檢查需要的回應資訊
+
+`Response.cache`（nginx 的 `$upstream_cache_status` 或邊緣節點的 X-Cache）與 `Response.upstreamMs`（伺服器到上游的網路時間）是引擎內部的欄位，不是標頭。
+
+### 23.7 `curl -w` 的時間變數
+
+`%{time_namelookup}`、`%{time_connect}`、`%{time_appconnect}`、`%{time_pretransfer}`、`%{time_starttransfer}`、`%{time_total}`、`%{time_redirect}`（秒，六位小數）與 `%{speed_download}`（位元組／秒，整數）、`%{speed_upload}`（0），由 §24.1 的來回時間算出，每次都一樣：
+
+| 變數 | 算法 |
+|---|---|
+| namelookup | 位址或 `--resolve` 0.000012；`/etc/hosts` 0.000180；解析器的快取 0.000450；解析器必須送出查詢 0.024300（和 dig 的 24 msec 一致）；重用連線 0.000010 |
+| connect | namelookup + 一個來回（TCP 交握）；重用連線不再加 |
+| appconnect | HTTPS 的新連線：connect + 一個來回（TLS 1.3）+ 0.0021；其他 0 |
+| pretransfer | appconnect（或 connect）+ 0.00005 |
+| starttransfer | pretransfer + 一個來回 + 伺服器的時間（回應者的 `delay`、nginx 到上游的來回與上游的時間、邊緣節點到來源的時間；從快取回答時是 0） |
+| total | starttransfer + 0.00008 + 本文 ÷ 125 MB/s |
+
+`-L` 時各值從整個傳輸開始算（加上前面的重新導向，`time_redirect` 是它們的總和）。這是**模擬的模型**，用來比較「DNS、連線、TLS、伺服器」各花多少時間，不是真實網路的量測。
+
+## 24. 引擎階段 E19：`diagnostics` profile（`src/lib/terminal/diag.ts`、`sed.ts`）
+
+### 24.1 選用方式與延遲的模型
+
+| 項目 | 內容 |
+|---|---|
+| `DIAGNOSTICS_PROFILE` | `edge` 的一切加上 `ping`、`traceroute`、`mtr`、`tcpdump`、`sed`（`E19_COMMANDS`）；feature `diagnostics`。`edge` 以下這五個是 `command not found`，而且**各 profile 的 `command not found` 清單不變**（清單是各自 profile 的指令） |
+| 來回時間 | 每台機器的 `latency`（ms，預設 0.25）是它離網路核心多遠（星狀的模型）：兩台機器的來回時間是兩者的和（同一個區網預設 0.5 ms）；自己的位址 0.04 ms。`edge` 起就有（curl -w 用它） |
+| 路徑 | 本機的 `paths: [{ hops: [{ address, name?, rtt, loss?, silent? }] }]`，最後一跳是目的地（可以是課程沒有的網際網路位址）。沒有宣告時：目的地不在本機的網段就先經過閘道（`_gateway`，0.35 ms），再到那台機器；沒有機器有這個位址時只有閘道 |
+| 每一次探測 | 那一跳的來回時間 ±3%（至少 ±4 µs），由「主機、跳、序號」的 SHA-256 決定；遺失率 L% 的一跳，N 次探測中固定有 round(L×N/100) 次遺失。**每一跳的遺失只屬於那一跳**：課程要表達一路持續的遺失，就在之後的每一跳都寫上 |
+| 名稱 | `/etc/hosts`、路徑宣告的 `name`，以及預設閘道的 `_gateway`（Ubuntu 的 systemd-resolved）；沒有 PTR 的模型 |
+| 防火牆 | 目的地的 E16 防火牆決定它回不回應：**ufw 一律回應 ping**（before.rules 放行 ICMP echo-request）；nft 的 `policy drop` 沒有 `icmp type echo-request accept`（或 `meta l4proto icmp`）時丟棄；私有網段（E17）之外的機器沒有回應 |
+
+### 24.2 `ping`（iputils 20240117）
+
+`ping -c N [-i 秒] [-W 秒] [-s 大小] [-n] [-q] [-4] 主機`：`PING 主機 (位址) 56(84) bytes of data.`、每個回應 `64 bytes from 名稱 (位址): icmp_seq=1 ttl=64 time=0.489 ms`（以位址 ping 時只印位址；TTL 是 64 減去中間的跳數；time 在 1 ms 以下三位小數、10 ms 以下兩位、100 ms 以下一位）、空行、`--- 主機 ping statistics ---`、`4 packets transmitted, 4 received, 0% packet loss, time 3003ms`（遺失率用 %g）、`rtt min/avg/max/mdev = …`。沒有回應：只有統計，結束碼 1；本機網段沒有那台機器：`From 本機位址 icmp_seq=N Destination Host Unreachable`、`+N errors` 與 `pipe N`；nft 的 reject：`Destination Port Unreachable`。名稱找不到：`ping: x: Name or service not known`（結束碼 2）。**沒有 `-c` 時**說明模擬環境沒有 Ctrl-C，請加 `-c`。ping 不讓時鐘前進。
+
+### 24.3 `traceroute`（traceroute 2.1.5）與 `mtr`（mtr 0.95）
+
+- `traceroute [-n] [-I|-T] [-p 埠] [-m 跳數] [-q 次數] 主機`：`traceroute to 主機 (位址), 30 hops max, 60 byte packets`，每一跳 `%2d ` 加上每個探測（位址改變時 ` 名稱 (位址)`，然後 `  0.404 ms`；沒有回應 ` *`）。預設送 UDP 33434 起：**目的地的 ufw 預設拒絕時最後一跳一直是 `* * *`，印到 30 跳**（真實的情形）；`-I` 用 ICMP echo（ufw 放行）、`-T` 用 TCP SYN（預設 80，**需要 root**：`You do not have enough privileges to use this traceroute method.`、`socket: Operation not permitted`）。
+- `mtr -r|--report [-w] [-c N] [-n] [-b] [-T|-u] 主機`（`-rwn`、`-rwc 5` 合寫也可以）：`Start: 2026-11-22T10:00:00+0000`、`HOST: 主機名稱 … Loss%   Snt   Last   Avg  Best  Wrst StDev`、每一跳 `  1.|-- _gateway   0.0%    10    0.4 …`；欄位照 mtr 的 `report_close` 印在固定的位置，所以 100% 遺失的 `100.0%` 被下一欄蓋掉 `%`、印成 `100.0`；沒有 `-w` 時主機欄 33 字（長名稱被截斷），`-w` 時依最長的名稱。只顯示到目的地，或最後一個有回應的跳之後再一個 `???`。StDev 是樣本標準差。沒有 `-r` 時說明模擬環境沒有全螢幕介面。
+
+### 24.4 `tcpdump -r`（tcpdump 4.99）
+
+- 擷取檔由課程的 `captures` 寫入（§25），**是模擬的檔案**：一行 `LISIM-PCAP 1` 加上 JSON（不是 libpcap 的格式；`cat` 看得到內容）。不是這種檔案：`tcpdump: unknown file format`；讀不到：`tcpdump: x: No such file or directory`／`Permission denied`。標準錯誤先印 `reading from file x, link-type EN10MB (Ethernet), snapshot length 262144`。
+- 每個封包一行，時間是機器時區的 `HH:MM:SS.ffffff`（`-t` 不印、`-tttt` 加日期）：TCP `IP 來源.埠 > 目的.埠: Flags [S.], seq 5000, ack 1001, win 65160, length 0`——旗標依 tcpdump 的順序（F S R P . U E W），**SYN 與對話中第一個帶 ACK 的封包印絕對序號，之後相對**（tcpdump 的 tcp_seq_hash），有資料時 `seq 1:70`，HTTP（80、8080 埠）加 `: HTTP: 第一行`；DNS（53 埠）`4660+ A? web-01.example.com. (36)`、`4660 1/0/0 A 10.0.0.12 (52)`、`NXDomain`；ICMP `ICMP echo request, id 7, seq 1, length 64`、`udp port 33434 unreachable`、`host … unreachable`。序號與 ACK 沒有寫時由對話推算。**簡化**：不印 TCP options（`[mss 1460,sackOK,TS val …]`）；`-A` 只印資料本身，不含 IP／TCP 標頭的位元組。
+- 名稱：沒有 `-n` 時位址依 `/etc/hosts` 換成名稱、埠依 `/etc/services`（`http`、`domain`、`postgresql`）；`-n` 與 `-nn` 都是數字（tcpdump 4.99 的 `-n` 已經不換埠的名稱）。
+- 過濾條件（pcap-filter 的子集）：`host`、`net`、`port`（可加 `src`／`dst` 與 `tcp`／`udp`），`tcp`、`udp`、`icmp`、`ip`，`and`／`&&`、`or`／`||`、`not`／`!`、括號，單獨的位址或名稱是 host。錯誤：`tcpdump: can't parse filter expression: syntax error`、`unknown host 'x'`。`-c N`、`-w 檔案`（把符合的封包寫成另一個擷取檔）。`-v`、`-X`、`-x`、`-e` 說明不支援。
+- **即時擷取不模擬**：一般使用者 `tcpdump: eth0: You don't have permission to perform this capture on that device` 與 `(socket: Operation not permitted)`；root 說明模擬環境沒有網路卡，請用 `-r`。
+
+### 24.5 `sed` 的子集（GNU sed 4.9）
+
+- **只在 `diagnostics` 以上**：各 profile 的 `command not found` 會列出那個 profile 的指令，加在更低的 profile 會改變已發布課程印出的清單；從 `diagnostics` 起加入則不影響任何已發布的輸出。
+- 指令稿：一個或多個指令（`;`、換行或多個 `-e`），位址 `N`、`$`、`/樣式/`（可加 `I`）、`a,b` 範圍、`!` 反向；指令 `p`、`d`、`s/樣式/取代/[g][p][N][I]`（`&`、`\1`–`\9`、`\n`）、`q`、`=`。選項 `-n`、`-i[後綴]`（在同一個資料夾寫暫存檔再換掉：資料夾要可寫，否則 `sed: couldn't open temporary file /etc/sedXXXXXX: Permission denied`；一般使用者改過的檔案變成自己的，權限不變；`-i.bak` 留備份）、`-E`／`-r`、`-e`。樣式是 grep 的子集（`compilePattern`，群組可以擷取）。錯誤照 GNU：`unknown command: \`k'`、`unterminated \`s' command`、`unknown option to \`s'`、`unterminated address regex`、`can't read x: No such file or directory`、`no input files`。分支、hold space、`y`、`a`、`i`、`c`、`w` 等說明不支援。
+
+## 25. E18–E19 的課程資料與檢查（`src/lib/terminal/edge-lesson.ts`）
+
+```ts
+machines: [{ ..., profile: 'edge' | 'diagnostics',
+  latency?: 0.25,                                                                         // edge 以上（遠端機器也可以）
+  files: [{ ..., mtime?: 'YYYY-MM-DD HH:MM:SS' }],                                        // edge 以上
+  responders: [{ id, cdn?: { origin, port?, scheme?, originHost?, defaultTtl? }, routes: [{ ..., etag?, lastModified?, purge?: { edges, token? } }] }],  // edge 以上
+  cdnCache?: [{ responder, entries: [{ url, status?, headers?, body?, type?, cachedAt, ttl }] }],                                                    // edge 以上
+  paths?: [{ hops: [{ address, name?, rtt, loss?, silent? }] }],                         // diagnostics 以上（本機）
+  captures?: [{ path, owner?, group?, mode?, start?, packets: [{ t, proto, src, dst, flags?, seq?, ack?, win?, payload?, length?, icmp?, id?, icmpSeq?, dns? }] }],  // diagnostics 以上
+  remotes: [{ ..., latency?, cdnCache?, captures? }] }]
+```
+
+| 規則 | 內容 |
+|---|---|
+| 各自的 profile | `latency`、`cdnCache`、回應者的 `cdn`、路由的 `etag`／`lastModified`／`purge`、檔案的 `mtime` 需要 `edge`；`paths`、`captures` 需要 `diagnostics`（遠端機器同樣檢查） |
+| 內容 | latency 0–1000 ms；mtime 不晚於 now；cdn 的 origin 是主機名稱或 IPv4、port 1–65535、defaultTtl 0–31536000，cdn 回應者沒有路由；etag 是 `true` 或加引號的 entity tag；purge 的 edges 是課程的 1–8 台機器、token 是 1–64 個 URL 安全字元；cdnCache 最多 4 組、每組 20 筆，屬於這台機器的 cdn 回應者；paths 最多 8 條、每條 1–30 跳、rtt 0–10000、loss 0–100、目的地不重複；captures 最多 4 個、每個 1–200 個封包、時間不倒退、位址與埠的格式、TCP 的旗標 |
+| 產生的東西 | 擷取檔與缺少的上層資料夾（root 0755），只在課程沒有列出時加入 |
+| 變體 | 從這一批起可以換掉 `upstreamConnections`（`proxy` 以上）、`accounts`（`users` 以上）、`packages`（`packages` 以上）與 `paths`（`diagnostics` 以上）；upstream 的權重在設定檔裡，用 `files` 換掉網站的設定即可 |
+
+| 檢查 | 意義 |
+|---|---|
+| `{ kind: 'cache', url, status?, headers?, host? }`（`edge` 以上） | 從本機（或 `host`）再 GET 一次這個網址時的快取狀態（nginx 的 `$upstream_cache_status` 或邊緣節點的 X-Cache）與標頭；檢查本身不改變任何狀態 |
+| `http` 的 `headers`、`requestHeaders`（`edge` 以上） | 多個必須有的標頭；送出的請求標頭（例如 `If-Modified-Since`，檢查 304） |
+| `output` 的 `fromCommand`（所有 profile，選用） | 正規表示式：印出這個輸出的指令必須符合它（例如 `'^(sudo )?mtr '`），所以「答案只有兩種、用 echo 猜」不會通過；沒有寫時和以前相同 |
+
+## 26. 同批的修正（SRV-4；從指令所在的 profile 起）
+
+| 修正 | 內容 |
+|---|---|
+| `journalctl -g` | systemd 的 smart case：樣式全是小寫時不分大小寫，有大寫字母時分大小寫 |
+| `ps` 的 START／STIME | 照 procps-ng 的 `pr_stime`：以機器的時區（`localtime`；沒有時區是 UTC）顯示，**和現在同一天**是 `HH:MM`，同一年是 `MonDD`，否則年份。之前是 UTC 與「24 小時內」的規則（例如昨天 23:10 開始的行程印成 `23:10`，現在是 `Nov21`） |
+| `ps -o lstart`、`start_time`、`stime` | lstart 是 ctime 的格式（`Sun Nov 22 16:00:00 2026`，靠右 24 欄，標題 STARTED），時區同上 |
+| `systemctl list-units --no-legend` | 不印標題行、圖例與數量（之前仍印標題）；欄寬只看印出的列。`list-unit-files --no-legend` 也一樣 |
+| `/etc/cron.d` 沒有使用者欄位的行 | 第一個字被當成使用者，getpwnam() 失敗：這一行是錯誤、不執行；`cron-run` 讀檔時在 journal（cron.service、優先順序 err）記錄 `Error: bad username; while reading /etc/cron.d/x`。其他行照常（見 §28 的說明） |
+| `set -u` | 算術運算式讀到未設定的變數也是錯誤（`$((n + 1))`、`(( count++ ))`），訊息照 bash：指令稿 `./t.sh: line 3: count: unbound variable`、提示字元 `bash: n: unbound variable`。原本的參數展開已經是 bash 的格式 |
+| `grep -q`（`--quiet`、`--silent`） | 不印東西，只有結束碼；有符合時即使有錯誤也是 0 |
+| nginx 的 upstream 專用指令 | `least_conn`、`ip_hash`、`keepalive`、`zone`、`hash`、`random` 等出現在 upstream 之外：`"least_conn" directive is not allowed here`（之前是 unknown directive）；`proxy` 起 |
+| sshd（`tunnels` 起） | `PermitOpen`（`any`、`none`、`host:port`、`host:*`；限制 `-L` 與 `-J` 的目的地，不允許時是 `administratively prohibited`）、`DisableForwarding yes`（優先於 AllowTcpForwarding）、最小的 `Match User 名單`／`Match Address 位址或 CIDR`／`Match All` 區塊（AllowTcpForwarding、GatewayPorts、PermitOpen、DisableForwarding、PasswordAuthentication、PubkeyAuthentication、PermitRootLogin 依連線的使用者與來源覆寫全域的值，第一個符合的值生效；`Port` 在 Match 裡是 `Directive 'Port' is not allowed within a Match block`）；`tunnels` 以下這些關鍵字仍是 `Bad configuration option`，`sshd -T` 的輸出不變 |
+| ssh 的 `ExitOnForwardFailure`（`-o` 或 `~/.ssh/config`） | `-R` 失敗是 `Error: remote port forwarding failed for listen port N`、`-L` 綁不上是原本三行之後結束，結束碼都是 255 |
+| `nft` 的 ICMP | `meta l4proto icmp`、`ip protocol icmp`、新的 `icmp type echo-request` 只符合 ICMP（之前 `meta l4proto icmp` 的規則符合所有封包） |
+| 變體與 `output` 檢查 | §25 |
+
+**已發布的課程（LNX01–LNX15、SRV01–SRV06）沒有任何輸出改變**（全部的 `terminalContentProblems` 仍是空的）。改變的是測試資料裡記錄舊行為的地方：`tests/terminal-e4.test.ts` 與 `tests/support/terminal-fixture.ts` 的 `ps aux`（昨天 23:10 開始的行程：`23:10` → `Nov21`）、`tests/terminal-e6.test.ts` 的 `--no-legend`（不再有標題行）。LNX08 的課文表格寫「24 小時內顯示時:分，更早顯示日期」，和 procps 的規則（同一天）略有不同，留給課程作者決定是否修改。
+
+## 27. E18–E19 的測試
+
+| 檔案 | 內容 |
+|---|---|
+| `tests/terminal-e18.test.ts` | profile 的分界（`tunnels` 以下時鐘不動、`-w` 的時間變數仍印說明、`proxy_cache_path` 是 unknown directive、資料欄位要 `edge`）、`sleep` 的加總與上限、背景的 sleep、MISS／HIT／EXPIRED／BYPASS、HIT 的標頭、Set-Cookie／private／Vary、Cache-Control 的優先順序、MD5 的測試向量與快取檔的路徑、清除（`sudo rm` 的 glob 陷阱與 `sudo bash -c`）、上游停掉時的 STALE、背景更新的 STALE／UPDATING／HIT、REVALIDATED、min_uses、`expires` 取代上游的 Cache-Control、inactive、設定錯誤、靜態檔的 Last-Modified／ETag／Accept-Ranges 與 304、改檔與 touch 之後的新驗證器、CDN 的 HIT（Age、來源的 Date）、MISS→HIT、no-store、s-maxage、defaultTtl、邊緣的 304、清除 API（401、400、成功、all）、`curl -w` 的時間、fail_timeout 經過後重試（以及 `tunnels` 仍到 reload 為止）、資料驗證、`cache` 檢查與帶標頭的 `http` 檢查 |
+| `tests/terminal-e19.test.ts` | profile 的分界（五個指令在 `edge` 以下是 command not found，`edge` 的清單沒有 sed）、說明頁、ping 的版面、時間的位數、TTL、遺失、nft 丟棄、Host Unreachable、沒有 `-c`、找不到名稱；traceroute 的跳、`_gateway`、沉默的路由器、ufw 丟棄 UDP、`-I`、`-T` 的權限、`-m`；mtr 的報告（固定欄位、`100.0`、寬版、`???`）；tcpdump 的完整輸出、相對序號、DNS、ICMP、RST、過濾條件、`-A`、`-c`、`-t`、`-tttt`、`-w`、錯誤與即時擷取；sed 的每個指令與錯誤；資料驗證與 `fromCommand` 的 output 檢查 |
+| `tests/terminal-srv4-fixes.test.ts` | §26 的每個修正 |
+| `tests/support/cdn-fixture.ts` | 只供測試：web-08（快取的反向代理、本機的應用程式、靜態檔）、laptop／edge-01／origin-01／cdn-api（CDN 與清除 API）、laptop／web-01（ufw）／db-01（nft）與宣告的路徑、擷取檔 |
+
+`tests/terminal-e1.test.ts` 的 `PROFILES` 期望值加上 `edge`、`diagnostics`。
+
+## 28. E18–E19 仍不支援
+
+- **時間**：時鐘只由 `sleep` 前進；背景的 sleep 不會結束、cron 與 timer 不會自動執行、ping／traceroute 不花時間、curl 的 `-m` 與 `--connect-timeout` 不讓時鐘前進。
+- **nginx**：`proxy_cache_lock` 沒有可見的效果、`max_size` 的淘汰、`proxy_cache_purge`（nginx Plus）、`proxy_cache_convert_head off`、`stale-while-revalidate`／`stale-if-error`（Cache-Control 的延伸）、`expires @時間`、`fastcgi_cache` 等其他模組的快取、`Range`／206、快取檔的二進位檔頭。
+- **CDN**：真實服務商的 API 與標頭、過期副本的回應（stale-if-error）、`no-cache` 的再驗證（模擬環境不存）、多個 POP 與地理位置、TLS 在邊緣終止的細節（課程可以給邊緣節點憑證，由 E13 處理）。
+- **診斷**：IPv6（`ping6`、`traceroute6`）、反向 DNS（PTR）、`ping -f`、`traceroute` 的 `-U`／`--mtu`、mtr 的互動介面與 `--json`、即時擷取（`tcpdump -i`）、真正的 pcap 格式、TCP options、`-A` 的標頭位元組、`-v`／`-X`、`ss -s`、`dig +trace`（委派的逐步查詢，CN12）；`ip route get` 在 E10 已有。
+- **sed**：分支、hold space、`y`、`a`／`i`／`c`、`w`、`-z`、`-s`，以及沒有結尾換行的最後一行（模擬環境一律加換行）。
+- **cron.d 沒有使用者欄位**：模擬環境只忽略那一行並記錄 `Error: bad username`；Debian 的 cron 實際上可能另外記錄 `(*system*x) ERROR (Syntax error, this crontab file will be ignored)` 並忽略整個檔案，這部分沒有模擬（為了不改變其他 E9 錯誤的既有行為）。
+- **sshd 的 Match**：只有 User、Address、All；Group、Host、LocalAddress、LocalPort、RDomain 不支援（`Unsupported Match attribute`）；`PermitListen` 不模擬。

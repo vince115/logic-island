@@ -112,7 +112,7 @@ describe('ps', () => {
       'root           2  0.0  0.0      0     0 ?        S    Nov20   0:00 [kthreadd]',
       'root         512  0.0  0.1   6696  2816 ?        Ss   Nov20   0:00 /usr/sbin/cron -f',
       'alice        701 97.5 12.5 612000 524288 pts/1    R    08:15 102:03 python3 report.py',
-      'learner      812  3.2  2.3 1032000 98304 ?        Sl   23:10  12:34 /usr/bin/node server.js',
+      'learner      812  3.2  2.3 1032000 98304 ?        Sl   Nov21  12:34 /usr/bin/node server.js',
       'learner      900  0.0  0.5  31000 20480 ?        S    09:40   0:01 python3 stuck.py',
       'learner     1001  0.0  0.1   8960  5120 pts/0    Ss   09:55   0:00 -bash',
       'learner     1050  0.0  0.2  21000  9216 pts/0    S+   09:58   0:00 vim notes.txt',

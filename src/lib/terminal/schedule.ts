@@ -27,7 +27,7 @@ export interface CronJob { source: string; line: number; user: string; when: str
  * Debian cron's errors (bad minute, bad hour, bad day-of-month, bad month, bad day-of-week, bad command, bad username,
  * premature EOF for a last line without a newline).
  */
-export function parseCrontab(text: string, source: string, owner: string | null): { jobs: CronJob[]; errors: { line: number; message: string }[] } {
+export function parseCrontab(text: string, source: string, owner: string | null, known?: (user: string) => boolean): { jobs: CronJob[]; errors: { line: number; message: string }[] } {
   const jobs: CronJob[] = [], errors: { line: number; message: string }[] = [], env: Record<string, string> = {};
   const lines = text.split('\n');
   if (text && !text.endsWith('\n')) errors.push({ line: lines.length, message: 'premature EOF' });
@@ -44,7 +44,9 @@ export function parseCrontab(text: string, source: string, owner: string | null)
     let user = owner ?? '';
     if (owner === null) {
       const m = /^(\S+)\s*/.exec(rest);
-      if (!m || !/^[a-z_][a-z0-9_-]*$/.test(m[1])) { errors.push({ line: at, message: 'bad username' }); return; }
+      // Fix (E19 batch): a system crontab line without a user field takes the command's first word as the user; cron's
+      // getpwnam() then fails, the line is an error (cron logs it) and nothing runs.
+      if (!m || !/^[a-z_][a-z0-9_-]*$/.test(m[1]) || (known && !known(m[1]))) { errors.push({ line: at, message: 'bad username' }); return; }
       user = m[1];
       rest = rest.slice(m[0].length);
     }
@@ -71,12 +73,25 @@ export function allJobs(state: FsState, readable?: string): CronJob[] {
   const system = (path: string) => {
     const text = fileText(state, path), node = state.nodes.get(physicalPath(state.nodes, path, true));
     if (text === undefined || (readable && readable !== 'root' && node && !(node.mode & 0o004))) return;
-    jobs.push(...parseCrontab(text, path, null).jobs);
+    jobs.push(...parseCrontab(text, path, null, name => !!findUser(acc, name)).jobs);
   };
-  system('/etc/crontab');
-  const crond = physicalPath(state.nodes, '/etc/cron.d', true);
-  if (state.nodes.get(crond)?.kind === 'dir') for (const p of childrenOf(state.nodes, crond)) if (/^[A-Za-z0-9_-]+$/.test(baseName(p))) system(p);
+  systemCrontabs(state).forEach(system);
   return jobs;
+}
+/** /etc/crontab and the files of /etc/cron.d cron reads (names of letters, digits, _ and - only). */
+function systemCrontabs(state: FsState): string[] {
+  const out = ['/etc/crontab'], crond = physicalPath(state.nodes, '/etc/cron.d', true);
+  if (state.nodes.get(crond)?.kind === 'dir') for (const p of childrenOf(state.nodes, crond)) if (/^[A-Za-z0-9_-]+$/.test(baseName(p))) out.push(p);
+  return out;
+}
+/** Fix (E19 batch): the lines of the system crontabs cron rejects for a user that does not exist (it logs them when it reads the files). */
+export function badUserLines(state: FsState): { path: string; line: number }[] {
+  const acc = accountsOf(state);
+  return systemCrontabs(state).flatMap(path => {
+    const text = fileText(state, path);
+    if (text === undefined) return [];
+    return parseCrontab(text, path, null, name => !!findUser(acc, name)).errors.filter(e => e.message === 'bad username').map(e => ({ path, line: e.line }));
+  });
 }
 
 /** What the scheduling commands write, as whom they run, and how flock runs its command. */
@@ -176,6 +191,13 @@ function cronNext(state: FsState, args: readonly string[], io: ScheduleIo, say: 
 function cronRun(state: FsState, args: readonly string[], io: ScheduleIo, say: (l: string) => void): Result {
   if (args.length) { io.err('用法：cron-run（教學輔助，不是真實的指令；不接受參數）'); return { state, status: 1 }; }
   const zone = zoneOf(state), now = clockOf(state).now, jobs = allJobs(state);
+  // Fix (E19 batch): cron reads the system crontabs first and logs the lines it rejects (Debian's message).
+  let base = state;
+  for (const b of badUserLines(state)) {
+    const daemon = tableOf(base).find(p => commOf(p.command) === 'cron');
+    base = journal(base, 'cron', daemon?.pid ?? 1, `Error: bad username; while reading ${b.path}`, 3);
+  }
+  state = base;
   const times = jobs.map(j => nextCron(j.spec, zone, now, 1)[0]).filter((t): t is number => t !== undefined);
   if (!times.length) { say('cron-run：這台機器沒有會到期的排程工作'); return { state, status: 1 }; }
   const due = Math.min(...times), batch = jobs.filter(j => nextCron(j.spec, zone, now, 1)[0] === due);
@@ -213,9 +235,9 @@ function cronRun(state: FsState, args: readonly string[], io: ScheduleIo, say: (
   }
   return { state: next, status: 0 };
 }
-function journal(state: FsState, id: string, pid: number, message: string): FsState {
+function journal(state: FsState, id: string, pid: number, message: string, priority = 6): FsState {
   if (!state.journal) return state;
-  return { ...state, journal: [...state.journal, { time: clockOf(state).now, unit: 'cron.service', id, pid, priority: 6, message }].slice(-MAX_JOURNAL) };
+  return { ...state, journal: [...state.journal, { time: clockOf(state).now, unit: 'cron.service', id, pid, priority, message }].slice(-MAX_JOURNAL) };
 }
 
 /**

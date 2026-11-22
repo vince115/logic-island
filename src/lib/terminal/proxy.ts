@@ -5,8 +5,9 @@
  * least_conn comparison conns × weight with round robin among the ties, and ip_hash's hash over the first three octets of
  * the client's IPv4 address (89, then hash × 113 + octet mod 6271, rehashing up to 20 times before falling back to round
  * robin). Passive health checks follow the round-robin module too: a failure adds to fails and lowers effective_weight by
- * weight / max_fails; at max_fails the peer is unavailable for fail_timeout — and since the simulation's clock does not
- * move, until the next reload (which starts with fresh peers, as nginx does). A single server is never marked down.
+ * weight / max_fails; at max_fails the peer is unavailable for fail_timeout — below the edge profile the clock does not
+ * move, so until the next reload (which starts with fresh peers, as nginx does); E18: from the edge profile up sleep moves
+ * the clock, and a peer whose fail_timeout has passed is tried again. A single server is never marked down.
  */
 
 export type Balance = 'round-robin' | 'least_conn' | 'ip_hash';
@@ -14,14 +15,19 @@ export type Balance = 'round-robin' | 'least_conn' | 'ip_hash';
 export interface UpServer { text: string; address: string; port: number; weight: number; maxFails: number; failTimeout: number; backup: boolean; down: boolean }
 export interface Upstream { name: string; servers: UpServer[]; method: Balance; keepalive?: number; implicit?: true; file: string; line: number }
 /** One peer's run-time state: current_weight, effective_weight and the failures counted since its last success. */
-export interface PeerState { cw: number; ew: number; fails: number }
+export interface PeerState { cw: number; ew: number; fails: number; /** E18: when it last failed (the clock moves from the edge profile up, so fail_timeout can pass). */ checked?: number }
 
 /** A fresh peer table for an upstream's primary (or backup) servers. */
 export const freshPeers = (servers: readonly UpServer[]): PeerState[] => servers.map(s => ({ cw: 0, ew: s.weight, fails: 0 }));
-/** Whether a peer may be chosen: not down, not tried for this request, not failed max_fails times (unless it is the only one). */
+/**
+ * Whether a peer may be chosen: not down, not tried for this request, not failed max_fails times (unless it is the only one).
+ * E18: with a clock (the edge profile and above), a failed peer is tried again once fail_timeout has passed since its last failure.
+ */
+let clockNow: number | undefined;
 function usable(s: UpServer, p: PeerState, single: boolean): boolean {
   if (s.down) return false;
-  return single || !s.maxFails || p.fails < s.maxFails;
+  if (single || !s.maxFails || p.fails < s.maxFails) return true;
+  return clockNow !== undefined && p.checked !== undefined && clockNow - p.checked > s.failTimeout;
 }
 
 /** Smooth weighted round robin over the usable, untried peers (ngx_http_upstream_get_peer). */
@@ -70,7 +76,11 @@ export function ipHashPeer(servers: readonly UpServer[], peers: PeerState[], tri
 }
 
 /** The next peer for a request: the primary servers by the upstream's method, then (round robin) the backup servers. */
-export function pickPeer(up: Upstream, peers: { primary: PeerState[]; backup: PeerState[] }, tried: ReadonlySet<number>, client: string, conns: (server: UpServer) => number): number | undefined {
+export function pickPeer(up: Upstream, peers: { primary: PeerState[]; backup: PeerState[] }, tried: ReadonlySet<number>, client: string, conns: (server: UpServer) => number, now?: number): number | undefined {
+  clockNow = now;
+  try { return pick(up, peers, tried, client, conns); } finally { clockNow = undefined; }
+}
+function pick(up: Upstream, peers: { primary: PeerState[]; backup: PeerState[] }, tried: ReadonlySet<number>, client: string, conns: (server: UpServer) => number): number | undefined {
   const primary = up.servers.filter(s => !s.backup), backup = up.servers.filter(s => s.backup);
   const triedPrimary = new Set([...tried].filter(i => !up.servers[i].backup).map(i => primary.indexOf(up.servers[i])));
   const chosen = up.method === 'ip_hash' ? ipHashPeer(primary, peers.primary, triedPrimary, client)
@@ -84,9 +94,10 @@ export function pickPeer(up: Upstream, peers: { primary: PeerState[]; backup: Pe
 }
 
 /** A failed attempt (ngx_http_upstream_free_round_robin_peer): fails + 1, effective_weight lowered; true when it just reached max_fails. */
-export function peerFailed(s: UpServer, p: PeerState, single: boolean): boolean {
+export function peerFailed(s: UpServer, p: PeerState, single: boolean, now?: number): boolean {
   if (single) return false;
   p.fails++;
+  if (now !== undefined) p.checked = now;
   if (s.maxFails) p.ew = Math.max(0, p.ew - Math.floor(s.weight / s.maxFails));
   return !!s.maxFails && p.fails === s.maxFails;
 }

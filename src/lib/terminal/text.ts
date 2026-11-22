@@ -168,7 +168,8 @@ const escapeIn = (ch: string) => /[\\\]\[^-]/u.test(ch) ? `\\${ch}` : ch;
  * (and GNU's \+ \? \| \( \) \{ \} in basic patterns) also `+ ? | ( ) {n,m}`. Not supported: back-references (\1) and
  * \< \>. Errors use GNU's words.
  */
-export function compilePattern(pattern: string, extended: boolean): { source: string } | { error: string } {
+/** capture (E19, sed): groups capture (for \\1 in a replacement); grep's are non-capturing. */
+export function compilePattern(pattern: string, extended: boolean, capture = false): { source: string } | { error: string } {
   const cs = Array.from(pattern);
   let out = '', i = 0, depth = 0, canRepeat = false, lastQuant = false;
   const atom = (src: string) => { out += src; canRepeat = true; lastQuant = false; };
@@ -197,7 +198,7 @@ export function compilePattern(pattern: string, extended: boolean): { source: st
       op = extended && '(){}|+?'.includes(c);
     }
     if (op) {
-      if (c === '(') { out += '(?:'; depth++; canRepeat = false; lastQuant = false; continue; }
+      if (c === '(') { out += capture ? '(' : '(?:'; depth++; canRepeat = false; lastQuant = false; continue; }
       if (c === ')') {
         if (!depth) { if (extended) { atom('\\)'); continue; } return { error: 'Unmatched ) or \\)' }; }
         out += ')'; depth--; canRepeat = true; lastQuant = false; continue;

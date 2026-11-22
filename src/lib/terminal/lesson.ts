@@ -17,6 +17,8 @@ import {
 import { dnsResolver } from './dns';
 import { webStateProblems, type TerminalCertbot, type TerminalCertificate } from './web-lesson';
 import type { TerminalFirewall, TerminalUpstreamConnections } from './net-lesson';
+import type { TerminalCapture, TerminalCdnCache } from './edge-lesson';
+import type { PathDecl } from './diag';
 
 /*
  * LNX-0 (2026-11-22): the terminal lesson capability (docs/curriculum/LNX0_TERMINAL_CAPABILITY.md). A Linux lesson
@@ -72,6 +74,8 @@ export interface TerminalFile {
   content?: string;
   /** Links only (engine stage E1): where it points, as written; it may dangle. A link's mode is always 0o777. */
   target?: string;
+  /** E18 (edge, files only): when its content last changed (UTC 'YYYY-MM-DD HH:MM:SS'; default the boot time): nginx's Last-Modified and ETag. */
+  mtime?: string;
 }
 
 /**
@@ -174,6 +178,14 @@ export interface TerminalMachine {
   sshConfig?: string;
   /** E16 (set by remoteMachine, not by lessons): the lesson's other machines, for a remote's /etc/hosts (it sees the network from the firewall profile up). */
   peers?: { host: string; address: string; aliases?: string[] }[];
+  /** E18: how far the machine is from the network's core (ms; default 0.25): round trips are the sum of two machines' latencies. */
+  latency?: number;
+  /** E18: responses already in its CDN responders' caches. */
+  cdnCache?: TerminalCdnCache[];
+  /** E19 (the local machine): the hops to destinations (the last hop is the destination), for ping, traceroute and mtr. */
+  paths?: PathDecl[];
+  /** E19: packet captures tcpdump -r reads. */
+  captures?: TerminalCapture[];
 }
 
 /**
@@ -217,6 +229,10 @@ export interface TerminalRemote {
   upstreamConnections?: TerminalUpstreamConnections[];
   firewall?: TerminalFirewall;
   reachableFrom?: string[];
+  /** E18–E19: its latency, its CDN caches and its captures. */
+  latency?: number;
+  cdnCache?: TerminalCdnCache[];
+  captures?: TerminalCapture[];
 }
 
 /** E4: a process. Defaults: ppid 1, stat S, cpu 0, rss 0, vsz the rss, shr 0, tty ?, start the boot time, time 0, nice 0. */
@@ -259,7 +275,11 @@ export type TerminalCheck =
   | { kind: 'owner'; path: string; owner: string; group?: string; host?: string }
   | { kind: 'content'; path: string; content: string; host?: string }
   | { kind: 'cwd'; path: string }
-  | { kind: 'output' }
+  /**
+   * Fix (E19 batch): fromCommand (a regular expression's source) — the command that printed it must match, so a guessable
+   * answer typed with echo does not pass (e.g. '^(sudo )?(ping|mtr) ').
+   */
+  | { kind: 'output'; fromCommand?: string }
   | { kind: 'unchanged'; path: string; host?: string }
   /**
    * E1: the path is a symbolic link to the place this target names (relative targets count from the link's folder), so
@@ -293,7 +313,7 @@ export type TerminalCheck =
   /** E10–E12: listen, dns and http (server-lesson.ts). */
   | ServerCheck;
 export const TERMINAL_CHECK_KINDS = ['exists', 'absent', 'mode', 'owner', 'content', 'cwd', 'output', 'unchanged', 'link', 'user', 'group', 'umask', 'process', 'package', 'service',
-  'ssh', 'known-host', 'cron', 'timer', 'listen', 'dns', 'http', 'cert', 'nginx', 'reach', 'firewall', 'tunnel'] as const satisfies readonly TerminalCheck['kind'][];
+  'ssh', 'known-host', 'cron', 'timer', 'listen', 'dns', 'http', 'cert', 'nginx', 'reach', 'firewall', 'tunnel', 'cache'] as const satisfies readonly TerminalCheck['kind'][];
 /** E7: the checks of files that may name a remote machine (host). */
 const PATH_KINDS = ['exists', 'absent', 'mode', 'owner', 'content', 'unchanged', 'link'];
 
@@ -306,6 +326,12 @@ export interface TerminalVariant {
   /** E7: remote machines replaced by host (e.g. another host key). */ remotes?: TerminalRemote[];
   /** E9: another clock (next run times differ). */ now?: string;
   /** E11: another resolver cache (other TTLs left). */ dnsCache?: TerminalCacheEntry[];
+  /** E15 (fix, E19 batch): other active connections per upstream server (least_conn chooses differently); weights come with `files` (the site). */
+  upstreamConnections?: TerminalUpstreamConnections[];
+  /** E3/E5 (fix, E19 batch): other users and groups, other packages (replacing the machine's). */
+  accounts?: TerminalMachine['accounts']; packages?: TerminalPackages;
+  /** E19: other paths (another hop loses packets), so an answer read from mtr or traceroute cannot be typed in. */
+  paths?: PathDecl[];
 }
 
 export interface TerminalExercise {
@@ -339,12 +365,13 @@ const SYSTEM_FIELDS = ['kernel', 'release', 'version', 'machine', 'os'] as const
 /** E1: the shell profile a machine's sessions use (lab unless it says files, streams or users). */
 export const profileOf = (machine: Pick<TerminalMachine, 'profile'>): ShellProfile => PROFILES[machine.profile ?? 'lab'] ?? LAB_PROFILE;
 /** Each profile includes the ones before it: files (E1) < streams (E2) < users (E3) < processes (E4) < packages (E5) < services (E6). */
-const RANK: Record<ProfileId, number> = { lab: 0, files: 1, streams: 2, users: 3, processes: 4, packages: 5, services: 6, remote: 7, scripting: 8, scheduling: 9, sockets: 10, dns: 11, http: 12, tls: 13, nginx: 14, proxy: 15, firewall: 16, tunnels: 17 };
+const RANK: Record<ProfileId, number> = { lab: 0, files: 1, streams: 2, users: 3, processes: 4, packages: 5, services: 6, remote: 7, scripting: 8, scheduling: 9, sockets: 10, dns: 11, http: 12, tls: 13, nginx: 14, proxy: 15, firewall: 16, tunnels: 17, edge: 18, diagnostics: 19 };
 const rankOf = (machine: Pick<TerminalMachine, 'profile'>) => RANK[machine.profile ?? 'lab'] ?? 0;
 /** E10–E12: which of the server stages a machine's profile has. */
 const levelsOf = (machine: Pick<TerminalMachine, 'profile'>): ServerLevels => ({
   sockets: rankOf(machine) >= RANK.sockets, dns: rankOf(machine) >= RANK.dns, http: rankOf(machine) >= RANK.http, tls: rankOf(machine) >= RANK.tls, nginx: rankOf(machine) >= RANK.nginx,
   proxy: rankOf(machine) >= RANK.proxy, firewall: rankOf(machine) >= RANK.firewall, tunnels: rankOf(machine) >= RANK.tunnels,
+  edge: rankOf(machine) >= RANK.edge, diagnostics: rankOf(machine) >= RANK.diagnostics,
 });
 
 /** E3: a users machine's database: the base and its user (defaultAccounts) with the machine's groups and users laid over it. */
@@ -381,6 +408,8 @@ export function machineState(given: TerminalMachine): FsState {
       kind: f.kind === 'dir' ? 'dir' : f.kind === 'link' ? 'link' : 'file', mode: f.kind === 'link' ? 0o777 : f.mode, owner: f.owner,
       ...(f.group !== undefined ? { group: f.group } : {}), ...(f.kind === 'file' ? { content: f.content ?? '' } : {}),
       ...(f.kind === 'link' ? { target: f.target ?? '' } : {}),
+      // E18: a declared modification time (edge and above).
+      ...(f.kind === 'file' && f.mtime !== undefined && rankOf(machine) >= RANK.edge && parseTime(f.mtime) !== undefined ? { mtime: parseTime(f.mtime)! } : {}),
     });
   }
   const state: FsState = {
@@ -428,6 +457,8 @@ export function remoteMachine(machine: TerminalMachine, r: TerminalRemote): Term
     ...r.certificates ? { certificates: r.certificates } : {}, ...r.trust ? { trust: r.trust } : {}, ...r.certbot ? { certbot: r.certbot } : {}, ...r.nginx !== undefined ? { nginx: r.nginx } : {},
     // E15–E17: its upstream connections, firewall and who can reach it.
     ...r.upstreamConnections ? { upstreamConnections: r.upstreamConnections } : {}, ...r.firewall ? { firewall: r.firewall } : {}, ...r.reachableFrom ? { reachableFrom: r.reachableFrom } : {},
+    // E18–E19: its latency, CDN caches and captures.
+    ...r.latency !== undefined ? { latency: r.latency } : {}, ...r.cdnCache ? { cdnCache: r.cdnCache } : {}, ...r.captures ? { captures: r.captures } : {},
     ...rankOf(machine) >= RANK.firewall ? { peers: [{ host: machine.host ?? 'logic-island', address: machine.address ?? interfacesOfMachine(machine)[0]?.address ?? '10.0.0.10' }, ...(machine.remotes ?? []).filter(o => o !== r).map(o => ({ host: o.host, address: o.address, ...o.aliases ? { aliases: o.aliases } : {} }))] } : {},
     ...rankOf(machine) >= RANK.tls ? { issuers: [...machine.certificates ?? [], ...(machine.remotes ?? []).filter(o => o !== r).flatMap(o => o.certificates ?? [])] } : {},
   };
@@ -445,7 +476,8 @@ export function remoteMachine(machine: TerminalMachine, r: TerminalRemote): Term
 function remoteState(machine: TerminalMachine, r: TerminalRemote): FsState {
   const { net: _n, ...state } = machineState(remoteMachine(machine, r));
   void _n;
-  return { ...state, sshd: { ...hostKey(r.hostKey, r.host), applied: readSshdConfig(state.nodes).options } };
+  const tunnels = rankOf(machine) >= RANK.tunnels;
+  return { ...state, sshd: { ...hostKey(r.hostKey, r.host), applied: readSshdConfig(state.nodes, tunnels).options, ...tunnels ? { forwarding: true as const } : {} } };
 }
 
 /** E4–E6: the clock, processes, packages, services and journal of a machine (each only on its profile or above). */
@@ -508,6 +540,7 @@ export function variantMachine(machine: TerminalMachine, variant: TerminalVarian
     ...variant.processes ? { processes: variant.processes } : {}, ...variant.journal ? { journal: variant.journal } : {},
     ...variant.remotes ? { remotes: (machine.remotes ?? []).map(r => variant.remotes!.find(v => v.host === r.host) ?? r) } : {},
     ...variant.now !== undefined ? { now: variant.now } : {}, ...variant.dnsCache ? { dnsCache: variant.dnsCache } : {},
+    ...variant.upstreamConnections ? { upstreamConnections: variant.upstreamConnections } : {}, ...variant.accounts ? { accounts: variant.accounts } : {}, ...variant.packages ? { packages: variant.packages } : {}, ...variant.paths ? { paths: variant.paths } : {},
   };
 }
 
@@ -540,14 +573,14 @@ export function describeCheck(check: TerminalCheck): string {
 }
 function describe(check: TerminalCheck): string {
   switch (check.kind) {
-    case 'listen': case 'dns': case 'http': case 'cert': case 'nginx': case 'reach': case 'firewall': case 'tunnel': return describeServerCheck(check);
+    case 'listen': case 'dns': case 'http': case 'cert': case 'nginx': case 'reach': case 'firewall': case 'tunnel': case 'cache': return describeServerCheck(check);
     case 'exists': return `${check.path} 應該存在${check.type === 'dir' ? '（目錄）' : check.type === 'file' ? '（檔案）' : ''}`;
     case 'absent': return `${check.path} 應該不存在`;
     case 'mode': return `${check.path} 的權限應該是 ${octal(check.mode)}`;
     case 'owner': return `${check.path} 的擁有者應該是 ${check.owner}${check.group ? `、群組是 ${check.group}` : ''}`;
     case 'content': return `${check.path} 的內容應該符合題目`;
     case 'cwd': return `目前位置應該是 ${check.path}`;
-    case 'output': return '應該有一個指令印出題目要的輸出';
+    case 'output': return check.fromCommand !== undefined ? '應該有一個指令（實際檢查的指令）印出題目要的輸出' : '應該有一個指令印出題目要的輸出';
     case 'unchanged': return `${check.path} 應該維持原樣`;
     case 'link': return `${check.path} 應該是指向 ${check.target} 的符號連結`;
     case 'user': {
@@ -593,7 +626,7 @@ function describe(check: TerminalCheck): string {
 }
 
 /** Why a check fails on a state (start: the machine before the commands; reference: the solution's last output), or null when it holds. */
-function failure(check: TerminalCheck, start0: FsState, end0: FsState, outputs: string[], reference: string): string | null {
+function failure(check: TerminalCheck, start0: FsState, end0: FsState, outputs: string[], reference: string, commands: readonly string[] = []): string | null {
   // E7: a check of files may name a remote machine.
   const host = 'host' in check && PATH_KINDS.includes(check.kind) ? check.host : undefined;
   const end = host ? hostState(end0, host) : end0, start = host ? hostState(start0, host) : start0;
@@ -601,7 +634,7 @@ function failure(check: TerminalCheck, start0: FsState, end0: FsState, outputs: 
   const node = 'path' in check ? end.nodes.get(check.path) : undefined;
   const kindName = (n: FsNode) => n.kind === 'dir' ? '目錄' : n.kind === 'link' ? '符號連結' : '檔案';
   switch (check.kind) {
-    case 'listen': case 'dns': case 'http': case 'cert': case 'nginx': case 'reach': case 'firewall': case 'tunnel': return serverFailure(check, end, h => hostState(end, h), dnsResolver);
+    case 'listen': case 'dns': case 'http': case 'cert': case 'nginx': case 'reach': case 'firewall': case 'tunnel': case 'cache': return serverFailure(check, end, h => hostState(end, h), dnsResolver);
     case 'exists':
       if (!node) return '它還不存在';
       return check.type && node.kind !== check.type ? `它是${kindName(node)}` : null;
@@ -617,7 +650,13 @@ function failure(check: TerminalCheck, start0: FsState, end0: FsState, outputs: 
       if (node.kind !== 'file') return '它不是檔案';
       return node.content === check.content ? null : '內容不同';
     case 'cwd': return end.cwd === check.path ? null : `目前在 ${end.cwd}`;
-    case 'output': return outputs.includes(reference) ? null : '還沒有指令印出這個輸出';
+    case 'output': {
+      if (check.fromCommand === undefined) return outputs.includes(reference) ? null : '還沒有指令印出這個輸出';
+      let re: RegExp;
+      try { re = new RegExp(check.fromCommand); } catch { return 'fromCommand 不是正規表示式'; }
+      if (outputs.some((o, i) => o === reference && re.test(commands[i] ?? ''))) return null;
+      return outputs.includes(reference) ? '印出這個輸出的指令不是實際檢查的指令（請用指令查出答案，不要直接打出來）' : '還沒有指令印出這個輸出';
+    }
     case 'unchanged': {
       const paths = new Set([...subtreeOf(start.nodes, check.path), ...subtreeOf(end.nodes, check.path)]);
       return [...paths].every(p => sameNode(start.nodes.get(p), end.nodes.get(p))) ? null : '它被改動了';
@@ -729,7 +768,7 @@ export function checkTerminalExercise(exercise: TerminalExercise, machines: read
   });
   const results = exercise.checks.map(check => {
     for (const r of runs) {
-      const why = failure(check, r.start, r.end, r.outputs, r.reference);
+      const why = failure(check, r.start, r.end, r.outputs, r.reference, commands);
       if (why) return { check, ok: false, message: `${describeCheck(check)}，但${why}${r.label ? `（換成「${r.label}」的機器重新執行時）` : ''}` };
     }
     return { check, ok: true, message: describeCheck(check) };
@@ -779,7 +818,8 @@ export function machineProblems(given: TerminalMachine): string[] {
   problems.push(...accountProblems(machine, kinds).map(p => `machine ${machine.id}: ${p}`));
   if (!problems.length) problems.push(...systemProblems(machine).map(p => `machine ${machine.id}: ${p}`));
   if (!problems.length) problems.push(...laterProblems(machine).map(p => `machine ${machine.id}: ${p}`));
-  if (!problems.length) problems.push(...serverProblems(machine, levelsOf(machine)).map(p => `machine ${machine.id}: ${p}`));
+  const names = [machine.host ?? 'logic-island', ...(machine.remotes ?? []).map(r => r.host), ...(machine.peers ?? []).map(p => p.host)];
+  if (!problems.length) problems.push(...serverProblems(machine, levelsOf(machine), names).map(p => `machine ${machine.id}: ${p}`));
   // E13–E14: what the built machine serves (the responders' certificate files, nginx's configuration test).
   if (!problems.length && rankOf(machine) >= RANK.tls) problems.push(...webStateProblems(machine, machineState(given), levelsOf(machine)).map(p => `machine ${machine.id}: ${p}`));
   if (!normalized(homeOf(machine)) || kinds.get(homeOf(machine)) !== 'dir') fail(`the home ${homeOf(machine)} is not a folder of the machine`);
@@ -935,7 +975,7 @@ function laterProblems(machine: TerminalMachine): string[] {
     if (inner.length) continue;
     const acc = machineAccounts(m);
     for (const u of r.passwords ?? []) if (!findUser(acc, u)) fail(`${at}: password for ${u}, who is not a user of the machine`);
-    const conf = readSshdConfig(machineState(m).nodes);
+    const conf = readSshdConfig(machineState(m).nodes, rank >= RANK.tunnels);
     for (const e of conf.errors) fail(`${at}: sshd_config: ${e}`);
     // E17: a private machine names the machines that can reach it.
     const lessonNames = [machine.host ?? 'logic-island', ...remotes.map(o => o.host)];
@@ -1101,7 +1141,9 @@ export function terminalContentProblems(content: TerminalLessonContent, given?: 
       if (c.kind === 'ssh' && (!ACCOUNT_NAME.test(c.user) || !['publickey', 'password'].includes(c.method) || typeof c.allowed !== 'boolean')) fail(`${at}: an ssh check needs a user, a method (publickey or password) and allowed`);
       if (c.kind === 'cron' && (machineRank < RANK.scheduling || (c.schedule !== undefined && 'error' in parseCron(c.schedule.trim().split(/\s+/))) || (c.user !== undefined && !ACCOUNT_NAME.test(c.user)))) fail(`${at}: a cron check needs a scheduling machine (engine stage E9) and a valid schedule`);
       if (c.kind === 'timer' && (machineRank < RANK.scheduling || !TIMER.test(c.unit) || (c.next !== undefined && parseTime(c.next) === undefined))) fail(`${at}: a timer check needs a scheduling machine (engine stage E9), a unit like backup.timer and a next time YYYY-MM-DD HH:MM:SS`);
-      if (c.kind === 'listen' || c.kind === 'dns' || c.kind === 'http' || c.kind === 'cert' || c.kind === 'nginx') { const p = serverCheckProblems(c, levelsOf(valid.get(x.machine) ?? {}), known); if (p) fail(`${at}: ${p}`); }
+      if (c.kind === 'listen' || c.kind === 'dns' || c.kind === 'http' || c.kind === 'cert' || c.kind === 'nginx' || c.kind === 'cache') { const p = serverCheckProblems(c, levelsOf(valid.get(x.machine) ?? {}), known); if (p) fail(`${at}: ${p}`); }
+      // Fix (E19 batch): an output check may require that the answer came from a command matching fromCommand (a regular expression).
+      if (c.kind === 'output' && c.fromCommand !== undefined) { try { new RegExp(c.fromCommand); } catch { fail(`${at}: fromCommand is not a regular expression`); } }
       // E16–E17: reach, firewall and tunnel may also name the exercise's machine itself.
       if (c.kind === 'reach' || c.kind === 'firewall' || c.kind === 'tunnel') {
         const self = valid.get(x.machine)?.host ?? 'logic-island';
@@ -1123,6 +1165,10 @@ export function terminalContentProblems(content: TerminalLessonContent, given?: 
       if (!v.label.trim()) fail(`${at}: a variant needs a label`);
       if (v.now !== undefined && rankOf(machine) < RANK.processes) fail(`${at}: variant ${v.label}: now needs the processes profile (engine stage E4)`);
       if (v.dnsCache !== undefined && rankOf(machine) < RANK.dns) fail(`${at}: variant ${v.label}: dnsCache needs the dns profile (engine stage E11)`);
+      if (v.upstreamConnections !== undefined && rankOf(machine) < RANK.proxy) fail(`${at}: variant ${v.label}: upstreamConnections needs the proxy profile (engine stage E15)`);
+      if (v.accounts !== undefined && rankOf(machine) < RANK.users) fail(`${at}: variant ${v.label}: accounts needs the users profile (engine stage E3)`);
+      if (v.packages !== undefined && rankOf(machine) < RANK.packages) fail(`${at}: variant ${v.label}: packages needs the packages profile (engine stage E5)`);
+      if (v.paths !== undefined && rankOf(machine) < RANK.diagnostics) fail(`${at}: variant ${v.label}: paths needs the diagnostics profile (engine stage E19)`);
       for (const r of v.remotes ?? []) if (!(machine.remotes ?? []).some(m => m.host === r.host)) fail(`${at}: variant ${v.label}: remote ${r.host} is not a remote of the machine`);
       const p = machineProblems(variantMachine(machine, v));
       if (p.length) { variantsOk = false; for (const q of p) fail(`${at}: variant ${v.label}: ${q}`); }

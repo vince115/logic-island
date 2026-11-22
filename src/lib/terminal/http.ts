@@ -2,7 +2,10 @@ import { type FsState } from './fs';
 import { clockOf, commOf } from './processes';
 import { fields, MONTHS, WEEKDAYS } from './clock';
 import { openWrite, OPEN_TEXT } from './shell';
-import { indexByName, nameOf, reach, sourceAddress, viewFrom, type NetIo, type NetResult, type Reached, type Socket } from './sockets';
+import { basicResolver, hostsLookup, indexByName, isIPv4, nameOf, reach, sourceAddress, viewFrom, type NetIo, type NetResult, type Reached, type Socket } from './sockets';
+import { asNotModified, bodyEtag, cdnServe, notModified, purgeEdge, type CdnConfig, type OriginResult } from './cache';
+import { rttTo } from './diag';
+import { parseTime } from './clock';
 import { alertFor, builtin, certsIn, cnOf, curlHandshake, dnCurl, asn1Time, keyBits, nameMatches, nowOf, presentedBy, readAs, sha1, sigAlg, TRUST_BUNDLE, trustOf, VERIFY_TEXT, verifyChain, type Cert } from './tls';
 import { nginxCertificate, nginxServe, plainOnTls, type UpstreamFn, type UpstreamResult } from './nginx';
 import { base64 } from './ssh';
@@ -43,9 +46,14 @@ export interface Route {
   websocket?: true;
   /** E15: seconds before the answer (nginx's proxy_read_timeout turns a slow application into a 504). */
   delay?: number;
+  /** E18 (edge): an ETag (true: computed from the body) and a Last-Modified time (UTC); conditional requests then get 304. */
+  etag?: true | string;
+  lastModified?: string;
+  /** E18 (edge): the fictional CDN purge API: POST url=… (or all=1) removes those URLs from the named edges' caches. */
+  purge?: { edges: string[]; token?: string };
 }
 /** E12: an HTTP server's behaviour: its Server header, whether it keeps connections alive (default yes), its routes in order. E15: a delay for every answer. */
-export interface Responder { id: string; server?: string; keepAlive?: boolean; routes: Route[]; delay?: number }
+export interface Responder { id: string; server?: string; keepAlive?: boolean; routes: Route[]; delay?: number; /** E18: a CDN edge in front of an origin (routes unused). */ cdn?: CdnConfig }
 
 export const CURL_VERSION = '8.5.0';
 const REASONS: Readonly<Record<number, string>> = {
@@ -74,16 +82,27 @@ export function errorPage(status: number, server?: string): string {
 /** version: E15, the HTTP version of the request line (nginx's proxy sends 1.0 unless proxy_http_version 1.1); default 1.1. */
 export interface Request { method: string; path: string; headers: [string, string][]; body?: string; version?: '1.0' | '1.1' }
 /** wait: E15, the seconds the answer took (an upstream's delay, nginx's timeouts); curl -m compares it. */
-export interface Response { status: number; reason: string; headers: [string, string][]; body: string; close: boolean; wait?: number }
+export interface Response {
+  status: number; reason: string; headers: [string, string][]; body: string; close: boolean; wait?: number;
+  /** E18: the cache's verdict (nginx's $upstream_cache_status, or the CDN edge's X-Cache), for the lesson's cache check; not a header. */
+  cache?: string;
+  /** E18: milliseconds the server spent on the network behind it (nginx to its upstreams, the edge to its origin), for curl -w. */
+  upstreamMs?: number;
+}
 const header = (h: readonly [string, string][], name: string) => h.find(([k]) => k.toLowerCase() === name.toLowerCase())?.[1];
 
 /**
  * What a responder answers: the first route whose path (and Host) matches, 405 for another method, else 404. E12 fix: a
  * 204 has no Content-Length (and no body). E13: a route with root serves files through `read` (missing: 404).
  */
-export function respond(r: Responder, req: Request, now: number, read?: (path: string) => string | undefined, client?: string): Response {
+/** The first route of a responder for the request's path and Host. */
+export function routeOf(r: Responder, req: Request): Route | undefined {
   const host = (header(req.headers, 'Host') ?? '').replace(/:\d+$/, '').toLowerCase(), path = req.path.split('?')[0];
-  const route = r.routes.find(x => (!x.host || x.host.toLowerCase() === host) && (x.path.endsWith('*') ? path.startsWith(x.path.slice(0, -1)) : path === x.path));
+  return r.routes.find(x => (!x.host || x.host.toLowerCase() === host) && (x.path.endsWith('*') ? path.startsWith(x.path.slice(0, -1)) : path === x.path));
+}
+export function respond(r: Responder, req: Request, now: number, read?: (path: string) => string | undefined, client?: string): Response {
+  const path = req.path.split('?')[0];
+  const route = routeOf(r, req);
   const methods = route?.methods ?? ['GET'];
   const allowed = route && (methods.includes(req.method) || (req.method === 'HEAD' && methods.includes('GET')));
   const wait = route?.delay ?? r.delay;
@@ -220,7 +239,11 @@ function curlOptions(args: readonly string[], io: NetIo): Opts | { status: numbe
 }
 
 /** What one exchange produced (for -w and -f). */
-interface Exchange { url: Url; res?: Response; address?: string; request?: number; method: string; exit: number; error?: string; redirects: number; connects: number; location?: string }
+interface Exchange {
+  url: Url; res?: Response; address?: string; request?: number; method: string; exit: number; error?: string; redirects: number; connects: number; location?: string;
+  /** E18: curl's timers for -w (seconds since the transfer started; redirect: the redirects before the last request). */
+  times?: { namelookup: number; connect: number; appconnect: number; pretransfer: number; starttransfer: number; total: number; redirect: number };
+}
 
 const SSL_HELP = ['More details here: https://curl.se/docs/sslcerts.html', '', 'curl failed to verify the legitimacy of the server and therefore could not',
   'establish a secure connection to it. To learn more about this situation and', 'how to fix it, please visit the web page mentioned above.'];
@@ -259,7 +282,7 @@ export function upstreamOf(get: () => FsState, set: (s: FsState) => void, at: 's
       if ('plain' in t) return done({ kind: 'plain' });
       if ('error' in t || !t.keyOk) return done({ kind: 'closed' });
     }
-    const now = clockOf(r.host).now;
+    const now = clockOf(r.host).now, ms = rttTo(origin, address) ?? 0;
     let res: Response, served = r.host;
     if (s.nginx && r.host.nginx?.applied) {
       if (depth >= 3) return done({ kind: 'closed' });
@@ -274,17 +297,82 @@ export function upstreamOf(get: () => FsState, set: (s: FsState) => void, at: 's
     } else {
       const responder = findResponder(r.host, s);
       if (!responder || (scheme === 'http' && s.tls)) return done({ kind: 'closed' });
-      res = respond(responder.r, req, now, fileReader(r.host), client);
+      const endAt = r.at === 'self' ? at : indexByName(get(), nameOf(r.host)) ?? 'self';
+      const a = serveResponder(get, set, endAt, r.host, responder.r, req, now, client, depth);
+      res = a.res; served = a.host;
     }
-    const delay = res.wait ?? 0;
-    if (r.at === 'self') return done({ kind: 'response', res, delay }, at === 'self' ? served : stripNet(served));
+    const delay = (res.wait ?? 0) + (res.upstreamMs ?? 0) / 1000;
+    if (r.at === 'self') return { ...done({ kind: 'response', res, delay }, at === 'self' ? served : stripNet(served)), ms };
     const idx = indexByName(get(), nameOf(r.host));
     if (idx !== undefined) {
       const root = get();
       set(idx === 'self' ? { ...stripNet(served), ...root.net ? { net: root.net } : {}, ...root.session ? { session: root.session } : {} } : withHost(root, idx, served));
     }
-    return done({ kind: 'response', res, delay });
+    return { ...done({ kind: 'response', res, delay }), ms };
   };
+}
+
+/**
+ * E18: a responder's answer on a host of the network rooted at get() (its place: at). From the edge profile up a CDN
+ * edge (cdn) fetches its origin through the network from its own place and keeps what it may; the purge API changes the
+ * edges it names; routes may carry validators, and a conditional GET gets 304. Below the edge profile: respond().
+ */
+export function serveResponder(get: () => FsState, set: (s: FsState) => void, at: 'self' | number, host: FsState, r: Responder, req: Request, now: number, client: string, depth = 0): { res: Response; host: FsState } {
+  if (!host.http?.edge) return { res: respond(r, req, now, fileReader(host), client), host };
+  if (r.cdn) {
+    if (depth >= 3) return { res: respond({ ...r, routes: [] }, req, now), host };
+    const cfg = r.cdn;
+    const fetch = (originReq: Request): OriginResult => {
+      const view = at === 'self' ? host : viewFrom(withHost(get(), at, host), at);
+      const found = isIPv4(cfg.origin) ? cfg.origin : (() => { const x = basicResolver(view, cfg.origin, 4); return 'found' in x ? x.found.address : undefined; })();
+      if (!found) return { kind: 'failed', status: 502, ms: 0 };
+      const fwd: Request = { ...originReq, headers: [...originReq.headers.filter(([k]) => k.toLowerCase() !== 'x-forwarded-for'), ['X-Forwarded-For', [header(req.headers, 'X-Forwarded-For'), client].filter(Boolean).join(', ')]] };
+      const u = upstreamOf(get, set, at, depth + 1)(host, found, cfg.port ?? (cfg.scheme === 'https' ? 443 : 80), cfg.scheme ?? 'http', fwd);
+      host = u.host;
+      const ms = u.ms ?? 0;
+      if (u.result.kind === 'response') return { kind: 'response', res: u.result.res, ms: ms + u.result.delay * 1000 };
+      return { kind: 'failed', status: u.result.kind === 'timeout' ? 504 : 502, ms: ms + (u.result.kind === 'timeout' ? 60000 : 0) };
+    };
+    const out = cdnServe(host, r.id, cfg, req, fetch);
+    return { res: { ...out.res, ...out.ms ? { upstreamMs: out.ms } : {} }, host: out.host };
+  }
+  const route = routeOf(r, req);
+  if (route?.purge && (route.methods ?? ['POST']).includes(req.method)) return purgeApi(get, set, at, host, r, route, req, now);
+  let res = respond(r, req, now, fileReader(host), client);
+  if (route && res.status === 200 && (route.etag || route.lastModified)) {
+    const lm = route.lastModified !== undefined ? parseTime(route.lastModified) : undefined;
+    const etag = route.etag === true ? bodyEtag(res.body) : route.etag;
+    res = { ...res, headers: [...res.headers.filter(([k]) => !['etag', 'last-modified'].includes(k.toLowerCase())), ...lm !== undefined ? [['Last-Modified', httpDate(lm)] as [string, string]] : [], ...etag ? [['ETag', etag] as [string, string]] : []] };
+  }
+  if (notModified(req, res)) res = asNotModified(res);
+  return { res, host };
+}
+/** E18: POST url=…|all=1 (form or JSON) with Authorization: Bearer token: the named edges forget those URLs. */
+function purgeApi(get: () => FsState, set: (s: FsState) => void, at: 'self' | number, host: FsState, r: Responder, route: Route, req: Request, now: number): { res: Response; host: FsState } {
+  const json = (status: number, value: unknown): { res: Response; host: FsState } => {
+    const body = `${JSON.stringify(value)}\n`;
+    return { res: { status, reason: reasonOf(status, r.server), headers: [...r.server ? [['Server', r.server] as [string, string]] : [], ['Date', httpDate(now)], ['Content-Type', 'application/json'], ['Content-Length', String(bytes(body))], ['Connection', 'keep-alive']], body: req.method === 'HEAD' ? '' : body, close: false }, host };
+  };
+  const p = route.purge!;
+  if (p.token !== undefined && header(req.headers, 'Authorization') !== `Bearer ${p.token}`) return json(401, { error: 'unauthorized' });
+  const text = req.body ?? '';
+  let url: string | undefined, all = false;
+  try {
+    if (text.trim().startsWith('{')) { const o = JSON.parse(text) as { url?: unknown; all?: unknown }; url = typeof o.url === 'string' ? o.url : undefined; all = o.all === true; }
+    else { const q = new URLSearchParams(text); url = q.get('url') ?? undefined; all = q.get('all') === '1' || q.get('all') === 'true'; }
+  } catch { return json(400, { error: 'invalid JSON' }); }
+  if (!url && !all) return json(400, { error: 'missing url' });
+  let purged = 0;
+  for (const name of p.edges) {
+    const root = get(), idx = indexByName(root, name);
+    if (idx === undefined) continue;
+    const edgeState = idx === at ? host : idx === 'self' ? root : root.net!.hosts[idx].state;
+    const out = purgeEdge(edgeState, all ? 'all' : url!);
+    purged += out.purged;
+    if (idx === at) host = out.host;
+    else set(idx === 'self' ? { ...out.host, ...root.net ? { net: root.net } : {} } : withHost(root, idx, out.host));
+  }
+  return json(200, { status: 'ok', purged });
 }
 /** A host's state written back after a request (nginx's logs): the machine itself or a host of its network. */
 export function withHost(state: FsState, at: 'self' | number, host: FsState): FsState {
@@ -311,6 +399,8 @@ export function curl(state0: FsState, args: readonly string[], io: NetIo): NetRe
   if (o.method === 'POST' && o.data !== undefined && !o.silent) io.err('Note: Unnecessary use of -X or --request, POST is already inferred.');
   let state = state0, nextId = 0, last = 0;
   const pool = new Map<string, { id: number; address: string; tls: boolean; tickets: boolean }>();
+  // E18: curl -w's timers come from the lesson's latencies (diag.ts) and the server's time; below the edge profile there are none.
+  let timing: { lookup: number; rtt: number; tls: boolean; fresh: boolean } | undefined;
   const say = (line: string) => { if (o.verbose) io.err(line); };
   const error = (code: number, message: string, more: readonly string[] = []) => { if (!o.silent || o.showError) { io.err(`curl: (${code}) ${message}`); more.forEach(l => io.err(l)); } return code; };
   let sink: string | undefined, sinkPath: string | null | undefined;
@@ -348,16 +438,21 @@ export function curl(state0: FsState, args: readonly string[], io: NetIo): NetRe
       const key = `${u.scheme}://${u.host}:${u.port}`;
       let conn = pool.get(key);
       let address: string;
-      if (conn) { address = conn.address; say(`* Re-using existing connection with host ${u.host}`); }
+      if (conn) { address = conn.address; say(`* Re-using existing connection with host ${u.host}`); timing = { lookup: 0.00001, rtt: rttTo(state, address) ?? 0, tls: false, fresh: false }; }
       else {
         const forced = o.resolve.find(r => r.host === u.host && r.port === u.port);
+        let lookup = 0.000012;
         if (forced) { address = forced.address; say(`* Added ${u.host}:${u.port}:${forced.address} to DNS cache`); say(`* Hostname ${u.host} was found in DNS cache`); }
         else {
+          const before = state.dns, viaHosts = !isIPv4(u.host) && !!hostsLookup(state, u.host, 4);
           const r = io.resolve(state, u.host, 4);
           state = r.state;
           if ('error' in r) { ex.exit = error(6, `Could not resolve host: ${u.host}`); break; }
           address = r.found.address;
+          // An address, /etc/hosts, the resolver's cache, or a query the resolver had to send (dig's 24 msec).
+          lookup = isIPv4(u.host) ? 0.000012 : viaHosts ? 0.00018 : state.dns !== before ? 0.0243 : 0.00045;
         }
+        timing = { lookup, rtt: rttTo(state, address) ?? 0, tls: u.scheme === 'https', fresh: true };
         say(`*   Trying ${address}:${u.port}...`);
         const reached = reach(state, address, u.port);
         if (reached.result !== 'ok') {
@@ -450,10 +545,22 @@ export function curl(state0: FsState, args: readonly string[], io: NetIo): NetRe
         }
       } else if (u.scheme === 'http' && socket?.tls) {
         pool.delete(key); say('* Empty reply from server'); say('* Closing connection'); ex.exit = error(52, 'Empty reply from server'); break;
-      } else res = respond(responder!.r, req, now, fileReader(ok.host), clientAddress(state, ok.at, address));
+      } else {
+        // E18: a CDN edge, the purge API, validators (serveResponder); below the edge profile respond() as before.
+        const a = serveResponder(() => state, next => { state = next; }, ok.at, ok.host, responder!.r, req, now, clientAddress(state, ok.at, address));
+        res = a.res;
+        if (a.host !== ok.host) state = ok.at === 'self' ? { ...a.host, ...state.net ? { net: state.net } : {}, ...state.session ? { session: state.session } : {} } : withHost(state, ok.at, a.host);
+      }
       // E15: an answer slower than -m is curl's error 28 (nothing of it is written).
       if (o.maxTime !== undefined && (res.wait ?? 0) > o.maxTime) { pool.delete(key); ex.exit = error(28, `Operation timed out after ${Math.round(o.maxTime * 1000)} milliseconds with 0 bytes received`); break; }
       ex.res = res;
+      if (io.edge && timing) {
+        const prior = ex.times ? ex.times.total : 0, s0 = timing.lookup, connect = s0 + (timing.fresh ? timing.rtt / 1000 : 0);
+        const app = timing.tls && timing.fresh ? connect + timing.rtt / 1000 + 0.0021 : 0, pre = (app || connect) + 0.00005;
+        const start = pre + timing.rtt / 1000 + (res.wait ?? 0) + (res.upstreamMs ?? 0) / 1000, total = start + 0.00008 + bytes(res.body) / 1.25e8;
+        const at = (t: number) => t ? prior + t : 0;
+        ex.times = { namelookup: prior + s0, connect: prior + connect, appconnect: at(app), pretransfer: prior + pre, starttransfer: prior + start, total: prior + total, redirect: prior };
+      }
       const statusLine = `HTTP/1.1 ${res.status} ${res.reason}`.trimEnd();
       [statusLine, ...res.headers.map(([k, v]) => `${k}: ${v}`)].forEach(l => say(`< ${l}`));
       say('<');
@@ -520,6 +627,15 @@ function writeOut(format: string, ex: Exchange, io: NetIo): string {
       case 'exitcode': return String(ex.exit);
       case 'errormsg': return '';
     }
+    // E18: the timers (seconds, six decimals) and the average download speed (bytes per second).
+    const t = ex.times;
+    if (io.edge && t && name.startsWith('time_')) {
+      const v = { time_namelookup: t.namelookup, time_connect: t.connect, time_appconnect: t.appconnect, time_pretransfer: t.pretransfer, time_starttransfer: t.starttransfer, time_total: t.total, time_redirect: t.redirect }[name];
+      return v === undefined ? undefined : v.toFixed(6);
+    }
+    if (io.edge && name.startsWith('time_')) return ['time_namelookup', 'time_connect', 'time_appconnect', 'time_pretransfer', 'time_starttransfer', 'time_total', 'time_redirect'].includes(name) ? '0.000000' : undefined;
+    if (io.edge && name === 'speed_download') return String(t && t.total ? Math.round((res ? bytes(res.body) : 0) / t.total) : 0);
+    if (io.edge && name === 'speed_upload') return '0';
     return undefined;
   };
   let out = '';
@@ -544,7 +660,7 @@ function writeOut(format: string, ex: Exchange, io: NetIo): string {
         const name = format.slice(i + 2, end);
         const v = value(name);
         if (v !== undefined) out += v;
-        else if (name.startsWith('time_') || name.startsWith('speed_')) io.err(`curl: 模擬環境不提供時間與速度的 --write-out 變數（%{${name}}）：真實的值每次都不同`);
+        else if (!io.edge && (name.startsWith('time_') || name.startsWith('speed_'))) io.err(`curl: 模擬環境不提供時間與速度的 --write-out 變數（%{${name}}）：真實的值每次都不同`);
         else io.err(`curl: unknown --write-out variable: '${name}'`);
         i = end;
         continue;
@@ -560,7 +676,7 @@ function writeOut(format: string, ex: Exchange, io: NetIo): string {
  * https:// verifies the server's certificate for the host against this machine's trust store, as curl does; E14: nginx
  * answers from its applied configuration (its logs are not kept).
  */
-export function probe(state: FsState, url: string, resolve: NetIo['resolve'], tls = false): { status: number; headers: [string, string][]; body: string } | { error: string } {
+export function probe(state: FsState, url: string, resolve: NetIo['resolve'], tls = false, extra: [string, string][] = []): { status: number; headers: [string, string][]; body: string; cache?: string } | { error: string } {
   const u = parseUrl(url);
   if ('code' in u) return { error: u.message };
   const r = resolve(state, u.host, 4);
@@ -576,17 +692,19 @@ export function probe(state: FsState, url: string, resolve: NetIo['resolve'], tl
     if (v.first) return { error: `憑證驗證失敗：${VERIFY_TEXT[v.first]}` };
     if (!nameMatches(server.chain[0], u.host)) return { error: `憑證沒有 ${u.host} 這個名稱` };
   }
-  const req: Request = { method: 'GET', path: u.path, headers: [['Host', u.port === (u.scheme === 'https' ? 443 : 80) ? u.host : `${u.host}:${u.port}`], ['User-Agent', `curl/${CURL_VERSION}`], ['Accept', '*/*']] };
+  const req: Request = { method: 'GET', path: u.path, headers: [['Host', u.port === (u.scheme === 'https' ? 443 : 80) ? u.host : `${u.host}:${u.port}`], ['User-Agent', `curl/${CURL_VERSION}`], ['Accept', '*/*'], ...extra] };
   const now = clockOf(reached.host).now;
   if (reached.socket.nginx && reached.host.nginx?.applied) {
     const x = { address: r.found.address, port: u.port, https: u.scheme === 'https', client: clientAddress(r.state, reached.at, r.found.address), req, now };
-    const res = u.scheme === 'http' && reached.socket.ssl ? plainOnTls(reached.host, x) : nginxServe(reached.host, { ...x, upstream: upstreamOf(() => r.state, () => {}, reached.at) }).res;
-    return { status: res.status, headers: res.headers, body: res.body };
+    let root = r.state;
+    const res = u.scheme === 'http' && reached.socket.ssl ? plainOnTls(reached.host, x) : nginxServe(reached.host, { ...x, upstream: upstreamOf(() => root, next => { root = next; }, reached.at) }).res;
+    return { status: res.status, headers: res.headers, body: res.body, ...res.cache ? { cache: res.cache } : {} };
   }
   const responder = findResponder(reached.host, reached.socket);
   if (!responder) return { error: `${u.host}:${u.port} 上的程式不是 HTTP 伺服器` };
   if (u.scheme === 'http' && reached.socket.tls) return { error: `${u.host}:${u.port} 只接受 HTTPS` };
-  const res = respond(responder.r, req, now, fileReader(reached.host), clientAddress(r.state, reached.at, r.found.address));
-  return { status: res.status, headers: res.headers, body: res.body };
+  let root = r.state;
+  const res = serveResponder(() => root, next => { root = next; }, reached.at, reached.host, responder.r, req, now, clientAddress(r.state, reached.at, r.found.address)).res;
+  return { status: res.status, headers: res.headers, body: res.body, ...res.cache ? { cache: res.cache } : {} };
 }
 export { header as responseHeader };

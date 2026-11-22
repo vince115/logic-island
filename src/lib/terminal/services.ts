@@ -780,7 +780,10 @@ export function systemctl(state: FsState, args: readonly string[], io: SysIo): {
         const file = load(w, name)!, c = parseUnit(file), r = w.runtime[name] ?? { active: 'inactive', sub: 'dead' };
         return { name, cells: [name, c.bad ? 'bad-setting' : 'loaded', r.active, r.sub, c.description ?? name], failed: r.active === 'failed' };
       }).filter(r => filter ? r.cells[2] === filter || r.cells[3] === filter : o.flags.has('a') || r.cells[2] !== 'inactive');
-      grid([['UNIT', 'LOAD', 'ACTIVE', 'SUB', 'DESCRIPTION'], ...rows.map(r => r.cells)], i => i && rows[i - 1].failed ? '● ' : '  ').forEach(l => io.out(l));
+      // Fix (E19 batch): --no-legend leaves out the header line as well as the legend and the count.
+      // (systemd sizes the columns from what it prints, so without the header only the rows count.)
+      if (o.flags.has('\x05')) { if (rows.length) grid(rows.map(r => r.cells), i => rows[i].failed ? '● ' : '  ').forEach(l => io.out(l)); }
+      else grid([['UNIT', 'LOAD', 'ACTIVE', 'SUB', 'DESCRIPTION'], ...rows.map(r => r.cells)], i => i && rows[i - 1].failed ? '● ' : '  ').forEach(l => io.out(l));
       if (!o.flags.has('\x05')) {
         io.out('');
         io.out('Legend: LOAD   → Reflects whether the unit definition was properly loaded.');
@@ -795,6 +798,7 @@ export function systemctl(state: FsState, args: readonly string[], io: SysIo): {
     case 'list-unit-files': {
       const names = unitFilesOnDisk(w.nodes, timers).filter(n => !type || n.endsWith(`.${type}`));
       const rows = names.map(name => { const e = enablement(w.nodes, name)!; return [name, e, e === 'static' ? '-' : 'enabled']; });
+      if (o.flags.has('\x05')) { if (rows.length) grid(rows).forEach(l => io.out(l)); return { state, status: 0 }; }
       grid([['UNIT FILE', 'STATE', 'PRESET'], ...rows]).forEach(l => io.out(l));
       io.out('');
       io.out(`${rows.length} unit files listed.`);
@@ -855,7 +859,8 @@ export function journalctl(state: FsState, args: readonly string[], io: SysIo): 
   const lines = one('n') ?? (o.flags.has('e') ? '1000' : undefined);
   if (lines !== undefined && !/^\d+$/.test(lines)) { io.err(`Failed to parse lines '${lines}'`); return 1; }
   let grep: RegExp | undefined;
-  if (one('g') !== undefined) { const c = compilePattern(one('g')!, true); if ('error' in c) { io.err(`journalctl: ${c.error}`); return 1; } grep = new RegExp(c.source, 'u'); }
+  // Fix (E19 batch): systemd's smart case — case-insensitive unless the pattern has an uppercase letter.
+  if (one('g') !== undefined) { const c = compilePattern(one('g')!, true); if ('error' in c) { io.err(`journalctl: ${c.error}`); return 1; } grep = new RegExp(c.source, /\p{Lu}/u.test(one('g')!) ? 'u' : 'iu'); }
   const allowed = io.user === 'root' || groupsOf(state).some(g => g === 'adm' || g === 'systemd-journal');
   if (!allowed && !o.flags.has('q')) {
     io.err('Hint: You are currently not seeing messages from other users and the system.');

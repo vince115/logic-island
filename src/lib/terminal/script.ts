@@ -968,7 +968,9 @@ class Interp {
   glob(fields: readonly Field[]): string[] { return globFields(this.state, fields, this.profile); }
   arithmetic(w: Word): number {
     const src = this.text(w);
-    try { return arith(src, n => this.lookup(n), (n, v) => this.setVar(n, v)); }
+    // Fix (E19 batch): set -u also covers a variable an arithmetic expression reads ($((n + 1)), (( count++ ))), as in bash.
+    const get = (n: string) => { const v = this.lookup(n); if (v === undefined && this.opts.nounset) this.unbound(n); return v; };
+    try { return arith(src, get, (n, v) => this.setVar(n, v)); }
     catch (e) { if (e instanceof ArithError) throw new Expansion(/: value too great for base/.test(e.message) ? e.message : `${src.trim()}: ${e.message}`); throw e; }
   }
   /** $( … ): the list in a subshell, its standard output without the trailing newlines; set -e does not reach inside. */
