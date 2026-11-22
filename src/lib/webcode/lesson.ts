@@ -43,6 +43,8 @@ export type WebAction =
   | { do: 'submit'; selector: string }
   /** Scrolls the page (`selector: ':page'`) or a scrolling element to a vertical offset in pixels. */
   | { do: 'scroll'; selector: string; top: number }
+  /** Changes the check page's viewport (RWD-0): the same page is then laid out at another width (and height), so one answer is checked at several sizes. */
+  | { do: 'resize'; width: number; height?: number }
   /** Presses Tab (W5): focus moves to the next element in tab order (Shift+Tab: the previous one), unless the page cancels the key. */
   | { do: 'tab'; shift?: boolean }
   /** Fires an event of this type on the element (mouseover, dblclick, a custom event…); it bubbles unless the type never does. */
@@ -110,6 +112,8 @@ export interface WebExample {
   expectErrors?: boolean;
   viewport?: WebViewport;
   setup?: WebSetup;
+  /** RWD-0: widths (CSS px) the learner can switch the preview to; the first is shown at the start. Without it the preview fills its column. */
+  widths?: number[];
 }
 
 /**
@@ -129,6 +133,8 @@ export interface WebExercise {
   viewport?: WebViewport;
   /** The page's server routes and stored data; a variant may bring its own (other data from the server, a returning visitor). */
   setup?: WebSetup;
+  /** RWD-0: widths (CSS px) the learner can switch the preview to; the first is shown at the start. */
+  widths?: number[];
 }
 
 export interface WebLessonContent { examples: WebExample[]; exercises: WebExercise[] }
@@ -247,6 +253,7 @@ const quote = (s: string) => `「${s}」`;
 const actionText = (a: WebAction) => a.do === 'click' ? `點擊 \`${a.selector}\`` : a.do === 'input' ? `在 \`${a.selector}\` 輸入${quote(a.value)}`
   : a.do === 'select' ? `在 \`${a.selector}\` 選擇${quote(a.value)}` : a.do === 'check' ? `${a.checked ? '勾選' : '取消勾選'} \`${a.selector}\``
   : a.do === 'scroll' ? `把${a.selector === ':page' ? '頁面' : ` \`${a.selector}\` `}往下捲到 ${a.top}px`
+  : a.do === 'resize' ? `把頁面的寬度改成 ${a.width}px${a.height ? `、高度 ${a.height}px` : ''}`
   : a.do === 'tab' ? `按下 ${a.shift ? 'Shift+Tab' : 'Tab'}`
   : a.do === 'dispatch' ? `在 \`${a.selector}\` 觸發 ${a.event} 事件`
   : a.do === 'key' ? `在 \`${a.selector}\` 按下 ${a.key === ' ' ? 'Space' : a.key}` : a.do === 'submit' ? `送出 \`${a.selector}\`` : `等待 ${a.ms} 毫秒`;
@@ -285,11 +292,18 @@ const BOX: Record<Extract<WebCheck, { check: 'box' }>['measure'], string> = { wi
 /** The shown results of a run: one per check; an action that found no element fails the checks after it with a note. */
 export function judge(steps: WebStep[], raw: WebRawResult[]): WebCheckResult[] {
   const results: WebCheckResult[] = [];
-  let blocked = '';
+  let blocked = '', unsized = '';
   steps.forEach((step, i) => {
     const r = raw[i] ?? { ok: false, error: 'missing' };
-    if (!isWebCheck(step)) { if (!r.ok && !blocked) blocked = `無法${actionText(step)}：${r.missing ? '頁面上找不到這個元素' : '這個操作無法執行'}。`; return; }
-    results.push({ label: step.label, ok: r.ok, message: r.ok ? '' : blocked || failure(step, r) });
+    if (!isWebCheck(step)) {
+      // RWD-0: a check after a resize that did not happen would measure the page at another width, so it is not believed
+      // (until a later resize succeeds).
+      if (step.do === 'resize') unsized = r.ok ? '' : `無法${actionText(step)}：這個操作無法執行。`;
+      else if (!r.ok && !blocked) blocked = `無法${actionText(step)}：${r.missing ? '頁面上找不到這個元素' : '這個操作無法執行'}。`;
+      return;
+    }
+    const ok = r.ok && !unsized;
+    results.push({ label: step.label, ok, message: ok ? '' : unsized || blocked || failure(step, r) });
   });
   return results;
 }
@@ -320,7 +334,7 @@ export async function checkWebExercise(exercise: WebExercise, edited: WebFilesPa
 export const TIMEOUT_MESSAGE = '頁面沒有在時間內完成載入與檢查（可能有不會結束的迴圈）。';
 
 // ---- validation -------------------------------------------------------------------------------------------------
-const ACTIONS = ['click', 'input', 'select', 'check', 'key', 'submit', 'scroll', 'dispatch', 'tab', 'wait'];
+const ACTIONS = ['click', 'input', 'select', 'check', 'key', 'submit', 'scroll', 'dispatch', 'tab', 'resize', 'wait'];
 const CHECKS = ['name', 'role', 'request', 'storage', 'cookie', 'count', 'text', 'attr', 'style', 'box', 'hit', 'value', 'label', 'headings', 'focus', 'console', 'submitted', 'navigated', 'doctype'];
 
 function stepProblems(steps: WebStep[], where: string): string[] {
@@ -349,6 +363,7 @@ function stepProblems(steps: WebStep[], where: string): string[] {
       if (s.do === 'wait') { waited += s.ms; if (!(s.ms > 0 && s.ms <= WEB_LIMITS.waitStep)) problems.push(`${at} waits 1–${WEB_LIMITS.waitStep} ms`); }
       else if (s.do === 'dispatch' && !/^[a-zA-Z][\w:-]*$/.test(s.event ?? '')) problems.push(`${at} needs an event type`);
       else if (s.do === 'scroll' && !(Number.isFinite(s.top) && s.top >= 0)) problems.push(`${at} scrolls to an offset of 0 or more`);
+      else if (s.do === 'resize') { if (!(Number.isInteger(s.width) && s.width >= 240 && s.width <= 1600) || (s.height !== undefined && !(Number.isInteger(s.height) && s.height >= 200 && s.height <= 1200))) problems.push(`${at} resizes to a width of 240–1600 (and a height of 200–1200)`); }
       else if (s.do !== 'tab' && !s.selector?.trim()) problems.push(`${at} needs a selector`);
     }
   });
@@ -376,6 +391,8 @@ function setupProblems(setup: WebSetup | undefined, where: string): string[] {
   for (const [k, v] of [...Object.entries(setup?.storage ?? {}), ...Object.entries(setup?.cookies ?? {})]) if (typeof v !== 'string') problems.push(`${where}: stored ${k} is not text`);
   return problems;
 }
+const widthProblems = (widths: number[] | undefined, where: string) =>
+  widths && (!widths.length || widths.length > 5 || widths.some(w => !(Number.isInteger(w) && w >= 240 && w <= 1600))) ? [`${where} offers 1–5 preview widths of 240–1600`] : [];
 const sameKeys = (a: WebFilesPart, b: WebFilesPart) => fileKinds(a).join() === fileKinds(b).join();
 
 /**
@@ -390,7 +407,7 @@ export function webContentProblems(content: WebLessonContent): string[] {
     const at = `example ${e.id}`;
     if (!e.description?.trim()) problems.push(`${at} needs a description`);
     if (!e.files?.html?.trim()) problems.push(`${at} needs HTML`);
-    problems.push(...fileProblems(e.files ?? {}, at), ...stepProblems(e.observe, at), ...viewportProblems(e.viewport, at), ...setupProblems(e.setup, at));
+    problems.push(...fileProblems(e.files ?? {}, at), ...stepProblems(e.observe, at), ...viewportProblems(e.viewport, at), ...setupProblems(e.setup, at), ...widthProblems(e.widths, at));
     if (e.height !== undefined && !(e.height >= WEB_LIMITS.minHeight && e.height <= WEB_LIMITS.maxHeight)) problems.push(`${at} has a height outside ${WEB_LIMITS.minHeight}–${WEB_LIMITS.maxHeight}`);
   }
   for (const x of content.exercises) {
@@ -402,7 +419,7 @@ export function webContentProblems(content: WebLessonContent): string[] {
     if (!sameKeys(x.starter ?? {}, x.solution ?? {})) problems.push(`${at}: the solution has the files the learner edits (${editable.join(', ')}), no others`);
     else if (editable.every(k => x.starter[k] === x.solution[k])) problems.push(`${at}: the solution is the starter`);
     if (!mergeFiles(x.fixed, x.solution ?? {}).html.trim()) problems.push(`${at}: the solved page has no HTML`);
-    problems.push(...fileProblems(x.fixed ?? {}, at), ...fileProblems(x.starter ?? {}, at), ...fileProblems(x.solution ?? {}, at), ...stepProblems(x.steps, at), ...viewportProblems(x.viewport, at), ...setupProblems(x.setup, at));
+    problems.push(...fileProblems(x.fixed ?? {}, at), ...fileProblems(x.starter ?? {}, at), ...fileProblems(x.solution ?? {}, at), ...stepProblems(x.steps, at), ...viewportProblems(x.viewport, at), ...setupProblems(x.setup, at), ...widthProblems(x.widths, at));
     if (!x.mistakes?.length) problems.push(`${at} needs at least one typical mistake`);
     for (const [i, m] of (x.mistakes ?? []).entries()) {
       if (!m.why?.trim()) problems.push(`${at}: mistake ${i + 1} needs its explanation`);

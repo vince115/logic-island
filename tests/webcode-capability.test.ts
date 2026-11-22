@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { curriculum, lessons } from '@/content/curriculum';
-import { webFromBlueprint } from '@/content/curriculum/lessons';
+import { responsiveFromBlueprint, webFromBlueprint } from '@/content/curriculum/lessons';
 import { ISLAND_IDS, ISLAND_PREFIX, LESSON_ACTIVITIES, LESSON_CAPABILITIES, PREPARED_ISLAND_IDS, validateContent, validateCurriculum, type LessonContent, type LessonMeta } from '@/content/curriculum/schema';
 import { UNITS } from '@/content/curriculum/units';
 import { publishProblems } from '@/lib/curriculum/publish-gate';
@@ -103,12 +103,12 @@ describe('isolation from the other capabilities', () => {
   });
   it('keeps every other lesson as it was and the curriculum valid', () => {
     expect(validateCurriculum(curriculum)).toEqual([]);
-    // WEB-1: only the web foundations island's lessons use the web-code capability.
+    // WEB-1: only the web foundations island's lessons use the web-code capability; RWD-1: and the responsive design island's.
     for (const l of lessons) {
-      const web = l.islandId === 'web-foundations';
+      const web = l.islandId === 'web-foundations' || l.islandId === 'responsive-design';
       expect(l.capabilities.includes('web-code'), l.lessonId).toBe(web);
       // WEB15 is the capstone: its activity is challenge-stages.
-      expect(l.activity === 'dom-explorer', l.lessonId).toBe(web && l.lessonId !== 'WEB15');
+      expect(l.activity === 'dom-explorer', l.lessonId).toBe(web && l.lessonId !== 'WEB15' && l.lessonId !== 'RWD12');
       expect(!!curriculum.contents[l.lessonId]?.webCode, l.lessonId).toBe(web);
     }
   });
@@ -130,5 +130,36 @@ describe('the web-foundations island: prepared in WEB-0, written in batches from
   it('accepts the synthetic web lesson only in its own place', () => {
     // WEB02 is written: a second lesson with the same id is refused.
     expect(validateCurriculum({ ...curriculum, lessons: [...lessons, meta], contents: { ...curriculum.contents, WEB02: content() } }).join('\n')).not.toBe('');
+  });
+});
+
+describe('the responsive-design island: written in batches from RWD-1 on the web-code capability', () => {
+  it('is a curriculum island with its first lessons written in id order; the rest stay planned outlines without a page', () => {
+    expect(PREPARED_ISLAND_IDS).not.toContain('responsive-design');
+    expect(ISLAND_PREFIX['responsive-design']).toBe('RWD');
+    expect(ISLAND_IDS).toContain('responsive-design');
+    const written = lessons.filter(l => l.islandId === 'responsive-design');
+    expect(written.map(l => l.lessonId)).toEqual(written.map((_, i) => `RWD${String(i + 1).padStart(2, '0')}`));
+    expect(written.length).toBeGreaterThanOrEqual(4);
+    expect(UNITS['responsive-design'].flatMap(u => u.lessonIds)).toEqual(written.map(l => l.lessonId));
+    expect(lessonsOfIsland('responsive-design')).toHaveLength(12);
+    expect(lessonsOfIsland('responsive-design').slice(written.length).every(l => l.lessonStatus === 'planned' && !l.href)).toBe(true);
+    expect(getIsland('responsive-design')).toMatchObject({ status: written.length < 12 ? 'available' : 'complete', mapState: 'planned' });
+  });
+  it('reads every outline of the island from the blueprint: pages in a lesson, the capstone in stages', () => {
+    const shapes = Array.from({ length: 12 }, (_, i) => responsiveFromBlueprint(`RWD${String(i + 1).padStart(2, '0')}`, '測試用大綱。', 45));
+    expect(shapes.slice(0, 11).every(o => o.activity === 'dom-explorer' && o.capabilities.join() === 'web-code' && o.visualization === 'none')).toBe(true);
+    expect([shapes[11].activity, shapes[11].capabilities, shapes[11].visualization]).toEqual(['challenge-stages', ['web-code', 'visualization'], 'challenge-stages']);
+    expect(shapes[0].prerequisites).toEqual(['WEB06']);
+    // An island's builder takes only its own lessons.
+    expect(() => responsiveFromBlueprint('WEB06', 'x', 45)).toThrow(/WEB06 is not a responsive design lesson/);
+    expect(() => webFromBlueprint('RWD01', 'x', 45)).toThrow(/RWD01 is not a web foundations lesson/);
+  });
+  it('uses the width features in every lesson: a preview with widths and an exercise checked after a resize', () => {
+    for (const l of lessons.filter(l => l.islandId === 'responsive-design')) {
+      const web = curriculum.contents[l.lessonId]!.webCode!;
+      expect([...web.examples, ...web.exercises].some(x => x.widths?.length), `${l.lessonId} widths`).toBe(true);
+      expect(web.exercises.some(x => x.steps.some(s => 'do' in s && s.do === 'resize')), `${l.lessonId} resize`).toBe(true);
+    }
   });
 });

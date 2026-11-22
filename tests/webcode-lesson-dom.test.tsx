@@ -85,6 +85,40 @@ describe('WebExampleView', () => {
     const third = await waitFor(() => { const f = frameOf(container); expect(f).not.toBe(second); return f; });
     expect(third.getAttribute('srcdoc')).toContain('"storage":{},"cookies":{}');
   });
+  it('offers the preview at the example\'s widths: the frame is that wide, drawn smaller when its column is narrower (RWD-0)', async () => {
+    // Without widths there is nothing to choose.
+    const plain = render(<WebExampleView example={styledExample()}/>);
+    await waitFor(() => expect(frameOf(plain.container)).toBeTruthy());
+    expect(plain.container.querySelector('[role="group"]')).toBeNull();
+    expect(frameOf(plain.container).style.width).toBe('');
+    plain.unmount();
+    // A column 513px wide: jsdom lays nothing out, so the observer is told.
+    const original = globalThis.ResizeObserver;
+    globalThis.ResizeObserver = class { constructor(private readonly told: ResizeObserverCallback) {} observe() { this.told([{ contentRect: { width: 513 } } as ResizeObserverEntry], this as unknown as ResizeObserver); } unobserve() {} disconnect() {} } as unknown as typeof ResizeObserver;
+    try {
+      const { container } = render(<WebExampleView example={{ ...styledExample(), widths: [360, 1024] }}/>);
+      const frame = await waitFor(() => { const f = frameOf(container); expect(f).toBeTruthy(); return f; });
+      post(frame, { li: nonceOf(frame), kind: 'ready', ...report({ height: 198 }) });
+      const group = screen.getByRole('group', { name: '加上樣式：預覽寬度' });
+      const pressed = () => within(group).getAllByRole('button').map(b => `${b.textContent}:${b.getAttribute('aria-pressed')}`);
+      expect(pressed()).toEqual(['360px:true', '1024px:false', '填滿欄位:false']);
+      // The page's viewport is 360px wide: the frame's border lies outside it.
+      expect([frame.style.width, frame.style.boxSizing, frame.style.transform, frame.style.height]).toEqual(['360px', 'content-box', 'scale(1)', '198px']);
+      expect(group.textContent).toContain('頁面寬 360px');
+      expect(group.textContent).not.toContain('縮小');
+      // 1024px (1026 with its border) in a 513px column: the page is laid out at 1024 and shown at half size; the room is as tall as what is drawn.
+      fireEvent.click(within(group).getByRole('button', { name: '1024px' }));
+      expect(pressed()).toEqual(['360px:false', '1024px:true', '填滿欄位:false']);
+      expect([frame.style.width, frame.style.transform]).toEqual(['1024px', 'scale(0.5)']);
+      expect((frame.parentElement as HTMLElement).style.height).toBe('100px');
+      expect(group.textContent).toContain('頁面寬 1024px，縮小成 50% 顯示');
+      // The same frame: switching the width does not load the page again.
+      expect(frameOf(container)).toBe(frame);
+      fireEvent.click(within(group).getByRole('button', { name: '填滿欄位' }));
+      expect(pressed()).toEqual(['360px:false', '1024px:false', '填滿欄位:true']);
+      expect([frame.style.width, frame.style.transform, (frame.parentElement as HTMLElement).style.height]).toEqual(['', '', '']);
+    } finally { globalThis.ResizeObserver = original; }
+  });
   it('lets the learner edit the files and run the page again, then restore the original', async () => {
     const { container } = render(<WebExampleView example={styledExample()}/>);
     const first = await waitFor(() => { const f = frameOf(container); expect(f).toBeTruthy(); return f; });
@@ -161,6 +195,14 @@ describe('WebExerciseBox', () => {
     await act(async () => { finish(result([true, true, true])); });
     await screen.findByRole('button', { name: '檢查' });
     expect(screen.queryByText('全部通過。')).toBeNull();
+  });
+  it('lists a resize as a step and offers its preview at the exercise\'s widths (RWD-0)', () => {
+    const exercise = headingExercise();
+    render(<WebExerciseBox exercise={{ ...exercise, widths: [360, 768], steps: [...exercise.steps, { do: 'resize', width: 1024, height: 700 }, { do: 'resize', width: 360 }] }}/>);
+    const group = screen.getByRole('group', { name: `${exercise.title}：預覽寬度` });
+    expect(within(group).getAllByRole('button').map(b => b.textContent)).toEqual(['360px', '768px', '填滿欄位']);
+    const steps = screen.getAllByRole('listitem').map(li => li.textContent);
+    expect(steps.filter(t => t?.includes('把頁面的寬度改成'))).toEqual(['操作：把頁面的寬度改成 1024px、高度 700px', '操作：把頁面的寬度改成 360px']);
   });
   it('resets the files to the starter and says so', async () => {
     const { container } = render(<WebExerciseBox exercise={headingExercise()} run={() => Promise.resolve(result([false, false, true]))}/>);

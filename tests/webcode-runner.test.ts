@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { checkWebExercise, judge, treeLines, webBehaviourProblems, webDocument, WEB_SANDBOX, WEB_VIEWPORT, type WebFiles, type WebRun, type WebSetup, type WebStep } from '@/lib/webcode/lesson';
-import { openWebBrowser, type WebBrowser } from './support/webcode-browser';
+import { CLASSIC_SCROLL_BARS, openWebBrowser, type WebBrowser } from './support/webcode-browser';
 import { badgeExercise, greetExercise, headingExercise, webContent } from './support/webcode-fixture';
 
 /*
@@ -387,6 +387,58 @@ describe('accessibility checks (WEB-4: W5)', () => {
     const free: WebStep[] = [{ do: 'click', selector: '#no' }, { do: 'tab' }, { check: 'focus', selector: '#after', label: 'without the trap focus leaves' }];
     expect(judge(free, (await page({ html: trap }, free)).results)[0].ok).toBe(true);
   });
+});
+
+describe('viewports (RWD-0)', () => {
+  inBrowser('resize lays the same page out at another width: media queries, percentages and container queries follow', async () => {
+    const html = '<main><nav id="nav">nav</nav><section id="cards"><article class="card">a</article><article class="card">b</article></section></main>';
+    const css = 'body { margin: 0; } #nav { height: 40px; } .card { height: 50px; } #cards { container-type: inline-size; }'
+      + '@media (min-width: 700px) { main { display: grid; grid-template-columns: 200px 1fr; } }'
+      + '@container (min-width: 500px) { .card { height: 80px; } }';
+    const steps: WebStep[] = [
+      { check: 'box', selector: '#nav', measure: 'width', value: 600, label: '600: one column' }, { check: 'box', selector: '.card', measure: 'height', value: 80, label: '600: the container is wide' },
+      { do: 'resize', width: 360 }, { check: 'box', selector: '#nav', measure: 'width', value: 360, label: '360: full width' }, { check: 'box', selector: '.card', measure: 'height', value: 50, label: '360: narrow cards' },
+      { check: 'style', selector: 'main', property: 'display', value: 'block', label: '360: no grid' },
+      { do: 'resize', width: 1000, height: 700 }, { check: 'box', selector: '#nav', measure: 'width', value: 200, label: '1000: the sidebar column' },
+      { check: 'box', selector: '#cards', measure: 'left', value: 200, label: '1000: content beside it' }, { check: 'box', selector: '#cards', measure: 'width', value: 800, label: '1000: the rest' },
+      { do: 'resize', width: 720 }, { check: 'box', selector: '.card', measure: 'height', value: 80, label: '720: container 520' },
+    ];
+    const r = await page({ html, css }, steps);
+    expect(judge(steps, r.results).map(s => [s.label, s.ok])).toEqual(steps.filter(s => 'check' in s).map(s => [(s as { label: string }).label, true]));
+    // The page's own script sees the new width too.
+    const seen = await page({ html: '<p id="w"></p>', js: "const show = () => { document.querySelector('#w').textContent = innerWidth + ' ' + matchMedia('(max-width: 400px)').matches; }; show(); document.querySelector('#w').addEventListener('click', show);" },
+      [{ check: 'text', selector: '#w', text: '600 false', label: 'before' }, { do: 'resize', width: 320 }, { do: 'click', selector: '#w' }, { check: 'text', selector: '#w', text: '320 true', label: 'after' }]);
+    expect(seen.results.filter((_, i) => i !== 1 && i !== 2).map(x => x.ok)).toEqual([true, true]);
+  });
+});
+
+describe('scroll bars that take room (RWD-1)', () => {
+  // Headless Chromium hides scroll bars; a learner on a system with classic ones has them. This browser shows them.
+  let classic: WebBrowser | null = null;
+  beforeAll(async () => { if (browser) classic = await openWebBrowser(CLASSIC_SCROLL_BARS); }, 60_000);
+  afterAll(async () => { await classic?.close(); });
+  inBrowser('a page taller than the check viewport is still measured at the full width, at every size, and still scrolls', async () => {
+    // The premise: in this browser a scroll bar does take room (an element that scrolls is narrower inside than outside).
+    const premise = await classic!.run({ files: { html: '<div id="s" style="width: 200px; height: 50px; overflow-y: scroll;"><p id="in" style="margin: 0; height: 300px;">x</p></div>', css: 'body { margin: 0; }' },
+      steps: [{ check: 'box', selector: '#in', measure: 'width', value: 200, label: 'no room taken' }], viewport: { width: 360, height: 400 } });
+    expect(premise.results[0].ok, 'this browser must draw classic scroll bars').toBe(false);
+    const files: WebFiles = { html: '<header id="top">top</header><main id="tall"></main><footer id="end">end</footer>',
+      css: 'body { margin: 0; } #top { height: 50px; } #tall { height: 1500px; } #end { position: fixed; left: 0; right: 0; bottom: 0; height: 40px; } @media (min-width: 700px) { #tall { margin-left: 200px; } }',
+      js: "document.title = innerWidth + '/' + document.documentElement.clientWidth;" };
+    const steps: WebStep[] = [
+      { check: 'box', selector: '#top', measure: 'width', value: 360, label: '360: the page is as wide as its viewport' },
+      { check: 'box', selector: '#end', measure: 'right', value: 360, from: ':viewport', label: '360: fixed to both edges' },
+      { do: 'scroll', selector: ':page', top: 300 }, { check: 'box', selector: '#top', measure: 'top', value: -300, from: ':viewport', label: 'the page still scrolls' },
+      { do: 'resize', width: 1000, height: 600 }, { check: 'box', selector: '#top', measure: 'width', value: 1000, label: '1000: full width again' },
+      { check: 'box', selector: '#tall', measure: 'width', value: 800, label: '1000: the media query and the layout agree' },
+    ];
+    const r = await classic!.run({ files, steps, viewport: { width: 360, height: 400 } });
+    expect(judge(steps, r.results).map(x => [x.label, x.ok, x.message])).toEqual(steps.filter(x => 'check' in x).map(x => [(x as { label: string }).label, true, '']));
+    expect(r.title).toBe('360/360');
+    // Nothing was added to the page for it: no element, no attribute.
+    expect(treeLines(r.tree).slice(0, 2)).toEqual(['html [lang="zh-Hant"]', '  head']);
+    expect(treeLines(r.tree).some(line => /scrollbar|style=/.test(line))).toBe(false);
+  }, 60_000);
 });
 
 describe('implicit submission', () => {

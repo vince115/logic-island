@@ -91,8 +91,9 @@
       "status": "missing"
     },
     "responsive-design": {
-      "capability": "web-code + responsive simulator (the standalone lab exists)",
-      "status": "missing"
+      "capability": "web-code with preview widths and the resize step (one answer checked at several viewport widths); the standalone labs stay as further practice",
+      "status": "ready",
+      "note": "RWD-2 published RWD05–RWD08; RWD-1 published RWD01–RWD04 and added engine stage W7 (RWD-0: the resize action, preview widths, a failed resize voids later checks); later lessons publish in id order (RESPONSIVE_DESIGN_ISLAND.md, WEB0_WEB_CODE_CAPABILITY.md)"
     },
     "mobile-apps": {
       "capability": "web-code + case-analysis",

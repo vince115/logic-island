@@ -39,7 +39,9 @@ const LLM_DONE = lessons.filter(l => l.islandId === 'large-language-models').len
 const GEN_DONE = lessons.filter(l => l.islandId === 'generative-ai').length;
 // WEB-1 (2026-11-23): the web foundations island is written in batches with the web-code capability; in the world's order it comes before the systems islands.
 const WEB_DONE = lessons.filter(l => l.islandId === 'web-foundations').length;
-const COMPLETE = [...ids('F', 20), ...ids('D', 20), ...ids('A', ALGORITHMS_DONE), ...ids('PL', PL_DONE), ...ids('DB', DATABASES_DONE), ...ids('CN', NETWORKS_DONE), ...ids('AIF', AIF_DONE), ...ids('LLM', LLM_DONE), ...ids('GEN', GEN_DONE), ...ids('WEB', WEB_DONE), ...ids('LNX', LNX_DONE), ...ids('DKR', DKR_DONE), ...ids('SRV', SRV_DONE)];
+// RWD-1 (2026-11-23): the responsive design island, the second one written with the web-code capability.
+const RWD_DONE = lessons.filter(l => l.islandId === 'responsive-design').length;
+const COMPLETE = [...ids('F', 20), ...ids('D', 20), ...ids('A', ALGORITHMS_DONE), ...ids('PL', PL_DONE), ...ids('DB', DATABASES_DONE), ...ids('CN', NETWORKS_DONE), ...ids('AIF', AIF_DONE), ...ids('LLM', LLM_DONE), ...ids('GEN', GEN_DONE), ...ids('WEB', WEB_DONE), ...ids('RWD', RWD_DONE), ...ids('LNX', LNX_DONE), ...ids('DKR', DKR_DONE), ...ids('SRV', SRV_DONE)];
 // F.1b: lessons are told apart by the capabilities they declare, never by a missing field.
 const programLessons = lessons.filter(l => hasCapability(l, 'program-code'));
 type TraceConfig = Extract<VisualizationConfig, { steps: unknown }>;
@@ -76,7 +78,9 @@ describe('curriculum (E.1)', () => {
     expect(lessons.filter(l => l.islandId === 'generative-ai').map(l => l.lessonId)).toEqual(ids('GEN', GEN_DONE));
     expect(WEB_DONE).toBeGreaterThanOrEqual(4);
     expect(lessons.filter(l => l.islandId === 'web-foundations').map(l => l.lessonId)).toEqual(ids('WEB', WEB_DONE));
-    expect(lessons).toHaveLength(60 + PL_DONE + DATABASES_DONE + NETWORKS_DONE + AIF_DONE + LNX_DONE + DKR_DONE + SRV_DONE + LLM_DONE + GEN_DONE + WEB_DONE);
+    expect(RWD_DONE).toBeGreaterThanOrEqual(4);
+    expect(lessons.filter(l => l.islandId === 'responsive-design').map(l => l.lessonId)).toEqual(ids('RWD', RWD_DONE));
+    expect(lessons).toHaveLength(60 + PL_DONE + DATABASES_DONE + NETWORKS_DONE + AIF_DONE + LNX_DONE + DKR_DONE + SRV_DONE + LLM_DONE + GEN_DONE + WEB_DONE + RWD_DONE);
     expect(new Set(lessons.map(l => l.lessonId)).size).toBe(lessons.length);
     expect(new Set(lessons.map(l => l.slug)).size).toBe(lessons.length);
   });
@@ -96,11 +100,12 @@ describe('curriculum (E.1)', () => {
 
   it('capabilities (F.1b): F, D and A are program-code; database lessons declare what they use; the blueprint\'s activity fits', () => {
     const blueprint = new Map(planning.plannedLessons.map(l => [l.lessonId, l.activity]));
-    expect(programLessons.map(l => l.lessonId)).toEqual(lessons.filter(l => l.islandId !== 'databases' && l.islandId !== 'ai-foundations' && l.islandId !== 'linux-systems' && l.islandId !== 'network-servers' && l.islandId !== 'docker-containers' && l.islandId !== 'large-language-models' && l.islandId !== 'generative-ai' && l.islandId !== 'web-foundations' && (l.islandId !== 'networks' || NETWORK_PROGRAMS.includes(l.lessonId))).map(l => l.lessonId));
+    expect(programLessons.map(l => l.lessonId)).toEqual(lessons.filter(l => l.islandId !== 'databases' && l.islandId !== 'ai-foundations' && l.islandId !== 'linux-systems' && l.islandId !== 'network-servers' && l.islandId !== 'docker-containers' && l.islandId !== 'large-language-models' && l.islandId !== 'generative-ai' && l.islandId !== 'web-foundations' && l.islandId !== 'responsive-design' && (l.islandId !== 'networks' || NETWORK_PROGRAMS.includes(l.lessonId))).map(l => l.lessonId));
     // AIF-1: the AI foundations lessons are Python-only program lessons (python-code), never four-language ones.
     for (const l of lessons.filter(l => l.islandId === 'ai-foundations')) expect([l.capabilities, l.supportedLanguages, l.activity], l.lessonId).toEqual([['python-code'], ['Python'], undefined]);
     // WEB-1: the web lessons are pages in a sandboxed frame (web-code); the blueprint's unbuilt activities use them too (dom-explorer).
-    for (const l of lessons.filter(l => l.islandId === 'web-foundations')) {
+    // RWD-1: so are the responsive design lessons (the blueprint's simulators and playgrounds are the standalone labs).
+    for (const l of lessons.filter(l => l.islandId === 'web-foundations' || l.islandId === 'responsive-design')) {
       const kind = blueprint.get(l.lessonId);
       const expected = kind === 'challenge-stages' ? [['web-code', 'visualization'], 'challenge-stages', true] : [['web-code'], 'dom-explorer', true];
       expect([l.capabilities, l.activity, !!curriculum.contents[l.lessonId]?.webCode], l.lessonId).toEqual(expected);
@@ -223,6 +228,8 @@ describe('curriculum (E.1)', () => {
     for (const l of lessons.filter(l => l.islandId === 'generative-ai')) expect(gen, l.lessonId).toContain(`| ${l.lessonId} |`);
     const web = readFileSync('docs/curriculum/WEB_FOUNDATIONS_ISLAND.md', 'utf8');
     for (const l of lessons.filter(l => l.islandId === 'web-foundations')) expect(web, l.lessonId).toContain(`| ${l.lessonId} |`);
+    const rwd = readFileSync('docs/curriculum/RESPONSIVE_DESIGN_ISLAND.md', 'utf8');
+    for (const l of lessons.filter(l => l.islandId === 'responsive-design')) expect(rwd, l.lessonId).toContain(`| ${l.lessonId} |`);
   });
 });
 

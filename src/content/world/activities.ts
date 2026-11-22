@@ -7,6 +7,7 @@ import { algorithmIds } from '@/lib/engine';
 import { catalogLessons } from './catalog';
 import { LAB_ISLAND_ID } from './islands';
 import { labRegistry } from './labs';
+import planning from './planning-data.json';
 
 /*
  * Phase F.0 activity registry: one metadata contract for the 20 lesson visualizations, the 6 labs and the 61 activities
@@ -53,7 +54,14 @@ export interface ActivityMeta {
   lab?: string;
 }
 
-const subjectsOf = (activity: string) => [...new Set(catalogLessons.filter(l => l.activity === activity).map(l => l.islandId))];
+/**
+ * RWD-1 (2026-11-23): an activity that an implemented tool lab provides keeps the islands the blueprint planned it for
+ * when their lessons are written with another activity. RWD03 and RWD04 are web-code lessons (dom-explorer); the
+ * Flexbox Playground they were outlined with stays in the registry as the responsive design island's practice lab.
+ */
+const LAB_ACTIVITIES = new Set(labRegistry.filter(l => l.kind === 'tool' && l.status === 'implemented').flatMap(l => l.activities));
+const subjectsOf = (activity: string) => [...new Set([...catalogLessons.filter(l => l.activity === activity).map(l => l.islandId),
+  ...(LAB_ACTIVITIES.has(activity) ? planning.plannedLessons.filter(l => l.activity === activity).map(l => l.islandId) : [])])];
 
 // ---- implemented: the 20 visualizations and the 6 labs ---------------------------------------------------------
 const TRACE_TEXT = '每一步的說明，以及以文字寫出的每個標記';
@@ -145,7 +153,7 @@ const IMPLEMENTED_TEXT: Record<string, string> = {
   'network-sequence': '訊息時序以文字列出（第幾步、從哪個節點到哪個節點、名稱、是否遺失），每一步的標頭欄位以清單呈現；目前這一步的說明以 aria-live 宣告',
 };
 const existing = new Set(visualizationEntries.map(v => v.id));
-const plannedEntries: ActivityMeta[] = [...new Set(catalogLessons.map(l => l.activity))]
+const plannedEntries: ActivityMeta[] = [...new Set([...catalogLessons.map(l => l.activity), ...LAB_ACTIVITIES])]
   .filter(id => !existing.has(id) && id !== 'none').sort()
   .map(id => {
     const [tier, inputs] = PLANNED[id] ?? PLANNED_DEFAULT;

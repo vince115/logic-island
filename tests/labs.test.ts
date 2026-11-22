@@ -41,7 +41,13 @@ describe('lab registry', () => {
     const islandsOf = (id: string) => [...new Set(lessonsUsingLab(getLab(id)!).map(l => l.lessonId.replace(/\d+$/, '')))].sort();
     expect(islandsOf('css-grid-playground')).toEqual(['RWD', 'UI']);
     expect(islandsOf('responsive-layout')).toEqual(['MOB', 'RWD']);
-    expect(lessonsUsingLab(getLab('flexbox-playground')!).map(l => [l.lessonId, l.status])).toEqual([['RWD03', 'planned'], ['RWD04', 'planned']]);
+    // RWD-1: RWD03 and RWD04 are written as web-code lessons (their activity is dom-explorer, not the playground's);
+    // the lab still lists the lessons the blueprint outlined with it, now as published links. So does the responsive
+    // simulator for RWD01 and RWD02.
+    expect(lessonsUsingLab(getLab('flexbox-playground')!).map(l => [l.lessonId, l.status])).toEqual([['RWD03', 'published'], ['RWD04', 'published']]);
+    expect(lessonsUsingLab(getLab('responsive-layout')!).slice(0, 3).map(l => [l.lessonId, l.status])).toEqual([['RWD01', 'published'], ['RWD02', 'published'], ['RWD07', 'published']]);
+    // RWD-2: the grid playground's two RWD lessons are published; its UI lesson is still planned.
+    expect(lessonsUsingLab(getLab('css-grid-playground')!).filter(l => l.status === 'published').map(l => l.lessonId)).toEqual(['RWD05', 'RWD06']);
   });
 
   it('catches a bad entry', () => {

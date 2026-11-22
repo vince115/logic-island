@@ -76,6 +76,36 @@ test('網頁課的練習（WEB02）：只用鍵盤也能操作；Tab 不會困�
   expect(await noOverflow(page)).toBeLessThanOrEqual(0);
 });
 
+test('響應式課的預覽寬度（RWD01）：按下寬度，框架裡的頁面就依那個寬度排版，媒體查詢跟著生效；頁面本身不橫向捲動', async ({ page }) => {
+  const lesson = webLessons.find(l => l.lessonId === 'RWD01')!;
+  await page.goto(`/curriculum/${lesson.slug}`);
+  // The example with one min-width: 400px query: three links stacked below it, in one row from it.
+  const view = page.locator('[data-web-example="rwd01-first-query"]');
+  const group = view.getByRole('group', { name: /預覽寬度/ });
+  await group.scrollIntoViewIfNeeded();
+  const inside = () => view.frameLocator('iframe').locator('#to-books').evaluate(el => ({ width: window.innerWidth, top: Math.round(el.getBoundingClientRect().top) }));
+  // The first width is shown at the start.
+  await expect(group.getByRole('button', { name: '360px' })).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(inside).toEqual({ width: 360, top: 52 });
+  await group.getByRole('button', { name: '768px' }).click();
+  await expect(group.getByRole('button', { name: '768px' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(group.getByRole('button', { name: '360px' })).toHaveAttribute('aria-pressed', 'false');
+  await expect.poll(inside).toEqual({ width: 768, top: 0 });
+  // A frame wider than its column is drawn smaller, and says so; it never makes the lesson page scroll sideways.
+  const drawn = await view.locator('iframe').boundingBox(), room = await view.locator('iframe').locator('..').boundingBox();
+  expect(drawn!.width).toBeLessThanOrEqual(room!.width + 1);
+  if (room!.width < 768) await expect(group).toContainText(/頁面寬 768px，縮小成 \d+% 顯示/);
+  expect(await noOverflow(page)).toBeLessThanOrEqual(0);
+  // Keyboard: the buttons are ordinary buttons in the tab order.
+  await group.getByRole('button', { name: '400px' }).focus();
+  await page.keyboard.press('Enter');
+  await expect.poll(inside).toEqual({ width: 400, top: 0 });
+  await group.getByRole('button', { name: '填滿欄位' }).click();
+  await expect(group.getByRole('button', { name: '填滿欄位' })).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(async () => (await inside()).width).toBeGreaterThan(200);
+  expect(await noOverflow(page)).toBeLessThanOrEqual(0);
+});
+
 for (const lesson of webLessons) {
   test(`${lesson.lessonId} ${lesson.title}：每個練習的起始內容未通過，填入參考解答後全部通過`, async ({ page }) => {
     test.setTimeout(120_000);
@@ -109,4 +139,14 @@ test('網頁基礎島開放：課綱目錄列出 15 堂、已撰寫的可點；�
   await page.goto('/curriculum/how-the-web-works');
   await expect(page.locator('#quiz pre .tk-keyword').first()).toBeVisible();
   await expect(page.getByRole('note').filter({ hasText: '沙盒框架' })).toBeVisible();
+});
+
+test('響應式設計島開放：課綱目錄列出 12 堂、已撰寫的可點；群島總覽標示已開放', async ({ page }) => {
+  await page.goto('/curriculum');
+  const island = page.getByRole('region', { name: /響應式設計島/ });
+  await expect(island.getByRole('listitem')).toHaveCount(12);
+  await expect(island.getByRole('link', { name: /響應式原則與行動優先/ })).toHaveAttribute('href', '/curriculum/responsive-principles-mobile-first');
+  await expect(island.getByRole('link')).toHaveCount(webLessons.filter(l => l.islandId === 'responsive-design').length);
+  await page.goto('/regions/web');
+  await expect(page.locator('#open-responsive-design')).toContainText('響應式設計島');
 });

@@ -5,6 +5,7 @@ import { visualizations } from '../src/content/curriculum/registry';
 import { worldIslands } from '../src/content/world';
 import { activities, activitiesOfIsland, getActivity, validateActivities, type ActivityMeta } from '../src/content/world/activities';
 import { catalogLessons, getCatalogLesson, isLearnable } from '../src/content/world/catalog';
+import { labRegistry } from '../src/content/world/labs';
 import { parseLessonId } from '../src/content/world/lesson-id';
 import { getLearningPath, learningPaths, pathProgress, pathsWithLesson, validatePaths, type LearningPath } from '../src/content/world/paths';
 
@@ -127,7 +128,10 @@ describe('activity registry (F.0)', () => {
     expect(of('lab').map(a => a.id)).toEqual(courses.map(c => `lab:${c.slug}`));
     expect(of('lab').every(a => a.availability === 'implemented' && a.subjects[0] === 'labs')).toBe(true);
     // One entry per activity the lessons name that is not an existing visualization (61 for the CS and AI plan).
-    const named = new Set(catalogLessons.map(l => l.activity).filter(id => id !== 'none' && !(id in visualizations)));
+    // RWD-1: and one per activity of an implemented tool lab, which stays when its lessons are written with another
+    // activity (the Flexbox Playground, whose two lessons are web-code lessons).
+    const ofLabs = labRegistry.filter(l => l.kind === 'tool' && l.status === 'implemented').flatMap(l => l.activities);
+    const named = new Set([...catalogLessons.map(l => l.activity), ...ofLabs].filter(id => id !== 'none' && !(id in visualizations)));
     expect(of('activity').map(a => a.id).sort()).toEqual([...named].sort());
     // Phase F.1a: the SQL playground is implemented (the written database lessons use it); F.1b adds the ER builder and
     // the normalization steps once a written lesson uses them; the rest stay planned.
@@ -139,6 +143,11 @@ describe('activity registry (F.0)', () => {
     const standalone = new Set(['color-contrast', 'flexbox-playground', 'grid-playground', 'responsive-sim', 'mobile-nav-sim', 'terminal-sim']);
     expect(of('activity').filter(a => a.availability === 'implemented').map(a => a.id)).toEqual(['architecture-diagram', 'color-contrast', 'dom-explorer', 'embedding-space', 'erd-builder', 'flexbox-playground', 'grid-playground', 'mobile-nav-sim', 'network-sequence', 'normalization-steps', 'packet-journey', 'protocol-sequence', 'query-plan', 'responsive-sim', 'sampling-explorer', 'sql-playground', 'terminal-sim', 'token-explorer', 'transaction-timeline'].filter(id => standalone.has(id) || used.has(id as 'sql-playground')));
     expect(getActivity('color-contrast')).toMatchObject({ lab: 'color-contrast', version: '1.0.0', subjects: ['labs', 'ui-design'] });
+    // RWD-1: RWD03 and RWD04, the lessons the blueprint outlined with the Flexbox Playground, are written as web-code
+    // lessons (dom-explorer). The lab's activity stays in the registry, still offered on the responsive design island.
+    expect(catalogLessons.filter(l => l.activity === 'flexbox-playground')).toEqual([]);
+    expect(getActivity('flexbox-playground')).toMatchObject({ lab: 'flexbox-playground', availability: 'implemented', subjects: ['labs', 'responsive-design'] });
+    expect(activitiesOfIsland('responsive-design').map(a => a.id)).toEqual(expect.arrayContaining(['dom-explorer', 'flexbox-playground', 'grid-playground', 'responsive-sim', 'mobile-nav-sim']));
     expect(getActivity('terminal-sim')).toMatchObject({ lab: 'linux-terminal', version: '1.0.0', availability: 'implemented' });
     // DKR-1: the Docker island's container-playground lessons (DKR03, DKR04) are terminal-sim lessons too.
     expect(getActivity('terminal-sim')!.subjects).toEqual(['labs', 'linux-systems', 'docker-containers', 'network-servers']);

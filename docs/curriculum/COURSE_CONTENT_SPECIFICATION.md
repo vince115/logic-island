@@ -87,6 +87,8 @@
 | WEB-3 | WEB08–10 | JavaScript 與 DOM、事件與事件委派、非同步 JavaScript（引擎階段 W1：錯誤行號與 `defer`；W2：虛擬時鐘；`dispatch` 操作） |
 | WEB-4 | WEB11–13 | fetch、JSON 與 API；瀏覽器儲存；語意 HTML 與 ARIA（引擎階段 W3：模擬伺服器；W4：記憶體中的儲存空間與 Cookie；W5：無障礙名稱、角色與 Tab 順序） |
 | WEB-5 | WEB14–15 | 網頁效能基礎；綜合專題（challenge-stages 五關），全島完成 |
+| RWD-1（見 [RESPONSIVE_DESIGN_ISLAND](RESPONSIVE_DESIGN_ISLAND.md)） | RWD01–04 | 響應式原則與行動優先、viewport 與相對單位、Flexbox 基礎與進階（引擎階段 W7：`resize` 操作讓同一份答案在多個寬度檢查、預覽寬度 `widths`）；響應式設計島開放 |
+| RWD-2 | RWD05–08 | CSS Grid 基礎與進階、Media Query 與斷點策略、Container Query（沒有新增引擎） |
 | DKR-0（架構） | — | Docker 容器島登錄為預備島嶼，沿用 `terminal` 能力（`container-playground` 與 `case-study-board` 是終端機課）與 `network-protocol` 的情境（`architecture-diagram`、`pipeline-diagram`），由 `dockerFromBlueprint` 對應，不需要新的 capability 或活動；引擎階段 E20（`containers`：Image、Container 的生命週期、模擬的 Docker Hub、連接埠對應、`docker` 群組）先完成（[DKR0_CONTAINER_CAPABILITY](DKR0_CONTAINER_CAPABILITY.md)）；DKR-1（DKR01–DKR04）之後依 E21–E24 分批發布 |
 | 之後 | 依 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 自動選擇 | 先修已滿足、能力已備妥、解鎖其他島最多的島優先；缺少的共用能力先做最小可用版本 |
 
