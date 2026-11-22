@@ -14,7 +14,9 @@ import { IslandProgress, ProgressBadge } from './progress';
 import styles from './curriculum.module.css';
 import overview from './catalog-overview.module.css';
 
-const NUMERALS = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+const DIGITS = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+/** A count in Chinese numerals up to 99 (十, 十一, 二十九); the catalog passed ten islands with LLM-1 and WEB-1. */
+export const chineseCount = (n: number): string => n < 10 ? DIGITS[n] : n < 100 ? `${n >= 20 ? DIGITS[Math.floor(n / 10)] : ''}十${n % 10 ? DIGITS[n % 10] : ''}` : String(n);
 
 /**
  * /curriculum: every lesson that can be learned, island by island in recommended order, with status and this learner's
@@ -34,7 +36,7 @@ export function CurriculumCatalog() {
   return <main id="main" className={`container ${styles.catalog}`}>
     <Breadcrumbs items={[{ label: '探索群島', href: '/' }, { label: '完整課綱' }]}/>
     <span className="eyebrow">THE CURRICULUM · PHASE E</span>
-    <h1>{complete} 堂課，{NUMERALS[islands.length] ?? islands.length}座島。</h1>
+    <h1>{complete} 堂課，{chineseCount(islands.length)}座島。</h1>
     <p className={styles.intro}>從第一支程式到動態規劃：基礎程式島、資料結構島、演算法島各 20 堂，依建議順序排列，C++、Java、Python、JavaScript 四語對照。{db && `${db.name}已開放 ${dbOpen} 堂 SQL 課程（全島 ${getIsland(db.id)!.lessonCount} 堂，其餘規劃中），SQL 直接在瀏覽器裡執行。`}先修課程只是建議，所有開放的課程都可以直接開啟。</p>
     {/* Phase E.5: the site's introduction (once the home page, then /learn) in brief: how each lesson works, and where to start. */}
     <section className={styles.approach} aria-labelledby="curriculum-approach">

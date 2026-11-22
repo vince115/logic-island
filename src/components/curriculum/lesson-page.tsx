@@ -15,6 +15,7 @@ import { Quiz } from './quiz';
 import { Rich } from './rich';
 import { shownText } from './pre-text';
 import { DatabaseLessonBody, databaseExamples } from './database-lesson';
+import { LLM_EXERCISE_NOTICE, LlmExerciseView, llmExamples } from './llm-lesson';
 import { ChallengeStages, Complexity, ConditionalBranch, DsComparison, Trace } from './visualizations';
 import styles from './curriculum.module.css';
 
@@ -124,12 +125,16 @@ function PlannedVisualization({ lesson }: { lesson: LessonMeta }) {
 function Complete({ lesson, content }: { lesson: LessonMeta; content: LessonContent }) {
   const examples = new Map(content.examples.map(e => [e.id, e]));
   const viz = content.visualization;
+  // LLM-0: a python-code lesson with llm-explorer shows its explorers in sections and its explorer exercises after the program ones.
+  const llm = hasCapability(lesson, 'llm-explorer') ? content.llm : undefined;
+  const explorers = llm ? new Map(llmExamples(content)) : undefined;
   return <LessonLanguages languages={lesson.supportedLanguages}>
     <nav className={styles.toc} aria-label="本課內容">
       <ol>{content.sections.map(s => <li key={s.id}><a href={`#${s.id}`}>{s.title}</a></li>)}
-        {viz && <li><a href="#visualization">互動視覺化</a></li>}<li><a href="#quiz">觀念測驗</a></li><li><a href="#exercises">程式練習</a></li></ol>
+        {viz && <li><a href="#visualization">互動視覺化</a></li>}<li><a href="#quiz">觀念測驗</a></li><li><a href="#exercises">程式練習</a></li>
+        {llm?.exercises.length ? <li><a href="#explorer-exercises">探索練習</a></li> : null}</ol>
     </nav>
-    {content.sections.map(section => <SectionView key={section.id} section={section} examples={examples}/>)}
+    {content.sections.map(section => <SectionView key={section.id} section={section} examples={examples} activityExamples={explorers}/>)}
     {viz && <section id="visualization" className={styles.block} aria-labelledby="visualization-heading">
       <h2 id="visualization-heading">互動視覺化：{viz.title}</h2>
       <p className={styles.muted}>{visualizations[lesson.visualizationType].label}（Implemented）</p>
@@ -149,6 +154,11 @@ function Complete({ lesson, content }: { lesson: LessonMeta; content: LessonCont
       <p className={styles.judgeNotice} role="note">目前沒有線上評測：請在自己的電腦上執行程式，用下面的測資逐一比對輸出。網站不會執行或批改你的程式碼。{lesson.supportedLanguages.includes('JavaScript') && <> JavaScript 以 Node.js 執行，例如 <code>node main.js &lt; input.txt</code>。</>}</p>
       {content.exercises.map(e => <ExerciseView key={e.id} exercise={e}/>)}
     </section>
+    {llm?.exercises.length ? <section id="explorer-exercises" className={styles.block} aria-labelledby="explorer-exercises-heading">
+      <h2 id="explorer-exercises-heading">探索練習</h2>
+      <p className={styles.judgeNotice} role="note">{LLM_EXERCISE_NOTICE}網站不會上傳或儲存你的答案。</p>
+      {llm.exercises.map(e => <LlmExerciseView key={e.id} exercise={e}/>)}
+    </section> : null}
     <LessonCompletion lessonId={lesson.lessonId} quizTotal={content.quiz.length}
       island={{ name: islands.find(i => i.id === lesson.islandId)!.name, lessonIds: lessons.filter(l => l.islandId === lesson.islandId && l.lessonStatus === 'complete').map(l => l.lessonId) }}/>
   </LessonLanguages>;

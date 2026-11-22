@@ -13,12 +13,12 @@
 
 ## 總覽
 
-已發布 **176／520**（33.8%）；規劃中 344。
+已發布 **179／520**（34.4%）；規劃中 341。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
 | 程式與資訊群島 | 120 | 40 | 75.0% |
-| AI 人工智慧群島 | 20 | 140 | 12.5% |
+| AI 人工智慧群島 | 23 | 137 | 14.4% |
 | 數位設計群島 | 0 | 56 | 0.0% |
 | 網頁與應用開發群島 | 7 | 48 | 12.7% |
 | 系統與雲端工程群島 | 29 | 60 | 32.6% |
@@ -27,7 +27,7 @@
 
 **網頁基礎島（WEB）**：WEB08 JavaScript 與 DOM：選取與修改、WEB09 事件與事件委派、WEB10 非同步 JavaScript：Promise 與 async／await、WEB11 fetch、JSON 與 API、WEB12 瀏覽器儲存：localStorage 與 Cookie。島嶼能力：可用；這幾堂解鎖其他島的 19 堂。
 
-能力缺口中最優先的是 **大型語言模型島（LLM）**：需要 python-code + token, sampling and prompt explorers on recorded outputs (T3)；先修已滿足、可依序撰寫的有 3 堂，前 3 堂解鎖其他島的 58 堂。
+能力缺口中最優先的是 **機器學習島（ML）**：需要 python-code + data-explorer (fixed datasets, metrics computed in the browser)；先修已滿足、可依序撰寫的有 25 堂，前 5 堂解鎖其他島的 39 堂。
 
 選擇規則：島嶼的課程能力已可用或已備妥 → 先修已滿足（編號即位置，只能從下一個未發布的編號連續往後）→ 解鎖其他島的課程較多 → 區域與島嶼順序。
 
@@ -46,10 +46,10 @@
 | AI 人工智慧群島 | AI 基礎島（AIF） | 20／20 | python-code (Python-only program lessons; search, games, logic and probability on the shared traces) | 可用 | 全島完成 | — |
 | AI 人工智慧群島 | 機器學習島（ML） | 0／25 | python-code + data-explorer (fixed datasets, metrics computed in the browser) | 缺少 | ML01–ML25（25 堂） | 缺少課程能力 |
 | AI 人工智慧群島 | 深度學習島（DL） | 0／25 | python-code + precomputed training curves (T3) | 缺少 | — | 缺少課程能力；DL01 需要尚未發布的 ML09 |
-| AI 人工智慧群島 | 大型語言模型島（LLM） | 0／25 | python-code + token, sampling and prompt explorers on recorded outputs (T3) | 缺少 | LLM01–LLM03（3 堂） | 缺少課程能力；LLM04 需要尚未發布的 DL18 |
-| AI 人工智慧群島 | 生成式 AI 島（GEN） | 0／20 | precomputed pipeline steps (T3) | 缺少 | GEN01–GEN01（1 堂） | 缺少課程能力；GEN02 需要尚未發布的 LLM01 |
+| AI 人工智慧群島 | 大型語言模型島（LLM） | 3／25 | llm-explorer (token-explorer: byte-level BPE from the lesson's merge table; sampling-explorer: a recorded toy model with temperature, top-k, top-p and a seeded generator; embedding-space: hand-written vectors, cosine similarity and a deterministic PCA; exercises checked by value), alone or with python-code | 已備妥（可開始撰寫） | — | LLM04 需要尚未發布的 DL18 |
+| AI 人工智慧群島 | 生成式 AI 島（GEN） | 0／20 | llm-explorer for GEN01, GEN02 (sampling-explorer) and GEN08 (embedding-space); precomputed pipeline steps (T3) for the rest | 已備妥（可開始撰寫） | GEN01–GEN02（2 堂） | GEN03 需要尚未發布的 DL01 |
 | AI 人工智慧群島 | AI 代理島（AG） | 0／25 | agent trace (tool calls and memory as fixed transcripts) | 缺少 | — | 缺少課程能力；AG01 需要尚未發布的 LLM10 |
-| AI 人工智慧群島 | AI 工程與 MLOps 島（OPS） | 0／20 | pipeline and deployment simulation | 缺少 | — | 缺少課程能力；OPS01 需要尚未發布的 SA01、LLM01 |
+| AI 人工智慧群島 | AI 工程與 MLOps 島（OPS） | 0／20 | pipeline and deployment simulation | 缺少 | — | 缺少課程能力；OPS01 需要尚未發布的 SA01 |
 | 數位設計群島 | UI 設計島（UI） | 0／15 | design-lab (color contrast exists as a standalone lab; visual hierarchy and grid) | 缺少 | UI01–UI15（15 堂） | 缺少課程能力 |
 | 數位設計群島 | UX 研究島（UX） | 0／15 | case-analysis + model-diagram | 缺少 | UX01–UX15（15 堂） | 缺少課程能力 |
 | 數位設計群島 | 互動設計島（IXD） | 0／14 | case-analysis + a11y checks | 缺少 | IXD01–IXD14（14 堂） | 缺少課程能力 |
@@ -71,14 +71,12 @@
 
 | 島嶼 | 需要的能力 | 可依序撰寫 | 解鎖其他島 | 備註 |
 |---|---|---|---|---|
-| 大型語言模型島（LLM） | python-code + token, sampling and prompt explorers on recorded outputs (T3) | 3 | 58 | — |
 | 機器學習島（ML） | python-code + data-explorer (fixed datasets, metrics computed in the browser) | 25 | 39 | — |
 | Docker 容器島（DKR） | container simulation | 15 | 23 | — |
 | 系統分析與設計島（SA） | model-diagram (UML, DFD, BPMN, state and sequence models, checked by structure) | 20 | 20 | — |
 | 響應式設計島（RWD） | web-code + responsive simulator (the standalone lab exists) | 12 | 13 | — |
 | DevOps 與 CI/CD 島（CICD） | pipeline simulation | 5 | 7 | — |
 | 管理資訊系統島（MIS） | case-analysis (scenario data, decision tables, KPI calculations checked by value) | 20 | 0 | — |
-| 生成式 AI 島（GEN） | precomputed pipeline steps (T3) | 1 | 0 | — |
 | UI 設計島（UI） | design-lab (color contrast exists as a standalone lab; visual hierarchy and grid) | 15 | 0 | — |
 | UX 研究島（UX） | case-analysis + model-diagram | 15 | 0 | — |
 | 互動設計島（IXD） | case-analysis + a11y checks | 14 | 0 | — |
@@ -93,13 +91,13 @@
 | 軟體工程 | 66／86 | 否 |
 | 網路與系統 | 54／54 | 是 |
 | 企業資訊系統 | 44／84 | 否 |
-| AI 研究 | 57／142 | 否 |
-| AI 應用工程 | 28／89 | 否 |
+| AI 研究 | 60／142 | 否 |
+| AI 應用工程 | 31／89 | 否 |
 | 前端工程 | 14／62 | 否 |
 | 產品設計 | 0／56 | 否 |
-| AI 架構 | 20／66 | 否 |
+| AI 架構 | 23／66 | 否 |
 | 全端部署 | 37／62 | 否 |
-| AI 基礎設施 | 24／60 | 否 |
+| AI 基礎設施 | 25／60 | 否 |
 | 雲端與 DevOps 基礎 | 20／48 | 否 |
 
 ## 先修依賴檢查
@@ -399,56 +397,56 @@
 
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
-| LLM01 | 大型語言模型概觀 | 待能力 | AIF01 | sampling-explorer | 課程能力 |
-| LLM02 | Tokenization 斷詞 | 待能力 | LLM01 | token-explorer | 課程能力、先修 LLM01 |
-| LLM03 | 嵌入向量 | 待能力 | LLM02 | embedding-space | 課程能力、先修 LLM02 |
-| LLM04 | 用 Transformer 做語言模型 | 待能力 | LLM03、DL18 | attention-explorer | 課程能力、先修 LLM03、DL18 |
-| LLM05 | 預訓練目標與資料 | 待能力 | LLM04 | token-explorer | 課程能力、先修 LLM04 |
-| LLM06 | 規模法則與運算預算 | 待能力 | LLM05 | cost-calculator | 課程能力、先修 LLM05 |
-| LLM07 | 解碼策略與取樣 | 待能力 | LLM02 | sampling-explorer | 課程能力、先修 LLM02 |
-| LLM08 | 指令微調與聊天模型 | 待能力 | LLM05 | prompt-lab | 課程能力、先修 LLM05 |
-| LLM09 | 使用 LLM API | 待能力 | LLM01、CN14 | prompt-lab | 課程能力、先修 LLM01 |
-| LLM10 | 提示工程 | 待能力 | LLM09 | prompt-lab | 課程能力、先修 LLM09 |
-| LLM11 | 上下文與對話管理 | 待能力 | LLM10 | token-explorer | 課程能力、先修 LLM10 |
-| LLM12 | 結構化輸出 | 待能力 | LLM10 | prompt-lab | 課程能力、先修 LLM10 |
-| LLM13 | 函式呼叫基礎 | 待能力 | LLM12 | tool-call-trace | 課程能力、先修 LLM12 |
-| LLM14 | RAG 檢索增強生成 | 待能力 | LLM03、LLM10 | rag-explorer | 課程能力、先修 LLM03、LLM10 |
-| LLM15 | 向量檢索 | 待能力 | LLM14 | embedding-space | 課程能力、先修 LLM14 |
-| LLM16 | 文件切塊與索引 | 待能力 | LLM15 | rag-explorer | 課程能力、先修 LLM15 |
-| LLM17 | 混合檢索與重排序 | 待能力 | LLM16 | rag-explorer | 課程能力、先修 LLM16 |
-| LLM18 | 幻覺與安全 | 待能力 | LLM14 | guardrail-sim | 課程能力、先修 LLM14 |
-| LLM19 | 偏好對齊：RLHF 與 DPO | 待能力 | LLM08 | pipeline-diagram | 課程能力、先修 LLM08 |
-| LLM20 | LLM 評估 | 待能力 | LLM10 | eval-dashboard | 課程能力、先修 LLM10 |
-| LLM21 | 微調與 LoRA | 待能力 | LLM08、DL19 | training-curves | 課程能力、先修 LLM08、DL19 |
-| LLM22 | 推論與 KV Cache | 待能力 | LLM04、LLM07 | attention-explorer | 課程能力、先修 LLM04、LLM07 |
-| LLM23 | 模型量化 | 待能力 | LLM22 | cost-calculator | 課程能力、先修 LLM22 |
-| LLM24 | LLM 應用評估 | 待能力 | LLM17、LLM20 | eval-dashboard | 課程能力、先修 LLM17、LLM20 |
-| LLM25 | 大型語言模型島綜合專題 | 待能力 | LLM13、LLM18、LLM24 | challenge-stages | 課程能力、先修 LLM13、LLM18、LLM24 |
+| LLM01 | 大型語言模型概觀 | 已發布（閘門通過） | AIF01 | sampling-explorer | — |
+| LLM02 | Tokenization 斷詞 | 已發布（閘門通過） | LLM01 | token-explorer | — |
+| LLM03 | 嵌入向量 | 已發布（閘門通過） | LLM02 | embedding-space | — |
+| LLM04 | 用 Transformer 做語言模型 | 待先修 | LLM03、DL18 | attention-explorer | 先修 DL18 |
+| LLM05 | 預訓練目標與資料 | 待先修 | LLM04 | token-explorer | 先修 LLM04 |
+| LLM06 | 規模法則與運算預算 | 待先修 | LLM05 | cost-calculator | 先修 LLM05 |
+| LLM07 | 解碼策略與取樣 | 大綱 | LLM02 | sampling-explorer | — |
+| LLM08 | 指令微調與聊天模型 | 待先修 | LLM05 | prompt-lab | 先修 LLM05 |
+| LLM09 | 使用 LLM API | 大綱 | LLM01、CN14 | prompt-lab | — |
+| LLM10 | 提示工程 | 待先修 | LLM09 | prompt-lab | 先修 LLM09 |
+| LLM11 | 上下文與對話管理 | 待先修 | LLM10 | token-explorer | 先修 LLM10 |
+| LLM12 | 結構化輸出 | 待先修 | LLM10 | prompt-lab | 先修 LLM10 |
+| LLM13 | 函式呼叫基礎 | 待先修 | LLM12 | tool-call-trace | 先修 LLM12 |
+| LLM14 | RAG 檢索增強生成 | 待先修 | LLM03、LLM10 | rag-explorer | 先修 LLM10 |
+| LLM15 | 向量檢索 | 待先修 | LLM14 | embedding-space | 先修 LLM14 |
+| LLM16 | 文件切塊與索引 | 待先修 | LLM15 | rag-explorer | 先修 LLM15 |
+| LLM17 | 混合檢索與重排序 | 待先修 | LLM16 | rag-explorer | 先修 LLM16 |
+| LLM18 | 幻覺與安全 | 待先修 | LLM14 | guardrail-sim | 先修 LLM14 |
+| LLM19 | 偏好對齊：RLHF 與 DPO | 待先修 | LLM08 | pipeline-diagram | 先修 LLM08 |
+| LLM20 | LLM 評估 | 待先修 | LLM10 | eval-dashboard | 先修 LLM10 |
+| LLM21 | 微調與 LoRA | 待先修 | LLM08、DL19 | training-curves | 先修 LLM08、DL19 |
+| LLM22 | 推論與 KV Cache | 待先修 | LLM04、LLM07 | attention-explorer | 先修 LLM04、LLM07 |
+| LLM23 | 模型量化 | 待先修 | LLM22 | cost-calculator | 先修 LLM22 |
+| LLM24 | LLM 應用評估 | 待先修 | LLM17、LLM20 | eval-dashboard | 先修 LLM17、LLM20 |
+| LLM25 | 大型語言模型島綜合專題 | 待先修 | LLM13、LLM18、LLM24 | challenge-stages | 先修 LLM13、LLM18、LLM24 |
 
 ### AI 人工智慧群島 · 生成式 AI 島（GEN）
 
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
-| GEN01 | 生成模型概觀 | 待能力 | AIF01 | sampling-explorer | 課程能力 |
-| GEN02 | 自回歸生成模型 | 待能力 | GEN01、LLM01 | sampling-explorer | 課程能力、先修 GEN01、LLM01 |
-| GEN03 | 自編碼器與 VAE | 待能力 | GEN01、DL01 | latent-space | 課程能力、先修 GEN01、DL01 |
-| GEN04 | GAN 生成對抗網路 | 待能力 | GEN01、DL03 | training-curves | 課程能力、先修 GEN01、DL03 |
-| GEN05 | 擴散模型 | 待能力 | GEN01 | diffusion-steps | 課程能力、先修 GEN01 |
-| GEN06 | 流模型與 Flow Matching | 待能力 | GEN05 | diffusion-steps | 課程能力、先修 GEN05 |
-| GEN07 | 擴散取樣器與排程 | 待能力 | GEN05 | diffusion-steps | 課程能力、先修 GEN05 |
-| GEN08 | CLIP 與圖文對齊 | 待能力 | GEN01、LLM03 | embedding-space | 課程能力、先修 GEN01、LLM03 |
-| GEN09 | 文字生成圖像：潛在擴散 | 待能力 | GEN07、GEN08 | multimodal-pipeline | 課程能力、先修 GEN07、GEN08 |
-| GEN10 | 條件生成與 Classifier-Free Guidance | 待能力 | GEN09 | diffusion-steps | 課程能力、先修 GEN09 |
-| GEN11 | ControlNet 與結構控制 | 待能力 | GEN10 | multimodal-pipeline | 課程能力、先修 GEN10 |
-| GEN12 | 圖像編輯與修補 | 待能力 | GEN10 | diffusion-steps | 課程能力、先修 GEN10 |
-| GEN13 | 影片生成 | 待能力 | GEN09 | diffusion-steps | 課程能力、先修 GEN09 |
-| GEN14 | 語音合成 TTS | 待能力 | GEN02 | multimodal-pipeline | 課程能力、先修 GEN02 |
-| GEN15 | 音樂與音訊生成 | 待能力 | GEN05、GEN14 | sequence-model | 課程能力、先修 GEN05、GEN14 |
-| GEN16 | 視覺語言模型 | 待能力 | GEN08、LLM10 | multimodal-pipeline | 課程能力、先修 GEN08、LLM10 |
-| GEN17 | 生成結果評估 | 待能力 | GEN09、LLM20 | eval-dashboard | 課程能力、先修 GEN09、LLM20 |
-| GEN18 | 生成式創作工作流程 | 待能力 | GEN12、GEN16 | pipeline-diagram | 課程能力、先修 GEN12、GEN16 |
-| GEN19 | 著作權、倫理與浮水印 | 待能力 | GEN01、AIF19 | case-study-board | 課程能力、先修 GEN01 |
-| GEN20 | 生成式 AI 島綜合專題 | 待能力 | GEN17、GEN18、GEN19 | challenge-stages | 課程能力、先修 GEN17、GEN18、GEN19 |
+| GEN01 | 生成模型概觀 | 大綱 | AIF01 | sampling-explorer | — |
+| GEN02 | 自回歸生成模型 | 待先修 | GEN01、LLM01 | sampling-explorer | 先修 GEN01 |
+| GEN03 | 自編碼器與 VAE | 待先修 | GEN01、DL01 | latent-space | 先修 GEN01、DL01 |
+| GEN04 | GAN 生成對抗網路 | 待先修 | GEN01、DL03 | training-curves | 先修 GEN01、DL03 |
+| GEN05 | 擴散模型 | 待先修 | GEN01 | diffusion-steps | 先修 GEN01 |
+| GEN06 | 流模型與 Flow Matching | 待先修 | GEN05 | diffusion-steps | 先修 GEN05 |
+| GEN07 | 擴散取樣器與排程 | 待先修 | GEN05 | diffusion-steps | 先修 GEN05 |
+| GEN08 | CLIP 與圖文對齊 | 待先修 | GEN01、LLM03 | embedding-space | 先修 GEN01 |
+| GEN09 | 文字生成圖像：潛在擴散 | 待先修 | GEN07、GEN08 | multimodal-pipeline | 先修 GEN07、GEN08 |
+| GEN10 | 條件生成與 Classifier-Free Guidance | 待先修 | GEN09 | diffusion-steps | 先修 GEN09 |
+| GEN11 | ControlNet 與結構控制 | 待先修 | GEN10 | multimodal-pipeline | 先修 GEN10 |
+| GEN12 | 圖像編輯與修補 | 待先修 | GEN10 | diffusion-steps | 先修 GEN10 |
+| GEN13 | 影片生成 | 待先修 | GEN09 | diffusion-steps | 先修 GEN09 |
+| GEN14 | 語音合成 TTS | 待先修 | GEN02 | multimodal-pipeline | 先修 GEN02 |
+| GEN15 | 音樂與音訊生成 | 待先修 | GEN05、GEN14 | sequence-model | 先修 GEN05、GEN14 |
+| GEN16 | 視覺語言模型 | 待先修 | GEN08、LLM10 | multimodal-pipeline | 先修 GEN08、LLM10 |
+| GEN17 | 生成結果評估 | 待先修 | GEN09、LLM20 | eval-dashboard | 先修 GEN09、LLM20 |
+| GEN18 | 生成式創作工作流程 | 待先修 | GEN12、GEN16 | pipeline-diagram | 先修 GEN12、GEN16 |
+| GEN19 | 著作權、倫理與浮水印 | 待先修 | GEN01、AIF19 | case-study-board | 先修 GEN01 |
+| GEN20 | 生成式 AI 島綜合專題 | 待先修 | GEN17、GEN18、GEN19 | challenge-stages | 先修 GEN17、GEN18、GEN19 |
 
 ### AI 人工智慧群島 · AI 代理島（AG）
 
@@ -484,7 +482,7 @@
 
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
-| OPS01 | AI 工程與 MLOps 概觀 | 待能力 | SA01、LLM01 | pipeline-diagram | 課程能力、先修 SA01、LLM01 |
+| OPS01 | AI 工程與 MLOps 概觀 | 待能力 | SA01、LLM01 | pipeline-diagram | 課程能力、先修 SA01 |
 | OPS02 | 以 API 提供 AI 服務 | 待能力 | OPS01、CN14 | protocol-sequence | 課程能力、先修 OPS01 |
 | OPS03 | 模型閘道與供應商整合 | 待能力 | OPS02 | deployment-simulator | 課程能力、先修 OPS02 |
 | OPS04 | 容器與 Docker | 待能力 | OPS02 | pipeline-diagram | 課程能力、先修 OPS02 |

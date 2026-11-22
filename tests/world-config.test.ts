@@ -35,7 +35,9 @@ describe('island configuration (F.0)', () => {
     expect(getIslandRecord('foundations')?.counts).toEqual({ lessons: 20, complete: 20, planned: 0 });
     expect(getIslandRecord('foundations')?.prerequisites).toEqual([]);
     expect(getIslandRecord('algorithms')?.prerequisites).toEqual(['foundations', 'structures']);
-    expect(getIslandRecord('large-language-models')?.counts).toEqual({ lessons: 25, complete: 0, planned: 25 });
+    // LLM-1 published LLM01–LLM03 of the large-language-models island's 25 outlined lessons.
+    expect(getIslandRecord('large-language-models')?.counts).toEqual({ lessons: 25, complete: 3, planned: 22 });
+    expect(getIslandRecord('large-language-models')?.activities).toEqual(expect.arrayContaining(['sampling-explorer', 'token-explorer', 'embedding-space']));
     const db = getIslandRecord('databases')!;
     // F.1d: all 20 database lessons are written, so the island is complete (derived, not declared).
     expect(db.status).toBe('complete');

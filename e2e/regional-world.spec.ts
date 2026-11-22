@@ -36,7 +36,7 @@ test.describe('regional world: flag on', () => {
     for (const name of [...orderedRegions.map(r => `進入${r.name}`), '前往中央樞紐：互動實驗島']) await expect(page.getByRole('button', { name, exact: true })).toBeVisible({ timeout: 30_000 });
     const guide = page.getByRole('navigation', { name: '世界導覽' });
     await expect(guide.getByRole('link', { name: /程式與資訊群島.*8 座學科島 · 6 座已開放 · 2 座規劃中/ })).toHaveAttribute('href', '/world/cs');
-    await expect(guide.getByRole('link', { name: /AI 人工智慧群島.*7 座學科島 · 1 座已開放 · 6 座規劃中/ })).toHaveAttribute('href', '/world/ai');
+    await expect(guide.getByRole('link', { name: /AI 人工智慧群島.*7 座學科島 · 2 座已開放 · 5 座規劃中/ })).toHaveAttribute('href', '/world/ai');
     await expect(guide).toContainText('規劃中中央挑戰島');
     await expect(page.locator('a[href*="challenge"]')).toHaveCount(0);
     if (phone()) await page.getByRole('button', { name: '進入程式與資訊群島', exact: true }).tap(); else await page.getByRole('button', { name: '進入程式與資訊群島', exact: true }).click();
@@ -62,10 +62,12 @@ test.describe('regional world: flag on', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   });
 
-  test('AI region: seven islands (AI 基礎島 open since AIF-1, six planned), labels clear, islands at least 180 px wide on desktop', async ({ page }) => {
+  test('AI region: seven islands (AI 基礎島 open since AIF-1, 大型語言模型島 since LLM-1, five planned), labels clear, islands at least 180 px wide on desktop', async ({ page }) => {
     await openRegion(page, '/world/ai');
     await expect(page.getByRole('button', { name: '聚焦AI 基礎島', exact: true })).toBeVisible();
-    const names = ['機器學習島', '深度學習島', '大型語言模型島', '生成式 AI 島', 'AI 代理島', 'AI 工程與 MLOps 島'];
+    // LLM-1: its label is a written island's, while its landscape stays the planned-island one (mapState).
+    await expect(page.getByRole('button', { name: '聚焦大型語言模型島', exact: true })).toBeVisible();
+    const names = ['機器學習島', '深度學習島', '生成式 AI 島', 'AI 代理島', 'AI 工程與 MLOps 島'];
     for (const name of names) await expect(page.getByRole('button', { name: `聚焦${name}（規劃中）`, exact: true })).toBeVisible();
     await expectLabelsClear(page);
     // Desktop: 180 px in the overview. Phones: world-topology.spec.ts (P8.3), with no lowered floor here.

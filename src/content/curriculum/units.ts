@@ -73,6 +73,13 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '快取、診斷與故障排除', summary: 'Cache-Control、驗證器與 304、CDN 邊緣節點的命中與過期、版本化檔名與快取清除、nginx 的 proxy_cache；由下而上排查連線：ip、dig、ping、traceroute 與 mtr、nc 與 ss、curl -w、tcpdump；依症狀建立假設、分辨 502 與 504、資源與日誌的時間線、修復後驗證', lessonIds: range('SRV', 11, 13) },
     { title: '綜合專題', summary: '架設並維運一個 HTTPS 網站：修好網域並取得憑證、反向代理與負載平衡、防火牆與跳板機、CDN 與快取，追蹤一個請求經過的每一段，再找出只壞了一台後端的故障', lessonIds: range('SRV', 14, 14) },
   ],
+  // LLM-0 (2026-11-22): the large-language-models and generative-ai islands are prepared for authoring; their units come
+  // with their first lessons.
+  // LLM-1: LLM01–LLM03; LLM04 needs DL18 of the deep learning island.
+  'large-language-models': [
+    { title: '語言模型如何讀寫文字', summary: '逐一預測下一個 token、greedy、temperature、top-k 與 top-p 取樣、基礎模型、指令模型與推理模型、上下文視窗、知識截止與幻覺；BPE 子詞斷詞、UTF-8 位元組、token ID、特殊 token 與費用；embedding 向量、內積、餘弦相似度、最近鄰與 2D 投影', lessonIds: range('LLM', 1, 3) },
+  ],
+  'generative-ai': [],
   // WEB-1 (2026-11-23): the web foundations island's first units; WEB-2 adds the CSS unit.
   'web-foundations': [
     { title: '網頁如何運作與 HTML 結構', summary: 'HTML、CSS 與 JavaScript 的分工、頁面載入流程、DOM 與開發者工具；文件骨架、語意元素、地標區域與標題層級', lessonIds: range('WEB', 1, 2) },

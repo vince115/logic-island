@@ -1,7 +1,7 @@
 import type { AlgorithmId } from '@/lib/engine';
 import planning from '@/content/world/planning-data.json';
 import type { AnyLessonId } from '@/content/world/lesson-id';
-import { DATABASE_VISUALIZATIONS, LANGUAGES, LESSON_ACTIVITIES, OPTIONAL_LANGUAGES, ISLAND_PREFIX, ISLAND_IDS, PYTHON_LANGUAGES, type ApcsRelevance, type Difficulty, type LessonActivity, type LessonCapability, type LessonId, type LessonMeta, type LessonStatus, type VisualizationType } from './schema';
+import { DATABASE_VISUALIZATIONS, LANGUAGES, LESSON_ACTIVITIES, LLM_ACTIVITIES, OPTIONAL_LANGUAGES, ISLAND_PREFIX, ISLAND_IDS, PYTHON_LANGUAGES, type ApcsRelevance, type Difficulty, type LessonActivity, type LessonCapability, type LessonId, type LessonMeta, type LessonStatus, type VisualizationType } from './schema';
 
 /*
  * The lessons in recommended order (F01..F20, D01..D20, A01..A20, then the database island's written lessons from DB01).
@@ -392,6 +392,26 @@ export function serverFromBlueprint(lessonId: string, summary: string, minutes: 
   return terminalOutline(lessonId, summary, minutes, 'network-servers', 'network and servers');
 }
 /**
+ * LLM-0 (2026-11-22): a lesson of the large-language-models or generative-ai island written from its blueprint outline.
+ * Slug, title, objectives, concepts, difficulty and prerequisites are the blueprint's. Its body is the llm-explorer
+ * capability (docs/curriculum/LLM0_LANGUAGE_MODEL_CAPABILITY.md): the blueprint's token-explorer, sampling-explorer and
+ * embedding-space stay the lesson's activity. A lesson whose blueprint exercises are code-python also has python-code
+ * (Python examples and exercises beside the explorers, e.g. BPE merges or cosine similarity with the standard library);
+ * `python` overrides that. Other blueprint activities (attention-explorer, prompt-lab, rag-explorer…) are not built:
+ * their lessons cannot be written with this builder yet.
+ */
+export const LLM_ISLANDS = ['large-language-models', 'generative-ai'] as const;
+export function llmFromBlueprint(lessonId: string, summary: string, minutes: number, python?: boolean): Outline {
+  const b = planning.plannedLessons.find(l => l.lessonId === lessonId);
+  if (!b || !(LLM_ISLANDS as readonly string[]).includes(b.islandId)) throw new Error(`${lessonId} is not a large-language-models or generative-ai lesson of the blueprint`);
+  if (!(LLM_ACTIVITIES as readonly string[]).includes(b.activity)) throw new Error(`${lessonId}: no llm-explorer lesson shape for the blueprint activity ${b.activity}`);
+  const withPython = python ?? b.exerciseType === 'code-python';
+  return { slug: b.slug, title: b.title, summary, objectives: b.learningObjectives, concepts: b.concepts, difficulty: b.difficulty as Difficulty,
+    minutes, prerequisites: b.prerequisites as LessonId[], recommended: b.recommended as AnyLessonId[], apcs: ['none'], visualization: 'none',
+    status: 'complete', version: '1.0.0', activity: b.activity as LessonActivity,
+    capabilities: withPython ? ['python-code', 'llm-explorer'] : ['llm-explorer'], blueprintId: lessonId };
+}
+/**
  * WEB-0 (2026-11-23): a web foundations lesson written from its blueprint outline (slug, title, objectives, concepts,
  * difficulty, prerequisites). Its body is the web-code capability: pages in a sandboxed frame beside the DOM the browser
  * built, and exercises checked on that page. dom-explorer is that activity. The island's other blueprint activities
@@ -549,6 +569,13 @@ const networkServers: Outline[] = [
   serverFromBlueprint('SRV14', '把搬家當天的網域修好並用 certbot --nginx 取得 HTTPS 憑證，以 nginx 終止 TLS、把請求與轉送標頭交給私有網段的兩台應用伺服器（max_fails 與 backup），用 ufw 與 ssh -J 讓 22 只經由跳板機、8080 只給網頁伺服器，依資源設定 Cache-Control 並確認 CDN 邊緣節點的 HIT，以 dig、mtr、curl -v／-w、access.log 與 X-Forwarded-For 追蹤一個請求經過的每一段，最後依故障排除方法找出只壞了一台後端的防火牆規則並修好原因。', 90),
 ];
 
+/** LLM-1 (2026-11-22): the large-language-models island's first lessons, on the llm-explorer capability (LLM0_LANGUAGE_MODEL_CAPABILITY.md). */
+const largeLanguageModels: Outline[] = [
+  llmFromBlueprint('LLM01', '以玩具模型看懂大型語言模型如何逐一預測下一個 token 生成文字，比較 greedy、temperature、top-k 與 top-p 的取樣，區分基礎模型、指令模型與推理模型，認識上下文視窗、知識截止與幻覺的限制，並判斷需求該用直接提示、RAG 或微調。', 45),
+  llmFromBlueprint('LLM02', '從字元、單字與子詞的取捨說明為什麼用 BPE，在小語料上訓練合併規則並依名次逐步斷詞，看中文字的三個 UTF-8 位元組如何成為 token，認識 token ID 與特殊 token，並比較中文、英文與程式碼的 token 數、估算提示的費用。', 50),
+  llmFromBlueprint('LLM03', '從零學會向量的內積、長度與餘弦相似度，分辨語言模型內依 token ID 查表的 embedding 表與為整段文字算出一個向量的句子 embedding 模型，用最近鄰在示意的句子空間中找出語意最接近的句子，比較向量沒有正規化時內積與餘弦的排名差異，並看懂 2D PCA 投影保留與失去的資訊。', 50),
+];
+
 /** WEB-1 (2026-11-23): the web foundations island's first lessons, written with the web-code capability (WEB0_WEB_CODE_CAPABILITY.md); WEB-2 adds WEB05–WEB07. */
 const webFoundations: Outline[] = [
   webFromBlueprint('WEB01', '用同一個「小島圖書館」頁面依序加上 HTML、CSS 與 JavaScript，分清內容、外觀與行為的分工，走一遍瀏覽器從網址、解析 HTML 建立 DOM、計算樣式、版面配置到繪製的頁面載入流程，看懂原始碼與 DOM 為何不同，並用開發者工具的 Elements、Console 與 Network 面板檢查網頁。', 40),
@@ -569,7 +596,7 @@ function idAt(islandId: (typeof ISLAND_IDS)[number], index: number, blueprintId?
 /** F, D and A are taught in the program languages: every lesson there declares program-code. */
 const program = (list: Omit<Outline, 'capabilities'>[]): Outline[] => list.map(o => ({ ...o, capabilities: ['program-code'] }));
 const outlines: Record<(typeof ISLAND_IDS)[number], Outline[]> = {
-  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages, networks, 'ai-foundations': aiFoundations, 'web-foundations': webFoundations, 'linux-systems': linuxSystems, 'network-servers': networkServers };
+  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages, networks, 'ai-foundations': aiFoundations, 'large-language-models': largeLanguageModels, 'web-foundations': webFoundations, 'linux-systems': linuxSystems, 'network-servers': networkServers };
 
 /** Every lesson the blueprint outlines, written or not (validateCurriculum's recommended-lesson check). */
 export const outlinedLessonIds: readonly string[] = planning.plannedLessons.map(l => l.lessonId);
