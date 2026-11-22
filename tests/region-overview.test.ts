@@ -52,7 +52,7 @@ describe('region overview', () => {
     expect(pathRegion(['F01', 'DS01', 'LLM01'])).toBe('cs');
     // R7: the design and web regions each have their own path.
     expect(regionOverview('design').paths.map(p => p.id)).toEqual(['H-product-design']);
-    expect(regionOverview('web').paths.map(p => [p.id, p.lessonCount, p.publishedLessons])).toEqual([['G-frontend-engineering', 62, 20]]); // WEB-1: + WEB01–WEB04; WEB-2: + WEB05–WEB07; WEB-3: + WEB08–WEB10; WEB-4: + WEB11–WEB13
+    expect(regionOverview('web').paths.map(p => [p.id, p.lessonCount, p.publishedLessons])).toEqual([['G-frontend-engineering', 62, 22]]); // WEB-1 to WEB-5: + WEB01–WEB15
     expect(pathRegion([])).toBeUndefined();
   });
 

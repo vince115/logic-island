@@ -13,19 +13,19 @@
 
 ## 總覽
 
-已發布 **185／520**（35.6%）；規劃中 335。
+已發布 **187／520**（36.0%）；規劃中 333。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
 | 程式與資訊群島 | 120 | 40 | 75.0% |
 | AI 人工智慧群島 | 23 | 137 | 14.4% |
 | 數位設計群島 | 0 | 56 | 0.0% |
-| 網頁與應用開發群島 | 13 | 42 | 23.6% |
+| 網頁與應用開發群島 | 15 | 40 | 27.3% |
 | 系統與雲端工程群島 | 29 | 60 | 32.6% |
 
 ## 下一批（自動選擇）
 
-**網頁基礎島（WEB）**：WEB14 網頁效能基礎：載入與 Core Web Vitals、WEB15 網頁基礎島綜合專題：無框架的小型網站。島嶼能力：可用；這幾堂解鎖其他島的 0 堂。
+**生成式 AI 島（GEN）**：GEN01 生成模型概觀、GEN02 自回歸生成模型。島嶼能力：已備妥（可開始撰寫）；這幾堂解鎖其他島的 0 堂。
 
 能力缺口中最優先的是 **機器學習島（ML）**：需要 python-code + data-explorer (fixed datasets, metrics computed in the browser)；先修已滿足、可依序撰寫的有 25 堂，前 5 堂解鎖其他島的 39 堂。
 
@@ -54,7 +54,7 @@
 | 數位設計群島 | UX 研究島（UX） | 0／15 | case-analysis + model-diagram | 缺少 | UX01–UX15（15 堂） | 缺少課程能力 |
 | 數位設計群島 | 互動設計島（IXD） | 0／14 | case-analysis + a11y checks | 缺少 | IXD01–IXD14（14 堂） | 缺少課程能力 |
 | 數位設計群島 | 設計系統島（DSY） | 0／12 | design-token board | 缺少 | DSY01–DSY12（12 堂） | 缺少課程能力 |
-| 網頁與應用開發群島 | 網頁基礎島（WEB） | 13／15 | web-code (HTML, CSS and JavaScript pages in a sandboxed frame beside the DOM the browser built; exercises checked by steps on that page, verified in Chromium) | 可用 | WEB14–WEB15（2 堂） | — |
+| 網頁與應用開發群島 | 網頁基礎島（WEB） | 15／15 | web-code (HTML, CSS and JavaScript pages in a sandboxed frame beside the DOM the browser built; exercises checked by steps on that page, verified in Chromium) | 可用 | 全島完成 | — |
 | 網頁與應用開發群島 | 前端開發島（FE） | 0／15 | web-code + state-flow trace | 缺少 | FE01–FE15（15 堂） | 缺少課程能力 |
 | 網頁與應用開發群島 | 響應式設計島（RWD） | 0／12 | web-code + responsive simulator (the standalone lab exists) | 缺少 | RWD01–RWD12（12 堂） | 缺少課程能力 |
 | 網頁與應用開發群島 | 行動應用島（MOB） | 0／13 | web-code + case-analysis | 缺少 | — | 缺少課程能力；MOB01 需要尚未發布的 RWD01 |
@@ -94,7 +94,7 @@
 | 企業資訊系統 | 44／84 | 否 |
 | AI 研究 | 60／142 | 否 |
 | AI 應用工程 | 31／89 | 否 |
-| 前端工程 | 20／62 | 否 |
+| 前端工程 | 22／62 | 否 |
 | 產品設計 | 0／56 | 否 |
 | AI 架構 | 23／66 | 否 |
 | 全端部署 | 39／62 | 否 |
@@ -597,8 +597,8 @@
 | WEB11 | fetch、JSON 與 API | 已發布（閘門通過） | WEB10 | dom-explorer | — |
 | WEB12 | 瀏覽器儲存：localStorage 與 Cookie | 已發布（閘門通過） | WEB10 | dom-explorer | — |
 | WEB13 | 語意 HTML 與 ARIA 的無障礙實作 | 已發布（閘門通過） | WEB04、WEB09 | dom-explorer | — |
-| WEB14 | 網頁效能基礎：載入與 Core Web Vitals | 大綱 | WEB07、WEB11 | metric-explorer | — |
-| WEB15 | 網頁基礎島綜合專題：無框架的小型網站 | 大綱 | WEB11、WEB13 | challenge-stages | — |
+| WEB14 | 網頁效能基礎：載入與 Core Web Vitals | 已發布（閘門通過） | WEB07、WEB11 | dom-explorer | — |
+| WEB15 | 網頁基礎島綜合專題：無框架的小型網站 | 已發布（閘門通過） | WEB11、WEB13 | challenge-stages | — |
 
 ### 網頁與應用開發群島 · 前端開發島（FE）
 
