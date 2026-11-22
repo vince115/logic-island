@@ -92,9 +92,13 @@ jobs:
         # Two workers on the 4-core runner: the CPU-bound files (highlight, curriculum) must not starve each other.
         # WEB-3: the two files that drive a real browser run in their own step below. Chromium is several processes of
         # its own; beside two busy workers it pushed CPU-bound tests of other files past their 5 s limit.
-        run: pnpm exec vitest run --maxWorkers=2 --exclude tests/webcode-runner.test.ts --exclude tests/curriculum-webcode.test.ts
+        # GEN-1: python-capability runs every Python program twice (two hash seeds), one process each; beside two busy
+        # workers on a shared runner a single program passed its 5 s limit, so it runs in its own step below too.
+        run: pnpm exec vitest run --maxWorkers=2 --exclude tests/webcode-runner.test.ts --exclude tests/curriculum-webcode.test.ts --exclude tests/python-capability.test.ts
       - name: Web-code pages in Chromium
         run: pnpm exec vitest run tests/webcode-runner.test.ts tests/curriculum-webcode.test.ts --maxWorkers=1
+      - name: Python programs under two hash seeds
+        run: pnpm exec vitest run tests/python-capability.test.ts --maxWorkers=1
 
       # T.3F (docs/exam-system/30 §9): every revision against its recorded fingerprint (explanations included, legacy hash
       # or not), and — when the base commit has a manifest — no recorded entry rewritten or dropped. Never repairs.
