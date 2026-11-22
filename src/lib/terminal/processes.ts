@@ -43,6 +43,8 @@ export interface Proc {
   int?: 'exit' | 'ignore';
   /** A terminating signal that arrived while the process was stopped; it acts on SIGCONT. */
   pending?: number;
+  /** E9: the lock files it holds (flock); a lock is free again when the process ends. */
+  locks?: readonly string[];
 }
 
 /** A background job of the session (only `sleep N &` makes one). */

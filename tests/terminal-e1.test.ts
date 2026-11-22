@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_SYSTEM, humanSize, initialState, LIMITS, MAX_LINK_HOPS, physicalPath, type FsNode, type FsState } from '@/lib/terminal/fs';
 import { expandGlob, hasMagic, matchName, type GlobIo } from '@/lib/terminal/glob';
 import { MANUAL } from '@/lib/terminal/manual';
-import { COMMANDS, E1_COMMANDS, FILES_PROFILE, LAB_PROFILE, PACKAGES_PROFILE, PROCESSES_PROFILE, PROFILES, run, SERVICES_PROFILE, STREAMS_PROFILE, tokenize, USERS_PROFILE } from '@/lib/terminal/shell';
+import { COMMANDS, E1_COMMANDS, FILES_PROFILE, LAB_PROFILE, PACKAGES_PROFILE, PROCESSES_PROFILE, PROFILES, REMOTE_PROFILE, run, SCHEDULING_PROFILE, SCRIPTING_PROFILE, SERVICES_PROFILE, STREAMS_PROFILE, tokenize, USERS_PROFILE } from '@/lib/terminal/shell';
 import {
   checkTerminalExercise, machineProblems, machineState, profileOf, replay, terminalContentProblems, type TerminalLessonContent, type TerminalMachine,
 } from '@/lib/terminal/lesson';
@@ -36,7 +36,8 @@ describe('profiles', () => {
     expect(LAB_PROFILE).toEqual({ id: 'lab', commands: COMMANDS });
     expect([...FILES_PROFILE.commands].sort()).toEqual([...COMMANDS, ...E1_COMMANDS].sort());
     expect(FILES_PROFILE.features).toEqual(['glob', 'help-option', 'multi-source', 'ls-extra']);
-    expect(PROFILES).toEqual({ lab: LAB_PROFILE, files: FILES_PROFILE, streams: STREAMS_PROFILE, users: USERS_PROFILE, processes: PROCESSES_PROFILE, packages: PACKAGES_PROFILE, services: SERVICES_PROFILE });
+    expect(PROFILES).toEqual({ lab: LAB_PROFILE, files: FILES_PROFILE, streams: STREAMS_PROFILE, users: USERS_PROFILE, processes: PROCESSES_PROFILE, packages: PACKAGES_PROFILE, services: SERVICES_PROFILE,
+      remote: REMOTE_PROFILE, scripting: SCRIPTING_PROFILE, scheduling: SCHEDULING_PROFILE });
   });
   it('keeps the lab refusing every E1 command, glob, option and form', () => {
     for (const cmd of ['uname -a', 'hostname', 'man ls', 'df -h', 'du -s .', 'ln -s README.txt r', 'readlink r']) {

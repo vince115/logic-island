@@ -70,7 +70,13 @@ describe('curriculum (E.1)', () => {
     // AIF-1: the AI foundations lessons are Python-only program lessons (python-code), never four-language ones.
     for (const l of lessons.filter(l => l.islandId === 'ai-foundations')) expect([l.capabilities, l.supportedLanguages, l.activity], l.lessonId).toEqual([['python-code'], ['Python'], undefined]);
     // LNX-1: the Linux lessons are taught in the terminal capability's console (terminal-sim), with no program code.
-    for (const l of lessons.filter(l => l.islandId === 'linux-systems')) expect([l.capabilities, l.activity, !!curriculum.contents[l.lessonId]?.terminal], l.lessonId).toEqual([['terminal'], 'terminal-sim', true]);
+    // LNX-4: LNX12 (SSH) is the blueprint's protocol-sequence, taught with a network-protocol scene of the SSH connection
+    // beside its terminal machines (network-sequence, as the CN lessons).
+    for (const l of lessons.filter(l => l.islandId === 'linux-systems')) {
+      const both = blueprint.get(l.lessonId) === 'protocol-sequence';
+      expect([l.capabilities, l.activity, !!curriculum.contents[l.lessonId]?.terminal, !!curriculum.contents[l.lessonId]?.network], l.lessonId)
+        .toEqual(both ? [['terminal', 'network-protocol'], 'network-sequence', true, true] : [['terminal'], 'terminal-sim', true, false]);
+    }
     // CN-1: network lessons are taught with network-protocol scenes; the blueprint's protocol-sequence is the
     // network-sequence activity there (protocol-sequence keeps meaning the database lessons' SQL round trips). CN-3: the
     // lessons whose outcome is code (CN11 sockets, CN14 a REST client) are program lessons instead (checked below).

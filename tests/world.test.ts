@@ -123,7 +123,7 @@ describe('world registry (F.0)', () => {
     // (an island's 3D look is set by hand in IslandConfig.mapState, never by its lessons).
     // CN-5 published CN20, the last of 20: the computer-networks island is complete; its map stays planned too.
     // AIF-5 published AIF20, the last of 20: the AI foundations island is complete; its map stays planned too.
-    // LNX-1 to LNX-3 published LNX01–LNX11 of 15: the Linux systems island is open (available); its map stays planned.
+    // LNX-1 to LNX-4 published LNX01–LNX14 of 15: the Linux systems island is open (available); its map stays planned.
     expect(subjectIslands.filter(i => i.status === 'available').map(i => i.id)).toEqual(['linux-systems']);
     expect(getIsland('linux-systems')).toMatchObject({ status: 'available', mapState: 'planned' });
     expect(getIsland('ai-foundations')).toMatchObject({ status: 'complete', mapState: 'planned' });

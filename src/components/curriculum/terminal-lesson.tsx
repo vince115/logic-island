@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent 
 import { Check, RotateCcw, X } from 'lucide-react';
 import { baseName, childrenOf, groupOf, LIMITS, modeString, type FsState } from '@/lib/terminal/fs';
 import { prompt, run, type Line } from '@/lib/terminal/shell';
+import { activeState } from '@/lib/terminal/ssh';
 import { checkTerminalExercise, machineState, profileOf, replay, TERMINAL_LIMITS, type TerminalExample, type TerminalExercise, type TerminalMachine, type TerminalVerdict } from '@/lib/terminal/lesson';
 import { shownText } from './pre-text';
 import { Rich } from './rich';
@@ -153,7 +154,8 @@ export function TerminalExerciseBox({ exercise, machines }: { exercise: Terminal
     </div>
     <details className={styles.current}>
       <summary>目前的檔案（權限、擁有者:群組）</summary>
-      <pre className={styles.tree}>{shownText(machineTree(fs).join('\n'))}</pre>
+      {/* E7: during an ssh session, the remote machine's files. */}
+      <pre className={styles.tree}>{shownText(machineTree(activeState(fs)).join('\n'))}</pre>
     </details>
     <div aria-live="polite">
       {announce && <p className={styles.help}>{announce}</p>}

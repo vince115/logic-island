@@ -4,7 +4,12 @@ import { ALL_COMMANDS, commandNames, LAB_PROFILE, PROFILES, prompt, run, type Li
 import { DAY, DEFAULT_NOW, parseTime } from './clock';
 import { commOf, MAX_PROCESSES, tableOf, type Proc } from './processes';
 import { compareVersions, installedOf, PACKAGE_NAME, PACKAGE_VERSION, type PackageDb, type PackageFile } from './packages';
-import { enablement, findUnitFile, journalProblems, unitFilesOnDisk, unitName, type JournalEntry, type Program, type UnitRun } from './services';
+import { enablement, findUnitFile, journalProblems, nextElapse, parseUnit, unitFilesOnDisk, unitName, type JournalEntry, type Program, type UnitRun } from './services';
+import { activeState, DEFAULT_SSHD_CONFIG, hostKey, hostState, knownHostProblem, loginProblem, readSshdConfig, SSH_UNIT, type RemoteHost } from './ssh';
+import { parseCron, sameCron, toLocal, zoneNamed, zoneOf } from './calendar';
+import { isoText } from './clock';
+import { allJobs } from './schedule';
+import { scriptCommandNames } from './script';
 
 /*
  * LNX-0 (2026-11-22): the terminal lesson capability (docs/curriculum/LNX0_TERMINAL_CAPABILITY.md). A Linux lesson
@@ -28,6 +33,12 @@ import { enablement, findUnitFile, journalProblems, unitFilesOnDisk, unitName, t
  * repositories, available and installed packages; a services machine the run state of its units (the unit files are
  * files of the machine), the programs its services run and a journal. Exercises may check processes, packages and
  * services; a variant may replace the process table or the journal.
+ *
+ * Engine stages E7–E9 (§15–§17): the profiles 'remote', 'scripting' and 'scheduling'. A remote machine lists other machines
+ * (each a whole machine with its users, files, sshd_config and a host key seed) reachable with ssh; checks may look at a
+ * remote's files (host) and ask whether a login method is allowed (ssh) or a host is trusted (known-host). A scripting
+ * machine runs scripts (and its prompt is the interpreter). A scheduling machine has a time zone and timers; checks may
+ * ask for a cron job or a timer. A variant may replace a remote machine (another host key) or the clock (another now).
  */
 
 /** A file, folder or (from engine stage E1, not before) symbolic link of a machine. Paths are absolute and normalized. */
@@ -99,6 +110,38 @@ export interface TerminalMachine {
   programs?: Program[];
   /** E6: the journal, oldest first, none after now. */
   journal?: TerminalJournalEntry[];
+  /** E7: this machine's IPv4 address (default 10.0.0.10; sshd logs it). */
+  address?: string;
+  /** E7: the seed of the keys ssh-keygen makes here (default the machine id). */
+  keySeed?: string;
+  /** E7: the other machines of the network, reachable with ssh. */
+  remotes?: TerminalRemote[];
+  /** E9: the time zone (a name of calendar.ts's table; default UTC). */
+  timezone?: string;
+  /** E9: whether the machine can send mail (cron mails a job's output; without one cron discards it). */
+  mta?: boolean;
+}
+
+/**
+ * E7: another machine of the lesson. Its prompt is host; root and its users come from accounts; the simulation adds what
+ * an Ubuntu server with OpenSSH has unless listed (/etc/ssh/sshd_config, the ssh.service unit, enabled and running), so a
+ * lesson lists only what matters (homes, authorized_keys, a changed sshd_config, an Include file…).
+ */
+export interface TerminalRemote {
+  host: string;
+  title?: string;
+  /** IPv4 address (ssh by address works too). */
+  address: string;
+  aliases?: string[];
+  /** The seed of its ed25519 host key; a variant with another seed is "the same name, another key". */
+  hostKey: string;
+  /** The accounts whose password the lesson gives the learner (ssh answers the password prompt with it). */
+  passwords?: string[];
+  files: TerminalFile[];
+  accounts?: { users?: TerminalUser[]; groups?: TerminalGroup[] };
+  /** Whether sshd runs (default true). */
+  sshd?: boolean;
+  journal?: TerminalJournalEntry[];
 }
 
 /** E4: a process. Defaults: ppid 1, stat S, cpu 0, rss 0, vsz the rss, shr 0, tty ?, start the boot time, time 0, nice 0. */
@@ -108,6 +151,8 @@ export interface TerminalProcess {
   /** E6 (services machines): the service it belongs to. */
   unit?: string;
   term?: 'exit' | 'ignore'; hup?: 'exit' | 'reload' | 'ignore'; int?: 'exit' | 'ignore';
+  /** E9 (scheduling machines): lock files it holds (flock -n on them fails while it runs). */
+  locks?: string[];
 }
 /** E5: a machine's package data. stale: the lists were never fetched (apt sees nothing until apt update). */
 export interface TerminalPackages {
@@ -117,7 +162,7 @@ export interface TerminalPackages {
   stale?: boolean;
 }
 /** E6: a unit's state at the start. A failed unit names the pid and exit status of its last main process. */
-export interface TerminalService { unit: string; active: 'active' | 'failed' | 'inactive'; since?: string; result?: string; pid?: number; status?: number }
+export interface TerminalService { unit: string; active: 'active' | 'failed' | 'inactive'; since?: string; result?: string; pid?: number; status?: number; /** E9 (timers): when it last triggered. */ last?: string }
 /** E6: a journal entry: id is the program (systemd, sshd, kernel…); priority 0 emerg … 7 debug. */
 export interface TerminalJournalEntry { time: string; unit?: string; id: string; pid?: number; priority: number; message: string }
 
@@ -131,19 +176,19 @@ export interface TerminalExample { id: string; title: string; description: strin
  * a typed-in answer does not pass). unchanged: the path and everything under it are as they were at the start.
  */
 export type TerminalCheck =
-  | { kind: 'exists'; path: string; type?: 'file' | 'dir' }
-  | { kind: 'absent'; path: string }
-  | { kind: 'mode'; path: string; mode: number }
-  | { kind: 'owner'; path: string; owner: string; group?: string }
-  | { kind: 'content'; path: string; content: string }
+  | { kind: 'exists'; path: string; type?: 'file' | 'dir'; /** E7: on this remote machine */ host?: string }
+  | { kind: 'absent'; path: string; host?: string }
+  | { kind: 'mode'; path: string; mode: number; host?: string }
+  | { kind: 'owner'; path: string; owner: string; group?: string; host?: string }
+  | { kind: 'content'; path: string; content: string; host?: string }
   | { kind: 'cwd'; path: string }
   | { kind: 'output' }
-  | { kind: 'unchanged'; path: string }
+  | { kind: 'unchanged'; path: string; host?: string }
   /**
    * E1: the path is a symbolic link to the place this target names (relative targets count from the link's folder), so
    * reports/today.txt and /home/learner/reports/today.txt both pass for /home/learner/current.
    */
-  | { kind: 'link'; path: string; target: string }
+  | { kind: 'link'; path: string; target: string; host?: string }
   /**
    * E3 (users machines): the account exists (absent: it does not) with these fields; groups are login groups the user
    * must have (the primary one counts), notGroups ones it must not have. Read from the database, so it holds without a
@@ -159,14 +204,29 @@ export type TerminalCheck =
   /** E5: the package is installed (with this version, held or not), or absent (not installed; purged: no configuration left either). */
   | { kind: 'package'; name: string; absent?: true; purged?: true; version?: string; held?: boolean }
   /** E6: the service's run state and whether it starts at boot. */
-  | { kind: 'service'; unit: string; active?: 'active' | 'inactive' | 'failed'; enabled?: boolean };
-export const TERMINAL_CHECK_KINDS = ['exists', 'absent', 'mode', 'owner', 'content', 'cwd', 'output', 'unchanged', 'link', 'user', 'group', 'umask', 'process', 'package', 'service'] as const satisfies readonly TerminalCheck['kind'][];
+  | { kind: 'service'; unit: string; active?: 'active' | 'inactive' | 'failed'; enabled?: boolean }
+  /** E7: whether user could log in to host with this method now (the sshd options applied by the last start or reload). */
+  | { kind: 'ssh'; host: string; user: string; method: 'publickey' | 'password'; allowed: boolean }
+  /** E7: the local user's known_hosts has the host's current key under this name (absent: it has no entry for it). */
+  | { kind: 'known-host'; host: string; absent?: true }
+  /** E9: a cron job (of user, in source: a path or "crontab" for users' crontabs) runs at this schedule (same times) with a command containing this text. */
+  | { kind: 'cron'; user?: string; source?: string; schedule?: string; command?: string; absent?: true }
+  /** E9: a timer is (not) active / enabled, its next elapse is this local time (YYYY-MM-DD HH:MM:SS). */
+  | { kind: 'timer'; unit: string; active?: boolean; enabled?: boolean; next?: string };
+export const TERMINAL_CHECK_KINDS = ['exists', 'absent', 'mode', 'owner', 'content', 'cwd', 'output', 'unchanged', 'link', 'user', 'group', 'umask', 'process', 'package', 'service',
+  'ssh', 'known-host', 'cron', 'timer'] as const satisfies readonly TerminalCheck['kind'][];
+/** E7: the checks of files that may name a remote machine (host). */
+const PATH_KINDS = ['exists', 'absent', 'mode', 'owner', 'content', 'unchanged', 'link'];
 
 /**
  * The same machine with some files replaced or added (and, fix 5, another host name or other uname fields); the
  * learner's commands are replayed on it as well.
  */
-export interface TerminalVariant { label: string; files: TerminalFile[]; host?: string; system?: Partial<SystemInfo>; /** E4 */ processes?: TerminalProcess[]; /** E6 */ journal?: TerminalJournalEntry[] }
+export interface TerminalVariant {
+  label: string; files: TerminalFile[]; host?: string; system?: Partial<SystemInfo>; /** E4 */ processes?: TerminalProcess[]; /** E6 */ journal?: TerminalJournalEntry[];
+  /** E7: remote machines replaced by host (e.g. another host key). */ remotes?: TerminalRemote[];
+  /** E9: another clock (next run times differ). */ now?: string;
+}
 
 export interface TerminalExercise {
   id: string;
@@ -199,7 +259,7 @@ const SYSTEM_FIELDS = ['kernel', 'release', 'version', 'machine', 'os'] as const
 /** E1: the shell profile a machine's sessions use (lab unless it says files, streams or users). */
 export const profileOf = (machine: Pick<TerminalMachine, 'profile'>): ShellProfile => PROFILES[machine.profile ?? 'lab'] ?? LAB_PROFILE;
 /** Each profile includes the ones before it: files (E1) < streams (E2) < users (E3) < processes (E4) < packages (E5) < services (E6). */
-const RANK: Record<ProfileId, number> = { lab: 0, files: 1, streams: 2, users: 3, processes: 4, packages: 5, services: 6 };
+const RANK: Record<ProfileId, number> = { lab: 0, files: 1, streams: 2, users: 3, processes: 4, packages: 5, services: 6, remote: 7, scripting: 8, scheduling: 9 };
 const rankOf = (machine: Pick<TerminalMachine, 'profile'>) => RANK[machine.profile ?? 'lab'] ?? 0;
 
 /** E3: a users machine's database: the base and its user (defaultAccounts) with the machine's groups and users laid over it. */
@@ -245,7 +305,47 @@ export function machineState(machine: TerminalMachine): FsState {
   const accounts = machineAccounts(machine);
   writeAccountFiles(nodes, accounts);
   const users: FsState = { ...state, accounts, groups: loginGroups(accounts, machine.user), umask: machine.umask ?? 0o022 };
-  return rankOf(machine) < RANK.processes ? users : systemState(machine, users);
+  if (rankOf(machine) < RANK.processes) return users;
+  const system = systemState(machine, users);
+  if (rankOf(machine) < RANK.remote) return system;
+  // E7: the other machines, each a whole state with its sshd; E9: the time zone.
+  const scheduled: FsState = rankOf(machine) >= RANK.scheduling ? { ...system, schedule: { timezone: machine.timezone ?? 'UTC', mta: !!machine.mta } } : system;
+  const hosts: RemoteHost[] = (machine.remotes ?? []).map(r => ({ host: r.host, address: r.address, aliases: [...r.aliases ?? []], passwords: [...r.passwords ?? []], state: remoteState(machine, r) }));
+  return { ...scheduled, net: { address: machine.address ?? '10.0.0.10', seed: machine.keySeed ?? machine.id, hosts, connections: 0 } };
+}
+
+const fileOf = (path: string, content: string, mode = 0o644): TerminalFile => ({ path, kind: 'file', mode, owner: 'root', content });
+const dirOf = (path: string, mode = 0o755): TerminalFile => ({ path, kind: 'dir', mode, owner: 'root' });
+/**
+ * E7: a remote machine as a lesson machine: root's session, the local machine's profile and clock, and what an Ubuntu
+ * server with OpenSSH has unless the lesson lists it (sshd_config, its .d folder, ssh.service enabled and running).
+ */
+export function remoteMachine(machine: TerminalMachine, r: TerminalRemote): TerminalMachine {
+  const generated: TerminalFile[] = [
+    dirOf('/etc'), dirOf('/etc/ssh'), dirOf('/etc/ssh/sshd_config.d'), fileOf('/etc/ssh/sshd_config', DEFAULT_SSHD_CONFIG), dirOf('/home'), dirOf('/root', 0o700),
+    dirOf('/etc/systemd'), dirOf('/etc/systemd/system'), dirOf('/etc/systemd/system/multi-user.target.wants'),
+    { path: '/etc/systemd/system/multi-user.target.wants/ssh.service', kind: 'link', mode: 0o777, owner: 'root', target: '/usr/lib/systemd/system/ssh.service' },
+    dirOf('/usr'), dirOf('/usr/lib'), dirOf('/usr/lib/systemd'), dirOf('/usr/lib/systemd/system'), fileOf('/usr/lib/systemd/system/ssh.service', SSH_UNIT),
+    dirOf('/usr/sbin'), fileOf('/usr/sbin/sshd', '', 0o755),
+  ];
+  const listed = new Set(r.files.map(f => f.path));
+  const files = [...r.files, ...generated.filter(f => !listed.has(f.path))].sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
+  const running = r.sshd !== false;
+  return {
+    id: `${machine.id}/${r.host}`, title: r.title ?? r.host, user: 'root', cwd: '/root', host: r.host, profile: machine.profile, files,
+    ...r.accounts ? { accounts: r.accounts } : {}, ...machine.now ? { now: machine.now } : {}, ...machine.boot ? { boot: machine.boot } : {},
+    ...machine.timezone ? { timezone: machine.timezone } : {},
+    processes: [{ pid: 1, ppid: 0, user: 'root', command: '/sbin/init', stat: 'Ss' },
+      ...running ? [{ pid: 700, user: 'root', command: 'sshd: /usr/sbin/sshd -D [listener] 0 of 10-100 startups', stat: 'Ss', unit: 'ssh.service' }] : []],
+    services: [{ unit: 'ssh.service', active: running ? 'active' : 'inactive' }],
+    ...r.journal ? { journal: r.journal } : {},
+  };
+}
+/** E7: a remote machine's state: its own machine state (no network of its own) with its sshd's key and applied options. */
+function remoteState(machine: TerminalMachine, r: TerminalRemote): FsState {
+  const { net: _n, ...state } = machineState(remoteMachine(machine, r));
+  void _n;
+  return { ...state, sshd: { ...hostKey(r.hostKey, r.host), applied: readSshdConfig(state.nodes).options } };
 }
 
 /** E4–E6: the clock, processes, packages, services and journal of a machine (each only on its profile or above). */
@@ -255,6 +355,7 @@ function systemState(machine: TerminalMachine, base: FsState): FsState {
     pid: p.pid, ppid: p.ppid ?? 1, user: p.user, command: p.command, stat: p.stat ?? 'S', cpu: p.cpu ?? 0, rss: p.rss ?? 0, vsz: p.vsz ?? p.rss ?? 0, shr: p.shr ?? 0,
     tty: p.tty ?? '?', start: p.start !== undefined ? parseTime(p.start)! : boot, time: p.time ?? 0, nice: p.nice ?? 0,
     ...p.unit ? { unit: unitName(p.unit) } : {}, ...p.term ? { term: p.term } : {}, ...p.hup ? { hup: p.hup } : {}, ...p.int ? { int: p.int } : {},
+    ...p.locks ? { locks: [...p.locks] } : {},
   }));
   let state: FsState = {
     ...base, status: 0, processes, lastPid: Math.max(0, ...processes.map(p => p.pid)),
@@ -271,7 +372,8 @@ function systemState(machine: TerminalMachine, base: FsState): FsState {
     state = { ...state, packages: db };
   }
   if (rankOf(machine) < RANK.services) return state;
-  const loaded = Object.fromEntries(unitFilesOnDisk(state.nodes).map(n => [n, findUnitFile(state.nodes, n)!]));
+  const timers = rankOf(machine) >= RANK.scheduling;
+  const loaded = Object.fromEntries(unitFilesOnDisk(state.nodes, timers).map(n => [n, findUnitFile(state.nodes, n)!]));
   const runtime: Record<string, UnitRun> = {};
   const mainOf = (unit: string) => {
     const own = processes.filter(p => p.unit === unit);
@@ -279,12 +381,20 @@ function systemState(machine: TerminalMachine, base: FsState): FsState {
   };
   for (const s of machine.services ?? []) {
     const unit = unitName(s.unit), since = s.since !== undefined ? parseTime(s.since)! : boot;
+    // E9: a timer is active (waiting) or inactive, and remembers when it last triggered.
+    if (unit.endsWith('.timer')) {
+      const last = s.last !== undefined ? { lastTrigger: parseTime(s.last)! } : {};
+      runtime[unit] = s.active === 'active' ? { active: 'active', sub: 'waiting', since, ...last } : { active: s.active, sub: s.active === 'failed' ? 'failed' : 'dead', ...s.since !== undefined ? { since } : {}, ...last };
+      continue;
+    }
     if (s.active === 'active') { const main = mainOf(unit); runtime[unit] = main !== undefined ? { active: 'active', sub: 'running', since, main } : { active: 'active', sub: 'exited', since }; }
     else if (s.active === 'failed') {
       runtime[unit] = { active: 'failed', sub: 'failed', since, result: s.result ?? 'exit-code', ...s.pid !== undefined ? { exit: { pid: s.pid, code: s.result === 'signal' ? 'killed' : 'exited', status: s.status ?? 1 } } : {} };
     } else runtime[unit] = { active: 'inactive', sub: 'dead', ...s.since !== undefined ? { since } : {} };
   }
   for (const p of processes) if (p.unit && !runtime[p.unit]) runtime[p.unit] = { active: 'active', sub: 'running', since: boot, main: mainOf(p.unit) };
+  // E9: an enabled timer the lesson does not list has been waiting since boot.
+  if (timers) for (const name of Object.keys(loaded)) if (name.endsWith('.timer') && !runtime[name] && enablement(state.nodes, name) === 'enabled') runtime[name] = { active: 'active', sub: 'waiting', since: boot };
   const journal: JournalEntry[] = (machine.journal ?? []).map(e => ({ time: parseTime(e.time)!, ...e.unit ? { unit: unitName(e.unit) } : {}, id: e.id, ...e.pid !== undefined ? { pid: e.pid } : {}, priority: e.priority, message: e.message }));
   return { ...state, services: { loaded, runtime, programs: (machine.programs ?? []).map(p => ({ ...p })) }, journal };
 }
@@ -296,10 +406,13 @@ export function variantMachine(machine: TerminalMachine, variant: TerminalVarian
     ...machine, files: [...machine.files.filter(f => !paths.has(f.path)), ...files],
     ...variant.host !== undefined ? { host: variant.host } : {}, ...variant.system ? { system: { ...machine.system, ...variant.system } } : {},
     ...variant.processes ? { processes: variant.processes } : {}, ...variant.journal ? { journal: variant.journal } : {},
+    ...variant.remotes ? { remotes: (machine.remotes ?? []).map(r => variant.remotes!.find(v => v.host === r.host) ?? r) } : {},
+    ...variant.now !== undefined ? { now: variant.now } : {},
   };
 }
 
-export interface ReplayedStep { prompt: string; command: string; lines: Line[]; output: string }
+/** status: $? after the command (E4 and above; in an ssh session the remote machine's). */
+export interface ReplayedStep { prompt: string; command: string; lines: Line[]; output: string; status?: number }
 /**
  * Runs the commands one after another from a machine (or a state) and returns every prompt, command and output. The
  * profile defaults to the machine's (E1), or the lab's for a state.
@@ -309,8 +422,8 @@ export function replay(from: TerminalMachine | FsState, commands: readonly strin
   profile ??= 'files' in from ? profileOf(from) : LAB_PROFILE;
   const steps: ReplayedStep[] = [];
   for (const command of commands) {
-    const before = prompt(state), result = run(state, command, profile);
-    steps.push({ prompt: before, command, lines: result.lines, output: result.lines.map(l => l.text).join('\n') });
+    const before = prompt(state), result = run(state, command, profile), status = activeState(result.state).status;
+    steps.push({ prompt: before, command, lines: result.lines, output: result.lines.map(l => l.text).join('\n'), ...status !== undefined ? { status } : {} });
     state = result.state;
   }
   return { state, steps };
@@ -320,8 +433,12 @@ const sameNode = (a: FsNode | undefined, b: FsNode | undefined) =>
   a === b || (!!a && !!b && a.kind === b.kind && a.mode === b.mode && a.owner === b.owner && groupOf(a) === groupOf(b) && (a.content ?? '') === (b.content ?? '') && (a.target ?? '') === (b.target ?? ''));
 const octal = (mode: number) => mode.toString(8).padStart(3, '0');
 
-/** What a check asks for, in words. */
+/** What a check asks for, in words (E7: a remote machine's file is named with its host). */
 export function describeCheck(check: TerminalCheck): string {
+  const words = describe(check);
+  return 'host' in check && check.host && PATH_KINDS.includes(check.kind) ? `${check.host} 上的 ${words}` : words;
+}
+function describe(check: TerminalCheck): string {
   switch (check.kind) {
     case 'exists': return `${check.path} 應該存在${check.type === 'dir' ? '（目錄）' : check.type === 'file' ? '（檔案）' : ''}`;
     case 'absent': return `${check.path} 應該不存在`;
@@ -360,11 +477,26 @@ export function describeCheck(check: TerminalCheck): string {
       const parts = [check.active ? `狀態是 ${check.active}` : '', check.enabled === true ? '開機時啟動' : check.enabled === false ? '開機時不啟動' : ''].filter(Boolean);
       return `服務 ${unitName(check.unit)} 應該${parts.join('，') || '存在'}`;
     }
+    case 'ssh': return `${check.user} 應該${check.allowed ? '可以' : '不能'}用${check.method === 'publickey' ? '金鑰' : '密碼'}登入 ${check.host}`;
+    case 'known-host': return check.absent ? `known_hosts 應該沒有 ${check.host}` : `known_hosts 應該有 ${check.host} 目前的主機金鑰`;
+    case 'cron': {
+      const parts = [check.user ? `${check.user} 的` : '', check.schedule ? `時間「${check.schedule}」` : '', check.command ? `指令含有「${check.command}」` : ''].filter(Boolean);
+      return check.absent ? `不應該有排程工作${parts.length ? `（${parts.join('，')}）` : ''}` : `應該有排程工作${parts.length ? `（${parts.join('，')}）` : ''}`;
+    }
+    case 'timer': {
+      const parts = [check.active === true ? '在等待觸發' : check.active === false ? '沒有啟動' : '', check.enabled === true ? '開機時啟動' : check.enabled === false ? '開機時不啟動' : '',
+        check.next ? `下次觸發是 ${check.next}` : ''].filter(Boolean);
+      return `timer ${check.unit} 應該${parts.join('，') || '存在'}`;
+    }
   }
 }
 
 /** Why a check fails on a state (start: the machine before the commands; reference: the solution's last output), or null when it holds. */
-function failure(check: TerminalCheck, start: FsState, end: FsState, outputs: string[], reference: string): string | null {
+function failure(check: TerminalCheck, start0: FsState, end0: FsState, outputs: string[], reference: string): string | null {
+  // E7: a check of files may name a remote machine.
+  const host = 'host' in check && PATH_KINDS.includes(check.kind) ? check.host : undefined;
+  const end = host ? hostState(end0, host) : end0, start = host ? hostState(start0, host) : start0;
+  if (!end || !start) return `沒有 ${host} 這台主機`;
   const node = 'path' in check ? end.nodes.get(check.path) : undefined;
   const kindName = (n: FsNode) => n.kind === 'dir' ? '目錄' : n.kind === 'link' ? '符號連結' : '檔案';
   switch (check.kind) {
@@ -444,6 +576,35 @@ function failure(check: TerminalCheck, start: FsState, end: FsState, outputs: st
       }
       return null;
     }
+    case 'ssh': {
+      const why = loginProblem(end, check.host, check.user, check.method);
+      return check.allowed ? why : why === null ? '仍然可以這樣登入' : null;
+    }
+    case 'known-host': {
+      const why = knownHostProblem(end, check.host);
+      return check.absent ? why === null || why.includes('舊的') ? '它還在 known_hosts 裡' : null : why;
+    }
+    case 'cron': {
+      const wanted = check.schedule ? parseCron(check.schedule.trim().split(/\s+/)) : undefined;
+      const jobs = allJobs(end).filter(j => (!check.user || j.user === check.user) && (!check.source || (check.source === 'crontab' ? j.source.startsWith('crontab (') : j.source === check.source)));
+      const match = jobs.filter(j => (!wanted || 'error' in wanted || sameCron(j.spec, wanted)) && (!check.command || j.command.includes(check.command)));
+      if (check.absent) return match.length ? `它還在（${match[0].source} 第 ${match[0].line} 行）` : null;
+      if (match.length) return null;
+      return jobs.length ? `找到的工作是「${jobs[0].when} ${jobs[0].command}」` : '找不到排程工作';
+    }
+    case 'timer': {
+      const name = check.unit, loadedFile = end.services?.loaded[name], run = end.services?.runtime[name];
+      if (!findUnitFile(end.nodes, name) && !loadedFile) return '沒有這個 timer 的 unit 檔';
+      const active = run?.active === 'active';
+      if (check.active !== undefined && active !== check.active) return active ? '它在執行' : '它沒有啟動';
+      if (check.enabled !== undefined && (enablement(end.nodes, name) === 'enabled') !== check.enabled) return check.enabled ? '它沒有 enable' : '它仍然 enable';
+      if (check.next !== undefined) {
+        const next = loadedFile && active ? nextElapse(end, parseUnit(loadedFile), run) : undefined;
+        const shown = next === undefined ? '沒有下次觸發的時間' : isoText(toLocal(zoneOf(end), next));
+        if (shown !== check.next) return next === undefined ? shown : `下次觸發是 ${shown}`;
+      }
+      return null;
+    }
   }
 }
 
@@ -513,6 +674,7 @@ export function machineProblems(machine: TerminalMachine): string[] {
   if (!normalized(machine.cwd) || kinds.get(machine.cwd) !== 'dir') fail(`the working directory ${machine.cwd} is not a folder of the machine`);
   problems.push(...accountProblems(machine, kinds).map(p => `machine ${machine.id}: ${p}`));
   if (!problems.length) problems.push(...systemProblems(machine).map(p => `machine ${machine.id}: ${p}`));
+  if (!problems.length) problems.push(...laterProblems(machine).map(p => `machine ${machine.id}: ${p}`));
   if (!normalized(homeOf(machine)) || kinds.get(homeOf(machine)) !== 'dir') fail(`the home ${homeOf(machine)} is not a folder of the machine`);
   if (machine.mounts !== undefined) {
     if (!files) fail('mounts need the files profile (engine stage E1)');
@@ -535,6 +697,7 @@ export function machineProblems(machine: TerminalMachine): string[] {
 
 const LINE = (max: number) => (t: unknown) => typeof t === 'string' && t.length >= 1 && t.length <= max && !t.includes('\n');
 const UNIT = /^[A-Za-z0-9@._-]{1,64}\.service$/;
+const TIMER = /^[A-Za-z0-9@._-]{1,64}\.timer$/;
 const whole = (x: unknown, min: number, max: number) => Number.isInteger(x) && (x as number) >= min && (x as number) <= max;
 
 /** E4–E6: the problems of a machine's clock, processes, packages, services, programs and journal. */
@@ -581,7 +744,7 @@ function systemProblems(machine: TerminalMachine): string[] {
   const state = machineState(machine);
   for (const s of machine.services ?? []) {
     const unit = unitName(s.unit), at = `service ${s.unit}`, own = procs.filter(p => p.unit && unitName(p.unit) === unit);
-    if (!UNIT.test(unit)) { fail(`${at}: invalid unit name`); continue; }
+    if (!UNIT.test(unit) && !(rank >= RANK.scheduling && TIMER.test(unit))) { fail(`${at}: invalid unit name`); continue; }
     if (!findUnitFile(state.nodes, unit)) fail(`${at}: no unit file /etc/systemd/system/${unit} or /usr/lib/systemd/system/${unit} on the machine`);
     if (!['active', 'failed', 'inactive'].includes(s.active)) fail(`${at}: active must be active, failed or inactive`);
     if (s.active !== 'active' && own.length) fail(`${at}: a ${s.active} service has no processes`);
@@ -615,6 +778,56 @@ function systemProblems(machine: TerminalMachine): string[] {
     if (e.pid !== undefined && !whole(e.pid, 1, 4194304)) fail(`${at}: invalid pid`);
   });
   if (times.length === journal.length) problems.push(...journalProblems(times.map(time => ({ time, id: '', priority: 6, message: '' })), now));
+  return problems;
+}
+
+const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
+const SHEBANG = /^#!\s*(\/usr\/bin\/env\s+(bash|sh)|\/(usr\/)?bin\/(bash|sh|dash))(\s|$)/;
+/** E8: a script file's commands that its machine's profile does not have (written literally; a typo may still show its error). */
+function scriptProblems(files: readonly TerminalFile[], profile: ShellProfile, where: string): string[] {
+  const out: string[] = [];
+  for (const f of files) {
+    if (f.kind !== 'file' || !SHEBANG.test(f.content ?? '')) continue;
+    for (const name of new Set(scriptCommandNames(f.content ?? ''))) {
+      if ((ALL_COMMANDS as readonly string[]).includes(name) && !(profile.commands as readonly string[]).includes(name)) out.push(`${where}file ${f.path}: the script runs ${name}, which is not in the ${profile.id} profile`);
+    }
+  }
+  return out;
+}
+/** E7–E9: remote machines, the key seed and address, the time zone, mail, lock files and timers' last runs. */
+function laterProblems(machine: TerminalMachine): string[] {
+  const problems: string[] = [], fail = (what: string) => problems.push(what), rank = rankOf(machine);
+  if ((machine.remotes !== undefined || machine.address !== undefined || machine.keySeed !== undefined) && rank < RANK.remote) fail('remotes, address and keySeed need the remote profile (engine stage E7)');
+  if ((machine.timezone !== undefined || machine.mta !== undefined) && rank < RANK.scheduling) fail('timezone and mta need the scheduling profile (engine stage E9)');
+  if ((machine.processes ?? []).some(p => p.locks !== undefined) && rank < RANK.scheduling) fail('process locks need the scheduling profile (engine stage E9)');
+  if ((machine.services ?? []).some(s => s.last !== undefined || unitName(s.unit).endsWith('.timer')) && rank < RANK.scheduling) fail('timers need the scheduling profile (engine stage E9)');
+  if (problems.length) return problems;
+  if (machine.address !== undefined && !IPV4.test(machine.address)) fail(`address ${machine.address} is not an IPv4 address`);
+  if (machine.keySeed !== undefined && !LINE(64)(machine.keySeed)) fail('keySeed needs 1..64 characters on one line');
+  if (machine.timezone !== undefined && !zoneNamed(machine.timezone)) fail(`unknown time zone ${machine.timezone} (the simulation knows UTC, Asia/Taipei, Asia/Tokyo, Europe/London, America/New_York…)`);
+  for (const p of machine.processes ?? []) for (const l of p.locks ?? []) if (!normalized(l)) fail(`process ${p.pid}: lock ${l} is not an absolute, normalized path`);
+  const now = parseTime(machine.now ?? DEFAULT_NOW)!;
+  for (const s of machine.services ?? []) if (s.last !== undefined) { const t = parseTime(s.last); if (!unitName(s.unit).endsWith('.timer') || t === undefined || t > now) fail(`service ${s.unit}: last is a time not after now, for a timer`); }
+  if (rank >= RANK.scripting) problems.push(...scriptProblems(machine.files, profileOf(machine), ''));
+  const remotes = machine.remotes ?? [];
+  if (remotes.length > 4) fail('at most 4 remote machines');
+  const names = new Set<string>([machine.host ?? 'logic-island', machine.address ?? '10.0.0.10']);
+  for (const r of remotes) {
+    const at = `remote ${r.host}`;
+    for (const n of [r.host, r.address, ...r.aliases ?? []]) { if (names.has(n)) fail(`${at}: the name or address ${n} is used twice`); names.add(n); }
+    if (!HOST.test(r.host)) fail(`${at}: invalid host name`);
+    if (!IPV4.test(r.address)) fail(`${at}: address ${r.address} is not an IPv4 address`);
+    for (const a of r.aliases ?? []) if (!HOST.test(a) && !/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(a)) fail(`${at}: invalid alias ${a}`);
+    if (!LINE(64)(r.hostKey)) fail(`${at}: hostKey needs a seed of 1..64 characters on one line`);
+    const m = remoteMachine(machine, r), inner = machineProblems(m).map(p => `${at}: ${p.replace(/^machine \S+: /, '')}`);
+    problems.push(...inner);
+    if (inner.length) continue;
+    const acc = machineAccounts(m);
+    for (const u of r.passwords ?? []) if (!findUser(acc, u)) fail(`${at}: password for ${u}, who is not a user of the machine`);
+    const conf = readSshdConfig(machineState(m).nodes);
+    for (const e of conf.errors) fail(`${at}: sshd_config: ${e}`);
+    if (rank >= RANK.scripting) problems.push(...scriptProblems(r.files, profileOf(machine), `${at}: `));
+  }
   return problems;
 }
 
@@ -732,7 +945,8 @@ export function terminalContentProblems(content: TerminalLessonContent, given?: 
    * E2: every stage of a pipeline counts, and the command sudo runs.
    */
   const outsideProfile = (commands: readonly string[], machine: TerminalMachine, profile: ShellProfile) => commands.flatMap(c =>
-    commandNames(c).filter(name => (ALL_COMMANDS as readonly string[]).includes(name) && !(profile.commands as readonly string[]).includes(name))
+    // E8: on a scripting machine a line is parsed by the interpreter (every command of ; && || $( ) and loops counts).
+    [...new Set(rankOf(machine) >= RANK.scripting ? scriptCommandNames(c) : commandNames(c))].filter(name => (ALL_COMMANDS as readonly string[]).includes(name) && !(profile.commands as readonly string[]).includes(name))
       .map(name => `${name} is not in the ${profile.id} profile of machine ${machine.id}`));
   for (const e of examples) {
     const at = `example ${e.id}`;
@@ -767,6 +981,12 @@ export function terminalContentProblems(content: TerminalLessonContent, given?: 
       if (c.kind === 'process' && (machineRank < RANK.processes || (c.name === undefined && c.pid === undefined))) fail(`${at}: a process check needs a processes machine (engine stage E4) and a name or a pid`);
       if (c.kind === 'package' && (machineRank < RANK.packages || !PACKAGE_NAME.test(c.name) || (c.version !== undefined && !PACKAGE_VERSION.test(c.version)))) fail(`${at}: a package check needs a packages machine (engine stage E5) and a valid name and version`);
       if (c.kind === 'service' && (machineRank < RANK.services || !UNIT.test(unitName(c.unit)) || (c.active !== undefined && !['active', 'inactive', 'failed'].includes(c.active)))) fail(`${at}: a service check needs a services machine (engine stage E6) and a unit name`);
+      const remotes = valid.get(x.machine)?.remotes ?? [], known = (h: string) => remotes.some(r => r.host === h || r.address === h || (r.aliases ?? []).includes(h));
+      if ('host' in c && c.host !== undefined && PATH_KINDS.includes(c.kind) && (machineRank < RANK.remote || !known(c.host))) fail(`${at}: a check on host ${c.host} needs a remote machine of that name (engine stage E7)`);
+      if ((c.kind === 'ssh' || c.kind === 'known-host') && (machineRank < RANK.remote || !known(c.host))) fail(`${at}: ${c.kind === 'ssh' ? 'an' : 'a'} ${c.kind} check needs a remote machine named ${c.host} (engine stage E7)`);
+      if (c.kind === 'ssh' && (!ACCOUNT_NAME.test(c.user) || !['publickey', 'password'].includes(c.method) || typeof c.allowed !== 'boolean')) fail(`${at}: an ssh check needs a user, a method (publickey or password) and allowed`);
+      if (c.kind === 'cron' && (machineRank < RANK.scheduling || (c.schedule !== undefined && 'error' in parseCron(c.schedule.trim().split(/\s+/))) || (c.user !== undefined && !ACCOUNT_NAME.test(c.user)))) fail(`${at}: a cron check needs a scheduling machine (engine stage E9) and a valid schedule`);
+      if (c.kind === 'timer' && (machineRank < RANK.scheduling || !TIMER.test(c.unit) || (c.next !== undefined && parseTime(c.next) === undefined))) fail(`${at}: a timer check needs a scheduling machine (engine stage E9), a unit like backup.timer and a next time YYYY-MM-DD HH:MM:SS`);
     }
     if (!x.solution.length || x.solution.length > TERMINAL_LIMITS.solution) fail(`${at}: the solution needs 1..${TERMINAL_LIMITS.solution} commands`);
     if (!x.mistakes.length) fail(`${at}: needs at least one typical mistake`);
@@ -780,12 +1000,17 @@ export function terminalContentProblems(content: TerminalLessonContent, given?: 
     let variantsOk = true;
     for (const v of x.variants ?? []) {
       if (!v.label.trim()) fail(`${at}: a variant needs a label`);
+      if (v.now !== undefined && rankOf(machine) < RANK.processes) fail(`${at}: variant ${v.label}: now needs the processes profile (engine stage E4)`);
+      for (const r of v.remotes ?? []) if (!(machine.remotes ?? []).some(m => m.host === r.host)) fail(`${at}: variant ${v.label}: remote ${r.host} is not a remote of the machine`);
       const p = machineProblems(variantMachine(machine, v));
       if (p.length) { variantsOk = false; for (const q of p) fail(`${at}: variant ${v.label}: ${q}`); }
     }
     if (!variantsOk) continue;
-    const errors = replay(machine, x.solution, profile).steps.filter(s => s.lines.some(l => l.kind === 'err'));
-    for (const s of errors) fail(`${at}: the solution's command ${s.command} prints an error: ${s.output}`);
+    // E7–E9: standard error also carries information there (ssh's warnings, ssh-copy-id's INFO lines, set -x), so a
+    // reference solution's commands must succeed (exit status 0); below, as before, they must print nothing on it.
+    const steps = replay(machine, x.solution, profile).steps;
+    if (rankOf(machine) >= RANK.remote) for (const s of steps.filter(s => s.status !== undefined && s.status !== 0)) fail(`${at}: the solution's command ${s.command} fails with status ${s.status}: ${s.output}`);
+    else for (const s of steps.filter(s => s.lines.some(l => l.kind === 'err'))) fail(`${at}: the solution's command ${s.command} prints an error: ${s.output}`);
     const verdict = checkTerminalExercise(x, machines, x.solution, profile);
     for (const r of verdict.results) if (!r.ok) fail(`${at}: the solution fails: ${r.message}`);
     if (checkTerminalExercise(x, machines, [], profile).ok) fail(`${at}: the machine passes before any command`);

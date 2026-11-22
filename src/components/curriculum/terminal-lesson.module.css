@@ -40,6 +40,9 @@
   white-space: pre;
   overflow: auto;
   max-height: 320px;
+  /* LNX-4: a wide tree scrolls inside its box instead of widening its column on phones. */
+  max-width: 100%;
+  min-width: 0;
 }
 
 .terminal { border-radius: 10px; overflow: hidden; background: #0f172a; color: #e2e8f0; border: 1px solid #1e293b; min-width: 0; }

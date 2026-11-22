@@ -11,6 +11,7 @@ P7 的 Linux Terminal Simulator（`/learn/linux-terminal`）已經有純函式�
 | `src/lib/terminal/fs.ts` | 記憶體中的檔案系統：路徑正規化、權限位元、每個操作回傳新狀態（重設就是回到初始狀態） |
 | `src/lib/terminal/shell.ts` | 指令直譯器：`pwd`、`ls`、`cd`、`mkdir`、`touch`、`cat`、`cp`、`mv`、`rm`、`chmod`、`echo`（含 `>`、`>>`）、`whoami`、`clear`、`help`；拒絕管線、串接、變數與背景執行 |
 | `src/lib/terminal/tasks.ts` | 實驗的 7 個練習任務，只看檔案系統的結果 |
+| `src/lib/terminal/ssh.ts`、`script.ts`、`calendar.ts`、`schedule.ts` | E7–E9 新增（§15–§17）：SSH 與金鑰、Bash 直譯器、時區與 cron／calendar 運算式、排程的指令 |
 
 LNX-0 把它變成課程能力，不改實驗的行為（`tests/terminal.test.ts` 與實驗元件不變）。
 
@@ -36,7 +37,7 @@ terminal: {
 }
 ```
 
-- **機器**：`/` 隱含（root、0755），其餘每個檔案與目錄都要列出，父目錄先列；`home` 預設 `/home/<user>`（root 是 `/root`）。`kind: 'link'` 與 `target`、`profile`、`system`、`mounts` 是 E1 的欄位，只有 `profile: 'files'` 以上的機器可以使用（見 §9）；E3 的 `accounts`、`umask` 見 §11.3；E4–E6 的 `now`、`boot`、`load`、`cpus`、`memory`、`processes`、`packages`、`services`、`programs`、`journal` 見 §12.6、§13.3、§14.6。
+- **機器**：`/` 隱含（root、0755），其餘每個檔案與目錄都要列出，父目錄先列；`home` 預設 `/home/<user>`（root 是 `/root`）。`kind: 'link'` 與 `target`、`profile`、`system`、`mounts` 是 E1 的欄位，只有 `profile: 'files'` 以上的機器可以使用（見 §9）；E3 的 `accounts`、`umask` 見 §11.3；E4–E6 的 `now`、`boot`、`load`、`cpus`、`memory`、`processes`、`packages`、`services`、`programs`、`journal` 見 §12.6、§13.3、§14.6；E7 的 `address`、`keySeed`、`remotes` 見 §15.6；E9 的 `timezone`、`mta`、行程的 `locks`、timer 的 `last` 見 §17.7。
 - **範例**：在機器上依序重播指令；每一步的 `output` 必須**完全等於**引擎印出的文字（多行以 `\n` 連接，錯誤訊息也算，沒有輸出就是 `''`）。頁面以靜態紀錄呈現，提示字元由重播算出。
 - **練習的檢查**（只看結果，不看寫法）：
 
@@ -80,6 +81,7 @@ terminal: {
 | `tests/terminal-e2.test.ts` | E2：`streams` profile 的分界（實驗與 `files` 仍拒絕管線與 E2 指令）、三段以上的管線、錯誤輸出的去向、每一種重新導向的排列（`2>&1` 的前後順序、`>&2`、`/dev/null`、目錄、權限、先截斷）、每個指令與選項、輸出與段數上限、子 Shell、不改動輸入狀態、`getopt`／`compilePattern`／`commandNames`、擬真度修正 1–5、`streams` 機器的課程資料 |
 | `tests/terminal-e3.test.ts` | E3：`users` profile 的分界、產生的帳號檔（`/etc/shadow` 讀不到）、`id`／`groups`／`whoami`、`sudo`（允許、拒絕、`-u`、內建指令、重新導向仍是自己的、`sudo tee`）、`useradd`／`usermod`（`-G` 與 `-aG`）／`groupadd`／`newgrp`、非 root 的 `chown` 被拒、擁有者改成自己所屬的群組、`-R`、`umask` 對新檔案與目錄的影響、群組位元、`chmod -R`、帳號資料與帳號檢查的驗證 |
 | `tests/terminal-e4.test.ts`、`terminal-e5.test.ts`、`terminal-e6.test.ts` | E4–E6，見 §14.7 |
+| `tests/terminal-e7.test.ts`、`terminal-e8.test.ts`、`terminal-e9.test.ts` | E7–E9，見 §15.8、§16.8、§17.8；`tests/support/terminal-fixture.ts` 另有 E7 的 ops-01／keys-01 與遠端 web-02、E8 的 dev-01（部署指令稿）、E9 的 job-01（Asia/Taipei、備份指令稿、backup.timer、持有鎖的行程），各三段紀錄與兩到三個練習 |
 | `tests/support/terminal-fixture.ts` | 合成的機器（web-01、devs 群組可寫的團隊目錄、只有 adm 能讀的日誌）、三段紀錄、兩個練習；E1 另有 `files` profile 的 srv-01（系統資訊、兩個掛載點、符號連結、日誌檔）、三段紀錄、三個練習；E2 有 `streams` 的 log-01（存取日誌、CSV、只有 root 能讀的日誌）、三段紀錄、兩個練習；E3 有 `users` 的 team-01（learner 在 sudo、alice 在 devs、服務帳號、devs 的團隊目錄）、三段紀錄、三個練習；只供測試 |
 
 ## 7. 島嶼登錄
@@ -97,7 +99,7 @@ terminal: {
 | LNX-1 | LNX01–LNX04 | **E1**（已完成，見 §9）：`uname`、`hostname`、`man`／`--help`、`df`／`du`、萬用字元（glob）、`ln -s`（啟用 `link`）、多來源的 `cp`／`mv` |
 | LNX-2 | LNX05–LNX07 | **E2**（已完成，見 §10）`streams`：管線、重新導向（`>`、`>>`、`<`、`2>`、`2>>`、`2>&1`、`/dev/null`）、`less`／`head`／`tail`／`grep`／`sort`／`uniq`／`wc`／`cut`／`tr`／`tee`；**E3**（已完成，見 §11）`users`：使用者與群組資料、`/etc/passwd`／`/etc/group`、`id`、`groups`、`useradd`、`usermod`、`groupadd`、`newgrp`、`sudo`、`chown`、`chgrp`、`umask`；E2 同時修正 `files` 的五項擬真度（§10.6） |
 | LNX-3 | LNX08–LNX11 | **E4**（已完成，見 §12）`processes`：固定時鐘、行程表、`ps`／`top`／`kill`（訊號與宣告的反應）／`pgrep`／`pidof`／`pkill`、`sleep &`／`jobs`／`fg`／`bg`、`$?` 與結束碼；**E5**（已完成，見 §13）`packages`：套件庫與套件資料、`apt`（update／install／remove／purge／autoremove／upgrade／list／show／policy）、`apt-mark`、`dpkg -l`／`-L`／`-s`，dnf 只在課文比較；**E6**（已完成，見 §14）`services`：unit 檔與 daemon-reload、`systemctl`、Restart= 與啟動上限、journal 與 `journalctl`、`/var/log` 與輪替（文字說明）。全部是固定的模擬資料，不執行真實程式 |
-| LNX-4 | LNX12–LNX14 | **E7** SSH（金鑰與連線以網路情境與模擬機器呈現）、**E8** 有界的 Bash 直譯器（變數、條件、迴圈，有步數上限）、**E9** cron 與 systemd timer |
+| LNX-4 | LNX12–LNX14 | **E7**（已完成，見 §15）`remote`：同一課的多台機器、ed25519 金鑰、known_hosts 與主機指紋、`sshd_config`（第一個值生效、Include、reload 才套用）、`ssh`／`ssh-keygen`／`ssh-copy-id`／`ssh-keyscan`／`scp`／`sshd -t`，LNX12 另以 `network-protocol` 的情境畫出交握；**E8**（已完成，見 §16）`scripting`：有界的 Bash 直譯器（指令稿與提示字元本身）；**E9**（已完成，見 §17）`scheduling`：時區、crontab、`systemd-analyze calendar`、systemd timer、`flock`，以及兩個標明為教學輔助的指令 `cron-next`、`cron-run` |
 | LNX-5 | LNX15 | 綜合專題（`challenge-stages`），單獨一批 |
 
 先修：LNX01 沒有先修；LNX02–LNX15 的同島先修都排在前面（`scripts/curriculum-queue.ts` 檢查）。島外的 DKR、SRV、CLD、CICD 有課以 LNX 為先修，都還沒有課程能力。
@@ -452,3 +454,215 @@ packages: {
 | `tests/support/terminal-fixture.ts` | E4 的 `app`（固定時鐘、alice 的 CPU 大戶、忽略 SIGTERM 的 stuck.py、learner 的 Shell 與 vim）、E5 的 `pkg`（noble 三個套件庫加一個停用的 PPA、nginx 兩個版本、htop、openssl 的安全更新、被 hold 的 curl、缺少相依套件的 legacy-app）、E6 的 `svc`（執行中的 nginx、因缺少設定檔而失敗的 report、Restart=always 的 worker、忽略 SIGTERM 的 stubborn、api Requires db、journal）與 `svc-pkg`；每個階段三段紀錄與兩到三個練習；只供測試 |
 
 `tests/terminal-e1.test.ts` 只把 `PROFILES` 的期望值加上三個新 profile（和 E2、E3 時相同的更新方式）；`text.grep` 改為回傳是否選到行（供結束碼使用），輸出不變。已發布的 LNX01–LNX07 沒有修改，`terminalContentProblems` 都是空的。
+
+## 15. 引擎階段 E7：`remote` profile（SSH）
+
+> 2026-11-22。供 LNX12（SSH 遠端連線與金鑰）使用。輸出以 Ubuntu 24.04 的 OpenSSH 9.6p1 為準。沒有任何網路：遠端主機是課程宣告的另一台完整的模擬機器（自己的使用者、檔案、systemd 與 journal），存在本機的狀態裡；「連線」是兩台機器的檔案的純函式。
+
+### 15.1 profile 的設計（E7–E9 共用）
+
+| profile | 內容 | 給哪些課 |
+|---|---|---|
+| `remote`（E7） | `services` 的一切，加上 `ssh`、`ssh-keygen`、`ssh-copy-id`、`ssh-keyscan`、`scp`、`sshd`、`exit`（`E7_COMMANDS`）；feature `remote` | LNX12 |
+| `scripting`（E8） | `remote` 的一切，加上 `bash`、`sh`、`test`、`[`、`printf`、`true`、`false`（`E8_COMMANDS`）；feature `scripting`：**提示字元本身就是直譯器** | LNX13 |
+| `scheduling`（E9） | `scripting` 的一切，加上 `crontab`、`cron-next`、`cron-run`、`flock`、`timedatectl`、`systemd-analyze`（`E9_COMMANDS`）；feature `scheduling` | LNX14、LNX15 |
+
+延續 §12.1 的**線性鏈**：lab < files < streams < users < processes < packages < services < remote < scripting < scheduling。驗證器仍只比較名次（`RANK`）；較高的 profile 包含較低的一切（LNX14 的排程工作會用到 LNX13 的指令稿，LNX15 三者都要）。較低的 profile 完全不變：E7–E9 的指令在 `services` 以下是 `command not found`，`;`、`&&`、變數仍被拒絕（`remote` 也一樣：直譯器從 `scripting` 才開始）。
+
+### 15.2 資料模型
+
+- 本機的狀態多了 `net: { address, seed, hosts, connections }`：`hosts` 的每一台是 `{ host, address, aliases, passwords, state }`，`state` 是遠端機器完整的 `FsState`（和本機同一個時鐘、同一個 profile）。遠端的狀態另有 `sshd: { publicLine, fingerprint, applied }`：主機金鑰與 **sshd 上次啟動或 reload 時讀到的設定**。
+- 互動式的 `ssh` 讓本機狀態多一個 `session: { host, name }`，之後每一行都在遠端機器上執行（提示字元與「目前的檔案」也換成遠端的）；遠端在工作階段中的 `exit` 結束它：印 `logout` 與 `Connection to web-02 closed.`，本機的 `$?` 是 exit 的結束碼。從遠端再用 ssh 連到別台不支援（說明訊息）。
+- 每一台遠端機器由 `remoteMachine()` 補上 Ubuntu 伺服器裝了 OpenSSH 的樣子（課程沒有列出時才補）：`/etc/ssh/sshd_config`（Ubuntu 24.04 的內容，縮短；開頭 `Include /etc/ssh/sshd_config.d/*.conf`、`KbdInteractiveAuthentication no`）、`/etc/ssh/sshd_config.d/`、`/usr/lib/systemd/system/ssh.service`（`Alias=sshd.service`）與它的開機連結、`/usr/sbin/sshd`、`/root`，以及執行中的 `sshd` 行程（`ssh.service`，PID 700）。所以課程只寫重要的檔案（家目錄、authorized_keys、修改過的設定、雲端映像的 `50-cloud-init.conf`）。`systemctl reload sshd` 依 `Alias=` 找到 `ssh.service`。
+
+### 15.3 金鑰（假的，但格式是真的）
+
+- ed25519 金鑰的 32 個位元組由種子以 SHA-256（純 TypeScript 實作，測試與 Node 的 `crypto` 比對）算出：本機 `ssh-keygen` 的種子是「機器的 `keySeed`（預設機器 id）:使用者:私鑰的絕對路徑」，遠端的主機金鑰是課程的 `hostKey`。同一個種子永遠得到同一把金鑰；變體換掉 `hostKey` 就是「同一個名字、不同的金鑰」。
+- 檔案格式照 OpenSSH：公鑰 `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI… 說明`；私鑰是真正的 `openssh-key-v1` 結構（`-----BEGIN OPENSSH PRIVATE KEY-----`、每行 70 字的 base64；有密語時 cipher 是 `aes256-ctr`、kdf 是 `bcrypt`，內容是雜訊）；指紋 `SHA256:` 是公鑰 blob 的 SHA-256（不補 `=`），和 `ssh-keygen -l` 的算法相同；randomart 是 OpenSSH 的 drunken bishop。公鑰的位元組**不是**由私鑰以 ed25519 推導出來的（不需要，也不能拿去用在真實系統）。修改金鑰檔會像真的一樣壞掉（`Load key "…": invalid format`）。
+
+### 15.4 指令
+
+| 指令 | 行為與訊息 |
+|---|---|
+| `ssh [-i 私鑰] [-p 連接埠] [-l 使用者] [-o 選項] [-q] [使用者@]主機 [指令…]` | 主機依名稱、別名或位址找；找不到 `ssh: Could not resolve hostname x: Name or service not known`；sshd 沒在執行或連接埠不對 `ssh: connect to host x port 22: Connection refused`（結束碼 255）。**主機金鑰**比對本機使用者的 `~/.ssh/known_hosts`（不雜湊；Ubuntu 的 `HashKnownHosts yes` 不模擬）：沒有記錄時印 `The authenticity of host 'web-02 (10.0.0.12)' can't be established.`、`ED25519 key fingerprint is SHA256:….`、`This key is not known by any other names.` 與 `Are you sure you want to continue connecting (yes/no/[fingerprint])?`——**模擬環境沒有鍵盤**，接著印說明與 `Host key verification failed.`（255）。非互動的寫法都是真的：`-o StrictHostKeyChecking=accept-new`（印 `Warning: Permanently added 'web-02' (ED25519) to the list of known hosts.` 並建立 700 的 `~/.ssh`）、事先 `ssh-keyscan 主機 >> ~/.ssh/known_hosts`；`=yes` 一律拒絕（`No ED25519 host key is known for …`）。記錄的金鑰不同時印完整的 `WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!` 區塊（含 `Offending ED25519 key in …:行號` 與 `ssh-keygen -f '…' -R '主機'`）並拒絕；`=no` 仍連線但停用密碼。**認證**依遠端 sshd 的已套用設定：先試金鑰（`-i` 或 `~/.ssh/id_ed25519`），再試密碼。指令的字以空白連接，交給遠端的 Shell 執行（遠端的 profile 與本機相同），印出它的輸出並傳回它的結束碼；管線送進 ssh 的標準輸入會交給遠端指令（`cat key.pub \| ssh h 'cat >> .ssh/authorized_keys'`）。沒有指令時：單獨在提示字元上開啟互動式工作階段（先印遠端的 `/etc/motd`），其他情況說明只能單獨使用 |
+| 用戶端選項 | `-o StrictHostKeyChecking=ask\|accept-new\|yes\|no`、`BatchMode=yes`（不問任何問題、不用密碼）、`PasswordAuthentication=no`、`PubkeyAuthentication=no`、`Port`、`User`、`IdentityFile`、`IdentitiesOnly`、`LogLevel=QUIET`；其他是 `command-line line 0: Bad configuration option: x`。`~/.ssh/config` 不讀 |
+| 私鑰的檢查 | 群組或其他人有任何權限：`WARNING: UNPROTECTED PRIVATE KEY FILE!` 區塊、`Permissions 0644 for '…' are too open.`、`Load key "…": bad permissions`，忽略這把金鑰；有密語：印密語提示與說明（沒有鍵盤、沒有 ssh-agent），略過；`-i` 的檔案不存在：`Warning: Identity file … not accessible: No such file or directory.` |
+| 密碼 | 只有課程在 `passwords` 列出的帳號（課程把密碼告訴學習者）且雙方都允許密碼時，印 `alice@web-02's password: （模擬環境代為輸入課程提供的密碼）` 並登入；沒有提供密碼的帳號印說明後失敗。失敗的最後一行是 `alice@web-02: Permission denied (publickey,password).`（括號裡是伺服器允許的方式，依序 publickey、password、keyboard-interactive） |
+| `ssh-keygen -t ed25519 [-f 檔案] -N 密語 [-C 說明] [-q]` | OpenSSH 9.6 的輸出：`Generating public/private ed25519 key pair.`、沒有 `-f` 時印 `Enter file in which to save the key (…): `（照預設路徑）、需要時 `Created directory '~/.ssh'.`（700）、`Your identification has been saved in …`、`Your public key has been saved in ….pub`、`The key fingerprint is:`、指紋與說明（預設 `使用者@主機`）、randomart。私鑰 600、公鑰 644（不看 umask）。檔案已存在：`… already exists.` 與 `Overwrite (y/n)?` 加說明，不覆寫；沒有 `-N` 時印密語提示與說明（沒有鍵盤）；`-t` 只接受 ed25519（9.6 的預設） |
+| `ssh-keygen -l -f 檔案`、`-R 主機`、`-F 主機` | `-l`：`256 SHA256:… 說明 (ED25519)`，公鑰檔、私鑰（未加密）、authorized_keys、known_hosts（每行一把，known_hosts 以主機名稱為說明）都可以；`-R`：`# Host x found: line N`、`… updated.`、`Original contents retained as ….old`（另存 `.old`）；`-F` 印出符合的行 |
+| `ssh-copy-id [-i 公鑰] [-p 連接埠] [-o 選項] 使用者@主機` | 以 stderr 印 `/usr/bin/ssh-copy-id: INFO: Source of key(s) to be installed: "…"`、`INFO: attempting to log in with the new key(s), …`；先只用新金鑰嘗試登入，已經裝過就印 `WARNING: All keys were skipped because they already exist on the remote system.`（結束碼 0）；否則 `INFO: 1 key(s) remain to be installed …`，以**密碼**登入，照 `umask 077; mkdir -p .ssh; cat >> .ssh/authorized_keys` 附加（新建的 `.ssh` 700、檔案 600、屬於遠端使用者；既有的資料夾權限不改），再印 `Number of key(s) added: 1` 與 `Now try logging into the machine, with: "ssh '使用者@主機'"` 等兩行。伺服器不接受密碼時失敗（`Permission denied (publickey).`，結束碼 1）。沒有金鑰：`ERROR: No identities found` |
+| `ssh-keyscan [-p 連接埠] [-t 類型] 主機…` | stdout `主機 ssh-ed25519 AAAA…`（非 22 埠是 `[主機]:埠`），stderr `# 主機:22 SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.5`；找不到 `getaddrinfo x: Name or service not known` |
+| `scp [-i 私鑰] [-P 連接埠] [-o 選項] 來源… 目的地` | 一邊是 `[使用者@]主機:路徑`（相對路徑從遠端使用者的家目錄算起），認證與 ssh 相同；讀寫各用該邊使用者的權限，新檔案的權限是來源的位元減去 umask；`scp: /etc/shadow: Permission denied`。**只複製檔案**（不支援 `-r`），也不印進度（等於 `-q`；真實的進度列含傳輸速度，不是固定的） |
+| `sshd -t`、`sshd -T` | 需要 root（否則 `sshd: no hostkeys available -- exiting.`）。`-t` 檢查設定：錯誤照 OpenSSH 印出、結束碼 255；`-T` 印出模擬環境有模擬的設定（`port`、`permitrootlogin`、`pubkeyauthentication`、`passwordauthentication`、`kbdinteractiveauthentication`、`strictmodes`、`authorizedkeysfile`、`allowusers`、`denyusers`），不是真實的近百行。本機（沒有 sshd 的機器）印說明 |
+| `systemctl start\|restart\|reload ssh`（或 `sshd`） | 照 Ubuntu 的 unit：先跑 `sshd -t`（`ExecStartPre=`／`ExecReload=`）。設定有錯：`Job for ssh.service failed because the control process exited with error code.` 與 See 那一行，journal 記錄 sshd 的錯誤，**已套用的設定不變**（伺服器照舊運作）。成功後 sshd 重新讀取設定（journal：`Received SIGHUP; restarting.`、`Server listening on 0.0.0.0 port 22.`）。`systemctl stop ssh` 之後連線被拒 |
+| `exit [N]` | 離開互動式的遠端工作階段；本機的終端機不會關閉（說明訊息）；`bash: exit: x: numeric argument required` |
+
+### 15.5 sshd 與 sshd_config
+
+- **第一個值生效**（OpenSSH 的規則）：關鍵字不分大小寫、可寫 `關鍵字 值` 或 `關鍵字=值`；`Include`（相對路徑從 `/etc/ssh` 算起，萬用字元只在最後一段、依名稱排序）在它出現的位置展開。所以 Ubuntu 在最前面 Include 的 `sshd_config.d/*.conf` 會蓋過後面的設定，雲端映像的 `50-cloud-init.conf` 寫 `PasswordAuthentication yes` 時，在 `sshd_config` 最後寫 `no` 沒有效果；要寫成檔名排在前面的 `.d` 檔案（例如 `10-key-only.conf`）——這是 LNX12 的教學重點。`AllowUsers`／`DenyUsers` 會累加。
+- 有模擬的設定：`Port`、`PermitRootLogin`（`yes`、`no`、`prohibit-password`＝`without-password`、`forced-commands-only`；預設 `prohibit-password`）、`PasswordAuthentication`、`PubkeyAuthentication`、`KbdInteractiveAuthentication`（＝`ChallengeResponseAuthentication`；兩者之一允許時即可用密碼）、`StrictModes`、`AuthorizedKeysFile`（`%h`、`%u`、`%%`；相對路徑從家目錄算起）、`AllowUsers`、`DenyUsers`（名稱完全相同，不支援 `user@host` 樣式）。常見的其他關鍵字（`UsePAM`、`X11Forwarding`、`PrintMotd`、`AcceptEnv`、`Subsystem`、`ClientAliveInterval`、`MaxAuthTries` 等，見 `ssh.ts`）接受但不影響；`Match` 區塊接受，但它之後的設定都不模擬（略過）。
+- 錯誤照 OpenSSH：`/etc/ssh/sshd_config: line 3: Bad configuration option: PasswordAuthentcation` 與最後的 `/etc/ssh/sshd_config: terminating, 1 bad configuration options`；yes／no 或 PermitRootLogin 的值不對是 `… line 3: unsupported option "maybe".`，連接埠是 `Badly formatted port number.`（後兩者立刻停止）。
+- **StrictModes**（預設 yes）：`authorized_keys` 與它上面直到家目錄的每一層，擁有者必須是該使用者或 root，而且群組與其他人不能寫入（`mode & 022`）；否則 sshd 拒絕這把金鑰並記錄 `Authentication refused: bad ownership or modes for directory /home/alice/.ssh`（或 file）。
+- journal（遠端的 `ssh.service`，識別 `sshd`，每次連線一個新的 PID、來源埠 50000＋連線次數）：`Accepted publickey for alice from 10.0.0.10 port 50001 ssh2: ED25519 SHA256:…`、`Accepted password for …`、`Failed password for root …`、`Invalid user bob from …`、`User x from … not allowed because not listed in AllowUsers`、`Connection closed by authenticating user … [preauth]`。`/var/log/auth.log` 不自動產生。
+
+### 15.6 課程資料與檢查
+
+```ts
+machines: [{ ..., profile: 'remote', address?: '10.0.0.10', keySeed?: 'ops-key',
+  remotes: [{ host, address, aliases?, hostKey, passwords?, title?, files, accounts?, sshd?: false, journal? }] }]
+```
+
+- `remotes`、`address`、`keySeed` 只能用在 `remote` 以上（「`remotes, address and keySeed need the remote profile (engine stage E7)`」）。驗證：最多 4 台；主機名稱、別名與 IPv4 位址在整個網路裡（含本機的名稱與位址）不重複；`hostKey` 是 1–64 字一行；每台遠端機器以和一般機器相同的規則驗證（訊息前綴 `remote web-02:`）；`passwords` 的帳號必須存在；遠端的 sshd_config 必須通過 `sshd -t`；（E8 以上）遠端的指令稿也檢查。資料裡的時間一律 UTC。
+- 變體可以 `remotes: [...]` 依主機名稱換掉遠端機器（例如另一個 `hostKey`：重灌過的主機），讓 known_hosts 的練習不能靠打出舊的一行通過。
+- 新的檢查：`{ kind: 'ssh', host, user, method: 'publickey' | 'password', allowed }`——依**已套用的**設定判斷現在能不能這樣登入（publickey 用本機的 `~/.ssh/id_ed25519`，包含權限與 StrictModes；password 只看伺服器是否接受），所以「改了設定卻沒有 reload」不通過；`{ kind: 'known-host', host, absent? }`——known_hosts 有（沒有）這台主機**目前的**金鑰；檔案類的檢查（`exists`、`absent`、`mode`、`owner`、`content`、`unchanged`、`link`）可以加 `host` 檢查遠端機器的檔案。
+- **參考解答的規則**：E7 以上的指令常在標準錯誤印出正常的訊息（ssh 的警告、ssh-copy-id 的 INFO、`set -x`），所以這些機器的參考解答改為「每個指令的結束碼都是 0」（`ReplayedStep.status`，工作階段中是遠端的 `$?`）；E6 以下的機器仍是「不印任何錯誤」，不變。
+
+### 15.7 LNX12：`terminal` 與 `network-protocol` 一起用
+
+`terminalFromBlueprint('LNX12')` 把藍圖的 `protocol-sequence` 對應成 `network-sequence`，能力是 `['terminal', 'network-protocol']`。兩種內容各自驗證、互不影響：`validateContent` 要求兩個能力各有內容（`content.terminal` 與 `content.network`），`validateDatabaseContent` 把終端機紀錄與網路情境都算進範例（每個都要在段落中以 `{ type: 'example', id }` 出現）、終端機練習與網路練習都算進練習；頁面（`DatabaseLessonBody`）依能力分別畫出網路情境（例如 SSH 交握的訊息時序）與終端機的紀錄和練習。`tests/terminal-e7.test.ts` 以 LNX12 的大綱加上 E7 的機器與一個網路情境驗證 `validateContent` 為 `[]`，拿掉網路內容則回報 `the network-protocol capability needs its content`。
+
+### 15.8 不支援與測試
+
+- 不支援：ssh-agent 與 `ssh-add`、有密語的金鑰（沒有鍵盤）、`~/.ssh/config`、雜湊的 known_hosts、`-v` 的除錯輸出、連接埠轉送（`-L`／`-R`／`-D`）、跳板（`-J`）、`authorized_keys` 的選項（`from=`、`command=`）、RSA／ECDSA 金鑰、`Match` 區塊、`scp -r`、sftp、`/var/log/auth.log`、Ubuntu 的 `ssh.socket` 啟動方式、從遠端再連線。
+- `tests/terminal-e7.test.ts`：profile 的分界、SHA-256 與 base64（和 Node 的 crypto 比對）、金鑰檔的格式與讀回、randomart、ssh-keygen（權限、覆寫、`-N`、`-l`、`-R`）、第一次連線與 accept-new／keyscan／strict、主機金鑰改變、金鑰與密碼認證、權限太寬與加密的私鑰、StrictModes、PermitRootLogin、AllowUsers、無效使用者、sshd_config 的第一個值與 Include、reload 才套用與設定錯誤時拒絕、連線被拒、遠端指令的結束碼與標準輸入、互動式工作階段、ssh-copy-id、scp、課程資料與檢查、LNX12 的能力組合。
+
+## 16. 引擎階段 E8：`scripting` profile（有界的 Bash 直譯器）
+
+> 2026-11-22。供 LNX13（Bash Script 撰寫）使用。`script.ts` 解析並執行 Bash 的一個子集；**不是**用 `eval` 或真實的 Shell。
+
+### 16.1 運作方式
+
+- **直譯器自己處理**：變數、展開、控制結構、函式與它的內建指令（`read`、`set`、`shift`、`local`、`declare`、`export`、`unset`、`readonly`、`return`、`exit`、`break`、`continue`、`source`／`.`、`eval`、`exec`、`wait`、`command`、`type`、`:`）。
+- **其他指令一律交給 `shell.ts` 的 Shell**（`runStages`，和提示字元同一套）：權限、管線、重新導向、萬用字元、`sudo`、錯誤訊息與結束碼都和直接在提示字元輸入相同。直譯器先完成展開，再把字面的字交給 Shell；`test`、`[`、`printf`、`true`、`false` 是 Shell 的指令（所以也能 `sudo`、能重新導向）。
+- 在 `scripting` 以上的機器，**提示字元本身就是直譯器**：可以用 `;`、`&&`、`||`、`$x`、`$(…)`、`if`、`for`、函式；變數、函式與 `set` 的選項保存在 `FsState.shell`，下一行仍在（像同一個 Shell）。整行先完整解析，有語法錯誤時整行都不執行（bash 讀完一行才執行）。不含這些語法的指令，輸出與 `services`／`remote` 完全相同。
+- 指令稿以**子行程**執行：自己的變數（只繼承 `export` 的）、`cd`／`umask` 不影響呼叫它的 Shell；`source` 在目前的 Shell 執行。錯誤訊息照 bash 的非互動式格式：`./deploy.sh: line 5: foo: command not found…`（Shell 傳回的 `bash: ` 開頭的訊息改成這個前綴）。
+
+### 16.2 支援的語法
+
+| 類別 | 內容 |
+|---|---|
+| 字與引號 | 單引號照字面；雙引號內 `$`、`` ` ``、`\` 有作用（`\` 只跳脫 `$ ` " \` 與換行）；未加引號的 `\x`；`#` 註解；行尾 `\` 續行 |
+| 參數 | `$x`、`${x}`、`$1`…`$9`、`${10}`、`$#`、`$@`、`$*`、`"$@"`（每個參數一個字）、`$?`、`$$`（Shell 固定的 PID）、`$!`、`$0`、`$-`；`${x:-預設}`、`${x-預設}`、`${x:=值}`、`${x:+替代}`、`${x:?訊息}`、`${#x}`、`${x#樣式}`、`${x##樣式}`、`${x%樣式}`、`${x%%樣式}`、`${x/樣式/取代}`、`${x//樣式/取代}`；`~`、`~使用者`；特殊變數 `PWD`（目前位置）、`HOME`、`USER`、`LOGNAME`、`PATH`、`SHELL`、`HOSTNAME`、`UID`、`LINENO`、`SECONDS`（0）、`IFS`。`$RANDOM` 不存在（沒有亂數）|
+| 展開順序 | 波浪號、參數、命令替換 `$(…)` 與 `` `…` ``（去掉結尾換行）、算術 `$((…))`，再對**沒有加引號**的結果以 `IFS` 分詞（空白類合併、其他字元各自分隔），最後是路徑名稱展開（萬用字元，同 E1 的規則）|
+| 算術 | 整數；`+ - * / % **`、`<< >> & \| ^ ~ !`、比較、`&& \|\|`、`?:`、`= += -= *= /= %=` 等、`++ --`、`,`；名稱的值也是運算式；`0x` 十六進位、`0` 開頭是八進位（`08` 是 bash 的 `value too great for base`）；除以 0 是 `division by 0 (error token is "…")`。JavaScript 的數字，超過 2^53 不精確（bash 是 64 位元整數，會溢位繞回）|
+| 指令 | 管線、`!`、`&&`、`\|\|`、`;`、`&`（背景只支援 `sleep`，同 E4）、`{ …; }`、`( … )`（子 Shell）、`if`／`elif`／`else`、`for x in …`、`for x`（`"$@"`）、`for (( ; ; ))`、`while`、`until`、`case … in 樣式\|樣式) … ;; esac`、`name() { … }` 與 `function name { … }`、`(( 運算 ))`、`[[ … ]]`（`== != =` 以萬用字元比對右邊、`=~` 延伸正規表示式（右邊的引號部分照字面）、`< >`、`-eq` 等（運算元是算術）、`-e -f -d -r -w -x -s -L -h -z -n -v`、`&& \|\| ! ( )`）|
+| 重新導向 | 外部指令照 E2（`>`、`>>`、`<`、`2>`、`2>>`、`2>&1`、`>&2`），另有 `&>`、`&>>`、`>\|`；內建指令、函式與複合指令（`done < 檔案`、`{ …; } > log 2>&1`）也可以重新導向；here-document `<<EOF`（展開）、`<<'EOF'`（照字面）、`<<-EOF`（去掉開頭的 Tab）與 here-string `<<<`。只支援描述子 0、1、2 |
+| `test`／`[` | 依參數個數的 POSIX 規則與 `-a`／`-o`／`!`／`( )`；檔案測試用使用者的權限（root 的 `-r`／`-w` 一律成立，`-x` 需要任一個 x 位元）；`bash: [: x: integer expression expected`、``bash: [: missing `]'``、`unary operator expected`、`binary operator expected`、`too many arguments`（結束碼 2）；`-nt`、`-ot`、`-ef` 說明沒有時間戳記 |
+| `printf` | `%s %b %c %d %i %u %o %x %X %f %e %E %%`，旗標 `- 0 + 空白`、寬度與精確度，格式在參數用完前重複使用；`\n \t \\ \" \r \a \e \0NNN`；`bash: printf: x: invalid number`；`-v` 不支援 |
+| `read` | `-r`、`-p`（只在輸入是終端機時顯示，模擬環境因此不顯示）、`-s`、`-t`（接受、不影響）；依 `IFS` 分到各個變數，最後一個拿剩下的；沒有名稱時是 `REPLY`；檔案結尾結束碼 1。輸入來自 `<`、管線、here-document／here-string 或 `while … done < 檔案`；**沒有鍵盤**：從提示字元直接 `read` 印說明（結束碼 1）。外部指令拿到剩下的輸入，但不會消耗它（只有 `read` 會前進）|
+| `set` | `-e`、`-u`、`-x`、`-o pipefail`／`errexit`／`nounset`／`xtrace`，`+` 關閉，可合寫（`set -euo pipefail`）；`set --` 與 `set 參數…` 設定位置參數；`set` 列出變數；`set -o` 列出這四個選項（真實的 bash 列出約 27 個）|
+
+### 16.3 `set -e`、`-u`、`pipefail`、`-x` 的語意（照 bash）
+
+- `set -e`：一個管線（含複合指令）失敗而且**沒有被測試**時，指令稿以它的結束碼結束。被測試的情況不結束：`if`／`elif`／`while`／`until` 的條件、`&&`／`||` 串列中最後一個以外的指令、`!` 開頭的管線，以及在這些位置呼叫的函式裡面的一切。`$(…)` 裡面不繼承 `-e`（bash 的預設，沒有 `inherit_errexit`），但只有賦值的指令（`x=$(false)`）以命令替換的結束碼為準，所以會結束；`echo $(false)` 不會。**互動式的提示字元上**，`set -e` 會記錄但不生效（真實的 bash 會在下一個失敗時關閉終端機）。
+- `set -u`：展開沒有設定的變數（`$@`、`$*` 除外；`${x:-…}` 等有預設值的寫法除外）印 `./s.sh: line 4: x: unbound variable`，指令稿以 1 結束；在提示字元上只中止這一行（結束碼 1）。
+- `pipefail`：管線的結束碼是最右邊失敗的那一段（全部成功是 0）；直譯器從 `runStages` 取得每一段的結束碼。
+- `set -x`／`bash -x`：每個簡單指令展開後在標準錯誤印 `+ 指令 參數…`（含特殊字元或空字串的字以單引號括起，例如 `+ echo 'a b'`、`+ '[' 1 -ne 1 ']'`；命令替換裡多一個 `+`）。
+
+### 16.4 執行指令稿
+
+| 方式 | 行為 |
+|---|---|
+| `./script.sh 參數…`（或絕對路徑） | 需要 x（`bash: ./s.sh: Permission denied`，126）與 r（bash 要讀它）。第一行必須是 `#!/bin/bash`、`#!/usr/bin/bash`、`#!/bin/sh`、`#!/bin/dash` 或 `#!/usr/bin/env bash`／`sh`（可加 `-e`、`-u`、`-x`）；其他直譯器：機器上沒有它時是 bash 的 `bad interpreter: No such file or directory`，有時說明模擬環境只直譯 Bash；以 CRLF 結尾的 shebang 是 `/bin/bash^M: bad interpreter`；沒有 `#!` 的檔案（例如套件的程式檔）說明不執行。`$0` 是輸入的路徑 |
+| 指令名稱 | 在 `PATH`（預設 `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`；直譯器的 `PATH` 變數會傳給 Shell）找開頭是 `#!` 且可執行的檔案（`backup.sh`、`/usr/local/bin/hello`）；`$0` 是找到的路徑 |
+| `bash`／`sh` | `bash [-n] [-x] [-e] [-u] [-o 選項] 指令稿 [參數…]`（只要 r）、`bash -c '指令' [名稱 [參數…]]`、沒有參數時執行標準輸入；不能開新的互動式 Shell（說明）。`bash -n` 只檢查語法。`sh` 與 `bash` 用同一個直譯器（不檢查 dash 不支援的寫法）|
+| `sudo 指令稿` | 以 root 執行（腳本裡的 `whoami` 是 root）|
+| systemd | `scripting` 以上，`Type=oneshot` 服務的 `ExecStart=` 若是 Bash 指令稿（或 `/bin/bash 指令稿`），`systemctl start` **真的執行它**：以 `User=`（預設 root）、工作目錄 `/`、systemd 的 PATH；輸出逐行寫進 journal（識別是指令稿的檔名、等級 info），結束碼決定 `Finished …` 或失敗。其他類型的服務仍照 E6 的 `programs` 宣告 |
+
+語法錯誤照 bash：**錯誤之前的指令照常執行**，再印 `./s.sh: line 6: syntax error near unexpected token `fi'`（結束碼 2）；檔案結尾 `syntax error: unexpected end of file`；引號沒有結束是 `unexpected EOF while looking for matching …`；here-document 沒有結束時印 bash 的警告。
+
+### 16.5 上限（`SCRIPT_LIMITS`）
+
+| 上限 | 值 | 超過時 |
+|---|---|---|
+| 步數（每個簡單指令與每一輪迴圈，同一次執行的巢狀指令稿共用） | 10000 | `模擬環境：執行超過 10000 步，已停止（可能是沒有結束的迴圈）`，結束碼 124 |
+| 函式巢狀 | 100 | bash 設定 `FUNCNEST=100` 時的訊息 `f: maximum function nesting level exceeded (100)`，指令稿結束（1）|
+| 指令稿巢狀（指令稿呼叫指令稿、`source`）| 16 | `模擬環境的指令稿最多巢狀 16 層` |
+| 輸出 | `LIMITS.output`（20000 字元）| 省略其餘並說明（和 E2 相同）|
+| 檔案 | `LIMITS.fileLength` | 重新導向寫入的 `File too large` |
+
+### 16.6 不支援（說明訊息或照字面）
+
+陣列與關聯陣列（`a=(…)`、`${a[0]}`、`declare -a`、`read -a`、`mapfile` 回報「不支援陣列」）、`trap`、`getopts`、`alias`、`shopt`、`let`、`select`、`coproc`（`模擬環境的 Bash 不支援 …`，結束碼 2）、行程替換 `<(…)`、大括號展開 `{a,b}`（照字面）、extglob、`$'…'`、`printf -v`、3 以上的描述子（`exec 9>…`）、`time`、`$RANDOM`、`BASH_REMATCH`、`PIPESTATUS`、`FUNCNAME`、唯讀變數的保護、提示字元上 `exec > 檔案` 的永久效果（只在同一行或同一個指令稿有效）、工作控制以外的背景執行。`sh` 不模擬 dash 的差異。
+
+### 16.7 課程資料
+
+- 不需要新的機器欄位：指令稿就是機器的檔案。驗證器對 `scripting` 以上機器（與它的遠端機器）上每個以 Bash／sh shebang 開頭的檔案，列出指令稿裡**以字面寫出**的指令，回報不在 profile 的（「`file /home/learner/c.sh: the script runs crontab, which is not in the scripting profile`」）；不檢查語法（課程可以示範壞掉的指令稿）。
+- 範例、參考解答與常見錯誤在 `scripting` 以上的機器以直譯器解析，**每個**簡單指令（含 `;`、`$( )`、迴圈裡的）都要在 profile 裡。
+
+### 16.8 測試
+
+`tests/terminal-e8.test.ts`：profile 的分界（較低的 profile 仍拒絕 `;` 與變數、不直譯指令稿）、同樣的指令輸出不變、跨行保存的變數與函式、語法錯誤（提示字元整行不執行、指令稿先執行前面的）、`bash -n`、`scriptCommandNames`、引號與分詞與 `"$@"`、`IFS` 與 `read`、參數展開、命令替換、算術（含八進位與除以 0）、萬用字元、`if`／`[[ ]]`／`test`／`case`／各種迴圈與 `break`／`continue N`、函式與 `local`／`return`、遞迴上限、步數與輸出上限、`set -e` 的每種例外、`set -u`、`pipefail`、`set -x` 的格式、重新導向與 here-document、`read` 的來源、`exec >>`、不支援的寫法、shebang／權限／CRLF／直譯器、`$0` 與參數、子行程與 `source`、`export`、PATH、`sudo`、在 ssh 工作階段中（引號決定由哪一邊展開）、巢狀上限、課程資料。
+
+## 17. 引擎階段 E9：`scheduling` profile（cron 與 systemd timer）
+
+> 2026-11-22。供 LNX14（排程：cron 與 systemd timer）使用。cron 照 Debian／Ubuntu 的 Vixie cron（cron 3.0pl1），timer 照 systemd 255。**時鐘永遠不前進**（§12.2），所以沒有任何工作會「自己到時間就執行」；見 §17.5。
+
+### 17.1 時區（`calendar.ts`）
+
+- 機器的 `timezone`（預設 `UTC`）。沒有 tz 資料庫、不用 `Intl`：固定的表——`UTC`、`Etc/UTC`、`Asia/Taipei`（CST）、`Asia/Shanghai`（CST）、`Asia/Hong_Kong`（HKT）、`Asia/Singapore`（+08）、`Asia/Tokyo`（JST）、`Asia/Seoul`（KST）、`Asia/Kolkata`（IST，+05:30），以及有夏令時間的 `Europe/London`（GMT／BST）、`Europe/Berlin`、`Europe/Paris`（CET／CEST）（歐盟規則：三月最後一個星期日到十月最後一個星期日，01:00 UTC）、`America/New_York`（EST／EDT）、`America/Chicago`（CST／CDT）、`America/Denver`（MST／MDT）、`America/Los_Angeles`（PST／PDT）（美國規則：三月第二個星期日 02:00 到十一月第一個星期日 02:00，當地時間）。不模擬歷史上的規則變化。
+- 課程資料裡的時間（`now`、`boot`、`since`、`last`、journal）**仍一律是 UTC**；只有顯示與排程的計算用機器的時區。沒有時區的機器（UTC）輸出和之前逐字相同。
+- 顯示依時區的地方：`date`、`timedatectl`、`systemctl status` 的時間、`list-timers`、`systemd-analyze calendar`、`cron-next`、journal 的時間（`journalctl` 的 `--since`／`--until` 也以當地時間解讀）。
+
+### 17.2 指令
+
+| 指令 | 行為與格式 |
+|---|---|
+| `date [-u] [+格式]`（E8 起） | 預設格式 `Sun Nov 22 18:00:00 CST 2026`；`-u` 是 UTC；`TZ=Asia/Tokyo date`（指令的環境變數）換時區；格式 `%Y %m %d %H %M %S %F %T %D %R %y %j %a %A %b %B %h %e %u %w %s %Z %z %n %t %%`（不認得的照字面），指令稿常用 `$(date +%F)`。`-d` 與設定時間不支援 |
+| `timedatectl [status\|show\|list-timezones]` | systemd 255 的 `status` 七行（`Local time`、`Universal time`、`RTC time`、`Time zone: Asia/Taipei (CST, +0800)`、`System clock synchronized: yes`、`NTP service: active`、`RTC in local TZ: no`，標籤靠右到 26 欄）；`list-timezones` 是上面的表；**只能查看**：`set-timezone` 等印說明（課程設定時區）|
+| `crontab 檔案`、`-l`、`-r`、`-u 使用者` | 使用者的 crontab 在 `/var/spool/cron/crontabs/使用者`（0600、擁有者是使用者、有 `crontab` 群組時群組是它；資料夾不存在時建立為 root:crontab 0730）。安裝前先檢查每一行：錯誤照 Debian `"檔案":行: bad minute`（`bad hour`、`bad day-of-month`、`bad month`、`bad day-of-week`、`bad command`、`bad time specifier`；最後一行沒有換行是 `premature EOF`）與 `errors in crontab file, can't install.`，不安裝。安裝的檔案開頭有 Debian 的三行標頭（`# DO NOT EDIT THIS FILE - edit the master and reinstall.`、`# (檔案 installed on …)`、Cron version），`crontab -l` 不印它們。`crontab 檔案` **取代**整份 crontab。`-l`／`-r` 沒有 crontab：`no crontab for learner`；別人的 `-u` 需要 root：`must be privileged to use -u`；`-e` 沒有編輯器（說明）|
+| `cron-next [-n N] '分 時 日 月 週'`、`cron-next -l` | **模擬環境的教學輔助，不是真實的指令**（`man`／`--help` 也這樣標明）。印接下來 N 次（預設 5，最多 50）的執行時間（systemd 的時間格式、機器的時區）；`@reboot` 說明只在開機時；十年內不會執行時說明。`-l` 列出機器上所有的工作（使用者的 crontab、`/etc/crontab`、`/etc/cron.d/*`；一般使用者只看到自己的 crontab 與可讀的系統檔）：`NEXT USER SOURCE SCHEDULE COMMAND`，依下一次執行排序；有 `CRON_TZ=` 時加一行說明 Debian 的 cron 不支援它 |
+| `cron-run` | **教學輔助**。找出所有工作中最早的下一次執行時間，執行在那一刻到期的每一個工作，方式和 cron 相同：以工作的使用者、從家目錄開始、環境只有 `SHELL=/bin/sh`、`PATH=/usr/bin:/bin`、`HOME`、`LOGNAME`、`USER` 加上 crontab 裡的變數；指令中沒有跳脫的 `%` 結束指令，其後是標準輸入（每個 `%` 換行），`\%` 是字面的 `%`；不是終端機。輸出：`MAILTO=""` 捨棄；機器有 MTA（`mta: true`）時寄到 `/var/mail/使用者`（`From: root (Cron Daemon)`、`Subject: Cron <使用者@主機> 指令`）；沒有 MTA（Ubuntu 伺服器的預設）時捨棄，journal 記錄 `(CRON) info (No MTA installed, discarding output)`。journal（`cron.service`，識別 `CRON`）記錄 `(learner) CMD (指令)`。印出模擬的時間與每個工作的結束碼和輸出的去向。**機器的時鐘不前進**：工作在固定的 now 執行（`date` 仍印 now）|
+| `flock [-n] [-w 秒] [-E 碼] 鎖檔 指令…`、`flock [-n] 鎖檔 -c '指令'` | 鎖由行程表中「`locks` 列出這個檔案」的行程持有（課程資料：上一次還在跑的備份）。被持有時：`-n` 立刻放棄，不印東西，結束碼 1（或 `-E` 的值）；`-w` 也立刻放棄（等待的時間不會過去）；兩者都沒有時說明 flock 會一直等下去。鎖沒被持有：鎖檔不存在時以 `666 & ~umask` 建立（需要資料夾的權限，否則 `flock: cannot open lock file …`，結束碼 66），再執行指令（`-c` 以 sh -c），結束碼是指令的。`kill` 持有鎖的行程後鎖就自由了。以描述子加鎖（`flock -n 9`、`exec 9>…`）不支援 |
+| `systemd-analyze calendar [--iterations=N] 運算式…` | 照 systemd 255：`  Original form:`、`Normalized form:`、`    Next elapse:`、機器不是 UTC 時 `       (in UTC):`、`       From now: 15h left`，多次時 `   Iteration #2:` 等（標籤靠右到 16 欄）；多個運算式之間空一行；沒有下一次是 `Next elapse: never`；錯誤 `Failed to parse calendar specification 'x': Invalid argument`。其他子指令說明不支援 |
+| `systemctl list-timers [--all]` | `NEXT LEFT LAST PASSED UNIT ACTIVATES`，欄寬依內容、一個空白分隔、依 NEXT 排序；沒有的值是 `-`；最後空一行、`N timers listed.`，沒有 `--all` 時加 `Pass --all to see loaded but inactive timers, too.`。LEFT 是不帶 `left` 的相對時間（`8h`），PASSED 帶 `ago` |
+| `systemctl status x.timer` | `● backup.timer - 說明`、`Loaded:`、`Active: active (waiting) since …`、`Trigger: Mon 2026-11-23 02:30:00 CST; 8h left`（沒有啟動是 `n/a`）、`Triggers: ● backup.service`，空一行後是它的日誌 |
+
+### 17.3 cron 運算式
+
+- 五個欄位：分 0–59、時 0–23、日 1–31、月 1–12（或 jan–dec）、週 0–7（0 與 7 是星期日，或 sun–sat）；`*`、`a-b`、清單 `a,b`、步進 `*/s` 與 `a-b/s`、`a/s`（從 a 到最大值；cronie 的寫法）、名稱也可用在範圍與清單；特殊字 `@reboot`、`@yearly`／`@annually`、`@monthly`、`@weekly`、`@daily`／`@midnight`、`@hourly`。
+- **日與週的規則**（Vixie cron）：兩個欄位都有限制時，**任一個**符合就執行；任一個欄位以 `*` 開頭（包括 `*/2`）時兩個都要符合。所以 `0 9 1 * 1` 是「每月 1 日以及每個星期一」，`0 9 */2 * 1` 是「奇數日而且是星期一」——兩者都有測試。
+- 夏令時間：跳過的那一小時裡的時間不執行（Debian 的 cron 會在調整後補執行，這是模擬環境的簡化）；重複的那一小時只執行一次。
+- `/etc/crontab` 與 `/etc/cron.d/*` 多一個使用者欄位（缺少是 `bad username`）；檔名只接受字母、數字、`_`、`-`（和 Debian 的 run-parts 規則相同）。`CRON_TZ` 不被 Debian 的 cron 支援：以系統時區計算，`cron-next -l` 加一行說明（RHEL 的 cronie 支援，課文比較）。
+- 檢查 `cron` 比較時間以「是否是同一組時間」判斷（`00 02 * * *` 等於 `0 2 * * *`，`@daily` 等於 `0 0 * * *`）。
+
+### 17.4 systemd timer
+
+- `.timer` 檔放在 unit 資料夾（同 E6），只有 `scheduling` 機器才載入、列出與管理 timer；`[Timer]` 解析 `OnCalendar=`（可多個；空值清除；不能解析時照 systemd 記錄 `…:2: Failed to parse calendar specification, ignoring: x`）、`Persistent=`、`Unit=`（預設同名的 `.service`）、`OnBootSec=`／`OnStartupSec=`、`OnUnitActiveSec=`；`AccuracySec=`、`RandomizedDelaySec=`、`WakeSystem=` 等接受但不影響（**沒有亂數**：隨機延遲一律 0）。沒有任何觸發條件：`Timer unit lacks value setting. Refusing.`。
+- `OnCalendar=` 的運算式（`parseCalendar`）：可選的星期（`Mon`、`Mon..Fri`、清單，接受全名與小寫，範圍可跨週）、日期 `[年-]月-日`、時間 `時:分[:秒]`、可選的時區（`UTC` 或表中的時區）；每個欄位可以是 `*`、數字、清單、範圍 `a..b`、重複 `a/s`（`*/s` 視為從最小值開始）；兩位數的年份加 2000（70 以上加 1900）；簡寫 `minutely`、`hourly`、`daily`、`weekly`、`monthly`、`yearly`／`annually`、`quarterly`、`semiannually`。正規化照 systemd：清單排序去重、三天以上連續的星期合成範圍、數字補零（`tests/terminal-e9.test.ts` 逐項比對 systemd.time(7) 表格中的例子）。`~`（月底倒數）與小數秒不支援。
+- 執行狀態：`active (waiting)` 或 `inactive (dead)`；機器資料的 `services` 可以宣告 timer 的狀態與 `last`（上次觸發，UTC）；沒有列出但已 enable（`timers.target.wants` 的連結）的 timer 從開機起就在等待。
+- `systemctl start x.timer` 記錄 `Started x.timer - 說明.`；它要觸發的服務不存在時照 systemd 記錄 `Refusing to start, unit x.service to trigger not loaded.` 與 `Failed with result 'resources'.`，指令印 `Job for x.timer failed because of unavailable resources or another system error.`。`stop` 記錄 `Deactivated successfully.` 與 `Stopped …`。`enable`／`disable`／`--now`、`is-active`、`is-enabled`、`cat`、`daemon-reload` 與服務相同（E6）。`list-units` 與 `list-unit-files` 也列出 timer，`--type=timer` 只列 timer。
+- **Persistent=true**：啟動 timer 時，若上次觸發之後到 now 之間有應該觸發的時間（關機或 timer 停止期間錯過的），立刻觸發一次服務（`LAST` 變成 now）——這是可以在固定時鐘下示範的唯一一種「觸發」。
+- 下一次觸發 `nextElapse`：每個 `OnCalendar=` 在機器時區（或運算式自己的時區）中 now 之後的最早時間、開機後 `OnBootSec=`（若還沒到）、上次觸發後 `OnUnitActiveSec=` 的倍數，取最早的。
+
+### 17.5 時鐘不前進：如何「執行」排程
+
+模擬環境不假裝時間會過去。課程可以用三種誠實的方式處理：
+
+1. **檢查設定與下一次的時間**：`crontab -l`、`cron-next`、`systemd-analyze calendar`、`systemctl list-timers`、`status`；課程的檢查 `cron`、`timer`（含 `next`）也只看這些。
+2. **真實的手動執行**：`sudo systemctl start backup.service`（oneshot 服務真的執行指令稿，E8），或直接執行指令稿——管理員測試排程工作本來就這樣做。
+3. **教學輔助 `cron-run`**：以 cron 的環境執行下一批到期的工作，讓 cron 特有的問題現形（PATH 只有 `/usr/bin:/bin` 所以找不到 `/usr/local/bin` 的指令稿、相對路徑從家目錄算、`%` 的意義、沒有 MTA 時輸出被丟掉、`flock -n` 遇到還在跑的上一次）。它明確說明自己是模擬，時鐘不動。
+
+### 17.6 避免重疊執行（課文與指令）
+
+- cron：`flock -n /var/lock/backup.lock /usr/local/bin/backup.sh`（拿不到鎖就放棄）；課程以「行程表中持有鎖的上一次備份」示範，`kill` 它之後才拿得到鎖。
+- systemd：同一個服務還在執行時，timer 不會再啟動第二個（文字說明；模擬環境的 oneshot 立刻結束）。
+
+### 17.7 課程資料與檢查
+
+```ts
+machines: [{ ..., profile: 'scheduling', timezone?: 'Asia/Taipei', mta?: false,
+  processes: [{ ..., locks?: ['/var/lock/backup.lock'] }],
+  services: [{ unit: 'backup.timer', active: 'active' | 'inactive', since?, last?: '2026-11-21 18:30:00' }] }]
+```
+
+- `timezone`、`mta`、行程的 `locks`、timer 的狀態與 `last` 只能用在 `scheduling` 機器。驗證：時區在表中；鎖是絕對路徑；`last` 只用在 timer、不晚於 now；服務的 unit 可以是 `.timer`。
+- 變體可以換掉 `now`（`processes` 以上）：例如另一個時刻的 `cron-next` 輸出不同，讓 `output` 檢查不能靠打出答案通過。
+- 新的檢查：`{ kind: 'cron', user?, source?, schedule?, command?, absent? }`——有（沒有）這樣的工作：`source` 是檔案路徑或 `crontab`（使用者的 crontab），`schedule` 以相同的時間比較，`command` 是指令中包含的文字；`{ kind: 'timer', unit, active?, enabled?, next? }`——timer 是否在等待觸發、是否 enable（磁碟上的連結）、下一次觸發的當地時間（`YYYY-MM-DD HH:MM:SS`，依**已載入的**設定，所以修改 timer 檔而沒有 daemon-reload 會被分辨）。
+
+### 17.8 不支援與測試
+
+- 不支援：`crontab -e`（沒有編輯器）、`crontab -`（從標準輸入安裝）、anacron 與 `/etc/cron.daily` 等資料夾的執行、`at`／`batch`、cron 的 `-n`／`-s` 等新語法、`RANDOM_DELAY`、tz 資料庫的歷史、`timedatectl set-*`、`systemd-run`、`systemctl list-timers` 以外的 timer 統計、`OnCalendar=` 的 `~` 與小數秒、日誌輪替的真正執行（E6 的 §14.5）。
+- `tests/terminal-e9.test.ts`：profile 的分界、時區的偏移與兩種夏令時間規則（跳過與重複的一小時）、`date`／`TZ=`／`+格式`、`timedatectl`、cron 欄位與錯誤、日與週的 OR／AND 規則、夏令時間下的下一次、crontab 行（環境、使用者欄位、`bad command`、`premature EOF`）、systemd.time(7) 的正規化表、`systemd-analyze calendar` 的輸出、`crontab` 的安裝、標頭、權限與錯誤、`cron-next`（含 `-l` 與 CRON_TZ 的說明）、`cron-run`（PATH、`%`、MTA、MAILTO、journal）、`flock`、timer 的列表、狀態、`enable --now`、Persistent 的補執行、指令稿服務的 journal、沒有服務的 timer、解析警告、journal 的時區與 `--since`、課程資料與檢查。
+
+`tests/terminal-e1.test.ts` 只把 `PROFILES` 的期望值加上三個新 profile（和 E2–E6 時相同的更新方式）。已發布的 LNX01–LNX11 沒有修改，`terminalContentProblems` 都是空的；E7–E9 的 profile 都要求課程選用，較低的 profile、實驗與已發布的課逐字不變。

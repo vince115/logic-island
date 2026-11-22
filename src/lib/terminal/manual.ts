@@ -232,11 +232,73 @@ export const SYSTEM_MANUAL: Record<'ps' | 'top' | 'kill' | 'pgrep' | 'pidof' | '
   },
 };
 
+/** E7–E9 (§15–§17): SSH, the Bash interpreter's commands and scheduling. */
+export const LATER_MANUAL: Record<'ssh' | 'ssh-keygen' | 'ssh-copy-id' | 'ssh-keyscan' | 'scp' | 'sshd' | 'exit' | 'bash' | 'sh' | 'test' | '[' | 'printf' | 'true' | 'false'
+  | 'crontab' | 'cron-next' | 'cron-run' | 'flock' | 'timedatectl' | 'systemd-analyze', ManualEntry> = {
+  ssh: {
+    usage: 'ssh [-i 私鑰] [-p 連接埠] [-o 選項] [使用者@]主機 [指令…]', summary: '以 SSH 登入遠端主機，或在遠端執行一個指令',
+    description: [
+      '第一次連線時先核對主機指紋（known_hosts）；模擬環境沒有鍵盤，請用 -o StrictHostKeyChecking=accept-new 或 ssh-keyscan 加入 known_hosts。',
+      '先試金鑰（-i 或 ~/.ssh/id_ed25519），再試密碼（只有課程提供密碼的帳號）；伺服器依它「上次啟動或 reload 時」的 sshd_config 決定接受哪些方式。',
+      '沒有指令時開啟互動式的工作階段，提示字元換成遠端主機，exit 回到本機；有指令時只在遠端執行它並回傳結束碼。',
+    ],
+    options: [['-i 檔案', '使用的私鑰'], ['-p N', '連接埠'], ['-o 選項', 'StrictHostKeyChecking=accept-new、BatchMode=yes、PasswordAuthentication=no、PubkeyAuthentication=no'], ['-q', '不印警告']],
+  },
+  'ssh-keygen': {
+    usage: "ssh-keygen -t ed25519 [-f 檔案] -N '' [-C 說明] | -l -f 檔案 | -R 主機 | -F 主機", summary: '產生金鑰、顯示指紋、管理 known_hosts',
+    description: ['產生的私鑰權限是 600、公鑰 644；模擬環境的金鑰由種子算出（格式與指紋的算法和 OpenSSH 相同，但不是真的金鑰）。', '模擬環境沒有鍵盤：密語要用 -N 指定（-N \'\' 是沒有密語）。'],
+    options: [['-t', '金鑰類型（只支援 ed25519）'], ['-f', '私鑰的檔名（公鑰是加上 .pub）'], ['-N', '密語'], ['-C', '說明（預設 使用者@主機）'], ['-l', '顯示指紋'], ['-R', '從 known_hosts 移除主機'], ['-F', '在 known_hosts 找主機']],
+  },
+  'ssh-copy-id': {
+    usage: 'ssh-copy-id [-i 公鑰] [-p 連接埠] 使用者@主機', summary: '把公鑰加到遠端使用者的 ~/.ssh/authorized_keys',
+    description: ['先試著用這把金鑰登入（已經裝過就略過），否則以密碼登入後附加公鑰；新建的 ~/.ssh 是 700、authorized_keys 是 600。', '伺服器不接受密碼登入時無法使用（這時要用其他已經能登入的方式放公鑰）。'],
+    options: [['-i', '公鑰檔（預設 ~/.ssh/id_ed25519.pub）']],
+  },
+  'ssh-keyscan': { usage: 'ssh-keyscan [-p 連接埠] 主機…', summary: '取得主機的公鑰', description: ['輸出 known_hosts 格式的一行，可以 >> ~/.ssh/known_hosts；加入之前應該用其他管道核對指紋（ssh-keygen -l -f）。'], options: [['-p', '連接埠'], ['-t', '金鑰類型']] },
+  scp: { usage: 'scp [-i 私鑰] [-P 連接埠] 來源… [使用者@]主機:路徑（或反過來）', summary: '透過 SSH 複製檔案', description: ['認證與 ssh 相同；遠端的相對路徑從使用者的家目錄算起。模擬環境只複製檔案（不支援 -r），也不印進度。'], options: [['-i', '私鑰'], ['-P', '連接埠（大寫）']] },
+  sshd: { usage: 'sshd -t | -T', summary: 'OpenSSH 伺服器', description: ['-t 檢查 /etc/ssh/sshd_config（含 Include 的檔案）的語法；-T 印出生效的設定。同一個設定寫兩次時，第一個生效。', '修改設定後要 sudo systemctl reload ssh 才會套用（reload 前會先執行 sshd -t，設定錯誤時不套用）。'], options: [['-t', '檢查設定'], ['-T', '印出設定']] },
+  exit: { usage: 'exit [N]', summary: '結束 Shell（Shell 的內建指令）', description: ['在 ssh 的遠端工作階段中離開並回到本機；在指令稿中結束指令稿，結束碼是 N（預設是上一個指令的結束碼）。'], options: [] },
+  bash: {
+    usage: 'bash [-n] [-x] [-e] [-u] [-o pipefail] 指令稿 [參數…] | bash -c 指令', summary: '執行 Bash 指令稿（模擬環境的有界直譯器）',
+    description: ['支援變數與參數、引號、$( )、$(( ))、if、for、while、case、函式、[[ ]] 與 set -euo pipefail；陣列、trap、行程替換不支援。', '執行步數、函式層數、指令稿層數與輸出長度都有上限。'],
+    options: [['-n', '只檢查語法'], ['-x', '印出執行的每個指令'], ['-e', '指令失敗就停止'], ['-u', '使用未設定的變數就停止'], ['-c', '執行字串中的指令']],
+  },
+  sh: { usage: 'sh 指令稿 [參數…] | sh -c 指令', summary: '以 sh 執行指令稿', description: ['Ubuntu 的 sh 是 dash；模擬環境以同一個直譯器執行（不檢查 dash 不支援的 Bash 寫法）。'], options: [] },
+  test: { usage: 'test 條件', summary: '檢查條件（Shell 的內建指令）', description: ['條件成立時結束碼是 0，否則 1，寫錯時 2。-e -f -d -r -w -x -s 檢查檔案，-z -n 檢查字串，= != 比較字串，-eq -ne -lt -le -gt -ge 比較整數，! 是「不」。'], options: [] },
+  '[': { usage: '[ 條件 ]', summary: '檢查條件（和 test 相同，最後要有 ]）', description: ['[ 與 ] 的前後都要有空白；變數請加雙引號，例如 [ -z "$name" ]。'], options: [] },
+  printf: { usage: 'printf 格式 [參數…]', summary: '依格式輸出（Shell 的內建指令）', description: ['%s 字串、%d 整數、%5.2f 小數、%-10s 靠左；\\n 換行。參數比格式多時重複使用格式。'], options: [] },
+  true: { usage: 'true', summary: '什麼都不做，結束碼 0', description: ['常用在 while true 迴圈。'], options: [] },
+  false: { usage: 'false', summary: '什麼都不做，結束碼 1', description: ['常用來測試 set -e 與 ||。'], options: [] },
+  crontab: {
+    usage: 'crontab [-u 使用者] 檔案 | -l | -r', summary: '安裝、列出或刪除使用者的 crontab',
+    description: ['每行是「分 時 日 月 週 指令」（或 @daily 等），檔案最後一行也要換行；安裝前先檢查語法。', 'crontab 檔案 會「取代」整份 crontab。模擬環境沒有編輯器，不支援 -e。'],
+    options: [['-l', '列出'], ['-r', '刪除'], ['-u', '指定使用者（需要 root）']],
+  },
+  'cron-next': {
+    usage: "cron-next [-n 次數] '分 時 日 月 週' | cron-next -l", summary: '（模擬環境的教學輔助，不是真實的指令）列出接下來的執行時間',
+    description: ['依機器固定的時間與時區計算；-l 列出這台機器所有的排程工作與下一次執行的時間。真實系統可以用 systemd-analyze calendar 或線上的 cron 解析工具。'],
+    options: [['-n', '列出幾次（預設 5）'], ['-l', '列出所有工作']],
+  },
+  'cron-run': {
+    usage: 'cron-run', summary: '（模擬環境的教學輔助，不是真實的指令）執行下一批到期的工作',
+    description: ['以 cron 的方式執行：工作的使用者、家目錄、SHELL=/bin/sh、PATH=/usr/bin:/bin 與 crontab 的變數；輸出寄給使用者（有郵件伺服器時）或被捨棄。機器的時鐘不前進。'],
+    options: [],
+  },
+  flock: { usage: 'flock [-n] [-w 秒] [-E 結束碼] 鎖檔 指令… | flock [-n] 鎖檔 -c 指令', summary: '取得檔案鎖再執行指令，避免同一個工作重疊執行', description: ['鎖被其他行程持有時，-n 立刻放棄（結束碼 1）；沒有 -n 會一直等待。'], options: [['-n', '拿不到鎖就放棄'], ['-w', '最多等待幾秒'], ['-E', '拿不到鎖時的結束碼'], ['-c', '以 sh -c 執行指令']] },
+  timedatectl: { usage: 'timedatectl [status | show | list-timezones]', summary: '顯示時間與時區', description: ['Local time 是時區的時間，Universal time 是 UTC。模擬環境的時間與時區由課程設定，不能修改。'], options: [] },
+  'systemd-analyze': {
+    usage: 'systemd-analyze calendar [--iterations=N] 運算式…', summary: '解析 OnCalendar= 的時間運算式',
+    description: ['印出正規化的寫法與接下來的觸發時間（依機器的時區），例如 systemd-analyze calendar "Mon..Fri *-*-* 02:00"。'],
+    options: [['--iterations=N', '列出 N 次']],
+  },
+};
+
 /** The pages a feature changes: cat reads standard input and echo has -n with pipes; chmod has -R with accounts. */
 const FEATURE_MANUAL: [ShellFeature, CommandName, ManualEntry][] = [
   ['pipes', 'cat', { usage: 'cat [-n] [檔案]…', summary: '顯示檔案內容', description: ['依序印出每個檔案；沒有檔案（或檔名是 -）時讀標準輸入。'], options: [['-n', '在每一行前面加上行號']] }],
   ['pipes', 'echo', { usage: 'echo [-n] [-e] [文字]…', summary: '輸出一行文字', description: ['把文字印到標準輸出；要寫入檔案請用重新導向 > 或 >>。echo 不認得 --help，會把它當成文字印出。'], options: [['-n', '最後不換行'], ['-e', '解讀 \\n 與 \\t']] }],
   ['accounts', 'chmod', { ...MANUAL.chmod, usage: 'chmod [-R] 模式 路徑…', options: [['-R', '包含目錄裡的一切']] }],
+  ['scripting', 'date', { usage: 'date [-u] [+格式]', summary: '顯示機器的時間（固定不動）', description: ['+%F 是 2026-11-22、+%H:%M 是時與分、+%s 是 1970 年起的秒數；有時區的機器顯示當地時間，-u 顯示 UTC，TZ=時區 date 換時區顯示。'], options: [['-u', '顯示 UTC']] }],
 ];
 
 /** The manual of a command in a profile with these features. */
@@ -245,7 +307,7 @@ export function manualEntry(cmd: CommandName, features: Iterable<ShellFeature> =
   const special = FEATURE_MANUAL.find(([f, c]) => c === cmd && have.has(f));
   if (special) return special[2];
   return (MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd] ?? (STREAM_MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd] ?? (USER_MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd]
-    ?? (SYSTEM_MANUAL as Record<string, ManualEntry>)[cmd];
+    ?? (SYSTEM_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (LATER_MANUAL as Record<string, ManualEntry>)[cmd];
 }
 
 const optionLines = (options: [string, string][], indent: string, width: number) => options.map(([flag, text]) => `${indent}${flag.padEnd(width)}${text}`);

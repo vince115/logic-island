@@ -463,7 +463,7 @@ const aiFoundations: Outline[] = [
   pythonFromBlueprint('AIF20', '把整座島接成一個迷宮對戰代理人：以 A* 與可接受的曼哈頓距離規劃三條穿越路線，用深度限制的 alpha-beta 與 BFS 評估函數判斷守衛是最佳對手時何時能穿越，以隱馬可夫模型的前向演算法從雜訊讀數濾出守衛的位置並以期望效用選路，用價值迭代解出「穿越或等待」的 MDP 並與 minimax 規則比較，最後以固定種子的模擬分開報告成功、被抓與交給人類的比例，設計決策紀錄與人類監督，寫出含風險分級的設計報告。', 120, 'challenge-stages'),
 ];
 
-/** LNX-1 (2026-11-22): the Linux systems island's first lessons, written with the terminal capability (LNX0_TERMINAL_CAPABILITY.md); LNX-2 adds LNX05–LNX07, LNX-3 LNX08–LNX11. */
+/** LNX-1 (2026-11-22): the Linux systems island's first lessons, written with the terminal capability (LNX0_TERMINAL_CAPABILITY.md); LNX-2 adds LNX05–LNX07, LNX-3 LNX08–LNX11, LNX-4 LNX12–LNX14. */
 const linuxSystems: Outline[] = [
   terminalFromBlueprint('LNX01', '從核心、使用者空間與 GNU 工具說明 Linux 是什麼，比較 Debian／Ubuntu 與 RHEL 系發行版、LTS 版本的支援週期與伺服器和桌面的取捨，並在三台模擬機器上用 uname、hostname、/etc/os-release 與 df 辨認系統。', 40),
   terminalFromBlueprint('LNX02', '分辨終端機、Shell 與主控台，讀懂 user@host:路徑$ 與 root 的 # 提示字元，拆解指令的短選項、長選項與參數（含空白與引號），用 man 與 --help 查出需要的選項，並從 command not found、invalid option、missing operand 等錯誤訊息找出打錯的地方。', 45),
@@ -476,6 +476,9 @@ const linuxSystems: Outline[] = [
   terminalFromBlueprint('LNX09', '說明套件與套件管理器（.deb／dpkg 與 apt、.rpm／rpm 與 dnf），讀懂套件庫的 suite 與 component、分清只更新清單的 apt update 與真正升級的 apt upgrade，看懂 apt 為什麼一起安裝相依套件與自動安裝的標記，用 apt install、remove、purge、autoremove 安裝與移除軟體（remove 留下設定檔成為 rc），以 apt show、apt policy、apt list --upgradable 查詢版本，用 apt-mark hold 鎖定版本並了解永久鎖定的風險，再以 unattended-upgrades、測試環境、維護時段與核心更新後的重新開機規劃伺服器的安全更新策略。', 55),
   terminalFromBlueprint('LNX10', '說明 init 與 PID 1 的角色，分辨套件放在 /usr/lib/systemd/system 與管理員放在 /etc/systemd/system 的 unit 檔及 /etc 整份優先的規則，用 systemctl 的 start、stop、restart、reload 操作服務並讀懂 status 的 Loaded、Active、Main PID 與日誌，分清 enable（WantedBy 建立的開機連結）與 start，替程式寫出含 User=、Restart=、RestartSec= 的 service unit 並在修改後 daemon-reload，再以 Restart=on-failure、啟動上限與 After、Requires、Wants 管理重新啟動與服務相依。', 60),
   terminalFromBlueprint('LNX11', '分辨 journald 的 journal 與 /var/log 的文字檔（Ubuntu 的 syslog、auth.log、kern.log 與程式自己的日誌），知道只有 root、adm 與 systemd-journal 群組讀得到系統日誌，用 journalctl 的 -u、-p（0–7 的日誌等級與範圍）、--since／--until（絕對時間、today、相對時間）、-n、-r、-g 依服務與時間範圍過濾，接上 grep、wc -l 與 sort | uniq -c 計數，讀懂 permission denied、address already in use、no space left on device、Out of memory 與 Failed password，並說明 logrotate 與 journald 的大小上限如何以日誌輪替避免磁碟被寫滿。', 50),
+  terminalFromBlueprint('LNX12', '分辨用戶端 ssh 與伺服器 sshd（連接埠 22），用 ssh 使用者@主機 開啟工作階段或執行單一指令並讀懂 255 的結束碼，依序說出 TCP、版本交換、金鑰交換、主機金鑰驗證、使用者認證與 channel 的協定步驟，以 ssh-keygen 產生 ed25519 公私鑰（私鑰 600 不離開用戶端、~/.ssh 700）並用 ssh-copy-id 安裝到 authorized_keys，用 ssh-keyscan 與 ssh-keygen -l 核對指紋寫入 known_hosts、說明主機指紋防止的中間人攻擊並在金鑰改變時先核對再以 ssh-keygen -R 更新，最後以排在 50-cloud-init.conf 之前的 drop-in 設定 PasswordAuthentication no 與 PermitRootLogin，經 sshd -t 檢查後 reload，安全地改成只允許金鑰登入。', 55),
+  terminalFromBlueprint('LNX13', '寫出以 #!/bin/bash 開頭、以 chmod u+x 與 ./ 執行的指令稿並分辨 bash script.sh 與 PATH 的差別，用變數、雙引號（"$var" 與含空白的檔名）、$1、$#、"$@"、$( ) 與 $(( )) 處理參數與運算，以結束碼、if、test、[ ] 與 [[ ]] 比較檔案、字串與整數，用 for、while read、case 與含 local、return 的函式組成流程，並以 set -euo pipefail（含它在條件、&&／||、((n++)) 與 local 的例外）、set -x、寫到標準錯誤的訊息與非零結束碼寫出遇到錯誤就停止的可靠指令稿。', 60),
+  terminalFromBlueprint('LNX14', '讀寫 crontab 的五個時間欄位（範圍、清單、步進、名稱與 @daily 等簡寫，以及日與週兩欄的 OR 規則），分辨使用者的 crontab 與多一個使用者欄位的 /etc/crontab、/etc/cron.d，掌握 cron 精簡的環境（PATH、家目錄、% 代表換行）與輸出被寄出或丟掉而必須導向日誌的原因，認識機器時區與夏令時間的陷阱，把工作寫成 .timer 與 .service 一組並以 OnCalendar=、Persistent=、list-timers、journal 與 systemd-analyze calendar 管理與驗算，比較 cron 與 systemd timer 的取捨，再以 flock -n 避免重疊執行。', 55),
 ];
 
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */
