@@ -38,7 +38,7 @@ WEB-1 的結果（隔離副本，旗標關，JDK 在 PATH）：TypeScript 與 ES
 - 傳統捲軸：`tests/webcode-runner.test.ts` 的「scroll bars that take room」以畫出傳統捲軸的 Chromium（`CLASSIC_SCROLL_BARS`：不帶 `--hide-scrollbars`、關閉 overlay 捲軸）確認比檢查視窗高的頁面仍以完整寬度量測；`tests/curriculum-webcode.test.ts` 把每一堂 web-code 課在這個瀏覽器裡再跑一遍（修正前後既有 19 堂課都通過：沒有已發布的課受影響，這是預防）。
 - 無法在預覽或檢查裡切換的東西（裝置像素比、`prefers-*`、觸控、沒有 viewport 設定時的手機行為）列在 [RESPONSIVE_DESIGN_ISLAND](../curriculum/RESPONSIVE_DESIGN_ISLAND.md)。
 
-__RWD1_RESULT__
+RWD-1 的結果（隔離副本，旗標關，JDK 在 PATH，併入 main `5e4f35f` 之後）：TypeScript 與 ESLint 通過；Vitest **134 檔、3828 passed／9 skipped**；Production build 通過；E2E 桌機＋手機 **483 passed／2 failed／297 skipped**，兩個失敗是 `e2e/candidate-integration.spec.ts` 的候選頁像素比對（D.3-5c、D.3-6d），為 main 既有的回歸（#36）。過程中 E2E 先後找到三個只在真正的課程頁出現的問題，都已修正並補上測試：減少動態規則讓 `resize` 晚一個畫格生效、預覽寬度少 2px（框線）、實驗頁漏列已發布的 RWD 課。
 
 ## Private Vitest Runner（2026-11-22，分支 `trials/private-test-runner`）
 
