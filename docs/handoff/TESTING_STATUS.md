@@ -50,6 +50,14 @@ RWD-2 的結果（`rwd/2-batch-2`，疊在 RWD-1 上，隔離副本，旗標關�
 
 RWD-3 的結果（隔離副本，旗標關）：TypeScript 與 ESLint 通過；Vitest **134 檔、3845 passed／9 skipped**；Production build 通過；E2E 桌機＋手機 **499 passed／2 failed／297 skipped**（兩個失敗同上，#36）。
 
+### MOB-1（2026-11-23，`mob/1-batch-1`）
+
+- 引擎階段 W9（`tests/webcode-runner.test.ts`）：「pointers and touch targets」以手指與滑鼠各做一次完整的拖曳（按下、瞄準別的元素移動仍由捕捉的元素收到、放開、被取消後還原）、未按下時呼叫捕捉的兩種結果、`box` 的至少與至多；「keys」確認按鍵事件的 `key` 與 `code`；「dialogs」確認 `close` 監聽器寫下的結果下一項檢查看得到、`method="dialog"` 的表單關閉對話框且不算送出（重複三次）。
+- 檢查裡的指標事件是檢查程式送出的，不是瀏覽器的指標：這些測試驗證的是引擎送出什麼與模擬的捕捉規則，真實瀏覽器的捕捉、`touch-action` 與觸控行為由寫手以真的輸入（滑鼠、鍵盤、CDP 觸控）另外確認後才寫進課文，未提交。
+- E2E（`e2e/webcode-lessons.spec.ts`）：MOB04 的指標練習在課程頁上實際執行；四堂課的每個練習照樣各做一遍；Mobile Navigation Simulator 的課程連結。
+
+MOB-1 的結果（隔離副本，旗標關）：TypeScript 與 ESLint 通過；Vitest **134 檔、3860 passed／9 skipped**；Production build 通過；E2E 桌機＋手機 **511 passed／2 failed／297 skipped**（兩個失敗同上，#36）。
+
 ## Private Vitest Runner（2026-11-22，分支 `trials/private-test-runner`）
 
 用法與選項：`docs/exam-system/34_T3J_PRIVATE_BANK_AND_CI_ACTIVATION.md` 第 2 節。**以下是本機隔離 checkout 的結果，不是 CI：公開 CI 沒有私有題庫，也不執行這個 Runner。**

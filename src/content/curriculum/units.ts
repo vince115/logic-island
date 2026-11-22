@@ -87,6 +87,11 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
   'generative-ai': [
     { title: '生成模型與自回歸生成', summary: '判別式與生成式模型、學習資料分布再取樣、似然、自回歸、VAE、GAN、流模型與擴散模型的家族地圖；機率連鎖律、生成迴圈、greedy 與取樣、log 機率與下溢、teacher forcing 與 exposure bias、圖像與音訊的離散化', lessonIds: range('GEN', 1, 2) },
   ],
+  // MOB-1 (2026-11-23): the mobile apps island's first units.
+  'mobile-apps': [
+    { title: '行動情境與導覽模式', summary: '使用情境、單手操作與可及範圍、螢幕尺寸與優先順序、網路與電量；分頁列、抽屜與底部面板的用途、做法與選擇', lessonIds: range('MOB', 1, 2) },
+    { title: '觸控與指標', summary: '觸控目標尺寸、擴大點擊區域、touch-action 與手勢衝突、替代操作；Pointer Events、指標捕捉、可取消的拖曳與被動監聽器', lessonIds: range('MOB', 3, 4) },
+  ],
   // RWD-1 (2026-11-23): the responsive design island's first units; RWD-2 adds the grid and query units, RWD-3 the last two.
   'responsive-design': [
     { title: '響應式原則與單位', summary: '同一份 HTML 依寬度調整版面、行動優先、內容優先與漸進增強；viewport 設定、百分比、rem 與 em、vw 與 dvh，以及橫向捲動的成因', lessonIds: range('RWD', 1, 2) },

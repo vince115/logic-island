@@ -501,10 +501,25 @@
       ],
       "commit": "TBD",
       "tests": "驗證器、發布閘門、TypeScript、ESLint、Vitest 134 檔 3845 passed／9 skipped（含 Chromium：31 堂網頁課的每個範例、參考解答、起始內容與常見錯誤，各在一般與傳統捲軸的瀏覽器跑一遍；picture 與 sizes 在載入與 resize 之後的量測）、Production build、E2E 桌機＋手機旗標關 499 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上每個練習各做一遍，含圖片來源的量測與選單按鈕的鍵盤操作）、RWD10 的圖片練習在裝置像素比 1、1.5、2、3 下結果相同、測驗 32 題逐題複核、洩漏掃描",
-      "notes": "RWD-3：流體字級與 clamp()（由兩個端點推出 rem＋vw 的偏好值、最小與最大值、可縮放性）、響應式圖片與媒體（流動圖片、aspect-ratio、object-fit、srcset／sizes、picture、延遲載入）、響應式導覽與表格（換行／橫向捲動／收合的選單按鈕、表格的水平捲動、隱藏欄位與重排）與響應式設計島綜合專題（web-code＋challenge-stages 五關：行動優先骨架、會收合的導覽、Grid 命名區域、容器查詢的商品卡、字級與圖片；以小島市集的首頁貫穿）；響應式設計島 12/12 完成，mapState 維持 planned。引擎階段 W8：檢查框架放在視窗內並等待畫面更新，picture 的來源與 sizes 的顯示寬度在斷點兩側以盒子量測"
+      "notes": "RWD-3：流體字級與 clamp()（由兩個端點推出 rem＋vw 的偏好值、最小與最大值、可縮放性）、響應式圖片與媒體（流動圖片、aspect-ratio、object-fit、srcset／sizes、picture、延遲載入）、響應式導覽與表格（換行／橫向捲動／收合的選單按鈕、表格的水平捲動、隱藏欄位與重排）與響應式設計島綜合專題（web-code＋challenge-stages 五關：行動優先骨架、會收合的導覽、Grid 命名區域、容器查詢的商品卡、字級與圖片；以小島市集的首頁貫穿）；響應式設計島 12/12 完成，mapState 維持 planned。引擎階段 W8：檢查框架放在視窗內並等待畫面更新，picture 的來源與 sizes 的顯示寬度在斷點兩側以盒子量測",
+      "pr": "#81",
+      "merged": "1b0705c"
     },
     {
       "id": 36,
+      "date": "2026-11-23",
+      "lessons": [
+        "MOB01",
+        "MOB02",
+        "MOB03",
+        "MOB04"
+      ],
+      "commit": "TBD",
+      "tests": "驗證器、發布閘門、TypeScript、ESLint、Vitest 134 檔 3860 passed／9 skipped（含 Chromium：35 堂網頁課的每個範例、參考解答、起始內容與常見錯誤，各在一般與傳統捲軸的瀏覽器跑一遍；指標步驟與模擬的指標捕捉、box 的至少／至多、按鍵的 code、對話框的 close 與 method=dialog）、Production build、E2E 桌機＋手機旗標關 511 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上每個練習各做一遍，含 MOB04 的指標練習；Mobile Navigation Simulator 的課程連結）、測驗 32 題逐題複核、洩漏掃描",
+      "notes": "MOB-1：行動應用島開放（第三座以 web-code 撰寫的島）：行動情境與限制（單手操作、第一個畫面、連線失敗與重試、會停止的輪詢）、行動 UI 模式（分頁列、抽屜、dialog 做的底部面板、模式選擇）、觸控目標與手勢（WCAG 2.2 的目標尺寸、擴大點擊區域、touch-action、替代操作）、Pointer Events（指標捕捉、可取消的拖曳、鍵盤替代、被動監聽器）。引擎階段 W9：pointer 操作與依規格模擬的指標捕捉、box 的至少／至多、按鍵事件的 code、有 dialog 的頁面在操作後等一個畫格、method=dialog 的表單不再被攔下。分析型的課以「修一個有問題的頁面」教，不另建案例看板；mapState 維持 planned"
+    },
+    {
+      "id": 37,
       "date": "2026-11-23",
       "lessons": [
         "DKR01",

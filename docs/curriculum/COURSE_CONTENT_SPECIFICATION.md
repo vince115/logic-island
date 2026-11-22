@@ -90,6 +90,7 @@
 | RWD-1（見 [RESPONSIVE_DESIGN_ISLAND](RESPONSIVE_DESIGN_ISLAND.md)） | RWD01–04 | 響應式原則與行動優先、viewport 與相對單位、Flexbox 基礎與進階（引擎階段 W7：`resize` 操作讓同一份答案在多個寬度檢查、預覽寬度 `widths`）；響應式設計島開放 |
 | RWD-2 | RWD05–08 | CSS Grid 基礎與進階、Media Query 與斷點策略、Container Query（沒有新增引擎） |
 | RWD-3 | RWD09–12 | 流體字級與 clamp()、響應式圖片與媒體、響應式導覽與表格；綜合專題（challenge-stages 五關），全島完成（引擎階段 W8：檢查框架會做畫面更新，圖片來源以量測檢查） |
+| MOB-1（見 [MOBILE_APPS_ISLAND](MOBILE_APPS_ISLAND.md)） | MOB01–04 | 行動情境與限制、Tab bar／Drawer／Bottom sheet、觸控目標與手勢、Pointer Events 與觸控事件（引擎階段 W9：指標步驟與模擬的指標捕捉、`box` 的至少／至多、對話框）；行動應用島開放 |
 | DKR-0（架構） | — | Docker 容器島登錄為預備島嶼，沿用 `terminal` 能力（`container-playground` 與 `case-study-board` 是終端機課）與 `network-protocol` 的情境（`architecture-diagram`、`pipeline-diagram`），由 `dockerFromBlueprint` 對應，不需要新的 capability 或活動；引擎階段 E20（`containers`：Image、Container 的生命週期、模擬的 Docker Hub、連接埠對應、`docker` 群組）先完成（[DKR0_CONTAINER_CAPABILITY](DKR0_CONTAINER_CAPABILITY.md)）；DKR-1（DKR01–DKR04）之後依 E21–E24 分批發布 |
 | 之後 | 依 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 自動選擇 | 先修已滿足、能力已備妥、解鎖其他島最多的島優先；缺少的共用能力先做最小可用版本 |
 

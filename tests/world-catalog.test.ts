@@ -11,7 +11,7 @@ import { BLUEPRINT, readJson } from '../scripts/planning-data.mjs';
 const mutate = (id: string, change: Partial<CatalogLesson>) => catalogLessons.map(l => l.lessonId === id ? { ...l, ...change } : l);
 
 /** Islands whose lessons the curriculum writes from the blueprint's outlines (F.1a; course production batch 1 for PL). */
-const FROM_BLUEPRINT = ['databases', 'programming-languages', 'networks', 'ai-foundations', 'linux-systems', 'docker-containers', 'network-servers', 'large-language-models', 'generative-ai', 'web-foundations', 'responsive-design'];
+const FROM_BLUEPRINT = ['databases', 'programming-languages', 'networks', 'ai-foundations', 'linux-systems', 'docker-containers', 'network-servers', 'large-language-models', 'generative-ai', 'web-foundations', 'responsive-design', 'mobile-apps'];
 
 describe('lesson catalog (F.0)', () => {
   it('passes its own rules and the world rules', () => {
@@ -51,7 +51,7 @@ describe('lesson catalog (F.0)', () => {
     // The catalog lists lessons region by region (catalog.ts): cs, ai, design, web, sys. ISLAND_IDS now follows the same
     // order (LLM-1 after AI foundations, GEN-1 after large-language-models, WEB-1 before the systems islands, DKR-1 between
     // the Linux and server islands).
-    const inRegionOrder = ['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'large-language-models', 'generative-ai', 'web-foundations', 'responsive-design', 'linux-systems', 'docker-containers', 'network-servers'];
+    const inRegionOrder = ['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'large-language-models', 'generative-ai', 'web-foundations', 'responsive-design', 'mobile-apps', 'linux-systems', 'docker-containers', 'network-servers'];
     expect([...inRegionOrder].sort()).toEqual([...new Set(lessons.map(l => l.islandId))].sort());
     const ordered = inRegionOrder.flatMap(id => lessons.filter(l => l.islandId === id));
     expect(complete.map(l => l.lessonId)).toEqual(ordered.map(l => l.lessonId));

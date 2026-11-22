@@ -444,6 +444,9 @@ const WEB_SHAPES: Readonly<Record<string, Pick<Outline, 'activity' | 'capabiliti
   // WEB-4: fetch (WEB11) is taught on pages whose requests a pretend server answers (engine stage W3); the page's list
   // of requests and answers is the sequence, so no network-protocol scene is added.
   'protocol-sequence': { activity: 'dom-explorer', capabilities: ['web-code'], visualization: 'none' },
+  // MOB-1: the mobile apps island's analysis lessons are taught on pages too (cases a learner repairs), not on a board.
+  'case-study-board': { activity: 'dom-explorer', capabilities: ['web-code'], visualization: 'none' },
+  'decision-simulation': { activity: 'dom-explorer', capabilities: ['web-code'], visualization: 'none' },
   // RWD-0: the responsive design island's activities.
   'responsive-sim': { activity: 'dom-explorer', capabilities: ['web-code'], visualization: 'none' },
   'flexbox-playground': { activity: 'dom-explorer', capabilities: ['web-code'], visualization: 'none' },
@@ -452,11 +455,13 @@ const WEB_SHAPES: Readonly<Record<string, Pick<Outline, 'activity' | 'capabiliti
   'challenge-stages': { activity: 'challenge-stages', capabilities: ['web-code', 'visualization'], visualization: 'challenge-stages' },
 };
 /** The blueprint activities each web-code island maps. */
-const WEB_ACTIVITIES: Readonly<Record<'web-foundations' | 'responsive-design', readonly string[]>> = {
+type WebIsland = 'web-foundations' | 'responsive-design' | 'mobile-apps';
+const WEB_ACTIVITIES: Readonly<Record<WebIsland, readonly string[]>> = {
   'web-foundations': ['dom-explorer', 'pipeline-diagram', 'concurrency-timeline', 'memory-inspector', 'a11y-checker', 'metric-explorer', 'protocol-sequence', 'challenge-stages'],
   'responsive-design': ['responsive-sim', 'flexbox-playground', 'grid-playground', 'mobile-nav-sim', 'challenge-stages'],
+  'mobile-apps': ['case-study-board', 'mobile-nav-sim', 'dom-explorer', 'responsive-sim', 'decision-simulation', 'protocol-sequence', 'metric-explorer', 'a11y-checker', 'challenge-stages'],
 };
-function webOutline(lessonId: string, summary: string, minutes: number, island: 'web-foundations' | 'responsive-design', what: string): Outline {
+function webOutline(lessonId: string, summary: string, minutes: number, island: WebIsland, what: string): Outline {
   const b = planning.plannedLessons.find(l => l.lessonId === lessonId);
   if (!b || b.islandId !== island) throw new Error(`${lessonId} is not a ${what} lesson of the blueprint`);
   const s = WEB_ACTIVITIES[island].includes(b.activity) ? WEB_SHAPES[b.activity] : undefined;
@@ -664,6 +669,21 @@ const responsiveDesign: Outline[] = [
   responsiveFromBlueprint('RWD12', '分五關完成小島市集的首頁：以流動置中的欄與 rem 留白建立行動優先骨架，用 Flexbox 與選單按鈕做出會收合的導覽，以 Grid 命名區域在兩個斷點重畫版面，用 auto-fit 與容器查詢讓商品卡依容器換排法，以 clamp() 與流動圖片處理字級與圖片，並在 360、768、1280px 與斷點兩側測試。', 110),
 ];
 
+/**
+ * MOB-1 (2026-11-23): a mobile apps lesson written from its blueprint outline, on the web-code capability: pages at
+ * phone sizes, pointer steps (a finger or a mouse pressed, moved, lifted, cancelled), touch targets measured with at
+ * least and at most (WEB0_WEB_CODE_CAPABILITY.md stage W9, MOBILE_APPS_ISLAND.md).
+ */
+export function mobileFromBlueprint(lessonId: string, summary: string, minutes: number): Outline {
+  return webOutline(lessonId, summary, minutes, 'mobile-apps', 'mobile apps');
+}
+const mobileApps: Outline[] = [
+  mobileFromBlueprint('MOB01', '從短暫、常被打斷、單手握持的使用情境出發，把主要操作移到拇指搆得到的底部操作列、讓破壞性操作遠離它，在 360 × 640 的螢幕尺寸下依優先順序排成一欄、用 details 延後次要內容、不讓操作只在滑過時出現，顧及網路與電量：替載入失敗加上訊息與重試、讓輪詢在完成後停止，並用檢查表找出網站在手機上最大的三個問題。', 45),
+  mobileFromBlueprint('MOB02', '比較分頁列、抽屜與底部面板三種行動導覽模式的用途、代價與可及範圍，用 nav 與 aria-current 做底部的分頁列，用 aria-expanded 按鈕、遮罩與 inert 做抽屜，用 dialog 的 showModal() 做強制回應的底部面板並和 show() 比較，再依目的地或動作、數量與頻率選擇模式。', 50),
+  mobileFromBlueprint('MOB03', '依 WCAG 2.2 的 24 × 24 最低與 44 × 44 加強尺寸，用 min-height 與內距把觸控目標做大，用偽元素與負的 inset 擴大點擊區域而不改變外觀、不蓋住鄰居，再以 touch-action 與 overscroll-behavior 處理手勢衝突，並替每個手勢加上看得到的替代操作。', 50),
+  mobileFromBlueprint('MOB04', '比較滑鼠事件、Touch Events 與 Pointer Events，用同一組指標事件與 pointerType 支援觸控與滑鼠，以拖曳旗標、setPointerCapture 與 touch-action 做出可拖曳的滑桿，在 pointercancel 時還原位置並補上方向鍵操作，再用被動監聽器避免捲動卡頓。', 55),
+];
+
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */
 function idAt(islandId: (typeof ISLAND_IDS)[number], index: number, blueprintId?: string): LessonId {
   const id = `${ISLAND_PREFIX[islandId]}${String(index + 1).padStart(2, '0')}` as LessonId;
@@ -673,7 +693,7 @@ function idAt(islandId: (typeof ISLAND_IDS)[number], index: number, blueprintId?
 /** F, D and A are taught in the program languages: every lesson there declares program-code. */
 const program = (list: Omit<Outline, 'capabilities'>[]): Outline[] => list.map(o => ({ ...o, capabilities: ['program-code'] }));
 const outlines: Record<(typeof ISLAND_IDS)[number], Outline[]> = {
-  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages, networks, 'ai-foundations': aiFoundations, 'large-language-models': largeLanguageModels, 'generative-ai': generativeAi, 'web-foundations': webFoundations, 'responsive-design': responsiveDesign, 'linux-systems': linuxSystems, 'docker-containers': dockerContainers, 'network-servers': networkServers };
+  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages, networks, 'ai-foundations': aiFoundations, 'large-language-models': largeLanguageModels, 'generative-ai': generativeAi, 'web-foundations': webFoundations, 'responsive-design': responsiveDesign, 'mobile-apps': mobileApps, 'linux-systems': linuxSystems, 'docker-containers': dockerContainers, 'network-servers': networkServers };
 
 /** Every lesson the blueprint outlines, written or not (validateCurriculum's recommended-lesson check). */
 export const outlinedLessonIds: readonly string[] = planning.plannedLessons.map(l => l.lessonId);

@@ -412,6 +412,75 @@ describe('viewports (RWD-0)', () => {
   });
 });
 
+describe('pointers and touch targets (MOB-0: W9)', () => {
+  const html = '<div id="track"><button id="knob" type="button">拖曳</button></div><p id="log"></p>';
+  const css = 'body { margin: 0; } #track { position: relative; width: 300px; height: 60px; touch-action: none; } #knob { position: absolute; left: 0; top: 8px; width: 44px; height: 44px; padding: 0; border: 0; }';
+  const js = `const knob = document.querySelector('#knob'), log = document.querySelector('#log');
+let from = null;
+knob.addEventListener('pointerdown', e => { from = { x: e.clientX, left: knob.offsetLeft }; knob.setPointerCapture(e.pointerId); log.textContent = e.pointerType + ' ' + e.isPrimary + ' ' + e.buttons; });
+knob.addEventListener('pointermove', e => { if (from) knob.style.left = Math.max(0, Math.min(256, from.left + e.clientX - from.x)) + 'px'; });
+knob.addEventListener('pointerup', () => { from = null; console.log('dropped at ' + knob.offsetLeft); });
+knob.addEventListener('pointercancel', () => { if (from) knob.style.left = from.left + 'px'; from = null; console.log('cancelled'); });
+knob.addEventListener('gotpointercapture', () => console.log('captured ' + knob.hasPointerCapture(1)));
+knob.addEventListener('lostpointercapture', () => console.log('released ' + knob.hasPointerCapture(1)));`;
+  inBrowser('a pointer is pressed, moved and lifted like a finger; a captured pointer keeps going to its element; a cancelled drag goes back', async () => {
+    const steps: WebStep[] = [
+      { do: 'pointer', selector: '#knob', type: 'down', pointerType: 'touch' }, { check: 'text', selector: '#log', text: 'touch true 1', label: 'a primary touch pointer, pressed' },
+      // Aimed at the track, 150px from its left: the knob has the pointer, so the knob gets the move (22 → 150: 128px).
+      { do: 'pointer', selector: '#track', type: 'move', x: 150, y: 30, pointerType: 'touch' }, { check: 'box', selector: '#knob', measure: 'left', value: 128, label: 'follows the finger' },
+      { do: 'pointer', selector: '#track', type: 'move', x: 2000, y: 30, pointerType: 'touch' }, { check: 'box', selector: '#knob', measure: 'left', value: 256, label: 'stays on the track' },
+      { do: 'pointer', selector: '#track', type: 'up', x: 2000, y: 30, pointerType: 'touch' },
+      { check: 'console', lines: ['captured true', 'dropped at 256', 'released false'], label: 'captured, dropped, released' },
+      // After the pointer is lifted a move does nothing.
+      { do: 'pointer', selector: '#track', type: 'move', x: 10, y: 30 }, { check: 'box', selector: '#knob', measure: 'left', value: 256, label: 'no drag without a press' },
+      // A second drag, cancelled by the system (a scroll took over): back to where it started.
+      { do: 'pointer', selector: '#knob', type: 'down' }, { do: 'pointer', selector: '#track', type: 'move', x: 100, y: 30 }, { check: 'box', selector: '#knob', measure: 'left', value: 78, label: 'dragged with a mouse' },
+      { do: 'pointer', selector: '#track', type: 'cancel' }, { check: 'box', selector: '#knob', measure: 'left', value: 256, label: 'the cancelled drag is undone' },
+      { check: 'text', selector: '#log', text: 'mouse true 1', label: 'a mouse pointer' },
+    ];
+    const r = await page({ html, css, js }, steps);
+    expect(judge(steps, r.results).map(x => [x.label, x.ok, x.message])).toEqual(steps.filter(x => 'check' in x).map(x => [(x as { label: string }).label, true, '']));
+    expect(r.console.map(l => l.text)).toEqual(['captured true', 'dropped at 256', 'released false', 'captured true', 'cancelled', 'released false']);
+  });
+  inBrowser('capture needs a pressed pointer, as in a browser; a touch target is checked with at least and at most', async () => {
+    // A mouse whose button is not down: no error and no capture. A finger that is no longer on the screen: an error.
+    const hover = "const knob = document.querySelector('#knob'); const attempt = () => { try { knob.setPointerCapture(1); console.log('no error, captured ' + knob.hasPointerCapture(1)); } catch (e) { console.log(e.name); } }; attempt(); knob.addEventListener('lostpointercapture', () => setTimeout(attempt, 0));"
+      + " knob.addEventListener('pointerdown', e => knob.setPointerCapture(e.pointerId));";
+    const early = await page({ html, css, js: hover }, [{ do: 'pointer', selector: '#knob', type: 'down', pointerType: 'touch' }, { do: 'pointer', selector: '#knob', type: 'up', pointerType: 'touch' }, { do: 'wait', ms: 10 }]);
+    expect(early.console.map(l => l.text)).toEqual(['no error, captured false', 'NotFoundError']);
+    const steps: WebStep[] = [
+      { check: 'box', selector: '#knob', measure: 'width', value: 44, op: 'min', label: 'at least 44 wide' }, { check: 'box', selector: '#knob', measure: 'height', value: 48, op: 'min', label: 'at least 48 high' },
+      { check: 'box', selector: '#track', measure: 'width', value: 320, op: 'max', label: 'at most 320 wide' }, { check: 'box', selector: '#track', measure: 'width', value: 200, op: 'max', label: 'at most 200 wide' }];
+    const r = await page({ html, css }, steps);
+    expect(judge(steps, r.results).map(x => [x.ok, x.message])).toEqual([[true, ''], [false, '`#knob` 的高度目前是 44px，至少要 48px。'], [true, ''], [false, '`#track` 的寬度目前是 300px，最多只能 200px。']]);
+  });
+});
+
+describe('keys (MOB-0)', () => {
+  inBrowser('a key press carries the key and its code', async () => {
+    const r = await page({ html: '<input id="q"><p id="out"></p>', js: "document.querySelector('#q').addEventListener('keydown', e => { document.querySelector('#out').textContent += e.key + '/' + e.code + ' '; });" },
+      [...['ArrowRight', 'Enter', ' ', 'Escape', 'a', '7', 'Home'].map(key => ({ do: 'key' as const, selector: '#q', key })), { check: 'text', selector: '#out', text: 'ArrowRight/ArrowRight Enter/Enter  /Space Escape/Escape a/KeyA 7/Digit7 Home/Home', label: 'codes' }]);
+    expect(r.results.at(-1)).toMatchObject({ ok: true });
+  });
+});
+
+describe('dialogs (MOB-0)', () => {
+  inBrowser('what a close listener writes is there for the next check; a form with method dialog closes its dialog and is not a submission', async () => {
+    const html = '<button id="open" type="button">開啟</button><p id="status">未選擇</p><dialog id="sheet" aria-label="動作"><form method="dialog"><button id="share" value="share">分享</button></form><button id="cancel" type="button">取消</button></dialog>';
+    const js = "const sheet = document.querySelector('#sheet'); document.querySelector('#open').addEventListener('click', () => sheet.showModal()); document.querySelector('#cancel').addEventListener('click', () => sheet.close('cancel')); sheet.addEventListener('close', () => { document.querySelector('#status').textContent = '選了 ' + sheet.returnValue; });";
+    const steps: WebStep[] = [
+      { do: 'click', selector: '#open' }, { check: 'count', selector: 'dialog[open]', count: 1, label: 'open' }, { check: 'count', selector: 'dialog:modal', count: 1, label: 'modal' },
+      { do: 'click', selector: '#cancel' }, { check: 'count', selector: 'dialog[open]', count: 0, label: 'closed by script' }, { check: 'text', selector: '#status', text: '選了 cancel', label: 'the close listener ran' },
+      { do: 'click', selector: '#open' }, { do: 'click', selector: '#share' }, { check: 'count', selector: 'dialog[open]', count: 0, label: 'closed by its form' },
+      { check: 'text', selector: '#status', text: '選了 share', label: 'the button value is the return value' }, { check: 'submitted', count: 0, label: 'nothing was sent' }, { check: 'focus', selector: '#open', label: 'focus is back on the opener' },
+    ];
+    for (let again = 0; again < 3; again++) {
+      const r = await page({ html, js }, steps);
+      expect(judge(steps, r.results).map(x => [x.label, x.ok, x.message])).toEqual(steps.filter(x => 'check' in x).map(x => [(x as { label: string }).label, true, '']));
+    }
+  });
+});
+
 describe('images that depend on the viewport (RWD-3: W8)', () => {
   // A data: address inside srcset has no spaces (a space ends a candidate).
   const svg = (w: number, h: number) => `data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='${w}'%20height='${h}'%3E%3Crect%20width='${w}'%20height='${h}'%20fill='%2390caf9'/%3E%3C/svg%3E`;

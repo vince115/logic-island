@@ -141,6 +141,28 @@ test('網頁基礎島開放：課綱目錄列出 15 堂、已撰寫的可點；�
   await expect(page.getByRole('note').filter({ hasText: '沙盒框架' })).toBeVisible();
 });
 
+test('行動課的指標步驟（MOB04）：課程頁列出「用手指按下、移動、放開」的步驟，檢查在頁面上實際執行', async ({ page }) => {
+  const lesson = webLessons.find(l => l.lessonId === 'MOB04')!;
+  await page.goto(`/curriculum/${lesson.slug}`);
+  const exercise = curriculum.contents.MOB04!.webCode!.exercises.find(x => x.steps.some(s => 'do' in s && s.do === 'pointer'))!;
+  const box = exerciseBox(page, exercise);
+  await expect(box.locator('li', { hasText: /用(手指|滑鼠)在/ }).first()).toBeVisible();
+  for (const kind of fileKinds(exercise.starter)) await box.getByRole('textbox', { name: `${exercise.title}：${WEB_FILE_LABELS[kind]}` }).fill(exercise.solution[kind]!);
+  await box.getByRole('button', { name: '檢查' }).click();
+  await expect(box.getByText('全部通過。')).toBeVisible();
+  expect(await noOverflow(page)).toBeLessThanOrEqual(0);
+});
+
+test('行動應用島開放：課綱目錄列出 13 堂、已撰寫的可點；群島總覽標示已開放', async ({ page }) => {
+  await page.goto('/curriculum');
+  const island = page.getByRole('region', { name: /行動應用島/ });
+  await expect(island.getByRole('listitem')).toHaveCount(13);
+  await expect(island.getByRole('link', { name: /行動情境與限制/ })).toHaveAttribute('href', '/curriculum/mobile-context-and-constraints');
+  await expect(island.getByRole('link')).toHaveCount(webLessons.filter(l => l.islandId === 'mobile-apps').length);
+  await page.goto('/regions/web');
+  await expect(page.locator('#open-mobile-apps')).toContainText('行動應用島');
+});
+
 test('響應式設計島開放：課綱目錄列出 12 堂、已撰寫的可點；群島總覽標示已開放', async ({ page }) => {
   await page.goto('/curriculum');
   const island = page.getByRole('region', { name: /響應式設計島/ });
