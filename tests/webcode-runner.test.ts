@@ -180,7 +180,8 @@ describe('actions and what the frame records', () => {
     const before = browser!.hostErrors().length;
     const r = await page({ html: '<p>x</p>', js: "Promise.reject(new Error('later'));\nsetTimeout(() => { throw new TypeError('in a timer'); }, 0);\nmissing();" }, [{ do: 'wait', ms: 50 }, { check: 'count', selector: 'p', count: 1, label: 'p' }]);
     expect(r.console.map(l => l.kind)).toEqual(['error', 'error', 'error']);
-    expect(r.console.map(l => l.text).sort()).toEqual(['Uncaught (in promise) Error: later', 'Uncaught ReferenceError: missing is not defined', 'Uncaught TypeError: in a timer']);
+    // W1: an error in script.js carries its line in that file.
+    expect(r.console.map(l => l.text).sort()).toEqual(['Uncaught (in promise) Error: later', 'Uncaught ReferenceError: missing is not defined（script.js 第 3 行）', 'Uncaught TypeError: in a timer（script.js 第 2 行）']);
     expect(browser!.hostErrors().slice(before)).toEqual([]);
   });
   inBrowser('a link is recorded, never followed; a fragment link scrolls on the same page', async () => {
@@ -232,6 +233,54 @@ describe('layout checks for positioning (WEB-2)', () => {
     expect(shown[2].message).toBe('`#b` 的中心點上，畫在最上面的是 <span#inner>。');
     expect(shown[7].message).toBe('`#a` 的中心點不在畫面內。');
     expect(shown[9].message).toBe('無法把 `#nope` 往下捲到 1px：頁面上找不到這個元素。');
+  });
+});
+
+describe('scripts, timers and events (WEB-3: W1 and W2)', () => {
+  inBrowser('a script runs where the page loads it: in the head it finds no body, deferred or as a module it finds the whole document', async () => {
+    const page_ = (script: string) => `<!DOCTYPE html><html><head><title>T</title>${script}</head><body><p id="p">x</p></body></html>`;
+    const js = "console.log(document.body ? 'body: ' + document.querySelectorAll('p').length : 'no body yet');";
+    expect((await page({ html: page_('<script src="script.js"></script>'), js })).console).toEqual([{ kind: 'log', text: 'no body yet' }]);
+    expect((await page({ html: page_('<script src="script.js" defer></script>'), js })).console).toEqual([{ kind: 'log', text: 'body: 1' }]);
+    expect((await page({ html: page_('<script type="module" src="script.js"></script>'), js })).console).toEqual([{ kind: 'log', text: 'body: 1' }]);
+    // The classic mistake and its error, with the line in script.js.
+    const broken = await page({ html: page_('<script src="script.js"></script>'), js: "const p = document.querySelector('#p');\np.textContent = 'y';" });
+    expect(broken.console).toHaveLength(1);
+    expect(broken.console[0].text).toMatch(/^Uncaught TypeError: .*（script\.js 第 2 行）$/);
+  });
+  inBrowser('a check runs on a virtual clock: timers fire in time order without real waiting, intervals repeat, cleared timers never fire', async () => {
+    const js = "console.log('start');\nsetTimeout(() => console.log('t500'), 500);\nsetTimeout(() => console.log('t100'), 100);\nsetTimeout(() => console.log('t0'), 0);\n"
+      + "Promise.resolve().then(() => console.log('micro'));\nconst gone = setTimeout(() => console.log('never'), 50);\nclearTimeout(gone);\n"
+      + "let n = 0;\nconst every = setInterval(() => { console.log('tick ' + (++n)); if (n === 3) clearInterval(every); }, 1000);\n"
+      + "setTimeout(() => { console.log('t100 again'); setTimeout(() => console.log('nested'), 10); }, 100);\nconsole.log('end');";
+    const steps: WebStep[] = [
+      { check: 'console', lines: ['start', 'end', 'micro', 't0'], label: 'zero-delay timers have fired when the page is first looked at' },
+      { do: 'wait', ms: 100 }, { check: 'console', lines: ['start', 'end', 'micro', 't0', 't100', 't100 again'], label: 'same time: in the order they were set' },
+      { do: 'wait', ms: 400 }, { check: 'console', lines: ['nested', 't500'], match: 'includes', label: 'a timer set by a timer' },
+      { do: 'wait', ms: 9500 }, { check: 'console', lines: ['start', 'end', 'micro', 't0', 't100', 't100 again', 'nested', 't500', 'tick 1', 'tick 2', 'tick 3'], label: 'the interval ran three times and stopped' },
+    ];
+    const before = Date.now();
+    const r = await page({ html: '<p>x</p>', js }, steps);
+    expect(r.results.filter((_, i) => i % 2 === 0).map(x => x.ok)).toEqual([true, true, true, true]);
+    // Ten virtual seconds in well under two real ones.
+    expect(Date.now() - before).toBeLessThan(2000);
+  });
+  inBrowser('async functions and timers interleave as in a browser; an awaited timer resumes when the clock reaches it', async () => {
+    const js = "const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));\nasync function load() {\n  console.log('loading');\n  await sleep(300);\n  console.log('loaded');\n  return 42;\n}\n"
+      + "load().then(v => { document.querySelector('#out').textContent = String(v); });\nconsole.log('after call');";
+    const steps: WebStep[] = [{ check: 'console', lines: ['loading', 'after call'], label: 'before' }, { check: 'text', selector: '#out', text: '', label: 'empty' },
+      { do: 'wait', ms: 299 }, { check: 'text', selector: '#out', text: '', label: 'not yet' }, { do: 'wait', ms: 1 }, { check: 'text', selector: '#out', text: '42', label: 'resolved' },
+      { check: 'console', lines: ['loading', 'after call', 'loaded'], label: 'order' }];
+    const r = await page({ html: '<p id="out"></p>', js }, steps);
+    expect(judge(steps, r.results).map(s => s.ok)).toEqual([true, true, true, true, true]);
+  });
+  inBrowser('dispatch fires any event on an element: it bubbles to a delegating listener, and mouseenter does not', async () => {
+    const js = "const log = [];\ndocument.querySelector('#list').addEventListener('mouseover', e => log.push('over ' + e.target.id));\n"
+      + "document.querySelector('#list').addEventListener('mouseenter', e => log.push('enter ' + e.target.id));\ndocument.querySelector('#list').addEventListener('dblclick', e => log.push('dbl ' + e.target.id));\n"
+      + "document.addEventListener('saved', e => { log.push('saved'); document.querySelector('#out').textContent = log.join(', '); });";
+    const steps: WebStep[] = [{ do: 'dispatch', selector: '#a', event: 'mouseover' }, { do: 'dispatch', selector: '#a', event: 'mouseenter' }, { do: 'dispatch', selector: '#b', event: 'dblclick' },
+      { do: 'dispatch', selector: '#b', event: 'saved' }, { check: 'text', selector: '#out', text: 'over a, dbl b, saved', label: 'delegated' }];
+    expect((await page({ html: '<ul id="list"><li id="a">a</li><li id="b">b</li></ul><p id="out"></p>', js }, steps)).results[4].ok).toBe(true);
   });
 });
 

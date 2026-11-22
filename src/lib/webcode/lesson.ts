@@ -1,4 +1,4 @@
-import { HARNESS_LIVE, HARNESS_NONCE, HARNESS_SOURCE } from './harness';
+import { HARNESS_LIVE, HARNESS_NONCE, HARNESS_SCRIPT_AT, HARNESS_SCRIPT_LINES, HARNESS_SOURCE } from './harness';
 import { guardInlineScripts, guardLoops } from './loop-guard';
 
 /*
@@ -34,7 +34,9 @@ export type WebAction =
   | { do: 'submit'; selector: string }
   /** Scrolls the page (`selector: ':page'`) or a scrolling element to a vertical offset in pixels. */
   | { do: 'scroll'; selector: string; top: number }
-  /** Lets timers run (at most 1000 ms a step). */
+  /** Fires an event of this type on the element (mouseover, dblclick, a custom event…); it bubbles unless the type never does. */
+  | { do: 'dispatch'; selector: string; event: string }
+  /** Lets the page's timers run for this long. In a check the clock is virtual: no real waiting, and timers fire in order. */
   | { do: 'wait'; ms: number };
 
 /** One thing checked on the page; `label` says it in the learner's words and is always shown. */
@@ -107,7 +109,7 @@ export interface WebExercise {
 
 export interface WebLessonContent { examples: WebExample[]; exercises: WebExercise[] }
 
-export const WEB_LIMITS = { file: 20_000, steps: 60, waitTotal: 3000, timeoutMs: 6000, minHeight: 80, maxHeight: 640 } as const;
+export const WEB_LIMITS = { file: 20_000, steps: 60, waitStep: 10_000, waitTotal: 60_000, timeoutMs: 6000, minHeight: 80, maxHeight: 640 } as const;
 
 // ---- the frame's document ---------------------------------------------------------------------------------------
 /** What the sandboxed frame may do: run scripts and submit forms (to be recorded); no same-origin access, no popups, no top navigation. */
@@ -132,22 +134,39 @@ export function webDocument(files: WebFiles, nonce: string, live = false): strin
   const harness = HARNESS_SOURCE.replace(HARNESS_NONCE, nonce.replace(/[^\w-]/g, '')).replace(HARNESS_LIVE, live ? 'true' : 'false');
   const style = files.css === undefined ? '' : `<style data-file="style.css">\n${files.css.replace(/<\/style/gi, '<\\/style')}\n</style>`;
   // Loops are guarded (./loop-guard.ts) in the script file and in the page's inline scripts, so an endless one stops with an error.
-  const script = files.js === undefined ? '' : `<script data-file="script.js">\n${guardLoops(files.js).replace(/<\/script/gi, '<\\/script')}\n</script>`;
+  const guarded = files.js === undefined ? '' : guardLoops(files.js).replace(/<\/script/gi, '<\\/script');
+  const scriptTag = (asModule: boolean) => files.js === undefined ? '' : `<script${asModule ? ' type="module"' : ''} data-file="script.js">\n${guarded}\n</script>`;
   let html = guardInlineScripts(files.html), styled = false, scripted = false;
   // A replacement function, so `$&` and the like in the learner's code are not read as patterns.
   if (style && LINK.test(html)) { html = html.replace(LINK, () => style); styled = true; }
-  if (script && SCRIPT.test(html)) { html = html.replace(SCRIPT, () => script); scripted = true; }
+  let last = scriptTag(false);
+  const linked = files.js === undefined ? null : SCRIPT.exec(html);
+  if (linked) {
+    // W1: where the page loads script.js decides when it runs. A plain <script src> runs where it stands (the elements
+    // after it do not exist yet); type="module" is deferred by the browser itself; `defer` is emulated by running the
+    // script at the end of the body, after the whole document has been parsed.
+    const attrs = /<script\b([^>]*)>/i.exec(linked[0])![1];
+    const asModule = /\btype\s*=\s*(["']?)module\1/i.test(attrs), deferred = !asModule && /\bdefer\b/i.test(attrs);
+    html = html.replace(SCRIPT, () => deferred ? '' : scriptTag(asModule));
+    scripted = !deferred;
+  }
+  if (scripted) last = '';
   const first = `<meta data-li-harness http-equiv="Content-Security-Policy" content="${CSP}"><script data-li-harness>${harness}</script>${styled ? '' : style}`;
-  const last = scripted ? '' : script;
-  if (!isDocument(html)) return `<!DOCTYPE html>\n<html lang="zh-Hant">\n<head>${first}</head>\n<body>\n${html}\n${last}</body>\n</html>`;
-  const head = /<head\b[^>]*>/i.exec(html), root = /<html\b[^>]*>/i.exec(html), doctype = /<!doctype[^>]*>/i.exec(html);
-  if (head) html = `${html.slice(0, head.index + head[0].length)}${first}${html.slice(head.index + head[0].length)}`;
-  else if (root) html = `${html.slice(0, root.index + root[0].length)}<head>${first}</head>${html.slice(root.index + root[0].length)}`;
-  else if (doctype) html = `${html.slice(0, doctype.index + doctype[0].length)}<head>${first}</head>${html.slice(doctype.index + doctype[0].length)}`;
-  else html = `<head>${first}</head>${html}`;
-  if (!last) return html;
-  const end = html.toLowerCase().lastIndexOf('</body');
-  return end < 0 ? `${html}\n${last}` : `${html.slice(0, end)}${last}\n${html.slice(end)}`;
+  let doc: string;
+  if (!isDocument(html)) doc = `<!DOCTYPE html>\n<html lang="zh-Hant">\n<head>${first}</head>\n<body>\n${html}\n${last}</body>\n</html>`;
+  else {
+    const head = /<head\b[^>]*>/i.exec(html), root = /<html\b[^>]*>/i.exec(html), doctype = /<!doctype[^>]*>/i.exec(html);
+    if (head) html = `${html.slice(0, head.index + head[0].length)}${first}${html.slice(head.index + head[0].length)}`;
+    else if (root) html = `${html.slice(0, root.index + root[0].length)}<head>${first}</head>${html.slice(root.index + root[0].length)}`;
+    else if (doctype) html = `${html.slice(0, doctype.index + doctype[0].length)}<head>${first}</head>${html.slice(doctype.index + doctype[0].length)}`;
+    else html = `<head>${first}</head>${html}`;
+    const end = html.toLowerCase().lastIndexOf('</body');
+    doc = !last ? html : end < 0 ? `${html}\n${last}` : `${html.slice(0, end)}${last}\n${html.slice(end)}`;
+  }
+  // The harness reports an uncaught error with its line in script.js: where the file's first line is in the document.
+  const at = doc.search(/<script(?: type="module")? data-file="script\.js">\n/);
+  const scriptAt = at < 0 ? 0 : doc.slice(0, at).split('\n').length + 1;
+  return doc.replace(HARNESS_SCRIPT_AT, String(scriptAt)).replace(HARNESS_SCRIPT_LINES, String(guarded.split('\n').length));
 }
 
 /** The page an exercise shows: its fixed files with the edited ones on top. */
@@ -198,6 +217,7 @@ const quote = (s: string) => `「${s}」`;
 const actionText = (a: WebAction) => a.do === 'click' ? `點擊 \`${a.selector}\`` : a.do === 'input' ? `在 \`${a.selector}\` 輸入${quote(a.value)}`
   : a.do === 'select' ? `在 \`${a.selector}\` 選擇${quote(a.value)}` : a.do === 'check' ? `${a.checked ? '勾選' : '取消勾選'} \`${a.selector}\``
   : a.do === 'scroll' ? `把${a.selector === ':page' ? '頁面' : ` \`${a.selector}\` `}往下捲到 ${a.top}px`
+  : a.do === 'dispatch' ? `在 \`${a.selector}\` 觸發 ${a.event} 事件`
   : a.do === 'key' ? `在 \`${a.selector}\` 按下 ${a.key === ' ' ? 'Space' : a.key}` : a.do === 'submit' ? `送出 \`${a.selector}\`` : `等待 ${a.ms} 毫秒`;
 /** What a list of steps does before its checks, for the exercise's "how it is checked" note. */
 export const describeAction = actionText;
@@ -264,7 +284,7 @@ export async function checkWebExercise(exercise: WebExercise, edited: WebFilesPa
 export const TIMEOUT_MESSAGE = '頁面沒有在時間內完成載入與檢查（可能有不會結束的迴圈）。';
 
 // ---- validation -------------------------------------------------------------------------------------------------
-const ACTIONS = ['click', 'input', 'select', 'check', 'key', 'submit', 'scroll', 'wait'];
+const ACTIONS = ['click', 'input', 'select', 'check', 'key', 'submit', 'scroll', 'dispatch', 'wait'];
 const CHECKS = ['count', 'text', 'attr', 'style', 'box', 'hit', 'value', 'label', 'headings', 'focus', 'console', 'submitted', 'navigated', 'doctype'];
 
 function stepProblems(steps: WebStep[], where: string): string[] {
@@ -286,7 +306,8 @@ function stepProblems(steps: WebStep[], where: string): string[] {
       if (s.check === 'attr' && !s.name.trim()) problems.push(`${at} needs an attribute name`);
     } else {
       if (!ACTIONS.includes(s.do)) problems.push(`${at} is an unknown action ${(s as { do: string }).do}`);
-      if (s.do === 'wait') { waited += s.ms; if (!(s.ms > 0 && s.ms <= 1000)) problems.push(`${at} waits 1–1000 ms`); }
+      if (s.do === 'wait') { waited += s.ms; if (!(s.ms > 0 && s.ms <= WEB_LIMITS.waitStep)) problems.push(`${at} waits 1–${WEB_LIMITS.waitStep} ms`); }
+      else if (s.do === 'dispatch' && !/^[a-zA-Z][\w:-]*$/.test(s.event ?? '')) problems.push(`${at} needs an event type`);
       else if (s.do === 'scroll' && !(Number.isFinite(s.top) && s.top >= 0)) problems.push(`${at} scrolls to an offset of 0 or more`);
       else if (!s.selector?.trim()) problems.push(`${at} needs a selector`);
     }

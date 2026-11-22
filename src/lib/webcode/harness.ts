@@ -23,6 +23,36 @@ const SOURCE = String.raw`(function () {
   for (var i = 0; i < injected.length; i++) if (injected[i].parentNode) injected[i].parentNode.removeChild(injected[i]);
 
   var lines = [], navigations = [], submissions = [], pending = 0, ready = false;
+  var SCRIPT_AT = __LI_SCRIPT_AT__, SCRIPT_LINES = __LI_SCRIPT_LINES__;
+  var realSetTimeout = window.setTimeout.bind(window);
+
+  // W2 virtual clock (check frames only): the page's timers are queued against a clock that the wait action advances, so
+  // a check never waits in real time and the order of timers is the same on every machine. A live preview keeps real timers.
+  var clock = 0, timers = [], timerSeq = 0;
+  if (!LIVE) {
+    var schedule = function (fn, delay, args, every) {
+      var id = ++timerSeq, ms = Math.max(0, Number(delay) || 0);
+      timers.push({ id: id, seq: id, at: clock + (every ? Math.max(1, ms) : ms), fn: fn, args: args, every: every ? Math.max(1, ms) : 0 });
+      return id;
+    };
+    window.setTimeout = function (fn, delay) { return schedule(fn, delay, Array.prototype.slice.call(arguments, 2), false); };
+    window.setInterval = function (fn, delay) { return schedule(fn, delay, Array.prototype.slice.call(arguments, 2), true); };
+    window.clearTimeout = window.clearInterval = function (id) { timers = timers.filter(function (t) { return t.id !== id; }); };
+  }
+  function advance(ms) {
+    var until = clock + ms, fired = 0;
+    function next() {
+      var due = null;
+      for (var i = 0; i < timers.length; i++) { var t = timers[i]; if (t.at <= until && (!due || t.at < due.at || (t.at === due.at && t.seq < due.seq))) due = t; }
+      if (!due || ++fired > 2000) { clock = until; return Promise.resolve(); }
+      clock = due.at;
+      if (due.every) { due.at += due.every; due.seq = ++timerSeq; } else timers = timers.filter(function (t) { return t !== due; });
+      try { if (typeof due.fn === 'function') due.fn.apply(window, due.args); }
+      catch (x) { if (typeof window.reportError === 'function') window.reportError(x); else record('error', 'Uncaught ' + show(x)); }
+      return tick().then(next);
+    }
+    return tick().then(next);
+  }
 
   // Loop protection (./loop-guard.ts): every guarded loop condition calls this. The loops of one task share a budget;
   // once it is spent the call throws, which ends the page's script with an error instead of freezing the tab.
@@ -30,7 +60,7 @@ const SOURCE = String.raw`(function () {
   Object.defineProperty(window, '__LI_GUARD__', { value: function () {
     if (++loopCalls % 100) return true;
     var now = Date.now();
-    if (!loopStart) { loopStart = now; setTimeout(function () { loopStart = 0; loopCalls = 0; }, 0); return true; }
+    if (!loopStart) { loopStart = now; realSetTimeout(function () { loopStart = 0; loopCalls = 0; }, 0); return true; }
     if (now - loopStart > __LI_BUDGET__) throw new Error('__LI_LOOP_MESSAGE__');
     return true;
   } });
@@ -84,7 +114,9 @@ const SOURCE = String.raw`(function () {
   window.addEventListener('error', function (e) {
     if (e.target && e.target !== window) return;
     var err = e.error;
-    record('error', 'Uncaught ' + (err && err.name ? err.name + ': ' + err.message : String(e.message || '').replace(/^Uncaught\s+/, '')));
+    var line = SCRIPT_AT ? (e.lineno || 0) - SCRIPT_AT + 1 : 0;
+    record('error', 'Uncaught ' + (err && err.name ? err.name + ': ' + err.message : String(e.message || '').replace(/^Uncaught\s+/, ''))
+      + (line >= 1 && line <= SCRIPT_LINES ? '（script.js 第 ' + line + ' 行）' : ''));
     e.preventDefault();
   });
   window.addEventListener('unhandledrejection', function (e) { record('error', 'Uncaught (in promise) ' + show(e.reason)); e.preventDefault(); });
@@ -150,12 +182,12 @@ const SOURCE = String.raw`(function () {
   }
   function touch() {
     if (!LIVE || !ready || pending) return;
-    pending = setTimeout(function () { pending = 0; post('update'); }, 80);
+    pending = realSetTimeout(function () { pending = 0; post('update'); }, 80);
   }
 
   function norm(s) { return String(s).replace(/\s+/g, ' ').trim(); }
   function one(selector) { return document.querySelector(selector); }
-  function tick() { return new Promise(function (r) { setTimeout(r, 0); }); }
+  function tick() { return new Promise(function (r) { realSetTimeout(r, 0); }); }
   function setValue(el, value) {
     var proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
     var d = Object.getOwnPropertyDescriptor(proto, 'value');
@@ -163,7 +195,10 @@ const SOURCE = String.raw`(function () {
   }
   function fire(el, type) { el.dispatchEvent(new Event(type, { bubbles: true })); }
   function act(s) {
-    if (s.do === 'wait') return new Promise(function (r) { setTimeout(function () { r({ ok: true }); }, Math.max(0, Math.min(1000, Number(s.ms) || 0))); });
+    if (s.do === 'wait') {
+      var ms = Math.max(0, Math.min(60000, Number(s.ms) || 0));
+      return (LIVE ? new Promise(function (r) { realSetTimeout(r, Math.min(ms, 1000)); }) : advance(ms)).then(function () { return { ok: true }; });
+    }
     var el = s.do === 'scroll' && s.selector === ':page' ? document.documentElement : one(s.selector);
     if (!el) return Promise.resolve({ ok: false, missing: true });
     if (s.do === 'scroll') { if (s.selector === ':page') window.scrollTo(0, Number(s.top) || 0); else el.scrollTop = Number(s.top) || 0; }
@@ -171,6 +206,10 @@ const SOURCE = String.raw`(function () {
     else if (s.do === 'input') { if (el.focus) el.focus(); setValue(el, s.value); fire(el, 'input'); fire(el, 'change'); }
     else if (s.do === 'select') { if (el.focus) el.focus(); setValue(el, s.value); fire(el, 'input'); fire(el, 'change'); }
     else if (s.do === 'check') { if (el.focus) el.focus(); if (!!el.checked !== !!s.checked) el.click(); }
+    else if (s.do === 'dispatch') {
+      var type = String(s.event), mouse = /^(click|dblclick|contextmenu|mouse|pointer)/.test(type), stays = type === 'mouseenter' || type === 'mouseleave' || type === 'focus' || type === 'blur';
+      el.dispatchEvent(mouse ? new MouseEvent(type, { bubbles: !stays, cancelable: true }) : new Event(type, { bubbles: !stays, cancelable: true }));
+    }
     else if (s.do === 'submit') {
       var form = el.tagName === 'FORM' ? el : el.form;
       if (!form) return Promise.resolve({ ok: false, error: 'not-a-form' });
@@ -325,7 +364,7 @@ const SOURCE = String.raw`(function () {
         try { r = s && s.do ? act(s) : Promise.resolve(check(s)); } catch (x) { r = Promise.resolve({ ok: false, error: 'selector', detail: String(x && x.message || x) }); }
         return r.then(function (v) { out.push(v); }, function (x) { out.push({ ok: false, error: 'selector', detail: String(x && x.message || x) }); });
       });
-    }, Promise.resolve()).then(function () { return out; });
+    }, LIVE ? Promise.resolve() : advance(0)).then(function () { return out; });
   }
 
   window.addEventListener('message', function (e) {
@@ -334,7 +373,7 @@ const SOURCE = String.raw`(function () {
     run(d.steps || []).then(function (results) { return tick().then(function () { post('result', { results: results }); }); });
   });
   function start() {
-    setTimeout(function () {
+    realSetTimeout(function () {
       ready = true;
       post('ready');
       if (LIVE && typeof MutationObserver === 'function') new MutationObserver(touch).observe(document.documentElement, { subtree: true, childList: true, attributes: true, characterData: true });
@@ -343,4 +382,11 @@ const SOURCE = String.raw`(function () {
   if (document.readyState === 'complete') start(); else window.addEventListener('load', start);
 })();`;
 
-export const HARNESS_SOURCE = SOURCE.replace('__LI_GUARD__', LOOP_GUARD).replace('__LI_BUDGET__', String(LOOP_BUDGET_MS)).replace('__LI_LOOP_MESSAGE__', LOOP_MESSAGE);
+/**
+ * One line (comment lines dropped, the rest joined): the harness then adds no line to the document, so the page's own
+ * lines keep their numbers. Every statement in SOURCE ends with a semicolon and its comments are whole lines.
+ */
+export const HARNESS_SOURCE = SOURCE.replace('__LI_GUARD__', LOOP_GUARD).replace('__LI_BUDGET__', String(LOOP_BUDGET_MS)).replace('__LI_LOOP_MESSAGE__', LOOP_MESSAGE)
+  .split('\n').filter(line => !/^\s*\/\//.test(line)).map(line => line.trim()).join(' ');
+export const HARNESS_SCRIPT_AT = '__LI_SCRIPT_AT__';
+export const HARNESS_SCRIPT_LINES = '__LI_SCRIPT_LINES__';

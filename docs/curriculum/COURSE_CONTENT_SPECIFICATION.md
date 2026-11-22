@@ -80,6 +80,7 @@
 | WEB-0（架構） | — | `web-code` 能力（沙盒框架裡的 HTML、CSS、JavaScript 頁面，以瀏覽器建立的結果檢查的練習，迴圈保護）、網頁基礎島登錄為預備島嶼（[WEB0_WEB_CODE_CAPABILITY](WEB0_WEB_CODE_CAPABILITY.md)）；WEB-1 至 WEB-5 依引擎階段 W1–W6 依序發布 |
 | WEB-1（見 [WEB_FOUNDATIONS_ISLAND](WEB_FOUNDATIONS_ISLAND.md)） | WEB01–04 | 網頁如何運作、HTML 結構與語意、文字連結圖片與媒體、表單與原生驗證；網頁與應用開發群島第一次有已開放的課 |
 | WEB-2 | WEB05–07 | CSS 選擇器、串接與特異性；盒模型與一般排版流；定位與堆疊順序（引擎：`hit`、`scroll`、相對於視窗的 `box`） |
+| WEB-3 | WEB08–10 | JavaScript 與 DOM、事件與事件委派、非同步 JavaScript（引擎階段 W1：錯誤行號與 `defer`；W2：虛擬時鐘；`dispatch` 操作） |
 | 之後 | 依 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 自動選擇 | 先修已滿足、能力已備妥、解鎖其他島最多的島優先；缺少的共用能力先做最小可用版本 |
 
 進度記錄在 [COURSE_PRODUCTION_PROGRESS](COURSE_PRODUCTION_PROGRESS.md)。
