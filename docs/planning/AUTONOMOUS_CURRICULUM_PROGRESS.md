@@ -13,7 +13,7 @@
 
 ## 總覽
 
-已發布 **154／520**（29.6%）；規劃中 366。
+已發布 **155／520**（29.8%）；規劃中 365。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
@@ -21,11 +21,11 @@
 | AI 人工智慧群島 | 20 | 140 | 12.5% |
 | 數位設計群島 | 0 | 56 | 0.0% |
 | 網頁與應用開發群島 | 0 | 55 | 0.0% |
-| 系統與雲端工程群島 | 14 | 75 | 15.7% |
+| 系統與雲端工程群島 | 15 | 74 | 16.9% |
 
 ## 下一批（自動選擇）
 
-**Linux 系統島（LNX）**：LNX15 Linux 系統島綜合專題：維護一台伺服器。島嶼能力：可用；這幾堂解鎖其他島的 0 堂。
+目前沒有能力已備妥、先修已滿足的島嶼；先處理「能力缺口」的第一項。
 
 能力缺口中最優先的是 **大型語言模型島（LLM）**：需要 python-code + token, sampling and prompt explorers on recorded outputs (T3)；先修已滿足、可依序撰寫的有 3 堂，前 3 堂解鎖其他島的 58 堂。
 
@@ -58,7 +58,7 @@
 | 網頁與應用開發群島 | 前端開發島（FE） | 0／15 | web-code + state-flow trace | 缺少 | — | 缺少課程能力；FE01 需要尚未發布的 WEB09 |
 | 網頁與應用開發群島 | 響應式設計島（RWD） | 0／12 | web-code + responsive simulator (the standalone lab exists) | 缺少 | — | 缺少課程能力；RWD01 需要尚未發布的 WEB06 |
 | 網頁與應用開發群島 | 行動應用島（MOB） | 0／13 | web-code + case-analysis | 缺少 | — | 缺少課程能力；MOB01 需要尚未發布的 RWD01 |
-| 系統與雲端工程群島 | Linux 系統島（LNX） | 14／15 | terminal (machines as data, transcripts replayed to their exact output, exercises checked by replaying the learner's commands in the simulated shell) | 可用 | LNX15–LNX15（1 堂） | — |
+| 系統與雲端工程群島 | Linux 系統島（LNX） | 15／15 | terminal (machines as data, transcripts replayed to their exact output, exercises checked by replaying the learner's commands in the simulated shell) | 可用 | 全島完成 | — |
 | 系統與雲端工程群島 | Docker 容器島（DKR） | 0／15 | container simulation | 缺少 | DKR01–DKR15（15 堂） | 缺少課程能力 |
 | 系統與雲端工程群島 | 網路與伺服器島（SRV） | 0／14 | request-path simulation + terminal | 缺少 | SRV01–SRV14（14 堂） | 缺少課程能力 |
 | 系統與雲端工程群島 | 雲端基礎設施島（CLD） | 0／15 | architecture simulation | 缺少 | CLD01–CLD03（3 堂） | 缺少課程能力；CLD04 需要尚未發布的 SRV01 |
@@ -675,7 +675,7 @@
 | LNX12 | SSH 遠端連線與金鑰 | 已發布（閘門通過） | LNX07 | network-sequence | — |
 | LNX13 | Bash Script 撰寫 | 已發布（閘門通過） | LNX05、LNX07 | terminal-sim | — |
 | LNX14 | 排程：cron 與 systemd timer | 已發布（閘門通過） | LNX10、LNX13 | terminal-sim | — |
-| LNX15 | Linux 系統島綜合專題：維護一台伺服器 | 大綱 | LNX09、LNX11、LNX12、LNX14 | challenge-stages | — |
+| LNX15 | Linux 系統島綜合專題：維護一台伺服器 | 已發布（閘門通過） | LNX09、LNX11、LNX12、LNX14 | challenge-stages | — |
 
 ### 系統與雲端工程群島 · Docker 容器島（DKR）
 

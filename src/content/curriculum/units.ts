@@ -54,7 +54,7 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '時序機率與序列決策', summary: '馬可夫鏈、穩態分布與隱馬可夫模型的濾波與 Viterbi；期望效用、風險態度與資訊價值；MDP、貝爾曼方程、價值迭代與策略迭代', lessonIds: range('AIF', 16, 18) },
     { title: '負責任的 AI 與綜合專題', summary: '傷害來源、分組混淆矩陣與公平性指標的取捨、隱私保護、可解釋性、人類監督與治理；把搜尋、賽局、機率推論、期望效用與 MDP 接成一個迷宮代理人，並寫出含風險分級的設計報告', lessonIds: range('AIF', 19, 20) },
   ],
-  // LNX-1 to LNX-4: LNX01–LNX14; the capstone (LNX-5) joins the last unit.
+  // LNX-1 to LNX-5: the whole island, LNX01–LNX15.
   'linux-systems': [
     { title: 'Linux 與 Shell 入門', summary: '核心與使用者空間、GNU／Linux、發行版與 LTS；終端機、Shell、提示字元、選項與參數、man 與 --help', lessonIds: range('LNX', 1, 2) },
     { title: '檔案系統與檔案操作', summary: 'FHS、絕對與相對路徑、掛載與 df、du；mkdir、cp、mv、rm、萬用字元、隱藏檔與符號連結', lessonIds: range('LNX', 3, 4) },
@@ -63,6 +63,7 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '行程與套件', summary: 'PID、ps、top、前景與背景工作、kill 與訊號、結束碼；apt 的套件庫、相依、安裝與移除、版本鎖定與安全更新', lessonIds: range('LNX', 8, 9) },
     { title: '服務與日誌', summary: 'systemd 與 unit 檔、systemctl、enable 與 start、Restart= 與服務相依；journalctl 的單位、等級與時間範圍過濾、/var/log 與日誌輪替', lessonIds: range('LNX', 10, 11) },
     { title: '遠端連線、指令稿與排程', summary: 'SSH 的協定步驟、ed25519 金鑰、known_hosts 與只允許金鑰登入；Bash 指令稿的變數、條件、迴圈、函式與 set -euo pipefail；crontab、systemd timer、時區與 flock', lessonIds: range('LNX', 12, 14) },
+    { title: '綜合專題', summary: '接手一台伺服器並完成一天的維護：帳號與權限、SSH 金鑰、部署服務、從日誌追查故障、排程備份、套件更新與變更紀錄', lessonIds: range('LNX', 15, 15) },
   ],
   // CN-1 to CN-5: the whole island, CN01–CN20.
   networks: [
