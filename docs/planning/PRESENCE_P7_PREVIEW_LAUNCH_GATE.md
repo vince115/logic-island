@@ -4,13 +4,14 @@
 > 狀態：**程式與本機驗證完成，Draft PR [#44](https://github.com/vince115/logic-island/pull/44) 已開，`trials-ci` 通過；所有旗標仍預設關閉**。Preview Launch Gate 的判定在 §8.3。沒有建立任何雲端資源、沒有修改任何環境變數或 Firewall 設定、沒有部署、沒有合併 `main`。
 > 前一輪：[PRESENCE_P6_PRODUCTION_READINESS.md](PRESENCE_P6_PRODUCTION_READINESS.md)。本文件更新其中兩件事：心跳與逾時的時間（30／90 秒 → 60／150 秒），以及共用儲存的寫入方式與費用（§3）。
 > 需要你決定或動手的事項集中在 §8。
+> 2026-11-22 補記：你核准了 Vercel 的唯讀授權，§2 的五項盤點已完成（只讀，沒有改任何設定）。
 
 ## 1. 本輪範圍與結果
 
 | 項目 | 內容 | 結果 |
 |---|---|---|
 | 前置 | 核對 HEAD、遠端與 `main` | 開始時本機與 `origin/presence/visitor-population` 都是 `6f3780f`，`main` 仍是 `f36ba39`，沒有未提交變更，沒有既有 PR |
-| 1 | Vercel 唯讀盤點 | **仍回 403**，只試了一次；需要你完成的授權步驟在 §2 |
+| 1 | Vercel 唯讀盤點 | 起初回 403；你核准授權後**五項都讀到了**（§2.3）：Hobby、函式在 `iad1`、Production 沒有任何環境變數、Upstash 整合已安裝但沒有接到專案 |
 | 2 | Redis 成本優化 | 每日計費命令數降低 44–59%（§3）；P1-44 的修正沒有動，並多了一層測試。過程中找到並修掉兩個多分頁的問題（§3.2） |
 | 3 | Preview 安全檢查 | 七項都有結論（§4）；補了兩個「儲存失效」的防護 |
 | 4 | Draft PR 與 CI | PR #44（Draft）；`trials-ci` 通過；期間兩度併入前進的 `main`（§5） |
@@ -18,39 +19,38 @@
 
 ## 2. Vercel 授權與環境盤點
 
-### 2.1 這一輪的嘗試
+### 2.1 授權的經過
 
-以 Vercel 連線讀取專案（`GET /v9/projects/logic-island`，團隊 `vince115s-projects`）一次：**403 forbidden**，訊息是「Not authorized: Trying to access resource under scope "vince115s-projects". You must re-authenticate to this scope」。同一個連線列出的團隊是空的，所以沒有別的範圍可以改試。沒有重試，也沒有改用本機 CLI（它登入的是另一個帳號，P6 已確認）。
+以 Vercel 連線讀取專案（`GET /v9/projects/logic-island`，團隊 `vince115s-projects`）起初是 **403 forbidden**（「You must re-authenticate to this scope」）。連線登入的帳號是對的（`vince115`，預設團隊就是 `vince115s-projects`），缺的是這個團隊的授權；本機 `vercel` CLI 登入的是另一個帳號（`devince1105-5412`），所以沒有改用它。
 
-### 2.2 需要你完成的授權步驟
+授權連結只能用一次、10 分鐘內有效。前兩個連結沒有生效（重試時距離產生已經隔了數小時與約 44 分鐘，推測是過期；Vercel 沒有回報原因），第三個生效。每次你回覆之後我只重試一次，沒有對無效的授權反覆請求。
 
-1. 跟我說「產生 Vercel 授權連結」。連結只能用一次，產生後 10 分鐘內有效，所以要在你方便操作的時候才產生。
-2. 用**擁有 `vince115s-projects` 的那個 Vercel 帳號**登入瀏覽器，打開連結，按核准。
-3. 回來跟我說「已授權」。我會重試同一個請求，然後只讀下面五項。
+### 2.2 讀取的範圍
 
-如果你想自己看而不授權，這五項在 Vercel 的位置如下（告訴我結果即可，不必貼任何值）：
+只讀你列的五項：專案與 Production branch、函式部署區域、Preview 環境變數**名稱**、已安裝的整合、方案。沒有要求解密，沒有讀取 Firewall、網域、帳單明細或其他專案，沒有寫入任何東西。
 
-| 要讀的項目 | 位置 |
-|---|---|
-| 專案與 Production branch | Project → Settings → Git（Production Branch）、Settings → Environments |
-| 函式部署區域 | Project → Settings → Functions → Function Region |
-| Preview 環境變數**名稱** | Project → Settings → Environment Variables，篩選 Preview |
-| 已安裝的整合 | Team → Integrations；Project → Storage |
-| 方案與相關限制 | Team → Settings → Billing（Hobby 或 Pro） |
+環境變數的列表 API 會連同名稱回傳加密後的密文（不是明文，也沒有解密）；那段密文沒有寫進任何檔案，也沒有在回覆裡輸出。
 
-授權後我**只讀名稱與設定，不讀取、不解密、不輸出任何變數的值**。
-
-### 2.3 不需要授權就能確定的事（2026-11-22 重新確認）
+### 2.3 盤點結果（2026-11-22，Vercel 連線唯讀）
 
 | 項目 | 結果 | 依據 |
 |---|---|---|
-| 專案、Production branch | `vince115s-projects/logic-island`；`main` 自動部署到 `logic-island-psi.vercel.app` | GitHub 的 deployment 狀態 |
-| Production 有沒有 Presence API | **沒有**：`GET` 與 `POST /api/presence` 都回 404 | 對正式網址各請求一次 |
+| 專案 | `vince115s-projects/logic-island`（`prj_u8xRf8LrE0cglbuauQDSTKBAhcn0`），Next.js，Node.js 設定為 26.x | `get_project` |
+| Production branch | Production 部署來自 **`main`**：最新一個是 `f18aafa`（PR #58 的合併），別名 `logic-island-psi.vercel.app`、`logic-island-vince115s-projects.vercel.app`、`logic-island-git-main-vince115s-projects.vercel.app` | 最新 Production 部署的來源。「Production Branch」這個設定欄位本身不在回應裡，這是從部署推得的 |
+| 函式部署區域 | **`iad1`（美國東岸，Washington, D.C.）**，Production 與本分支最新的 Preview（`21a8f12`）都是 | 兩個部署的 `regions`。`iad1` 是 Vercel 的預設值；Hobby 可以改選任一個單一區域（官方文件） |
+| 環境變數名稱 | 整個專案只有 **1 個**：`LOGIC_ISLAND_REGIONAL_WORLD`，範圍 Preview、只給分支 `preview/a1p-world`（P8 的 A1-P 驗收用）。**Production 沒有任何變數**；沒有任何 `LOGIC_ISLAND_PRESENCE*`、`KV_REST_API_*`、`UPSTASH_*` | `filter_project_envs`（`hiddenProductionEnvCount` 為 0） |
+| 已安裝的整合 | 團隊層級有 **Upstash**（Marketplace，2026-02-07 安裝），**沒有接到任何專案**（`projects` 是空的） | `list_integration_configurations`。這個安裝底下是否已經有資料庫，不在這次讀取的範圍內，**未知** |
+| 方案 | **Hobby**（帳號的帳單資料；團隊的回應裡沒有方案欄位） | `get_auth_user` |
+| 部署保護 | Vercel Authentication 開啟（`all_except_custom_domains`）；沒有密碼保護、沒有 Trusted IPs。實際觀察：正式網址公開可讀，分支的 Preview 網址要登入 | `get_project`；先前對正式網址的請求 |
+| Production 有沒有 Presence API | **沒有**：`GET` 與 `POST /api/presence` 都回 404；而且 Production 沒有任何環境變數，所以旗標沒有被設定 | 對正式網址各請求一次；上面的變數列表 |
 | 邊緣節點 | 從台灣連到 `hkg1` | 回應標頭 |
-| 本分支的 Preview | 每次推送都會建一個，使用預設旗標（不含 Presence），在 Vercel Authentication 後面 | GitHub 的 deployment 狀態；P6 |
-| 函式區域、環境變數名稱、整合、方案 | **未知** | 需要授權 |
 
-方案是 Hobby 或 Pro 會影響 §4.6 的限流規則數量（Hobby 只有 1 條），所以這一項最好在 Preview 之前確認。
+這些結果帶來的四個結論：
+
+1. **Production 是乾淨的**：沒有變數、沒有接上儲存。Presence 在 Production 要出現，必須有人同時新增旗標、金鑰與儲存位址，而且通過 preflight 的宣告檢查。
+2. **本分支的 Preview 目前也沒有 Presence**：三個變數與儲存都還沒設（§6.3），所以現在的 Preview 是預設 build。
+3. **Redis 應該開在美國東岸**（Upstash 的 `us-east-1`，N. Virginia），和函式同區。每次回報函式要對 Redis 發 1–3 個請求；兩者同區時每個請求通常是幾毫秒，跨太平洋則是一兩百毫秒的等級（一般的網路距離估計，沒有在這個專案上量過；區域名稱以建立畫面的選項為準）。台灣訪客到函式的那一段（`hkg1` → `iad1`）不論 Redis 放哪裡都一樣。我不建議為了這件事改函式區域：那是專案層級的設定，會連 Production 一起改。
+4. **限流用 Hobby 的那一組**（§4.6）：只有 1 條限流規則。
 
 ## 3. Redis 成本優化
 
@@ -242,8 +242,8 @@ Presence 與網站其餘部分本來就沒有相依：頁面是靜態的，追�
 
 | 層 | 設定 | 說明 |
 |---|---|---|
-| Vercel Firewall | Project → Firewall → Add Rule：條件 `Request Path` Equals `/api/presence`；動作 Rate Limit，Fixed Window 60 秒、每個 IP 300 次、超過回 429 | Hobby 方案只能有 **1 條**限流規則（自訂規則共 3 條），所以用一條涵蓋 GET 與 POST。正常瀏覽器每分鐘約 4 次 GET 加 1–2 次 POST；300 次約等於同一個 IP 後面有 50 位學生同時上課 |
-| 　（Pro 方案可以分成兩條） | ① 上述條件再加 `Method` Equals `POST`：每個 IP 每 60 秒 120 次；② 不分方法：每個 IP 每 60 秒 600 次 | 寫入才花 Redis 命令，值得單獨設得更緊 |
+| Vercel Firewall | Project → Firewall → Add Rule：條件 `Request Path` Equals `/api/presence`；動作 Rate Limit，Fixed Window 60 秒、每個 IP 300 次、超過回 429 | **本專案是 Hobby（§2.3），用這一組。** Hobby 方案只能有 **1 條**限流規則（自訂規則共 3 條），所以用一條涵蓋 GET 與 POST。正常瀏覽器每分鐘約 4 次 GET 加 1–2 次 POST；300 次約等於同一個 IP 後面有 50 位學生同時上課 |
+| 　（升級到 Pro 之後可以分成兩條） | ① 上述條件再加 `Method` Equals `POST`：每個 IP 每 60 秒 120 次；② 不分方法：每個 IP 每 60 秒 600 次 | 寫入才花 Redis 命令，值得單獨設得更緊 |
 | Upstash | Free：不綁付款方式，額度就是硬上限（用完回錯誤，本系統回 503）。隨用隨付：在資料庫上設每月預算，到 70% 與 90% 會寄信，到了就限流而不再計費 | 預算是「每個資料庫」設定，不是整個帳號 |
 | 緊急關閉 | 移除 Preview 的 `LOGIC_ISLAND_PRESENCE`（或設成 `0`）後重新部署；或在 Vercel 的 Storage 頁面中斷資料庫連線 | 前者讓 API 回 404、頁面不再載入追蹤器；後者讓 API 回 503 |
 
@@ -319,7 +319,8 @@ Presence 與網站其餘部分本來就沒有相依：頁面是靜態的，追�
 
 目標是「只有這個分支的 Preview 會碰到這個資料庫」：
 
-1. 資料庫名稱取 `logic-island-presence-preview` 之類，方案選 **Free**，區域選和函式相同的區域（§2 還不知道；不確定時選離台灣近的，之後可以重建）。
+0. 團隊已經裝了 Upstash 整合（§2.3），所以不需要重新安裝；從 Team → Storage（或 Integrations → Upstash）建立資料庫即可。**先看那裡是否已經有一個 Upstash Redis**：免費帳號只能有 1 個資料庫，已經有的話要決定沿用（Key 有 `li:presence:preview:` 前綴，不會和別的資料混在一起）還是另外處理。
+1. 資料庫名稱取 `logic-island-presence-preview` 之類，方案選 **Free**，區域選 **美國東岸（`us-east-1`，N. Virginia）**，和函式的 `iad1` 同區（§2.3 的結論 3）。
 2. 連接到專案時，環境**只勾 Preview**。Vercel 的連接畫面可以選環境；如果你看到的畫面不能選，就不要用自動注入，改成手動新增下面的變數。（「可以選環境」是我對這個畫面的了解，這次讀到的官方頁面沒有寫明。）
 3. 整合會注入位址與 Token。程式認得兩組名稱：`KV_REST_API_URL`＋`KV_REST_API_TOKEN`，或 `UPSTASH_REDIS_REST_URL`＋`UPSTASH_REDIS_REST_TOKEN`。
 4. 另外三個變數手動新增，範圍選 **Preview**，並且在「Git Branch」填 `presence/visitor-population`，這樣其他分支的 Preview（其他工作階段的 PR）不會被打開 Presence：
@@ -332,7 +333,7 @@ Presence 與網站其餘部分本來就沒有相依：頁面是靜態的，追�
 
 ### 6.4 你同意之後我能做的與不能做的
 
-- 建立資料庫與連接專案要用你的 Vercel 帳號核准，而且目前我讀不到這個專案（§2）。授權之後，我可以用 Marketplace 的流程提出建立，但條款的同意與方案的選擇仍然需要你在畫面上確認。最單純的做法是你自己照 §6.3 做，大約五分鐘。
+- 建立資料庫與連接專案是建立第三方資源，要你明確同意；目前的授權我只用來唯讀（§2.2）。你同意之後，我可以用 Marketplace 的流程提出建立，但條款的同意與方案的選擇仍然需要你在畫面上確認。最單純的做法是你自己照 §6.3 做，大約五分鐘。
 - 金鑰必須由你產生與輸入。
 - 之後的自動驗收我可以跑：需要 Preview 的網址，以及一個 Protection Bypass for Automation 的密鑰（放在環境變數裡給腳本用，不要貼在對話中），或者你把 Preview 設成我可以存取的方式。
 
@@ -381,7 +382,7 @@ Presence 與網站其餘部分本來就沒有相依：頁面是靜態的，追�
 | 編號 | 風險 | 現況 |
 |---|---|---|
 | R1 | **沒有對真正的 Upstash 執行過**：指令稿、脈衝、帳單、延遲、Free 用完時的實際行為 | 只對本機 Redis 與官方計費規則驗證；要在 Preview 確認 |
-| R2 | Vercel 的方案與函式區域未知 | 需要授權或你告訴我；影響 Redis 的區域與限流規則數量 |
+| R2 | ~~Vercel 的方案與函式區域未知~~ | **已解決（§2.3）**：Hobby、`iad1`。Redis 開在美國東岸，限流 1 條規則 |
 | R3 | 兩個前景視窗中較新的那個沒有告別就消失時，訪客多留在它的頁面上：單一 instance 100 秒，多個 instance 最多約 13 分鐘（P1-49） | 人數不受影響；有測試固定上限。正常關閉、切換、換頁都逐步正確 |
 | R4 | 斷線的訪客多留 60 秒（150 秒才消失） | 心跳間隔加倍的代價；正常離開不受影響 |
 | R5 | 可以被灌水與燒額度 | 程式擋不了願意留 Cookie 的攻擊者；§4.6 的 Firewall 與 Upstash 上限都還沒設 |
@@ -390,12 +391,14 @@ Presence 與網站其餘部分本來就沒有相依：頁面是靜態的，追�
 | R8 | 人口數字最多落後約 30 秒 | 與 P6 相同（15 秒快取） |
 | R9 | 隱私說明仍是草案；preflight 的例外（`144fe69`）仍待你審閱 | 與 P6 相同 |
 | R10 | 資料庫被清空或 Key 被刪除時，只靠脈衝維持的訪客最多 10 分鐘不被計入 | 記錄每 10 分鐘重寫一次時自動恢復 |
+| R11 | 團隊既有的 Upstash 安裝底下是否已經有資料庫，未知；免費帳號只能有 1 個 | 建立前在 Team → Storage 看一眼（§6.3 第 0 步） |
+| R12 | Preview 在 Vercel Authentication 後面；Hobby 方案能不能用 Protection Bypass for Automation，這次查到的官方頁面沒有寫 | 不能用的話，自動驗收腳本改由你在已登入的瀏覽器執行，或只做人工清單 |
 
 ### 8.2 待你決定
 
 | 編號 | 決定 | 我的建議 |
 |---|---|---|
-| Q1 | 是否授權我唯讀存取 Vercel 專案（§2.2） | 授權；或自己看那五項後告訴我 |
+| Q1 | ~~是否授權我唯讀存取 Vercel 專案~~ | **已授權，盤點完成（§2.3）** |
 | Q2 | 是否同意建立 Upstash Redis（Free，只接這個分支的 Preview），以及由誰操作（§6） | 同意，並由你照 §6.3 操作（約五分鐘） |
 | Q3 | 心跳 60 秒／逾時 150 秒是否接受；要不要再放寬（120／300 秒），或把人口快取改為 30 秒 | 接受 60／150；其餘等 Preview 有真實數字再說 |
 | Q4 | Firewall 限流規則（§4.6）何時設、用哪一組數字 | Preview 驗收時設並實測；數字先用表中的 |
@@ -416,9 +419,9 @@ Presence 與網站其餘部分本來就沒有相依：頁面是靜態的，追�
 | 失效時不影響網站 | 已驗證（§4.5） |
 | 私有題庫 | clean |
 
-**還不能在 Preview 上驗收，因為三件事需要你**（都不是程式問題）：
+**還不能在 Preview 上驗收，因為還有兩件事需要你**（都不是程式問題）：
 
-1. Vercel 的唯讀授權，或你自己確認方案與函式區域（§2）。
+1. ~~Vercel 的唯讀授權~~：已完成（§2.3）。
 2. 同意並建立 Upstash Redis（Free，只接這個分支的 Preview），加上三個 Preview 環境變數（§6）。
 3. 讓驗收腳本與手機進得去 Preview（Protection Bypass 密鑰或已登入的瀏覽器）。
 

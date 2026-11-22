@@ -25,7 +25,8 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 - Release preflight：預設 build `--build` 通過、0 個 handler；含 Presence 的 build 在宣告 `LOGIC_ISLAND_PRESENCE=1` 時通過，沒宣告時 `routes` 失敗（符合設計）。本機 `--probe` 因為沒有設 `LOGIC_ISLAND_TRIALS=1` 而回報 `/trials` 404，與 P6 相同。
 - **`trials-ci`（PR #44 的 `gates`）**：`c58d033` 通過；`887e40d` 沒有執行（PR 與前進的 `main` 衝突時 GitHub 不啟動工作流程）；`a530d96`（併入 `fe3c344`）通過；`f1ed07f`（併入 `b36c565`）通過（12 分 45 秒）；之後只有文件的 commit，結果見 PR 頁面。`main` 仍在前進（其他工作階段的課程批次），PR 落後時 CI 以當時最新的 `main` 驗證合併結果。
 - 私有題庫洩漏掃描（追蹤檔案、`origin/main..HEAD`）：clean。
-- 沒有做：Vercel Preview、Production、真機、iOS Safari、真正的 Upstash。Vercel 專案仍回 403。
+- 沒有做：Vercel Preview、Production、真機、iOS Safari、真正的 Upstash。
+- Vercel 專案的唯讀盤點於 2026-11-22 完成（不是測試，只讀設定）：結果在 `docs/planning/PRESENCE_P7_PREVIEW_LAUNCH_GATE.md` §2.3。
 
 ## Dynamic Island Population P6：Production Readiness 與 Preview 驗收準備（2026-11-21，同分支，未合併）
 

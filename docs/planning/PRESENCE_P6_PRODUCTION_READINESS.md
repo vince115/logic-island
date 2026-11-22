@@ -140,6 +140,8 @@
 
 ## 5. Vercel 部署環境盤點
 
+> 2026-11-22 更新：使用者核准授權後盤點已完成，結果以 [PRESENCE_P7_PREVIEW_LAUNCH_GATE.md](PRESENCE_P7_PREVIEW_LAUNCH_GATE.md) §2.3 為準；以下是 P6 當時的狀況。
+
 **唯讀盤點沒有完成**：Vercel MCP 對這個專案的 team 回 403（需要你用一條同意連結授權），本機 `vercel` CLI 登入的是另一個帳號（`devinces-projects-841b144d`，看不到這個專案）。我沒有嘗試其他方式取得存取權。下表是不需要授權就能確認的部分。
 
 | 項目 | 結果 | 依據 |
