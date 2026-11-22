@@ -83,10 +83,12 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
   'generative-ai': [
     { title: '生成模型與自回歸生成', summary: '判別式與生成式模型、學習資料分布再取樣、似然、自回歸、VAE、GAN、流模型與擴散模型的家族地圖；機率連鎖律、生成迴圈、greedy 與取樣、log 機率與下溢、teacher forcing 與 exposure bias、圖像與音訊的離散化', lessonIds: range('GEN', 1, 2) },
   ],
-  // RWD-1 (2026-11-23): the responsive design island's first units.
+  // RWD-1 (2026-11-23): the responsive design island's first units; RWD-2 adds the grid and query units.
   'responsive-design': [
     { title: '響應式原則與單位', summary: '同一份 HTML 依寬度調整版面、行動優先、內容優先與漸進增強；viewport 設定、百分比、rem 與 em、vw 與 dvh，以及橫向捲動的成因', lessonIds: range('RWD', 1, 2) },
     { title: 'Flexbox', summary: 'flex 容器、主軸與交錯軸、justify-content 與 align-items；flex-basis、flex-grow、flex-shrink、flex 簡寫、min-width: 0、換行與 gap', lessonIds: range('RWD', 3, 4) },
+    { title: 'CSS Grid', summary: 'grid 容器、軌道、fr 單位、格線編號與 span 的項目放置；命名區域、minmax()、auto-fill 與 auto-fit、自動排列與 dense', lessonIds: range('RWD', 5, 6) },
+    { title: '媒體查詢與容器查詢', summary: '媒體特徵與範圍語法、串接順序、內容導向斷點與偏好查詢；container-type、@container、容器名稱與容器單位，元件層級的響應', lessonIds: range('RWD', 7, 8) },
   ],
   // WEB-1 (2026-11-23): the web foundations island's first units; WEB-2 adds the CSS unit.
   'web-foundations': [

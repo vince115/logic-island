@@ -172,6 +172,10 @@ import { RWD01 } from './content/RWD01';
 import { RWD02 } from './content/RWD02';
 import { RWD03 } from './content/RWD03';
 import { RWD04 } from './content/RWD04';
+import { RWD05 } from './content/RWD05';
+import { RWD06 } from './content/RWD06';
+import { RWD07 } from './content/RWD07';
+import { RWD08 } from './content/RWD08';
 import { DB01 } from './content/DB01';
 import { DB02 } from './content/DB02';
 import { DB03 } from './content/DB03';
@@ -219,7 +223,7 @@ export const curriculum: Curriculum = {
     SRV01, SRV02, SRV03, SRV04, SRV05, SRV06, SRV07, SRV08, SRV09, SRV10, SRV11, SRV12, SRV13, SRV14,
     LLM01, LLM02, LLM03, GEN01, GEN02, WEB01, WEB02, WEB03, WEB04, WEB05, WEB06, WEB07,
     WEB08, WEB09, WEB10, WEB11, WEB12, WEB13, WEB14, WEB15,
-    RWD01, RWD02, RWD03, RWD04 },
+    RWD01, RWD02, RWD03, RWD04, RWD05, RWD06, RWD07, RWD08 },
 };
 
 export const getLessonBySlug = (slug: string) => lessons.find(l => l.slug === slug);

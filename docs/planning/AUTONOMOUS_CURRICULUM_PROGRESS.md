@@ -13,19 +13,19 @@
 
 ## 總覽
 
-已發布 **193／520**（37.1%）；規劃中 327。
+已發布 **197／520**（37.9%）；規劃中 323。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
 | 程式與資訊群島 | 120 | 40 | 75.0% |
 | AI 人工智慧群島 | 25 | 135 | 15.6% |
 | 數位設計群島 | 0 | 56 | 0.0% |
-| 網頁與應用開發群島 | 19 | 36 | 34.5% |
+| 網頁與應用開發群島 | 23 | 32 | 41.8% |
 | 系統與雲端工程群島 | 29 | 60 | 32.6% |
 
 ## 下一批（自動選擇）
 
-**響應式設計島（RWD）**：RWD05 CSS Grid 基礎、RWD06 CSS Grid 進階：區域與自動排列、RWD07 Media Query 與斷點策略、RWD08 Container Query、RWD09 流體字級與 clamp()。島嶼能力：可用；這幾堂解鎖其他島的 3 堂。
+**響應式設計島（RWD）**：RWD09 流體字級與 clamp()、RWD10 響應式圖片與媒體、RWD11 響應式導覽與表格、RWD12 響應式設計島綜合專題：一頁跨裝置版面。島嶼能力：可用；這幾堂解鎖其他島的 0 堂。
 
 能力缺口中最優先的是 **機器學習島（ML）**：需要 python-code + data-explorer (fixed datasets, metrics computed in the browser)；先修已滿足、可依序撰寫的有 25 堂，前 5 堂解鎖其他島的 39 堂。
 
@@ -56,8 +56,8 @@
 | 數位設計群島 | 設計系統島（DSY） | 0／12 | design-token board | 缺少 | DSY01–DSY12（12 堂） | 缺少課程能力 |
 | 網頁與應用開發群島 | 網頁基礎島（WEB） | 15／15 | web-code (HTML, CSS and JavaScript pages in a sandboxed frame beside the DOM the browser built; exercises checked by steps on that page, verified in Chromium) | 可用 | 全島完成 | — |
 | 網頁與應用開發群島 | 前端開發島（FE） | 0／15 | web-code + state-flow trace | 缺少 | FE01–FE15（15 堂） | 缺少課程能力 |
-| 網頁與應用開發群島 | 響應式設計島（RWD） | 4／12 | web-code with preview widths and the resize step (one answer checked at several viewport widths); the standalone labs stay as further practice | 可用 | RWD05–RWD12（8 堂） | — |
-| 網頁與應用開發群島 | 行動應用島（MOB） | 0／13 | web-code + case-analysis | 缺少 | MOB01–MOB05（5 堂） | 缺少課程能力；MOB06 需要尚未發布的 RWD07 |
+| 網頁與應用開發群島 | 響應式設計島（RWD） | 8／12 | web-code with preview widths and the resize step (one answer checked at several viewport widths); the standalone labs stay as further practice | 可用 | RWD09–RWD12（4 堂） | — |
+| 網頁與應用開發群島 | 行動應用島（MOB） | 0／13 | web-code + case-analysis | 缺少 | MOB01–MOB13（13 堂） | 缺少課程能力 |
 | 系統與雲端工程群島 | Linux 系統島（LNX） | 15／15 | terminal (machines as data, transcripts replayed to their exact output, exercises checked by replaying the learner's commands in the simulated shell) | 可用 | 全島完成 | — |
 | 系統與雲端工程群島 | Docker 容器島（DKR） | 0／15 | container simulation | 缺少 | DKR01–DKR15（15 堂） | 缺少課程能力 |
 | 系統與雲端工程群島 | 網路與伺服器島（SRV） | 14／14 | terminal (engine stages E10 sockets, E11 dns, E12 http, then E13-E19) + network-protocol scenes; request-path and architecture-diagram map to network-sequence | 可用 | 全島完成 | — |
@@ -81,7 +81,7 @@
 | 互動設計島（IXD） | case-analysis + a11y checks | 14 | 0 | — |
 | 設計系統島（DSY） | design-token board | 12 | 0 | — |
 | 前端開發島（FE） | web-code + state-flow trace | 15 | 0 | — |
-| 行動應用島（MOB） | web-code + case-analysis | 5 | 0 | — |
+| 行動應用島（MOB） | web-code + case-analysis | 13 | 0 | — |
 | 雲端基礎設施島（CLD） | architecture simulation | 15 | 0 | — |
 
 ## 學習路線
@@ -94,7 +94,7 @@
 | 企業資訊系統 | 44／84 | 否 |
 | AI 研究 | 62／142 | 否 |
 | AI 應用工程 | 31／89 | 否 |
-| 前端工程 | 26／62 | 否 |
+| 前端工程 | 30／62 | 否 |
 | 產品設計 | 0／56 | 否 |
 | AI 架構 | 23／66 | 否 |
 | 全端部署 | 39／62 | 否 |
@@ -628,14 +628,14 @@
 | RWD02 | viewport 與相對單位 | 已發布（閘門通過） | RWD01 | dom-explorer | — |
 | RWD03 | Flexbox 基礎：主軸與交錯軸 | 已發布（閘門通過） | WEB06 | dom-explorer | — |
 | RWD04 | Flexbox 進階：伸縮、換行與對齊 | 已發布（閘門通過） | RWD03 | dom-explorer | — |
-| RWD05 | CSS Grid 基礎 | 大綱 | WEB06 | grid-playground | — |
-| RWD06 | CSS Grid 進階：區域與自動排列 | 待先修 | RWD05 | grid-playground | 先修 RWD05 |
-| RWD07 | Media Query 與斷點策略 | 大綱 | RWD02 | responsive-sim | — |
-| RWD08 | Container Query | 待先修 | RWD07 | responsive-sim | 先修 RWD07 |
+| RWD05 | CSS Grid 基礎 | 已發布（閘門通過） | WEB06 | dom-explorer | — |
+| RWD06 | CSS Grid 進階：區域與自動排列 | 已發布（閘門通過） | RWD05 | dom-explorer | — |
+| RWD07 | Media Query 與斷點策略 | 已發布（閘門通過） | RWD02 | dom-explorer | — |
+| RWD08 | Container Query | 已發布（閘門通過） | RWD07 | dom-explorer | — |
 | RWD09 | 流體字級與 clamp() | 大綱 | RWD02 | responsive-sim | — |
-| RWD10 | 響應式圖片與媒體 | 待先修 | RWD07 | responsive-sim | 先修 RWD07 |
-| RWD11 | 響應式導覽與表格 | 待先修 | RWD04、RWD07 | mobile-nav-sim | 先修 RWD07 |
-| RWD12 | 響應式設計島綜合專題：一頁跨裝置版面 | 待先修 | RWD06、RWD08、RWD11 | challenge-stages | 先修 RWD06、RWD08、RWD11 |
+| RWD10 | 響應式圖片與媒體 | 大綱 | RWD07 | responsive-sim | — |
+| RWD11 | 響應式導覽與表格 | 大綱 | RWD04、RWD07 | mobile-nav-sim | — |
+| RWD12 | 響應式設計島綜合專題：一頁跨裝置版面 | 待先修 | RWD06、RWD08、RWD11 | challenge-stages | 先修 RWD11 |
 
 ### 網頁與應用開發群島 · 行動應用島（MOB）
 
@@ -646,7 +646,7 @@
 | MOB03 | 觸控目標與手勢的實作 | 待能力 | MOB02 | mobile-nav-sim | 課程能力、先修 MOB02 |
 | MOB04 | Pointer Events 與觸控事件 | 待能力 | MOB03、WEB09 | dom-explorer | 課程能力、先修 MOB03 |
 | MOB05 | 行動表單與虛擬鍵盤 | 待能力 | MOB02、WEB04 | case-study-board | 課程能力、先修 MOB02 |
-| MOB06 | 安全區域、方向與動態視窗高度 | 待能力 | RWD07 | responsive-sim | 課程能力、先修 RWD07 |
+| MOB06 | 安全區域、方向與動態視窗高度 | 待能力 | RWD07 | responsive-sim | 課程能力 |
 | MOB07 | 原生、跨平台與 PWA 的選擇 | 待能力 | MOB01 | decision-simulation | 課程能力、先修 MOB01 |
 | MOB08 | PWA 基礎：Manifest 與安裝 | 待能力 | MOB07、WEB11 | case-study-board | 課程能力、先修 MOB07 |
 | MOB09 | Service Worker 與離線 | 待能力 | MOB08 | protocol-sequence | 課程能力、先修 MOB08 |

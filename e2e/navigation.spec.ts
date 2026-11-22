@@ -289,7 +289,7 @@ test('AI 群島入口：首頁「更多學習群島」→ 群島總覽，七座�
   // GEN-1: path E (AI 研究) leads through GEN01 and GEN02, so both count as open (60 → 62).
   await expect(paths.filter({ hasText: 'AI 研究' })).toContainText('路線共 142 堂 · 已開放 62 堂 · 其餘 80 堂規劃中');
   await page.goto('/regions/web');
-  await expect(page.locator('section[aria-labelledby="region-paths"] li')).toHaveText([/前端工程.*路線共 62 堂 · 已開放 26 堂 · 其餘 36 堂規劃中/]);
+  await expect(page.locator('section[aria-labelledby="region-paths"] li')).toHaveText([/前端工程.*路線共 62 堂 · 已開放 30 堂 · 其餘 32 堂規劃中/]);
   await page.goto('/regions/ai');
   await expect(page.getByRole('navigation', { name: '麵包屑' })).toHaveText(/探索群島.*五大群島.*AI 人工智慧群島/);
   const sidebar = page.locator('#site-sidebar');
@@ -368,8 +368,10 @@ test('CSS Grid Playground：輸入軌道與位置即時套用到真實格線，�
   await expect(page.getByRole('status')).toHaveText('已複製到剪貼簿。');
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(await css.textContent());
   const lessons = page.getByRole('region', { name: '使用這個實驗的課程' });
+  // RWD-2: RWD05 and RWD06 are published and linked; the planned UI lesson stays unlinked text.
   await expect(lessons.getByText('RWD05')).toBeVisible();
-  await expect(lessons.locator('a')).toHaveCount(0);
+  await expect(lessons.getByRole('link', { name: /CSS Grid 基礎/ })).toHaveAttribute('href', '/curriculum/css-grid-basics');
+  await expect(lessons.locator('a')).toHaveCount(2);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
@@ -409,8 +411,10 @@ test('Responsive Layout Simulator：預覽框以真實寬度套用媒體查詢�
   // RWD-1: RWD01 and RWD02 are published and linked; the lessons still planned stay unlinked text.
   await expect(lessons.getByText('RWD01')).toBeVisible();
   await expect(lessons.getByRole('link', { name: /響應式原則與行動優先/ })).toHaveAttribute('href', '/curriculum/responsive-principles-mobile-first');
-  await expect(lessons.locator('a')).toHaveCount(2);
-  await expect(lessons.getByText('RWD07')).toBeVisible();
+  // RWD-2: RWD07 and RWD08 are published too.
+  await expect(lessons.locator('a')).toHaveCount(4);
+  await expect(lessons.getByRole('link', { name: /Media Query 與斷點策略/ })).toHaveAttribute('href', '/curriculum/media-queries-and-breakpoints');
+  await expect(lessons.getByText('RWD09')).toBeVisible();
 });
 
 // R8.3: Mobile Navigation Simulator — four working patterns, operated by keyboard, with measured touch targets.
