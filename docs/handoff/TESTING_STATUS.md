@@ -48,7 +48,7 @@ RWD-2 的結果（`rwd/2-batch-2`，疊在 RWD-1 上，隔離副本，旗標關�
 - 引擎階段 W8：`tests/webcode-runner.test.ts` 的「images that depend on the viewport」在同一次檢查裡量 `<picture>` 的來源與 `sizes` 的顯示寬度（載入時，以及換到 1000、699、700px 之後），每種起始寬度重複三次；檢查框架在畫面外時這個測試會失敗（來源停在載入時的選擇）。有這類圖片的頁面每次檢查多等約 0.1–0.3 秒，其餘頁面不受影響。
 - RWD10 的兩個圖片練習在裝置像素比 1、1.5、2、3 下結果相同（寫手以暫時的探針確認，未提交）。
 
-__RWD3_RESULT__
+RWD-3 的結果（隔離副本，旗標關）：TypeScript 與 ESLint 通過；Vitest **134 檔、3845 passed／9 skipped**；Production build 通過；E2E 桌機＋手機 **499 passed／2 failed／297 skipped**（兩個失敗同上，#36）。
 
 ## Private Vitest Runner（2026-11-22，分支 `trials/private-test-runner`）
 
