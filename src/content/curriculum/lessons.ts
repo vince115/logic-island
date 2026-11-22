@@ -625,7 +625,7 @@ const webFoundations: Outline[] = [
   webFromBlueprint('WEB15', '不用框架，分五關完成小島圖書館的四頁網站：以語意結構與全站共用的樣式表建立頁面，用表單的 submit 與事件委派做出願望清單，以 fetch 取得新書並交代載入中、沒有資料與失敗三種狀態，用 localStorage 記住分類，最後補上選單按鈕的無障礙名稱與狀態、defer 與預留位置，通過無障礙與效能的檢查。', 110),
 ];
 
-/** RWD-1 (2026-11-23): the responsive design island's first lessons, on the web-code capability with the resize step and preview widths (WEB0_WEB_CODE_CAPABILITY.md, RESPONSIVE_DESIGN_ISLAND.md); RWD-2 adds RWD05–RWD08. */
+/** RWD-1 (2026-11-23): the responsive design island's first lessons, on the web-code capability with the resize step and preview widths (WEB0_WEB_CODE_CAPABILITY.md, RESPONSIVE_DESIGN_ISLAND.md); RWD-2 adds RWD05–RWD08, RWD-3 RWD09–RWD12 (the capstone): the island is complete. */
 const responsiveDesign: Outline[] = [
   responsiveFromBlueprint('RWD01', '從寫死 960px 的頁面在窄視窗得橫向捲動出發，說明響應式設計如何以同一份 HTML 依寬度調整版面，用 max-width 加 margin: 0 auto、圖片的 max-width: 100% 與一條 min-width 媒體查詢寫出行動優先的頁面，並以內容優先決定原始碼順序與斷點、以漸進增強確保頁面始終可用。', 45),
   responsiveFromBlueprint('RWD02', '在 head 加上 viewport 設定讓手機照裝置寬度排版且不限制縮放，分辨 px 與相對單位：百分比以包含區塊的寬度為準、em 跟著元素字級而 rem 跟著根字級、vw 與 dvh 跟著視窗，並找出 100vw 加內距、固定寬度與長字串造成的橫向捲動加以修正。', 50),
@@ -635,6 +635,10 @@ const responsiveDesign: Outline[] = [
   responsiveFromBlueprint('RWD06', '用 grid-template-areas 把版面畫成命名區域、在斷點只換模板，以 minmax() 訂軌道下限並避開 1fr 被內容撐開，用 repeat(auto-fit, minmax()) 做出不寫 Media Query 的圖片牆，分辨 auto-fill 與 auto-fit，以 dense 控制自動排列。', 55),
   responsiveFromBlueprint('RWD07', '拆解 @media 的媒體類型與媒體特徵，用 min-width、max-width 與範圍語法寫出不重疊的寬度條件，理解媒體查詢不加特異性、行動優先要由窄到寬排列，依內容導向斷點訂出最少而足夠的斷點，並用 prefers-color-scheme、prefers-reduced-motion 等偏好查詢回應系統設定。', 55),
   responsiveFromBlueprint('RWD08', '用 container-type 把元素宣告成容器、以 @container 讓同一張卡片在側欄與主欄各自依容器寬度切換排法，釐清元素不能查詢自己、容器寬度不能靠內容撐開與查詢量的是內容區，再用容器名稱指名外層容器、以 cqi 等容器單位讓字級跟著容器縮放，並比較容器查詢與媒體查詢的分工。', 55),
+  responsiveFromBlueprint('RWD09', '從階梯式字級與純 vw 的問題出發，用 min()、max() 與 clamp() 替會變的值加上最小與最大值，由兩個端點算出 rem 加 vw 的偏好值寫成流體字級，確認使用者調大預設字級或縮放頁面時文字仍會變大，並把同樣的寫法用在流動的內距與置中的內容欄。', 50),
+  responsiveFromBlueprint('RWD10', '用 max-width 與 height: auto 讓圖片跟著容器縮放而不變形，以寬高屬性和 aspect-ratio 預留空間、用 object-fit 處理比例不合的盒子，再用 srcset 與 sizes 提供不同解析度的檔案、用 picture 元素依寬度更換構圖，並延遲載入畫面外的圖片與嵌入影片。', 55),
+  responsiveFromBlueprint('RWD11', '依優先順序替窄螢幕的導覽選擇換行、橫向捲動或收合到選單按鈕，用 aria-expanded、hidden 與 Escape 做出鍵盤可用的導覽收合，並讓寬版的媒體查詢蓋過收合狀態；再依資料特性讓表格在有名稱、可聚焦的外框裡水平捲動、隱藏次要欄位，或用 data-label 把表格重排成卡片。', 60),
+  responsiveFromBlueprint('RWD12', '分五關完成小島市集的首頁：以流動置中的欄與 rem 留白建立行動優先骨架，用 Flexbox 與選單按鈕做出會收合的導覽，以 Grid 命名區域在兩個斷點重畫版面，用 auto-fit 與容器查詢讓商品卡依容器換排法，以 clamp() 與流動圖片處理字級與圖片，並在 360、768、1280px 與斷點兩側測試。', 110),
 ];
 
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */

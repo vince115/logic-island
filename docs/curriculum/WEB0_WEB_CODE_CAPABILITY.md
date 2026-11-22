@@ -103,6 +103,8 @@ webCode: {
 
 **捲軸不佔寬度（RWD-1）。** 檢查用的框架剛好是視窗的大小。在捲軸會佔位置的系統上，比檢查視窗高的頁面原本會窄約 15px（360px 的視窗只剩 345px），寫對的答案會在寬度檢查失敗。所以檢查框架不畫自己的捲軸（harness 以文件採用的樣式表設定 `scrollbar-width: none`，不在頁面上加任何元素或屬性；頁面仍然可以捲動），媒體查詢看到的寬度和排版的寬度一致。頁面裡自己會捲動的元素不受影響。預覽不做這件事。
 
+**會隨視窗改變的圖片（W8，RWD-3）。** 瀏覽器不替看不見的框架更新畫面，而 `<picture>` 的 `media`、`srcset` 與 `sizes` 選哪個來源是在畫面更新時才重新決定的；檢查框架放在畫面外的時候，這些圖片在載入與 `resize` 之後都停在舊的來源。所以檢查框架改放在視窗裡（`position: fixed; left: 0; top: 0; z-index: -1; opacity: 0; pointer-events: none`，仍然看不見、點不到），而且頁面有 `picture`、`img[srcset]` 或 `img[sizes]` 時，harness 在回報 ready 之前與每次 `resize` 之後等待「兩個 animation frame → 所有圖片載入 → 再兩個 animation frame」（每一段都有時限，分頁在背景時只是比較慢）。沒有這類圖片的頁面不等待。`srcset` 裡的 `data:` 網址不能有空白（空白會結束一個候選），要寫成 `%20`。
+
 載入或檢查超過 6 秒視為逾時，所有檢查以「頁面沒有在時間內完成載入與檢查」不通過。
 
 ## 4. 框架裡的 harness（`src/lib/webcode/harness.ts`）
@@ -154,7 +156,7 @@ Chromium 是 Playwright 的 headless Chromium，頁面的載入方式和課程�
 - 迴圈保護不涵蓋行內事件屬性、無窮遞迴的 Promise 與 `for…of` 無限的產生器；這些情況仍可能讓分頁沒有回應，重新整理即可。
 - 鍵盤操作是指令稿產生的事件，只模擬 §3 列出的預設行為；Tab 移動焦點不模擬。
 - `input` 操作以程式設定欄位的值：瀏覽器只對使用者親手輸入的文字套用 `minlength`／`maxlength` 的驗證，所以這兩個屬性無法用檢查重現。
-- 響應式課程（RWD-0）：檢查與預覽改變的只有視窗的寬高。裝置像素比固定（頁面沒有網路，`srcset` 選了哪一張圖看不出來，只能檢查標記）、使用者縮放、`prefers-color-scheme` 與 `prefers-reduced-motion` 不能在檢查裡切換、沒有觸控事件與螢幕方向；手機瀏覽器在沒有 viewport meta 時的虛擬視窗也無法重現（預覽一律是 `width=device-width` 的行為）。
+- 響應式課程（RWD-0）：檢查與預覽改變的只有視窗的寬高。裝置像素比不由檢查控制（`srcset` 選了哪一個檔案取決於它，不檢查；`sizes` 的顯示寬度與 `picture` 的來源可以量測，W8）、使用者縮放、`prefers-color-scheme` 與 `prefers-reduced-motion` 不能在檢查裡切換、沒有觸控事件與螢幕方向；手機瀏覽器在沒有 viewport meta 時的虛擬視窗也無法重現（預覽一律是 `width=device-width` 的行為）。
 - `navigated` 比對的是連結上寫的 `href`，不解析相對路徑；捲動位置沒有檢查。
 
 ## 9. 之後的引擎階段（依課程需要，向下相容）
@@ -167,6 +169,7 @@ Chromium 是 Playwright 的 headless Chromium，頁面的載入方式和課程�
 | W4（WEB-4 完成） | 記憶體中的 `localStorage`、`sessionStorage` 與 Cookie、`storage`／`cookie` 檢查、預覽保留儲存的資料 | WEB12 |
 | W5（WEB-4 完成） | 無障礙檢查：`name`、`role`，以及 `tab` 操作的 Tab 順序 | WEB13 |
 | W7（RWD-0、RWD-1 完成） | `resize` 操作（同一份答案在多個寬度檢查）、預覽寬度切換 `widths`、切換後回報頁面高度；檢查框架不畫自己的捲軸 | RWD01– |
+| W8（RWD-3 完成） | 檢查框架放在視窗內並做畫面更新：`picture` 的來源與 `sizes` 的顯示寬度在載入與 `resize` 之後都能以盒子量測 | RWD10 |
 | W6（未建立） | 載入時間軸與指標的模型（不是量測）。WEB14 改以頁面呈現順序與版面位移，量測交給真實的開發者工具；模型留在 [INTERACTIVE_LAB_ROADMAP](INTERACTIVE_LAB_ROADMAP.md) 的 `metric-explorer` | — |
 
 ## 10. 藍圖活動的對應（`webFromBlueprint`）
