@@ -289,7 +289,7 @@ test('AI 群島入口：首頁「更多學習群島」→ 群島總覽，七座�
   // GEN-1: path E (AI 研究) leads through GEN01 and GEN02, so both count as open (60 → 62).
   await expect(paths.filter({ hasText: 'AI 研究' })).toContainText('路線共 142 堂 · 已開放 62 堂 · 其餘 80 堂規劃中');
   await page.goto('/regions/web');
-  await expect(page.locator('section[aria-labelledby="region-paths"] li')).toHaveText([/前端工程.*路線共 62 堂 · 已開放 38 堂 · 其餘 24 堂規劃中/]);
+  await expect(page.locator('section[aria-labelledby="region-paths"] li')).toHaveText([/前端工程.*路線共 62 堂 · 已開放 42 堂 · 其餘 20 堂規劃中/]);
   await page.goto('/regions/ai');
   await expect(page.getByRole('navigation', { name: '麵包屑' })).toHaveText(/探索群島.*五大群島.*AI 人工智慧群島/);
   const sidebar = page.locator('#site-sidebar');
@@ -411,8 +411,8 @@ test('Responsive Layout Simulator：預覽框以真實寬度套用媒體查詢�
   // RWD-1: RWD01 and RWD02 are published and linked; the lessons still planned stay unlinked text.
   await expect(lessons.getByText('RWD01')).toBeVisible();
   await expect(lessons.getByRole('link', { name: /響應式原則與行動優先/ })).toHaveAttribute('href', '/curriculum/responsive-principles-mobile-first');
-  // RWD-2: RWD07 and RWD08 are published too; RWD-3: RWD09 and RWD10. The MOB lesson stays unlinked text.
-  await expect(lessons.locator('a')).toHaveCount(6);
+  // RWD-2: RWD07 and RWD08 are published too; RWD-3: RWD09 and RWD10. (MOB-2 published the MOB lesson as well.)
+  await expect(lessons.locator('a')).toHaveCount(7); // MOB-2: MOB06 is published too
   await expect(lessons.getByRole('link', { name: /Media Query 與斷點策略/ })).toHaveAttribute('href', '/curriculum/media-queries-and-breakpoints');
   await expect(lessons.getByText('MOB06')).toBeVisible();
 });

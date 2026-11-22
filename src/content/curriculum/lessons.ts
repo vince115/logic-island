@@ -659,6 +659,10 @@ const mobileApps: Outline[] = [
   mobileFromBlueprint('MOB02', '比較分頁列、抽屜與底部面板三種行動導覽模式的用途、代價與可及範圍，用 nav 與 aria-current 做底部的分頁列，用 aria-expanded 按鈕、遮罩與 inert 做抽屜，用 dialog 的 showModal() 做強制回應的底部面板並和 show() 比較，再依目的地或動作、數量與頻率選擇模式。', 50),
   mobileFromBlueprint('MOB03', '依 WCAG 2.2 的 24 × 24 最低與 44 × 44 加強尺寸，用 min-height 與內距把觸控目標做大，用偽元素與負的 inset 擴大點擊區域而不改變外觀、不蓋住鄰居，再以 touch-action 與 overscroll-behavior 處理手勢衝突，並替每個手勢加上看得到的替代操作。', 50),
   mobileFromBlueprint('MOB04', '比較滑鼠事件、Touch Events 與 Pointer Events，用同一組指標事件與 pointerType 支援觸控與滑鼠，以拖曳旗標、setPointerCapture 與 touch-action 做出可拖曳的滑桿，在 pointercancel 時還原位置並補上方向鍵操作，再用被動監聽器避免捲動卡頓。', 55),
+  mobileFromBlueprint('MOB05', '用 type 與 inputmode 叫出合適的虛擬鍵盤、分辨數量與由數字組成的資料，用 autocomplete 讓瀏覽器自動完成，靠預設值、選項與 localStorage 減少輸入量，再用 scroll-margin 與 scrollIntoView 處理虛擬鍵盤遮擋與欄位捲動。', 50),
+  mobileFromBlueprint('MOB06', '用 viewport-fit=cover 讓頁面延伸到螢幕邊緣，以 env() 的安全區域配合自訂屬性與 max()，讓底部操作列避開瀏海與手勢列、內容不被它蓋住；用方向與高度的媒體查詢處理手機橫放時不足的高度與轉到兩側的安全區域，再用 dvh、svh 做出和看得到的視窗一樣高、不被工具列遮住的全螢幕版面。', 50),
+  mobileFromBlueprint('MOB07', '比較原生 App、跨平台框架與 PWA 在發布、裝置功能、效能、離線、更新、成本與連結上的取捨，用一張從需求出發的規則表寫出 chooseRoute 來選擇路線並說明理由，學會查證 PWA 在各平台的限制，再以功能偵測替分享按鈕準備退路，並規劃分階段的路線。', 50),
+  mobileFromBlueprint('MOB08', '說明把網站安裝到主畫面的意義與安裝條件，用 link rel="manifest" 連結 Web App Manifest，寫出名稱、start_url、display、顏色與 192、512、maskable 圖示，避開 JSON 的語法陷阱，並用 display-mode 媒體查詢調整安裝後的畫面。', 50),
 ];
 
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */
