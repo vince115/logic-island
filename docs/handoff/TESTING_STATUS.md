@@ -20,6 +20,7 @@ Next.js build 會產生 `.next`、型別與可能的設定輸出；Vitest／ESLi
 | `tests/curriculum-webcode.test.ts` | 每一堂 web-code 課：範例的陳述成立、參考解答通過、起始內容與常見錯誤不通過 | 同上 |
 
 - CI（`trials-ci`）在 Vitest 之前執行 `pnpm exec playwright install --with-deps --only-shell chromium`，並因 `CI` 環境變數而不允許略過。這兩個檔案在 CI 有自己的步驟「Web-code pages in Chromium」（`--maxWorkers=1`），「Full Vitest」以 `--exclude` 略過它們：Chromium 自己就是好幾個行程，和兩個忙碌的 worker 並行時，曾讓其他檔案裡吃 CPU 的測試超過 5 秒上限（WEB-3 的第二次 CI：`highlight` 與 `llm-capability` 各一項逾時，本機與第一次 CI 都通過）。本機的 `vitest run` 仍然一次跑全部。本機安裝：`pnpm exec playwright install chromium`（跑 E2E 的機器已經有）。
+- Python 程式（GEN-1 之後，2026-11-23）：`tests/python-capability.test.ts` 用兩個 hash seed 各執行一次每個 Python 程式，每次都是一個新的行程；在共用的 runner 上和兩個忙碌的 worker 並行時，曾有單一程式超過 5 秒上限（RWD-1 的第一次 CI，本機通過）。它在 CI 有自己的步驟「Python programs under two hash seeds」（`--maxWorkers=1`），「Full Vitest」以 `--exclude` 略過它；測試與上限都沒有改變。
 - 載入方式和課程頁相同：同一個 `webDocument`、同一個 sandbox 屬性、同一個父頁面函式 `runFrameJob`（以原始碼在瀏覽器裡執行）；瀏覽器離線（`offline: true`）。
 - E2E：`e2e/webcode-lessons.spec.ts` 在課程頁上把每一堂課的每個練習做一遍（起始內容未通過、填入參考解答後通過、重設），並檢查範例的框架、DOM 樹、編輯重跑、鍵盤與焦點。`e2e/curriculum.spec.ts` 的 console 守門不計入來自 `about:srcdoc`（課程頁面自己的框架）的訊息；框架內未捕捉的錯誤由 harness 標為已處理，不會成為課程頁的 page error。
 - 撰寫單一課程時的自我檢查（不提交）：scratch 的 `zz-web-lesson.test.ts`，以 `LESSON=WEBxx` 執行，內容同上兩項加上發布閘門與份量檢查。
