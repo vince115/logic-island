@@ -15,8 +15,8 @@ test('every published island\'s syllabus anchor exists on /curriculum and lands 
   const published = (['cs', 'ai', 'design', 'web', 'sys'] as const).flatMap(r => islandsInRegion(r)).filter(i => i.status !== 'planned');
   // programming-languages: PL01–PL05 published in course production batch 1.
   // CN-1 (2026-11-22): the computer-networks island opened with CN01–CN05; AIF-1 opened the AI foundations island; LNX-1 the Linux systems island.
-  // SRV-1 opened the network and servers island; LLM-1 the large-language-models island, GEN-1 the generative-ai island and WEB-1 the web foundations island (in region order: ai, web, sys).
-  expect(published.map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'large-language-models', 'generative-ai', 'web-foundations', 'linux-systems', 'network-servers']);
+  // SRV-1 opened the network and servers island; LLM-1 the large-language-models island, GEN-1 the generative-ai island, WEB-1 the web foundations island and RWD-1 the responsive design island (in region order: ai, web, sys).
+  expect(published.map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'large-language-models', 'generative-ai', 'web-foundations', 'responsive-design', 'linux-systems', 'network-servers']);
   for (const island of published) {
     await page.goto(`/curriculum#island-${island.id}`);
     const heading = page.locator(`#island-${island.id}`);

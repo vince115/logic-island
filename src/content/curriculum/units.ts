@@ -83,6 +83,11 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
   'generative-ai': [
     { title: '生成模型與自回歸生成', summary: '判別式與生成式模型、學習資料分布再取樣、似然、自回歸、VAE、GAN、流模型與擴散模型的家族地圖；機率連鎖律、生成迴圈、greedy 與取樣、log 機率與下溢、teacher forcing 與 exposure bias、圖像與音訊的離散化', lessonIds: range('GEN', 1, 2) },
   ],
+  // RWD-1 (2026-11-23): the responsive design island's first units.
+  'responsive-design': [
+    { title: '響應式原則與單位', summary: '同一份 HTML 依寬度調整版面、行動優先、內容優先與漸進增強；viewport 設定、百分比、rem 與 em、vw 與 dvh，以及橫向捲動的成因', lessonIds: range('RWD', 1, 2) },
+    { title: 'Flexbox', summary: 'flex 容器、主軸與交錯軸、justify-content 與 align-items；flex-basis、flex-grow、flex-shrink、flex 簡寫、min-width: 0、換行與 gap', lessonIds: range('RWD', 3, 4) },
+  ],
   // WEB-1 (2026-11-23): the web foundations island's first units; WEB-2 adds the CSS unit.
   'web-foundations': [
     { title: '網頁如何運作與 HTML 結構', summary: 'HTML、CSS 與 JavaScript 的分工、頁面載入流程、DOM 與開發者工具；文件骨架、語意元素、地標區域與標題層級', lessonIds: range('WEB', 1, 2) },

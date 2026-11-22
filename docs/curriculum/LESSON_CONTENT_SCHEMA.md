@@ -139,6 +139,6 @@ SQL 是查詢語言，不是四種程式語言的替代品，所以用最小、�
 
 ## 9. 網頁課程（WEB-0：`web-code`）
 
-網頁基礎島的課以 `web-code` 能力撰寫，內容在 `LessonContent.webCode`：`{ examples: WebExample[], exercises: WebExercise[] }`（`src/lib/webcode/lesson.ts`）。範例是一個頁面（`files: { html, css?, js? }`）加上它在瀏覽器裡成立的檢查（`observe`）；練習是學習者要完成的檔案（`starter`）、不能改的檔案（`fixed`）、參考解答、常見錯誤與檢查的步驟。`Block { type: 'example' }` 可指向網頁範例；`QuizQuestion.code.language` 在這類課程可為 `'HTML'`、`'CSS'` 或 `'JavaScript'`。欄位、步驟的種類、沙盒與驗證方式見 [WEB0_WEB_CODE_CAPABILITY](WEB0_WEB_CODE_CAPABILITY.md)。
+網頁基礎島的課以 `web-code` 能力撰寫，內容在 `LessonContent.webCode`：`{ examples: WebExample[], exercises: WebExercise[] }`（`src/lib/webcode/lesson.ts`）。範例是一個頁面（`files: { html, css?, js? }`）加上它在瀏覽器裡成立的檢查（`observe`）；練習是學習者要完成的檔案（`starter`）、不能改的檔案（`fixed`）、參考解答、常見錯誤與檢查的步驟。`Block { type: 'example' }` 可指向網頁範例；`QuizQuestion.code.language` 在這類課程可為 `'HTML'`、`'CSS'` 或 `'JavaScript'`。響應式設計島（RWD-0）用同一個能力：範例與練習可以有 `widths`（預覽可切換的寬度），步驟可以用 `{ do: 'resize', width, height? }` 讓同一份答案在多個寬度檢查。欄位、步驟的種類、沙盒與驗證方式見 [WEB0_WEB_CODE_CAPABILITY](WEB0_WEB_CODE_CAPABILITY.md)。
 
 驗證：`validateDatabaseContent` 以 `webContentProblems` 檢查結構；`tests/curriculum-webcode.test.ts` 在 Chromium 裡執行每一堂課的每個頁面（範例的陳述成立、參考解答通過、起始內容與常見錯誤不通過）。

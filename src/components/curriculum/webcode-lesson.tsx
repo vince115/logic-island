@@ -43,7 +43,7 @@ const useInBrowser = () => useSyncExternalStore(noSubscription, () => true, () =
  * page (never per keystroke), and each run gets a new frame with its own nonce. The frame is made in the browser only:
  * its document carries the harness, which there is no reason to send with the lesson's HTML.
  */
-function LivePage({ files, title, height, run, setup }: { files: WebFiles; title: string; height?: number; run: number; setup?: WebSetup }) {
+function LivePage({ files, title, height, run, setup, widths }: { files: WebFiles; title: string; height?: number; run: number; setup?: WebSetup; widths?: number[] }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const inBrowser = useInBrowser();
   // A frame is believed by being the frame (event.source); the nonce only tells this run's document from the last one's.
@@ -67,6 +67,20 @@ function LivePage({ files, title, height, run, setup }: { files: WebFiles; title
     return () => window.removeEventListener('message', onMessage);
   }, [nonce]);
   const report = reported?.nonce === nonce ? reported.report : undefined;
+  // RWD-0: a preview at a chosen viewport width. The frame is that wide and drawn smaller when its column is narrower,
+  // so the page inside really is laid out at the chosen width (its media queries see it).
+  const [width, setWidth] = useState<number | undefined>(widths?.[0]);
+  const room = useRef<HTMLDivElement>(null);
+  const [available, setAvailable] = useState(0);
+  useLayoutEffect(() => {
+    const el = room.current;
+    if (!el || typeof ResizeObserver !== 'function') return;
+    const observer = new ResizeObserver(entries => setAvailable(entries[0].contentRect.width));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  // The chosen width is the page's viewport: the frame's border is drawn outside it (content-box, two more pixels).
+  const scale = width && available ? Math.min(1, available / (width + 2)) : 1;
   const shownHeight = height ?? Math.min(WEB_LIMITS.maxHeight, Math.max(WEB_LIMITS.minHeight, (report?.height ?? 120) + 2));
   const link = report?.navigations.at(-1), sent = report?.submissions.at(-1);
   const stored: [string, string, string][] = report ? [...Object.entries(report.storage.local).map(([k, v]): [string, string, string] => ['localStorage', k, v]),
@@ -74,8 +88,16 @@ function LivePage({ files, title, height, run, setup }: { files: WebFiles; title
   return <div className={styles.live}>
     <figure className={styles.preview}>
       <figcaption>瀏覽器裡的結果{report?.title ? <span className={styles.pageTitle}>分頁標題：{report.title}</span> : null}</figcaption>
-      {inBrowser ? <iframe key={nonce} ref={frame} className={styles.frame} title={`${title}：頁面預覽`} sandbox={WEB_SANDBOX} srcDoc={html} style={{ height: shownHeight }}/>
-        : <div className={styles.frame} style={{ height: shownHeight }} aria-hidden/>}
+      {widths && <div className={styles.widths} role="group" aria-label={`${title}：預覽寬度`}>
+        {widths.map(w => <button key={w} type="button" aria-pressed={width === w} onClick={() => setWidth(w)}>{w}px</button>)}
+        <button type="button" aria-pressed={width === undefined} onClick={() => setWidth(undefined)}>填滿欄位</button>
+        {width !== undefined && <span className={styles.note}>頁面寬 {width}px{scale < 1 ? `，縮小成 ${Math.round(scale * 100)}% 顯示` : ''}</span>}
+      </div>}
+      <div ref={room} className={styles.room} style={width ? { height: shownHeight * scale } : undefined}>
+        {inBrowser ? <iframe key={nonce} ref={frame} className={styles.frame} title={`${title}：頁面預覽`} sandbox={WEB_SANDBOX} srcDoc={html}
+          style={width ? { boxSizing: 'content-box', height: shownHeight - 2, width, transform: `scale(${scale})`, transformOrigin: '0 0', transitionProperty: 'none' } : { height: shownHeight }}/>
+          : <div className={styles.frame} style={{ height: shownHeight }} aria-hidden/>}
+      </div>
     </figure>
     <div aria-live="polite">
       {link && <p className={styles.note}>連結「{link.text || link.href}」會前往 <code>{link.href}</code>{link.target ? `（target="${link.target}"）` : ''}；預覽不會離開這一頁。</p>}
@@ -133,7 +155,7 @@ export function WebExampleView({ example, tokens }: { example: WebExample; token
     <p className={base.muted}><Rich text={example.description}/></p>
     <div className={styles.split}>
       <div className={styles.files}>{kinds.map(k => <FileCode key={k} kind={k} text={example.files[k]!} tokens={tokens?.[k]}/>)}</div>
-      <LivePage files={shown} title={example.title} height={example.height} run={run} setup={example.setup}/>
+      <LivePage files={shown} title={example.title} height={example.height} run={run} setup={example.setup} widths={example.widths}/>
     </div>
     <details className={styles.facts}>
       <summary>這個頁面在瀏覽器裡的事實（{facts.length}）</summary>
@@ -201,7 +223,7 @@ export function WebExerciseBox({ exercise, tokens, run = runInFrame }: { exercis
       <button type="button" className={base.primaryButton} onClick={check} aria-disabled={busy || undefined}><Check size={14} aria-hidden/>{busy ? '檢查中…' : '檢查'}</button>
       <button type="button" onClick={reset}><RotateCcw size={14} aria-hidden/>重設</button>
     </div>
-    <LivePage files={shown} title={exercise.title} run={runs} setup={exercise.setup}/>
+    <LivePage files={shown} title={exercise.title} run={runs} setup={exercise.setup} widths={exercise.widths}/>
     <div className={styles.steps}>
       <h4 id={`${id}-steps`}>檢查的步驟</h4>
       <p className={styles.note}>「檢查」會把你目前的檔案載入一份全新的頁面（寬 {viewport.width}px、高 {viewport.height}px），依序做下面的事，只看結果，不看寫法。</p>

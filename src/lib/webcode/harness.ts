@@ -19,6 +19,11 @@ const SOURCE = String.raw`(function () {
   'use strict';
   var NONCE = '__LI_NONCE__', LIVE = __LI_LIVE__;
   var MAX_LINES = 200, MAX_NODES = 200, MAX_TEXT = 60, MAX_ATTR = 40, MAX_ATTRS = 6;
+  // RWD-1: a check measures the page at the frame's full width. Where scroll bars take room (classic scroll bars), a page
+  // taller than the check's viewport would be laid out some 15px narrower than the width the steps name, and a correct
+  // answer would fail a width check. The check frame's own scroll bar is therefore not drawn (the page still scrolls);
+  // a style sheet adopted by the document adds no element and no attribute to the page.
+  if (!LIVE) { try { var bars = new CSSStyleSheet(); bars.replaceSync(':where(html) { scrollbar-width: none; } html::-webkit-scrollbar { display: none; }'); document.adoptedStyleSheets = [bars]; } catch (e) { void e; } }
   var injected = document.querySelectorAll('[data-li-harness]');
   for (var i = 0; i < injected.length; i++) if (injected[i].parentNode) injected[i].parentNode.removeChild(injected[i]);
 
@@ -354,6 +359,22 @@ const SOURCE = String.raw`(function () {
       var ms = Math.max(0, Math.min(60000, Number(s.ms) || 0));
       return (LIVE ? new Promise(function (r) { realSetTimeout(r, Math.min(ms, 1000)); }) : advance(ms)).then(function () { return { ok: true }; });
     }
+    if (s.do === 'resize') {
+      // The frame cannot size itself: it asks the parent (RWD-0) and goes on once its own viewport has the size it asked
+      // for, so media and container queries apply before the next check. The size can arrive a moment after the parent
+      // set it (the parent page lays out again first; a site rule that shortens every transition for reduced motion
+      // delays it by a frame), so the frame looks at its own viewport instead of trusting an answer.
+      return new Promise(function (resolve) {
+        var w = Number(s.width), h = s.height ? Number(s.height) : 0, waited = 0;
+        window.parent.postMessage({ li: NONCE, kind: 'resize', width: w, height: h }, '*');
+        (function look() {
+          if (Math.abs(window.innerWidth - w) <= 1 && (!h || Math.abs(window.innerHeight - h) <= 1)) { void document.documentElement.offsetWidth; tick().then(function () { resolve({ ok: true }); }); return; }
+          waited += 20;
+          if (waited > 2000) { resolve({ ok: false, error: 'resize' }); return; }
+          realSetTimeout(look, 20);
+        })();
+      });
+    }
     if (s.do === 'tab') {
       // The key goes to the focused element first: a page that cancels it (a focus trap) decides where focus goes.
       var from = document.activeElement && document.activeElement !== document.body ? document.activeElement : document.body;
@@ -563,7 +584,8 @@ const SOURCE = String.raw`(function () {
 
   window.addEventListener('message', function (e) {
     var d = e.data;
-    if (!d || d.li !== NONCE || e.source !== window.parent || d.kind !== 'run') return;
+    if (!d || d.li !== NONCE || e.source !== window.parent) return;
+    if (d.kind !== 'run') return;
     run(d.steps || []).then(function (results) { return tick().then(function () { post('result', { results: results }); }); });
   });
   function start() {
@@ -571,6 +593,8 @@ const SOURCE = String.raw`(function () {
       ready = true;
       post('ready');
       if (LIVE && typeof MutationObserver === 'function') new MutationObserver(touch).observe(document.documentElement, { subtree: true, childList: true, attributes: true, characterData: true });
+      // RWD-0: a preview switched to a narrower width has a taller page; it reports again so that its frame can grow.
+      if (LIVE) window.addEventListener('resize', touch);
     }, 0);
   }
   if (document.readyState === 'complete') start(); else window.addEventListener('load', start);

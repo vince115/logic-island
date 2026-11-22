@@ -1,6 +1,7 @@
 import { courses, type Course } from '@/content/courses';
 import { lessons } from '@/content/curriculum/lessons';
 import { catalogLessons, contentStatusOf, type ContentStatus } from './catalog';
+import planning from './planning-data.json';
 
 /*
  * Multi-archipelago v2 (P4): the Interactive Lab Island's registry. The island is a tool shared by every region, so a
@@ -115,7 +116,10 @@ export interface LabLesson { lessonId: string; title: string; slug: string; stat
 export function lessonsUsingLab(lab: LabEntry): LabLesson[] {
   const uses = lab.kind === 'algorithm'
     ? new Set(lessons.filter(l => l.labs?.includes(lab.id as never)).map(l => l.lessonId as string))
-    : new Set(catalogLessons.filter(l => lab.activities.includes(l.activity)).map(l => l.lessonId as string));
+    // RWD-1: an implemented tool lab also keeps the lessons the blueprint outlined with its activity when they are
+    // written with another one (RWD03 and RWD04 are web-code lessons; the Flexbox Playground still lists them, now as links).
+    : new Set([...catalogLessons.filter(l => lab.activities.includes(l.activity)).map(l => l.lessonId as string),
+      ...(lab.status === 'implemented' ? planning.plannedLessons.filter(l => lab.activities.includes(l.activity)).map(l => l.lessonId) : [])]);
   return catalogLessons.filter(l => uses.has(l.lessonId)).map(l => ({ lessonId: l.lessonId, title: l.title, slug: l.slug, status: contentStatusOf(l) }));
 }
 

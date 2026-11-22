@@ -50,7 +50,8 @@ export const PYTHON_LANGUAGES = ['Python'] as const satisfies readonly Language[
 // LNX-1 (2026-11-22): the Linux systems island joins with LNX01–LNX04 (prepared in LNX-0).
 // WEB-1 (2026-11-23): the web foundations island joins with WEB01–WEB04 (prepared in WEB-0); in the world registry's order it comes before the systems region.
 // LLM-1 (2026-11-22): the large-language-models island joins with LLM01–LLM03 (prepared in LLM-0), after AI foundations in the AI region.
-export const ISLAND_IDS = ['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'large-language-models', 'generative-ai', 'web-foundations', 'linux-systems', 'network-servers'] as const;
+// RWD-1 (2026-11-23): the responsive design island joins with RWD01–RWD04, after web foundations in the web region.
+export const ISLAND_IDS = ['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'large-language-models', 'generative-ai', 'web-foundations', 'responsive-design', 'linux-systems', 'network-servers'] as const;
 /**
  * CN-0 (2026-11-21): islands registered for authoring before their first lesson is written. Their prefix and lesson
  * capability are known (so their lessons can be written and validated), but they are not curriculum islands yet: no
@@ -66,6 +67,7 @@ export const ISLAND_IDS = ['foundations', 'structures', 'algorithms', 'programmi
 // LLM-1 (2026-11-22): the large-language-models island joins with LLM01–LLM03 (prepared in LLM-0); generative-ai stays prepared.
 // WEB-0 (2026-11-23) prepared the web foundations island, which WEB-1 moved to ISLAND_IDS.
 // GEN-1 (2026-11-23): the generative-ai island joins with GEN01–GEN02 (prepared in LLM-0), after large-language-models.
+// RWD-1 (2026-11-23): the responsive design island joined ISLAND_IDS with RWD01–RWD04 (web-code, pages checked at several widths).
 export const PREPARED_ISLAND_IDS = [] as const;
 export type IslandId = typeof ISLAND_IDS[number] | typeof PREPARED_ISLAND_IDS[number];
 /**
@@ -73,11 +75,11 @@ export type IslandId = typeof ISLAND_IDS[number] | typeof PREPARED_ISLAND_IDS[nu
  * the type too (it was any string, so DB01 or AG01 type-checked as a D or A lesson); IDs of every island, planned ones
  * included, are AnyLessonId in src/content/world/lesson-id.ts and are always parsed with their whole prefix.
  */
-export type LessonPrefixWritten = 'F' | 'D' | 'A' | 'DB' | 'PL' | 'CN' | 'AIF' | 'LNX' | 'SRV' | 'LLM' | 'GEN' | 'WEB';
+export type LessonPrefixWritten = 'F' | 'D' | 'A' | 'DB' | 'PL' | 'CN' | 'AIF' | 'LNX' | 'SRV' | 'LLM' | 'GEN' | 'WEB' | 'RWD';
 export type LessonId = `${LessonPrefixWritten}${LessonNumber}`;
 /** 2026-11-20 (course production, batch 1): the programming-languages island (PL) joins with its first written lessons. */
 export const ISLAND_PREFIX: Record<IslandId, LessonPrefixWritten> = { foundations: 'F', structures: 'D', algorithms: 'A', databases: 'DB', 'programming-languages': 'PL', networks: 'CN', 'ai-foundations': 'AIF', 'linux-systems': 'LNX',
-  'network-servers': 'SRV', 'large-language-models': 'LLM', 'generative-ai': 'GEN', 'web-foundations': 'WEB' };
+  'network-servers': 'SRV', 'large-language-models': 'LLM', 'generative-ai': 'GEN', 'web-foundations': 'WEB', 'responsive-design': 'RWD' };
 
 /**
  * Phase F.1a: a lesson taught in a query language instead of the four programming languages. A SQL lesson has no program
