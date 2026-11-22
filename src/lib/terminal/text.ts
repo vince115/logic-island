@@ -264,16 +264,16 @@ export function compilePattern(pattern: string, extended: boolean): { source: st
 
 const WORD = '[\\p{L}\\p{N}_]';
 
-/** grep [-i -v -n -c -l -w -x -r -E -F -H -h] [-e PATTERN] PATTERN [file…]. */
-export function grep(io: TextIo, o: Parsed) {
+/** grep [-i -v -n -c -l -w -x -r -E -F -H -h] [-e PATTERN] PATTERN [file…]; returns whether a line was selected (E4: the exit status). */
+export function grep(io: TextIo, o: Parsed): boolean {
   const operands = [...o.operands];
   const patterns = o.flags.get('e') ?? (operands.length ? [operands.shift()!] : null);
-  if (!patterns) { io.usage('Usage: grep [OPTION]... PATTERNS [FILE]...'); return; }
+  if (!patterns) { io.usage('Usage: grep [OPTION]... PATTERNS [FILE]...'); return false; }
   const sources: string[] = [];
   for (const p of patterns) {
     if (o.flags.has('F')) { sources.push(Array.from(p).map(escapeRe).join('')); continue; }
     const c = compilePattern(p, o.flags.has('E'));
-    if ('error' in c) { io.err(`grep: ${c.error}`); return; }
+    if ('error' in c) { io.err(`grep: ${c.error}`); return false; }
     sources.push(c.source);
   }
   let source = sources.map(s => `(?:${s})`).join('|');
@@ -282,7 +282,7 @@ export function grep(io: TextIo, o: Parsed) {
   // line matches is used, and lookbehind is missing from older Safari).
   else if (o.flags.has('w')) source = `(?:^|[^${WORD.slice(1, -1)}])(?:${source})(?!${WORD})`;
   let re: RegExp;
-  try { re = new RegExp(source, o.flags.has('i') ? 'iu' : 'u'); } catch { io.err('grep: 無效的正規表示式'); return; }
+  try { re = new RegExp(source, o.flags.has('i') ? 'iu' : 'u'); } catch { io.err('grep: 無效的正規表示式'); return false; }
   const recursive = o.flags.has('r') || o.flags.has('R'), invert = o.flags.has('v');
   const names = operands.length ? operands : [recursive ? '.' : '-'];
   const files: { name: string; text: string }[] = [];
@@ -305,12 +305,15 @@ export function grep(io: TextIo, o: Parsed) {
   };
   for (const name of names) visit(name, true);
   const prefix = !o.flags.has('h') && (o.flags.has('H') || names.length > 1 || viaFolder);
+  let selected = false;
   for (const f of files) {
     const hits = splitLines(f.text).map((l, n) => [bare(l), n + 1] as const).filter(([l]) => re.test(l) !== invert);
+    if (hits.length) selected = true;
     if (o.flags.has('l')) { if (hits.length) io.out(`${f.name}\n`); continue; }
     if (o.flags.has('c')) { io.out(`${prefix ? `${f.name}:` : ''}${hits.length}\n`); continue; }
     for (const [line, n] of hits) io.out(`${prefix ? `${f.name}:` : ''}${o.flags.has('n') ? `${n}:` : ''}${line}\n`);
   }
+  return selected;
 }
 
 interface SortKey { start: number; end?: number; flags: string }

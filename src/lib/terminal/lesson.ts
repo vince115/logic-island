@@ -1,6 +1,10 @@
 import { baseName, depthOf, groupOf, LIMITS, linkTarget, parentOf, resolvePath, subtreeOf, validName, type Accounts, type FsNode, type FsState, type GroupEntry, type Mount, type SystemInfo } from './fs';
 import { ACCOUNT_FILES, ACCOUNT_NAME, defaultAccounts, findGroup, findUser, groupById, loginGroups, nextId, writeAccountFiles } from './accounts';
 import { ALL_COMMANDS, commandNames, LAB_PROFILE, PROFILES, prompt, run, type Line, type ProfileId, type ShellProfile } from './shell';
+import { DAY, DEFAULT_NOW, parseTime } from './clock';
+import { commOf, MAX_PROCESSES, tableOf, type Proc } from './processes';
+import { compareVersions, installedOf, PACKAGE_NAME, PACKAGE_VERSION, type PackageDb, type PackageFile } from './packages';
+import { enablement, findUnitFile, journalProblems, unitFilesOnDisk, unitName, type JournalEntry, type Program, type UnitRun } from './services';
 
 /*
  * LNX-0 (2026-11-22): the terminal lesson capability (docs/curriculum/LNX0_TERMINAL_CAPABILITY.md). A Linux lesson
@@ -18,6 +22,12 @@ import { ALL_COMMANDS, commandNames, LAB_PROFILE, PROFILES, prompt, run, type Li
  * everything of the profiles below them. Only a users machine has a user and group database (accounts, laid over a small
  * Ubuntu-like base and written to /etc/passwd, /etc/group and /etc/shadow) and a umask, and only its exercises may check
  * users, groups and the umask. A variant may also change the host name and the uname fields.
+ *
+ * Engine stages E4–E6 (§12–§14): the profiles 'processes', 'packages' and 'services' (each including the ones below).
+ * A processes machine declares a fixed clock (now, boot), its load and memory, and a process table; a packages machine
+ * repositories, available and installed packages; a services machine the run state of its units (the unit files are
+ * files of the machine), the programs its services run and a journal. Exercises may check processes, packages and
+ * services; a variant may replace the process table or the journal.
  */
 
 /** A file, folder or (from engine stage E1, not before) symbolic link of a machine. Paths are absolute and normalized. */
@@ -69,7 +79,47 @@ export interface TerminalMachine {
   accounts?: { users?: TerminalUser[]; groups?: TerminalGroup[] };
   /** E3 (users profile): the session's umask; default 0o022. */
   umask?: number;
+  /** E4: the machine's fixed clock, 'YYYY-MM-DD HH:MM:SS' (UTC); default 2026-11-22 10:00:00. */
+  now?: string;
+  /** E4: when it booted (uptime is now − boot); default one day before now. */
+  boot?: string;
+  /** E4: the 1, 5 and 15 minute load averages; default 0. */
+  load?: [number, number, number];
+  /** E4: CPUs (top's %Cpu line); default 1. */
+  cpus?: number;
+  /** E4: memory in MiB (top); defaults: total 2048, cache 512, swap 0. */
+  memory?: { total: number; cache?: number; swap?: number };
+  /** E4: the process table. */
+  processes?: TerminalProcess[];
+  /** E5: repositories, available and installed packages. */
+  packages?: TerminalPackages;
+  /** E6: the run state of units at the start (a process with a unit makes it active; unlisted units are inactive). */
+  services?: TerminalService[];
+  /** E6: what the programs of ExecStart= do. */
+  programs?: Program[];
+  /** E6: the journal, oldest first, none after now. */
+  journal?: TerminalJournalEntry[];
 }
+
+/** E4: a process. Defaults: ppid 1, stat S, cpu 0, rss 0, vsz the rss, shr 0, tty ?, start the boot time, time 0, nice 0. */
+export interface TerminalProcess {
+  pid: number; ppid?: number; user: string; command: string; stat?: string; cpu?: number; rss?: number; vsz?: number; shr?: number; tty?: string;
+  start?: string; time?: number; nice?: number;
+  /** E6 (services machines): the service it belongs to. */
+  unit?: string;
+  term?: 'exit' | 'ignore'; hup?: 'exit' | 'reload' | 'ignore'; int?: 'exit' | 'ignore';
+}
+/** E5: a machine's package data. stale: the lists were never fetched (apt sees nothing until apt update). */
+export interface TerminalPackages {
+  repositories: { name: string; url: string; suite: string; components: string[]; enabled?: boolean }[];
+  available: { name: string; version: string; repo: string; component?: string; arch?: string; section?: string; description: string; depends?: string[]; files?: PackageFile[]; security?: boolean }[];
+  installed?: { name: string; version: string; auto?: boolean; held?: boolean; config?: boolean }[];
+  stale?: boolean;
+}
+/** E6: a unit's state at the start. A failed unit names the pid and exit status of its last main process. */
+export interface TerminalService { unit: string; active: 'active' | 'failed' | 'inactive'; since?: string; result?: string; pid?: number; status?: number }
+/** E6: a journal entry: id is the program (systemd, sshd, kernel…); priority 0 emerg … 7 debug. */
+export interface TerminalJournalEntry { time: string; unit?: string; id: string; pid?: number; priority: number; message: string }
 
 /** One command of a transcript and exactly what the terminal prints for it (lines joined by \n; '' for nothing). */
 export interface TerminalStep { command: string; output: string }
@@ -103,14 +153,20 @@ export type TerminalCheck =
   /** E3 (users machines): the group exists (absent: it does not) with this gid; members must be in it (as a login group). */
   | { kind: 'group'; name: string; absent?: true; gid?: number; members?: string[]; notMembers?: string[] }
   /** E3 (users machines): the session's umask at the end. */
-  | { kind: 'umask'; umask: number };
-export const TERMINAL_CHECK_KINDS = ['exists', 'absent', 'mode', 'owner', 'content', 'cwd', 'output', 'unchanged', 'link', 'user', 'group', 'umask'] as const satisfies readonly TerminalCheck['kind'][];
+  | { kind: 'umask'; umask: number }
+  /** E4: a process (by name — ps's comm — and/or pid) exists (with this user, state letter) or is absent. */
+  | { kind: 'process'; name?: string; pid?: number; absent?: true; user?: string; state?: string }
+  /** E5: the package is installed (with this version, held or not), or absent (not installed; purged: no configuration left either). */
+  | { kind: 'package'; name: string; absent?: true; purged?: true; version?: string; held?: boolean }
+  /** E6: the service's run state and whether it starts at boot. */
+  | { kind: 'service'; unit: string; active?: 'active' | 'inactive' | 'failed'; enabled?: boolean };
+export const TERMINAL_CHECK_KINDS = ['exists', 'absent', 'mode', 'owner', 'content', 'cwd', 'output', 'unchanged', 'link', 'user', 'group', 'umask', 'process', 'package', 'service'] as const satisfies readonly TerminalCheck['kind'][];
 
 /**
  * The same machine with some files replaced or added (and, fix 5, another host name or other uname fields); the
  * learner's commands are replayed on it as well.
  */
-export interface TerminalVariant { label: string; files: TerminalFile[]; host?: string; system?: Partial<SystemInfo> }
+export interface TerminalVariant { label: string; files: TerminalFile[]; host?: string; system?: Partial<SystemInfo>; /** E4 */ processes?: TerminalProcess[]; /** E6 */ journal?: TerminalJournalEntry[] }
 
 export interface TerminalExercise {
   id: string;
@@ -142,8 +198,8 @@ const SYSTEM_FIELDS = ['kernel', 'release', 'version', 'machine', 'os'] as const
 
 /** E1: the shell profile a machine's sessions use (lab unless it says files, streams or users). */
 export const profileOf = (machine: Pick<TerminalMachine, 'profile'>): ShellProfile => PROFILES[machine.profile ?? 'lab'] ?? LAB_PROFILE;
-/** Each profile includes the ones before it: files (E1) < streams (E2) < users (E3). */
-const RANK: Record<ProfileId, number> = { lab: 0, files: 1, streams: 2, users: 3 };
+/** Each profile includes the ones before it: files (E1) < streams (E2) < users (E3) < processes (E4) < packages (E5) < services (E6). */
+const RANK: Record<ProfileId, number> = { lab: 0, files: 1, streams: 2, users: 3, processes: 4, packages: 5, services: 6 };
 const rankOf = (machine: Pick<TerminalMachine, 'profile'>) => RANK[machine.profile ?? 'lab'] ?? 0;
 
 /** E3: a users machine's database: the base and its user (defaultAccounts) with the machine's groups and users laid over it. */
@@ -184,11 +240,53 @@ export function machineState(machine: TerminalMachine): FsState {
     nodes, cwd: machine.cwd, user: machine.user, home: homeOf(machine), ...(machine.host ? { host: machine.host } : {}), ...(machine.groups ? { groups: machine.groups } : {}),
     ...(machine.system ? { system: { ...machine.system } } : {}), ...(machine.mounts ? { mounts: machine.mounts.map(m => ({ ...m })) } : {}),
   };
-  if (machine.profile !== 'users') return state;
+  if (rankOf(machine) < RANK.users) return state;
   // E3: the database, its files, the login groups of the session and the umask.
   const accounts = machineAccounts(machine);
   writeAccountFiles(nodes, accounts);
-  return { ...state, accounts, groups: loginGroups(accounts, machine.user), umask: machine.umask ?? 0o022 };
+  const users: FsState = { ...state, accounts, groups: loginGroups(accounts, machine.user), umask: machine.umask ?? 0o022 };
+  return rankOf(machine) < RANK.processes ? users : systemState(machine, users);
+}
+
+/** E4–E6: the clock, processes, packages, services and journal of a machine (each only on its profile or above). */
+function systemState(machine: TerminalMachine, base: FsState): FsState {
+  const now = parseTime(machine.now ?? DEFAULT_NOW)!, boot = machine.boot !== undefined ? parseTime(machine.boot)! : now - DAY;
+  const processes: Proc[] = (machine.processes ?? []).map(p => ({
+    pid: p.pid, ppid: p.ppid ?? 1, user: p.user, command: p.command, stat: p.stat ?? 'S', cpu: p.cpu ?? 0, rss: p.rss ?? 0, vsz: p.vsz ?? p.rss ?? 0, shr: p.shr ?? 0,
+    tty: p.tty ?? '?', start: p.start !== undefined ? parseTime(p.start)! : boot, time: p.time ?? 0, nice: p.nice ?? 0,
+    ...p.unit ? { unit: unitName(p.unit) } : {}, ...p.term ? { term: p.term } : {}, ...p.hup ? { hup: p.hup } : {}, ...p.int ? { int: p.int } : {},
+  }));
+  let state: FsState = {
+    ...base, status: 0, processes, lastPid: Math.max(0, ...processes.map(p => p.pid)),
+    clock: { now, boot, load: machine.load ?? [0, 0, 0], cpus: machine.cpus ?? 1, memory: { total: machine.memory?.total ?? 2048, cache: machine.memory?.cache ?? 512, swap: machine.memory?.swap ?? 0 } },
+  };
+  if (rankOf(machine) >= RANK.packages && machine.packages) {
+    const p = machine.packages;
+    const db: PackageDb = {
+      repositories: p.repositories.map(r => ({ name: r.name, url: r.url, suite: r.suite, components: [...r.components], enabled: r.enabled ?? true })),
+      available: p.available.map(a => ({ ...a, depends: [...a.depends ?? []], files: (a.files ?? []).map(f => ({ ...f })) })),
+      installed: (p.installed ?? []).map(i => ({ name: i.name, version: i.version, ...i.auto ? { auto: true } : {}, ...i.config ? { config: true } : {} })),
+      holds: (p.installed ?? []).filter(i => i.held).map(i => i.name), current: !p.stale,
+    };
+    state = { ...state, packages: db };
+  }
+  if (rankOf(machine) < RANK.services) return state;
+  const loaded = Object.fromEntries(unitFilesOnDisk(state.nodes).map(n => [n, findUnitFile(state.nodes, n)!]));
+  const runtime: Record<string, UnitRun> = {};
+  const mainOf = (unit: string) => {
+    const own = processes.filter(p => p.unit === unit);
+    return own.find(p => !own.some(q => q.pid === p.ppid))?.pid;
+  };
+  for (const s of machine.services ?? []) {
+    const unit = unitName(s.unit), since = s.since !== undefined ? parseTime(s.since)! : boot;
+    if (s.active === 'active') { const main = mainOf(unit); runtime[unit] = main !== undefined ? { active: 'active', sub: 'running', since, main } : { active: 'active', sub: 'exited', since }; }
+    else if (s.active === 'failed') {
+      runtime[unit] = { active: 'failed', sub: 'failed', since, result: s.result ?? 'exit-code', ...s.pid !== undefined ? { exit: { pid: s.pid, code: s.result === 'signal' ? 'killed' : 'exited', status: s.status ?? 1 } } : {} };
+    } else runtime[unit] = { active: 'inactive', sub: 'dead', ...s.since !== undefined ? { since } : {} };
+  }
+  for (const p of processes) if (p.unit && !runtime[p.unit]) runtime[p.unit] = { active: 'active', sub: 'running', since: boot, main: mainOf(p.unit) };
+  const journal: JournalEntry[] = (machine.journal ?? []).map(e => ({ time: parseTime(e.time)!, ...e.unit ? { unit: unitName(e.unit) } : {}, id: e.id, ...e.pid !== undefined ? { pid: e.pid } : {}, priority: e.priority, message: e.message }));
+  return { ...state, services: { loaded, runtime, programs: (machine.programs ?? []).map(p => ({ ...p })) }, journal };
 }
 
 /** The machine with a variant's files replacing or adding to its own (fix 5: and its host name and uname fields). */
@@ -197,6 +295,7 @@ export function variantMachine(machine: TerminalMachine, variant: TerminalVarian
   return {
     ...machine, files: [...machine.files.filter(f => !paths.has(f.path)), ...files],
     ...variant.host !== undefined ? { host: variant.host } : {}, ...variant.system ? { system: { ...machine.system, ...variant.system } } : {},
+    ...variant.processes ? { processes: variant.processes } : {}, ...variant.journal ? { journal: variant.journal } : {},
   };
 }
 
@@ -245,6 +344,22 @@ export function describeCheck(check: TerminalCheck): string {
       return `群組 ${check.name} 應該存在${parts.length ? `（${parts.join('，')}）` : ''}`;
     }
     case 'umask': return `umask 應該是 ${octal(check.umask).padStart(4, '0')}`;
+    case 'process': {
+      const which = [check.name !== undefined ? check.name : '', check.pid !== undefined ? `PID ${check.pid}` : ''].filter(Boolean).join('、');
+      if (check.absent) return `行程 ${which} 應該已經結束`;
+      const parts = [check.user ? `屬於 ${check.user}` : '', check.state ? `狀態是 ${check.state}` : ''].filter(Boolean);
+      return `行程 ${which} 應該在執行${parts.length ? `（${parts.join('，')}）` : ''}`;
+    }
+    case 'package': {
+      if (check.purged) return `套件 ${check.name} 應該完全移除（含設定檔）`;
+      if (check.absent) return `套件 ${check.name} 應該沒有安裝`;
+      const parts = [check.version ? `版本 ${check.version}` : '', check.held === true ? '被 hold' : check.held === false ? '沒有被 hold' : ''].filter(Boolean);
+      return `套件 ${check.name} 應該已安裝${parts.length ? `（${parts.join('，')}）` : ''}`;
+    }
+    case 'service': {
+      const parts = [check.active ? `狀態是 ${check.active}` : '', check.enabled === true ? '開機時啟動' : check.enabled === false ? '開機時不啟動' : ''].filter(Boolean);
+      return `服務 ${unitName(check.unit)} 應該${parts.join('，') || '存在'}`;
+    }
   }
 }
 
@@ -303,6 +418,32 @@ function failure(check: TerminalCheck, start: FsState, end: FsState, outputs: st
       return null;
     }
     case 'umask': return (end.umask ?? 0o022) === check.umask ? null : `目前是 ${octal(end.umask ?? 0o022).padStart(4, '0')}`;
+    case 'process': {
+      const found = tableOf(end).filter(p => (check.name === undefined || commOf(p.command) === check.name) && (check.pid === undefined || p.pid === check.pid));
+      if (check.absent) return found.length ? `它還在（PID ${found.map(p => p.pid).join('、')}）` : null;
+      if (!found.length) return '找不到這個行程';
+      if (check.user && !found.some(p => p.user === check.user)) return `它屬於 ${found[0].user}`;
+      if (check.state && !found.some(p => p.stat.startsWith(check.state!))) return `它的狀態是 ${found[0].stat}`;
+      return null;
+    }
+    case 'package': {
+      const db = end.packages, inst = db && installedOf(db, check.name);
+      if (check.purged) return inst ? `它還裝著（${inst.version}）` : db?.installed.some(p => p.name === check.name) ? '它的設定檔還在（rc）' : null;
+      if (check.absent) return inst ? `它還裝著（${inst.version}）` : null;
+      if (!db || !inst) return '它沒有安裝';
+      if (check.version && inst.version !== check.version) return `安裝的版本是 ${inst.version}`;
+      if (check.held !== undefined && db.holds.includes(check.name) !== check.held) return check.held ? '它沒有被 hold' : '它仍被 hold';
+      return null;
+    }
+    case 'service': {
+      const name = unitName(check.unit), active = end.services?.runtime[name]?.active ?? 'inactive';
+      if (check.active && active !== check.active) return `它是 ${active}`;
+      if (check.enabled !== undefined) {
+        const e = enablement(end.nodes, name);
+        if ((e === 'enabled') !== check.enabled) return e ? `它是 ${e}` : '沒有這個 unit 檔';
+      }
+      return null;
+    }
   }
 }
 
@@ -341,7 +482,7 @@ export function machineProblems(machine: TerminalMachine): string[] {
   if (!NAME.test(machine.user)) fail(`invalid user ${machine.user}`);
   if (machine.host !== undefined && !HOST.test(machine.host)) fail(`invalid host ${machine.host}`);
   for (const g of machine.groups ?? []) if (!NAME.test(g)) fail(`invalid group ${g}`);
-  const files = rankOf(machine) >= RANK.files, users = machine.profile === 'users';
+  const files = rankOf(machine) >= RANK.files;
   if (machine.profile !== undefined && !Object.hasOwn(PROFILES, machine.profile)) fail(`unknown profile ${machine.profile}`);
   if (machine.system !== undefined) {
     if (!files) fail('system information needs the files profile (engine stage E1)');
@@ -371,6 +512,7 @@ export function machineProblems(machine: TerminalMachine): string[] {
   }
   if (!normalized(machine.cwd) || kinds.get(machine.cwd) !== 'dir') fail(`the working directory ${machine.cwd} is not a folder of the machine`);
   problems.push(...accountProblems(machine, kinds).map(p => `machine ${machine.id}: ${p}`));
+  if (!problems.length) problems.push(...systemProblems(machine).map(p => `machine ${machine.id}: ${p}`));
   if (!normalized(homeOf(machine)) || kinds.get(homeOf(machine)) !== 'dir') fail(`the home ${homeOf(machine)} is not a folder of the machine`);
   if (machine.mounts !== undefined) {
     if (!files) fail('mounts need the files profile (engine stage E1)');
@@ -391,10 +533,136 @@ export function machineProblems(machine: TerminalMachine): string[] {
   return problems;
 }
 
+const LINE = (max: number) => (t: unknown) => typeof t === 'string' && t.length >= 1 && t.length <= max && !t.includes('\n');
+const UNIT = /^[A-Za-z0-9@._-]{1,64}\.service$/;
+const whole = (x: unknown, min: number, max: number) => Number.isInteger(x) && (x as number) >= min && (x as number) <= max;
+
+/** E4–E6: the problems of a machine's clock, processes, packages, services, programs and journal. */
+function systemProblems(machine: TerminalMachine): string[] {
+  const problems: string[] = [], fail = (what: string) => problems.push(what), rank = rankOf(machine);
+  const need = (field: string, at: number, stage: string) => { if (rank < at) fail(`${field} need${field.endsWith('s') ? '' : 's'} the ${Object.keys(RANK).find(k => RANK[k as ProfileId] === at)} profile (engine stage ${stage})`); };
+  const e4 = { now: machine.now, boot: machine.boot, load: machine.load, cpus: machine.cpus, memory: machine.memory, processes: machine.processes };
+  for (const [field, value] of Object.entries(e4)) if (value !== undefined) need(field, RANK.processes, 'E4');
+  if (machine.packages !== undefined) need('packages', RANK.packages, 'E5');
+  for (const [field, value] of Object.entries({ services: machine.services, programs: machine.programs, journal: machine.journal })) if (value !== undefined) need(field, RANK.services, 'E6');
+  if (problems.length || rank < RANK.processes) return problems;
+  const now = parseTime(machine.now ?? DEFAULT_NOW), boot = machine.boot !== undefined ? parseTime(machine.boot) : (now ?? 0) - DAY;
+  if (now === undefined) fail(`now must be a date and time YYYY-MM-DD HH:MM:SS, not ${machine.now}`);
+  if (boot === undefined) fail(`boot must be a date and time YYYY-MM-DD HH:MM:SS, not ${machine.boot}`);
+  if (now === undefined || boot === undefined) return problems;
+  if (boot > now) fail('boot must not be after now');
+  if (machine.load !== undefined && (!Array.isArray(machine.load) || machine.load.length !== 3 || machine.load.some(n => typeof n !== 'number' || n < 0 || n > 1000))) fail('load must be three numbers 0..1000');
+  if (machine.cpus !== undefined && !whole(machine.cpus, 1, 256)) fail('cpus must be 1..256');
+  const m = machine.memory;
+  if (m !== undefined && (!whole(m.total, 1, 1048576) || (m.cache !== undefined && !whole(m.cache, 0, m.total)) || (m.swap !== undefined && !whole(m.swap, 0, 1048576)))) fail('memory must be whole MiB: 1 ≤ total ≤ 1048576, 0 ≤ cache ≤ total, 0 ≤ swap');
+  const acc = machineAccounts(machine), procs = machine.processes ?? [], pids = new Set<number>();
+  if (procs.length > MAX_PROCESSES) fail(`at most ${MAX_PROCESSES} processes`);
+  for (const p of procs) {
+    const at = `process ${p.pid}`;
+    if (!whole(p.pid, 1, 4194304) || pids.has(p.pid)) fail(`${at}: the pid must be 1..4194304 and unique`);
+    pids.add(p.pid);
+    if (!findUser(acc, p.user)) fail(`${at}: user ${p.user} is not a user of the machine`);
+    if (!LINE(200)(p.command)) fail(`${at}: the command needs 1..200 characters on one line`);
+    if (p.stat !== undefined && !/^[RSDTZI][<NsLl+]*$/.test(p.stat)) fail(`${at}: invalid stat ${p.stat}`);
+    if (p.cpu !== undefined && (typeof p.cpu !== 'number' || p.cpu < 0 || p.cpu > 100 * (machine.cpus ?? 1))) fail(`${at}: cpu must be 0..100 per CPU`);
+    for (const [k, v] of [['rss', p.rss], ['vsz', p.vsz], ['shr', p.shr]] as const) if (v !== undefined && !whole(v, 0, 2 ** 31)) fail(`${at}: ${k} must be whole KiB`);
+    if (p.tty !== undefined && !/^(\?|pts\/\d{1,3}|tty\d{1,2})$/.test(p.tty)) fail(`${at}: tty must be ?, pts/N or ttyN`);
+    if (p.start !== undefined) { const t = parseTime(p.start); if (t === undefined || t > now || t < boot) fail(`${at}: start must be a time between boot and now`); }
+    if (p.time !== undefined && (typeof p.time !== 'number' || p.time < 0)) fail(`${at}: time must be seconds ≥ 0`);
+    if (p.nice !== undefined && !whole(p.nice, -20, 19)) fail(`${at}: nice must be -20..19`);
+    if (p.unit !== undefined && (rank < RANK.services || !UNIT.test(unitName(p.unit)))) fail(`${at}: a unit needs the services profile and a name like nginx.service`);
+    if (p.term !== undefined && !['exit', 'ignore'].includes(p.term)) fail(`${at}: term must be exit or ignore`);
+    if (p.hup !== undefined && !['exit', 'reload', 'ignore'].includes(p.hup)) fail(`${at}: hup must be exit, reload or ignore`);
+    if (p.int !== undefined && !['exit', 'ignore'].includes(p.int)) fail(`${at}: int must be exit or ignore`);
+  }
+  for (const p of procs) if (p.ppid !== undefined && p.ppid !== 0 && !pids.has(p.ppid)) fail(`process ${p.pid}: its parent ${p.ppid} is not in the table`);
+  if (machine.packages) problems.push(...packageProblems(machine.packages));
+  if (rank < RANK.services || problems.length) return problems;
+  const state = machineState(machine);
+  for (const s of machine.services ?? []) {
+    const unit = unitName(s.unit), at = `service ${s.unit}`, own = procs.filter(p => p.unit && unitName(p.unit) === unit);
+    if (!UNIT.test(unit)) { fail(`${at}: invalid unit name`); continue; }
+    if (!findUnitFile(state.nodes, unit)) fail(`${at}: no unit file /etc/systemd/system/${unit} or /usr/lib/systemd/system/${unit} on the machine`);
+    if (!['active', 'failed', 'inactive'].includes(s.active)) fail(`${at}: active must be active, failed or inactive`);
+    if (s.active !== 'active' && own.length) fail(`${at}: a ${s.active} service has no processes`);
+    if (s.since !== undefined) { const t = parseTime(s.since); if (t === undefined || t > now) fail(`${at}: since must be a time not after now`); }
+    if (s.pid !== undefined && (!whole(s.pid, 1, 4194304) || s.active !== 'failed')) fail(`${at}: pid is the last main process of a failed service`);
+    if (s.status !== undefined && !whole(s.status, 0, 255)) fail(`${at}: status must be 0..255`);
+  }
+  const listed = new Set((machine.services ?? []).map(s => unitName(s.unit)));
+  for (const p of procs) if (p.unit && !listed.has(unitName(p.unit)) && !findUnitFile(state.nodes, unitName(p.unit))) fail(`process ${p.pid}: no unit file for ${p.unit}`);
+  const paths = new Set<string>();
+  for (const p of machine.programs ?? []) {
+    const at = `program ${p.path}`;
+    if (!normalized(p.path) || paths.has(p.path)) fail(`${at}: needs a unique absolute, normalized path`);
+    paths.add(p.path);
+    if (p.title !== undefined && !LINE(200)(p.title)) fail(`${at}: the title needs 1..200 characters on one line`);
+    if (p.fail && (!LINE(300)(p.fail.message) || (p.fail.status !== undefined && !whole(p.fail.status, 1, 255)) || (p.fail.unless !== undefined && !normalized(p.fail.unless)))) fail(`${at}: fail needs a one-line message, a status 1..255 and an absolute unless path`);
+    if ((p.log ?? []).some(l => !LINE(300)(l))) fail(`${at}: each log line needs 1..300 characters`);
+    if (p.cpu !== undefined && (typeof p.cpu !== 'number' || p.cpu < 0 || p.cpu > 100)) fail(`${at}: cpu must be 0..100`);
+  }
+  const journal = machine.journal ?? [];
+  if (journal.length > 300) fail('at most 300 journal entries');
+  const times: number[] = [];
+  journal.forEach((e, i) => {
+    const at = `journal entry ${i + 1}`, t = parseTime(e.time);
+    if (t === undefined) { fail(`${at}: time must be YYYY-MM-DD HH:MM:SS`); return; }
+    times.push(t);
+    if (!whole(e.priority, 0, 7)) fail(`${at}: priority must be 0..7`);
+    if (!/^[A-Za-z0-9_.@-]{1,32}$/.test(e.id)) fail(`${at}: invalid id ${e.id}`);
+    if (!LINE(500)(e.message)) fail(`${at}: the message needs 1..500 characters on one line`);
+    if (e.unit !== undefined && !UNIT.test(unitName(e.unit))) fail(`${at}: invalid unit ${e.unit}`);
+    if (e.pid !== undefined && !whole(e.pid, 1, 4194304)) fail(`${at}: invalid pid`);
+  });
+  if (times.length === journal.length) problems.push(...journalProblems(times.map(time => ({ time, id: '', priority: 6, message: '' })), now));
+  return problems;
+}
+
+/** E5: the problems of a machine's package data. */
+function packageProblems(p: TerminalPackages): string[] {
+  const problems: string[] = [], fail = (what: string) => problems.push(what);
+  if (!Array.isArray(p.repositories) || !Array.isArray(p.available)) return ['packages need repositories and available lists'];
+  if (p.repositories.length > 8 || p.available.length > 120) fail('at most 8 repositories and 120 available package versions');
+  const repos = new Set<string>();
+  for (const r of p.repositories) {
+    const at = `repository ${r.name}`;
+    if (!/^[a-z0-9][a-z0-9.-]{0,31}$/.test(r.name) || repos.has(r.name)) fail(`${at}: needs a unique name`);
+    repos.add(r.name);
+    if (!/^https?:\/\/\S{1,200}$/.test(r.url)) fail(`${at}: invalid url`);
+    if (!/^[a-z0-9][a-z0-9.-]{0,31}$/.test(r.suite)) fail(`${at}: invalid suite`);
+    if (!r.components.length || r.components.some(c => !/^[a-z][a-z-]{0,31}$/.test(c))) fail(`${at}: needs components like main universe`);
+  }
+  const names = new Set([...p.available.map(a => a.name), ...(p.installed ?? []).map(i => i.name)]), seen = new Set<string>();
+  for (const a of p.available) {
+    const at = `package ${a.name} ${a.version}`;
+    if (!PACKAGE_NAME.test(a.name) || !PACKAGE_VERSION.test(a.version)) fail(`${at}: invalid name or version`);
+    if (seen.has(`${a.name} ${a.version} ${a.repo}`)) fail(`${at}: listed twice in ${a.repo}`);
+    seen.add(`${a.name} ${a.version} ${a.repo}`);
+    if (!repos.has(a.repo)) fail(`${at}: unknown repository ${a.repo}`);
+    if (!LINE(200)(a.description)) fail(`${at}: the description needs 1..200 characters on one line`);
+    for (const d of a.depends ?? []) if (!names.has(d) || d === a.name) fail(`${at}: depends on unknown package ${d}`);
+    for (const f of a.files ?? []) {
+      if (!normalized(f.path) || f.path === '/' || depthOf(f.path) > LIMITS.depth || !validName(baseName(f.path))) fail(`${at}: file ${f.path} is not an absolute, normalized path`);
+      if (!['dir', 'file', 'link'].includes(f.kind) || !Number.isInteger(f.mode) || f.mode < 0 || f.mode > 0o777) fail(`${at}: file ${f.path} needs a kind and a mode 0..0777`);
+      if ((f.content ?? '').length > LIMITS.fileLength || (f.kind !== 'file' && f.content !== undefined)) fail(`${at}: file ${f.path}: only a file has content (at most ${LIMITS.fileLength})`);
+      if ((f.kind === 'link') !== (typeof f.target === 'string' && f.target.length > 0)) fail(`${at}: file ${f.path}: a link (and only a link) needs a target`);
+    }
+  }
+  const installed = new Set<string>();
+  for (const i of p.installed ?? []) {
+    const at = `installed ${i.name}`;
+    if (!PACKAGE_NAME.test(i.name) || !PACKAGE_VERSION.test(i.version) || installed.has(i.name)) fail(`${at}: needs a unique name and a valid version`);
+    installed.add(i.name);
+    if (i.held && i.config) fail(`${at}: a removed package (config) cannot be held`);
+  }
+  if (p.available.some(a => p.available.some(b => b !== a && b.name === a.name && b.repo === a.repo && compareVersions(a.version, b.version) === 0 && a.version !== b.version))) fail('two versions of a package in one repository compare equal');
+  return problems;
+}
+
 /** E3: the problems of a machine's accounts and umask (only a users machine may have them; its files' owners must exist). */
 function accountProblems(machine: TerminalMachine, kinds: ReadonlyMap<string, TerminalFile['kind']>): string[] {
   const problems: string[] = [], fail = (what: string) => problems.push(what);
-  const users = machine.profile === 'users';
+  const users = rankOf(machine) >= RANK.users;
   if (machine.accounts !== undefined && !users) fail('accounts need the users profile (engine stage E3)');
   if (machine.umask !== undefined && !users) fail('a umask needs the users profile (engine stage E3)');
   if (!users) return problems;
@@ -491,10 +759,14 @@ export function terminalContentProblems(content: TerminalLessonContent, given?: 
       if (c.kind === 'mode' && (!Number.isInteger(c.mode) || c.mode < 0 || c.mode > 0o777)) fail(`${at}: check mode must be 0..0777`);
       if (c.kind === 'owner' && (!NAME.test(c.owner) || (c.group !== undefined && !NAME.test(c.group)))) fail(`${at}: invalid owner or group in a check`);
       if (c.kind === 'link' && (typeof c.target !== 'string' || !c.target)) fail(`${at}: a link check needs a target`);
-      if ((c.kind === 'user' || c.kind === 'group' || c.kind === 'umask') && valid.get(x.machine)?.profile !== 'users') fail(`${at}: a ${c.kind} check needs a users machine (engine stage E3)`);
+      if ((c.kind === 'user' || c.kind === 'group' || c.kind === 'umask') && rankOf(valid.get(x.machine) ?? {}) < RANK.users) fail(`${at}: a ${c.kind} check needs a users machine (engine stage E3)`);
       if (c.kind === 'user' && (!ACCOUNT_NAME.test(c.name) || [c.group, ...c.groups ?? [], ...c.notGroups ?? []].some(g => g !== undefined && !ACCOUNT_NAME.test(g)))) fail(`${at}: invalid user or group name in a user check`);
       if (c.kind === 'group' && (!ACCOUNT_NAME.test(c.name) || [...c.members ?? [], ...c.notMembers ?? []].some(m => !ACCOUNT_NAME.test(m)))) fail(`${at}: invalid group or user name in a group check`);
       if (c.kind === 'umask' && (!Number.isInteger(c.umask) || c.umask < 0 || c.umask > 0o777)) fail(`${at}: check umask must be 0..0777`);
+      const machineRank = rankOf(valid.get(x.machine) ?? {});
+      if (c.kind === 'process' && (machineRank < RANK.processes || (c.name === undefined && c.pid === undefined))) fail(`${at}: a process check needs a processes machine (engine stage E4) and a name or a pid`);
+      if (c.kind === 'package' && (machineRank < RANK.packages || !PACKAGE_NAME.test(c.name) || (c.version !== undefined && !PACKAGE_VERSION.test(c.version)))) fail(`${at}: a package check needs a packages machine (engine stage E5) and a valid name and version`);
+      if (c.kind === 'service' && (machineRank < RANK.services || !UNIT.test(unitName(c.unit)) || (c.active !== undefined && !['active', 'inactive', 'failed'].includes(c.active)))) fail(`${at}: a service check needs a services machine (engine stage E6) and a unit name`);
     }
     if (!x.solution.length || x.solution.length > TERMINAL_LIMITS.solution) fail(`${at}: the solution needs 1..${TERMINAL_LIMITS.solution} commands`);
     if (!x.mistakes.length) fail(`${at}: needs at least one typical mistake`);

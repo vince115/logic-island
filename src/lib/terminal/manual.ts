@@ -5,7 +5,8 @@ import type { CommandName, FilesCommand, ShellFeature } from './shell';
  * `man 指令` and `指令 --help` in a profile that has them. It describes what the simulator does (its options, not every
  * option of the real tool). Section headings follow real manual pages (NAME, SYNOPSIS…); the text is Traditional Chinese.
  *
- * MANUAL covers the files profile's commands; engine stages E2 and E3 (§10, §11) add STREAM_MANUAL and USER_MANUAL, and
+ * MANUAL covers the files profile's commands; engine stages E2 and E3 (§10, §11) add STREAM_MANUAL and USER_MANUAL (E4–E6:
+ * SYSTEM_MANUAL), and
  * FEATURE_MANUAL replaces the pages of cat, echo (pipes) and chmod (accounts) where those profiles change the command.
  */
 
@@ -171,6 +172,66 @@ export const USER_MANUAL: Record<'id' | 'groups' | 'useradd' | 'usermod' | 'grou
   },
 };
 
+/** E4–E6: processes, packages, systemd and the journal. */
+export const SYSTEM_MANUAL: Record<'ps' | 'top' | 'kill' | 'pgrep' | 'pidof' | 'pkill' | 'sleep' | 'jobs' | 'fg' | 'bg' | 'date' | 'uptime' | 'apt' | 'apt-mark' | 'dpkg' | 'systemctl' | 'journalctl', ManualEntry> = {
+  ps: {
+    usage: 'ps [aux | -ef] [-u 使用者] [-p PID,…] [-o 欄位,…] [--sort=-%cpu]', summary: '列出行程',
+    description: [
+      '不加選項時只列出這個終端機（pts/0）上自己的行程。aux 列出所有人的所有行程（USER PID %CPU %MEM VSZ RSS TTY STAT START TIME COMMAND）；-ef 是 Unix 格式（UID PID PPID C STIME TTY TIME CMD）。',
+      'STAT 的第一個字母：R 執行中、S 睡眠、D 不可中斷、T 停止、Z 殭屍、I 閒置的核心執行緒；s 是工作階段的領導者，+ 在前景。這一行的指令（ps 自己、管線裡的 grep）也會出現在清單裡。',
+    ],
+    options: [['aux', '所有使用者的所有行程（BSD 格式）'], ['-e', '所有行程'], ['-f', '完整格式（含 PPID）'], ['-u', '指定使用者'], ['-p', '指定 PID'], ['-o', '自訂欄位：pid,ppid,user,%cpu,%mem,vsz,rss,tty,stat,ni,time,comm,args,cmd'], ['--sort', '排序；- 表示由大到小，例如 --sort=-%mem']],
+  },
+  top: {
+    usage: 'top -b -n 1 [-o 欄位] [-u 使用者] [-c]', summary: '行程的即時排行（模擬環境：一次的快照）',
+    description: ['真正的 top 每隔幾秒更新畫面；模擬環境只支援批次模式的一次快照。第一行是時間、開機多久、使用者數與平均負載（1、5、15 分鐘），接著是行程數、CPU 與記憶體的摘要。', '預設依 %CPU 由大到小排序。'],
+    options: [['-b', '批次模式'], ['-n 1', '只輸出一次'], ['-o', '排序的欄位：%CPU、%MEM、PID、RES、TIME+'], ['-u', '只看某個使用者'], ['-c', 'COMMAND 顯示完整的指令']],
+  },
+  kill: {
+    usage: 'kill [-s 訊號 | -訊號] PID|%工作…  或  kill -l [訊號]', summary: '送訊號給行程（Shell 的內建指令）',
+    description: [
+      '預設送 SIGTERM（15）：請程式自己結束，程式可以先清理，也可以忽略。SIGKILL（9）由核心直接結束行程，不能被攔截或忽略，所以留到最後才用。SIGHUP（1）常讓服務重新讀取設定；SIGINT（2）等於按 Ctrl+C；SIGSTOP 與 SIGCONT 暫停與繼續。',
+      '只能對自己的行程送訊號（root 例外），否則是 Operation not permitted。PID 1 與核心執行緒不受影響。',
+    ],
+    options: [['-9', '等於 -KILL、-SIGKILL'], ['-s', '以名稱或數字指定訊號'], ['-l', '列出訊號；kill -l 9 印出 KILL']],
+  },
+  pgrep: { usage: 'pgrep [-l] [-a] [-f] [-x] [-u 使用者] 樣式', summary: '依名稱找出行程的 PID', description: ['樣式是延伸正規表示式，比對行程名稱；-f 比對整個指令。找不到時結束碼是 1。pgrep 不會找到自己。'], options: [['-l', '加上名稱'], ['-a', '加上完整的指令'], ['-f', '比對完整的指令'], ['-x', '整個名稱相同'], ['-u', '只找某個使用者的行程'], ['-n', '只要最新的'], ['-o', '只要最舊的']] },
+  pidof: { usage: 'pidof 程式…', summary: '列出程式的 PID', description: ['名稱必須完全相同；PID 由新到舊印在同一行。找不到時結束碼是 1。'], options: [] },
+  pkill: { usage: 'pkill [-訊號] [-f] [-x] [-u 使用者] 樣式', summary: '依名稱送訊號', description: ['和 pgrep 一樣比對名稱，然後送訊號（預設 SIGTERM）。不會印出任何東西；沒有符合的行程時結束碼是 1。'], options: [['-f', '比對完整的指令'], ['-x', '整個名稱相同'], ['-u', '只送給某個使用者的行程']] },
+  sleep: { usage: 'sleep 秒數[smhd]', summary: '等待一段時間', description: ['模擬環境的時鐘不會前進，所以 sleep 立刻結束（結束碼 0）。sleep 300 & 把它放到背景，成為一個背景工作，可以用 jobs、fg、bg 與 kill %1 練習。'], options: [] },
+  jobs: { usage: 'jobs [-l]', summary: '列出背景工作（Shell 的內建指令）', description: ['[1]+ 是目前的工作（fg、bg 不指定時用它），[2]- 是前一個。Running 表示在背景執行，Stopped 表示被暫停。'], options: [['-l', '加上 PID']] },
+  fg: { usage: 'fg [%工作]', summary: '把工作移到前景（Shell 的內建指令）', description: ['真正的終端機會等它結束；模擬環境的時鐘不動，所以 sleep 立刻結束。'], options: [] },
+  bg: { usage: 'bg [%工作]', summary: '讓停止的工作在背景繼續（Shell 的內建指令）', description: ['工作被 SIGSTOP（或 Ctrl+Z）暫停後，bg 讓它在背景繼續執行。'], options: [] },
+  date: { usage: 'date', summary: '顯示日期與時間', description: ['模擬的機器有固定的「現在」（UTC），日誌、ps 與 systemctl 的時間都以它計算。'], options: [] },
+  uptime: { usage: 'uptime', summary: '開機多久與平均負載', description: ['平均負載是過去 1、5、15 分鐘裡等待 CPU 的行程數平均；長期高於 CPU 核心數，表示 CPU 不夠用。'], options: [] },
+  apt: {
+    usage: 'apt [-y] update|install|remove|purge|autoremove|upgrade|list|show|policy [套件…]', summary: '套件管理（Debian、Ubuntu）',
+    description: [
+      'update 更新套件清單（不安裝任何東西）；install 安裝並自動安裝相依的套件；remove 移除（保留 /etc 的設定檔），purge 連設定檔一起刪除；upgrade 升級所有可升級的套件（被 hold 的除外）。',
+      '變更需要 root（sudo）。apt 安裝額外的相依套件、移除或升級時會詢問 Do you want to continue? [Y/n]；模擬環境沒有鍵盤，請加 -y。套件名稱=版本 可以指定版本。',
+    ],
+    options: [['-y', '自動回答 yes'], ['--installed', '和 list 一起：只列已安裝的'], ['--upgradable', '和 list 一起：只列可以升級的'], ['--allow-downgrades', '允許降版'], ['--allow-change-held-packages', '允許變更被 hold 的套件']],
+  },
+  'apt-mark': { usage: 'apt-mark hold|unhold|showhold|auto|manual [套件…]', summary: '標記套件', description: ['hold 讓套件停在目前的版本（apt upgrade 會保留它，顯示 kept back）；unhold 解除；showhold 列出被 hold 的套件。auto／manual 標記是否為自動安裝（autoremove 只移除自動安裝且不再需要的套件）。'], options: [] },
+  dpkg: { usage: 'dpkg -l [樣式…] | -L 套件 | -s 套件', summary: '查看 dpkg 的套件資料庫', description: ['-l 每行開頭兩個字母：ii 已安裝、hi 已安裝並被 hold、rc 已移除但設定檔還在。-L 列出套件安裝的檔案；-s 顯示狀態。模擬環境不安裝 .deb 檔案（dpkg -i）。'], options: [['-l', '列出套件'], ['-L', '列出套件的檔案'], ['-s', '套件的狀態']] },
+  systemctl: {
+    usage: 'systemctl start|stop|restart|reload|status|enable|disable|is-active|is-enabled|daemon-reload|cat|reset-failed|list-units|list-unit-files [服務…]', summary: '管理 systemd 的服務',
+    description: [
+      'start、stop、restart 立刻改變服務的狀態；enable、disable 只決定開機時是否啟動（在 multi-user.target.wants 建立或刪除連結），enable --now 兩件事一起做。變更需要 root。',
+      '修改 unit 檔之後要執行 daemon-reload，systemd 才會讀到新的內容；否則 status 與 start 會提醒，而且仍用舊的設定。status 的結束碼：0 執行中、3 沒有執行、4 沒有這個服務。',
+    ],
+    options: [['--now', '和 enable、disable 一起：同時啟動或停止'], ['--all', '和 list-units 一起：也列出沒有執行的'], ['--failed', '只列出失敗的服務'], ['--type=service', '只列服務（模擬環境只有服務）']],
+  },
+  journalctl: {
+    usage: 'journalctl [-u 服務] [-p 等級] [--since 時間] [--until 時間] [-n 行數] [-r] [-k] [-g 樣式] [--no-pager]', summary: '查詢 systemd 的 journal 日誌',
+    description: [
+      '等級（-p）：0 emerg、1 alert、2 crit、3 err、4 warning、5 notice、6 info、7 debug；-p err 顯示 err 與更嚴重的。時間可以寫 "2026-11-22 09:00"、09:30、today、yesterday、"1 hour ago"、-30min，以機器固定的「現在」計算。',
+      '一般使用者要在 adm 或 systemd-journal 群組才看得到系統的日誌。模擬環境的日誌不會再增加，所以不支援 -f。',
+    ],
+    options: [['-u', '只看某個服務'], ['-p', '只看某個等級以上'], ['--since', '從某個時間開始'], ['--until', '到某個時間為止'], ['-n', '最後 N 筆'], ['-r', '新的在前'], ['-k', '只看核心訊息'], ['-g', '訊息符合樣式'], ['-o', '格式：short、short-iso、cat']],
+  },
+};
+
 /** The pages a feature changes: cat reads standard input and echo has -n with pipes; chmod has -R with accounts. */
 const FEATURE_MANUAL: [ShellFeature, CommandName, ManualEntry][] = [
   ['pipes', 'cat', { usage: 'cat [-n] [檔案]…', summary: '顯示檔案內容', description: ['依序印出每個檔案；沒有檔案（或檔名是 -）時讀標準輸入。'], options: [['-n', '在每一行前面加上行號']] }],
@@ -183,7 +244,8 @@ export function manualEntry(cmd: CommandName, features: Iterable<ShellFeature> =
   const have = new Set(features);
   const special = FEATURE_MANUAL.find(([f, c]) => c === cmd && have.has(f));
   if (special) return special[2];
-  return (MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd] ?? (STREAM_MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd] ?? (USER_MANUAL as Record<string, ManualEntry>)[cmd];
+  return (MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd] ?? (STREAM_MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd] ?? (USER_MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd]
+    ?? (SYSTEM_MANUAL as Record<string, ManualEntry>)[cmd];
 }
 
 const optionLines = (options: [string, string][], indent: string, width: number) => options.map(([flag, text]) => `${indent}${flag.padEnd(width)}${text}`);
