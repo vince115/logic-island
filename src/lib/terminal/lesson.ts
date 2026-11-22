@@ -255,6 +255,8 @@ export interface TerminalPackages {
   stale?: boolean;
 }
 /** E6: a unit's state at the start. A failed unit names the pid and exit status of its last main process. */
+/** systemd results whose main process ended by a signal: status prints `code=killed, signal=…` (an OOM kill is SIGKILL). */
+const KILLED_RESULTS: readonly string[] = ['signal', 'core-dump', 'oom-kill'];
 export interface TerminalService { unit: string; active: 'active' | 'failed' | 'inactive'; since?: string; result?: string; pid?: number; status?: number; /** E9 (timers): when it last triggered. */ last?: string }
 /** E6: a journal entry: id is the program (systemd, sshd, kernel…); priority 0 emerg … 7 debug. */
 export interface TerminalJournalEntry { time: string; unit?: string; id: string; pid?: number; priority: number; message: string }
@@ -521,7 +523,7 @@ function systemState(machine: TerminalMachine, base: FsState): FsState {
     }
     if (s.active === 'active') { const main = mainOf(unit); runtime[unit] = main !== undefined ? { active: 'active', sub: 'running', since, main } : { active: 'active', sub: 'exited', since }; }
     else if (s.active === 'failed') {
-      runtime[unit] = { active: 'failed', sub: 'failed', since, result: s.result ?? 'exit-code', ...s.pid !== undefined ? { exit: { pid: s.pid, code: s.result === 'signal' ? 'killed' : 'exited', status: s.status ?? 1 } } : {} };
+      runtime[unit] = { active: 'failed', sub: 'failed', since, result: s.result ?? 'exit-code', ...s.pid !== undefined ? { exit: { pid: s.pid, code: KILLED_RESULTS.includes(s.result ?? '') ? 'killed' : 'exited', status: s.status ?? (s.result === 'oom-kill' ? 9 : 1) } } : {} };
     } else runtime[unit] = { active: 'inactive', sub: 'dead', ...s.since !== undefined ? { since } : {} };
   }
   for (const p of processes) if (p.unit && !runtime[p.unit]) runtime[p.unit] = { active: 'active', sub: 'running', since: boot, main: mainOf(p.unit) };

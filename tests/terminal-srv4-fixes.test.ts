@@ -172,3 +172,13 @@ describe('tcpdump filter precedence', () => {
     expect(r[2].out.filter(l => l.includes('A?')).length).toBe(1);
   });
 });
+
+// Found by the SRV13 writer (SRV-4 integration).
+describe('a unit ended by the OOM killer', () => {
+  it('fails with Result: oom-kill and a main process killed by SIGKILL, as systemd 255 prints it', () => {
+    const m: TerminalMachine = { ...svcMachine, services: (svcMachine.services ?? []).map(s => s.unit === 'report' ? { ...s, result: 'oom-kill', pid: 2210, status: undefined } : s) };
+    const out = session(SERVICES_PROFILE, m, 'systemctl status report').last.out;
+    expect(out.find(l => l.includes('Active:'))).toMatch(/Active: failed \(Result: oom-kill\)/);
+    expect(out.find(l => l.includes('Main PID:'))).toBe('   Main PID: 2210 (code=killed, signal=KILL)');
+  });
+});
