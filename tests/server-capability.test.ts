@@ -9,6 +9,7 @@ import planning from '@/content/world/planning-data.json';
 import { tcpHandshake, previewExercises } from '@/content/network/preview-scenes';
 import type { TerminalLessonContent } from '@/lib/terminal/lesson';
 import { dnsExercise, nsLocal } from './support/server-fixture';
+import { validateTerminalLessonsFirst } from './support/terminal-replays';
 
 /*
  * SRV-0 (docs/curriculum/SRV0_SERVER_CAPABILITY.md): the network-servers island prepared for authoring on the existing
@@ -39,6 +40,9 @@ const content = (): LessonContent => ({
   quiz: [1, 2, 3, 4].map(n => ({ id: `q${n}`, prompt: `第 ${n} 題`, options: ['TTL', 'serial'], answer: n % 2, explanation: 'TTL 決定快取保存多久；serial 讓次要伺服器知道區域變了。' })),
   terminal: terminal(), network: { scenes: [tcpHandshake], exercises: [previewExercises[1]] },
 });
+
+
+validateTerminalLessonsFirst();
 
 describe('serverFromBlueprint', () => {
   it('maps the six blueprint activities onto the terminal capability (no new capability or activity)', () => {

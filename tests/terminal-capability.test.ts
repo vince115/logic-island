@@ -8,6 +8,7 @@ import { lessonsOfIsland } from '@/content/world/catalog';
 import { initialState } from '@/lib/terminal/fs';
 import { run } from '@/lib/terminal/shell';
 import { terminalContent } from './support/terminal-fixture';
+import { validateTerminalLessonsFirst } from './support/terminal-replays';
 
 /*
  * LNX-0: the terminal capability and the linux-systems island prepared for authoring. A synthetic Linux lesson built
@@ -33,6 +34,9 @@ const content = (): LessonContent => ({
   quiz: [1, 2, 3, 4].map(question), terminal: terminalContent(),
 });
 const swap = (id: string, patch: Partial<LessonMeta>) => validateCurriculum({ ...curriculum, lessons: lessons.map(l => l.lessonId === id ? { ...l, ...patch } : l) }).join('\n');
+
+
+validateTerminalLessonsFirst();
 
 describe('the terminal capability', () => {
   it('validates a Linux lesson built from the blueprint with machines, transcripts and exercises', () => {

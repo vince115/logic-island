@@ -88,11 +88,22 @@ const utf8 = (text: string): Uint8Array => new Uint8Array(new TextEncoder().enco
 const concat = (...parts: Uint8Array[]): Uint8Array => { const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0)); let at = 0; for (const p of parts) { out.set(p, at); at += p.length; } return out; };
 const u32 = (n: number) => { const b = new Uint8Array(4); new DataView(b.buffer).setUint32(0, n >>> 0); return b; };
 const sshString = (b: Uint8Array | string) => { const bytes = typeof b === 'string' ? utf8(b) : b; return concat(u32(bytes.length), bytes); };
-/** n pseudo-random bytes derived from a seed (SHA-256 in counter mode): the same seed always gives the same bytes. */
+/**
+ * n pseudo-random bytes derived from a seed (SHA-256 in counter mode): the same seed always gives the same bytes. The
+ * hashing is the slowest part of replaying an SSH lesson (every machine derives its keys again), so results are
+ * remembered by seed and length and a copy is returned (callers may not change the remembered bytes).
+ */
+const derivedBytes = new Map<string, Uint8Array>();
 function derived(seed: string, n: number): Uint8Array {
-  const out = new Uint8Array(n);
-  for (let i = 0; i * 32 < n; i++) out.set(sha256(utf8(`${seed}#${i}`)).slice(0, Math.min(32, n - i * 32)), i * 32);
-  return out;
+  const key = `${n}:${seed}`;
+  let out = derivedBytes.get(key);
+  if (!out) {
+    out = new Uint8Array(n);
+    for (let i = 0; i * 32 < n; i++) out.set(sha256(utf8(`${seed}#${i}`)).slice(0, Math.min(32, n - i * 32)), i * 32);
+    if (derivedBytes.size > 4096) derivedBytes.clear();
+    derivedBytes.set(key, out);
+  }
+  return out.slice();
 }
 
 // ------------------------------------------------------------------------------------------------------------- keys
@@ -102,7 +113,17 @@ export const SSH_VERSION = 'SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.5';
 /** The public key blob of an ed25519 key: string "ssh-ed25519", string key (32 bytes). */
 const blobOf = (key: Uint8Array) => concat(sshString(KEY_TYPE), sshString(key));
 /** SHA256:… as ssh-keygen -l prints it (unpadded base64 of the blob's SHA-256). */
-export const fingerprintOf = (blob: Uint8Array) => `SHA256:${base64(sha256(blob), false)}`;
+const fingerprints = new Map<string, string>();
+export function fingerprintOf(blob: Uint8Array): string {
+  const key = base64(blob);
+  let fp = fingerprints.get(key);
+  if (!fp) {
+    fp = `SHA256:${base64(sha256(blob), false)}`;
+    if (fingerprints.size > 4096) fingerprints.clear();
+    fingerprints.set(key, fp);
+  }
+  return fp;
+}
 
 /** A key pair from a seed: the public key line (ssh-ed25519 AAAA… comment), the private key file and the fingerprint. */
 export function keyPair(seed: string, comment: string, passphrase = ''): { publicLine: string; privateText: string; fingerprint: string; blob: Uint8Array } {

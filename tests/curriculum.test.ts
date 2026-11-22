@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { curriculum, lessons } from '../src/content/curriculum';
 import { UNITS } from '../src/content/curriculum/units';
 import { DATABASE_VISUALIZATIONS, branchTaken, hasCapability, validateContent, validateCurriculum, type Curriculum, type LessonMeta, type VisualizationConfig } from '../src/content/curriculum/schema';
+import { validateTerminalLessonsFirst } from './support/terminal-replays';
 
 // Phase E.1: the 60-lesson curriculum and the rules every lesson keeps (src/content/curriculum/schema.ts).
 // A deep copy for tests that change metadata or program content. Terminal content is shared, never changed here, so its
@@ -35,6 +36,9 @@ const COMPLETE = [...ids('F', 20), ...ids('D', 20), ...ids('A', ALGORITHMS_DONE)
 const programLessons = lessons.filter(l => hasCapability(l, 'program-code'));
 type TraceConfig = Extract<VisualizationConfig, { steps: unknown }>;
 const lesson = (c: Curriculum, id: string) => c.lessons.find(l => l.lessonId === id) as LessonMeta;
+
+
+validateTerminalLessonsFirst();
 
 describe('curriculum (E.1)', () => {
   it('passes every rule', () => {
