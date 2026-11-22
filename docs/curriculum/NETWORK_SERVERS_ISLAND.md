@@ -21,6 +21,7 @@
 | SRV11 | CDN 與快取設定<br>`cdn-and-edge-caching` | 中級 | 55 分 | SRV07 | 2 台（edge：來源伺服器、CDN 邊緣節點與清除 API）＋ 1 個網路情境（MISS 回源、HIT 帶 Age） | 6 段、5 段終端機紀錄、4 個終端機練習（依資源設定 Cache-Control、找出 Set-Cookie 造成的 MISS、以版本化檔名發布而不清除、用 sleep 算出命中率）與 2 個網路練習、8 題 | **完整 v1.0.0** |
 | SRV12 | 網路診斷工具<br>`network-diagnostics` | 中級 | 55 分 | SRV02、SRV03 | 5 台（diagnostics：工作站與 DNS、應用、資料庫等主機，含有中途不回應與一路遺失的網路路徑） | 6 段、5 段終端機紀錄、4 個終端機練習（/etc/hosts 的舊記錄、只綁 127.0.0.1 的 nginx、讀擷取檔分辨丟棄與拒絕、用 curl -w 找出慢在哪裡）、8 題 | **完整 v1.0.0** |
 | SRV13 | 伺服器故障排除方法<br>`server-troubleshooting` | 進階 | 60 分 | SRV07、SRV12、LNX11 | 5 台（diagnostics：同一台網站伺服器的五種事故，含庫存 API 與辦公室主機） | 5 段、5 段終端機紀錄、4 個終端機練習（從 journal 寫出事故時間線、部署後的 502 回滾、防火牆造成的 504、OOM 之後停下吃記憶體的工作）、8 題 | **完整 v1.0.0** |
+| SRV14 | 網路與伺服器島綜合專題：架設 HTTPS 網站並追蹤請求<br>`network-servers-capstone` | 進階 | 90 分 | SRV04、SRV08、SRV10、SRV11、SRV13 | 6 台（diagnostics；同一個網站在六個時刻的快照，含 DNS、跳板機、兩台應用伺服器與 CDN） | 7 段（以請求路徑表串起各課）、5 個範例、六個關卡（challenge-stages）各一個練習：修好網域並以 certbot --nginx 取得憑證、反向代理與負載平衡、防火牆與 ssh -J、Cache-Control 與 CDN 的 HIT、追蹤一個請求、找出只壞了一台後端的防火牆規則；8 題 | **完整 v1.0.0** |
 
 ## 單元
 
@@ -30,6 +31,7 @@
 | 憑證與網頁伺服器 | SRV04–SRV06 |
 | 代理、防火牆與通道 | SRV07–SRV10 |
 | 快取、診斷與故障排除 | SRV11–SRV13 |
+| 綜合專題 | SRV14 |
 
 ## 模擬器的已知差異（課文已說明或避開，列為之後引擎階段的修正）
 
@@ -43,6 +45,6 @@
 
 ## 後續批次
 
-SRV-2 發布 SRV04–SRV06（E13、E14，並修正 curl 的 -H、-o 與 204）。SRV-3 發布 SRV07–SRV10（E15 反向代理與負載平衡、E16 防火牆、E17 SSH 通道）。SRV-4 發布 SRV11–SRV13（E18 HTTP 快取與 CDN、E19 診斷工具，並修正 tcpdump 篩選條件的優先順序與 curl 在解析器快取命中時的查詢時間）。最後一堂 SRV-5（SRV14 綜合專題）單獨發布。
+SRV-2 發布 SRV04–SRV06（E13、E14，並修正 curl 的 -H、-o 與 204）。SRV-3 發布 SRV07–SRV10（E15 反向代理與負載平衡、E16 防火牆、E17 SSH 通道）。SRV-4 發布 SRV11–SRV13（E18 HTTP 快取與 CDN、E19 診斷工具，並修正 tcpdump 篩選條件的優先順序與 curl 在解析器快取命中時的查詢時間）。SRV-5 發布 SRV14 綜合專題：網路與伺服器島 14/14 完成，同批修正 certbot 的 HTTP-01 驗證不再讀本機的 /etc/hosts、經由 CDN 連到課程本機的 nginx 時能代理到後端，以及經由邊緣節點時後端等待時間不再重複計算。
 
 課程狀態與 3D 地景分離：網路與伺服器島的 `mapState` 仍是 `'planned'`。

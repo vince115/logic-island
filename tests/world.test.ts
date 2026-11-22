@@ -117,16 +117,16 @@ describe('world registry (F.0)', () => {
     expect(labIslandConfig.labs).toEqual(['array', 'stack', 'queue', 'binary-search', 'bubble-sort', 'bfs']);
   });
 
-  it('marks the three existing islands, the database island (F.1d), PL (course production batches 1–5) CN (CN-1 to CN-5) AIF (AIF-1 to AIF-5) and LNX (LNX-1 to LNX-5) complete, SRV open (SRV-1) and the other twenty planned', () => {
-    expect(subjectIslands.filter(i => i.status === 'complete').map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'linux-systems']);
+  it('marks the three existing islands, the database island (F.1d), PL (course production batches 1–5) CN (CN-1 to CN-5) AIF (AIF-1 to AIF-5) LNX (LNX-1 to LNX-5) and SRV (SRV-1 to SRV-5) complete, and the other twenty planned', () => {
+    expect(subjectIslands.filter(i => i.status === 'complete').map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'linux-systems', 'network-servers']);
     // Course production batch 5 published PL20, the last of 20: every PL lesson is written, but its map stays planned
     // (an island's 3D look is set by hand in IslandConfig.mapState, never by its lessons).
     // CN-5 published CN20, the last of 20: the computer-networks island is complete; its map stays planned too.
     // AIF-5 published AIF20, the last of 20: the AI foundations island is complete; its map stays planned too.
     // LNX-5 published LNX15, the last of 15: the Linux systems island is complete; its map stays planned too.
-    // SRV-1 to SRV-4 published SRV01–SRV13 of 14: the network and servers island is open (available); its map stays planned.
-    expect(subjectIslands.filter(i => i.status === 'available').map(i => i.id)).toEqual(['network-servers']);
-    expect(getIsland('network-servers')).toMatchObject({ status: 'available', mapState: 'planned' });
+    // SRV-5 published SRV14, the last of 14: the network and servers island is complete; its map stays planned too.
+    expect(subjectIslands.filter(i => i.status === 'available').map(i => i.id)).toEqual([]);
+    expect(getIsland('network-servers')).toMatchObject({ status: 'complete', mapState: 'planned' });
     expect(getIsland('linux-systems')).toMatchObject({ status: 'complete', mapState: 'planned' });
     expect(getIsland('ai-foundations')).toMatchObject({ status: 'complete', mapState: 'planned' });
     expect(getIsland('programming-languages')).toMatchObject({ status: 'complete', mapState: 'planned' });
