@@ -136,3 +136,9 @@ SQL 是查詢語言，不是四種程式語言的替代品，所以用最小、�
 | `QuizQuestion.code.language` | 可為 `'SQL'`（SQL 課程只能用 SQL 片段） |
 
 驗證：`validateDatabaseContent`（schema.ts，F.1a 的 `validateSqlContent` 擴充而來）檢查結構；`tests/curriculum-db.test.ts` 用頁面同一套引擎檢查 ER 與正規化練習（參考答案與其他正確答案通過、每個常見錯誤不通過）及 F.1b 各課的份量（6–8 段、至少 5 個範例、7 題測驗、3 道練習）；`tests/curriculum-sql.test.ts` 在真正的 SQLite 上執行：每個範例的結果與 `result` 完全相同、每個預設查詢不出錯、參考解答與每個 `alternatives` 在所有資料集都通過、每個 `mistakes` 至少一組不通過、至少一組隱藏資料的答案與可見資料不同（硬寫答案不會通過；有檢查敘述的練習則要有隱藏檢查敘述，或隱藏資料讓檢查結果不同）。
+
+## 9. 網頁課程（WEB-0：`web-code`）
+
+網頁基礎島的課以 `web-code` 能力撰寫，內容在 `LessonContent.webCode`：`{ examples: WebExample[], exercises: WebExercise[] }`（`src/lib/webcode/lesson.ts`）。範例是一個頁面（`files: { html, css?, js? }`）加上它在瀏覽器裡成立的檢查（`observe`）；練習是學習者要完成的檔案（`starter`）、不能改的檔案（`fixed`）、參考解答、常見錯誤與檢查的步驟。`Block { type: 'example' }` 可指向網頁範例；`QuizQuestion.code.language` 在這類課程可為 `'HTML'`、`'CSS'` 或 `'JavaScript'`。欄位、步驟的種類、沙盒與驗證方式見 [WEB0_WEB_CODE_CAPABILITY](WEB0_WEB_CODE_CAPABILITY.md)。
+
+驗證：`validateDatabaseContent` 以 `webContentProblems` 檢查結構；`tests/curriculum-webcode.test.ts` 在 Chromium 裡執行每一堂課的每個頁面（範例的陳述成立、參考解答通過、起始內容與常見錯誤不通過）。

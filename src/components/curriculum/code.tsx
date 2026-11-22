@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useId, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Check, Copy } from 'lucide-react';
-import { LANGUAGES, LESSON_LANGUAGES, type LessonCode, type LessonLanguage, type QueryLanguage } from '@/content/curriculum/schema';
+import { LANGUAGES, LESSON_LANGUAGES, type LessonCode, type LessonLanguage, type QueryLanguage, type WebLanguage } from '@/content/curriculum/schema';
 import type { HlLines } from '@/lib/highlight/kinds';
 import { Highlighted } from '@/components/highlighted';
 import { shownText } from './pre-text';
@@ -80,7 +80,7 @@ export function CodeTabs({ code, tokens, label, input, output }: { code: LessonC
 }
 
 /** A single-language snippet (quiz questions). */
-export function Snippet({ language, text, tokens }: { language: LessonLanguage | QueryLanguage; text: string; tokens?: HlLines }) {
+export function Snippet({ language, text, tokens }: { language: LessonLanguage | QueryLanguage | WebLanguage; text: string; tokens?: HlLines }) {
   return <pre className={styles.snippet} aria-label={`${language} 程式片段`}><code>{text.split('\n').map((line, i) =>
     <span key={i}>{i > 0 && '\n'}<Highlighted text={line} pieces={tokens?.[i]}/></span>)}</code></pre>;
 }

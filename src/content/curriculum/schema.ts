@@ -15,6 +15,7 @@ import type { OpsTask } from '@/lib/ops/check';
 import { checkNetworkAnswer, expectedNetworkAnswer, LAYER_MODELS, networkSceneProblems, type NetworkScene, type NetworkTask } from '@/lib/network/model';
 import type { SqlValue } from '@/lib/sql/engine';
 import { terminalContentProblems, type TerminalLessonContent } from '@/lib/terminal/lesson';
+import { webContentProblems, type WebLessonContent } from '@/lib/webcode/lesson';
 
 /*
  * Phase E curriculum: the shape of the 60 lessons and of a lesson's full content, and the checks every lesson must
@@ -57,18 +58,19 @@ export const ISLAND_IDS = ['foundations', 'structures', 'algorithms', 'programmi
 // LNX-0 (2026-11-22): the Linux systems island, written with the terminal capability.
 // SRV-0 (2026-11-22): the network and servers island, written with the terminal capability (and network-protocol scenes).
 // SRV-1 (2026-11-22): the network and servers island joins with SRV01–SRV03 (prepared in SRV-0).
-export const PREPARED_ISLAND_IDS = [] as const;
+// WEB-0 (2026-11-23): the web foundations island, written with the web-code capability.
+export const PREPARED_ISLAND_IDS = ['web-foundations'] as const;
 export type IslandId = typeof ISLAND_IDS[number] | typeof PREPARED_ISLAND_IDS[number];
 /**
  * F = 基礎程式島, D = 資料結構島, A = 演算法島, then a two-digit position (F01..F20). Phase F.0: the number is two digits in
  * the type too (it was any string, so DB01 or AG01 type-checked as a D or A lesson); IDs of every island, planned ones
  * included, are AnyLessonId in src/content/world/lesson-id.ts and are always parsed with their whole prefix.
  */
-export type LessonPrefixWritten = 'F' | 'D' | 'A' | 'DB' | 'PL' | 'CN' | 'AIF' | 'LNX' | 'SRV';
+export type LessonPrefixWritten = 'F' | 'D' | 'A' | 'DB' | 'PL' | 'CN' | 'AIF' | 'LNX' | 'SRV' | 'WEB';
 export type LessonId = `${LessonPrefixWritten}${LessonNumber}`;
 /** 2026-11-20 (course production, batch 1): the programming-languages island (PL) joins with its first written lessons. */
 export const ISLAND_PREFIX: Record<IslandId, LessonPrefixWritten> = { foundations: 'F', structures: 'D', algorithms: 'A', databases: 'DB', 'programming-languages': 'PL', networks: 'CN', 'ai-foundations': 'AIF', 'linux-systems': 'LNX',
-  'network-servers': 'SRV' };
+  'network-servers': 'SRV', 'web-foundations': 'WEB' };
 
 /**
  * Phase F.1a: a lesson taught in a query language instead of the four programming languages. A SQL lesson has no program
@@ -76,12 +78,15 @@ export const ISLAND_PREFIX: Record<IslandId, LessonPrefixWritten> = { foundation
  */
 export const QUERY_LANGUAGES = ['SQL'] as const;
 export type QueryLanguage = typeof QUERY_LANGUAGES[number];
+/** WEB-0: the languages of a web page; a web-code lesson's quiz may show a snippet in any of them. */
+export const WEB_LANGUAGES = ['HTML', 'CSS', 'JavaScript'] as const;
+export type WebLanguage = typeof WEB_LANGUAGES[number];
 /**
  * Interactive activities a lesson can carry besides its visualization type (src/content/world/activities.ts). A lesson
  * with an activity is a database lesson: no program tabs; Phase F.1b adds the ER builder and the normalization steps.
  */
 export const LESSON_ACTIVITIES = ['sql-playground', 'erd-builder', 'normalization-steps', 'query-plan', 'transaction-timeline',
-  'protocol-sequence', 'architecture-diagram', 'ds-comparison', 'challenge-stages', 'packet-journey', 'network-sequence', 'terminal-sim'] as const;
+  'protocol-sequence', 'architecture-diagram', 'ds-comparison', 'challenge-stages', 'packet-journey', 'network-sequence', 'terminal-sim', 'dom-explorer'] as const;
 export type LessonActivity = typeof LESSON_ACTIVITIES[number];
 
 /**
@@ -102,10 +107,12 @@ export type LessonActivity = typeof LESSON_ACTIVITIES[number];
  * trips of the database lessons. AIF-0 adds python-code: a program lesson in Python only (supportedLanguages ['Python']),
  * for the islands whose blueprint exercises are code-python; program-code keeps requiring C++, Java and Python. LNX-0
  * adds terminal: small machines as data, transcripts replayed on them and exercises checked by replaying the learner's
- * commands in the simulated shell (`content.terminal`, src/lib/terminal/lesson.ts).
+ * commands in the simulated shell (`content.terminal`, src/lib/terminal/lesson.ts). WEB-0 adds web-code: small web pages
+ * (HTML with optional CSS and JavaScript) shown in a sandboxed frame in the learner's browser, with exercises checked by
+ * steps run on the page the browser built (`content.webCode`, src/lib/webcode/lesson.ts).
  */
 export const LESSON_CAPABILITIES = ['program-code', 'sql', 'er-diagram', 'normalization', 'query-plan', 'transaction-timeline',
-  'driver-code', 'protocol-sequence', 'architecture-diagram', 'visualization', 'network-protocol', 'python-code', 'terminal'] as const;
+  'driver-code', 'protocol-sequence', 'architecture-diagram', 'visualization', 'network-protocol', 'python-code', 'terminal', 'web-code'] as const;
 export type LessonCapability = typeof LESSON_CAPABILITIES[number];
 export const hasCapability = (lesson: Pick<LessonMeta, 'capabilities'>, capability: LessonCapability) => lesson.capabilities.includes(capability);
 /**
@@ -120,7 +127,9 @@ const CAPABILITY_ACTIVITY: Record<LessonActivity, LessonCapability> = { 'sql-pla
   // CN-0: a network lesson's packets through the layers and its message sequences are both drawn from network scenes.
   'packet-journey': 'network-protocol', 'network-sequence': 'network-protocol',
   // LNX-0: a Linux lesson's commands run in the simulated terminal.
-  'terminal-sim': 'terminal' };
+  'terminal-sim': 'terminal',
+  // WEB-0: a web lesson's pages run in a sandboxed frame, beside the DOM the browser built from them.
+  'dom-explorer': 'web-code' };
 /** The shared visualizations a database lesson may show (with the visualization capability). */
 export const DATABASE_VISUALIZATIONS = ['ds-comparison', 'challenge-stages'] as const;
 
@@ -213,7 +222,7 @@ export interface CodeExample {
 export interface QuizQuestion {
   id: string;
   prompt: string;
-  code?: { language: Language | QueryLanguage; text: string };
+  code?: { language: Language | QueryLanguage | WebLanguage; text: string };
   options: string[];
   /** Index into options. */
   answer: number;
@@ -476,6 +485,8 @@ export interface LessonContent {
   network?: NetworkLessonContent;
   /** LNX-0: machines, transcripts replayed on them (shown in sections by id) and exercises checked in the simulated shell. */
   terminal?: TerminalLessonContent;
+  /** WEB-0: web pages shown in sections by id (each with checks that hold in a browser) and exercises checked on the page the browser built. */
+  webCode?: WebLessonContent;
 }
 
 export interface IslandMeta { id: IslandId; name: string; englishName: string; summary: string }
@@ -614,7 +625,9 @@ function replayedTerminalProblems(terminal: TerminalLessonContent): readonly str
  * code, so a network lesson's scenes count as examples (each consistent, networkSceneProblems) and its exercises as
  * exercises (answer derivable from the scenes, typical mistakes rejected); tests/network-capability.test.ts. LNX-0: a
  * terminal lesson's transcripts count as examples and its terminal exercises as exercises; terminalContentProblems
- * replays both (tests/terminal-capability.test.ts).
+ * replays both (tests/terminal-capability.test.ts). WEB-0: a web-code lesson's pages count as examples and its web
+ * exercises as exercises; webContentProblems checks their shape, and tests/curriculum-webcode.test.ts runs every page in
+ * Chromium (the examples' stated checks hold, solutions pass, starters and typical mistakes fail).
  */
 export function validateDatabaseContent(lesson: LessonMeta, content: LessonContent): string[] {
   const problems: string[] = [];
@@ -638,12 +651,13 @@ export function validateDatabaseContent(lesson: LessonMeta, content: LessonConte
     if (!sql.presets.length) fail('the playground needs preset queries');
     for (const p of sql.presets) if (!p.label.trim() || !p.sql.trim()) fail('a preset needs a label and SQL');
   }
-  const { driverCode, sequences, ops, network, terminal } = content;
+  const { driverCode, sequences, ops, network, terminal, webCode } = content;
   const examples = [...sql?.examples ?? [], ...er?.diagrams ?? [], ...normalization?.examples ?? [],
     ...queryPlan?.trees ?? [], ...transactions?.timelines ?? [], ...transactions?.schedules ?? [],
-    ...driverCode?.examples ?? [], ...sequences ?? [], ...ops?.replication ?? [], ...ops?.backups ?? [], ...network?.scenes ?? [], ...terminal?.examples ?? []];
+    ...driverCode?.examples ?? [], ...sequences ?? [], ...ops?.replication ?? [], ...ops?.backups ?? [], ...network?.scenes ?? [], ...terminal?.examples ?? [], ...webCode?.examples ?? []];
   for (const scene of network?.scenes ?? []) for (const p of networkSceneProblems(scene)) fail(p);
   if (terminal) for (const p of replayedTerminalProblems(terminal)) fail(p);
+  if (webCode) for (const p of webContentProblems(webCode)) fail(p);
   for (const e of driverCode?.examples ?? []) {
     const langs = Object.keys(e.code);
     if (!langs.length || langs.some(l => !(DRIVER_LANGUAGES as readonly string[]).includes(l))) fail(`driver example ${e.id} uses ${DRIVER_LANGUAGES.join(', ')} only`);
@@ -676,12 +690,14 @@ export function validateDatabaseContent(lesson: LessonMeta, content: LessonConte
   if (content.quiz.length < MIN_QUIZ) fail(`needs at least ${MIN_QUIZ} quiz questions`);
   for (const question of content.quiz) {
     unique(question.id);
-    if (question.code && question.code.language !== 'SQL') fail(`quiz ${question.id}: a database lesson shows SQL snippets only`);
+    // WEB-0: a web-code lesson's snippets are HTML, CSS or JavaScript; every other lesson without program code shows SQL only.
+    if (question.code && hasCapability(lesson, 'web-code') ? !(WEB_LANGUAGES as readonly string[]).includes(question.code.language) : question.code && question.code.language !== 'SQL')
+      fail(hasCapability(lesson, 'web-code') ? `quiz ${question.id}: a web-code lesson shows ${WEB_LANGUAGES.join(', ')} snippets only` : `quiz ${question.id}: a database lesson shows SQL snippets only`);
     if (question.options.length < 2 || new Set(question.options).size !== question.options.length) fail(`quiz ${question.id} needs distinct options`);
     if (!Number.isInteger(question.answer) || question.answer < 0 || question.answer >= question.options.length) fail(`quiz ${question.id} answer out of range`);
     if (!question.explanation.trim()) fail(`quiz ${question.id} has no explanation`);
   }
-  const exercises = [...sql?.exercises ?? [], ...er?.exercises ?? [], ...normalization?.exercises ?? [], ...transactions?.exercises ?? [], ...ops?.exercises ?? [], ...network?.exercises ?? [], ...terminal?.exercises ?? []];
+  const exercises = [...sql?.exercises ?? [], ...er?.exercises ?? [], ...normalization?.exercises ?? [], ...transactions?.exercises ?? [], ...ops?.exercises ?? [], ...network?.exercises ?? [], ...terminal?.exercises ?? [], ...webCode?.exercises ?? []];
   // CN-0: each network exercise's answer comes from the scenes (or is computed), and each typical mistake is rejected.
   for (const exercise of network?.exercises ?? []) {
     try {
@@ -740,7 +756,7 @@ export function validateContent(lesson: LessonMeta, content: LessonContent, visu
   // Phase F.1b: each declared capability has its content, and no content appears without its capability.
   const parts: [LessonCapability, boolean][] = [['sql', !!content.sql], ['er-diagram', !!content.er], ['normalization', !!content.normalization],
     ['query-plan', !!content.queryPlan], ['transaction-timeline', !!content.transactions], ['driver-code', !!content.driverCode],
-    ['protocol-sequence', !!content.sequences], ['architecture-diagram', !!content.ops], ['network-protocol', !!content.network], ['terminal', !!content.terminal]];
+    ['protocol-sequence', !!content.sequences], ['architecture-diagram', !!content.ops], ['network-protocol', !!content.network], ['terminal', !!content.terminal], ['web-code', !!content.webCode]];
   // A database lesson shows a shared visualization only with the visualization capability (program lessons always may).
   if (!hasProgramCode(lesson) && hasCapability(lesson, 'visualization') !== !!content.visualization)
     fail(content.visualization ? 'has a visualization without the visualization capability' : 'the visualization capability needs a visualization');

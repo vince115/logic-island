@@ -17,6 +17,8 @@
 | `case-study-board`（LNX01） | Linux 系統島（尚未撰寫） | LNX01 改用 `terminal-sim`（在模擬機器上查看發行版資訊與目錄） | 依需求比較發行版並記錄取捨的分析板 | 無 |
 | `request-path`、`architecture-diagram`（SRV-0） | 網路與伺服器島（尚未撰寫）：SRV02–SRV08、SRV11 | 改用 `network-sequence`：`terminal` 的機器與指令加上 `network-protocol` 的情境（和 LNX12 相同）；引擎階段 E10–E12（socket、DNS、HTTP）已實作 | 引擎階段 E13–E19：TLS、nginx 設定、反向代理與負載平衡、防火牆、SSH 通道、CDN、診斷工具（見 [SRV0_SERVER_CAPABILITY](SRV0_SERVER_CAPABILITY.md)）；`request-path` 本身（KUB07 也用）仍是規劃中的活動 | `src/lib/terminal`（sockets、dns、http）與 `src/lib/network/model.ts` |
 | `case-study-board`（SRV13） | 網路與伺服器島（尚未撰寫） | SRV13 改用 `terminal-sim`（在模擬機器上依序排除故障） | 依症狀記錄假設與證據的故障排除分析板 | 無 |
+| `dom-explorer`（WEB-0） | 網頁基礎島（尚未撰寫） | `web-code` 能力已實作：頁面在沙盒框架裡執行，旁邊是瀏覽器建立的 DOM 樹、主控台輸出、連結與表單的去向；練習以操作與檢查的步驟判定 | 引擎階段 W1–W6：載入順序、虛擬時鐘、固定回應的 `fetch`、記憶體中的儲存空間、無障礙檢查、載入指標的模型（[WEB0_WEB_CODE_CAPABILITY](WEB0_WEB_CODE_CAPABILITY.md) §9） | `src/lib/webcode` |
+| `pipeline-diagram`、`concurrency-timeline`、`memory-inspector`、`a11y-checker`、`metric-explorer`（WEB01、WEB10、WEB12、WEB13、WEB14） | 網頁基礎島（尚未撰寫） | 這幾堂改用 `dom-explorer`（頁面與 DOM 樹），不放替身 | 載入流程圖、事件迴圈時間軸、儲存空間檢視器、無障礙檢查器、指標探索器 | `web-code` 的 harness、`concurrency-timeline` 可與 PL13–PL15 共用 |
 | `case-study-board` | PL19 | 無（比較表格與逐步說明） | 依情境需求逐項比較語言並記錄取捨的分析板 | 無 |
 | `concurrency-timeline` | PL13、PL14、PL15 | 變數狀態＋時間軸表格、堆疊與佇列容器（固定範例） | 拖曳或選擇排程，看交錯、死結與事件迴圈 | 交易時間軸（`transaction-timeline`）的排程模型 |
 

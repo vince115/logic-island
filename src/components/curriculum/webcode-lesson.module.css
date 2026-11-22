@@ -1,0 +1,120 @@
+/* WEB-0 web-code capability: a page's files as code, the page in its sandboxed frame, the DOM outline, the console and
+   the editors. The frame keeps a white page in both themes (a web page's default canvas), and the console a dark
+   screen like the terminal's (text #e2e8f0 14.48:1, errors #fca5a5 9.41:1, warnings #fde68a 13.2:1 on #0f172a).
+   Nothing animates. Long lines scroll inside their own box, so the lesson never scrolls sideways on a phone. */
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 10px;
+  align-items: start;
+}
+@media (max-width: 760px) {
+  .split { grid-template-columns: minmax(0, 1fr); }
+}
+.files { display: grid; gap: 10px; min-width: 0; margin-bottom: 10px; }
+.split > .files { margin-bottom: 0; }
+.file { margin: 0; min-width: 0; }
+.file figcaption,
+.preview figcaption { font-size: var(--text-sm); font-weight: 650; margin-bottom: 6px; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.code {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--code);
+  color: var(--code-text);
+  font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre;
+  overflow: auto;
+  max-height: 420px;
+  max-width: 100%;
+  tab-size: 2;
+}
+
+.live { min-width: 0; display: grid; gap: 8px; }
+.preview { margin: 0; min-width: 0; }
+.pageTitle { font-weight: 400; color: var(--cur-muted, var(--muted)); font-size: var(--text-xs); overflow-wrap: anywhere; }
+.frame {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color-scheme: light;
+}
+.note { font-size: var(--text-xs); color: var(--cur-muted, var(--muted)); margin: 6px 0 0; overflow-wrap: anywhere; }
+.note code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+.console {
+  border-radius: 8px;
+  border: 1px solid #1e293b;
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 8px 12px;
+  font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+  max-height: 200px;
+  overflow: auto;
+}
+.console > div { white-space: pre-wrap; overflow-wrap: anywhere; }
+.console > div[data-kind='error'] { color: #fca5a5; }
+.console > div[data-kind='warn'] { color: #fde68a; }
+
+.dom,
+.facts,
+.tryIt { font-size: var(--text-sm); margin-top: 8px; min-width: 0; }
+.dom summary,
+.facts summary,
+.tryIt summary { cursor: pointer; font-weight: 650; min-height: 32px; }
+.facts ul { margin: 4px 0 0; padding-left: 20px; display: grid; gap: 2px; }
+.tree {
+  margin: 6px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre;
+  overflow: auto;
+  max-height: 320px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.editor { display: grid; gap: 6px; margin-top: 10px; min-width: 0; }
+.editor label { font-size: var(--text-sm); font-weight: 650; display: flex; gap: 8px; align-items: baseline; }
+.kind { font-weight: 400; font-size: var(--text-xs); color: var(--cur-muted, var(--muted)); }
+.editor textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--code);
+  color: var(--code-text);
+  caret-color: #fff;
+  font: 14px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+  tab-size: 2;
+  resize: vertical;
+  white-space: pre;
+  overflow: auto;
+}
+.editor textarea:focus-visible { outline: 2px solid #8cb5f7; outline-offset: 2px; }
+/* Touch keyboards zoom the page for text under 16px. */
+@media (pointer: coarse) {
+  .editor textarea { font-size: 16px; }
+}
+
+.steps { margin-top: 12px; min-width: 0; }
+.steps h4 { font-size: var(--text-base); margin: 0 0 4px; }
+.steps ol,
+.hidden { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; font-size: var(--text-sm); }
+.steps li { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 6px; align-items: start; overflow-wrap: anywhere; }
+.steps li > span:only-child { grid-column: 2; }
+.steps li > svg { margin-top: 3px; }
+.steps li[data-step='action'] { color: var(--cur-muted, var(--muted)); }
+.steps li[data-ok='true'] > svg { color: var(--cur-ok); }
+.steps li[data-ok='false'] > svg { color: var(--cur-bad); }
+.found { color: var(--cur-muted, var(--muted)); }
