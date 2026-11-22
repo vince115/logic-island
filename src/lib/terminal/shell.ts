@@ -17,6 +17,9 @@ import { scheduleCommand } from './schedule';
 import { basicResolver, getent, ip, lsof, nc, ss, type NetIo } from './sockets';
 import { afterSystemctl, dig, dnsResolver, host, namedCheckzone, resolvectl, rndc } from './dns';
 import { curl } from './http';
+import { openssl } from './openssl';
+import { certbot } from './certbot';
+import { hupsMaster, masterOf, nginxCommand, nginxControl, reloadRunning } from './nginx';
 
 /*
  * P7 Linux Terminal Simulator: the command interpreter. A fixed table of commands works on the virtual file system in
@@ -50,6 +53,9 @@ import { curl } from './http';
  * and listening sockets derived from processes (ss, lsof, nc -z, ip, getent; sockets.ts); DNS_PROFILE adds dns — zone
  * files served by named, a caching stub resolver and name lookups through /etc/hosts and DNS (dig, host, named-checkzone,
  * rndc, resolvectl; dns.ts); HTTP_PROFILE adds http — HTTP/1.1 responders and curl (http.ts).
+ * Engine stages E13–E14 (SRV0_SERVER_CAPABILITY.md §11–§12): TLS_PROFILE adds tls — certificates as simulated PEM files, a
+ * trust store, openssl x509/s_client/verify, curl's real HTTPS and certbot's ACME HTTP-01 (tls.ts, openssl.ts, certbot.ts);
+ * NGINX_PROFILE adds nginx — a parsed nginx configuration that serves files, nginx -t/-T/-s and reload semantics (nginx.ts).
  */
 
 export interface Line { text: string; kind: 'out' | 'err' }
@@ -78,26 +84,31 @@ export const E9_COMMANDS = ['crontab', 'cron-next', 'cron-run', 'flock', 'timeda
 export const E10_COMMANDS = ['ss', 'lsof', 'nc', 'ip', 'getent'] as const;
 /** E11: DNS (DNS_PROFILE and above). */
 export const E11_COMMANDS = ['dig', 'host', 'named-checkzone', 'rndc', 'resolvectl'] as const;
-/** E12: HTTP with curl (HTTP_PROFILE). */
+/** E12: HTTP with curl (HTTP_PROFILE and above). */
 export const E12_COMMANDS = ['curl'] as const;
+/** E13: certificates and ACME (TLS_PROFILE and above). */
+export const E13_COMMANDS = ['openssl', 'certbot'] as const;
+/** E14: nginx (NGINX_PROFILE). */
+export const E14_COMMANDS = ['nginx'] as const;
 /** The commands of the files profile (the manual of E1 covers exactly these). */
 export type FilesCommand = typeof COMMANDS[number] | typeof E1_COMMANDS[number];
 export type CommandName = FilesCommand | typeof E2_COMMANDS[number] | typeof E3_COMMANDS[number] | typeof E4_COMMANDS[number] | typeof E5_COMMANDS[number] | typeof E6_COMMANDS[number]
   | typeof E7_COMMANDS[number] | typeof E8_COMMANDS[number] | typeof E9_COMMANDS[number] | typeof E10_COMMANDS[number] | typeof E11_COMMANDS[number]
-  | typeof E12_COMMANDS[number];
+  | typeof E12_COMMANDS[number] | typeof E13_COMMANDS[number] | typeof E14_COMMANDS[number];
 /** Every command any profile may list. */
 export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS, ...E2_COMMANDS, ...E3_COMMANDS, ...E4_COMMANDS, ...E5_COMMANDS, ...E6_COMMANDS,
-  ...E7_COMMANDS, ...E8_COMMANDS, ...E9_COMMANDS, ...E10_COMMANDS, ...E11_COMMANDS, ...E12_COMMANDS];
+  ...E7_COMMANDS, ...E8_COMMANDS, ...E9_COMMANDS, ...E10_COMMANDS, ...E11_COMMANDS, ...E12_COMMANDS, ...E13_COMMANDS, ...E14_COMMANDS];
 
 /**
  * Behaviour a profile switches on besides its commands. E1: glob (* ? [...] and ~), help-option (指令 --help, long
  * options, GNU's Try line), multi-source (cp and mv with several sources into a folder), ls-extra (ls -h -d, operands
  * grouped like GNU ls). E2: pipes (pipelines, redirection, standard input). E3: accounts (users, groups, umask).
  * E4: processes (the process table, jobs, $?). E5: packages. E6: services. E7: remote (ssh). E8: scripting (the Bash
- * interpreter, also at the prompt). E9: scheduling (time zones, cron, timers). E10: sockets. E11: dns. E12: http.
+ * interpreter, also at the prompt). E9: scheduling (time zones, cron, timers). E10: sockets. E11: dns. E12: http. E13: tls.
+ * E14: nginx.
  */
 export type ShellFeature = 'glob' | 'help-option' | 'multi-source' | 'ls-extra' | 'pipes' | 'accounts' | 'processes' | 'packages' | 'services' | 'remote' | 'scripting' | 'scheduling'
-  | 'sockets' | 'dns' | 'http';
+  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx';
 
 /** LNX-0: the commands a session may run (E1: and the features it switches on; none by default). */
 export interface ShellProfile { readonly id: string; readonly commands: readonly CommandName[]; readonly features?: readonly ShellFeature[] }
@@ -144,10 +155,15 @@ export const SOCKETS_PROFILE: ShellProfile = { id: 'sockets', commands: above(SC
 export const DNS_PROFILE: ShellProfile = { id: 'dns', commands: above(SOCKETS_PROFILE, E11_COMMANDS), features: [...SOCKETS_PROFILE.features!, 'dns'] };
 /** E12: the dns profile plus HTTP responders and curl. */
 export const HTTP_PROFILE: ShellProfile = { id: 'http', commands: above(DNS_PROFILE, E12_COMMANDS), features: [...DNS_PROFILE.features!, 'http'] };
+/** E13: the http profile plus certificates, the trust store, openssl, HTTPS in curl and certbot. */
+export const TLS_PROFILE: ShellProfile = { id: 'tls', commands: above(HTTP_PROFILE, E13_COMMANDS), features: [...HTTP_PROFILE.features!, 'tls'] };
+/** E14: the tls profile plus nginx's configuration, nginx -t/-T/-s and the files it serves. */
+export const NGINX_PROFILE: ShellProfile = { id: 'nginx', commands: above(TLS_PROFILE, E14_COMMANDS), features: [...TLS_PROFILE.features!, 'nginx'] };
 /** The profiles a lesson machine may name (TerminalMachine.profile), from the narrowest. */
 export const PROFILES = {
   lab: LAB_PROFILE, files: FILES_PROFILE, streams: STREAMS_PROFILE, users: USERS_PROFILE, processes: PROCESSES_PROFILE, packages: PACKAGES_PROFILE, services: SERVICES_PROFILE,
   remote: REMOTE_PROFILE, scripting: SCRIPTING_PROFILE, scheduling: SCHEDULING_PROFILE, sockets: SOCKETS_PROFILE, dns: DNS_PROFILE, http: HTTP_PROFILE,
+  tls: TLS_PROFILE, nginx: NGINX_PROFILE,
 } as const;
 export type ProfileId = keyof typeof PROFILES;
 
@@ -236,6 +252,9 @@ const HELP: [CommandName | null, string][] = [
   ['rndc', '  rndc reload [區域]             讓 named 重新載入區域檔（需要 root）'],
   ['resolvectl', '  resolvectl flush-caches        清除本機解析器的快取（需要 root）'],
   ['curl', '  curl [-v] [-I] [-L] [-s] [-o 檔案] [-w 格式] 網址  送出 HTTP 請求'],
+  ['openssl', '  openssl x509 -in 檔案 -noout -dates | s_client -connect 主機:443 | verify  查看與驗證憑證'],
+  ['certbot', '  certbot certonly --webroot -w 目錄 -d 網域 | --nginx | certificates | renew  向 Let\'s Encrypt 取得與更新憑證（需要 root）'],
+  ['nginx', '  nginx -t | -T | -s reload      檢查、印出與重新載入 nginx 的設定（需要 root）'],
   ['man', '  man 指令                顯示指令的說明頁（也可以用 指令 --help）'],
 ];
 /** The lines that change when a profile has the feature (the lab keeps its own lines). */
@@ -623,7 +642,21 @@ interface Ctx {
 export interface Exec { state: FsState; events: Ev[]; status: number; clear?: true; notices?: string[] }
 
 /** E10–E12: the network commands and the module function of each. */
-const NET_COMMANDS = { ss, lsof, nc, ip, getent, dig, host, 'named-checkzone': namedCheckzone, rndc, resolvectl, curl } as const;
+const NET_COMMANDS = { ss, lsof, nc, ip, getent, dig, host, 'named-checkzone': namedCheckzone, rndc, resolvectl, curl, openssl, nginx: nginxCommand } as const;
+
+/** E13: certbot.service's ExecStart=/usr/bin/certbot -q renew runs the simulation's certbot (its output goes to the journal). */
+function certbotService(profile: ShellProfile, ctx: Ctx) {
+  return (s: FsState, line: string, user: string) => {
+    const words = line.replace(/^[-@+!:]+/, '').split(/\s+/).filter(Boolean);
+    if (!words.length || baseName(words[0]) !== 'certbot') return undefined;
+    const lines: string[] = [];
+    const r = certbot(s, words.slice(1), {
+      out: d => lines.push(...d.replace(/\n$/, '').split('\n')), err: l => lines.push(l), user, tty: false, resolve: dnsResolver, stdin: null, tls: true,
+      hook: (st, source) => { const x = runText(st, source, profile, { parent: ctx }); return { state: x.state, status: x.status }; },
+    });
+    return { state: r.state, lines, status: r.status, id: 'certbot' };
+  };
+}
 
 /** Shell builtins: sudo cannot run them (sudo: cd: command not found, as on Linux). */
 const BUILTINS = ['cd', 'umask', 'help', 'newgrp', 'jobs', 'fg', 'bg'];
@@ -1410,11 +1443,14 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
     case 'pgrep': code = proc.pgrep(cur(), 'pgrep', args, pio()).status; return done();
     case 'pidof': code = proc.pidof(cur(), args, pio()); return done();
     case 'kill': case 'pkill': {
+      const master = features.has('nginx') ? masterOf(cur()) : undefined;
       const r = cmd === 'kill' ? proc.kill(cur(), args, pio()) : proc.pgrep(cur(), 'pkill', args, pio());
       notices.push(...r.notices);
       code = r.status;
       // E6: systemd notices when a service's main process ends (and Restart= may start it again).
-      return done(afterSignal(r.state, r.ended));
+      const after = afterSignal(r.state, r.ended);
+      // E14: SIGHUP makes nginx's master reload its configuration.
+      return done(master && r.status === 0 && masterOf(after)?.pid === master.pid && hupsMaster(cmd, args, master) ? reloadRunning(after) : after);
     }
     case 'sleep': { const p = proc.sleepProblem(args); if (p) usage(p); return done(); }
     case 'jobs': code = proc.jobsCommand(cur(), args, pio()); return done();
@@ -1448,10 +1484,18 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
         const pre = sshdControl(cur(), args, state.user, 'before');
         if (pre.refused) { pre.refused.forEach(l => fail(l.text)); code = 1; return done(pre.state); }
       }
-      const r = systemctl(cur(), args, { ...sio(), ...features.has('scripting') ? { script: serviceScript(profile) } : {} });
+      // E14: starting, restarting or reloading nginx tests its configuration first (a failure keeps the running one on reload).
+      let base = cur();
+      if (features.has('nginx')) {
+        const pre = nginxControl(base, args, state.user, 'before');
+        if (pre.refused) { pre.refused.forEach(fail); code = 1; return done(pre.state); }
+        base = pre.state;
+      }
+      const r = systemctl(base, args, { ...sio(), ...features.has('scripting') ? { script: serviceScript(profile, features.has('tls') ? certbotService(profile, ctx) : undefined) } : {} });
       code = r.status;
       // E11: named (re)started or reloaded by systemd loads its zones.
-      const after = features.has('dns') ? afterSystemctl(cur(), r.state, args, r.status) : r.state;
+      let after = features.has('dns') ? afterSystemctl(base, r.state, args, r.status) : r.state;
+      if (features.has('nginx')) after = nginxControl(after, args, state.user, 'after', base, r.status).state;
       return done(remote ? sshdControl(after, args, state.user, 'after', r.status).state : after);
     }
     case 'journalctl': code = journalctl(cur(), args, sio()); return done();
@@ -1493,10 +1537,13 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
       code = r.status;
       return done(sameShell(r.state, cur()));
     }
-    case 'ss': case 'lsof': case 'nc': case 'ip': case 'getent': case 'dig': case 'host': case 'named-checkzone': case 'rndc': case 'resolvectl': case 'curl': {
-      // E10–E12 (sockets.ts, dns.ts, http.ts): names are looked up through /etc/hosts and, from the dns profile up, DNS.
-      const io: NetIo = { out: write, err: fail, user: state.user, tty: ctx.tty, resolve: features.has('dns') ? dnsResolver : basicResolver };
-      const r = NET_COMMANDS[cmd as keyof typeof NET_COMMANDS](cur(), args, io);
+    case 'ss': case 'lsof': case 'nc': case 'ip': case 'getent': case 'dig': case 'host': case 'named-checkzone': case 'rndc': case 'resolvectl': case 'curl':
+    case 'openssl': case 'nginx': case 'certbot': {
+      // E10–E14 (sockets.ts, dns.ts, http.ts, openssl.ts, certbot.ts, nginx.ts): names are looked up through /etc/hosts and, from the dns profile up, DNS.
+      const io: NetIo = { out: write, err: fail, user: state.user, tty: ctx.tty, resolve: features.has('dns') ? dnsResolver : basicResolver, stdin: ctx.stdin, ...features.has('tls') ? { tls: true } : {} };
+      // E13: certbot runs a deploy hook through the shell (as the user it runs as, root).
+      const r = cmd === 'certbot' ? certbot(cur(), args, { ...io, hook: (s, source) => { const x = runText(s, source, profile, { parent: ctx }); return { state: x.state, status: x.status }; } })
+        : NET_COMMANDS[cmd as keyof typeof NET_COMMANDS](cur(), args, io);
       code = r.status;
       return done(r.state);
     }

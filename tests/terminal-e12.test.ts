@@ -163,3 +163,24 @@ describe('lesson data', () => {
     expect(terminalContentProblems(c).join('\n')).toMatch(/an http check needs an http machine/);
   });
 });
+
+describe('E12 fidelity fixes (SRV0_SERVER_CAPABILITY.md §8.3)', () => {
+  it('-H \'User-Agent: …\' and -H \'Accept: …\' replace curl\'s own header (after the defaults, like curl); an empty value removes it', () => {
+    const lines = (cmd: string) => cli(cmd).err.filter(l => l.startsWith('> '));
+    expect(lines('curl -sv -H "Accept: application/json" http://www.example.org/')).toEqual(['> GET / HTTP/1.1', '> Host: www.example.org', '> User-Agent: curl/8.5.0', '> Accept: application/json']);
+    expect(lines('curl -sv -H "User-Agent: probe/1" -H "X-Id: 7" http://www.example.org/')).toEqual(['> GET / HTTP/1.1', '> Host: www.example.org', '> Accept: */*', '> User-Agent: probe/1', '> X-Id: 7']);
+    expect(lines('curl -sv -H "Accept:" http://www.example.org/')).toEqual(['> GET / HTTP/1.1', '> Host: www.example.org', '> User-Agent: curl/8.5.0']);
+    expect(lines('curl -sv -A probe/2 http://www.example.org/')).toEqual(['> GET / HTTP/1.1', '> Host: www.example.org', '> User-Agent: probe/2', '> Accept: */*']);
+    expect(lines('curl -sv -d "{}" -H "Content-Type: application/json" http://www.example.org/form')).toEqual(['> POST /form HTTP/1.1', '> Host: www.example.org', '> User-Agent: curl/8.5.0',
+      '> Accept: */*', '> Content-Type: application/json', '> Content-Length: 2']);
+  });
+  it('-o writes the first URL only; the later ones go to standard output', () => {
+    const s = session(httpMachine, 'curl -s -o first.html http://www.example.org/ http://www.example.org/new', 'cat first.html');
+    expect(s.log.map(l => l.out)).toEqual([['new page'], ['<h1>Welcome</h1>']]);
+  });
+  it('a 204 has neither a body nor a Content-Length', () => {
+    const r = respond({ id: 'x', server: 'nginx/1.24.0 (Ubuntu)', routes: [{ path: '/', status: 204, body: 'ignored' }] }, { method: 'GET', path: '/', headers: [] }, 0);
+    expect(r).toMatchObject({ status: 204, reason: 'No Content', body: '' });
+    expect(r.headers.map(([k]) => k)).toEqual(['Server', 'Date', 'Content-Type', 'Connection']);
+  });
+});

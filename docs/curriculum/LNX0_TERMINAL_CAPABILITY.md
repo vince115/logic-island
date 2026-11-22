@@ -13,6 +13,7 @@ P7 的 Linux Terminal Simulator（`/learn/linux-terminal`）已經有純函式�
 | `src/lib/terminal/tasks.ts` | 實驗的 7 個練習任務，只看檔案系統的結果 |
 | `src/lib/terminal/ssh.ts`、`script.ts`、`calendar.ts`、`schedule.ts` | E7–E9 新增（§15–§17）：SSH 與金鑰、Bash 直譯器、時區與 cron／calendar 運算式、排程的指令 |
 | `src/lib/terminal/sockets.ts`、`dns.ts`、`http.ts`、`server-lesson.ts` | E10–E12 新增（網路與伺服器島，見 §18 與 [SRV0_SERVER_CAPABILITY](SRV0_SERVER_CAPABILITY.md)）：socket、DNS、HTTP |
+| `src/lib/terminal/tls.ts`、`openssl.ts`、`certbot.ts`、`nginx.ts`、`web-lesson.ts` | E13–E14 新增（同上）：憑證、openssl、certbot、nginx |
 
 LNX-0 把它變成課程能力，不改實驗的行為（`tests/terminal.test.ts` 與實驗元件不變）。
 
@@ -670,9 +671,9 @@ machines: [{ ..., profile: 'scheduling', timezone?: 'Asia/Taipei', mta?: false,
 
 ## 18. 引擎階段 E10–E12（網路與伺服器島）
 
-> 2026-11-22。E10 起的引擎階段屬於網路與伺服器島（SRV），完整的說明只放在 [SRV0_SERVER_CAPABILITY](SRV0_SERVER_CAPABILITY.md)（§5 決定論的規則、§6 `sockets`、§7 `dns`、§8 `http`、§9 課程資料與檢查、§10 測試）。這裡只記錄和本文件的關係：
+> 2026-11-22。E10 起的引擎階段屬於網路與伺服器島（SRV），完整的說明只放在 [SRV0_SERVER_CAPABILITY](SRV0_SERVER_CAPABILITY.md)（§5 決定論的規則、§6 `sockets`、§7 `dns`、§8 `http`、§9 課程資料與檢查、§10 測試、§11 `tls`、§12 `nginx`、§13–§14 E13–E14 的課程資料與測試）。這裡只記錄和本文件的關係：
 
-- 線性鏈延續：lab < files < streams < users < processes < packages < services < remote < scripting < scheduling < `sockets`（E10）< `dns`（E11）< `http`（E12）；`RANK` 只比較名次，較高的 profile 包含較低的一切。
+- 線性鏈延續：lab < files < streams < users < processes < packages < services < remote < scripting < scheduling < `sockets`（E10）< `dns`（E11）< `http`（E12）< `tls`（E13）< `nginx`（E14）；`RANK` 只比較名次，較高的 profile 包含較低的一切。
 - 較低的 profile 與已發布的 LNX01–LNX15 逐字不變：E10–E12 的指令在 `scheduling` 以下是 `command not found`，機器不會多出 `/etc/hosts`、`/etc/services`、systemd-resolved 等產生的東西，E7 的 ssh 仍依機器名稱找主機（從 `dns` 起才經由 `/etc/hosts` 與 DNS）。
 - E6 的 `programs` 與 E4 的行程可以宣告 `listen`（只有 `sockets` 以上的機器）；E7 的遠端機器在 `sockets` 以上可以有自己的行程、程式、服務、介面、named 與 HTTP 回應者，最多 6 台。
 - `tests/terminal-e1.test.ts` 的 `PROFILES` 期望值加上三個新 profile，和之前每個階段相同。
