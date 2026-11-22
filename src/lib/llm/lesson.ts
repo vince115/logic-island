@@ -70,7 +70,7 @@ export type LlmQuery =
 /** A value a query gives: a number, a text, or a list (ids or tokens; ordered or a set). */
 export type LlmValue =
   | { type: 'number'; value: number }
-  | { type: 'text'; value: string }
+  | { type: 'text'; value: string; /** One token's spelling: compared with its spaces (typed ␣), as list items are. */ token?: boolean }
   | { type: 'list'; items: string[]; ordered: boolean; separator: 'space' | 'bar' };
 
 /** A blank to fill: a written answer (text, or a number compared within `tolerance`) and where it comes from. */
@@ -124,7 +124,7 @@ export function llmQueryValue(q: LlmQuery, c: LlmLessonContent): LlmValue {
       if (!t.training) throw new Error(`tokenizer ${t.id} has no training corpus`);
       const step = trainBpe(t.training.corpus, t.table.merges.length, { minCount: t.training.minCount, pretokenize: t.table.pretokenize }).steps[q.rank];
       if (!step) throw new Error(`training learns no merge ${q.rank}`);
-      return { type: 'text', value: step.merged };
+      return { type: 'text', value: step.merged, token: true };
     }
     case 'cross-entropy': case 'perplexity': {
       const s = byId(byId(c.tokenizers, q.explorer, 'tokenizer').scoring, q.scoring, 'scoring');
@@ -134,7 +134,7 @@ export function llmQueryValue(q: LlmQuery, c: LlmLessonContent): LlmValue {
       const s = byId(c.samplers, q.explorer, 'sampler');
       const ctx = s.model.contexts.find(x => JSON.stringify(x.context) === JSON.stringify(q.context));
       if (!ctx) throw new Error(`sampler ${s.id} has no context [${q.context.join(' ')}]`);
-      if (q.of === 'greedy') return { type: 'text', value: distribution(ctx.candidates, { temperature: 0 }).find(r => r.kept)!.token };
+      if (q.of === 'greedy') return { type: 'text', value: distribution(ctx.candidates, { temperature: 0 }).find(r => r.kept)!.token, token: true };
       const p = settingsProblems(q.settings);
       if (p.length) throw new Error(p.join('; '));
       const rows = distribution(ctx.candidates, q.settings);
@@ -176,6 +176,8 @@ export function parseNumber(text: string): number | undefined {
  * token) are part of it. A token's leading space matters in BPE: ` low` and `low` are different tokens.
  */
 const normToken = (s: string) => s.normalize('NFC').trim().replace(/␣/g, ' ').replace(/↵/g, '\n');
+/** A token as the page shows it (and as the learner types it): a space as ␣, a line break as ↵. */
+const shownToken = (s: string) => s.replace(/ /g, '␣').replace(/\n/g, '↵');
 /** A list as typed: ids split on spaces, commas, 、 or |; tokens on |, 、 or line breaks (write a space in a token as ␣). */
 export const splitList = (text: string, separator: 'space' | 'bar') => separator === 'space'
   ? text.split(/[\s,，、|]+/).map(normText).filter(Boolean)
@@ -184,7 +186,7 @@ export const splitList = (text: string, separator: 'space' | 'bar') => separator
 /** Whether a typed answer gives the value (a number within `tolerance`, the same text, the same list). */
 export function matchesValue(value: LlmValue, text: string, tolerance = 0): boolean {
   if (value.type === 'number') { const x = parseNumber(text); return x !== undefined && Math.abs(x - value.value) <= tolerance + 1e-12; }
-  if (value.type === 'text') return normText(text) === normText(value.value);
+  if (value.type === 'text') return value.token ? normToken(text) === value.value.normalize('NFC') : normText(text) === normText(value.value);
   // Tokens keep their spaces (typed as ␣); ids are compared as text.
   const got = splitList(text, value.separator), want = value.separator === 'space' ? value.items.map(normText).filter(Boolean) : value.items.map(i => i.normalize('NFC')).filter(t => t.length > 0);
   if (!value.ordered) { got.sort(); want.sort(); }
@@ -192,14 +194,15 @@ export function matchesValue(value: LlmValue, text: string, tolerance = 0): bool
 }
 
 /** The shape of a query's value, known without the data: what the learner types and how it is compared. */
-export type LlmShape = { type: 'number' } | { type: 'text' } | { type: 'list'; ordered: boolean; separator: 'space' | 'bar' };
+export type LlmShape = { type: 'number' } | { type: 'text'; token?: boolean } | { type: 'list'; ordered: boolean; separator: 'space' | 'bar' };
 export function shapeOf(q: LlmQuery): LlmShape {
   switch (q.of) {
     case 'tokens': case 'generate': return { type: 'list', ordered: true, separator: 'bar' };
     case 'kept': return { type: 'list', ordered: false, separator: 'bar' };
     case 'token-ids': return { type: 'list', ordered: true, separator: 'space' };
     case 'nearest': return (q.k ?? 1) > 1 ? { type: 'list', ordered: true, separator: 'bar' } : { type: 'text' };
-    case 'decode': case 'trained-merge': case 'greedy': return { type: 'text' };
+    case 'trained-merge': case 'greedy': return { type: 'text', token: true };
+    case 'decode': return { type: 'text' };
     default: return { type: 'number' };
   }
 }
@@ -209,7 +212,7 @@ function writtenValue(blank: LlmBlank): LlmValue {
   const shape = shapeOf(blank.query);
   if (typeof blank.answer === 'number') return { type: 'number', value: blank.answer };
   if (shape.type === 'list') return { ...shape, items: splitList(blank.answer, shape.separator) };
-  return { type: 'text', value: blank.answer };
+  return shape.type === 'text' && shape.token ? { type: 'text', value: normToken(blank.answer), token: true } : { type: 'text', value: blank.answer };
 }
 
 /** Checks a learner's answer against the exercise's written answers (llmContentProblems proves they follow from the data). */
@@ -328,7 +331,8 @@ export function llmContentProblems(c: LlmLessonContent): string[] {
           if (!(Math.abs(answer - derived.value) <= tol / 2 + 1e-12)) { fail(`blank ${b.id}: the answer ${answer} does not follow from the data (${derived.value}; it must be within half the tolerance ${tol})`); sound = false; }
         } else {
           const written = writtenValue(b);
-          const text = written.type === 'list' ? written.items.join(written.separator === 'space' ? ' ' : '|') : String(b.answer);
+          // Rejoined as the learner types it: a token's spaces and line breaks as ␣ and ↵, so they are not trimmed away.
+          const text = written.type === 'list' ? (written.separator === 'space' ? written.items.join(' ') : written.items.map(shownToken).join('|')) : String(b.answer);
           if (!matchesValue(derived, text)) { fail(`blank ${b.id}: the answer "${b.answer}" does not follow from the data (${derived.type === 'list' ? derived.items.join(' | ') : derived.value})`); sound = false; }
         }
       } catch (err) { fail(`blank ${b.id}: ${(err as Error).message}`); sound = false; }
@@ -336,7 +340,7 @@ export function llmContentProblems(c: LlmLessonContent): string[] {
     if (e.kind === 'choice') {
       try {
         const derived = llmQueryValue(e.query, c);
-        if (e.options.length < 2 || new Set(e.options.map(normText)).size !== e.options.length) fail('needs at least two distinct options');
+        if (e.options.length < 2 || new Set(e.options.map(o => o.normalize('NFC').trim())).size !== e.options.length) fail('needs at least two distinct options');
         if (!Number.isInteger(e.answer) || e.answer < 0 || e.answer >= e.options.length) { fail('the answer is not one of the options'); sound = false; }
         const matching = e.options.flatMap((o, i) => matchesValue(derived, o, e.tolerance ?? 0) ? [i] : []);
         if (matching.length !== 1 || matching[0] !== e.answer) { fail(`the data makes ${matching.length ? matching.map(i => `"${e.options[i]}"`).join(', ') : 'no option'} right, not only "${e.options[e.answer]}"`); sound = false; }

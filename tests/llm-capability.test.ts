@@ -380,3 +380,22 @@ describe('token answers keep their spaces', () => {
     expect(m({ type: 'list', ordered: true, separator: 'space', items: ['108', '111'] }, '108, 111')).toBe(true);
   });
 });
+
+describe('a token answer with a leading space, in the validator too', () => {
+  const content = (ex: LlmExercise): LlmLessonContent => ({ tokenizers: [tokenizer()], exercises: [ex] });
+  const field = (answer: string, why: string): LlmExercise => ({ id: 'x-space', kind: 'field', title: '切 low low', statement: '把 `low low` 切成 token。',
+    blank: { id: 'tokens', label: 'token', query: { of: 'tokens', explorer: 'toy-bpe', text: 'low low' }, answer },
+    hints: ['第二個 low 前面的空白和它合成一個 token。'], explanation: '`low` 與 `␣low`：空白是第二個 token 的一部分。',
+    mistakes: [{ answer: { value: why === 'right' ? 'low|low' : 'low|␣low' }, why: '忘了 token 開頭的空白' }] });
+  it('accepts ␣low as the second token and rejects low (the space belongs to the token)', () => {
+    expect(llmContentProblems(content(field('low|␣low', 'right')))).toEqual([]);
+    expect(llmContentProblems(content(field('low|low', 'wrong'))).join('\n')).toMatch(/does not follow from the data/);
+  });
+  it('compares a trained merge as a token: ␣low, not low', () => {
+    const merge = (answer: string, mistake: string): LlmExercise => ({ id: 'x-merge', kind: 'field', title: '第三條規則', statement: '訓練學到的第三條合併規則產生哪個 token？',
+      blank: { id: 'merge', label: 'token', query: { of: 'trained-merge', explorer: 'toy-bpe', rank: 2 }, answer },
+      hints: ['數一數語料裡相鄰的配對。'], explanation: '空白和 low 相鄰最多次，合成 `␣low`。', mistakes: [{ answer: { value: mistake }, why: '漏了空白' }] });
+    expect(llmContentProblems(content(merge('␣low', 'low')))).toEqual([]);
+    expect(llmContentProblems(content(merge('low', '␣low'))).join('\n')).toMatch(/does not follow from the data/);
+  });
+});
