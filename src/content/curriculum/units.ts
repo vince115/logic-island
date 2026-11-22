@@ -85,6 +85,7 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '網頁如何運作與 HTML 結構', summary: 'HTML、CSS 與 JavaScript 的分工、頁面載入流程、DOM 與開發者工具；文件骨架、語意元素、地標區域與標題層級', lessonIds: range('WEB', 1, 2) },
     { title: '內容與表單', summary: '文字的語意、連結與錨點、相對與絕對路徑、圖片的替代文字與尺寸、影音與字幕；表單控制項、label 關聯、輸入類型與原生驗證', lessonIds: range('WEB', 3, 4) },
     { title: 'CSS：樣式、盒子與定位', summary: '選擇器、串接、特異性與繼承；盒模型、box-sizing、區塊與行內、外距合併；position 的五種值、包含區塊、z-index 與堆疊環境', lessonIds: range('WEB', 5, 7) },
+    { title: 'JavaScript：DOM、事件與非同步', summary: 'DOM 樹與指令稿的執行時機、選取與修改元素、建立並插入元素；事件監聽、事件物件、冒泡與事件委派；事件迴圈、Promise、async／await 與非同步的錯誤處理', lessonIds: range('WEB', 8, 10) },
   ],
   // CN-1 to CN-5: the whole island, CN01–CN20.
   networks: [

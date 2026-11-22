@@ -57,7 +57,8 @@ webCode: {
 | `key` | 在元素上觸發 `keydown`、`keyup`；指令稿產生的鍵盤事件沒有預設行為，所以模擬最常用的兩種：Enter／Space 啟動按鈕；欄位裡的 Enter 依瀏覽器的隱式送出規則送出表單（WEB-1：表單有送出按鈕時經由第一個送出按鈕，按鈕停用就不送出；沒有送出按鈕時，只有單一單行欄位的表單會送出） |
 | `submit` | 和送出按鈕相同的 `requestSubmit`（先原生驗證，再 `submit` 事件） |
 | `scroll` | 把頁面（`selector: ':page'`）或可捲動的元素捲到指定的垂直位置（WEB-2） |
-| `wait` | 讓計時器執行（每步最多 1000 ms，全部最多 3000 ms） |
+| `dispatch` | 在元素上觸發任何型別的事件（`mouseover`、`dblclick`、自訂事件；會冒泡，本來就不冒泡的 `mouseenter`、`focus` 等除外）（WEB-3） |
+| `wait` | 讓頁面的計時器執行這麼久（每步最多 10000 ms，全部最多 60000 ms）。檢查用的是虛擬時鐘（W2，WEB-3）：不會真的等待，計時器依時間先後、同時間依設定的先後執行，Promise 的回呼在計時器之間照常執行；第一步之前，延遲 0 的計時器已經執行過。預覽裡的計時器是真的。`Date.now()` 不是虛擬的 |
 
 | 檢查 `check` | 看什麼 |
 |---|---|
@@ -81,6 +82,8 @@ webCode: {
 ### 檢查怎麼執行
 
 「檢查」不看預覽，而是把目前的檔案載入一份**全新、固定大小**的頁面（預設 600 × 400 CSS 像素，練習可指定 `viewport`），放在畫面外，依序執行步驟後移除。因此結果和螢幕大小、和學習者在預覽裡點過什麼都無關；之後的響應式課程可以用不同的 `viewport` 檢查同一份答案。有 `variants` 的練習會再用另一份固定檔案（頁面裡不同的資料）執行一次，確認答案不是寫死的；這一部分只顯示通過與否。
+
+未捕捉的錯誤若發生在 `script.js`，主控台會附上行號（「…（script.js 第 3 行）」）。
 
 載入或檢查超過 6 秒視為逾時，所有檢查以「頁面沒有在時間內完成載入與檢查」不通過。
 
@@ -137,8 +140,8 @@ Chromium 是 Playwright 的 headless Chromium，頁面的載入方式和課程�
 
 | 階段 | 內容 | 需要的課 |
 |---|---|---|
-| W1 | `defer`／`DOMContentLoaded` 的載入順序、表單送出資料的更多檢查 | WEB03–WEB04、WEB08 |
-| W2 | 虛擬時鐘：計時器依序、立即執行，Promise 與 `async`／`await` 的順序可重現 | WEB10 |
+| W1（WEB-1、WEB-3 完成） | 框架內的錯誤只算在頁面自己的主控台、Enter 的隱式送出；`script.js` 在頁面載入它的位置執行（`<head>` 裡先於 body、`defer` 以「body 結尾執行」模擬、`type="module"` 由瀏覽器延後）；未捕捉的錯誤附上 script.js 的行號；harness 壓成一行，不佔文件的行數 | WEB03–WEB04、WEB08 |
+| W2（WEB-3 完成） | 虛擬時鐘：檢查裡的 `setTimeout`／`setInterval` 排在虛擬時鐘上，由 `wait` 推進 | WEB10 |
 | W3 | 框架裡固定回應的 `fetch`（路由、狀態碼、延遲、失敗），配合 `network-protocol` 情境 | WEB11 |
 | W4 | 記憶體中的 `localStorage`、`sessionStorage` 與 Cookie | WEB12 |
 | W5 | 無障礙檢查：可存取名稱、角色、標題層級、標籤關聯、鍵盤順序 | WEB13 |
@@ -159,7 +162,7 @@ Chromium 是 Playwright 的 headless Chromium，頁面的載入方式和課程�
 |---|---|---|
 | WEB-1 | WEB01–WEB04 | W1（需要的部分） |
 | WEB-2 | WEB05–WEB07 | `hit`、`scroll`、相對於視窗的 `box` |
-| WEB-3 | WEB08–WEB10 | W1、W2 |
+| WEB-3 | WEB08–WEB10 | W1（錯誤行號、`defer`）、W2（虛擬時鐘）、`dispatch` |
 | WEB-4 | WEB11–WEB13 | W3、W4、W5 |
 | WEB-5 | WEB14–WEB15 | W6；綜合專題 |
 

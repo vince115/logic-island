@@ -6,11 +6,11 @@
 
 | 項目 | 數量 |
 |---|---|
-| 已發布課程 | 179 |
-| 規劃中課程 | 341 |
+| 已發布課程 | 182 |
+| 規劃中課程 | 338 |
 | 課程總數 | 520 |
-| 整體覆蓋率 | 34.4% |
-| 最近一批（第 28 批）完成 | 3 堂（LLM01、LLM02、LLM03） |
+| 整體覆蓋率 | 35.0% |
+| 最近一批（第 29 批）完成 | 3 堂（WEB08、WEB09、WEB10） |
 | 可完整學完的學習路線 | 2 條（APCS／資訊科學基礎、網路與系統）／12 條 |
 
 ## 批次
@@ -43,8 +43,9 @@
 | 24 | 2026-11-22 | SRV11、SRV12、SRV13 | `TBD` | #69 | `383d331` | TBD |
 | 25 | 2026-11-22 | SRV14 | `TBD` | #70 | `093a7ba` | TBD |
 | 26 | 2026-11-23 | WEB01、WEB02、WEB03、WEB04 | `TBD` | #72 | `228673b` | 驗證器、發布閘門 173/173、TypeScript、ESLint、Vitest 131 檔 3672 passed／9 skipped（含 Chromium：四堂課的每個範例、參考解答、起始內容與常見錯誤）、Production build、E2E 桌機＋手機旗標關 449 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；e2e/webcode-lessons.spec.ts 在課程頁上把 16 個練習各做一遍）、測驗 32 題逐題複核、洩漏掃描 |
-| 27 | 2026-11-23 | WEB05、WEB06、WEB07 | `TBD` | — | 未合併 | 驗證器、發布閘門 176/176、TypeScript、ESLint、Vitest 131 檔 3677 passed／9 skipped（含 Chromium：七堂網頁課的每個範例、參考解答、起始內容與常見錯誤）、Production build、E2E 桌機＋手機旗標關 754 項：執行到第 749 項時被中斷，當時只有 main 既有回歸 #36 的兩項失敗；尾端的 webcode-lessons 與 device-tool 兩個規格補跑 34 passed／2 skipped（e2e/webcode-lessons.spec.ts 在課程頁上把 28 個練習各做一遍）、測驗 24 題逐題複核、洩漏掃描 |
+| 27 | 2026-11-23 | WEB05、WEB06、WEB07 | `TBD` | #74 | `dc76159` | 驗證器、發布閘門 176/176、TypeScript、ESLint、Vitest 131 檔 3677 passed／9 skipped（含 Chromium：七堂網頁課的每個範例、參考解答、起始內容與常見錯誤）、Production build、E2E 桌機＋手機旗標關 754 項：執行到第 749 項時被中斷，當時只有 main 既有回歸 #36 的兩項失敗；尾端的 webcode-lessons 與 device-tool 兩個規格補跑 34 passed／2 skipped（e2e/webcode-lessons.spec.ts 在課程頁上把 28 個練習各做一遍）、測驗 24 題逐題複核、洩漏掃描 |
 | 28 | 2026-11-22 | LLM01、LLM02、LLM03 | `TBD` | — | 未合併 | TBD |
+| 29 | 2026-11-23 | WEB08、WEB09、WEB10 | `TBD` | #75 | 未合併 | 驗證器、發布閘門 182/182（併入 main 的 LLM-1 之後）、TypeScript、ESLint、Vitest 131 檔 3686 passed／9 skipped（含 Chromium：十堂網頁課的每個範例、參考解答、起始內容與常見錯誤，以及虛擬時鐘、載入順序與錯誤行號的測試）、Production build、E2E 桌機＋手機旗標關 461 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；e2e/webcode-lessons.spec.ts 在課程頁上把 40 個練習各做一遍）、測驗 24 題逐題複核、洩漏掃描 |
 
 ## 各區域與島嶼
 
@@ -69,7 +70,7 @@
 | 數位設計群島 | UX 研究島 | UX | 0 | 15 | 0.0% |
 | 數位設計群島 | 互動設計島 | IXD | 0 | 14 | 0.0% |
 | 數位設計群島 | 設計系統島 | DSY | 0 | 12 | 0.0% |
-| 網頁與應用開發群島 | 網頁基礎島 | WEB | 7 | 8 | 46.7% |
+| 網頁與應用開發群島 | 網頁基礎島 | WEB | 10 | 5 | 66.7% |
 | 網頁與應用開發群島 | 前端開發島 | FE | 0 | 15 | 0.0% |
 | 網頁與應用開發群島 | 響應式設計島 | RWD | 0 | 12 | 0.0% |
 | 網頁與應用開發群島 | 行動應用島 | MOB | 0 | 13 | 0.0% |
@@ -297,12 +298,12 @@
 | WEB02 | HTML 文件結構與語意元素 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已發布 |
 | WEB03 | 文字、連結、圖片與媒體 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已發布 |
 | WEB04 | 表單元素與原生驗證 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已發布 |
-| WEB05 | CSS 選擇器、串接與特異性 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已完成（待合併） |
-| WEB06 | 盒模型與一般排版流 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已完成（待合併） |
-| WEB07 | 定位與堆疊順序 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已完成（待合併） |
-| WEB08 | JavaScript 與 DOM：選取與修改 | 規劃中 | 大綱 | — | — | — | 規劃中 |
-| WEB09 | 事件與事件委派 | 規劃中 | 大綱 | — | — | — | 規劃中 |
-| WEB10 | 非同步 JavaScript：Promise 與 async／await | 規劃中 | 大綱 | — | — | — | 規劃中 |
+| WEB05 | CSS 選擇器、串接與特異性 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已發布 |
+| WEB06 | 盒模型與一般排版流 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已發布 |
+| WEB07 | 定位與堆疊順序 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已發布 |
+| WEB08 | JavaScript 與 DOM：選取與修改 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已完成（待合併） |
+| WEB09 | 事件與事件委派 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已完成（待合併） |
+| WEB10 | 非同步 JavaScript：Promise 與 async／await | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已完成（待合併） |
 | WEB11 | fetch、JSON 與 API | 規劃中 | 大綱 | — | — | — | 規劃中 |
 | WEB12 | 瀏覽器儲存：localStorage 與 Cookie | 規劃中 | 大綱 | — | — | — | 規劃中 |
 | WEB13 | 語意 HTML 與 ARIA 的無障礙實作 | 規劃中 | 大綱 | — | — | — | 規劃中 |

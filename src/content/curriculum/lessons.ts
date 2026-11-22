@@ -576,7 +576,7 @@ const largeLanguageModels: Outline[] = [
   llmFromBlueprint('LLM03', '從零學會向量的內積、長度與餘弦相似度，分辨語言模型內依 token ID 查表的 embedding 表與為整段文字算出一個向量的句子 embedding 模型，用最近鄰在示意的句子空間中找出語意最接近的句子，比較向量沒有正規化時內積與餘弦的排名差異，並看懂 2D PCA 投影保留與失去的資訊。', 50),
 ];
 
-/** WEB-1 (2026-11-23): the web foundations island's first lessons, written with the web-code capability (WEB0_WEB_CODE_CAPABILITY.md); WEB-2 adds WEB05–WEB07. */
+/** WEB-1 (2026-11-23): the web foundations island's first lessons, written with the web-code capability (WEB0_WEB_CODE_CAPABILITY.md); WEB-2 adds WEB05–WEB07, WEB-3 WEB08–WEB10. */
 const webFoundations: Outline[] = [
   webFromBlueprint('WEB01', '用同一個「小島圖書館」頁面依序加上 HTML、CSS 與 JavaScript，分清內容、外觀與行為的分工，走一遍瀏覽器從網址、解析 HTML 建立 DOM、計算樣式、版面配置到繪製的頁面載入流程，看懂原始碼與 DOM 為何不同，並用開發者工具的 Elements、Console 與 Network 面板檢查網頁。', 40),
   webFromBlueprint('WEB02', '寫出含 DOCTYPE、lang、charset 與 title 的文件骨架，分清元素、標籤、屬性與巢狀規則，用 header、nav、main、article、section、aside、footer 取代無意義的 div，並以不跳級的 h1–h6 標題層級與地標區域，讓頁面不靠外觀也讀得出結構。', 45),
@@ -585,6 +585,9 @@ const webFoundations: Outline[] = [
   webFromBlueprint('WEB05', '用型別、class、id、後代與子代選擇器及虛擬類別選取元素，依重要性、特異性與原始碼順序判斷串接時哪一條宣告勝出，分辨會繼承與不會繼承的屬性，並以低特異性的 class 寫法取代 id 與 !important。', 50),
   webFromBlueprint('WEB06', '用內容、內距、邊框與外距四層算出元素的實際寬高，以 box-sizing: border-box 讓 width 代表整個盒子，分辨區塊與行內盒子在一般排版流中的排法並用 display 切換成 inline-block，預測上下相鄰與父子之間的外距合併，再用 margin: 0 auto 把有寬度的區塊置中。', 50),
   webFromBlueprint('WEB07', '用 position 的 static、relative、absolute、fixed、sticky 讓盒子位移、離開一般排版流或在捲動時留在畫面上，找出絕對定位的包含區塊，做出角落徽章與固定頁首，並用堆疊順序、z-index 與堆疊環境判斷誰蓋住誰、z-index 為何無效。', 55),
+  webFromBlueprint('WEB08', '從 DOM 樹與指令稿執行的時機開始，用 querySelector 與 querySelectorAll 選取元素並處理找不到的情況，以 textContent、屬性與 classList 修改內容與外觀，再用 createElement 與 append 依陣列資料建立清單並插入頁面。', 55),
+  webFromBlueprint('WEB09', '用 addEventListener 登記 click、input、submit 等事件的監聽器，從事件物件讀出 target、currentTarget 與 key，追蹤事件由內往外冒泡的順序，以 preventDefault 接手表單送出，再用事件委派與 closest 讓一個監聽器處理整份清單與之後才加入的項目。', 55),
+  webFromBlueprint('WEB10', '說明單一執行緒與事件迴圈如何安排同步程式、微任務與任務的先後，用計時器與 Promise 的 then／catch／finally 接住晚一點才有的結果，以 async／await 寫出依序與 Promise.all 並行的流程，並用 try／catch／finally 處理錯誤，交代載入中、成功與失敗三種狀態。', 60),
 ];
 
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */

@@ -388,7 +388,9 @@
       ],
       "commit": "TBD",
       "tests": "驗證器、發布閘門 176/176、TypeScript、ESLint、Vitest 131 檔 3677 passed／9 skipped（含 Chromium：七堂網頁課的每個範例、參考解答、起始內容與常見錯誤）、Production build、E2E 桌機＋手機旗標關 754 項：執行到第 749 項時被中斷，當時只有 main 既有回歸 #36 的兩項失敗；尾端的 webcode-lessons 與 device-tool 兩個規格補跑 34 passed／2 skipped（e2e/webcode-lessons.spec.ts 在課程頁上把 28 個練習各做一遍）、測驗 24 題逐題複核、洩漏掃描",
-      "notes": "WEB-2：網頁基礎島的 CSS 三課：選擇器、串接與特異性（含繼承與低特異性的寫法）；盒模型與一般排版流（box-sizing、區塊與行內、外距合併、auto 置中）；定位與堆疊順序（五種 position、包含區塊、z-index 與堆疊環境、固定與黏貼頁首）。引擎新增 hit 檢查（中心點上畫在最上面的元素）、scroll 操作與相對於視窗的 box；練習固定 HTML、學習者只改 style.css"
+      "notes": "WEB-2：網頁基礎島的 CSS 三課：選擇器、串接與特異性（含繼承與低特異性的寫法）；盒模型與一般排版流（box-sizing、區塊與行內、外距合併、auto 置中）；定位與堆疊順序（五種 position、包含區塊、z-index 與堆疊環境、固定與黏貼頁首）。引擎新增 hit 檢查（中心點上畫在最上面的元素）、scroll 操作與相對於視窗的 box；練習固定 HTML、學習者只改 style.css",
+      "pr": "#74",
+      "merged": "dc76159"
     },
     {
       "id": 28,
@@ -401,6 +403,19 @@
       "commit": "TBD",
       "tests": "TBD",
       "notes": "LLM-1：課程能力 LLM-0（llm-explorer：位元組層級的 BPE 斷詞與訓練、temperature／top-k／top-p 與固定 seed 的取樣、embedding 的內積、餘弦、最近鄰與 PCA 投影，全部是示意資料，練習以值檢查），並修正 token 開頭空白在驗證器與單一 token 答案中的比較；大型語言模型概觀、Tokenization 斷詞、嵌入向量三課"
+    },
+    {
+      "id": 29,
+      "date": "2026-11-23",
+      "lessons": [
+        "WEB08",
+        "WEB09",
+        "WEB10"
+      ],
+      "commit": "TBD",
+      "tests": "驗證器、發布閘門 182/182（併入 main 的 LLM-1 之後）、TypeScript、ESLint、Vitest 131 檔 3686 passed／9 skipped（含 Chromium：十堂網頁課的每個範例、參考解答、起始內容與常見錯誤，以及虛擬時鐘、載入順序與錯誤行號的測試）、Production build、E2E 桌機＋手機旗標關 461 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；e2e/webcode-lessons.spec.ts 在課程頁上把 40 個練習各做一遍）、測驗 24 題逐題複核、洩漏掃描",
+      "notes": "WEB-3：網頁基礎島的 JavaScript 三課：DOM 的選取、修改與建立（含指令稿的執行時機與 defer）；事件監聽、事件物件、冒泡與事件委派；事件迴圈、Promise、async／await 與錯誤處理。引擎階段 W1（script.js 在頁面載入它的位置執行、錯誤附行號、harness 不佔文件行數）、W2（檢查用的虛擬時鐘）與 dispatch 操作；練習固定 HTML、學習者改 script.js，可寫死的答案以隱藏變體排除",
+      "pr": "#75"
     }
   ]
 }
