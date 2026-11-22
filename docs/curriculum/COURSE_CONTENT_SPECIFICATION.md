@@ -70,6 +70,7 @@
 | LNX-3 | LNX08–11 | 引擎階段 E4–E6（`processes`、`packages`、`services`）＋四課 |
 | LNX-4 | LNX12–14 | 引擎階段 E7–E9（`remote`、`scripting`、`scheduling`）＋三課 |
 | LNX-5 | LNX15 | 綜合專題（challenge-stages 六關），全島完成 |
+| SRV-1（見 [NETWORK_SERVERS_ISLAND](NETWORK_SERVERS_ISLAND.md)） | SRV01–03 | 引擎階段 E10–E12（`sockets`、`dns`、`http`）＋三課；網路與伺服器島開放 |
 | SRV-0（架構） | — | 網路與伺服器島登錄為預備島嶼，沿用 `terminal` 與 `network-protocol` 能力（`serverFromBlueprint`）；引擎階段 E10–E12（`sockets`、`dns`、`http`）先完成（[SRV0_SERVER_CAPABILITY](SRV0_SERVER_CAPABILITY.md)）；SRV-1 至 SRV-5 依引擎階段 E10–E19 依序發布 |
 | 之後 | 依 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 自動選擇 | 先修已滿足、能力已備妥、解鎖其他島最多的島優先；缺少的共用能力先做最小可用版本 |
 

@@ -504,6 +504,13 @@ const linuxSystems: Outline[] = [
   terminalFromBlueprint('LNX15', '接手一台小公司的 Ubuntu 伺服器並完成一天的維護：規劃帳號與群組、以 usermod -G 收回實習生的 sudo 並建立 root:ops 770 的共用目錄，核對主機指紋後安裝 SSH 金鑰、在排序優先的 sshd_config.d 檔案關閉密碼登入，以不能登入的系統帳號與 Restart=on-failure 部署 systemd 服務，從 status、journal、sudo 紀錄與應用程式日誌追查撞到啟動上限的停擺並修復，結束持有鎖的舊備份、以 set -euo pipefail 的指令稿搭配 /etc/cron.d 與 flock -n 排程備份並實際跑一次，最後鎖定需要資料遷移的套件、套用安全更新，寫下變更紀錄、檢查清單與負責任維運的原則。', 120),
 ];
 
+/** SRV-1 (2026-11-22): the network and servers island's first lessons, on the terminal capability with network-protocol scenes (SRV0_SERVER_CAPABILITY.md). */
+const networkServers: Outline[] = [
+  serverFromBlueprint('SRV01', '分辨公有、私有（RFC 1918）與迴路位址並說明 NAT 為什麼讓外面連不進私有位址，用 ip -br addr、ip addr、ip route 與 ip route get 看懂介面、網段與預設閘道，以 /etc/services 與 getent services 對照常見服務埠，把 socket 理解為協定加上位址與埠並分清 LISTEN 與 ESTAB，說明綁定 127.0.0.1、介面位址與 0.0.0.0 對其他主機的可達性有何不同（0.0.0.0 不等於對網際網路開放，還要看 NAT 與防火牆），用 sudo ss -tlnp 與 lsof -i 找出監聽的程式，再從另一台主機以 nc -zv 依 succeeded、Connection refused 與 timed out 判斷問題出在位址、埠還是服務。', 50),
+  serverFromBlueprint('SRV02', '在自己的 BIND 伺服器上新增與修正 A、CNAME 等記錄，用 dig 從權威伺服器與解析器兩邊驗證，並依 TTL 與快取安排網站搬家。', 55),
+  serverFromBlueprint('SRV03', '用 curl -v 讀懂一次 HTTP 往返：* 開頭的名稱解析與 TCP 連線、> 開頭的請求列與 Host、User-Agent、Accept 標頭、< 開頭的狀態列與 Content-Type、Content-Length、Location、Cache-Control 等回應標頭，分辨送出 HEAD 的 -I 與加印標頭的 -i，依 2xx 到 5xx 的狀態碼（200、201、204、301、302、304、400、401、403、404、500、502、503、504）與 curl 自己的錯誤碼 6、7、28 判斷問題在用戶端、網路還是伺服器，以 -w 的 %{http_code} 巡檢、-f 讓錯誤變成結束碼，用 -L、%{url_effective} 與 --max-redirs 追蹤重新導向鏈，從 Re-using existing connection 與 Connection: close 看懂 keep-alive 的連線重用，再以 -X、-d、-H（含選擇虛擬主機的 Host 標頭）送出指定的方法與標頭，並用 --resolve 在 DNS 切換前測試新主機。', 55),
+];
+
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */
 function idAt(islandId: (typeof ISLAND_IDS)[number], index: number, blueprintId?: string): LessonId {
   const id = `${ISLAND_PREFIX[islandId]}${String(index + 1).padStart(2, '0')}` as LessonId;
@@ -513,7 +520,7 @@ function idAt(islandId: (typeof ISLAND_IDS)[number], index: number, blueprintId?
 /** F, D and A are taught in the program languages: every lesson there declares program-code. */
 const program = (list: Omit<Outline, 'capabilities'>[]): Outline[] => list.map(o => ({ ...o, capabilities: ['program-code'] }));
 const outlines: Record<(typeof ISLAND_IDS)[number], Outline[]> = {
-  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages, networks, 'ai-foundations': aiFoundations, 'linux-systems': linuxSystems };
+  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages, networks, 'ai-foundations': aiFoundations, 'linux-systems': linuxSystems, 'network-servers': networkServers };
 
 /** Every lesson the blueprint outlines, written or not (validateCurriculum's recommended-lesson check). */
 export const outlinedLessonIds: readonly string[] = planning.plannedLessons.map(l => l.lessonId);
