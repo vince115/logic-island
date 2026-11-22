@@ -600,6 +600,12 @@ const largeLanguageModels: Outline[] = [
   llmFromBlueprint('LLM03', '從零學會向量的內積、長度與餘弦相似度，分辨語言模型內依 token ID 查表的 embedding 表與為整段文字算出一個向量的句子 embedding 模型，用最近鄰在示意的句子空間中找出語意最接近的句子，比較向量沒有正規化時內積與餘弦的排名差異，並看懂 2D PCA 投影保留與失去的資訊。', 50),
 ];
 
+/** GEN-1 (2026-11-23): the generative-ai island's first lessons, on the llm-explorer capability (GEN02 with python-code too). */
+const generativeAi: Outline[] = [
+  llmFromBlueprint('GEN01', '分清判別式與生成式模型，用玩具旋律看懂「學習資料分布、再取樣」與一段樣本的似然，比較自回歸、VAE、GAN、流模型與擴散模型產生新樣本的方式及其在品質、速度、多樣性與訓練穩定性上的取捨，並指出文字、圖像與音訊常用的模型家族。', 45),
+  llmFromBlueprint('GEN02', '以機率連鎖律把整串 token 的機率拆成逐步的條件機率，用 Python 寫出字元級的自回歸取樣器，比較 greedy、temperature、top-k 與 top-p 並看 greedy 陷入重複的原因，以 log 機率替序列打分數並避開連乘的下溢，區分訓練時的 teacher forcing 與推論時的 exposure bias，再說明圖像與音訊如何先離散化成 token 再自回歸生成，以及一次一個 token 的生成延遲與品質取捨。', 55),
+];
+
 /** WEB-1 (2026-11-23): the web foundations island's first lessons, written with the web-code capability (WEB0_WEB_CODE_CAPABILITY.md); WEB-2 adds WEB05–WEB07, WEB-3 WEB08–WEB10, WEB-4 WEB11–WEB13, WEB-5 WEB14 and the capstone WEB15. */
 const webFoundations: Outline[] = [
   webFromBlueprint('WEB01', '用同一個「小島圖書館」頁面依序加上 HTML、CSS 與 JavaScript，分清內容、外觀與行為的分工，走一遍瀏覽器從網址、解析 HTML 建立 DOM、計算樣式、版面配置到繪製的頁面載入流程，看懂原始碼與 DOM 為何不同，並用開發者工具的 Elements、Console 與 Network 面板檢查網頁。', 40),
@@ -636,7 +642,7 @@ function idAt(islandId: (typeof ISLAND_IDS)[number], index: number, blueprintId?
 /** F, D and A are taught in the program languages: every lesson there declares program-code. */
 const program = (list: Omit<Outline, 'capabilities'>[]): Outline[] => list.map(o => ({ ...o, capabilities: ['program-code'] }));
 const outlines: Record<(typeof ISLAND_IDS)[number], Outline[]> = {
-  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages, networks, 'ai-foundations': aiFoundations, 'large-language-models': largeLanguageModels, 'web-foundations': webFoundations, 'responsive-design': responsiveDesign, 'linux-systems': linuxSystems, 'network-servers': networkServers };
+  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages, networks, 'ai-foundations': aiFoundations, 'large-language-models': largeLanguageModels, 'generative-ai': generativeAi, 'web-foundations': webFoundations, 'responsive-design': responsiveDesign, 'linux-systems': linuxSystems, 'network-servers': networkServers };
 
 /** Every lesson the blueprint outlines, written or not (validateCurriculum's recommended-lesson check). */
 export const outlinedLessonIds: readonly string[] = planning.plannedLessons.map(l => l.lessonId);

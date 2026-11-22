@@ -113,11 +113,11 @@ describe('CS region keeps the home page islands (M3.1)', () => {
 describe('regional world panel data and flag (M3.1)', () => {
   it('planned islands carry no lesson, unit, progress or "已開放" data, only their planned count', async () => {
     const { regionIslands } = await import('@/lib/world/learning-islands');
-    // AIF-1 opened the AI foundations island and LLM-1 the large-language-models island; the AI region's other five
-    // islands are still outlines.
+    // AIF-1 opened the AI foundations island, LLM-1 the large-language-models island and GEN-1 the generative-ai island;
+    // the AI region's other four islands are still outlines.
     const ai = regionIslands('ai');
     expect(ai.map(i => i.id)).toEqual(islandsInRegion('ai').map(i => i.id));
-    expect(ai.filter(i => !i.planned).map(i => i.id)).toEqual(['ai-foundations', 'large-language-models']);
+    expect(ai.filter(i => !i.planned).map(i => i.id)).toEqual(['ai-foundations', 'large-language-models', 'generative-ai']);
     for (const island of ai.filter(i => i.planned)) {
       expect(island.planned, island.id).toEqual({ lessonCount: getIsland(island.id)!.lessonCount });
       expect([island.lessons, island.units, island.published, island.curriculumHref], island.id).toEqual([[], undefined, undefined, undefined]);

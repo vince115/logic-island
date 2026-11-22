@@ -33,11 +33,13 @@ const LNX_DONE = lessons.filter(l => l.islandId === 'linux-systems').length;
 const SRV_DONE = lessons.filter(l => l.islandId === 'network-servers').length;
 // LLM-1 (2026-11-22): the large-language-models island is written in batches with the llm-explorer capability.
 const LLM_DONE = lessons.filter(l => l.islandId === 'large-language-models').length;
+// GEN-1 (2026-11-23): the generative-ai island is written in batches with the llm-explorer capability, after large-language-models.
+const GEN_DONE = lessons.filter(l => l.islandId === 'generative-ai').length;
 // WEB-1 (2026-11-23): the web foundations island is written in batches with the web-code capability; in the world's order it comes before the systems islands.
 const WEB_DONE = lessons.filter(l => l.islandId === 'web-foundations').length;
 // RWD-1 (2026-11-23): the responsive design island, the second one written with the web-code capability.
 const RWD_DONE = lessons.filter(l => l.islandId === 'responsive-design').length;
-const COMPLETE = [...ids('F', 20), ...ids('D', 20), ...ids('A', ALGORITHMS_DONE), ...ids('PL', PL_DONE), ...ids('DB', DATABASES_DONE), ...ids('CN', NETWORKS_DONE), ...ids('AIF', AIF_DONE), ...ids('LLM', LLM_DONE), ...ids('WEB', WEB_DONE), ...ids('RWD', RWD_DONE), ...ids('LNX', LNX_DONE), ...ids('SRV', SRV_DONE)];
+const COMPLETE = [...ids('F', 20), ...ids('D', 20), ...ids('A', ALGORITHMS_DONE), ...ids('PL', PL_DONE), ...ids('DB', DATABASES_DONE), ...ids('CN', NETWORKS_DONE), ...ids('AIF', AIF_DONE), ...ids('LLM', LLM_DONE), ...ids('GEN', GEN_DONE), ...ids('WEB', WEB_DONE), ...ids('RWD', RWD_DONE), ...ids('LNX', LNX_DONE), ...ids('SRV', SRV_DONE)];
 // F.1b: lessons are told apart by the capabilities they declare, never by a missing field.
 const programLessons = lessons.filter(l => hasCapability(l, 'program-code'));
 type TraceConfig = Extract<VisualizationConfig, { steps: unknown }>;
@@ -68,11 +70,13 @@ describe('curriculum (E.1)', () => {
     expect(lessons.filter(l => l.islandId === 'network-servers').map(l => l.lessonId)).toEqual(ids('SRV', SRV_DONE));
     expect(LLM_DONE).toBeGreaterThanOrEqual(3);
     expect(lessons.filter(l => l.islandId === 'large-language-models').map(l => l.lessonId)).toEqual(ids('LLM', LLM_DONE));
+    expect(GEN_DONE).toBeGreaterThanOrEqual(2);
+    expect(lessons.filter(l => l.islandId === 'generative-ai').map(l => l.lessonId)).toEqual(ids('GEN', GEN_DONE));
     expect(WEB_DONE).toBeGreaterThanOrEqual(4);
     expect(lessons.filter(l => l.islandId === 'web-foundations').map(l => l.lessonId)).toEqual(ids('WEB', WEB_DONE));
     expect(RWD_DONE).toBeGreaterThanOrEqual(4);
     expect(lessons.filter(l => l.islandId === 'responsive-design').map(l => l.lessonId)).toEqual(ids('RWD', RWD_DONE));
-    expect(lessons).toHaveLength(60 + PL_DONE + DATABASES_DONE + NETWORKS_DONE + AIF_DONE + LNX_DONE + SRV_DONE + LLM_DONE + WEB_DONE + RWD_DONE);
+    expect(lessons).toHaveLength(60 + PL_DONE + DATABASES_DONE + NETWORKS_DONE + AIF_DONE + LNX_DONE + SRV_DONE + LLM_DONE + GEN_DONE + WEB_DONE + RWD_DONE);
     expect(new Set(lessons.map(l => l.lessonId)).size).toBe(lessons.length);
     expect(new Set(lessons.map(l => l.slug)).size).toBe(lessons.length);
   });
@@ -92,7 +96,7 @@ describe('curriculum (E.1)', () => {
 
   it('capabilities (F.1b): F, D and A are program-code; database lessons declare what they use; the blueprint\'s activity fits', () => {
     const blueprint = new Map(planning.plannedLessons.map(l => [l.lessonId, l.activity]));
-    expect(programLessons.map(l => l.lessonId)).toEqual(lessons.filter(l => l.islandId !== 'databases' && l.islandId !== 'ai-foundations' && l.islandId !== 'linux-systems' && l.islandId !== 'network-servers' && l.islandId !== 'large-language-models' && l.islandId !== 'web-foundations' && l.islandId !== 'responsive-design' && (l.islandId !== 'networks' || NETWORK_PROGRAMS.includes(l.lessonId))).map(l => l.lessonId));
+    expect(programLessons.map(l => l.lessonId)).toEqual(lessons.filter(l => l.islandId !== 'databases' && l.islandId !== 'ai-foundations' && l.islandId !== 'linux-systems' && l.islandId !== 'network-servers' && l.islandId !== 'large-language-models' && l.islandId !== 'generative-ai' && l.islandId !== 'web-foundations' && l.islandId !== 'responsive-design' && (l.islandId !== 'networks' || NETWORK_PROGRAMS.includes(l.lessonId))).map(l => l.lessonId));
     // AIF-1: the AI foundations lessons are Python-only program lessons (python-code), never four-language ones.
     for (const l of lessons.filter(l => l.islandId === 'ai-foundations')) expect([l.capabilities, l.supportedLanguages, l.activity], l.lessonId).toEqual([['python-code'], ['Python'], undefined]);
     // WEB-1: the web lessons are pages in a sandboxed frame (web-code); the blueprint's unbuilt activities use them too (dom-explorer).
@@ -117,13 +121,15 @@ describe('curriculum (E.1)', () => {
     }
     // LLM-1: the language-model lessons are taught with the llm-explorer capability (its explorer is the blueprint's
     // activity), with Python beside it only where the blueprint's exercise is code-python; no other lesson declares it.
+    // GEN-1: the generative-ai lessons follow the same mapping (GEN02's exercise is code-python).
     const exerciseType = new Map(planning.plannedLessons.map(l => [l.lessonId, l.exerciseType]));
-    for (const l of lessons.filter(l => l.islandId === 'large-language-models')) {
+    for (const l of lessons.filter(l => l.islandId === 'large-language-models' || l.islandId === 'generative-ai')) {
       const python = exerciseType.get(l.lessonId) === 'code-python';
       expect([l.capabilities, l.activity, l.supportedLanguages, !!curriculum.contents[l.lessonId]?.llm], l.lessonId)
         .toEqual([python ? ['python-code', 'llm-explorer'] : ['llm-explorer'], blueprint.get(l.lessonId), python ? ['Python'] : [], true]);
     }
-    expect(lessons.filter(l => hasCapability(l, 'llm-explorer')).map(l => l.lessonId)).toEqual(ids('LLM', LLM_DONE));
+    expect(lessons.filter(l => hasCapability(l, 'llm-explorer')).map(l => l.lessonId)).toEqual([...ids('LLM', LLM_DONE), ...ids('GEN', GEN_DONE)]);
+    expect(lessons.filter(l => l.islandId === 'generative-ai' && hasCapability(l, 'python-code')).map(l => l.lessonId)).toEqual(['GEN02']);
     // CN-1: network lessons are taught with network-protocol scenes; the blueprint's protocol-sequence is the
     // network-sequence activity there (protocol-sequence keeps meaning the database lessons' SQL round trips). CN-3: the
     // lessons whose outcome is code (CN11 sockets, CN14 a REST client) are program lessons instead (checked below).
@@ -210,6 +216,8 @@ describe('curriculum (E.1)', () => {
     for (const l of lessons.filter(l => l.islandId === 'network-servers')) expect(srv, l.lessonId).toContain(`| ${l.lessonId} |`);
     const llm = readFileSync('docs/curriculum/LARGE_LANGUAGE_MODELS_ISLAND.md', 'utf8');
     for (const l of lessons.filter(l => l.islandId === 'large-language-models')) expect(llm, l.lessonId).toContain(`| ${l.lessonId} |`);
+    const gen = readFileSync('docs/curriculum/GENERATIVE_AI_ISLAND.md', 'utf8');
+    for (const l of lessons.filter(l => l.islandId === 'generative-ai')) expect(gen, l.lessonId).toContain(`| ${l.lessonId} |`);
     const web = readFileSync('docs/curriculum/WEB_FOUNDATIONS_ISLAND.md', 'utf8');
     for (const l of lessons.filter(l => l.islandId === 'web-foundations')) expect(web, l.lessonId).toContain(`| ${l.lessonId} |`);
     const rwd = readFileSync('docs/curriculum/RESPONSIVE_DESIGN_ISLAND.md', 'utf8');

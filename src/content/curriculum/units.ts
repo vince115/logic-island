@@ -79,7 +79,10 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
   'large-language-models': [
     { title: '語言模型如何讀寫文字', summary: '逐一預測下一個 token、greedy、temperature、top-k 與 top-p 取樣、基礎模型、指令模型與推理模型、上下文視窗、知識截止與幻覺；BPE 子詞斷詞、UTF-8 位元組、token ID、特殊 token 與費用；embedding 向量、內積、餘弦相似度、最近鄰與 2D 投影', lessonIds: range('LLM', 1, 3) },
   ],
-  'generative-ai': [],
+  // GEN-1: GEN01–GEN02; GEN03 and GEN04 need the deep learning island, GEN05 a diffusion-steps capability.
+  'generative-ai': [
+    { title: '生成模型與自回歸生成', summary: '判別式與生成式模型、學習資料分布再取樣、似然、自回歸、VAE、GAN、流模型與擴散模型的家族地圖；機率連鎖律、生成迴圈、greedy 與取樣、log 機率與下溢、teacher forcing 與 exposure bias、圖像與音訊的離散化', lessonIds: range('GEN', 1, 2) },
+  ],
   // RWD-1 (2026-11-23): the responsive design island's first units.
   'responsive-design': [
     { title: '響應式原則與單位', summary: '同一份 HTML 依寬度調整版面、行動優先、內容優先與漸進增強；viewport 設定、百分比、rem 與 em、vw 與 dvh，以及橫向捲動的成因', lessonIds: range('RWD', 1, 2) },
