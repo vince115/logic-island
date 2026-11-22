@@ -294,7 +294,7 @@ export const LATER_MANUAL: Record<'ssh' | 'ssh-keygen' | 'ssh-copy-id' | 'ssh-ke
 };
 
 /** E10–E12 (SRV0_SERVER_CAPABILITY.md §6–§8): the network commands of the sockets, dns and http profiles. */
-export const SERVER_MANUAL: Record<'ss' | 'lsof' | 'nc' | 'ip' | 'getent' | 'dig' | 'host' | 'named-checkzone' | 'rndc' | 'resolvectl' | 'curl', ManualEntry> = {
+export const SERVER_MANUAL: Record<'ss' | 'lsof' | 'nc' | 'ip' | 'getent' | 'dig' | 'host' | 'named-checkzone' | 'rndc' | 'resolvectl' | 'curl' | 'openssl' | 'certbot' | 'nginx', ManualEntry> = {
   ss: {
     usage: 'ss [-t] [-u] [-l] [-a] [-n] [-p] [-4] [-H] [sport = :埠 | dport = :埠]', summary: '列出 socket（取代 netstat）',
     description: ['預設只列出已建立的連線；-l 只列監聽中的 socket，-a 兩者都列。UDP 先列，再列 TCP。', '-p 的 users:((…)) 只顯示你能查看的行程：一般使用者只看到自己的，要看 root 或別人的行程請用 sudo。', 'Local Address 是 0.0.0.0 表示接受每個位址的連線；127.0.0.1 只接受本機自己的連線。'],
@@ -350,6 +350,28 @@ export const SERVER_MANUAL: Record<'ss' | 'lsof' | 'nc' | 'ip' | 'getent' | 'dig
     description: ['-v 印出連線（*）、送出的請求（>）與收到的回應標頭（<）；-I 只送 HEAD 並印出回應標頭；-L 跟隨重新導向。', '-w 可用 %{http_code}、%{url_effective}、%{redirect_url}、%{num_redirects}、%{content_type}、%{size_download}、%{remote_ip}、%header{名稱} 等。', 'https:// 的 TLS 在引擎階段 E13 才模擬。模擬環境不印進度表。'],
     options: [['-v', '詳細過程'], ['-s', '安靜（不印錯誤，加 -S 仍印）'], ['-I', '只要標頭（HEAD）'], ['-i', '輸出也包含回應標頭'], ['-L', '跟隨重新導向'], ['-o', '把內容寫入檔案'], ['-w', '結束後印出指定的資訊'], ['-H', '加上請求標頭'], ['-X', '請求方法'], ['-d', '以 POST 送出資料']],
   },
+  openssl: {
+    usage: 'openssl x509 [-in 檔案] -noout [-subject] [-issuer] [-dates] [-ext subjectAltName] [-checkend 秒] [-fingerprint [-sha256]] | s_client -connect 主機:埠 [-servername 名稱] | verify [-CAfile 檔案] [-untrusted 檔案] 憑證', summary: '查看與驗證 TLS 憑證（OpenSSL 3.0）',
+    description: ['x509 讀出憑證的欄位；沒有 -in 時讀標準輸入（openssl s_client … | openssl x509 -noout -dates）。-checkend N：N 秒內到期時印 Certificate will expire、結束碼 1。',
+      's_client 連到伺服器，印出它送來的憑證鏈（Certificate chain）與驗證結果（Verify return code：0 ok、10 過期、20／21 鏈不完整、62 名稱不符，名稱要用 -verify_hostname 才檢查）。模擬環境的輸出是精簡過的摘要，結束時就像標準輸入是空的（DONE）。',
+      'verify 用信任庫（/etc/ssl/certs/ca-certificates.crt，與 -CAfile）驗證檔案中的第一張憑證；中繼憑證要用 -untrusted 提供。',
+      '模擬環境的憑證不是真的 DER，PEM 的內容是課程資料（改動就會壞掉）；也不提供 req、genrsa 等產生金鑰的子指令。'],
+    options: [['x509', '查看憑證'], ['s_client', '以 TLS 連到伺服器'], ['verify', '驗證憑證鏈'], ['version', '版本']],
+  },
+  certbot: {
+    usage: 'certbot certonly --webroot -w 目錄 -d 網域… | certbot --nginx -d 網域… | certbot certificates | certbot renew [--dry-run] [--force-renewal]', summary: '向 Let\'s Encrypt 取得、安裝與更新憑證（ACME）',
+    description: ['HTTP-01 驗證：certbot 把 token 檔放在 目錄/.well-known/acme-challenge/，CA 從網際網路（權威 DNS，不看本機的 /etc/hosts 與快取）連到 http://網域/ 的 80 埠取回它。',
+      '憑證存在 /etc/letsencrypt/live/網域/（fullchain.pem、privkey.pem…）；renew 只更新 30 天內到期的憑證，--dry-run 模擬更新每一張（不寫入）。certbot.timer 每天兩次執行 certbot -q renew。',
+      '--webroot 只取得憑證，網頁伺服器要自己 reload 才會用新的憑證（或用 --deploy-hook）；--nginx 會修改 server 區塊並 reload nginx。需要 root。'],
+    options: [['--webroot -w', '以檔案驗證，-w 是網站的根目錄'], ['--nginx', '由 nginx 驗證並安裝'], ['-d', '網域（可多個）'], ['--dry-run', '只模擬，不寫入'], ['--deploy-hook', '取得新憑證後執行的指令'], ['-q', '安靜']],
+  },
+  nginx: {
+    usage: 'nginx -t | -T | -s reload|stop|quit | -v', summary: 'nginx 網頁伺服器的控制程式',
+    description: ['-t 檢查設定（/etc/nginx/nginx.conf 與 include 的檔案）；-T 檢查並印出全部設定。修改設定之後先 nginx -t，再 systemctl reload nginx（或 nginx -s reload）才會生效。',
+      'reload 失敗時 nginx 繼續用舊的設定；restart 失敗則 nginx 停止，網站中斷。一般使用者執行 nginx -t 會因為 log 與 pid 檔失敗，請用 sudo。',
+      '模擬環境：proxy_pass 與 upstream 在引擎階段 E15 才模擬；log_format、map、set 不支援，if 只支援 return 與 rewrite。'],
+    options: [['-t', '檢查設定'], ['-T', '檢查並印出設定'], ['-s', '送訊號給執行中的 nginx（reload、stop、quit、reopen）'], ['-q', '檢查時只印錯誤'], ['-c', '指定設定檔']],
+  },
 };
 
 /** The pages a feature changes: cat reads standard input and echo has -n with pipes; chmod has -R with accounts. */
@@ -357,6 +379,12 @@ const FEATURE_MANUAL: [ShellFeature, CommandName, ManualEntry][] = [
   ['pipes', 'cat', { usage: 'cat [-n] [檔案]…', summary: '顯示檔案內容', description: ['依序印出每個檔案；沒有檔案（或檔名是 -）時讀標準輸入。'], options: [['-n', '在每一行前面加上行號']] }],
   ['pipes', 'echo', { usage: 'echo [-n] [-e] [文字]…', summary: '輸出一行文字', description: ['把文字印到標準輸出；要寫入檔案請用重新導向 > 或 >>。echo 不認得 --help，會把它當成文字印出。'], options: [['-n', '最後不換行'], ['-e', '解讀 \\n 與 \\t']] }],
   ['accounts', 'chmod', { ...MANUAL.chmod, usage: 'chmod [-R] 模式 路徑…', options: [['-R', '包含目錄裡的一切']] }],
+  ['tls', 'curl', {
+    usage: 'curl [-v] [-s] [-k] [-I] [-i] [-L] [-f] [-o 檔案] [-w 格式] [-H 標頭] [-X 方法] [-d 資料] [--cacert 檔案] [--resolve 主機:埠:位址] 網址…', summary: '送出 HTTP／HTTPS 請求並顯示回應',
+    description: ['-v 印出連線與 TLS 交握（*）、送出的請求（>）與收到的回應標頭（<）；-I 只送 HEAD；-L 跟隨重新導向。',
+      'https:// 依信任庫（/etc/ssl/certs/ca-certificates.crt，或 --cacert）驗證憑證鏈與名稱：失敗時是錯誤 60；-k 不驗證（只用來除錯）。模擬環境不印進度表。'],
+    options: [['-v', '詳細過程'], ['-s', '安靜（不印錯誤，加 -S 仍印）'], ['-k', '不驗證伺服器的憑證'], ['-I', '只要標頭（HEAD）'], ['-i', '輸出也包含回應標頭'], ['-L', '跟隨重新導向'], ['-o', '把第一個網址的內容寫入檔案'], ['-w', '結束後印出指定的資訊'], ['-H', '加上或取代請求標頭'], ['-X', '請求方法'], ['-d', '以 POST 送出資料']],
+  }],
   ['scripting', 'date', { usage: 'date [-u] [+格式]', summary: '顯示機器的時間（固定不動）', description: ['+%F 是 2026-11-22、+%H:%M 是時與分、+%s 是 1970 年起的秒數；有時區的機器顯示當地時間，-u 顯示 UTC，TZ=時區 date 換時區顯示。'], options: [['-u', '顯示 UTC']] }],
 ];
 

@@ -37,6 +37,7 @@ import type { ShellMemory } from './script';
 import type { SocketState } from './sockets';
 import type { DnsState } from './dns';
 import type { Responder } from './http';
+import type { NginxState } from './nginx';
 
 export interface FsNode {
   /** E1: 'link' is a symbolic link (the lab never has one). */
@@ -148,7 +149,13 @@ export interface FsState {
   dns?: DnsState;
   /** E12: the HTTP responders its listening sockets name. */
   http?: { responders: readonly Responder[] };
+  /** E13: certbot's settings (the lifetime Let's Encrypt gives) and how many ACME orders it has made (the challenge tokens). */
+  tls?: TlsState;
+  /** E14: the configuration the running nginx applied and its connection counter. */
+  nginx?: NginxState;
 }
+/** E13: what certbot keeps (the simulated CA's certificate lifetime in days, its order counter). */
+export interface TlsState { lifetime: number; orders: number }
 
 export const DEFAULT_HOST = 'logic-island';
 /** The node's group: its own, or its owner's name. */

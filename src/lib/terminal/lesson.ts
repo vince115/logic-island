@@ -15,6 +15,7 @@ import {
   type ServerCheck, type ServerLevels, type TerminalCacheEntry, type TerminalConnection, type TerminalInterface, type TerminalListen, type TerminalResponder, type TerminalZone,
 } from './server-lesson';
 import { dnsResolver } from './dns';
+import { webStateProblems, type TerminalCertbot, type TerminalCertificate } from './web-lesson';
 
 /*
  * LNX-0 (2026-11-22): the terminal lesson capability (docs/curriculum/LNX0_TERMINAL_CAPABILITY.md). A Linux lesson
@@ -50,6 +51,11 @@ import { dnsResolver } from './dns';
  * systemd-resolved unless listed (server-lesson.ts); a dns machine a resolver cache, the internet's zones and optionally
  * named; an http machine HTTP responders. Checks may ask what listens (listen), what a name resolves to (dns) and what a
  * URL answers (http). A variant may replace the resolver cache.
+ *
+ * Engine stages E13–E14 (SRV0_SERVER_CAPABILITY.md §13): the profiles 'tls' and 'nginx'. A tls machine has a trust store,
+ * the lesson's certificates as PEM files and optionally certbot; an nginx machine optionally runs nginx from its parsed
+ * configuration (web-lesson.ts). Checks may read a certificate file (cert) and ask about nginx (nginx); http accepts
+ * https:// from the tls profile up.
  */
 
 /** A file, folder or (from engine stage E1, not before) symbolic link of a machine. Paths are absolute and normalized. */
@@ -147,6 +153,16 @@ export interface TerminalMachine {
   internet?: TerminalZone[];
   /** E12: the HTTP responders that listening sockets name (listen.http). */
   responders?: TerminalResponder[];
+  /** E13: certificates written as PEM files (ids are unique in the lesson; another machine's certificate may be the issuer). */
+  certificates?: TerminalCertificate[];
+  /** E13: CA certificates of the lesson added to this machine's trust store. */
+  trust?: string[];
+  /** E13: certbot and the simulated Let's Encrypt. */
+  certbot?: TerminalCertbot;
+  /** E14: the nginx package, running (its configuration must pass nginx -t) or stopped. */
+  nginx?: true | 'stopped';
+  /** E13 (set by remoteMachine, not by lessons): the certificates of the lesson's other machines, which may issue this one's. */
+  issuers?: TerminalCertificate[];
 }
 
 /**
@@ -181,6 +197,11 @@ export interface TerminalRemote {
   dnsCache?: TerminalCacheEntry[];
   /** E12: its HTTP responders. */
   responders?: TerminalResponder[];
+  /** E13–E14: its certificates, trusted CAs, certbot and nginx. */
+  certificates?: TerminalCertificate[];
+  trust?: string[];
+  certbot?: TerminalCertbot;
+  nginx?: true | 'stopped';
 }
 
 /** E4: a process. Defaults: ppid 1, stat S, cpu 0, rss 0, vsz the rss, shr 0, tty ?, start the boot time, time 0, nice 0. */
@@ -257,7 +278,7 @@ export type TerminalCheck =
   /** E10–E12: listen, dns and http (server-lesson.ts). */
   | ServerCheck;
 export const TERMINAL_CHECK_KINDS = ['exists', 'absent', 'mode', 'owner', 'content', 'cwd', 'output', 'unchanged', 'link', 'user', 'group', 'umask', 'process', 'package', 'service',
-  'ssh', 'known-host', 'cron', 'timer', 'listen', 'dns', 'http'] as const satisfies readonly TerminalCheck['kind'][];
+  'ssh', 'known-host', 'cron', 'timer', 'listen', 'dns', 'http', 'cert', 'nginx'] as const satisfies readonly TerminalCheck['kind'][];
 /** E7: the checks of files that may name a remote machine (host). */
 const PATH_KINDS = ['exists', 'absent', 'mode', 'owner', 'content', 'unchanged', 'link'];
 
@@ -303,10 +324,12 @@ const SYSTEM_FIELDS = ['kernel', 'release', 'version', 'machine', 'os'] as const
 /** E1: the shell profile a machine's sessions use (lab unless it says files, streams or users). */
 export const profileOf = (machine: Pick<TerminalMachine, 'profile'>): ShellProfile => PROFILES[machine.profile ?? 'lab'] ?? LAB_PROFILE;
 /** Each profile includes the ones before it: files (E1) < streams (E2) < users (E3) < processes (E4) < packages (E5) < services (E6). */
-const RANK: Record<ProfileId, number> = { lab: 0, files: 1, streams: 2, users: 3, processes: 4, packages: 5, services: 6, remote: 7, scripting: 8, scheduling: 9, sockets: 10, dns: 11, http: 12 };
+const RANK: Record<ProfileId, number> = { lab: 0, files: 1, streams: 2, users: 3, processes: 4, packages: 5, services: 6, remote: 7, scripting: 8, scheduling: 9, sockets: 10, dns: 11, http: 12, tls: 13, nginx: 14 };
 const rankOf = (machine: Pick<TerminalMachine, 'profile'>) => RANK[machine.profile ?? 'lab'] ?? 0;
 /** E10–E12: which of the server stages a machine's profile has. */
-const levelsOf = (machine: Pick<TerminalMachine, 'profile'>): ServerLevels => ({ sockets: rankOf(machine) >= RANK.sockets, dns: rankOf(machine) >= RANK.dns, http: rankOf(machine) >= RANK.http });
+const levelsOf = (machine: Pick<TerminalMachine, 'profile'>): ServerLevels => ({
+  sockets: rankOf(machine) >= RANK.sockets, dns: rankOf(machine) >= RANK.dns, http: rankOf(machine) >= RANK.http, tls: rankOf(machine) >= RANK.tls, nginx: rankOf(machine) >= RANK.nginx,
+});
 
 /** E3: a users machine's database: the base and its user (defaultAccounts) with the machine's groups and users laid over it. */
 export function machineAccounts(machine: TerminalMachine): Accounts {
@@ -385,6 +408,9 @@ export function remoteMachine(machine: TerminalMachine, r: TerminalRemote): Term
     ...rankOf(machine) >= RANK.sockets ? { address: r.address } : {}, ...r.interfaces ? { interfaces: r.interfaces } : {}, ...r.programs ? { programs: r.programs } : {},
     ...r.connections ? { connections: r.connections } : {}, ...r.resolved !== undefined ? { resolved: r.resolved } : {}, ...r.named !== undefined ? { named: r.named } : {},
     ...r.dnsCache ? { dnsCache: r.dnsCache } : {}, ...r.responders ? { responders: r.responders } : {},
+    // E13–E14: its certificates (the lesson's others may issue them), trust store, certbot and nginx.
+    ...r.certificates ? { certificates: r.certificates } : {}, ...r.trust ? { trust: r.trust } : {}, ...r.certbot ? { certbot: r.certbot } : {}, ...r.nginx !== undefined ? { nginx: r.nginx } : {},
+    ...rankOf(machine) >= RANK.tls ? { issuers: [...machine.certificates ?? [], ...(machine.remotes ?? []).filter(o => o !== r).flatMap(o => o.certificates ?? [])] } : {},
   };
   return {
     id: `${machine.id}/${r.host}`, title: r.title ?? r.host, user: 'root', cwd: '/root', host: r.host, profile: machine.profile, files,
@@ -495,7 +521,7 @@ export function describeCheck(check: TerminalCheck): string {
 }
 function describe(check: TerminalCheck): string {
   switch (check.kind) {
-    case 'listen': case 'dns': case 'http': return describeServerCheck(check);
+    case 'listen': case 'dns': case 'http': case 'cert': case 'nginx': return describeServerCheck(check);
     case 'exists': return `${check.path} 應該存在${check.type === 'dir' ? '（目錄）' : check.type === 'file' ? '（檔案）' : ''}`;
     case 'absent': return `${check.path} 應該不存在`;
     case 'mode': return `${check.path} 的權限應該是 ${octal(check.mode)}`;
@@ -556,7 +582,7 @@ function failure(check: TerminalCheck, start0: FsState, end0: FsState, outputs: 
   const node = 'path' in check ? end.nodes.get(check.path) : undefined;
   const kindName = (n: FsNode) => n.kind === 'dir' ? '目錄' : n.kind === 'link' ? '符號連結' : '檔案';
   switch (check.kind) {
-    case 'listen': case 'dns': case 'http': return serverFailure(check, end, h => hostState(end, h), dnsResolver);
+    case 'listen': case 'dns': case 'http': case 'cert': case 'nginx': return serverFailure(check, end, h => hostState(end, h), dnsResolver);
     case 'exists':
       if (!node) return '它還不存在';
       return check.type && node.kind !== check.type ? `它是${kindName(node)}` : null;
@@ -735,6 +761,8 @@ export function machineProblems(given: TerminalMachine): string[] {
   if (!problems.length) problems.push(...systemProblems(machine).map(p => `machine ${machine.id}: ${p}`));
   if (!problems.length) problems.push(...laterProblems(machine).map(p => `machine ${machine.id}: ${p}`));
   if (!problems.length) problems.push(...serverProblems(machine, levelsOf(machine)).map(p => `machine ${machine.id}: ${p}`));
+  // E13–E14: what the built machine serves (the responders' certificate files, nginx's configuration test).
+  if (!problems.length && rankOf(machine) >= RANK.tls) problems.push(...webStateProblems(machine, machineState(given), levelsOf(machine)).map(p => `machine ${machine.id}: ${p}`));
   if (!normalized(homeOf(machine)) || kinds.get(homeOf(machine)) !== 'dir') fail(`the home ${homeOf(machine)} is not a folder of the machine`);
   if (machine.mounts !== undefined) {
     if (!files) fail('mounts need the files profile (engine stage E1)');
@@ -1051,7 +1079,7 @@ export function terminalContentProblems(content: TerminalLessonContent, given?: 
       if (c.kind === 'ssh' && (!ACCOUNT_NAME.test(c.user) || !['publickey', 'password'].includes(c.method) || typeof c.allowed !== 'boolean')) fail(`${at}: an ssh check needs a user, a method (publickey or password) and allowed`);
       if (c.kind === 'cron' && (machineRank < RANK.scheduling || (c.schedule !== undefined && 'error' in parseCron(c.schedule.trim().split(/\s+/))) || (c.user !== undefined && !ACCOUNT_NAME.test(c.user)))) fail(`${at}: a cron check needs a scheduling machine (engine stage E9) and a valid schedule`);
       if (c.kind === 'timer' && (machineRank < RANK.scheduling || !TIMER.test(c.unit) || (c.next !== undefined && parseTime(c.next) === undefined))) fail(`${at}: a timer check needs a scheduling machine (engine stage E9), a unit like backup.timer and a next time YYYY-MM-DD HH:MM:SS`);
-      if (c.kind === 'listen' || c.kind === 'dns' || c.kind === 'http') { const p = serverCheckProblems(c, levelsOf(valid.get(x.machine) ?? {}), known); if (p) fail(`${at}: ${p}`); }
+      if (c.kind === 'listen' || c.kind === 'dns' || c.kind === 'http' || c.kind === 'cert' || c.kind === 'nginx') { const p = serverCheckProblems(c, levelsOf(valid.get(x.machine) ?? {}), known); if (p) fail(`${at}: ${p}`); }
     }
     if (!x.solution.length || x.solution.length > TERMINAL_LIMITS.solution) fail(`${at}: the solution needs 1..${TERMINAL_LIMITS.solution} commands`);
     if (!x.mistakes.length) fail(`${at}: needs at least one typical mistake`);

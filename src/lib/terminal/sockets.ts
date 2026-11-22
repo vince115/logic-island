@@ -35,6 +35,11 @@ export interface Listen {
   backlog?: number;
   /** E12: the HTTP responder (machine.responders) that answers on it. */
   http?: string;
+  /** E13: the responder speaks TLS with this certificate (chain) and key file (read on each connection). */
+  tls?: { certificate: string; key: string };
+  /** E14 (set by the engine, not by lessons): nginx's master listens here with its applied configuration (ssl: a TLS port). */
+  nginx?: true;
+  ssl?: true;
 }
 /** E10: an IPv4 address of an interface (lo is implicit). */
 export interface Iface { name: string; address: string; prefix: number; mac: string }
@@ -59,6 +64,10 @@ export interface Socket {
   /** The processes holding it and the descriptor in each. */
   holders: { proc: Proc; fd: number }[];
   http?: string;
+  /** E13–E14: what speaks on it (see Listen). */
+  tls?: { certificate: string; key: string };
+  nginx?: true;
+  ssl?: true;
 }
 
 // ----------------------------------------------------------------------------------------------------- addresses
@@ -127,6 +136,7 @@ export function socketsOf(state: FsState): Socket[] {
       out.push({
         proto, state: proto === 'tcp' ? 'LISTEN' : 'UNCONN', local: { address, port: l.port }, peer: null, recvQ: 0, sendQ: proto === 'tcp' ? l.backlog ?? 4096 : 0,
         inode: inodeOf(`${host}/${p.pid}/${proto}/${address}/${l.port}`), holders: [p, ...kids].map(proc => ({ proc, fd })), ...l.http ? { http: l.http } : {},
+        ...l.tls ? { tls: l.tls } : {}, ...l.nginx ? { nginx: true } : {}, ...l.ssl ? { ssl: true } : {},
       });
     });
   }
@@ -230,7 +240,13 @@ export const basicResolver: Resolver = (state, name, family) => {
 // ------------------------------------------------------------------------------------------------------ commands
 
 /** What the E10–E12 commands write, as whom they run, and how they look up names. */
-export interface NetIo { out(data: string): void; err(line: string): void; user: string; tty: boolean; resolve: Resolver }
+export interface NetIo {
+  out(data: string): void; err(line: string): void; user: string; tty: boolean; resolve: Resolver;
+  /** E13: standard input (openssl x509 reads a certificate from a pipe); null is the keyboard. */
+  stdin?: string | null;
+  /** E13: the machine's profile has TLS (curl completes HTTPS; below it stops with E12's error 35). */
+  tls?: boolean;
+}
 export type NetResult = { state: FsState; status: number };
 const lines = (io: NetIo, rows: readonly string[]) => rows.forEach(r => io.out(`${r.replace(/\s+$/, '')}\n`));
 

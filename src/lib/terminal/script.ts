@@ -1635,8 +1635,11 @@ export function asUser<T extends { state: FsState }>(state: FsState, user: strin
  * E8 → E6: what systemd runs for a Type=oneshot service whose ExecStart= is a bash script (or bash/sh with a script): the
  * script runs as User= in / with systemd's PATH; its output lines go to the journal. Undefined when it is not a script.
  */
-export function serviceScript(profile: ShellProfile) {
+export function serviceScript(profile: ShellProfile, program?: (state: FsState, line: string, user: string) => { state: FsState; lines: string[]; status: number; id: string } | undefined) {
   return (state: FsState, line: string, user: string): { state: FsState; lines: string[]; status: number; id: string } | undefined => {
+    // E13: a program the simulation runs itself (certbot.service's /usr/bin/certbot -q renew).
+    const own = program?.(state, line, user);
+    if (own) return own;
     const words = line.replace(/^[-@+!:]+/, '').split(/\s+/).filter(Boolean);
     if (!words.length) return undefined;
     let [prog, ...args] = words;

@@ -8,6 +8,7 @@ import { HTTP_METHODS, probe, responseHeader, type Responder } from './http';
 import type { Resolver } from './sockets';
 import type { TerminalFile, TerminalMachine, TerminalProcess, TerminalRemote, TerminalService } from './lesson';
 import type { Program } from './services';
+import { describeWebCheck, expandWeb, webCheckProblems, webFailure, webProblems, webState, type WebCheck } from './web-lesson';
 
 /*
  * Engine stages E10–E12 as lesson data (docs/curriculum/SRV0_SERVER_CAPABILITY.md §9). A machine of the sockets profile is
@@ -29,7 +30,7 @@ export interface TerminalZone { zone: string; text: string }
 export type TerminalListen = Listen;
 export type TerminalResponder = Responder;
 /** Which of the stages a machine's profile has. */
-export interface ServerLevels { sockets: boolean; dns: boolean; http: boolean }
+export interface ServerLevels { sockets: boolean; dns: boolean; http: boolean; tls: boolean; nginx: boolean }
 
 /** E10–E12 (lesson checks). */
 export type ServerCheck =
@@ -38,7 +39,9 @@ export type ServerCheck =
   /** E11: the name has these records (dig +short's text, in any order), or none of the type (absent). server: ask that host's named; else the local resolver. */
   | { kind: 'dns'; name: string; type?: RrType; values?: string[]; absent?: true; server?: string }
   /** E12: a GET of the URL (no redirects followed) answers this status, header (name and value) and a body containing this text. */
-  | { kind: 'http'; url: string; status?: number; header?: [string, string]; body?: string; host?: string };
+  | { kind: 'http'; url: string; status?: number; header?: [string, string]; body?: string; host?: string }
+  /** E13–E14: cert and nginx (web-lesson.ts). */
+  | WebCheck;
 
 export const RESOLV_CONF = '# This is /run/systemd/resolve/stub-resolv.conf managed by man:systemd-resolved(8).\n# Do not edit.\n\nnameserver 127.0.0.53\noptions edns0 trust-ad\nsearch .\n';
 const NAMED_CONF = '// This is the primary configuration file for the BIND DNS server named.\n\ninclude "/etc/bind/named.conf.options";\ninclude "/etc/bind/named.conf.local";\n';
@@ -124,6 +127,8 @@ export function expandServer(m: TerminalMachine, lv: ServerLevels): TerminalMach
     if (m.named === 'stopped') services.push({ unit: 'named.service', active: 'inactive' });
     else procs.push({ pid: pidFrom(800), user: 'bind', command: '/usr/sbin/named -f -u bind', stat: 'Ssl', rss: 30720, vsz: 249856, unit: 'named.service', listen });
   }
+  // E13–E14: the trust store, the lesson's certificates, certbot and nginx.
+  expandWeb(m, lv, { file: add, dir, listed: p => listed.has(p) }, procs, programs, services, pidFrom);
   files.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
   return { ...m, files, processes: procs, programs, services, ...users.length || groups.length ? { accounts: { ...m.accounts, users, groups } } : {} };
 }
@@ -147,7 +152,7 @@ export function serverState(m: TerminalMachine, state: FsState, lv: ServerLevels
     if (m.named !== undefined) next = { ...next, dns: { ...next.dns!, named: loadNamed(next).zones } };
   }
   if (lv.http) next = { ...next, http: { responders: (m.responders ?? []).map(r => ({ ...r, routes: r.routes.map(x => ({ ...x })) })) } };
-  return next;
+  return webState(m, next, lv);
 }
 
 const LINE = (max: number) => (t: unknown) => typeof t === 'string' && t.length >= 1 && t.length <= max && !t.includes('\n');
@@ -156,7 +161,7 @@ const HEADER_NAME = /^[A-Za-z0-9!#$%&'*+.^_`|~-]{1,64}$/;
 
 /** E10–E12: the problems of a machine's (expanded) server data; `own` is whether listen addresses are checked against it. */
 export function serverProblems(m: TerminalMachine, lv: ServerLevels): string[] {
-  const problems: string[] = [], fail = (what: string) => problems.push(what);
+  const problems: string[] = [...webProblems(m, lv)], fail = (what: string) => problems.push(what);
   const listens = [...(m.processes ?? []).flatMap(p => p.listen ?? []), ...(m.programs ?? []).flatMap(p => p.listen ?? [])];
   if (!lv.sockets && (m.interfaces !== undefined || m.gateway !== undefined || m.connections !== undefined || m.resolved !== undefined || listens.length))
     fail('interfaces, gateway, connections, resolved and listen need the sockets profile (engine stage E10)');
@@ -259,9 +264,10 @@ export function serverCheckProblems(c: ServerCheck, lv: ServerLevels, known: (ho
         return 'a dns check needs a dns machine (engine stage E11), a name, a type among A AAAA CNAME MX TXT NS SOA, a known server and not both absent and values';
       return null;
     case 'http':
-      if (!lv.http || !/^http:\/\/[^\s/]+/.test(c.url) || (c.status !== undefined && !whole(c.status, 100, 599)) || (c.host !== undefined && !known(c.host)))
-        return 'an http check needs an http machine (engine stage E12), an http:// URL, a status 100..599 and a known host';
+      if (!lv.http || !(lv.tls ? /^https?:\/\/[^\s/]+/ : /^http:\/\/[^\s/]+/).test(c.url) || (c.status !== undefined && !whole(c.status, 100, 599)) || (c.host !== undefined && !known(c.host)))
+        return 'an http check needs an http machine (engine stage E12), an http:// URL (https:// from the tls profile, E13), a status 100..599 and a known host';
       return null;
+    case 'cert': case 'nginx': return webCheckProblems(c, lv, known);
   }
 }
 
@@ -278,6 +284,7 @@ export function describeServerCheck(c: ServerCheck): string {
       const parts = [c.status !== undefined ? `狀態碼 ${c.status}` : '', c.header ? `標頭 ${c.header[0]}: ${c.header[1]}` : '', c.body !== undefined ? `內容包含「${c.body}」` : ''].filter(Boolean);
       return `${on(c.host)}GET ${c.url} 應該回應${parts.join('、') || '成功'}`;
     }
+    case 'cert': case 'nginx': return describeWebCheck(c);
   }
 }
 
@@ -302,12 +309,13 @@ export function serverFailure(c: ServerCheck, end: FsState, hostState: (host: st
     case 'http': {
       const s = c.host ? hostState(c.host) : end;
       if (!s) return `沒有 ${c.host} 這台主機`;
-      const r = probe(s, c.url, resolve);
+      const r = probe(s, c.url, resolve, true);
       if ('error' in r) return r.error;
       if (c.status !== undefined && r.status !== c.status) return `狀態碼是 ${r.status}`;
       if (c.header) { const v = responseHeader(r.headers, c.header[0]); if (v !== c.header[1]) return v === undefined ? `沒有 ${c.header[0]} 標頭` : `${c.header[0]} 是 ${v}`; }
       if (c.body !== undefined && !r.body.includes(c.body)) return '內容不包含題目要的文字';
       return null;
     }
+    case 'cert': case 'nginx': return webFailure(c, end, hostState);
   }
 }

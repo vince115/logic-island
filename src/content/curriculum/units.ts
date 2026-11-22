@@ -68,6 +68,7 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
   // SRV-0 (2026-11-22): the network and servers island is prepared for authoring; its units come with its first lessons.
   'network-servers': [
     { title: '位址、名稱與請求', summary: '公有與私有 IP、介面與路由、監聽埠與 socket、ss、lsof 與 nc；DNS 區域、A／CNAME／MX／TXT、TTL 與快取、dig；用 curl 讀懂 HTTP 請求、回應、狀態碼與重新導向', lessonIds: range('SRV', 1, 3) },
+    { title: '憑證與網頁伺服器', summary: '憑證鏈、ACME 與 Let\'s Encrypt、certbot 自動更新、HSTS 與到期監控；網頁伺服器與應用伺服器、並行模型、逾時與 502／504；nginx 的 server 與 location、nginx -t 與 reload、存取與錯誤日誌', lessonIds: range('SRV', 4, 6) },
   ],
   // CN-1 to CN-5: the whole island, CN01–CN20.
   networks: [
