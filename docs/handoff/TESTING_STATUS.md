@@ -56,7 +56,7 @@ RWD-3 的結果（隔離副本，旗標關）：TypeScript 與 ESLint 通過；V
 - 檢查裡的指標事件是檢查程式送出的，不是瀏覽器的指標：這些測試驗證的是引擎送出什麼與模擬的捕捉規則，真實瀏覽器的捕捉、`touch-action` 與觸控行為由寫手以真的輸入（滑鼠、鍵盤、CDP 觸控）另外確認後才寫進課文，未提交。
 - E2E（`e2e/webcode-lessons.spec.ts`）：MOB04 的指標練習在課程頁上實際執行；四堂課的每個練習照樣各做一遍；Mobile Navigation Simulator 的課程連結。
 
-__MOB1_RESULT__
+MOB-1 的結果（隔離副本，旗標關）：TypeScript 與 ESLint 通過；Vitest **134 檔、3860 passed／9 skipped**；Production build 通過；E2E 桌機＋手機 **511 passed／2 failed／297 skipped**（兩個失敗同上，#36）。
 
 ## Private Vitest Runner（2026-11-22，分支 `trials/private-test-runner`）
 
