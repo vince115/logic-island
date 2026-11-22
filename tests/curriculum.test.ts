@@ -73,9 +73,12 @@ describe('curriculum (E.1)', () => {
     // LNX-4: LNX12 (SSH) is the blueprint's protocol-sequence, taught with a network-protocol scene of the SSH connection
     // beside its terminal machines (network-sequence, as the CN lessons).
     for (const l of lessons.filter(l => l.islandId === 'linux-systems')) {
-      const both = blueprint.get(l.lessonId) === 'protocol-sequence';
-      expect([l.capabilities, l.activity, !!curriculum.contents[l.lessonId]?.terminal, !!curriculum.contents[l.lessonId]?.network], l.lessonId)
-        .toEqual(both ? [['terminal', 'network-protocol'], 'network-sequence', true, true] : [['terminal'], 'terminal-sim', true, false]);
+      // LNX-5: the capstone LNX15 is the blueprint's challenge-stages (terminal exercises inside a staged challenge).
+      const kind = blueprint.get(l.lessonId);
+      const expected = kind === 'protocol-sequence' ? [['terminal', 'network-protocol'], 'network-sequence', true, true]
+        : kind === 'challenge-stages' ? [['terminal', 'visualization'], 'challenge-stages', true, false]
+        : [['terminal'], 'terminal-sim', true, false];
+      expect([l.capabilities, l.activity, !!curriculum.contents[l.lessonId]?.terminal, !!curriculum.contents[l.lessonId]?.network], l.lessonId).toEqual(expected);
     }
     // CN-1: network lessons are taught with network-protocol scenes; the blueprint's protocol-sequence is the
     // network-sequence activity there (protocol-sequence keeps meaning the database lessons' SQL round trips). CN-3: the

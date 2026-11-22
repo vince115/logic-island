@@ -22,6 +22,7 @@
 | LNX12 | SSH 遠端連線與金鑰<br>`ssh-remote-access` | 中級 | 55 分 | LNX07 | 3 台（remote，含遠端主機）＋ 2 個 network-protocol 情境 | 6 段、7 個範例（5 段終端機紀錄、SSH 連線 12 步驟與中間人攻擊兩個情境）、5 個練習（設定金鑰登入、主機金鑰改變時先核對再更新、安全地改成只允許金鑰登入，以及兩個協定步驟題）、8 題 | **完整 v1.0.0** |
 | LNX13 | Bash Script 撰寫<br>`bash-scripting` | 中級 | 60 分 | LNX05、LNX07 | 5 台（scripting） | 6 段、5 個範例（第一支指令稿、變數與參數、test 與條件、迴圈與 case、set -euo pipefail）、4 個練習（帶日期的備份指令稿、統計日誌等級、修正含空白檔名的錯誤、遇到錯誤就停止的匯出）、7 題 | **完整 v1.0.0** |
 | LNX14 | 排程：cron 與 systemd timer<br>`cron-and-systemd-timers` | 中級 | 55 分 | LNX10、LNX13 | 3 台（scheduling，Asia/Taipei，固定的現在時間） | 6 段、5 個範例（cron 欄位、安裝 crontab、cron 的環境與輸出、timer 與 Persistent 補執行、flock）、4 個練習（平日 02:15 的備份、timer 與 service 一組、systemd-analyze calendar 的下次執行時間、以 flock -n 避免重疊）、8 題；cron-next、cron-run 是模擬器的教學輔助指令；夏令時間以文字說明 | **完整 v1.0.0** |
+| LNX15 | Linux 系統島綜合專題：維護一台伺服器<br>`linux-systems-capstone` | 進階 | 120 分 | LNX09、LNX11、LNX12、LNX14 | 6 台（scheduling，Asia/Taipei；每個關卡一份機器快照，SSH 關卡含遠端主機） | 7 段、5 個範例、六個關卡（challenge-stages）各一個練習：帳號與權限、SSH 金鑰與只允許金鑰登入、部署 systemd 服務、從 status 與 journal 追查並修復停擺、set -euo pipefail 的備份指令稿＋cron.d＋flock、鎖定套件後套用更新並寫變更紀錄；8 題（每題結合兩堂以上） | **完整 v1.0.0** |
 
 ## 單元
 
@@ -34,6 +35,7 @@
 | 行程與套件 | LNX08–LNX09 |
 | 服務與日誌 | LNX10–LNX11 |
 | 遠端連線、指令稿與排程 | LNX12–LNX14 |
+| 綜合專題 | LNX15 |
 
 ## 模擬器的已知差異（課文已說明）
 
@@ -45,6 +47,6 @@
 
 ## 後續批次
 
-LNX-2 發布 LNX05–LNX07（E2、E3，並修正長選項、`Try --help` 第二行、`~` 展開與 `mv a dir/` 的訊息，使 LNX02 的錯誤範例更接近 GNU）。LNX-3 發布 LNX08–LNX11（E4–E6），LNX-4 發布 LNX12–LNX14（E7–E9）。最後的 LNX15 綜合專題單獨成一批（LNX-5），各批需要的引擎階段見 [LNX0_TERMINAL_CAPABILITY](LNX0_TERMINAL_CAPABILITY.md)：LNX-3（LNX08–11）、LNX-4（LNX12–14）、LNX-5（LNX15 綜合專題）。
+LNX-2 發布 LNX05–LNX07（E2、E3，並修正長選項、`Try --help` 第二行、`~` 展開與 `mv a dir/` 的訊息，使 LNX02 的錯誤範例更接近 GNU）。LNX-3 發布 LNX08–LNX11（E4–E6），LNX-4 發布 LNX12–LNX14（E7–E9）。LNX-5 發布 LNX15 綜合專題：Linux 系統島 15/15 完成，各批需要的引擎階段見 [LNX0_TERMINAL_CAPABILITY](LNX0_TERMINAL_CAPABILITY.md)：LNX-3（LNX08–11）、LNX-4（LNX12–14）、LNX-5（LNX15 綜合專題）。
 
-課程狀態與 3D 地景分離：Linux 系統島的 `mapState` 仍是 `'planned'`。系統與雲端工程群島因此第一次有已開放的課（區域狀態 available），其他三座島仍是大綱。
+課程狀態與 3D 地景分離：Linux 系統島的 `mapState` 仍是 `'planned'`。系統與雲端工程群島因此第一次有已開放的課（區域狀態 available），Linux 系統島全部開放後，其他三座島仍是大綱。

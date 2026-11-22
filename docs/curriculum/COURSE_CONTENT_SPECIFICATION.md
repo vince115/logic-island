@@ -69,6 +69,7 @@
 | LNX-2 | LNX05–07 | 引擎階段 E2（`streams`）、E3（`users`）＋三課 |
 | LNX-3 | LNX08–11 | 引擎階段 E4–E6（`processes`、`packages`、`services`）＋四課 |
 | LNX-4 | LNX12–14 | 引擎階段 E7–E9（`remote`、`scripting`、`scheduling`）＋三課 |
+| LNX-5 | LNX15 | 綜合專題（challenge-stages 六關），全島完成 |
 | 之後 | 依 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 自動選擇 | 先修已滿足、能力已備妥、解鎖其他島最多的島優先；缺少的共用能力先做最小可用版本 |
 
 進度記錄在 [COURSE_PRODUCTION_PROGRESS](COURSE_PRODUCTION_PROGRESS.md)。

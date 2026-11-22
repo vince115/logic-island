@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { HlLines } from '@/lib/highlight/kinds';
 import { Highlighted } from '@/components/highlighted';
 import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
@@ -15,18 +15,37 @@ const MARKS: Record<Mark, string> = { read: '讀取', write: '寫入', bad: '越
 
 /** Step buttons shared by the step-through visualizations; every button says what it does. */
 export function Stepper({ at, count, set, unit = '步驟' }: { at: number; count: number; set: (n: number) => void; unit?: string }) {
+  const group = useRef<HTMLDivElement>(null), hadFocus = useRef(false);
   // With focus on any of the buttons, the arrow keys step too (Home / End jump to the first / last step).
   const key = (e: KeyboardEvent) => {
     const to = { ArrowLeft: at - 1, ArrowRight: at + 1, Home: 0, End: count - 1 }[e.key];
     if (to === undefined) return;
     e.preventDefault();
-    set(Math.min(count - 1, Math.max(0, to)));
+    move(Math.min(count - 1, Math.max(0, to)));
   };
-  return <div className={styles.vizControls} role="group" aria-label={`${unit}控制（方向鍵也可以切換）`} onKeyDown={key}>
-    <button type="button" onClick={() => set(0)} disabled={at === 0}><RotateCcw size={14} aria-hidden/>重來</button>
-    <button type="button" onClick={() => set(at - 1)} disabled={at === 0}><ChevronLeft size={14} aria-hidden/>上一步</button>
+  // A step change can disable the focused button (下一步 on the last step, 上一步 and 重來 on the first), and the browser
+  // then drops focus to the page, so the arrow keys and Home stop working. Keep focus in the group: move it to the
+  // button that still works (2026-11-22: the network preview's keyboard E2E lost Home after End this way under load).
+  const move = (n: number) => {
+    hadFocus.current = !!group.current?.contains(document.activeElement);
+    set(n);
+  };
+  useEffect(() => {
+    const el = group.current;
+    if (!hadFocus.current || !el) return;
+    hadFocus.current = false;
+    // Focus is fine if it is still on a working control of the group (some browsers leave it on the disabled button).
+    const active = document.activeElement;
+    if (active && el.contains(active) && !(active instanceof HTMLButtonElement && active.disabled)) return;
+    const buttons = [...el.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')];
+    const target = buttons.find(b => b.dataset.step === (at === count - 1 ? 'prev' : 'next')) ?? buttons[0];
+    target?.focus();
+  }, [at, count]);
+  return <div ref={group} className={styles.vizControls} role="group" aria-label={`${unit}控制（方向鍵也可以切換）`} onKeyDown={key}>
+    <button type="button" data-step="reset" onClick={() => move(0)} disabled={at === 0}><RotateCcw size={14} aria-hidden/>重來</button>
+    <button type="button" data-step="prev" onClick={() => move(at - 1)} disabled={at === 0}><ChevronLeft size={14} aria-hidden/>上一步</button>
     <span className={styles.stepCount}>{unit} {at + 1}／{count}</span>
-    <button type="button" onClick={() => set(at + 1)} disabled={at === count - 1}>下一步<ChevronRight size={14} aria-hidden/></button>
+    <button type="button" data-step="next" onClick={() => move(at + 1)} disabled={at === count - 1}>下一步<ChevronRight size={14} aria-hidden/></button>
   </div>;
 }
 

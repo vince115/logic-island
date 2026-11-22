@@ -30,7 +30,7 @@ const DB_PLANNED = lessonsOfIsland('databases').filter(l => l.lessonStatus === '
 const PLANNED = catalogLessons.filter(l => l.lessonStatus === 'planned').length;
 const plannedEntries = (page: Page) => page.locator('main ol').getByText('規劃中', { exact: true });
 
-test('課綱目錄：八座島，F／D／A／PL／DB／CN／AIF 各 20 堂全部可點，Linux 系統島 15 堂中已開放的可點、其餘標示規劃中', async ({ page }) => {
+test('課綱目錄：八座島，F／D／A／PL／DB／CN／AIF 各 20 堂、Linux 系統島 15 堂，全部可點', async ({ page }) => {
   await page.goto('/curriculum');
   // Course production added 程式語言島 in five batches (PL01–PL20, all written by batch 5), 計算機網路島 from CN-1 and
   // AI 基礎島 from AIF-1, Linux 系統島 from LNX-1 (unwritten lessons are listed 規劃中).
@@ -39,7 +39,7 @@ test('課綱目錄：八座島，F／D／A／PL／DB／CN／AIF 各 20 堂全部
     const list = page.getByRole('region', { name: new RegExp(island) }).getByRole('listitem');
     await expect(list, island).toHaveCount(20);
   }
-  // LNX-1: Linux 系統島 lists its 15 lessons, the unwritten ones marked 規劃中.
+  // LNX-1 to LNX-5: Linux 系統島 lists its 15 lessons, all written since LNX-5.
   await expect(page.getByRole('region', { name: /Linux 系統島/ }).getByRole('listitem')).toHaveCount(15);
   const complete = lessons.filter(l => l.lessonStatus === 'complete').length;
   await expect(page.getByText('完整教材', { exact: true })).toHaveCount(complete);

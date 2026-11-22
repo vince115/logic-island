@@ -85,7 +85,8 @@ describe('isolation from the other capabilities', () => {
       const linux = l.islandId === 'linux-systems';
       expect(l.capabilities.includes('terminal'), l.lessonId).toBe(linux);
       // LNX-4: LNX12 (SSH) pairs its terminal machines with a network-protocol scene, so its activity is network-sequence.
-      expect(l.activity === 'terminal-sim', l.lessonId).toBe(linux && l.lessonId !== 'LNX12');
+      // LNX-5: the capstone LNX15 is a challenge-stages lesson.
+      expect(l.activity === 'terminal-sim', l.lessonId).toBe(linux && l.lessonId !== 'LNX12' && l.lessonId !== 'LNX15');
       expect(!!curriculum.contents[l.lessonId]?.terminal, l.lessonId).toBe(linux);
     }
   });
