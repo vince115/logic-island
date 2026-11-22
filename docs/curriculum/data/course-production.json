@@ -359,7 +359,9 @@
       ],
       "commit": "TBD",
       "tests": "TBD",
-      "notes": "SRV-5：網路與伺服器島綜合專題（terminal＋challenge-stages 六關：修好網域與 certbot --nginx、反向代理與兩台後端的負載平衡、ufw 與 ssh -J、Cache-Control 與 CDN 的 HIT、以 dig、mtr、curl -v／-w 與日誌追蹤一個請求、找出只壞了一台後端的防火牆規則）；同批修正 certbot 的 HTTP-01 驗證讀本機 /etc/hosts、經由 CDN 到課程本機 nginx 的代理與邊緣節點重複計算的等待時間；網路與伺服器島 14/14 完成，mapState 維持 planned"
+      "notes": "SRV-5：網路與伺服器島綜合專題（terminal＋challenge-stages 六關：修好網域與 certbot --nginx、反向代理與兩台後端的負載平衡、ufw 與 ssh -J、Cache-Control 與 CDN 的 HIT、以 dig、mtr、curl -v／-w 與日誌追蹤一個請求、找出只壞了一台後端的防火牆規則）；同批修正 certbot 的 HTTP-01 驗證讀本機 /etc/hosts、經由 CDN 到課程本機 nginx 的代理與邊緣節點重複計算的等待時間；網路與伺服器島 14/14 完成，mapState 維持 planned",
+      "pr": "#70",
+      "merged": "093a7ba"
     },
     {
       "id": 26,
@@ -392,6 +394,18 @@
     },
     {
       "id": 28,
+      "date": "2026-11-22",
+      "lessons": [
+        "LLM01",
+        "LLM02",
+        "LLM03"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "LLM-1：課程能力 LLM-0（llm-explorer：位元組層級的 BPE 斷詞與訓練、temperature／top-k／top-p 與固定 seed 的取樣、embedding 的內積、餘弦、最近鄰與 PCA 投影，全部是示意資料，練習以值檢查），並修正 token 開頭空白在驗證器與單一 token 答案中的比較；大型語言模型概觀、Tokenization 斷詞、嵌入向量三課"
+    },
+    {
+      "id": 29,
       "date": "2026-11-23",
       "lessons": [
         "WEB08",
@@ -399,8 +413,9 @@
         "WEB10"
       ],
       "commit": "TBD",
-      "tests": "驗證器、發布閘門 179/179、TypeScript、ESLint、Vitest 131 檔 3686 passed／9 skipped（含 Chromium：十堂網頁課的每個範例、參考解答、起始內容與常見錯誤，以及虛擬時鐘、載入順序與錯誤行號的測試）、Production build、E2E 桌機＋手機旗標關 461 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；e2e/webcode-lessons.spec.ts 在課程頁上把 40 個練習各做一遍）、測驗 24 題逐題複核、洩漏掃描",
-      "notes": "WEB-3：網頁基礎島的 JavaScript 三課：DOM 的選取、修改與建立（含指令稿的執行時機與 defer）；事件監聽、事件物件、冒泡與事件委派；事件迴圈、Promise、async／await 與錯誤處理。引擎階段 W1（script.js 在頁面載入它的位置執行、錯誤附行號、harness 不佔文件行數）、W2（檢查用的虛擬時鐘）與 dispatch 操作；練習固定 HTML、學習者改 script.js，可寫死的答案以隱藏變體排除"
+      "tests": "驗證器、發布閘門 182/182（併入 main 的 LLM-1 之後）、TypeScript、ESLint、Vitest 131 檔 3686 passed／9 skipped（含 Chromium：十堂網頁課的每個範例、參考解答、起始內容與常見錯誤，以及虛擬時鐘、載入順序與錯誤行號的測試）、Production build、E2E 桌機＋手機旗標關 461 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；e2e/webcode-lessons.spec.ts 在課程頁上把 40 個練習各做一遍）、測驗 24 題逐題複核、洩漏掃描",
+      "notes": "WEB-3：網頁基礎島的 JavaScript 三課：DOM 的選取、修改與建立（含指令稿的執行時機與 defer）；事件監聽、事件物件、冒泡與事件委派；事件迴圈、Promise、async／await 與錯誤處理。引擎階段 W1（script.js 在頁面載入它的位置執行、錯誤附行號、harness 不佔文件行數）、W2（檢查用的虛擬時鐘）與 dispatch 操作；練習固定 HTML、學習者改 script.js，可寫死的答案以隱藏變體排除",
+      "pr": "#75"
     }
   ]
 }
