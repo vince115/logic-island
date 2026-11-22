@@ -1431,6 +1431,11 @@
 .lesson :not(pre) > code {
   overflow-wrap: anywhere;
 }
+/* LNX-4 (2026-11-22): prose may hold a long unbroken token (an SSH key fingerprint, SHA256: and 43 characters); it
+   breaks inside the word instead of widening the page on phones. break-word leaves table column sizing as it was. */
+.lesson p, .lesson li {
+  overflow-wrap: break-word;
+}
 
 @media (max-width: 720px) {
   .catalog,
