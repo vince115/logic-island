@@ -34,6 +34,7 @@ WEB-1 的結果（隔離副本，旗標關，JDK 在 PATH）：TypeScript 與 ES
 - `tests/webcode-lesson.test.ts`：`resize` 與 `widths` 的範圍驗證；`resize` 失敗後的檢查不算數（直到下一次成功）。`tests/webcode-lesson-dom.test.tsx`：預覽寬度按鈕（`aria-pressed`、框架寬度、縮小比例、切換不重新載入）。
 - `tests/webcode-capability.test.ts`：響應式設計島的登錄、每一堂課都用到 `widths` 與 `resize`。`tests/world-paths.test.ts`：已實作實驗室的活動（Flexbox Playground 等）在課程改用 `dom-explorer` 之後仍留在活動登錄表與本島。
 - E2E（`e2e/webcode-lessons.spec.ts`）：在 RWD01 的課程頁按預覽寬度，確認框架裡的 `innerWidth` 與媒體查詢的結果、鍵盤操作、頁面不橫向捲動；每一堂 RWD 課的每個練習照樣在課程頁上做一遍（含多個寬度的檢查）。
+- 測試用的父頁帶著站台會套到框架元素上的全域規則（`*{box-sizing:border-box}`，以及減少動態時把轉場縮成 0.01ms 的規則；測試的瀏覽器固定開啟減少動態）。這是 RWD-1 的 E2E 找到的：少了這些規則，空白父頁上的 `resize` 一切正常，真正的課程頁上寬度卻晚一個畫格才生效、寫對的答案不通過。加上之後，Vitest 就能重現（舊引擎 10 個測試失敗），修正後通過。
 - 傳統捲軸：`tests/webcode-runner.test.ts` 的「scroll bars that take room」以畫出傳統捲軸的 Chromium（`CLASSIC_SCROLL_BARS`：不帶 `--hide-scrollbars`、關閉 overlay 捲軸）確認比檢查視窗高的頁面仍以完整寬度量測；`tests/curriculum-webcode.test.ts` 把每一堂 web-code 課在這個瀏覽器裡再跑一遍（修正前後既有 19 堂課都通過：沒有已發布的課受影響，這是預防）。
 - 無法在預覽或檢查裡切換的東西（裝置像素比、`prefers-*`、觸控、沒有 viewport 設定時的手機行為）列在 [RESPONSIVE_DESIGN_ISLAND](../curriculum/RESPONSIVE_DESIGN_ISLAND.md)。
 

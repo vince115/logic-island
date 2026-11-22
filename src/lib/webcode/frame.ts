@@ -27,11 +27,11 @@ export function runFrameJob(job: FrameJob): Promise<WebRun> {
       const data = event.data;
       if (event.source !== frame.contentWindow || !data || data.li !== job.nonce) return;
       if (data.kind === 'ready') frame.contentWindow!.postMessage({ li: job.nonce, kind: 'run', steps: job.steps }, '*');
-      // RWD-0: a resize step asks for another viewport; the frame continues once it is told the size has changed.
+      // RWD-0: a resize step asks for another viewport; the frame goes on when it sees the new size itself.
       else if (data.kind === 'resize' && data.width >= 240 && data.width <= 1600) {
         frame.style.width = data.width + 'px';
         if (data.height >= 200 && data.height <= 1200) frame.style.height = data.height + 'px';
-        frame.contentWindow!.postMessage({ li: job.nonce, kind: 'resized', id: data.id }, '*');
+        void frame.offsetWidth;
       }
       else if (data.kind === 'result') {
         done();
@@ -43,7 +43,9 @@ export function runFrameJob(job: FrameJob): Promise<WebRun> {
     frame.setAttribute('aria-hidden', 'true');
     frame.setAttribute('tabindex', '-1');
     frame.title = 'check';
-    frame.style.cssText = 'position:fixed;left:-20000px;top:0;border:0;opacity:0;pointer-events:none;background:#fff;color-scheme:light;width:' + job.width + 'px;height:' + job.height + 'px';
+    // No transition or animation may apply to the frame itself: a rule of the site for every element (shortened transitions
+    // for reduced motion) would otherwise delay each change of its size.
+    frame.style.cssText = 'position:fixed;left:-20000px;top:0;border:0;opacity:0;pointer-events:none;background:#fff;color-scheme:light;transition-property:none;animation-name:none;box-sizing:content-box;width:' + job.width + 'px;height:' + job.height + 'px';
     window.addEventListener('message', onMessage);
     timer = window.setTimeout(function () { done(); reject(new Error('timeout')); }, job.timeoutMs);
     frame.srcdoc = job.srcdoc;

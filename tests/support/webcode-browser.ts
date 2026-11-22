@@ -24,6 +24,8 @@ export interface WebBrowser {
 /** Chromium as a learner on a system with classic scroll bars has it: bars that take room (headless hides them by default). */
 export const CLASSIC_SCROLL_BARS: LaunchOptions = { ignoreDefaultArgs: ['--hide-scrollbars'], args: ['--disable-features=OverlayScrollbar'] };
 
+const SITE_RULES = '*{box-sizing:border-box}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}';
+
 export async function openWebBrowser(launch: LaunchOptions = {}): Promise<WebBrowser | null> {
   let browser: Browser;
   try { browser = await chromium.launch(launch); }
@@ -37,7 +39,9 @@ export async function openWebBrowser(launch: LaunchOptions = {}): Promise<WebBro
   const open = async (b: Browser): Promise<Page> => {
     const context = await b.newContext({ offline: true, viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
     const page = await context.newPage();
-    await page.setContent('<!DOCTYPE html><html lang="zh-Hant"><head><title>web-code checks</title></head><body><button id="parent">parent</button></body></html>');
+    // The host page has the rules of the site that reach a frame element (src/app/globals.css): border-box sizing for
+    // every element and, under reduced motion (set above), every transition shortened rather than removed.
+    await page.setContent('<!DOCTYPE html><html lang="zh-Hant"><head><title>web-code checks</title><style>' + SITE_RULES + '</style></head><body><button id="parent">parent</button></body></html>');
     page.on('pageerror', error => hostErrors.push(error.message));
     return page;
   };

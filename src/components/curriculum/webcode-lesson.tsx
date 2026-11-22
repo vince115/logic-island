@@ -79,7 +79,8 @@ function LivePage({ files, title, height, run, setup, widths }: { files: WebFile
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-  const scale = width && available ? Math.min(1, available / width) : 1;
+  // The chosen width is the page's viewport: the frame's border is drawn outside it (content-box, two more pixels).
+  const scale = width && available ? Math.min(1, available / (width + 2)) : 1;
   const shownHeight = height ?? Math.min(WEB_LIMITS.maxHeight, Math.max(WEB_LIMITS.minHeight, (report?.height ?? 120) + 2));
   const link = report?.navigations.at(-1), sent = report?.submissions.at(-1);
   const stored: [string, string, string][] = report ? [...Object.entries(report.storage.local).map(([k, v]): [string, string, string] => ['localStorage', k, v]),
@@ -94,7 +95,7 @@ function LivePage({ files, title, height, run, setup, widths }: { files: WebFile
       </div>}
       <div ref={room} className={styles.room} style={width ? { height: shownHeight * scale } : undefined}>
         {inBrowser ? <iframe key={nonce} ref={frame} className={styles.frame} title={`${title}：頁面預覽`} sandbox={WEB_SANDBOX} srcDoc={html}
-          style={width ? { height: shownHeight, width, transform: `scale(${scale})`, transformOrigin: '0 0' } : { height: shownHeight }}/>
+          style={width ? { boxSizing: 'content-box', height: shownHeight - 2, width, transform: `scale(${scale})`, transformOrigin: '0 0', transitionProperty: 'none' } : { height: shownHeight }}/>
           : <div className={styles.frame} style={{ height: shownHeight }} aria-hidden/>}
       </div>
     </figure>

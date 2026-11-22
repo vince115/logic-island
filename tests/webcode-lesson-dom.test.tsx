@@ -92,9 +92,9 @@ describe('WebExampleView', () => {
     expect(plain.container.querySelector('[role="group"]')).toBeNull();
     expect(frameOf(plain.container).style.width).toBe('');
     plain.unmount();
-    // A column 512px wide: jsdom lays nothing out, so the observer is told.
+    // A column 513px wide: jsdom lays nothing out, so the observer is told.
     const original = globalThis.ResizeObserver;
-    globalThis.ResizeObserver = class { constructor(private readonly told: ResizeObserverCallback) {} observe() { this.told([{ contentRect: { width: 512 } } as ResizeObserverEntry], this as unknown as ResizeObserver); } unobserve() {} disconnect() {} } as unknown as typeof ResizeObserver;
+    globalThis.ResizeObserver = class { constructor(private readonly told: ResizeObserverCallback) {} observe() { this.told([{ contentRect: { width: 513 } } as ResizeObserverEntry], this as unknown as ResizeObserver); } unobserve() {} disconnect() {} } as unknown as typeof ResizeObserver;
     try {
       const { container } = render(<WebExampleView example={{ ...styledExample(), widths: [360, 1024] }}/>);
       const frame = await waitFor(() => { const f = frameOf(container); expect(f).toBeTruthy(); return f; });
@@ -102,10 +102,11 @@ describe('WebExampleView', () => {
       const group = screen.getByRole('group', { name: '加上樣式：預覽寬度' });
       const pressed = () => within(group).getAllByRole('button').map(b => `${b.textContent}:${b.getAttribute('aria-pressed')}`);
       expect(pressed()).toEqual(['360px:true', '1024px:false', '填滿欄位:false']);
-      expect([frame.style.width, frame.style.transform, frame.style.height]).toEqual(['360px', 'scale(1)', '200px']);
+      // The page's viewport is 360px wide: the frame's border lies outside it.
+      expect([frame.style.width, frame.style.boxSizing, frame.style.transform, frame.style.height]).toEqual(['360px', 'content-box', 'scale(1)', '198px']);
       expect(group.textContent).toContain('頁面寬 360px');
       expect(group.textContent).not.toContain('縮小');
-      // 1024px in a 512px column: the page is laid out at 1024 and shown at half size; the room is as tall as what is drawn.
+      // 1024px (1026 with its border) in a 513px column: the page is laid out at 1024 and shown at half size; the room is as tall as what is drawn.
       fireEvent.click(within(group).getByRole('button', { name: '1024px' }));
       expect(pressed()).toEqual(['360px:false', '1024px:true', '填滿欄位:false']);
       expect([frame.style.width, frame.style.transform]).toEqual(['1024px', 'scale(0.5)']);

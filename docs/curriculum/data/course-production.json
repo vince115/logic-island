@@ -456,7 +456,7 @@
       ],
       "commit": "TBD",
       "tests": "__TESTS__",
-      "notes": "RWD-1：響應式設計島開放（第二座以 web-code 撰寫的島）：響應式原則與行動優先、viewport 與相對單位、Flexbox 基礎、Flexbox 進階。引擎階段 W7（RWD-0）：resize 操作讓同一份答案在多個視窗寬度檢查（resize 失敗後的檢查不算數）、範例與練習的預覽寬度 widths（框架依選定寬度排版、欄位較窄時縮小顯示）。檢查框架不畫自己的捲軸（捲軸佔位置的系統上寬度不再少 15px），每堂 web-code 課在傳統捲軸的 Chromium 再跑一遍。活動登錄表與實驗頁保留已實作實驗室的活動與藍圖課程（Flexbox Playground 等仍掛在本島，已發布的課成為連結）。mapState 維持 planned"
+      "notes": "RWD-1：響應式設計島開放（第二座以 web-code 撰寫的島）：響應式原則與行動優先、viewport 與相對單位、Flexbox 基礎、Flexbox 進階。引擎階段 W7（RWD-0）：resize 操作讓同一份答案在多個視窗寬度檢查（框架等到自己的視窗到位才繼續，不受站台減少動態規則的影響；resize 失敗後的檢查不算數）、範例與練習的預覽寬度 widths（框架依選定寬度排版、欄位較窄時縮小顯示）。檢查框架不畫自己的捲軸（捲軸佔位置的系統上寬度不再少 15px），每堂 web-code 課在傳統捲軸的 Chromium 再跑一遍。活動登錄表與實驗頁保留已實作實驗室的活動與藍圖課程（Flexbox Playground 等仍掛在本島，已發布的課成為連結）。mapState 維持 planned"
     }
   ]
 }

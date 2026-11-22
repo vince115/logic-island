@@ -29,7 +29,7 @@ const SOURCE = String.raw`(function () {
 
   var lines = [], navigations = [], submissions = [], pending = 0, ready = false;
   var SCRIPT_AT = __LI_SCRIPT_AT__, SCRIPT_LINES = __LI_SCRIPT_LINES__;
-  var realSetTimeout = window.setTimeout.bind(window), resizes = {}, resizeSeq = 0;
+  var realSetTimeout = window.setTimeout.bind(window);
 
   // W2 virtual clock (check frames only): the page's timers are queued against a clock that the wait action advances, so
   // a check never waits in real time and the order of timers is the same on every machine. A live preview keeps real timers.
@@ -360,13 +360,19 @@ const SOURCE = String.raw`(function () {
       return (LIVE ? new Promise(function (r) { realSetTimeout(r, Math.min(ms, 1000)); }) : advance(ms)).then(function () { return { ok: true }; });
     }
     if (s.do === 'resize') {
-      // The frame cannot size itself: the parent does it and says when it is done (RWD-0). The layout is then computed
-      // at the new width, so media and container queries apply before the next check.
+      // The frame cannot size itself: it asks the parent (RWD-0) and goes on once its own viewport has the size it asked
+      // for, so media and container queries apply before the next check. The size can arrive a moment after the parent
+      // set it (the parent page lays out again first; a site rule that shortens every transition for reduced motion
+      // delays it by a frame), so the frame looks at its own viewport instead of trusting an answer.
       return new Promise(function (resolve) {
-        var id = ++resizeSeq;
-        resizes[id] = resolve;
-        window.parent.postMessage({ li: NONCE, kind: 'resize', id: id, width: Number(s.width), height: s.height ? Number(s.height) : 0 }, '*');
-        realSetTimeout(function () { if (resizes[id]) { delete resizes[id]; resolve({ ok: false, error: 'resize' }); } }, 2000);
+        var w = Number(s.width), h = s.height ? Number(s.height) : 0, waited = 0;
+        window.parent.postMessage({ li: NONCE, kind: 'resize', width: w, height: h }, '*');
+        (function look() {
+          if (Math.abs(window.innerWidth - w) <= 1 && (!h || Math.abs(window.innerHeight - h) <= 1)) { void document.documentElement.offsetWidth; tick().then(function () { resolve({ ok: true }); }); return; }
+          waited += 20;
+          if (waited > 2000) { resolve({ ok: false, error: 'resize' }); return; }
+          realSetTimeout(look, 20);
+        })();
       });
     }
     if (s.do === 'tab') {
@@ -579,7 +585,6 @@ const SOURCE = String.raw`(function () {
   window.addEventListener('message', function (e) {
     var d = e.data;
     if (!d || d.li !== NONCE || e.source !== window.parent) return;
-    if (d.kind === 'resized' && resizes[d.id]) { var done = resizes[d.id]; delete resizes[d.id]; void document.documentElement.offsetWidth; tick().then(function () { done({ ok: true }); }); return; }
     if (d.kind !== 'run') return;
     run(d.steps || []).then(function (results) { return tick().then(function () { post('result', { results: results }); }); });
   });
