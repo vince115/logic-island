@@ -29,7 +29,7 @@ const SOURCE = String.raw`(function () {
 
   var lines = [], navigations = [], submissions = [], pending = 0, ready = false;
   var SCRIPT_AT = __LI_SCRIPT_AT__, SCRIPT_LINES = __LI_SCRIPT_LINES__;
-  var realSetTimeout = window.setTimeout.bind(window);
+  var realSetTimeout = window.setTimeout.bind(window), realFrame = window.requestAnimationFrame.bind(window);
 
   // W2 virtual clock (check frames only): the page's timers are queued against a clock that the wait action advances, so
   // a check never waits in real time and the order of timers is the same on every machine. A live preview keeps real timers.
@@ -279,6 +279,31 @@ const SOURCE = String.raw`(function () {
   function norm(s) { return String(s).replace(/\s+/g, ' ').trim(); }
   function one(selector) { return document.querySelector(selector); }
   function tick() { return new Promise(function (r) { realSetTimeout(r, 0); }); }
+  // W8 (RWD-3): what follows a rendering update is in place before a check looks: the source a picture or an image's
+  // sizes selects for the viewport, and that image loaded. Two frames, the images, two frames; every wait has a limit,
+  // so a tab that draws no frames (in the background) is slower, never stuck.
+  function rendered() {
+    return new Promise(function (r) {
+      var over = false;
+      function end() { if (!over) { over = true; r(); } }
+      realFrame(function () { realFrame(end); });
+      realSetTimeout(end, 250);
+    });
+  }
+  function loaded() {
+    return new Promise(function (r) {
+      var waited = 0;
+      (function look() {
+        var all = true, list = document.images;
+        for (var i = 0; i < list.length; i++) if (!list[i].complete) all = false;
+        waited += 10;
+        if (all || waited > 1000) { r(); return; }
+        realSetTimeout(look, 10);
+      })();
+    });
+  }
+  // Only a page with such images waits (some hundred milliseconds); every other page goes on at once.
+  function settled() { return document.querySelector('picture, img[srcset], img[sizes]') ? rendered().then(loaded).then(rendered) : tick(); }
 
   // W5: what assistive technology is told about an element. A simplified reading of the accessible-name and role rules,
   // enough for the patterns the lessons teach; it is not a full implementation of either specification.
@@ -368,7 +393,7 @@ const SOURCE = String.raw`(function () {
         var w = Number(s.width), h = s.height ? Number(s.height) : 0, waited = 0;
         window.parent.postMessage({ li: NONCE, kind: 'resize', width: w, height: h }, '*');
         (function look() {
-          if (Math.abs(window.innerWidth - w) <= 1 && (!h || Math.abs(window.innerHeight - h) <= 1)) { void document.documentElement.offsetWidth; tick().then(function () { resolve({ ok: true }); }); return; }
+          if (Math.abs(window.innerWidth - w) <= 1 && (!h || Math.abs(window.innerHeight - h) <= 1)) { void document.documentElement.offsetWidth; settled().then(function () { resolve({ ok: true }); }); return; }
           waited += 20;
           if (waited > 2000) { resolve({ ok: false, error: 'resize' }); return; }
           realSetTimeout(look, 20);
@@ -589,13 +614,13 @@ const SOURCE = String.raw`(function () {
     run(d.steps || []).then(function (results) { return tick().then(function () { post('result', { results: results }); }); });
   });
   function start() {
-    realSetTimeout(function () {
+    (LIVE ? tick() : settled()).then(function () {
       ready = true;
       post('ready');
       if (LIVE && typeof MutationObserver === 'function') new MutationObserver(touch).observe(document.documentElement, { subtree: true, childList: true, attributes: true, characterData: true });
       // RWD-0: a preview switched to a narrower width has a taller page; it reports again so that its frame can grow.
       if (LIVE) window.addEventListener('resize', touch);
-    }, 0);
+    });
   }
   if (document.readyState === 'complete') start(); else window.addEventListener('load', start);
 })();`;

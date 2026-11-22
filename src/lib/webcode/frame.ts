@@ -2,7 +2,8 @@ import { WEB_LIMITS, WEB_SANDBOX, webDocument, type WebRun, type WebRunner } fro
 
 /*
  * WEB-0: runs a page's steps in a browser. The page is loaded into a fresh sandboxed frame of the check's viewport,
- * kept off-screen; when its harness reports ready the steps are sent, and the frame is removed when the results come
+ * kept invisible (RWD-3: inside the window, not off-screen: a browser does not update the rendering of a frame that is
+ * out of sight, and a picture's source or an image's sizes would then stay as they were when the page loaded); when its harness reports ready the steps are sent, and the frame is removed when the results come
  * back or the time runs out. A fresh frame per run means a check never sees what the learner did in the preview.
  */
 export interface FrameJob { sandbox: string; srcdoc: string; nonce: string; steps: unknown[]; width: number; height: number; timeoutMs: number }
@@ -45,7 +46,7 @@ export function runFrameJob(job: FrameJob): Promise<WebRun> {
     frame.title = 'check';
     // No transition or animation may apply to the frame itself: a rule of the site for every element (shortened transitions
     // for reduced motion) would otherwise delay each change of its size.
-    frame.style.cssText = 'position:fixed;left:-20000px;top:0;border:0;opacity:0;pointer-events:none;background:#fff;color-scheme:light;transition-property:none;animation-name:none;box-sizing:content-box;width:' + job.width + 'px;height:' + job.height + 'px';
+    frame.style.cssText = 'position:fixed;left:0;top:0;z-index:-1;border:0;opacity:0;pointer-events:none;background:#fff;color-scheme:light;transition-property:none;animation-name:none;box-sizing:content-box;width:' + job.width + 'px;height:' + job.height + 'px';
     window.addEventListener('message', onMessage);
     timer = window.setTimeout(function () { done(); reject(new Error('timeout')); }, job.timeoutMs);
     frame.srcdoc = job.srcdoc;

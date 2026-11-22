@@ -46,6 +46,10 @@ describe('lab registry', () => {
     // simulator for RWD01 and RWD02.
     expect(lessonsUsingLab(getLab('flexbox-playground')!).map(l => [l.lessonId, l.status])).toEqual([['RWD03', 'published'], ['RWD04', 'published']]);
     expect(lessonsUsingLab(getLab('responsive-layout')!).slice(0, 3).map(l => [l.lessonId, l.status])).toEqual([['RWD01', 'published'], ['RWD02', 'published'], ['RWD07', 'published']]);
+    // RWD-3: every RWD lesson is published: the responsive simulator links six of them (its MOB lesson is planned), the
+    // mobile navigation simulator links RWD11.
+    expect(lessonsUsingLab(getLab('responsive-layout')!).map(l => [l.lessonId, l.status])).toEqual([...['RWD01', 'RWD02', 'RWD07', 'RWD08', 'RWD09', 'RWD10'].map(id => [id, 'published']), ['MOB06', 'planned']]);
+    expect(lessonsUsingLab(getLab('mobile-ux')!).filter(l => l.status === 'published').map(l => l.lessonId)).toEqual(['RWD11']);
     // RWD-2: the grid playground's two RWD lessons are published; its UI lesson is still planned.
     expect(lessonsUsingLab(getLab('css-grid-playground')!).filter(l => l.status === 'published').map(l => l.lessonId)).toEqual(['RWD05', 'RWD06']);
   });

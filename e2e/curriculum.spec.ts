@@ -32,7 +32,7 @@ const DB_PLANNED = lessonsOfIsland('databases').filter(l => l.lessonStatus === '
 const PLANNED = catalogLessons.filter(l => l.lessonStatus === 'planned').length;
 const plannedEntries = (page: Page) => page.locator('main ol').getByText('規劃中', { exact: true });
 
-test('課綱目錄：十四座島，F／D／A／PL／DB／CN／AIF 各 20 堂、Linux 系統島 15 堂、網路與伺服器島 14 堂、網頁基礎島 15 堂全部可點，大型語言模型島 25 堂、生成式 AI 島 20 堂、響應式設計島 12 堂與 Docker 容器島 15 堂中已開放的可點、其餘標示規劃中', async ({ page }) => {
+test('課綱目錄：十四座島，F／D／A／PL／DB／CN／AIF 各 20 堂、Linux 系統島 15 堂、網路與伺服器島 14 堂、網頁基礎島 15 堂、響應式設計島 12 堂全部可點，大型語言模型島 25 堂、生成式 AI 島 20 堂與 Docker 容器島 15 堂中已開放的可點、其餘標示規劃中', async ({ page }) => {
   await page.goto('/curriculum');
   // Course production added 程式語言島 in five batches (PL01–PL20, all written by batch 5), 計算機網路島 from CN-1 and
   // AI 基礎島 from AIF-1, Linux 系統島 from LNX-1, 網路與伺服器島 from SRV-1, 大型語言模型島 from LLM-1, 生成式 AI 島 from

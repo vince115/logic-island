@@ -1,6 +1,6 @@
 # 響應式設計島（Responsive Design Island）
 
-> 2026-11-23 開始分批撰寫（自主課程生產，見 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md)）。大綱（標題、目標、概念、先修）取自藍圖，由 `lessons.ts` 的 `responsiveFromBlueprint` 讀入。
+> 2026-11-23 分三批撰寫完成，全島 12／12（自主課程生產，見 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md)）。大綱（標題、目標、概念、先修）取自藍圖，由 `lessons.ts` 的 `responsiveFromBlueprint` 讀入。
 
 教學方式是 `web-code` 能力（[WEB0_WEB_CODE_CAPABILITY](WEB0_WEB_CODE_CAPABILITY.md)），和網頁基礎島相同：範例是一個可以修改再執行的小頁面，練習以瀏覽器建立的結果檢查。這座島多用兩樣東西（RWD-0）：
 
@@ -21,6 +21,10 @@
 | RWD06 | CSS Grid 進階：區域與自動排列<br>`css-grid-advanced` | 中級 | 55 分 | RWD05 | 6 段、5 個範例（命名區域、在斷點換模板、minmax 與被撐開的 1fr、auto-fit 圖片牆與 auto-fill、dense）、4 個練習（畫出商店的版面、寬螢幕才出現側欄、不寫媒體查詢的圖片牆、精選看板）、8 題 | **完整 v1.0.0** |
 | RWD07 | Media Query 與斷點策略<br>`media-queries-and-breakpoints` | 中級 | 55 分 | RWD02 | 6 段、5 個範例（查詢的組成、順序與特異性、恰好 700px 的邊界、內容導向的斷點、偏好查詢）、4 個練習（加一條查詢分成兩欄、把順序排對、修好 700px 的重疊、三段式商品列表）、8 題 | **完整 v1.0.0** |
 | RWD08 | Container Query<br>`container-queries` | 中級 | 55 分 | RWD07 | 6 段、5 個範例（媒體查詢做不到的事、第一個容器查詢、元素不能查詢自己、容器名稱、容器單位）、4 個練習（讓欄位成為容器、把容器移到外層、指名外層容器、容器單位的標題）、8 題 | **完整 v1.0.0** |
+| RWD09 | 流體字級與 clamp()<br>`fluid-type-and-clamp` | 中級 | 50 分 | RWD02 | 6 段、5 個範例（階梯式與純 vw、min／max／clamp、由兩個端點算出偏好值、使用者的字級設定、流動的留白與內容欄）、4 個練習（替 5vw 的標題加上界線、由端點推出偏好值、置中的內容欄、橫幅的流動內距與標題）、8 題 | **完整 v1.0.0** |
+| RWD10 | 響應式圖片與媒體<br>`responsive-images-and-media` | 中級 | 55 分 | RWD07 | 6 段、5 個範例（流動的圖片、長寬比與 object-fit、srcset 與 sizes、picture 換構圖、延遲載入與 16:9 的嵌入）、4 個練習（不變形的流動照片、16:9 的嵌入影片、寫出 sizes、用 picture 換構圖）、8 題 | **完整 v1.0.0** |
+| RWD11 | 響應式導覽與表格<br>`responsive-navigation-and-tables` | 進階 | 60 分 | RWD04、RWD07 | 6 段、5 個範例（換行與橫向捲動的導覽、收合的選單按鈕、可捲動的比較表、隱藏次要欄位、重排成卡片）、4 個練習（橫向捲動的分類列、修好選單按鈕、可聚焦有名稱的表格外框、把訂單表重排成卡片）、8 題 | **完整 v1.0.0** |
+| RWD12 | 響應式設計島綜合專題：一頁跨裝置版面<br>`responsive-design-capstone` | 進階 | 110 分 | RWD06、RWD08、RWD11 | 7 段、5 個範例、五個關卡（challenge-stages）：行動優先的骨架、頁首與導覽、頁面版面、會自己調整的商品卡、字級圖片與驗收，各對應一個練習；以「小島市集」的首頁貫穿、8 題 | **完整 v1.0.0** |
 
 ## 單元
 
@@ -30,6 +34,8 @@
 | Flexbox | RWD03–RWD04 |
 | CSS Grid | RWD05–RWD06 |
 | 媒體查詢與容器查詢 | RWD07–RWD08 |
+| 字級、圖片與元件 | RWD09–RWD11 |
+| 綜合專題 | RWD12 |
 
 ## 預覽與真實裝置的差異（課文已說明或避開）
 
@@ -41,10 +47,14 @@
 - Tab 順序與螢幕閱讀器的朗讀順序不因 `row-reverse`、`order` 改變：RWD03 以警告與測驗題說明，不以檢查佐證（檢查的 Tab 操作本身就是依文件順序模擬的）。
 - RWD07：`prefers-color-scheme`、`prefers-reduced-motion` 不能由預覽或檢查切換（測試的瀏覽器固定開啟減少動態），偏好查詢的範例只陳述兩種設定下都成立的事實，沒有偏好查詢的練習；`hover`、`orientation`、`print` 只以課文與表格說明。媒體查詢裡的 `em` 以瀏覽器的預設字級為準，課文以 16px 計算。
 - RWD05–RWD08 的欄位機制（RWD07、RWD08 的先修不含 Flexbox 與 Grid）寫在固定或要求保留的樣式裡，學習者要寫的是查詢本身；RWD08 的「容器寬度縮成 0」沒有自己的範例，以警告、動手試與測驗題說明。
+- RWD09：頁面縮放與瀏覽器的預設字級無法由預覽或檢查改變；預設字級以固定 HTML 裡寫明的根字級代替（16px，變體是 20px），縮放以表格說明並請學習者自己測試。
+- RWD10：`<picture>` 的來源與 `sizes` 的顯示寬度以盒子的大小在斷點兩側量測（引擎階段 W8）。瀏覽器拿了 `srcset` 裡的哪一個檔案取決於裝置像素比，不檢查，預覽也看不出來；`loading="lazy"` 與 `decoding="async"` 在沒有網路的頁面沒有可觀察的效果，只檢查屬性。
+- RWD11：頁面本身有沒有橫向捲動沒有直接的檢查，改以外框寬度等於視窗、外框自己可以捲動來判定；方向鍵捲動與螢幕閱讀器的行為只以課文說明。把表格元素的 `display` 改掉後語意是否保留依瀏覽器而定，課文以風險說明，不以檢查佐證（`role` 檢查看的是標籤）。重排標籤的 `content` 比對整個值，題目要求只放屬性的值。
+- RWD12：圖片以 `max-width` 與 `height: auto` 處理，`srcset`／`picture` 不在專題的檢查裡；縮放、使用者字級與真機列在測試清單，請學習者自己測。
 - 裝置像素比、使用者縮放、`prefers-color-scheme` 與 `prefers-reduced-motion`、觸控與螢幕方向都不能在預覽或檢查裡切換。
 
 ## 批次
 
-RWD-1（2026-11-23）發布 RWD01–RWD04，並帶入引擎階段 W7（RWD-0：`resize` 操作、預覽寬度 `widths`、切換寬度後回報頁面高度；`resize` 失敗後的檢查不算數；檢查框架不畫自己的捲軸），響應式設計島從規劃中變成部分開放。RWD-2（2026-11-23）發布 RWD05–RWD08（CSS Grid 基礎與進階、Media Query 與斷點策略、Container Query），沒有新增引擎。接下來：RWD-3（RWD09–RWD12：流體字級、響應式圖片、響應式導覽與表格、綜合專題）。
+RWD-1（2026-11-23）發布 RWD01–RWD04，並帶入引擎階段 W7（RWD-0：`resize` 操作、預覽寬度 `widths`、切換寬度後回報頁面高度；`resize` 失敗後的檢查不算數；檢查框架不畫自己的捲軸），響應式設計島從規劃中變成部分開放。RWD-2（2026-11-23）發布 RWD05–RWD08（CSS Grid 基礎與進階、Media Query 與斷點策略、Container Query），沒有新增引擎。RWD-3（2026-11-23）發布 RWD09–RWD12（流體字級與 clamp()、響應式圖片與媒體、響應式導覽與表格、綜合專題），並帶入引擎階段 W8（檢查框架放在視窗內，有 `picture`／`srcset`／`sizes` 的頁面在載入與每次 `resize` 之後等待畫面更新與圖片載入），全島完成。
 
 課程狀態與 3D 地景分離：響應式設計島的 `mapState` 仍是 `'planned'`。
