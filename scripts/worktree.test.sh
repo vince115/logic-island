@@ -47,6 +47,7 @@ expect 1 "short task code" "new: upper case refused" wt new Alpha feat/x
 expect 1 "short task code" "new: slash in name refused" wt new a/b feat/x
 expect 1 "leave out the 'demo-' prefix" "new: repo prefix refused" wt new demo-x feat/x
 expect 1 "start point not found" "new: unknown start point refused" wt new gamma feat/gamma --from nope
+expect 1 "short task code" "new: a name with a newline refused" wt new "$(printf 'ok\n../evil')" feat/x
 [ ! -e "$ROOT/gamma" ] && ok "new: nothing left behind after a refusal" || bad "new: nothing left behind after a refusal"
 git branch -q keep main
 expect 0 "on the existing branch keep" "new: existing local branch" wt new keepdir keep
@@ -75,7 +76,20 @@ rm "$ROOT/alpha/model.blend"; : >"$ROOT/alpha/scratch.log"
 expect 1 "FAIL 5" "check: an unknown ignored file fails 5" wt check alpha
 rm "$ROOT/alpha/scratch.log"; : >"$ROOT/alpha/.env.local"
 expect 1 "FAIL 7" "check: an env file fails 7" wt check alpha
-rm "$ROOT/alpha/.env.local"; mkdir "$ROOT/alpha/node_modules" && : >"$ROOT/alpha/node_modules/x"
+rm "$ROOT/alpha/.env.local"; mkdir "$ROOT/alpha/test-results" && : >"$ROOT/alpha/test-results/MODEL.BLEND2"
+expect 1 "FAIL 7" "check: a Blender file hidden in ignored output fails 7" wt check alpha
+rm -r "$ROOT/alpha/test-results"
+: >"$ROOT/alpha/note.txt"; git -C "$ROOT/alpha" config status.showUntrackedFiles no
+expect 1 "FAIL 3" "check: untracked files are seen even with status.showUntrackedFiles=no" wt check alpha
+git -C "$ROOT/alpha" config --unset status.showUntrackedFiles; rm "$ROOT/alpha/note.txt"
+git -C "$ROOT/alpha" update-index --skip-worktree a.txt && echo edited >>"$ROOT/alpha/a.txt"
+expect 1 "skip-worktree" "check: a skip-worktree edit fails 3" wt check alpha
+git -C "$ROOT/alpha" update-index --no-skip-worktree a.txt && git -C "$ROOT/alpha" checkout -q -- a.txt
+git branch -q origin/main feat/alpha 2>/dev/null; git -C "$ROOT/alpha" commit -q --allow-empty -m ahead && git -C "$ROOT/alpha" push -q origin feat/alpha
+git branch -qf origin/main feat/alpha
+expect 1 "FAIL 2" "check: a local branch named origin/main does not stand in for the remote" wt check alpha
+git branch -qD origin/main; git -C "$ROOT/alpha" reset -q --hard HEAD~1; git -C "$ROOT/alpha" push -q -f origin feat/alpha
+mkdir "$ROOT/alpha/node_modules" && : >"$ROOT/alpha/node_modules/x"
 expect 0 "all seven conditions hold" "check: node_modules is build output" wt check alpha
 (cd "$ROOT/alpha" && exec sleep 300) & SLEEPER=$!
 sleep 1
@@ -143,6 +157,13 @@ printf '%s' "$out" | grep -q 'demo-raw' && ok "alias: git wt runs from any workt
 git add scripts/worktree.sh && git commit -qm helper && git push -q origin main && git fetch -q origin && git rm -q scripts/worktree.sh && git commit -qm drop
 out=$(cd "$ROOT/two" && git wt move raw 2>&1)
 printf '%s' "$out" | grep -q 'verified:' && [ -d "$ROOT/raw" ] && ok "alias: git wt uses the helper on origin/main" || bad "alias: git wt uses the helper on origin/main" "$out"
+git worktree add -q -b unp/one "$ROOT/unp" main 2>/dev/null && git -C "$ROOT/unp" commit -q --allow-empty -m local-only
+out=$(cd "$ROOT/two" && git wt check unp --no-fetch 2>&1)
+printf '%s' "$out" | grep -q 'FAIL 2' && printf '%s' "$out" | grep -q 'FAIL 4' && ok "alias: from another worktree, the target's own HEAD is judged" || bad "alias: from another worktree, the target's own HEAD is judged" "$out"
+out=$(cd "$ROOT/two" && git wt remove unp --no-fetch 2>&1); [ -d "$ROOT/unp" ] && ok "alias: from another worktree, unpushed work is not removed" || bad "alias: from another worktree, unpushed work is not removed" "$out"
+out=$(cd "$ROOT/two" && GIT_DIR="$MAIN/.git/worktrees/two" bash "$HELPER" check unp --no-fetch 2>&1)
+printf '%s' "$out" | grep -q 'FAIL 4' && ok "check: an inherited GIT_DIR does not redirect the checks" || bad "check: an inherited GIT_DIR does not redirect the checks" "$out"
+mkdir "$T/plain"; expect 1 "" "check: a plain directory is not a worktree" wt check "$T/plain"
 printf '#!/bin/sh\n# someone else\n' >.git/hooks/post-checkout
 expect 0 "left untouched" "install: a foreign post-checkout hook is not overwritten" wt install
 grep -q 'someone else' .git/hooks/post-checkout && ok "install: the foreign hook is intact" || bad "install: the foreign hook is intact"

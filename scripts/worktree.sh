@@ -44,6 +44,9 @@ EOF
 }
 
 git rev-parse --git-dir >/dev/null 2>&1 || die "not inside a Git repository"
+# Git hands GIT_DIR (and friends) of the calling worktree to an alias or a hook. Left in place, every
+# `git -C <other worktree>` below would silently read the caller's HEAD and index instead of the target's.
+unset $(git rev-parse --local-env-vars)
 COMMON=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || die "cannot find the repository's Git directory"
 COMMON=$(cd "$COMMON" && pwd -P) || die "cannot read $COMMON"
 MAIN=$(git worktree list --porcelain | sed -n '1s/^worktree //p')
@@ -125,7 +128,10 @@ snapshot_procs() {
     # From "/", so that neither lsof nor the reader holds a directory open itself.
     PROCS_LSOF=$(cd / && lsof -n 2>/dev/null)
     PROCS_PS=$(ps -axo pid=,ppid=,command= 2>/dev/null)
-    [ -n "$PROCS_LSOF" ] && [ -n "$PROCS_PS" ] || PROCS_OK=0
+    # A partial listing (restricted lsof, truncated ps) must not read as "nobody uses it": this shell itself has
+    # to be in both, or the snapshot is not trusted.
+    printf '%s\n' "$PROCS_LSOF" | awk -v me="$$" '$2 == me { f = 1 } END { exit !f }' || PROCS_OK=0
+    printf '%s\n' "$PROCS_PS" | awk -v me="$$" '$1 == me { f = 1 } END { exit !f }' || PROCS_OK=0
   else
     PROCS_OK=0
   fi
@@ -136,6 +142,8 @@ snapshot_procs() {
 users_of() {
   local p=$1 anc q
   [ "$PROCS_OK" = 1 ] || return 2
+  # lsof prints non-ASCII bytes of a path as \xNN, so such a path could never be matched: refuse instead.
+  if printf '%s' "$p" | LC_ALL=C grep -q '[^ -~]'; then return 2; fi
   anc=" $$ "; q=$$
   while [ -n "$q" ] && [ "$q" -gt 1 ] 2>/dev/null; do
     q=$(printf '%s\n' "$PROCS_PS" | awk -v q="$q" '$1 == q { print $2; exit }')
@@ -171,6 +179,11 @@ users_of() {
   return 0
 }
 
+valid_name() {
+  case "$1" in ""|[!a-z0-9]*|*[!a-z0-9._-]*) return 1 ;; esac
+  [ "${#1}" -le 40 ]
+}
+
 inside() { case "$(pwd -P)/" in "$1"/*) return 0 ;; *) return 1 ;; esac; }
 
 fetch_origin() {
@@ -187,7 +200,7 @@ cmd_list() {
     if [ ! -d "$p" ]; then
       state="directory missing"
     else
-      n=$(git -C "$p" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+      n=$(git -C "$p" status --porcelain --untracked-files=normal 2>/dev/null | wc -l | tr -d ' ')
       if [ "$n" = 0 ]; then state=clean; else state="$n uncommitted"; fi
       if [ "$k" != main ]; then
         u=$(users_of "$p"); if [ $? = 2 ]; then state="$state, use unknown"; elif [ -n "$u" ]; then state="$state, IN USE"; fi
@@ -219,7 +232,7 @@ cmd_new() {
     esac
   done
   [ -n "$name" ] && [ -n "$branch" ] || die "usage: new <name> <branch> [--from <start-point>] [--no-fetch]"
-  printf '%s' "$name" | grep -Eq '^[a-z0-9][a-z0-9._-]{0,39}$' ||
+  valid_name "$name" ||
     die "the name must be a short task code: lower-case letters, digits, dot, dash, underscore (got: $name)"
   case "$name" in
     "$REPO"|"$REPO"-*) die "leave out the '$REPO-' prefix: the folder is already $ROOT" ;;
@@ -249,10 +262,10 @@ EOF
     git -C "$MAIN" worktree add --track -b "$branch" "$path" "origin/$branch" || die "git worktree add failed"
     say "created $path on $branch, tracking origin/$branch"
   else
-    [ -n "$from" ] || from=origin/main
+    [ -n "$from" ] || from=refs/remotes/origin/main
     git -C "$MAIN" rev-parse --verify --quiet "$from^{commit}" >/dev/null || die "start point not found: $from"
     git -C "$MAIN" worktree add --no-track -b "$branch" "$path" "$from" || die "git worktree add failed"
-    say "created $path on the new branch $branch (from $from)"
+    say "created $path on the new branch $branch (from ${from#refs/remotes/})"
   fi
   say "when its pull request is merged: worktree.sh remove $name"
 }
@@ -278,17 +291,20 @@ run_check() {
   esac
 
   head=$(git -C "$p" rev-parse HEAD 2>/dev/null)
-  if ! git -C "$p" rev-parse --verify --quiet origin/main >/dev/null; then
+  if ! git -C "$p" rev-parse --verify --quiet refs/remotes/origin/main >/dev/null; then
     no "2 HEAD is in origin/main: there is no origin/main here to compare with"
-  elif [ -n "$head" ] && git -C "$p" merge-base --is-ancestor "$head" origin/main; then
+  elif [ -n "$head" ] && git -C "$p" merge-base --is-ancestor "$head" refs/remotes/origin/main; then
     ok "2 HEAD $(printf '%s' "$head" | cut -c1-7) is in origin/main"
   else
     no "2 HEAD $(printf '%s' "$head" | cut -c1-7) is not in origin/main (not merged, or merged as another commit)"
   fi
 
-  out=$(git -C "$p" status --porcelain 2>/dev/null); rc=$?
+  out=$(git -C "$p" status --porcelain --untracked-files=normal 2>/dev/null); rc=$?
   if [ $rc != 0 ]; then no "3 nothing uncommitted: git status failed"
   elif [ -n "$out" ]; then no "3 nothing uncommitted: $(printf '%s\n' "$out" | wc -l | tr -d ' ') uncommitted or untracked path(s)"
+  elif git -C "$p" ls-files -v 2>/dev/null | grep -q '^[a-zS] '; then
+    # 3. such files never show in git status, so an edit to one would go unseen
+    no "3 nothing uncommitted: files are marked skip-worktree or assume-unchanged; their edits cannot be seen"
   elif ls "$(git -C "$p" rev-parse --absolute-git-dir)" 2>/dev/null | grep -Eq '^(MERGE_HEAD|CHERRY_PICK_HEAD|REVERT_HEAD|BISECT_LOG|rebase-merge|rebase-apply|index\.lock)$'; then
     no "3 nothing uncommitted: a merge, rebase, cherry-pick or bisect is in progress"
   else ok "3 no uncommitted or untracked files, no operation in progress"; fi
@@ -297,7 +313,7 @@ run_check() {
   if [ "$out" = 0 ]; then ok "4 every commit is on a remote"
   else no "4 every commit is on a remote: ${out:-?} commit(s) exist only here"; fi
 
-  out=$(git -C "$p" status --porcelain --ignored 2>/dev/null | sed -n 's/^!! //p' |
+  out=$(git -C "$p" status --porcelain --ignored --untracked-files=normal 2>/dev/null | sed -n 's/^!! //p' |
     grep -Ev '^(node_modules/|\.next/|test-results/|tsconfig\.tsbuildinfo|(.*/)?\.DS_Store)$')
   if [ -z "$out" ]; then ok "5 ignored files are build output only"
   else no "5 ignored files are build output only: $(printf '%s\n' "$out" | head -3 | tr '\n' ' ')"; fi
@@ -309,11 +325,12 @@ run_check() {
   elif [ -n "$u" ]; then no "6 nothing uses the directory: $(printf '%s\n' "$u" | head -3 | tr '\n' ';')"
   else ok "6 no process uses the directory"; fi
 
-  out=$(cd "$p" && find . \( -path ./node_modules -o -path ./.next -o -path ./.git \) -prune -o \
-    \( -name '*.blend' -o -name '*.blend1' -o -name '*.blend@' -o -name '*.pem' -o -name '*.key' -o -name '*.p12' \
-       -o -name '*.pfx' -o -name 'credentials*.json' -o \( -name '.env*' ! -name '.env.example' \) \
+  out=$(cd "$p" 2>/dev/null && find . \( -path ./node_modules -o -path ./.next -o -path ./.git \) -prune -o \
+    \( -iname '*.blend*' -o -iname '*.pem' -o -iname '*.key' -o -iname '*.p12' -o -iname '*.pfx' \
+       -o -iname 'credentials*.json' -o \( -iname '.env*' ! -name '.env.example' \) \
        -o \( -type d -path './private' \) -o \( -type d -name .vercel \) \) -print 2>/dev/null | head -3)
-  if [ -z "$out" ]; then ok "7 no private bank, Blender source, env file or credential"
+  if ! (cd "$p" 2>/dev/null); then no "7 no private bank, Blender source, env file or credential: the directory cannot be read"
+  elif [ -z "$out" ]; then ok "7 no private bank, Blender source, env file or credential"
   else no "7 no private bank, Blender source, env file or credential: $(printf '%s\n' "$out" | tr '\n' ' ')"; fi
 
   if [ "$fails" = 0 ]; then say "result: all seven conditions hold"; return 0; fi
@@ -361,7 +378,7 @@ fingerprint() {
   local p=$1
   say "head=$(git -C "$p" rev-parse HEAD 2>/dev/null)"
   say "branch=$(git -C "$p" symbolic-ref --quiet HEAD 2>/dev/null || echo detached)"
-  say "status=$(git -C "$p" status --porcelain=v1 --ignored 2>/dev/null | cksum)"
+  say "status=$(git -C "$p" status --porcelain=v1 --ignored --untracked-files=normal 2>/dev/null | cksum)"
   say "files=$(cd "$p" && find . \( -path ./node_modules -o -path ./.next \) -prune -o -type f ! -path ./.git -print 2>/dev/null | LC_ALL=C sort | cksum)"
 }
 
@@ -384,7 +401,7 @@ cmd_move() {
     central) die "$p is already in $ROOT" ;;
   esac
   if [ -z "$name" ]; then name=$(basename "$p"); name=${name#"$REPO"-}; fi
-  printf '%s' "$name" | grep -Eq '^[a-z0-9][a-z0-9._-]{0,39}$' || die "the new name must be a short task code (got: $name)"
+  valid_name "$name" || die "the new name must be a short task code (got: $name)"
   dest="$ROOT/$name"
   [ ! -e "$dest" ] || die "$dest already exists"
   if worktrees | awk -F '\t' -v p="$p" '$1 == p && $4 ~ /locked/ { found = 1 } END { exit !found }'; then
@@ -476,7 +493,7 @@ alias_body() {
   # Runs the helper as it is on origin/main, so every checkout uses the same version whatever branch it is on;
   # falls back to the copy in the current checkout, then to the one in the main checkout.
   cat <<'EOF'
-!f() { c=$(git rev-parse --path-format=absolute --git-common-dir) || exit 1; m=${c%/.git}; t=$(mktemp) || exit 1; if git -C "$m" show origin/main:scripts/worktree.sh >"$t" 2>/dev/null && [ -s "$t" ]; then :; elif [ -f scripts/worktree.sh ]; then cat scripts/worktree.sh >"$t"; elif [ -f "$m/scripts/worktree.sh" ]; then cat "$m/scripts/worktree.sh" >"$t"; else rm -f "$t"; echo "git wt: scripts/worktree.sh is not on origin/main and not in this checkout (git fetch origin)" >&2; exit 1; fi; bash "$t" "$@"; rc=$?; rm -f "$t"; exit $rc; }; f
+!f() { c=$(git rev-parse --path-format=absolute --git-common-dir) || exit 1; m=${c%/.git}; t=$(mktemp) || exit 1; if git -C "$m" show origin/main:scripts/worktree.sh >"$t" 2>/dev/null && [ -s "$t" ]; then :; elif [ -f scripts/worktree.sh ]; then cat scripts/worktree.sh >"$t"; elif [ -f "$m/scripts/worktree.sh" ]; then cat "$m/scripts/worktree.sh" >"$t"; else rm -f "$t"; echo "git wt: scripts/worktree.sh is not on origin/main and not in this checkout (git fetch origin)" >&2; exit 1; fi; cd "${GIT_PREFIX:-.}" || exit 1; bash "$t" "$@"; rc=$?; rm -f "$t"; exit $rc; }; f
 EOF
 }
 
