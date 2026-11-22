@@ -180,4 +180,3 @@ machines: [{ ..., profile: 'containers',
 | — | Alpine 的 `ls` 錯誤 | BusyBox 的格式：`ls: /nope: No such file or directory`（GNU 是 `ls: cannot access '/nope': …`） |
 
 **沒有修**：Alpine 的 `ps` 仍是 procps 的版面（BusyBox 是 `PID   USER     TIME  COMMAND`；要改既有測試與 `ps` 的模擬，不是小修）；主機的 `ps` 不列出容器的行程；`docker logs -t` 的時間；digest 只由名稱與標籤決定。`docker rmi -f` 遇到只有停止的容器使用時的行為已依真實的 Docker 修正（第 6 項），DKR03 的課文、測驗 q4 的解說與清理練習的典型錯誤一併更正（範例輸出不變）。
-
