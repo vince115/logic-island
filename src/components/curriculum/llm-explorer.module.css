@@ -120,6 +120,10 @@
   margin: 6px 0;
   font-size: var(--text-sm);
 }
+.check input[type='checkbox'] {
+  flex: none;
+  width: auto;
+}
 .note {
   margin: 12px 0;
   padding: 10px 14px;
@@ -198,6 +202,28 @@
   align-items: center;
   gap: 6px;
   min-height: 32px;
+}
+/* A row of short options (the similarity measure) never squeezes its words; a column of answer options may wrap. */
+.radios:not([data-column]) label {
+  flex: none;
+  white-space: nowrap;
+}
+/* A radio button keeps its own size (a page-wide input rule would otherwise stretch it across the row). */
+.radios input[type='radio'] {
+  flex: none;
+  width: auto;
+}
+/* An answer option can be a long token list without spaces (t|h|e|␣low|est): it wraps anywhere instead of widening the page. */
+.radios[data-column] label {
+  min-width: 0;
+}
+.radios[data-column] label > :not(input) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.radios[data-column] code {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 /* Probability bars. */

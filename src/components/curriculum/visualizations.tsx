@@ -14,7 +14,7 @@ type Of<K> = Extract<VisualizationConfig, { kind: K }>;
 const MARKS: Record<Mark, string> = { read: '讀取', write: '寫入', bad: '越界', removed: '已移除', visited: '已拜訪', found: '找到', current: '目前', pending: '待處理' };
 
 /** Step buttons shared by the step-through visualizations; every button says what it does. */
-export function Stepper({ at, count, set, unit = '步驟' }: { at: number; count: number; set: (n: number) => void; unit?: string }) {
+export function Stepper({ at, count, set, unit = '步驟', label }: { at: number; count: number; set: (n: number) => void; unit?: string; /** The position as shown, when position 0 is a starting state rather than a step (LLM-1). */ label?: (at: number, count: number) => string }) {
   const group = useRef<HTMLDivElement>(null), hadFocus = useRef(false);
   // With focus on any of the buttons, the arrow keys step too (Home / End jump to the first / last step).
   const key = (e: KeyboardEvent) => {
@@ -44,7 +44,7 @@ export function Stepper({ at, count, set, unit = '步驟' }: { at: number; count
   return <div ref={group} className={styles.vizControls} role="group" aria-label={`${unit}控制（方向鍵也可以切換）`} onKeyDown={key}>
     <button type="button" data-step="reset" onClick={() => move(0)} disabled={at === 0}><RotateCcw size={14} aria-hidden/>重來</button>
     <button type="button" data-step="prev" onClick={() => move(at - 1)} disabled={at === 0}><ChevronLeft size={14} aria-hidden/>上一步</button>
-    <span className={styles.stepCount}>{unit} {at + 1}／{count}</span>
+    <span className={styles.stepCount}>{label ? label(at, count) : `${unit} ${at + 1}／${count}`}</span>
     <button type="button" data-step="next" onClick={() => move(at + 1)} disabled={at === count - 1}>下一步<ChevronRight size={14} aria-hidden/></button>
   </div>;
 }

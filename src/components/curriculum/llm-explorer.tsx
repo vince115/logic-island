@@ -63,7 +63,7 @@ export function TokenExplorerView({ explorer }: { explorer: TokenizerExplorer })
       })}
     </ol>
     <label className={styles.check}><input type="checkbox" checked={showBytes} onChange={e => setShowBytes(e.target.checked)}/>顯示每個 token 的位元組（十六進位）</label>
-    <Stepper at={step} count={encoding.steps.length + 1} set={setAt} unit="合併"/>
+    <Stepper at={step} count={encoding.steps.length + 1} set={setAt} unit="合併" label={(at, count) => at === 0 ? `尚未合併（共 ${count - 1} 步）` : `合併 ${at}／${count - 1}`}/>
     <div className={styles.note} aria-live="polite">
       {current
         ? <p>第 {step} 步：套用第 {current.rank} 條規則（ID {current.merged}）<code>{shown(vocab.tokens[current.left].spelling)}</code> ＋ <code>{shown(vocab.tokens[current.right].spelling)}</code> → <code>{shown(vocab.tokens[current.merged].spelling)}</code>，合併 {current.count} 處，剩 {ids.length} 個 token。</p>
@@ -178,7 +178,7 @@ export function SamplingExplorerView({ explorer }: { explorer: SamplingExplorer 
       {gen.tokens.slice(0, explorer.prompt.length + shownAt).map((t, i) => <li key={i} className={styles.token} data-tone={i % 6} data-prompt={i < explorer.prompt.length || undefined} data-new={i === explorer.prompt.length + shownAt - 1 && shownAt > 0 || undefined}>
         <span className={styles.tokenText}>{shown(t)}</span><span className={styles.tokenId}>{i < explorer.prompt.length ? '提示' : `第 ${i - explorer.prompt.length + 1} 個`}</span></li>)}
     </ol>
-    <Stepper at={shownAt} count={gen.steps.length + 1} set={setAt} unit="生成"/>
+    <Stepper at={shownAt} count={gen.steps.length + 1} set={setAt} unit="生成" label={(at, count) => at === 0 ? `尚未生成（共 ${count - 1} 步）` : `生成 ${at}／${count - 1}`}/>
     <div className={styles.note} aria-live="polite">
       {step ? <>
         <p>第 {shownAt} 個 token：上文「{contextLabel(step.context)}」，{step.u === undefined ? `temperature 0 直接選機率最高的「${step.token}」` : `抽到 u = ${fixed(step.u, 4)}，選中「${shown(step.token)}」`}。</p>
@@ -191,6 +191,39 @@ export function SamplingExplorerView({ explorer }: { explorer: SamplingExplorer 
 
 // ---- embedding-space ----------------------------------------------------------------------------------------------
 const W = 320, H = 240, PAD = 36;
+/** A label as the plot shows it: at most 8 characters. */
+const shortLabel = (label: string) => label.length > 8 ? `${label.slice(0, 8)}…` : label;
+/** The width of an 11 px label: a CJK character is about a full em, other characters about 0.6 em. */
+const labelWidth = (text: string) => [...text].reduce((w, c) => w + (/[\u2E80-\uFFFF]/.test(c) ? 11 : 6.6), 0);
+type Placed = { x: number; y: number; anchor: 'middle' | 'start' | 'end' };
+/**
+ * Where each point's label goes: above the point, else below, right or left — the first place that overlaps no point
+ * and no label placed before it and stays inside the plot (deterministic: points in the given order; above when nothing fits).
+ */
+export function placeLabels(points: { id: string; x: number; y: number; label: string }[], width = W, height = H): Record<string, Placed> {
+  // Every point is an obstacle too, so a label never covers a neighbour's marker.
+  const boxes: { l: number; r: number; t: number; b: number }[] = points.map(p => ({ l: p.x - 6, r: p.x + 6, t: p.y - 6, b: p.y + 6 }));
+  const out: Record<string, Placed> = {};
+  const box = (p: Placed, w: number) => {
+    const l = p.anchor === 'middle' ? p.x - w / 2 : p.anchor === 'start' ? p.x : p.x - w;
+    return { l, r: l + w, t: p.y - 10, b: p.y + 2 };
+  };
+  for (const pt of points) {
+    const w = labelWidth(pt.label);
+    const tries: Placed[] = [
+      { x: pt.x, y: pt.y - 9, anchor: 'middle' }, { x: pt.x, y: pt.y + 17, anchor: 'middle' },
+      { x: pt.x + 9, y: pt.y + 4, anchor: 'start' }, { x: pt.x - 9, y: pt.y + 4, anchor: 'end' },
+    ];
+    const fits = (p: Placed) => {
+      const b = box(p, w);
+      return b.l >= 0 && b.r <= width && b.t >= 0 && b.b <= height && boxes.every(o => b.r <= o.l || b.l >= o.r || b.b <= o.t || b.t >= o.b);
+    };
+    const chosen = tries.find(fits) ?? tries[0];
+    boxes.push(box(chosen, w));
+    out[pt.id] = chosen;
+  }
+  return out;
+}
 
 export function EmbeddingSpaceView({ explorer }: { explorer: EmbeddingExplorer }) {
   const id = useId();
@@ -207,6 +240,7 @@ export function EmbeddingSpaceView({ explorer }: { explorer: EmbeddingExplorer }
   const [minY, maxY] = [Math.min(...points.map(p => p[1])), Math.max(...points.map(p => p[1]))];
   const sx = (x: number) => PAD + (maxX > minX ? (x - minX) / (maxX - minX) : .5) * (W - 2 * PAD);
   const sy = (y: number) => H - PAD - (maxY > minY ? (y - minY) / (maxY - minY) : .5) * (H - 2 * PAD);
+  const labels = placeLabels(all.map(item => ({ id: item.id, x: sx(projection.points[item.id][0]), y: sy(projection.points[item.id][1]), label: shortLabel(labelOf(item)) })));
   const target = all.find(i => i.id === selected)!;
   const kindText = space.kind === 'token' ? 'token embedding 表：模型裡每個 token ID 對應的一列向量' : '文件 embedding：embedding 模型為一整句話算出的一個向量';
   const dims = space.dimensions ?? target.vector.map((_, i) => `第 ${i + 1} 維`);
@@ -235,7 +269,7 @@ export function EmbeddingSpaceView({ explorer }: { explorer: EmbeddingExplorer }
         const role = item.id === selected ? 'selected' : close.has(item.id) ? 'near' : isQuery.has(item.id) ? 'query' : 'item';
         return <g key={item.id} data-role={role}>
           {isQuery.has(item.id) ? <rect x={sx(x) - 5} y={sy(y) - 5} width={10} height={10} className={styles.point}/> : <circle cx={sx(x)} cy={sy(y)} r={5} className={styles.point}/>}
-          <text x={sx(x)} y={sy(y) - 9} textAnchor="middle" className={styles.pointLabel}>{labelOf(item).length > 8 ? `${labelOf(item).slice(0, 8)}…` : labelOf(item)}</text>
+          <text x={labels[item.id].x} y={labels[item.id].y} textAnchor={labels[item.id].anchor} className={styles.pointLabel}>{shortLabel(labelOf(item))}</text>
         </g>;
       })}
     </svg>

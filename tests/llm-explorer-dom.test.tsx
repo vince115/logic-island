@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { EmbeddingSpaceView, LlmExerciseBox, SamplingExplorerView, TokenExplorerView } from '@/components/curriculum/llm-explorer';
+import { EmbeddingSpaceView, LlmExerciseBox, placeLabels, SamplingExplorerView, TokenExplorerView } from '@/components/curriculum/llm-explorer';
 import { documentSpace, exercises, sampler, tokenizer, tokenSpace } from './support/llm-fixture';
 
 /*
@@ -23,6 +23,8 @@ describe('TokenExplorerView', () => {
     expect(tokens[6].hasAttribute('data-special')).toBe(true);
     expect(container.textContent).toContain('示意資料');
     expect(container.textContent).toContain('字元 21 個 · UTF-8 位元組 25 個 · token 7 個（合併 6 步）');
+    // The stepper counts merges, not states: the last state reads 合併 6／6, matching 合併 6 步 (not 合併 7／7).
+    expect(container.textContent).toMatch(/合併 6／6|尚未合併（共 6 步）/);
     expect(container.textContent).toContain('257 101 114 262 148 159 264');
     expect(container.textContent).toContain('（與原文相同）');
     expect(container.textContent).toContain('7 × 0.5 ÷ 1,000 = 0.0035 元');
@@ -137,5 +139,20 @@ describe('LlmExerciseBox', () => {
     fireEvent.click(screen.getByLabelText('早上的火車誤點了'));
     fireEvent.click(screen.getByRole('button', { name: /檢查答案/ }));
     expect(verdict(c.container)).toBe('正確。');
+  });
+});
+
+describe('scatter plot labels', () => {
+  it('moves a label off a neighbour it would cover (蘋果 and 香蕉 a few pixels apart) and keeps every label inside the plot', () => {
+    const at = placeLabels([{ id: 'a', x: 160, y: 60, label: '蘋果' }, { id: 'b', x: 166, y: 64, label: '香蕉' }, { id: 'c', x: 300, y: 20, label: 'token' }]);
+    expect(at.a).toEqual({ x: 160, y: 51, anchor: 'middle' });
+    expect(at.b).not.toEqual({ x: 166, y: 55, anchor: 'middle' });
+    const box = (p: { x: number; y: number; anchor: string }, w: number) => { const l = p.anchor === 'middle' ? p.x - w / 2 : p.anchor === 'start' ? p.x : p.x - w; return [l, l + w, p.y - 10, p.y + 2]; };
+    const [al, ar, at2, ab] = box(at.a, 22), [bl, br, bt, bb] = box(at.b, 22);
+    expect(ar <= bl || al >= br || ab <= bt || at2 >= bb).toBe(true);
+    expect(at.c.anchor).not.toBe('start');
+    // No label covers another point's marker (蘋果's dot under 香蕉's label was the bug seen in the browser).
+    const [cl, cr, ct, cb] = box(at.b, 22);
+    expect(cr <= 154 || cl >= 166 || cb <= 54 || ct >= 66).toBe(true);
   });
 });
