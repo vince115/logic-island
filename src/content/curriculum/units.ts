@@ -66,7 +66,9 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '綜合專題', summary: '接手一台伺服器並完成一天的維護：帳號與權限、SSH 金鑰、部署服務、從日誌追查故障、排程備份、套件更新與變更紀錄', lessonIds: range('LNX', 15, 15) },
   ],
   // SRV-0 (2026-11-22): the network and servers island is prepared for authoring; its units come with its first lessons.
-  'network-servers': [],
+  'network-servers': [
+    { title: '位址、名稱與請求', summary: '公有與私有 IP、介面與路由、監聽埠與 socket、ss、lsof 與 nc；DNS 區域、A／CNAME／MX／TXT、TTL 與快取、dig；用 curl 讀懂 HTTP 請求、回應、狀態碼與重新導向', lessonIds: range('SRV', 1, 3) },
+  ],
   // CN-1 to CN-5: the whole island, CN01–CN20.
   networks: [
     { title: '分層模型與實體層', summary: '網路為什麼分層、OSI 與 TCP/IP、封裝與 PDU；訊號與媒介、頻寬、延遲、吞吐量與頻寬延遲乘積', lessonIds: range('CN', 1, 2) },

@@ -68,9 +68,9 @@ describe('a synthetic SRV02 lesson', () => {
     void _n;
     expect(validateContent(meta, withoutNetwork, curriculum.visualizations)).toContain('SRV02: the network-protocol capability needs its content');
   });
-  it('is refused while the island is only prepared for authoring', () => {
+  it('takes the place of a written lesson only once (SRV02 is published since SRV-1)', () => {
     const problems = validateCurriculum({ ...curriculum, lessons: [...lessons, meta], contents: { ...curriculum.contents, SRV02: content() } }).join('\n');
-    expect(problems).toMatch(/network-servers is prepared for authoring, not a curriculum island yet/);
+    expect(problems).not.toBe('');
   });
   it('refuses the database island\'s architecture-diagram content (content.ops) on a server lesson', () => {
     const withOps = { ...content(), ops: { backups: [], replication: [], exercises: [] } } as unknown as LessonContent;
@@ -78,17 +78,19 @@ describe('a synthetic SRV02 lesson', () => {
   });
 });
 
-describe('the network-servers island: prepared in SRV-0', () => {
-  it('is registered for authoring: prefix SRV, no units, no lesson, 14 planned outlines without a page', () => {
-    expect(PREPARED_ISLAND_IDS).toContain('network-servers');
-    expect(ISLAND_IDS).not.toContain('network-servers');
+describe('the network-servers island: prepared in SRV-0, written in batches from SRV-1', () => {
+  it('is a curriculum island with its first lessons written in id order; the rest stay planned outlines without a page', () => {
+    expect(PREPARED_ISLAND_IDS).not.toContain('network-servers');
+    expect(ISLAND_IDS).toContain('network-servers');
     expect(ISLAND_PREFIX['network-servers']).toBe('SRV');
-    expect(UNITS['network-servers']).toEqual([]);
-    expect(lessons.some(l => l.islandId === 'network-servers')).toBe(false);
-    const planned = lessonsOfIsland('network-servers');
-    expect(planned.map(l => l.lessonId)).toEqual(Array.from({ length: 14 }, (_, i) => `SRV${String(i + 1).padStart(2, '0')}`));
-    expect(planned.every(l => l.lessonStatus === 'planned' && !l.href)).toBe(true);
-    expect(getIsland('network-servers')).toMatchObject({ mapState: 'planned' });
+    const written = lessons.filter(l => l.islandId === 'network-servers');
+    expect(written.map(l => l.lessonId)).toEqual(written.map((_, i) => `SRV${String(i + 1).padStart(2, '0')}`));
+    expect(written.length).toBeGreaterThanOrEqual(3);
+    expect(UNITS['network-servers'].flatMap(u => u.lessonIds)).toEqual(written.map(l => l.lessonId));
+    const outline = lessonsOfIsland('network-servers');
+    expect(outline.map(l => l.lessonId)).toEqual(Array.from({ length: 14 }, (_, i) => `SRV${String(i + 1).padStart(2, '0')}`));
+    expect(outline.slice(written.length).every(l => l.lessonStatus === 'planned' && !l.href)).toBe(true);
+    expect(getIsland('network-servers')).toMatchObject({ status: written.length < 14 ? 'available' : 'complete', mapState: 'planned' });
   });
   it('leaves the curriculum valid', () => {
     expect(validateCurriculum(curriculum)).toEqual([]);

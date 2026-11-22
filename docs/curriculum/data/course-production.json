@@ -293,6 +293,18 @@
       "notes": "LNX-5：Linux 系統島綜合專題（terminal＋challenge-stages 六關：帳號與權限、SSH 金鑰與只允許金鑰登入、以專屬帳號與 Restart=on-failure 部署服務、從 status、journal 與 sudo 紀錄追查撞到啟動上限的停擺、set -euo pipefail 的備份搭配 /etc/cron.d 與 flock -n、apt-mark hold 後套用更新並寫變更紀錄）；Linux 系統島 15/15 完成，mapState 維持 planned；同批修正步驟控制：步驟改變讓有焦點的按鈕被停用時（最後一步的下一步、第一步的上一步），把焦點移到仍可用的按鈕，網路預覽鍵盤 E2E 三次在高負載下失敗的原因",
       "pr": "#63",
       "merged": "98f43ce"
+    },
+    {
+      "id": 21,
+      "date": "2026-11-22",
+      "lessons": [
+        "SRV01",
+        "SRV02",
+        "SRV03"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "SRV-1：網路與伺服器島首批，沿用 terminal 能力並依藍圖搭配 network-protocol 情境（SRV-0，PR #64，引擎階段 E10 sockets、E11 dns、E12 http）；伺服器端網路基礎、DNS 記錄管理、用 curl 觀察 HTTP 三課；系統與雲端工程群島的第二座開放島嶼，網路與伺服器島 mapState 維持 planned；SRV02 第 7 題依 systemd-resolved 會回應 /etc/hosts 的事實修正"
     }
   ]
 }

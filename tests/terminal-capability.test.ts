@@ -82,11 +82,12 @@ describe('isolation from the other capabilities', () => {
     expect(validateCurriculum(curriculum)).toEqual([]);
     // LNX-1: only the Linux systems island's lessons use the terminal capability.
     for (const l of lessons) {
-      const linux = l.islandId === 'linux-systems';
+      // SRV-1: the network and servers island uses the terminal capability too.
+      const linux = l.islandId === 'linux-systems' || l.islandId === 'network-servers';
       expect(l.capabilities.includes('terminal'), l.lessonId).toBe(linux);
       // LNX-4: LNX12 (SSH) pairs its terminal machines with a network-protocol scene, so its activity is network-sequence.
       // LNX-5: the capstone LNX15 is a challenge-stages lesson.
-      expect(l.activity === 'terminal-sim', l.lessonId).toBe(linux && l.lessonId !== 'LNX12' && l.lessonId !== 'LNX15');
+      expect(l.activity === 'terminal-sim', l.lessonId).toBe(linux && !['LNX12', 'LNX15', 'SRV02', 'SRV03'].includes(l.lessonId));
       expect(!!curriculum.contents[l.lessonId]?.terminal, l.lessonId).toBe(linux);
     }
   });
