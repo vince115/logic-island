@@ -6,7 +6,7 @@ import { Highlighted } from '@/components/highlighted';
 import type { HlLines } from '@/lib/highlight/kinds';
 import { runInFrame } from '@/lib/webcode/frame';
 import { checkWebExercise, describeAction, fileKinds, isWebCheck, mergeFiles, treeLines, webDocument, WEB_FILE_LABELS, WEB_FILE_NAMES, WEB_LIMITS, WEB_SANDBOX, WEB_VIEWPORT,
-  type WebExample, type WebExercise, type WebFileKind, type WebFiles, type WebFilesPart, type WebReport, type WebRunner, type WebVerdict } from '@/lib/webcode/lesson';
+  type WebExample, type WebExercise, type WebFileKind, type WebFiles, type WebFilesPart, type WebReport, type WebRunner, type WebSetup, type WebStored, type WebVerdict } from '@/lib/webcode/lesson';
 import { shownText } from './pre-text';
 import { Rich } from './rich';
 import base from './curriculum.module.css';
@@ -43,19 +43,25 @@ const useInBrowser = () => useSyncExternalStore(noSubscription, () => true, () =
  * page (never per keystroke), and each run gets a new frame with its own nonce. The frame is made in the browser only:
  * its document carries the harness, which there is no reason to send with the lesson's HTML.
  */
-function LivePage({ files, title, height, run }: { files: WebFiles; title: string; height?: number; run: number }) {
+function LivePage({ files, title, height, run, setup }: { files: WebFiles; title: string; height?: number; run: number; setup?: WebSetup }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const inBrowser = useInBrowser();
   // A frame is believed by being the frame (event.source); the nonce only tells this run's document from the last one's.
-  const nonce = `${useId().replace(/[^a-zA-Z0-9]/g, '')}r${run}`;
-  const html = useMemo(() => webDocument(files, nonce, true), [files, nonce]);
   const [reported, setReported] = useState<{ nonce: string; report: WebReport }>();
+  // W4: what the page stored is still there when it is run again, as it would be after a reload; the lesson's setup is
+  // the first visit's state. `cleared` counts the times the learner emptied it (each is a fresh frame too).
+  const [carried, setCarried] = useState<{ run: number; cleared: number; stored?: WebStored }>({ run, cleared: 0 });
+  if (carried.run !== run) setCarried({ run, cleared: carried.cleared, stored: reported?.report.storage ?? carried.stored });
+  const nonce = `${useId().replace(/[^a-zA-Z0-9]/g, '')}r${run}c${carried.cleared}`;
+  const html = useMemo(() => webDocument(files, nonce, true, { ...setup, ...(carried.stored ? { storage: carried.stored.local, cookies: carried.stored.cookies } : {}) }),
+    [files, nonce, setup, carried.stored]);
   // A layout effect: the listener is in place before the browser starts loading the frame.
   useLayoutEffect(() => {
     const onMessage = (event: MessageEvent) => {
       const data = event.data as (WebReport & { li?: string }) | null;
       if (event.source !== frame.current?.contentWindow || !data || data.li !== nonce) return;
-      setReported({ nonce, report: { console: data.console, tree: data.tree, height: data.height, navigations: data.navigations, submissions: data.submissions, title: data.title, standards: data.standards } });
+      setReported({ nonce, report: { console: data.console, tree: data.tree, height: data.height, navigations: data.navigations, submissions: data.submissions, title: data.title, standards: data.standards,
+        requests: data.requests ?? [], storage: data.storage ?? { local: {}, session: {}, cookies: {} } } });
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
@@ -63,6 +69,8 @@ function LivePage({ files, title, height, run }: { files: WebFiles; title: strin
   const report = reported?.nonce === nonce ? reported.report : undefined;
   const shownHeight = height ?? Math.min(WEB_LIMITS.maxHeight, Math.max(WEB_LIMITS.minHeight, (report?.height ?? 120) + 2));
   const link = report?.navigations.at(-1), sent = report?.submissions.at(-1);
+  const stored: [string, string, string][] = report ? [...Object.entries(report.storage.local).map(([k, v]): [string, string, string] => ['localStorage', k, v]),
+    ...Object.entries(report.storage.session).map(([k, v]): [string, string, string] => ['sessionStorage', k, v]), ...Object.entries(report.storage.cookies).map(([k, v]): [string, string, string] => ['Cookie', k, v])] : [];
   return <div className={styles.live}>
     <figure className={styles.preview}>
       <figcaption>瀏覽器裡的結果{report?.title ? <span className={styles.pageTitle}>分頁標題：{report.title}</span> : null}</figcaption>
@@ -73,6 +81,21 @@ function LivePage({ files, title, height, run }: { files: WebFiles; title: strin
       {link && <p className={styles.note}>連結「{link.text || link.href}」會前往 <code>{link.href}</code>{link.target ? `（target="${link.target}"）` : ''}；預覽不會離開這一頁。</p>}
       {sent && <p className={styles.note}>表單送出了（{sent.method.toUpperCase()}{sent.action ? ` ${sent.action}` : ''}）：{sent.data.length ? sent.data.map(([k, v]) => `${k}=${v}`).join('、') : '沒有任何欄位資料'}；預覽不會真的送出。</p>}
     </div>
+    {report && report.requests.length > 0 && <figure className={styles.file}>
+      <figcaption>網路請求（由課程模擬的伺服器回應，沒有真的連線）</figcaption>
+      <ol className={styles.requests} aria-label={`${title}：網路請求`}>
+        {report.requests.map((r, i) => <li key={i} data-status={r.status}><code>{r.method} {r.path}</code> → {r.status === 0 ? '等待回應…' : r.status < 0 ? '連線失敗' : r.status}</li>)}
+      </ol>
+    </figure>}
+    {stored.length > 0 && <figure className={styles.file}>
+      <figcaption>儲存的資料（只在這個預覽裡，重新執行後仍然保留）</figcaption>
+      <ul className={styles.requests} aria-label={`${title}：儲存的資料`}>
+        {stored.map(([area, key, value]) => <li key={`${area} ${key}`}><code>{area}</code> <code>{key}</code> = <code>{shownText(value)}</code></li>)}
+      </ul>
+      <div className={base.vizControls}>
+        <button type="button" onClick={() => setCarried(c => ({ run: c.run, cleared: c.cleared + 1, stored: { local: {}, session: {}, cookies: {} } }))}>清除儲存的資料並重新載入</button>
+      </div>
+    </figure>}
     {report && report.console.length > 0 && <figure className={styles.file}>
       <figcaption>主控台（console）</figcaption>
       <div className={styles.console} role="log" aria-label={`${title}：主控台輸出`}>
@@ -110,7 +133,7 @@ export function WebExampleView({ example, tokens }: { example: WebExample; token
     <p className={base.muted}><Rich text={example.description}/></p>
     <div className={styles.split}>
       <div className={styles.files}>{kinds.map(k => <FileCode key={k} kind={k} text={example.files[k]!} tokens={tokens?.[k]}/>)}</div>
-      <LivePage files={shown} title={example.title} height={example.height} run={run}/>
+      <LivePage files={shown} title={example.title} height={example.height} run={run} setup={example.setup}/>
     </div>
     <details className={styles.facts}>
       <summary>這個頁面在瀏覽器裡的事實（{facts.length}）</summary>
@@ -178,7 +201,7 @@ export function WebExerciseBox({ exercise, tokens, run = runInFrame }: { exercis
       <button type="button" className={base.primaryButton} onClick={check} aria-disabled={busy || undefined}><Check size={14} aria-hidden/>{busy ? '檢查中…' : '檢查'}</button>
       <button type="button" onClick={reset}><RotateCcw size={14} aria-hidden/>重設</button>
     </div>
-    <LivePage files={shown} title={exercise.title} run={runs}/>
+    <LivePage files={shown} title={exercise.title} run={runs} setup={exercise.setup}/>
     <div className={styles.steps}>
       <h4 id={`${id}-steps`}>檢查的步驟</h4>
       <p className={styles.note}>「檢查」會把你目前的檔案載入一份全新的頁面（寬 {viewport.width}px、高 {viewport.height}px），依序做下面的事，只看結果，不看寫法。</p>

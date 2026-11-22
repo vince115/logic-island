@@ -18,6 +18,9 @@
 | WEB08 | JavaScript 與 DOM：選取與修改<br>`javascript-and-the-dom` | 入門 | 55 分 | WEB02、F13 | 6 段、6 個範例（走訪 DOM 樹、太早執行的指令稿、defer、選取與找不到、修改文字屬性與類別、依陣列建立清單）、4 個練習（改標題與連結、依資料加上類別、由陣列建立清單、修好太早執行又沒有處理 null 的指令稿）、8 題 | **完整 v1.0.0** |
 | WEB09 | 事件與事件委派<br>`events-and-delegation` | 中級 | 55 分 | WEB08 | 6 段、6 個範例（登記與呼叫的時機、事件物件、冒泡順序、表單的 submit、逐一登記的漏洞、事件委派）、4 個練習（計數器、送出後加入清單、改寫成委派、借書籃）、8 題 | **完整 v1.0.0** |
 | WEB10 | 非同步 JavaScript：Promise 與 async／await<br>`asynchronous-javascript` | 中級 | 60 分 | WEB09 | 6 段、6 個範例（計時器、同步／微任務／任務的順序、then／catch／finally、await 只暫停自己、依序與 Promise.all、載入中／成功／失敗）、4 個練習（讓紀錄依時間出現、載入中與清單、接住失敗、並行載入）、8 題 | **完整 v1.0.0** |
+| WEB11 | fetch、JSON 與 API<br>`fetch-json-and-apis` | 中級 | 60 分 | WEB10 | 6 段、6 個範例（第一個請求、JSON 文字與物件、狀態碼與 response.ok、載入／空白／錯誤狀態、POST、查詢字串）、4 個練習（載入清單、依狀態碼處理、搜尋的三種狀態、送出願望）、8 題 | **完整 v1.0.0** |
+| WEB12 | 瀏覽器儲存：localStorage 與 Cookie<br>`browser-storage` | 中級 | 55 分 | WEB10 | 6 段、6 個範例（重新整理後還在的次數、以 JSON 存清單、sessionStorage、Cookie、版本遷移、任何指令稿都讀得到）、4 個練習（記住主題、存取清單、遷移舊版資料、語言 Cookie）、8 題 | **完整 v1.0.0** |
+| WEB13 | 語意 HTML 與 ARIA 的無障礙實作<br>`semantic-html-and-aria` | 中級 | 60 分 | WEB04、WEB09 | 6 段、6 個範例（原生頁面的角色與名稱、原生按鈕與 div、圖示按鈕的名稱、狀態屬性、下拉選單、即時區域）、4 個練習（替圖示按鈕命名、換回原生按鈕、自製切換鈕、修好下拉選單）、8 題 | **完整 v1.0.0** |
 
 ## 單元
 
@@ -27,6 +30,7 @@
 | 內容與表單 | WEB03–WEB04 |
 | CSS：樣式、盒子與定位 | WEB05–WEB07 |
 | JavaScript：DOM、事件與非同步 | WEB08–WEB10 |
+| 資料、儲存與無障礙 | WEB11–WEB13 |
 
 ## 預覽與真實瀏覽器的差異（課文已說明或避開）
 
@@ -36,10 +40,11 @@
 - `style.css` 與 `script.js` 會成為 DOM 裡的 `style` 與 `script` 元素（不是 `<link>` 與外部檔案），WEB01 說明了這一點；沒有 Network 面板與「檢視原始碼」，課文請學習者開真正的開發者工具。
 - CSS 課（WEB05–WEB07）的檢查在固定 600 × 400 的頁面上量測，量的都是明確指定像素大小的盒子；`:hover` 沒有對應的操作，只在範例裡請學習者用滑鼠試；沒有「不是某個值」的檢查，題目改以固定其他元素的結果來排除 `!important` 這類繞過的寫法（必要時用隱藏的變體）。
 - JavaScript 課（WEB08–WEB10）：檢查裡的計時器走虛擬時鐘（`wait` 不會真的等待，順序每次相同），預覽裡的計時器是真的；頁面沒有網路，非同步的資料由固定檔案裡以計時器做成的假載入函式提供（WEB11 換成 `fetch`）；`defer` 以「在 body 結尾執行」模擬，所以 DOM 樹裡的 `script` 會出現在 body 結尾；表單送出的紀錄在頁面呼叫 `preventDefault()` 後仍會顯示（它記錄的是 submit 事件），WEB09 有說明；瀏覽器錯誤訊息的文字各家不同，課文只說錯誤的種類與行號。
+- WEB11–WEB13：頁面沒有網路，`fetch` 由課程宣告的模擬伺服器回答（固定的回應，不解析查詢字串或請求本文；回應是只有常用成員的物件，不是真的 `Response`；請求的標頭不記錄）；`localStorage`、`sessionStorage` 與 `document.cookie` 是頁面自己在記憶體裡的替代品（只支援方法，不支援 `localStorage.name` 的寫法；Cookie 的 `path`、`Secure`、`SameSite` 不模擬；預覽重新執行時保留 localStorage 與 Cookie，不保留 sessionStorage）；無障礙名稱與角色的檢查是規則的簡化版，不是完整的稽核，即時區域的朗讀無法檢查。
 - 鍵盤操作是模擬的事件：Enter 送出表單與空白鍵切換核取方塊有模擬，Tab 移動焦點沒有；`minlength`／`maxlength` 只對使用者親手輸入的文字驗證，檢查無法重現，WEB04 只以文字說明。
 
 ## 後續批次
 
-WEB-2 發布 WEB05–WEB07（CSS 選擇器與串接、盒模型、定位；引擎新增 `hit` 檢查、`scroll` 操作與相對於視窗的 `box`）。WEB-3 發布 WEB08–WEB10（DOM、事件、非同步；引擎階段 W1 錯誤行號與 defer、W2 虛擬時鐘、`dispatch` 操作）。WEB-4 發布 WEB11–WEB13（fetch、儲存、無障礙；W3–W5）。WEB-5 發布 WEB14–WEB15（效能與綜合專題；W6）。
+WEB-2 發布 WEB05–WEB07（CSS 選擇器與串接、盒模型、定位；引擎新增 `hit` 檢查、`scroll` 操作與相對於視窗的 `box`）。WEB-3 發布 WEB08–WEB10（DOM、事件、非同步；引擎階段 W1 錯誤行號與 defer、W2 虛擬時鐘、`dispatch` 操作）。WEB-4 發布 WEB11–WEB13（fetch、儲存、無障礙；引擎階段 W3 模擬伺服器、W4 儲存空間、W5 無障礙名稱／角色與 Tab）。WEB-5 發布 WEB14–WEB15（效能與綜合專題；W6）。
 
 課程狀態與 3D 地景分離：網頁基礎島的 `mapState` 仍是 `'planned'`。
