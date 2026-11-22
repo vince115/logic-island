@@ -360,13 +360,19 @@ const TERMINAL_SHAPES: Readonly<Record<string, Pick<Outline, 'activity' | 'capab
   'request-path': { activity: 'network-sequence', capabilities: ['terminal', 'network-protocol'], visualization: 'none' },
   'architecture-diagram': { activity: 'network-sequence', capabilities: ['terminal', 'network-protocol'], visualization: 'none' },
   'challenge-stages': { activity: 'challenge-stages', capabilities: ['terminal', 'visualization'], visualization: 'challenge-stages' },
+  // DKR-0: the Docker island's container-playground is the terminal with the containers profile (docker); its pipeline-diagram
+  // (DKR11, registries: build → tag → push → pull) is drawn as network scenes beside the terminal, like the request paths.
+  'container-playground': { activity: 'terminal-sim', capabilities: ['terminal'], visualization: 'none' },
+  'pipeline-diagram': { activity: 'network-sequence', capabilities: ['terminal', 'network-protocol'], visualization: 'none' },
 };
+type TerminalIsland = 'linux-systems' | 'network-servers' | 'docker-containers';
 /** The activities each terminal island maps (the Linux island's blueprint has no request-path or architecture-diagram). */
-const TERMINAL_ACTIVITIES: Readonly<Record<'linux-systems' | 'network-servers', readonly string[]>> = {
+const TERMINAL_ACTIVITIES: Readonly<Record<TerminalIsland, readonly string[]>> = {
   'linux-systems': ['terminal-sim', 'case-study-board', 'protocol-sequence', 'challenge-stages'],
   'network-servers': ['terminal-sim', 'case-study-board', 'protocol-sequence', 'request-path', 'architecture-diagram', 'challenge-stages'],
+  'docker-containers': ['container-playground', 'architecture-diagram', 'pipeline-diagram', 'case-study-board', 'challenge-stages'],
 };
-function terminalOutline(lessonId: string, summary: string, minutes: number, island: 'linux-systems' | 'network-servers', what: string): Outline {
+function terminalOutline(lessonId: string, summary: string, minutes: number, island: TerminalIsland, what: string): Outline {
   const b = planning.plannedLessons.find(l => l.lessonId === lessonId);
   if (!b || b.islandId !== island) throw new Error(`${lessonId} is not a ${what} lesson of the blueprint`);
   const s = TERMINAL_ACTIVITIES[island].includes(b.activity) ? TERMINAL_SHAPES[b.activity] : undefined;
@@ -390,6 +396,15 @@ export function terminalFromBlueprint(lessonId: string, summary: string, minutes
  */
 export function serverFromBlueprint(lessonId: string, summary: string, minutes: number): Outline {
   return terminalOutline(lessonId, summary, minutes, 'network-servers', 'network and servers');
+}
+/**
+ * DKR-0 (2026-11-23): a Docker lesson written from its blueprint outline, the same way: the terminal capability with the
+ * containers profile (engine stage E20 on, docs/curriculum/DKR0_CONTAINER_CAPABILITY.md). container-playground and the
+ * security case-study-board are terminal lessons; the architecture overviews (DKR01, DKR02) and the registry pipeline (DKR11)
+ * pair the terminal with network-protocol scenes (network-sequence); the capstone is challenge-stages.
+ */
+export function dockerFromBlueprint(lessonId: string, summary: string, minutes: number): Outline {
+  return terminalOutline(lessonId, summary, minutes, 'docker-containers', 'Docker containers');
 }
 /**
  * LLM-0 (2026-11-22): a lesson of the large-language-models or generative-ai island written from its blueprint outline.

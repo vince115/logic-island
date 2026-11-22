@@ -66,18 +66,20 @@ export const ISLAND_IDS = ['foundations', 'structures', 'algorithms', 'programmi
 // LLM-1 (2026-11-22): the large-language-models island joins with LLM01–LLM03 (prepared in LLM-0); generative-ai stays prepared.
 // WEB-0 (2026-11-23) prepared the web foundations island, which WEB-1 moved to ISLAND_IDS.
 // GEN-1 (2026-11-23): the generative-ai island joins with GEN01–GEN02 (prepared in LLM-0), after large-language-models.
-export const PREPARED_ISLAND_IDS = [] as const;
+// DKR-0 (2026-11-23): the docker-containers island, written with the terminal capability (engine stage E20 containers on)
+// and network-protocol scenes for its architecture and pipeline overviews (docs/curriculum/DKR0_CONTAINER_CAPABILITY.md).
+export const PREPARED_ISLAND_IDS = ['docker-containers'] as const;
 export type IslandId = typeof ISLAND_IDS[number] | typeof PREPARED_ISLAND_IDS[number];
 /**
  * F = 基礎程式島, D = 資料結構島, A = 演算法島, then a two-digit position (F01..F20). Phase F.0: the number is two digits in
  * the type too (it was any string, so DB01 or AG01 type-checked as a D or A lesson); IDs of every island, planned ones
  * included, are AnyLessonId in src/content/world/lesson-id.ts and are always parsed with their whole prefix.
  */
-export type LessonPrefixWritten = 'F' | 'D' | 'A' | 'DB' | 'PL' | 'CN' | 'AIF' | 'LNX' | 'SRV' | 'LLM' | 'GEN' | 'WEB';
+export type LessonPrefixWritten = 'F' | 'D' | 'A' | 'DB' | 'PL' | 'CN' | 'AIF' | 'LNX' | 'SRV' | 'LLM' | 'GEN' | 'WEB' | 'DKR';
 export type LessonId = `${LessonPrefixWritten}${LessonNumber}`;
 /** 2026-11-20 (course production, batch 1): the programming-languages island (PL) joins with its first written lessons. */
 export const ISLAND_PREFIX: Record<IslandId, LessonPrefixWritten> = { foundations: 'F', structures: 'D', algorithms: 'A', databases: 'DB', 'programming-languages': 'PL', networks: 'CN', 'ai-foundations': 'AIF', 'linux-systems': 'LNX',
-  'network-servers': 'SRV', 'large-language-models': 'LLM', 'generative-ai': 'GEN', 'web-foundations': 'WEB' };
+  'network-servers': 'SRV', 'large-language-models': 'LLM', 'generative-ai': 'GEN', 'web-foundations': 'WEB', 'docker-containers': 'DKR' };
 
 /**
  * Phase F.1a: a lesson taught in a query language instead of the four programming languages. A SQL lesson has no program

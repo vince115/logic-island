@@ -45,7 +45,7 @@
 
 ## 4. 批次與引擎階段
 
-課程編號即位置，依序連續發布；每一批先完成它需要的引擎階段（各自的 profile 與測試），再寫課。profile 延續 LNX 的**線性鏈**：lab < files < streams < users < processes < packages < services < remote < scripting < scheduling < **sockets < dns < http < tls < nginx < proxy < firewall < tunnels < edge < diagnostics**。
+課程編號即位置，依序連續發布；每一批先完成它需要的引擎階段（各自的 profile 與測試），再寫課。profile 延續 LNX 的**線性鏈**：lab < files < streams < users < processes < packages < services < remote < scripting < scheduling < **sockets < dns < http < tls < nginx < proxy < firewall < tunnels < edge < diagnostics**。之後的 `containers`（E20，Docker 容器島）見 [DKR0_CONTAINER_CAPABILITY](DKR0_CONTAINER_CAPABILITY.md)。
 
 | 批次 | 課程 | 引擎階段 |
 |---|---|---|

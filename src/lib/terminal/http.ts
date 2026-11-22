@@ -10,6 +10,7 @@ import { alertFor, builtin, certsIn, cnOf, curlHandshake, dnCurl, asn1Time, keyB
 import { nginxCertificate, nginxServe, plainOnTls, type UpstreamFn, type UpstreamResult } from './nginx';
 import { base64 } from './ssh';
 import { resolvePath } from './fs';
+import { containerAccess } from './docker';
 
 /*
  * Engine stage E12 (docs/curriculum/SRV0_SERVER_CAPABILITY.md §8): HTTP/1.1 with curl. A machine's responders are lesson
@@ -53,7 +54,11 @@ export interface Route {
   purge?: { edges: string[]; token?: string };
 }
 /** E12: an HTTP server's behaviour: its Server header, whether it keeps connections alive (default yes), its routes in order. E15: a delay for every answer. */
-export interface Responder { id: string; server?: string; keepAlive?: boolean; routes: Route[]; delay?: number; /** E18: a CDN edge in front of an origin (routes unused). */ cdn?: CdnConfig }
+export interface Responder {
+  id: string; server?: string; keepAlive?: boolean; routes: Route[]; delay?: number; /** E18: a CDN edge in front of an origin (routes unused). */ cdn?: CdnConfig;
+  /** E20 (set by the engine, not by lessons): the container whose published port this responder answers on (its access log). */
+  container?: string;
+}
 
 export const CURL_VERSION = '8.5.0';
 const REASONS: Readonly<Record<number, string>> = {
@@ -331,6 +336,11 @@ function placed(get: () => FsState, at: 'self' | number, host: FsState): FsState
  * edges it names; routes may carry validators, and a conditional GET gets 304. Below the edge profile: respond().
  */
 export function serveResponder(get: () => FsState, set: (s: FsState) => void, at: 'self' | number, host: FsState, r: Responder, req: Request, now: number, client: string, depth = 0): { res: Response; host: FsState } {
+  const out = serveOn(get, set, at, host, r, req, now, client, depth);
+  // E20: a container's service writes the request to the container's log (docker logs).
+  return r.container ? { ...out, host: containerAccess(out.host, r, req, out.res, now) } : out;
+}
+function serveOn(get: () => FsState, set: (s: FsState) => void, at: 'self' | number, host: FsState, r: Responder, req: Request, now: number, client: string, depth: number): { res: Response; host: FsState } {
   if (!host.http?.edge) return { res: respond(r, req, now, fileReader(host), client), host };
   if (r.cdn) {
     if (depth >= 3) return { res: respond({ ...r, routes: [] }, req, now), host };

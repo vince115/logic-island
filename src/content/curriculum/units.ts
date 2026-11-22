@@ -66,6 +66,8 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '綜合專題', summary: '接手一台伺服器並完成一天的維護：帳號與權限、SSH 金鑰、部署服務、從日誌追查故障、排程備份、套件更新與變更紀錄', lessonIds: range('LNX', 15, 15) },
   ],
   // SRV-0 (2026-11-22): the network and servers island is prepared for authoring; its units come with its first lessons.
+  // DKR-0 (2026-11-23): the docker-containers island is prepared for authoring; its units come with its first lessons.
+  'docker-containers': [],
   'network-servers': [
     { title: '位址、名稱與請求', summary: '公有與私有 IP、介面與路由、監聽埠與 socket、ss、lsof 與 nc；DNS 區域、A／CNAME／MX／TXT、TTL 與快取、dig；用 curl 讀懂 HTTP 請求、回應、狀態碼與重新導向', lessonIds: range('SRV', 1, 3) },
     { title: '憑證與網頁伺服器', summary: '憑證鏈、ACME 與 Let\'s Encrypt、certbot 自動更新、HSTS 與到期監控；網頁伺服器與應用伺服器、並行模型、逾時與 502／504；nginx 的 server 與 location、nginx -t 與 reload、存取與錯誤日誌', lessonIds: range('SRV', 4, 6) },
