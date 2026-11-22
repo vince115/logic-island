@@ -13,7 +13,7 @@
 
 ## 總覽
 
-已發布 **168／520**（32.3%）；規劃中 352。
+已發布 **169／520**（32.5%）；規劃中 351。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
@@ -21,11 +21,11 @@
 | AI 人工智慧群島 | 20 | 140 | 12.5% |
 | 數位設計群島 | 0 | 56 | 0.0% |
 | 網頁與應用開發群島 | 0 | 55 | 0.0% |
-| 系統與雲端工程群島 | 28 | 61 | 31.5% |
+| 系統與雲端工程群島 | 29 | 60 | 32.6% |
 
 ## 下一批（自動選擇）
 
-**網路與伺服器島（SRV）**：SRV14 網路與伺服器島綜合專題：架設 HTTPS 網站並追蹤請求。島嶼能力：可用；這幾堂解鎖其他島的 0 堂。
+目前沒有能力已備妥、先修已滿足的島嶼；先處理「能力缺口」的第一項。
 
 能力缺口中最優先的是 **大型語言模型島（LLM）**：需要 python-code + token, sampling and prompt explorers on recorded outputs (T3)；先修已滿足、可依序撰寫的有 3 堂，前 3 堂解鎖其他島的 58 堂。
 
@@ -60,7 +60,7 @@
 | 網頁與應用開發群島 | 行動應用島（MOB） | 0／13 | web-code + case-analysis | 缺少 | — | 缺少課程能力；MOB01 需要尚未發布的 RWD01 |
 | 系統與雲端工程群島 | Linux 系統島（LNX） | 15／15 | terminal (machines as data, transcripts replayed to their exact output, exercises checked by replaying the learner's commands in the simulated shell) | 可用 | 全島完成 | — |
 | 系統與雲端工程群島 | Docker 容器島（DKR） | 0／15 | container simulation | 缺少 | DKR01–DKR15（15 堂） | 缺少課程能力 |
-| 系統與雲端工程群島 | 網路與伺服器島（SRV） | 13／14 | terminal (engine stages E10 sockets, E11 dns, E12 http, then E13-E19) + network-protocol scenes; request-path and architecture-diagram map to network-sequence | 可用 | SRV14–SRV14（1 堂） | — |
+| 系統與雲端工程群島 | 網路與伺服器島（SRV） | 14／14 | terminal (engine stages E10 sockets, E11 dns, E12 http, then E13-E19) + network-protocol scenes; request-path and architecture-diagram map to network-sequence | 可用 | 全島完成 | — |
 | 系統與雲端工程群島 | 雲端基礎設施島（CLD） | 0／15 | architecture simulation | 缺少 | CLD01–CLD15（15 堂） | 缺少課程能力 |
 | 系統與雲端工程群島 | DevOps 與 CI/CD 島（CICD） | 0／15 | pipeline simulation | 缺少 | CICD01–CICD05（5 堂） | 缺少課程能力；CICD06 需要尚未發布的 DKR11 |
 | 系統與雲端工程群島 | Kubernetes 與可靠性工程島（KUB） | 0／15 | cluster simulation | 缺少 | — | 缺少課程能力；KUB01 需要尚未發布的 DKR09 |
@@ -713,7 +713,7 @@
 | SRV11 | CDN 與快取設定 | 已發布（閘門通過） | SRV07 | network-sequence | — |
 | SRV12 | 網路診斷工具 | 已發布（閘門通過） | SRV02、SRV03 | terminal-sim | — |
 | SRV13 | 伺服器故障排除方法 | 已發布（閘門通過） | SRV07、SRV12、LNX11 | terminal-sim | — |
-| SRV14 | 網路與伺服器島綜合專題：架設 HTTPS 網站並追蹤請求 | 大綱 | SRV04、SRV08、SRV10、SRV11、SRV13 | challenge-stages | — |
+| SRV14 | 網路與伺服器島綜合專題：架設 HTTPS 網站並追蹤請求 | 已發布（閘門通過） | SRV04、SRV08、SRV10、SRV11、SRV13 | challenge-stages | — |
 
 ### 系統與雲端工程群島 · 雲端基礎設施島（CLD）
 

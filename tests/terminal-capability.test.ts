@@ -8,6 +8,7 @@ import { lessonsOfIsland } from '@/content/world/catalog';
 import { initialState } from '@/lib/terminal/fs';
 import { run } from '@/lib/terminal/shell';
 import { terminalContent } from './support/terminal-fixture';
+import { validateTerminalLessonsFirst } from './support/terminal-replays';
 
 /*
  * LNX-0: the terminal capability and the linux-systems island prepared for authoring. A synthetic Linux lesson built
@@ -33,6 +34,9 @@ const content = (): LessonContent => ({
   quiz: [1, 2, 3, 4].map(question), terminal: terminalContent(),
 });
 const swap = (id: string, patch: Partial<LessonMeta>) => validateCurriculum({ ...curriculum, lessons: lessons.map(l => l.lessonId === id ? { ...l, ...patch } : l) }).join('\n');
+
+
+validateTerminalLessonsFirst();
 
 describe('the terminal capability', () => {
   it('validates a Linux lesson built from the blueprint with machines, transcripts and exercises', () => {
@@ -96,7 +100,7 @@ describe('isolation from the other capabilities', () => {
       expect(l.capabilities.includes('terminal'), l.lessonId).toBe(linux);
       // LNX-4: LNX12 (SSH) pairs its terminal machines with a network-protocol scene, so its activity is network-sequence.
       // LNX-5: the capstone LNX15 is a challenge-stages lesson.
-      expect(l.activity === 'terminal-sim', l.lessonId).toBe(linux && !['LNX12', 'LNX15', 'SRV02', 'SRV03', 'SRV04', 'SRV05', 'SRV06', 'SRV07', 'SRV08', 'SRV10', 'SRV11'].includes(l.lessonId));
+      expect(l.activity === 'terminal-sim', l.lessonId).toBe(linux && !['LNX12', 'LNX15', 'SRV02', 'SRV03', 'SRV04', 'SRV05', 'SRV06', 'SRV07', 'SRV08', 'SRV10', 'SRV11', 'SRV14'].includes(l.lessonId));
       expect(!!curriculum.contents[l.lessonId]?.terminal, l.lessonId).toBe(linux);
     }
   });

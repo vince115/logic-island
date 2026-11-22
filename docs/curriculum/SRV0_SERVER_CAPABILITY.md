@@ -707,3 +707,13 @@ machines: [{ ..., profile: 'edge' | 'diagnostics',
 - **sed**：分支、hold space、`y`、`a`／`i`／`c`、`w`、`-z`、`-s`，以及沒有結尾換行的最後一行（模擬環境一律加換行）。
 - **cron.d 沒有使用者欄位**：模擬環境只忽略那一行並記錄 `Error: bad username`；Debian 的 cron 實際上可能另外記錄 `(*system*x) ERROR (Syntax error, this crontab file will be ignored)` 並忽略整個檔案，這部分沒有模擬（為了不改變其他 E9 錯誤的既有行為）。
 - **sshd 的 Match**：只有 User、Address、All；Group、Host、LocalAddress、LocalPort、RDomain 不支援（`Unsupported Match attribute`）；`PermitListen` 不模擬。
+
+## 29. SRV-5 的修正（引擎；`tls`／`edge` 起）
+
+| 修正 | 內容 |
+|---|---|
+| certbot 的 HTTP-01 只看公開 DNS（`dns.ts` 的 `publicDnsValues`、`certbot.ts`） | 之前模擬的 CA 經由 `dnsValues()` → `recursive()` 解析名稱，而 `recursive()` 先查**本機**的 `/etc/hosts`：在伺服器上加一行 hosts 就能讓 certbot 通過（反過來，hosts 把公開的名稱指到別處也會讓驗證失敗）。現在 CA 用 `recursive(…, files = false)` 加上空的快取，只看權威資料（課程的 named 與 `internet` 區域），和 §11.4 的說法、真實的 Let's Encrypt 一致；webroot、重新導向與 `--nginx` 三處都一樣。只在 hosts 裡的名稱照 certbot 的格式失敗：`Type: dns`、`Detail: DNS problem: NXDOMAIN looking up A for 名稱 - check that a DNS record exists for this domain`。`dig`、`curl` 等本機的查詢不變 |
+| 從外面到達本機（root）的 nginx 也能連到它的 upstream（`http.ts` 的 `upstreamOf`、`serveResponder`） | CDN 邊緣節點（或任何遠端機器、另一層代理）連到課程本機上的 nginx 時，拿到的是**去掉 `net`** 的本機狀態；`indexByName` 對本機回 `'self'`，`upstreamOf` 便以這個沒有網路的狀態去連 upstream，所有後端都逾時（504）。現在由 `placed()` 決定機器所在的位置：遠端機器照舊用 `viewFrom`，本機在缺少網路時接回課程的網路，所以經由邊緣節點的請求和本機直接送出的請求走同樣的 upstream（平滑輪詢的順序、`$upstream_addr`、日誌寫回各自的機器）；寫回時再去掉網路。邊緣節點在本機時找來源也用同一個規則 |
+| 經過邊緣節點時上游的等待只算一次（`cache.ts` 的 `cdnServe`、`http.ts`） | 邊緣節點把來源的回應（含引擎內部的 `wait`）原封不動傳回，又把來源的 `wait + upstreamMs` 算進自己的 `upstreamMs`：來源的 `proxy_connect_timeout 5s` 在本機量是 5.0 秒、經過邊緣節點卻是 10.0 秒。現在來源回應的 `wait`／`upstreamMs` 留在來源（不傳出、不存進快取），邊緣節點的回應以 `wait` 記來源花的時間（來源自己的等待與它的上游）、`upstreamMs` 只記邊緣到來源的網路來回：經過邊緣節點的時間 = 來源的時間 + 用戶端⇄邊緣與邊緣⇄來源的來回（§23.7）。快取命中（HIT）不再帶著當初來源的延遲；`curl -m` 比較的是邊緣節點的 `wait`。來源連不到時（502／504）的計算不變 |
+
+**已發布的課程沒有任何輸出改變**（全部的 `terminalContentProblems` 仍是空的；較低的 profile 不受影響）。測試在 `tests/terminal-srv5-fixes.test.ts`：只在 hosts 的名稱是 NXDOMAIN、公開的名稱通過（hosts 指到別處也不影響）、`certbot --nginx` 相同；laptop 為本機、經由邊緣節點到本機的 nginx 再到兩台應用伺服器，nginx 所在的機器是本機時經由邊緣節點，以及 nginx 在遠端機器；`proxy_connect_timeout 5s` 對丟棄封包的 upstream 在本機與經過邊緣節點的 `time_starttransfer`／`time_total`，慢的應用程式經過邊緣節點的 MISS 與沒有延遲的 HIT。

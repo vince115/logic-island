@@ -1,7 +1,7 @@
 import { baseName, childrenOf, physicalPath, type FsNode, type FsState } from './fs';
 import { DAY, isoText, type Seconds } from './clock';
 import { clockOf } from './processes';
-import { dnsValues } from './dns';
+import { publicDnsValues } from './dns';
 import { reach, type NetIo, type NetResult } from './sockets';
 import { findResponder, fileReader, parseUrl, respond, tlsServer, upstreamOf, type Request, type Response } from './http';
 import { masterOf, nginxServe, plainOnTls, readerOf, testConfig, applyConfig, NGINX_CONF, parseConfig, ConfError, type Dir } from './nginx';
@@ -122,8 +122,7 @@ function caGet(state: FsState, address: string, url: string): Response | 'refuse
 }
 /** HTTP-01 for one name: DNS as the internet sees it, port 80, redirects followed (at most 10), the body compared. */
 function validate(state: FsState, domain: string, token: string): Problem | null {
-  const fresh: FsState = state.dns ? { ...state, dns: { ...state.dns, cache: [] } } : state;
-  const a = dnsValues(fresh, domain, 'A');
+  const a = publicDnsValues(state, domain, 'A');
   if (a.rcode === 'NXDOMAIN') return { domain, type: 'dns', detail: `DNS problem: NXDOMAIN looking up A for ${domain} - check that a DNS record exists for this domain` };
   if (a.rcode !== 'NOERROR') return { domain, type: 'dns', detail: `DNS problem: SERVFAIL looking up A for ${domain} - the domain's nameservers may be malfunctioning` };
   if (!a.values.length) return { domain, type: 'dns', detail: `DNS problem: looking up A for ${domain}: no valid A records found for ${domain}` };
@@ -131,7 +130,7 @@ function validate(state: FsState, domain: string, token: string): Problem | null
   let url = first;
   for (let hop = 0; hop <= 10; hop++) {
     const u = parseUrl(url) as Exclude<ReturnType<typeof parseUrl>, { code: number }>;
-    const target = u.host === domain ? address : dnsValues(fresh, u.host, 'A').values[0] ?? address;
+    const target = u.host === domain ? address : publicDnsValues(state, u.host, 'A').values[0] ?? address;
     const r = caGet(state, target, url);
     if (r === 'timeout') return { domain, type: 'connection', detail: `${target}: Fetching ${url}: Timeout during connect (likely firewall problem)` };
     if (r === 'refused') return { domain, type: 'connection', detail: `${target}: Fetching ${url}: Connection refused` };
@@ -293,8 +292,7 @@ function challenge(state0: FsState, l: Lineage): { state: FsState; problems: Pro
   for (const d of l.domains) {
     const token = tokenOf(`${state.host ?? ''}/${state.tls!.orders}/${d}`);
     if (l.authenticator === 'nginx') {
-      const fresh: FsState = state.dns ? { ...state, dns: { ...state.dns, cache: [] } } : state;
-      const a = dnsValues(fresh, d, 'A');
+      const a = publicDnsValues(state, d, 'A');
       if (a.rcode === 'NXDOMAIN') { out.push({ domain: d, type: 'dns', detail: `DNS problem: NXDOMAIN looking up A for ${d} - check that a DNS record exists for this domain` }); continue; }
       const r = a.values[0] ? reach(state, a.values[0], 80) : { result: 'timeout' as const };
       if (r.result === 'timeout') { out.push({ domain: d, type: 'connection', detail: `${a.values[0] ?? d}: Fetching http://${d}/.well-known/acme-challenge/${token}: Timeout during connect (likely firewall problem)` }); continue; }

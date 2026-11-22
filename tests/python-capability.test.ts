@@ -9,6 +9,7 @@ import { publishProblems } from '@/lib/curriculum/publish-gate';
 import { getIsland } from '@/content/world';
 import { lessonsOfIsland } from '@/content/world/catalog';
 import { runProcess } from './support/run-program';
+import { validateTerminalLessonsFirst } from './support/terminal-replays';
 
 /*
  * AIF-0: the python-code capability (a program lesson in Python only, for the AI islands whose blueprint exercises are
@@ -36,6 +37,9 @@ const content = (): LessonContent => ({
     samples: [{ kind: 'normal', input: '1 2\n', output: '3\n', note: '範例' }], tests: [{ kind: 'normal', input: '3 4\n', output: '7\n', note: '一般情況' }, { kind: 'edge', input: '0 0\n', output: '0\n', note: '最小值' }], errorPolicy: '輸入保證是一行兩個合法的整數。', hints: ['用 split 拆開兩個數。'],
     solution: { Python: 'a, b = map(int, input().split())\nprint(a + b)' }, judge: 'none' }],
 });
+
+
+validateTerminalLessonsFirst();
 
 describe('the python-code capability', () => {
   it('builds Python-only outlines from the blueprint and validates a lesson with Python code', () => {

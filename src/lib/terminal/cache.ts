@@ -218,9 +218,12 @@ export interface CdnSeed { url: string; status?: number; headers?: [string, stri
 export const edgeKey = (host: string, path: string) => `${host.toLowerCase().replace(/:\d+$/, '')}${path}`;
 const HOP = new Set(['connection', 'keep-alive', 'transfer-encoding', 'proxy-connection', 'upgrade', 'te', 'trailer']);
 
-export type OriginResult = { kind: 'response'; res: Response; ms: number } | { kind: 'failed'; status: 502 | 504; ms: number };
+/** ms: the edge's network time to the origin; wait: the seconds the origin took behind it (its own waits and upstreams). */
+export type OriginResult = { kind: 'response'; res: Response; ms: number; wait?: number } | { kind: 'failed'; status: 502 | 504; ms: number };
+/** SRV-5 fix: the origin's own timing fields stay at the origin; the edge reports them once, as its wait (never stored). */
+const untimed = (res: Response): Response => { const { wait: _w, upstreamMs: _u, ...rest } = res; void _w; void _u; return rest; };
 /** What the edge answers: HIT from its cache, else the origin's answer (MISS), stored when it may be. Age and X-Cache added. */
-export function cdnServe(host: FsState, id: string, cfg: CdnConfig, req: Request, fetch: (req: Request) => OriginResult): { res: Response; host: FsState; ms: number } {
+export function cdnServe(host: FsState, id: string, cfg: CdnConfig, req: Request, fetch: (req: Request) => OriginResult): { res: Response; host: FsState; ms: number; wait?: number } {
   const now = clockOf(host).now, hostHeader = headerOf(req.headers, 'Host') ?? '', path = req.path, key = edgeKey(hostHeader, path);
   const all = host.edge?.caches[id] ?? [];
   const keep = (entries: CdnEntry[]): FsState => ({ ...host, edge: { caches: { ...host.edge?.caches, [id]: entries } } });
@@ -232,7 +235,7 @@ export function cdnServe(host: FsState, id: string, cfg: CdnConfig, req: Request
   const hit = cacheable ? all.find(e => e.key === key && e.vary === varyOf(e.varyNames, req) && now < e.stored + e.ttl) : undefined;
   if (hit) {
     const age = now - hit.stored + hit.age;
-    let res = shown({ ...hit.res, body: req.method === 'HEAD' ? '' : hit.res.body }, age, 'HIT');
+    let res = shown({ ...untimed(hit.res), body: req.method === 'HEAD' ? '' : hit.res.body }, age, 'HIT');
     if (notModified(req, res)) res = asNotModified(res);
     return { res, host, ms: 0 };
   }
@@ -242,7 +245,7 @@ export function cdnServe(host: FsState, id: string, cfg: CdnConfig, req: Request
     const body = `<html><body><h1>${r.status} ${r.status === 502 ? 'Bad Gateway' : 'Gateway Timeout'}</h1><p>edge: the origin did not answer</p></body></html>\n`;
     return { res: { status: r.status, reason: r.status === 502 ? 'Bad Gateway' : 'Gateway Timeout', headers: [['Date', httpDate(now)], ['Content-Type', 'text/html'], ['Content-Length', String(new TextEncoder().encode(body).length)], ['Connection', 'keep-alive'], ['X-Cache', 'MISS']], body: req.method === 'HEAD' ? '' : body, close: false, cache: 'MISS' }, host, ms: r.ms };
   }
-  const origin = r.res, s = storable(origin, now);
+  const origin = untimed(r.res), s = storable(origin, now);
   const ttl = !cacheable || !s.store ? 0 : s.ttl ?? cfg.defaultTtl ?? 0;
   let next = host;
   if (ttl > 0 && [200, 203, 204, 300, 301, 404, 410].includes(origin.status)) {
@@ -251,7 +254,7 @@ export function cdnServe(host: FsState, id: string, cfg: CdnConfig, req: Request
   }
   let res = shown({ ...origin, body: req.method === 'HEAD' ? '' : origin.body }, Number(headerOf(origin.headers, 'Age') ?? 0) || 0, 'MISS');
   if (notModified(req, res)) res = asNotModified(res);
-  return { res, host: next, ms: r.ms };
+  return { res, host: next, ms: r.ms, ...r.wait ? { wait: r.wait } : {} };
 }
 
 /** E18: the purge API's work on one edge: every entry of the URL (or of a prefix ending in *; all: everything). */

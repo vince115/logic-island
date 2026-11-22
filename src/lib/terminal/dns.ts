@@ -373,10 +373,11 @@ const soaRr = (text: string, ttl: number): Rr => { const [name, ...rest] = text.
 /**
  * systemd-resolved: /etc/hosts first (TTL 0), then the cache (remaining TTL), then the authoritative data (cached with
  * cachedAt = now). CNAME chains are followed across zones. Returns the answer and the state with its cache updated.
+ * `files: false` skips /etc/hosts (a resolver elsewhere on the internet never reads this machine's hosts file).
  */
-export function recursive(state: FsState, qname0: string, qtype: RrType): { state: FsState; answer: Answer } {
+export function recursive(state: FsState, qname0: string, qtype: RrType, files = true): { state: FsState; answer: Answer } {
   const now = clockOf(state).now, dns = dnsOf(state), qname = absolute(qname0);
-  if (qtype === 'A' || qtype === 'AAAA') {
+  if (files && (qtype === 'A' || qtype === 'AAAA')) {
     const e = hostsLookup(state, qname, qtype === 'A' ? 4 : 6);
     if (e) {
       const address = qtype === 'AAAA' ? canonicalIPv6(e.address) ?? e.address : e.address;
@@ -731,5 +732,13 @@ export function resolvectl(state: FsState, args: readonly string[], io: NetIo): 
 /** E11 (lesson checks): what a name's records are now: at a host's named (authoritative), or through the local resolver. */
 export function dnsValues(state: FsState, name: string, type: RrType, server?: FsState): { rcode: Rcode; values: string[] } {
   const a = server ? authoritative(server, name, type) : recursive(state, name, type).answer;
+  return { rcode: a.rcode, values: a.answer.filter(r => r.type === type).map(r => r.data) };
+}
+/**
+ * E13 fix (SRV-5): a name as a resolver on the internet sees it (Let's Encrypt's validation): the authoritative data only,
+ * never this machine's /etc/hosts or its resolver cache (nothing is cached either).
+ */
+export function publicDnsValues(state: FsState, name: string, type: RrType): { rcode: Rcode; values: string[] } {
+  const a = recursive(state.dns ? { ...state, dns: { ...state.dns, cache: [] } } : state, name, type, false).answer;
   return { rcode: a.rcode, values: a.answer.filter(r => r.type === type).map(r => r.data) };
 }

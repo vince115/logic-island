@@ -347,7 +347,19 @@
       ],
       "commit": "TBD",
       "tests": "TBD",
-      "notes": "SRV-4：引擎階段 E18（edge：nginx proxy_cache 與 $upstream_cache_status、來源的 Cache-Control／Expires／Set-Cookie／Vary、expires、ETag 與 Last-Modified 的 304、泛用的 CDN 邊緣節點與虛構的清除 API、curl -w 的時間、sleep 推進時鐘）與 E19（diagnostics：ping、traceroute、mtr --report、tcpdump -r 與篩選語言、sed 子集），並修正 journalctl -g、ps 的 START、--no-legend、cron.d、set -u、grep -q、sshd 的 PermitOpen／DisableForwarding／Match、tcpdump 的 and／or 優先順序與 curl 在解析器快取命中時的查詢時間；CDN 與快取設定、網路診斷工具、伺服器故障排除方法三課"
+      "notes": "SRV-4：引擎階段 E18（edge：nginx proxy_cache 與 $upstream_cache_status、來源的 Cache-Control／Expires／Set-Cookie／Vary、expires、ETag 與 Last-Modified 的 304、泛用的 CDN 邊緣節點與虛構的清除 API、curl -w 的時間、sleep 推進時鐘）與 E19（diagnostics：ping、traceroute、mtr --report、tcpdump -r 與篩選語言、sed 子集），並修正 journalctl -g、ps 的 START、--no-legend、cron.d、set -u、grep -q、sshd 的 PermitOpen／DisableForwarding／Match、tcpdump 的 and／or 優先順序與 curl 在解析器快取命中時的查詢時間；CDN 與快取設定、網路診斷工具、伺服器故障排除方法三課",
+      "pr": "#69",
+      "merged": "383d331"
+    },
+    {
+      "id": 25,
+      "date": "2026-11-22",
+      "lessons": [
+        "SRV14"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "SRV-5：網路與伺服器島綜合專題（terminal＋challenge-stages 六關：修好網域與 certbot --nginx、反向代理與兩台後端的負載平衡、ufw 與 ssh -J、Cache-Control 與 CDN 的 HIT、以 dig、mtr、curl -v／-w 與日誌追蹤一個請求、找出只壞了一台後端的防火牆規則）；同批修正 certbot 的 HTTP-01 驗證讀本機 /etc/hosts、經由 CDN 到課程本機 nginx 的代理與邊緣節點重複計算的等待時間；網路與伺服器島 14/14 完成，mapState 維持 planned"
     }
   ]
 }

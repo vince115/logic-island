@@ -6,6 +6,7 @@ import { catalogLessons, lessonsOfIsland } from '@/content/world/catalog';
 import { getIsland } from '@/content/world';
 import { previewExercises, previewScenes } from '@/content/network/preview-scenes';
 import { networkPreviewEnabled } from '@/lib/network/preview';
+import { validateTerminalLessonsFirst } from './support/terminal-replays';
 
 /*
  * CN-0: the network-protocol capability and the networks island prepared for authoring. A network lesson validates with
@@ -28,6 +29,9 @@ const content = (): LessonContent => ({
   sections: previewScenes.map((s, i) => section(`s${i}`, s.id)), examples: [], exercises: [],
   quiz: [1, 2, 3, 4].map(question), network: { scenes: structuredClone(previewScenes), exercises: structuredClone(previewExercises) },
 });
+
+
+validateTerminalLessonsFirst();
 
 describe('the network-protocol capability', () => {
   it('validates a network lesson built from the blueprint with the reference scenes and exercises', () => {
