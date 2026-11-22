@@ -1,4 +1,5 @@
-import type { TerminalExample, TerminalExercise, TerminalLessonContent, TerminalMachine } from '@/lib/terminal/lesson';
+import type { TerminalExample, TerminalExercise, TerminalLessonContent, TerminalMachine, TerminalRemote } from '@/lib/terminal/lesson';
+import { hostKey, keyPair } from '@/lib/terminal/ssh';
 
 /*
  * LNX-0: a small synthetic machine with three transcripts and two exercises, shared by the terminal capability tests. It is
@@ -656,3 +657,170 @@ export const svcPkgMachine: TerminalMachine = {
   files: svcMachine.files.filter(f => !f.path.includes('nginx') && f.path !== '/usr/sbin'),
   processes: svcMachine.processes!.filter(p => !p.unit || p.unit !== 'nginx'), services: svcMachine.services!.filter(s => s.unit !== 'nginx'),
 };
+
+// ------------------------------------------------------------------------------------------------------------- E7
+/*
+ * E7 (§15): ops-01 and the web server web-02 (alice in sudo, the lesson gives her password; an Ubuntu cloud image's
+ * 50-cloud-init.conf turns password login on). keys-01 is the same network after the keys were set up: the learner's key,
+ * web-02 in known_hosts and alice's authorized_keys. Test data only.
+ */
+export const LEARNER_KEY = keyPair('ops-key:learner:/home/learner/.ssh/id_ed25519', 'learner@ops-01');
+export const WEB_KEY = hostKey('web-02-2026', 'web-02');
+export const webRemote: TerminalRemote = {
+  host: 'web-02', address: '10.0.0.12', aliases: ['web'], hostKey: 'web-02-2026', passwords: ['alice'],
+  accounts: { users: [{ name: 'alice', uid: 1001 }], groups: [{ name: 'sudo', members: ['alice'] }] },
+  files: [dir('/etc'), dir('/etc/ssh'), dir('/etc/ssh/sshd_config.d'), file('/etc/ssh/sshd_config.d/50-cloud-init.conf', 'PasswordAuthentication yes\n'),
+    file('/etc/motd', 'web-02: production web server\n'), dir('/home'), dir('/home/alice', 'alice', 0o750), file('/home/alice/notes.txt', 'deploy at 18:00\n', 'alice')],
+};
+export const sshMachine: TerminalMachine = {
+  id: 'ops', title: '管理主機 ops-01', user: 'learner', host: 'ops-01', cwd: '/home/learner', profile: 'remote', now: '2026-11-22 10:00:00', boot: '2026-11-22 08:00:00',
+  keySeed: 'ops-key', address: '10.0.0.10',
+  accounts: { groups: [{ name: 'sudo', members: ['learner'] }] },
+  files: [dir('/etc'), dir('/home'), dir('/home/learner', 'learner', 0o750)],
+  remotes: [webRemote],
+};
+export const keysMachine: TerminalMachine = {
+  ...sshMachine, id: 'keys', host: 'keys-01',
+  files: [...sshMachine.files, dir('/home/learner/.ssh', 'learner', 0o700), file('/home/learner/.ssh/id_ed25519', LEARNER_KEY.privateText, 'learner', 0o600),
+    file('/home/learner/.ssh/id_ed25519.pub', `${LEARNER_KEY.publicLine}\n`, 'learner'), file('/home/learner/.ssh/known_hosts', `web-02 ${WEB_KEY.publicLine.split(' ').slice(0, 2).join(' ')}\n`, 'learner')],
+  remotes: [{ ...webRemote, files: [...webRemote.files, dir('/home/alice/.ssh', 'alice', 0o700), file('/home/alice/.ssh/authorized_keys', `${LEARNER_KEY.publicLine}\n`, 'alice', 0o600)] }],
+};
+export const firstConnectExample: TerminalExample = {
+  id: 'first-connect', title: '第一次連線', description: '先核對主機指紋，再接受它（非互動的寫法）。', machine: 'ops',
+  steps: [{ command: 'ssh web-02 hostname', output: 'The authenticity of host \'web-02 (10.0.0.12)\' can\'t be established.\nED25519 key fingerprint is SHA256:WIdvusR9F938ohJTqPo76p9Uu7LkaSA7StzvjsML9cw.\nThis key is not known by any other names.\nAre you sure you want to continue connecting (yes/no/[fingerprint])? （模擬環境沒有鍵盤輸入：先確認指紋，再用 ssh -o StrictHostKeyChecking=accept-new 或 ssh-keyscan 加入 known_hosts）\nHost key verification failed.' }, { command: 'ssh -o StrictHostKeyChecking=accept-new alice@web-02 hostname', output: 'Warning: Permanently added \'web-02\' (ED25519) to the list of known hosts.\nalice@web-02\'s password: （模擬環境代為輸入課程提供的密碼）\nweb-02' },
+    { command: 'cat ~/.ssh/known_hosts', output: 'web-02 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH3Psfi2cYmae1uSm7uv+8AKIpGoHSbhEWvTls1evEVV' }],
+};
+export const keygenExample: TerminalExample = {
+  id: 'keygen', title: '產生金鑰', description: '私鑰 600、公鑰 644；指紋可以用 ssh-keygen -l 核對。', machine: 'ops',
+  steps: [{ command: "ssh-keygen -q -t ed25519 -f ~/.ssh/id_ed25519 -N ''", output: '' }, { command: 'ls -l ~/.ssh', output: '-rw------- learner learner   411 id_ed25519\n-rw-r--r-- learner learner    96 id_ed25519.pub' },
+    { command: 'ssh-keygen -l -f ~/.ssh/id_ed25519.pub', output: '256 SHA256:TLbXOXKAOCwVNHJo3BXiDCDM7fj6+S9CM0DOR4i3xzo learner@ops-01 (ED25519)' }],
+};
+export const keyOnlyExample: TerminalExample = {
+  id: 'key-login', title: '用金鑰登入', description: '金鑰登入不需要密碼；BatchMode=yes 確認沒有退回密碼。', machine: 'keys',
+  steps: [{ command: 'ssh -o BatchMode=yes alice@web-02 cat notes.txt', output: 'deploy at 18:00' }, { command: 'ssh alice@web-02 sudo sshd -T | grep authentication', output: 'pubkeyauthentication yes\npasswordauthentication yes\nkbdinteractiveauthentication no' }],
+};
+export const installKeyExercise: TerminalExercise = {
+  id: 'install-key', title: '安裝公鑰', machine: 'ops',
+  statement: '在本機產生 ed25519 金鑰（沒有密語），並把公鑰安裝到 web-02 的 alice，讓她可以用金鑰登入。web-02 的指紋已經核對過。',
+  checks: [{ kind: 'ssh', host: 'web-02', user: 'alice', method: 'publickey', allowed: true }, { kind: 'mode', host: 'web-02', path: '/home/alice/.ssh/authorized_keys', mode: 0o600 }],
+  solution: ["ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ''", 'ssh-copy-id -o StrictHostKeyChecking=accept-new alice@web-02'],
+  mistakes: [
+    { commands: ["ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ''"], why: '只產生金鑰：公鑰還沒有放到 web-02 的 authorized_keys。' },
+    { commands: ["ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ''", 'ssh-copy-id alice@web-02'], why: '沒有鍵盤可以回答主機指紋的問題，連線在驗證主機時就停止了。' },
+  ],
+  hints: ['ssh-keygen -N 指定密語。', 'ssh-copy-id 會先用密碼登入再放公鑰。'], explanation: 'ssh-copy-id 建立 700 的 ~/.ssh 與 600 的 authorized_keys。',
+};
+export const keyOnlyExercise: TerminalExercise = {
+  id: 'key-only', title: '只允許金鑰登入', machine: 'keys',
+  statement: '在 web-02 停用密碼登入（金鑰登入要繼續可用）。注意 Ubuntu 雲端映像的 50-cloud-init.conf。',
+  checks: [{ kind: 'ssh', host: 'web-02', user: 'alice', method: 'password', allowed: false }, { kind: 'ssh', host: 'web-02', user: 'alice', method: 'publickey', allowed: true }],
+  solution: ["ssh alice@web-02 'echo PasswordAuthentication no | sudo tee /etc/ssh/sshd_config.d/10-key-only.conf'", 'ssh alice@web-02 sudo systemctl reload ssh'],
+  mistakes: [
+    { commands: ["ssh alice@web-02 'echo PasswordAuthentication no | sudo tee -a /etc/ssh/sshd_config'", 'ssh alice@web-02 sudo systemctl reload ssh'], why: '寫在 sshd_config 的最後：Include 的 50-cloud-init.conf 先出現，第一個值生效。' },
+    { commands: ["ssh alice@web-02 'echo PasswordAuthentication no | sudo tee /etc/ssh/sshd_config.d/10-key-only.conf'"], why: '改了設定卻沒有 reload，sshd 仍用舊的設定。' },
+  ],
+  hints: ['sshd 的同一個設定以第一次出現的為準。', '修改後 sudo systemctl reload ssh。'], explanation: '10- 排在 50- 前面，所以 PasswordAuthentication no 生效；reload 前 sshd -t 先檢查語法。',
+};
+export const trustHostExercise: TerminalExercise = {
+  id: 'trust-host', title: '把主機加進 known_hosts', machine: 'ops',
+  statement: '用 ssh-keyscan 把 web-02 的主機金鑰加進你的 known_hosts（指紋已經用其他管道核對過）。',
+  checks: [{ kind: 'known-host', host: 'web-02' }],
+  solution: ['mkdir ~/.ssh', 'chmod 700 ~/.ssh', 'ssh-keyscan web-02 >> ~/.ssh/known_hosts'],
+  mistakes: [{ commands: ['ssh web-02 true'], why: '沒有鍵盤可以回答「Are you sure you want to continue connecting」，主機不會被加入。' }],
+  hints: ['ssh-keyscan 印出 known_hosts 格式的一行。'], explanation: '>> 附加到 known_hosts；加入前要核對指紋，否則就失去主機驗證的意義。',
+};
+export const remoteContent = (): TerminalLessonContent => structuredClone({ machines: [sshMachine, keysMachine], examples: [firstConnectExample, keygenExample, keyOnlyExample], exercises: [installKeyExercise, keyOnlyExercise, trustHostExercise] });
+
+// ------------------------------------------------------------------------------------------------------------- E8
+/* E8 (§16): dev-01 with a deploy script (not executable yet) and two logs. Test data only. */
+export const DEPLOY = '#!/bin/bash\nset -euo pipefail\nif [ $# -ne 1 ]; then\n  echo "usage: $0 ENV" >&2\n  exit 2\nfi\nenv=$1\nmkdir -p "$HOME/deploy"\ncase "$env" in\n  prod|staging) touch "$HOME/deploy/$env.done"; echo "deployed to $env" ;;\n  *) echo "unknown environment: $env" >&2; exit 1 ;;\nesac\n';
+export const scriptMachine: TerminalMachine = {
+  id: 'dev', title: '開發主機 dev-01', user: 'learner', host: 'dev-01', cwd: '/home/learner', profile: 'scripting',
+  files: [dir('/home'), dir('/home/learner', 'learner'), file('/home/learner/deploy.sh', DEPLOY, 'learner'), dir('/home/learner/logs', 'learner'),
+    file('/home/learner/logs/app.log', 'start\nwarn: disk 91%\nstop\n', 'learner'), file('/home/learner/logs/db.log', 'checkpoint\n', 'learner')],
+};
+export const runScriptExample: TerminalExample = {
+  id: 'run-script', title: '執行指令稿', description: '沒有 x 權限時用 bash 執行，或先 chmod +x。', machine: 'dev',
+  steps: [{ command: './deploy.sh prod', output: 'bash: ./deploy.sh: Permission denied' }, { command: 'bash deploy.sh', output: 'usage: deploy.sh ENV' }, { command: 'echo $?', output: '2' }],
+};
+export const loopExample: TerminalExample = {
+  id: 'loop', title: '迴圈與變數', description: '提示字元也是 Bash：變數、for 與 $( )。', machine: 'dev',
+  steps: [{ command: 'for f in logs/*.log; do echo "$f"; done', output: 'logs/app.log\nlogs/db.log' }, { command: 'n=$(ls logs | wc -l); echo "$n files"', output: '2 files' }],
+};
+export const traceExample: TerminalExample = {
+  id: 'trace', title: '追蹤執行', description: 'bash -x 印出每個指令（在標準錯誤）。', machine: 'dev',
+  steps: [{ command: 'bash -x deploy.sh staging', output: '+ set -euo pipefail\n+ \'[\' 1 -ne 1 \']\'\n+ env=staging\n+ mkdir -p /home/learner/deploy\n+ touch /home/learner/deploy/staging.done\n+ echo \'deployed to staging\'\ndeployed to staging' }],
+};
+export const deployExercise: TerminalExercise = {
+  id: 'deploy', title: '執行部署指令稿', machine: 'dev',
+  statement: '讓 deploy.sh 可以直接執行，並部署到 prod。',
+  checks: [{ kind: 'exists', path: '/home/learner/deploy/prod.done', type: 'file' }, { kind: 'mode', path: '/home/learner/deploy.sh', mode: 0o755 }],
+  solution: ['chmod +x deploy.sh', './deploy.sh prod'],
+  mistakes: [{ commands: ['./deploy.sh prod'], why: '沒有 x 權限：Permission denied。' }, { commands: ['chmod +x deploy.sh', './deploy.sh production'], why: '指令稿只認得 prod 與 staging。' }],
+  hints: ['chmod +x'], explanation: 'shebang 讓 ./deploy.sh 由 bash 執行；set -e 讓錯誤立刻停止。',
+};
+export const countExercise: TerminalExercise = {
+  id: 'counts', title: '每個日誌的行數', machine: 'dev',
+  statement: '用 for 迴圈印出 logs 裡每個 .log 的檔名（不含路徑）與行數，格式是「app.log: 3」。',
+  checks: [{ kind: 'output' }],
+  solution: ['for f in logs/*.log; do echo "${f##*/}: $(wc -l < "$f")"; done'],
+  mistakes: [{ commands: ['ls logs'], why: '只列出檔名，沒有行數。' }],
+  variants: [{ label: '另一天的日誌', files: [file('/home/learner/logs/app.log', 'start\nstop\n', 'learner'), file('/home/learner/logs/web.log', 'GET /\nGET /a\nGET /b\n', 'learner')] }],
+  hints: ['${f##*/} 去掉路徑。'], explanation: '$( ) 把 wc -l 的輸出放進字串；< 讓 wc 不印檔名。',
+};
+export const scriptContent = (): TerminalLessonContent => structuredClone({ machines: [scriptMachine], examples: [runScriptExample, loopExample, traceExample], exercises: [deployExercise, countExercise] });
+
+// ------------------------------------------------------------------------------------------------------------- E9
+/* E9 (§17): job-01 in Asia/Taipei with a backup script, a backup.service and a backup.timer (not enabled), a cron.d file and a backup that holds its lock. Test data only. */
+export const BACKUP = '#!/bin/bash\nset -euo pipefail\nstamp=$(date +%F)\ncp /home/learner/data/app.db "/home/learner/backups/app-$stamp.db"\necho "backup $stamp done"\n';
+export const cronMachine: TerminalMachine = {
+  id: 'job', title: '排程主機 job-01', user: 'learner', host: 'job-01', cwd: '/home/learner', profile: 'scheduling', now: '2026-11-22 10:00:00', boot: '2026-11-22 08:00:00', timezone: 'Asia/Taipei',
+  accounts: { groups: [{ name: 'sudo', members: ['learner'] }, { name: 'crontab', gid: 107 }] },
+  files: [dir('/etc'), dir('/etc/cron.d'), file('/etc/cron.d/logrotate', 'SHELL=/bin/sh\n15 3 * * * root /usr/sbin/logrotate /etc/logrotate.conf\n'),
+    dir('/etc/systemd'), dir('/etc/systemd/system'),
+    file('/etc/systemd/system/backup.service', '[Unit]\nDescription=Nightly backup\n\n[Service]\nType=oneshot\nUser=learner\nExecStart=/usr/local/bin/backup.sh\n'),
+    file('/etc/systemd/system/backup.timer', '[Unit]\nDescription=Run the nightly backup\n\n[Timer]\nOnCalendar=*-*-* 02:30:00\nPersistent=true\n\n[Install]\nWantedBy=timers.target\n'),
+    dir('/home'), dir('/home/learner', 'learner', 0o750), dir('/home/learner/data', 'learner'), file('/home/learner/data/app.db', 'rows=42\n', 'learner'), dir('/home/learner/backups', 'learner'),
+    dir('/usr'), dir('/usr/local'), dir('/usr/local/bin'), file('/usr/local/bin/backup.sh', BACKUP, 'root', 0o755), dir('/var'), dir('/var/lock', 'root', 0o777)],
+  processes: [{ pid: 1, ppid: 0, user: 'root', command: '/sbin/init', stat: 'Ss' }, { pid: 4321, user: 'learner', command: '/bin/bash /usr/local/bin/backup.sh', stat: 'S', locks: ['/var/lock/backup.lock'] }],
+};
+export const crontabExample: TerminalExample = {
+  id: 'crontab', title: '安裝 crontab', description: 'crontab 檔案先檢查語法才安裝；cron-next 列出下一次執行的時間。', machine: 'job',
+  steps: [{ command: 'crontab -l', output: 'no crontab for learner' }, { command: 'echo "61 2 * * * /usr/local/bin/backup.sh" > bad', output: '' }, { command: 'crontab bad', output: '"bad":1: bad minute\nerrors in crontab file, can\'t install.' },
+    { command: 'cron-next -n 2 "30 2 * * *"', output: 'Mon 2026-11-23 02:30:00 CST\nTue 2026-11-24 02:30:00 CST' }],
+};
+export const calendarExample: TerminalExample = {
+  id: 'calendar', title: 'OnCalendar 運算式', description: 'systemd-analyze calendar 正規化並列出觸發時間（機器在 Asia/Taipei）。', machine: 'job',
+  steps: [{ command: 'systemd-analyze calendar "Mon..Fri 09:00"', output: '  Original form: Mon..Fri 09:00\nNormalized form: Mon..Fri *-*-* 09:00:00\n    Next elapse: Mon 2026-11-23 09:00:00 CST\n       (in UTC): Mon 2026-11-23 01:00:00 UTC\n       From now: 15h left' }, { command: 'timedatectl', output: '               Local time: Sun 2026-11-22 18:00:00 CST\n           Universal time: Sun 2026-11-22 10:00:00 UTC\n                 RTC time: Sun 2026-11-22 10:00:00\n                Time zone: Asia/Taipei (CST, +0800)\nSystem clock synchronized: yes\n              NTP service: active\n          RTC in local TZ: no' }],
+};
+export const timersExample: TerminalExample = {
+  id: 'timers', title: '列出 timer', description: '還沒啟動的 timer 要加 --all 才會列出。', machine: 'job',
+  steps: [{ command: 'systemctl list-timers', output: 'NEXT LEFT LAST PASSED UNIT ACTIVATES\n\n0 timers listed.\nPass --all to see loaded but inactive timers, too.' }, { command: 'systemctl list-timers --all', output: 'NEXT LEFT LAST PASSED UNIT         ACTIVATES\n-    -    -    -      backup.timer backup.service\n\n1 timers listed.' }],
+};
+export const cronJobExercise: TerminalExercise = {
+  id: 'cron-job', title: '每天 02:30 備份', machine: 'job',
+  statement: '用 crontab 安裝一個工作：每天 02:30 執行 /usr/local/bin/backup.sh，輸出附加到 /home/learner/backup.log。',
+  checks: [{ kind: 'cron', user: 'learner', schedule: '30 2 * * *', command: '/usr/local/bin/backup.sh' }],
+  solution: ['echo "30 2 * * * /usr/local/bin/backup.sh >> /home/learner/backup.log 2>&1" > mycron', 'crontab mycron'],
+  mistakes: [{ commands: ['echo "2 30 * * * /usr/local/bin/backup.sh" > mycron', 'crontab mycron'], why: '分與時寫反了（30 不是合法的小時）。' },
+    { commands: ['echo "30 2 * * * /usr/local/bin/backup.sh" > mycron'], why: '只寫了檔案，還沒有用 crontab 安裝。' }],
+  hints: ['欄位順序：分 時 日 月 週。'], explanation: 'crontab 檔案會取代整份 crontab；cron-next 可以確認時間。',
+};
+export const timerExercise: TerminalExercise = {
+  id: 'enable-timer', title: '啟用 timer', machine: 'job',
+  statement: '讓 backup.timer 現在開始等待觸發，而且開機後也會自動啟動。',
+  checks: [{ kind: 'timer', unit: 'backup.timer', active: true, enabled: true, next: '2026-11-23 02:30:00' }],
+  solution: ['sudo systemctl enable --now backup.timer'],
+  mistakes: [{ commands: ['sudo systemctl start backup.timer'], why: 'start 只啟動這一次，開機後不會自動啟動。' }, { commands: ['sudo systemctl enable backup.timer'], why: 'enable 只建立開機的連結，現在還沒有啟動。' }],
+  hints: ['enable --now'], explanation: 'timers.target.wants 的連結讓它開機時啟動；--now 同時啟動。',
+};
+export const nextRunsExercise: TerminalExercise = {
+  id: 'next-runs', title: '接下來三次', machine: 'job',
+  statement: '用 cron-next 列出「每 6 小時的整點」（0 */6 * * *）接下來的三次執行時間。',
+  checks: [{ kind: 'output' }],
+  solution: ['cron-next -n 3 "0 */6 * * *"'],
+  mistakes: [{ commands: ['cron-next -n 3 "0 6 * * *"'], why: '0 6 * * * 是每天 06:00，不是每 6 小時。' }],
+  variants: [{ label: '隔天早上的時鐘', files: [], now: '2026-11-23 01:00:00' }],
+  hints: ['*/6 是步進。'], explanation: '時間依機器的時區（Asia/Taipei）計算。',
+};
+export const scheduleContent = (): TerminalLessonContent => structuredClone({ machines: [cronMachine], examples: [crontabExample, calendarExample, timersExample], exercises: [cronJobExercise, timerExercise, nextRunsExercise] });

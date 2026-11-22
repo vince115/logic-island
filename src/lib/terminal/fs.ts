@@ -19,11 +19,17 @@
  * Engine stages E4–E6 (§12–§14): a state may carry the last exit status, a fixed clock, a process table and jobs
  * (processes.ts), a package database (packages.ts), and systemd's loaded units, their run state and the journal
  * (services.ts). Only machines of the processes, packages and services profiles have them.
+ *
+ * Engine stages E7–E9 (§15–§17): a state may carry the other machines of the lesson (each a whole state of its own,
+ * reached with ssh), an ssh session in progress, a remote machine's sshd, the interactive shell's variables and functions
+ * (the scripting profile) and a time zone (the scheduling profile).
  */
 
 import type { Clock, Job, Proc } from './processes';
 import type { PackageDb } from './packages';
 import type { JournalEntry, ServiceDb } from './services';
+import type { Network, SshdState } from './ssh';
+import type { ShellMemory } from './script';
 
 export interface FsNode {
   /** E1: 'link' is a symbolic link (the lab never has one). */
@@ -115,6 +121,20 @@ export interface FsState {
   services?: ServiceDb;
   /** E6: the journal, oldest first. */
   journal?: readonly JournalEntry[];
+  /** E7: this machine's address and the lesson's other machines (each a whole state), reachable with ssh. */
+  net?: Network;
+  /** E7: an interactive ssh session in progress: the commands run on this host (as typed: its name, alias or address). */
+  session?: { host: string; name: string };
+  /** E7: on a remote machine during an interactive ssh session: the machine the user came from. */
+  login?: string;
+  /** E7: exit in an ssh session: the status the session ended with (read and cleared at once). */
+  logout?: number;
+  /** E7: a remote machine's sshd: its host key and the configuration it runs with (applied at start and reload). */
+  sshd?: SshdState;
+  /** E8: the interactive shell's variables, functions and options (the scripting profile). */
+  shell?: ShellMemory;
+  /** E9: the machine's time zone and whether it can send mail (an MTA for cron's output). */
+  schedule?: { timezone: string; mta: boolean };
 }
 
 export const DEFAULT_HOST = 'logic-island';

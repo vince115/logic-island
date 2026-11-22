@@ -10,6 +10,10 @@ import * as proc from './processes';
 import { dateText } from './clock';
 import { apt, aptMark, dpkg } from './packages';
 import { afterSignal, journalctl, systemctl, type SysIo } from './services';
+import { formatDate, UTC_ZONE, zoneDate, zoneNamed, zoneOf } from './calendar';
+import { activeState, remoteCommand, remoteRun, sshdControl } from './ssh';
+import { runBash, runExecutable, runInteractive, runText, scriptInPath, serviceScript, type ScriptCtx } from './script';
+import { scheduleCommand } from './schedule';
 
 /*
  * P7 Linux Terminal Simulator: the command interpreter. A fixed table of commands works on the virtual file system in
@@ -35,6 +39,10 @@ import { afterSignal, journalctl, systemctl, type SysIo } from './services';
  * Engine stages E4–E6 (§12–§14): PROCESSES_PROFILE adds the feature processes — the process table, signals, jobs
  * (sleep N &), the fixed clock and the exit status ($?, the only $ the lexer accepts); PACKAGES_PROFILE adds packages
  * (apt, apt-mark, dpkg); SERVICES_PROFILE adds services (systemctl, journalctl). Each includes the profile below it.
+ * Engine stages E7–E9 (§15–§17): REMOTE_PROFILE adds the feature remote — other machines reachable with ssh (keys,
+ * known_hosts, sshd_config; ssh.ts); SCRIPTING_PROFILE adds scripting — a bounded Bash interpreter for script files and
+ * for the prompt itself (script.ts); SCHEDULING_PROFILE adds scheduling — time zones, crontabs and systemd timers
+ * (schedule.ts, calendar.ts). Each again includes the profile below it.
  */
 
 export interface Line { text: string; kind: 'out' | 'err' }
@@ -53,19 +61,28 @@ export const E4_COMMANDS = ['ps', 'top', 'kill', 'pgrep', 'pidof', 'pkill', 'sle
 export const E5_COMMANDS = ['apt', 'apt-mark', 'dpkg'] as const;
 /** E6: systemd and the journal (SERVICES_PROFILE). */
 export const E6_COMMANDS = ['systemctl', 'journalctl'] as const;
+/** E7: SSH between the lesson's machines (REMOTE_PROFILE and above); exit leaves a remote session. */
+export const E7_COMMANDS = ['ssh', 'ssh-keygen', 'ssh-copy-id', 'ssh-keyscan', 'scp', 'sshd', 'exit'] as const;
+/** E8: the commands of scripts (SCRIPTING_PROFILE and above); read, set, local… are the interpreter's own builtins. */
+export const E8_COMMANDS = ['bash', 'sh', 'test', '[', 'printf', 'true', 'false'] as const;
+/** E9: scheduling (SCHEDULING_PROFILE); cron-next and cron-run are the simulation's teaching helpers, not real commands. */
+export const E9_COMMANDS = ['crontab', 'cron-next', 'cron-run', 'flock', 'timedatectl', 'systemd-analyze'] as const;
 /** The commands of the files profile (the manual of E1 covers exactly these). */
 export type FilesCommand = typeof COMMANDS[number] | typeof E1_COMMANDS[number];
-export type CommandName = FilesCommand | typeof E2_COMMANDS[number] | typeof E3_COMMANDS[number] | typeof E4_COMMANDS[number] | typeof E5_COMMANDS[number] | typeof E6_COMMANDS[number];
+export type CommandName = FilesCommand | typeof E2_COMMANDS[number] | typeof E3_COMMANDS[number] | typeof E4_COMMANDS[number] | typeof E5_COMMANDS[number] | typeof E6_COMMANDS[number]
+  | typeof E7_COMMANDS[number] | typeof E8_COMMANDS[number] | typeof E9_COMMANDS[number];
 /** Every command any profile may list. */
-export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS, ...E2_COMMANDS, ...E3_COMMANDS, ...E4_COMMANDS, ...E5_COMMANDS, ...E6_COMMANDS];
+export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS, ...E2_COMMANDS, ...E3_COMMANDS, ...E4_COMMANDS, ...E5_COMMANDS, ...E6_COMMANDS,
+  ...E7_COMMANDS, ...E8_COMMANDS, ...E9_COMMANDS];
 
 /**
  * Behaviour a profile switches on besides its commands. E1: glob (* ? [...] and ~), help-option (指令 --help, long
  * options, GNU's Try line), multi-source (cp and mv with several sources into a folder), ls-extra (ls -h -d, operands
  * grouped like GNU ls). E2: pipes (pipelines, redirection, standard input). E3: accounts (users, groups, umask).
- * E4: processes (the process table, jobs, $?). E5: packages. E6: services.
+ * E4: processes (the process table, jobs, $?). E5: packages. E6: services. E7: remote (ssh). E8: scripting (the Bash
+ * interpreter, also at the prompt). E9: scheduling (time zones, cron, timers).
  */
-export type ShellFeature = 'glob' | 'help-option' | 'multi-source' | 'ls-extra' | 'pipes' | 'accounts' | 'processes' | 'packages' | 'services';
+export type ShellFeature = 'glob' | 'help-option' | 'multi-source' | 'ls-extra' | 'pipes' | 'accounts' | 'processes' | 'packages' | 'services' | 'remote' | 'scripting' | 'scheduling';
 
 /** LNX-0: the commands a session may run (E1: and the features it switches on; none by default). */
 export interface ShellProfile { readonly id: string; readonly commands: readonly CommandName[]; readonly features?: readonly ShellFeature[] }
@@ -100,8 +117,17 @@ export const PROCESSES_PROFILE: ShellProfile = { id: 'processes', commands: abov
 export const PACKAGES_PROFILE: ShellProfile = { id: 'packages', commands: above(PROCESSES_PROFILE, E5_COMMANDS), features: [...PROCESSES_PROFILE.features!, 'packages'] };
 /** E6: the packages profile plus systemctl and journalctl. */
 export const SERVICES_PROFILE: ShellProfile = { id: 'services', commands: above(PACKAGES_PROFILE, E6_COMMANDS), features: [...PACKAGES_PROFILE.features!, 'services'] };
+/** E7: the services profile plus ssh, keys, known_hosts and other machines. */
+export const REMOTE_PROFILE: ShellProfile = { id: 'remote', commands: above(SERVICES_PROFILE, E7_COMMANDS), features: [...SERVICES_PROFILE.features!, 'remote'] };
+/** E8: the remote profile plus the Bash interpreter (scripts, and ; && || $var $(…) if for while case at the prompt). */
+export const SCRIPTING_PROFILE: ShellProfile = { id: 'scripting', commands: above(REMOTE_PROFILE, E8_COMMANDS), features: [...REMOTE_PROFILE.features!, 'scripting'] };
+/** E9: the scripting profile plus crontab, systemd timers, time zones and flock. */
+export const SCHEDULING_PROFILE: ShellProfile = { id: 'scheduling', commands: above(SCRIPTING_PROFILE, E9_COMMANDS), features: [...SCRIPTING_PROFILE.features!, 'scheduling'] };
 /** The profiles a lesson machine may name (TerminalMachine.profile), from the narrowest. */
-export const PROFILES = { lab: LAB_PROFILE, files: FILES_PROFILE, streams: STREAMS_PROFILE, users: USERS_PROFILE, processes: PROCESSES_PROFILE, packages: PACKAGES_PROFILE, services: SERVICES_PROFILE } as const;
+export const PROFILES = {
+  lab: LAB_PROFILE, files: FILES_PROFILE, streams: STREAMS_PROFILE, users: USERS_PROFILE, processes: PROCESSES_PROFILE, packages: PACKAGES_PROFILE, services: SERVICES_PROFILE,
+  remote: REMOTE_PROFILE, scripting: SCRIPTING_PROFILE, scheduling: SCHEDULING_PROFILE,
+} as const;
 export type ProfileId = keyof typeof PROFILES;
 
 /** Each help line with the command it describes (null: the heading); a profile prints the lines of its own commands. */
@@ -161,6 +187,23 @@ const HELP: [CommandName | null, string][] = [
   ['dpkg', '  dpkg -l [樣式] | -L 套件 | -s 套件  查看已安裝的套件'],
   ['systemctl', '  systemctl start|stop|restart|status|enable|disable|daemon-reload 服務  管理 systemd 服務'],
   ['journalctl', '  journalctl [-u 服務] [-p err] [--since 時間] [-n N] [-r]  查詢 journal 日誌'],
+  ['ssh', '  ssh [-i 金鑰] [-o 選項] [使用者@]主機 [指令]  登入遠端主機，或在遠端執行一個指令'],
+  ['ssh-keygen', '  ssh-keygen -t ed25519 [-f 檔案] -N \'\' | -l -f 檔案 | -R 主機  產生金鑰、看指紋、移除 known_hosts 的主機'],
+  ['ssh-copy-id', '  ssh-copy-id [-i 公鑰] 使用者@主機  把公鑰加到遠端的 authorized_keys（需要密碼登入）'],
+  ['ssh-keyscan', '  ssh-keyscan 主機           取得主機的公鑰（可接 >> ~/.ssh/known_hosts）'],
+  ['scp', '  scp 來源 [使用者@]主機:路徑  在本機與遠端之間複製檔案'],
+  ['sshd', '  sshd -t | -T              檢查 /etc/ssh/sshd_config（需要 root）'],
+  ['exit', '  exit [N]                 離開遠端的工作階段（或結束指令稿）'],
+  ['bash', '  bash [-n] [-x] 指令稿 [參數…] | -c 指令  執行 Bash 指令稿'],
+  ['sh', '  sh 指令稿 [參數…]          以 sh 執行指令稿（模擬環境和 bash 相同）'],
+  ['test', '  test 條件、[ 條件 ]        檢查檔案與字串、比較整數（結束碼 0 是成立）'],
+  ['printf', '  printf 格式 [參數…]        依格式輸出（%s %d %5.2f 等）'],
+  ['crontab', '  crontab 檔案 | -l | -r [-u 使用者]  安裝、列出、刪除自己的 crontab'],
+  ['cron-next', '  cron-next [-n N] \'分 時 日 月 週\' | -l  （教學輔助）列出接下來的執行時間'],
+  ['cron-run', '  cron-run                  （教學輔助）以 cron 的環境執行下一批到期的工作'],
+  ['flock', '  flock [-n] 鎖檔 指令…       取得鎖才執行，避免重疊執行'],
+  ['timedatectl', '  timedatectl              顯示時間與時區'],
+  ['systemd-analyze', '  systemd-analyze calendar 運算式  計算 OnCalendar= 接下來的觸發時間'],
   ['man', '  man 指令                顯示指令的說明頁（也可以用 指令 --help）'],
 ];
 /** The lines that change when a profile has the feature (the lab keeps its own lines). */
@@ -171,24 +214,25 @@ const HELP_FEATURE: [ShellFeature, CommandName, string][] = [
   ['pipes', 'cat', '  cat [-n] [檔案…]          顯示檔案內容；沒有檔案時讀標準輸入'],
   ['pipes', 'echo', '  echo [-n] [-e] 文字…       輸出一行文字；-n 不換行'],
   ['accounts', 'chmod', '  chmod [-R] 模式 路徑…      修改權限，例如 chmod 640 a.txt、chmod -R g+w 目錄'],
+  ['scripting', 'date', '  date [-u] [+格式]          顯示機器的時間（固定不動；有時區時依時區）'],
 ];
 const HELP_LAST: CommandName[] = ['whoami', 'clear', 'help'];
 
-type Errno = 'ENOENT' | 'ENOTDIR' | 'EACCES' | 'ELOOP';
+export type Errno = 'ENOENT' | 'ENOTDIR' | 'EACCES' | 'ELOOP';
 type Fail = { error: Errno };
 /** The node (if any) and its real path: every link on the way followed (the last one too when following). */
-type Found = { node: FsNode | undefined; path: string };
+export type Found = { node: FsNode | undefined; path: string };
 /** E2: why a file could not be opened for writing. */
-type OpenErrno = Errno | 'EISDIR' | 'ENAMETOOLONG' | 'ENOSPC';
+export type OpenErrno = Errno | 'EISDIR' | 'ENAMETOOLONG' | 'ENOSPC';
 
-const ERRNO = { ENOENT: 'No such file or directory', ENOTDIR: 'Not a directory', EACCES: 'Permission denied', ELOOP: 'Too many levels of symbolic links' } as const;
-const OPEN_TEXT: Record<OpenErrno, string> = { ...ERRNO, EISDIR: 'Is a directory', ENAMETOOLONG: 'File name too long', ENOSPC: 'No space left on device' };
+export const ERRNO = { ENOENT: 'No such file or directory', ENOTDIR: 'Not a directory', EACCES: 'Permission denied', ELOOP: 'Too many levels of symbolic links' } as const;
+export const OPEN_TEXT: Record<OpenErrno, string> = { ...ERRNO, EISDIR: 'Is a directory', ENAMETOOLONG: 'File name too long', ENOSPC: 'No space left on device' };
 
 /**
  * Walks to a path: every folder on the way must exist and be searchable (x). The node itself may be missing. E1: a
  * symbolic link on the way is followed (the last part only when `follow`), at most MAX_LINK_HOPS times (then ELOOP).
  */
-function walk(state: Pick<FsState, 'nodes' | 'user' | 'groups'>, path: string, follow = true): Fail | Found {
+export function walk(state: Pick<FsState, 'nodes' | 'user' | 'groups'>, path: string, follow = true): Fail | Found {
   const rest = path.split('/').filter(Boolean);
   let at = '/', hops = 0;
   while (rest.length) {
@@ -212,7 +256,7 @@ function walk(state: Pick<FsState, 'nodes' | 'user' | 'groups'>, path: string, f
  * A word of a command line with its glob pattern (quoted characters escaped). E1: `tilde` when it starts with an
  * unquoted ~. E2: `op` for an operator of the pipes feature (| < > >> 2> 2>> 2>&1 >&2), which quoting never produces.
  */
-interface Word { text: string; pattern: string; tilde?: true; op?: string }
+export interface Word { text: string; pattern: string; tilde?: true; op?: string }
 
 /** The words of a command line, each with its glob pattern (quoted characters escaped); see tokenize. */
 function lex(input: string): { words: Word[] } | { error: string } {
@@ -302,7 +346,8 @@ export function tokenize(input: string): { words: string[] } | { error: string }
 }
 
 const REDIRECTS = ['<', '>', '>>', '2>', '2>>'];
-interface Stage { argv: Word[]; redirects: { op: string; word?: Word }[] }
+/** E2: one stage of a pipeline. E8: the interpreter builds stages with expanded words; its here-documents are the op 'here' (the word is the text). */
+export interface Stage { argv: Word[]; redirects: { op: string; word?: Word }[] }
 
 /** E2: a line's pipeline (stages split at |, each with its redirections in order), or bash's syntax error. */
 function parseLine(words: Word[]): { stages: Stage[] } | { error: string } {
@@ -404,9 +449,9 @@ const joinShown = (at: string, name: string) => at.endsWith('/') ? at + name : `
 const blocksOf = (node: FsNode) => node.kind === 'dir' ? 4 : node.kind === 'link' ? 0 : Math.ceil(byteLength(node.content ?? '') / 4096) * 4;
 const HOST_NAME = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 /** E3: the session's umask (022 when the state has none, which gives the lab's 644 files and 755 folders). */
-const maskOf = (state: Pick<FsState, 'umask'>) => state.umask ?? 0o022;
+export const maskOf = (state: Pick<FsState, 'umask'>) => state.umask ?? 0o022;
 /** E3: who owns a new node: the user, and with accounts the session's primary group when it is not the user's own name. */
-function ownedBy(state: FsState): Pick<FsNode, 'owner' | 'group'> {
+export function ownedBy(state: FsState): Pick<FsNode, 'owner' | 'group'> {
   const primary = state.accounts ? groupsOf(state)[0] : undefined;
   return primary && primary !== state.user ? { owner: state.user, group: primary } : { owner: state.user };
 }
@@ -478,8 +523,13 @@ function expand(state: FsState, words: readonly Word[], features: ReadonlySet<Sh
   });
 }
 
+/** E8: pathname expansion of words the interpreter already expanded (for, function arguments, its own builtins). */
+export function globFields(state: FsState, fields: readonly Word[], profile: ShellProfile): string[] {
+  return expand(state, fields, new Set(profile.features ?? []), () => false);
+}
+
 /** E2: reads a file for a command or for <; /dev/null is empty (the simulation has no device files). */
-function readPath(state: FsState, word: string): text.ReadResult {
+export function readPath(state: FsState, word: string): text.ReadResult {
   const logical = resolvePath(state, word);
   if (logical === '/dev/null' && !state.nodes.has('/dev/null')) return { text: '', regular: false };
   const w = walk(state, physicalPath(state.nodes, logical));
@@ -495,7 +545,7 @@ function readPath(state: FsState, word: string): text.ReadResult {
  * appending; it keeps its mode, owner and group); a new one needs w and x on its folder and is 666 & ~umask, owned by
  * the user. Changes `nodes`; path null is /dev/null (output discarded).
  */
-function openWrite(nodes: Map<string, FsNode>, who: FsState, word: string, append: boolean): { path: string | null } | { error: OpenErrno } {
+export function openWrite(nodes: Map<string, FsNode>, who: FsState, word: string, append: boolean): { path: string | null } | { error: OpenErrno } {
   const logical = resolvePath(who, word);
   if (logical === '/dev/null' && !nodes.has('/dev/null')) return { path: null };
   const view = { ...who, nodes };
@@ -519,7 +569,7 @@ function openWrite(nodes: Map<string, FsNode>, who: FsState, word: string, appen
 }
 
 /** One write of a command: fd 1 is standard output (raw text), fd 2 standard error (whole lines with their newline). */
-interface Ev { fd: 1 | 2; data: string }
+export interface Ev { fd: 1 | 2; data: string }
 interface Ctx {
   profile: ShellProfile;
   features: ReadonlySet<ShellFeature>;
@@ -532,9 +582,13 @@ interface Ctx {
   peers?: string[][];
   /** E4: run by sudo (kill is then /bin/kill, not bash's builtin). */
   sudo?: boolean;
+  /** E8: the exported variables of the interpreter that runs the command (PATH, TZ…); default the login environment. */
+  env?: Readonly<Record<string, string>>;
+  /** E8: the script that runs the command (its step budget and nesting), if any. */
+  script?: ScriptCtx;
 }
 /** status: the exit status (E4: $?). notices: bash's job notices ([1]+  Terminated …), printed on the terminal. */
-interface Exec { state: FsState; events: Ev[]; status: number; clear?: true; notices?: string[] }
+export interface Exec { state: FsState; events: Ev[]; status: number; clear?: true; notices?: string[] }
 
 /** Shell builtins: sudo cannot run them (sudo: cd: command not found, as on Linux). */
 const BUILTINS = ['cd', 'umask', 'help', 'newgrp', 'jobs', 'fg', 'bg'];
@@ -620,7 +674,7 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
 
   const known = (profile.commands as readonly string[]).includes(cmd);
   // E1: 指令 --help prints the command's short help (echo prints it as text, as in bash; sudo only before its command).
-  if (known && features.has('help-option') && cmd !== 'echo') {
+  if (known && features.has('help-option') && !['echo', 'test', '[', 'true', 'false'].includes(cmd)) {
     const stop = args.indexOf('--'), limit = cmd === 'sudo' ? args.findIndex(a => !a.startsWith('-')) : -1;
     const at = args.indexOf('--help');
     if (at >= 0 && (stop < 0 || at < stop) && (limit < 0 || at < limit)) { helpPage(cmd as CommandName, features).forEach(print); return done(); }
@@ -634,6 +688,10 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
       if (last.length) print(`  ${last.join('、')}`);
       if (features.has('glob')) print('  萬用字元：* 任意多個字元、? 一個字元、[abc] 或 [a-z] 其中一個字元');
       if (pipes) print('  管線與重新導向：a | b、> 檔案、>> 檔案、< 檔案、2> 檔案、2>&1、> /dev/null');
+      if (features.has('scripting')) {
+        print('  指令稿與互動式 Shell：變數 $x ${x:-預設}、$(指令)、$((運算))、; && ||、if／for／while／case、函式');
+        print('  內建指令：read、set（-e -u -x -o pipefail）、local、export、unset、shift、return、exit、source、cd');
+      }
       return done();
     }
     case 'whoami':
@@ -1260,7 +1318,9 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
       }
       const acc = accounts(), who = findUser(acc, target);
       if (!who) { fail(`sudo: unknown user ${target}`); return done(); }
-      if (BUILTINS.includes(rest[0]) || !(profile.commands as readonly string[]).includes(rest[0])) { fail(`sudo: ${rest[0]}: command not found`); return done(); }
+      // E8: sudo also runs a script by its path (or one found in PATH).
+      const script = features.has('scripting') && !BUILTINS.includes(rest[0]) && (rest[0].includes('/') || !!scriptInPath(cur(), rest[0], ctx.env));
+      if (!script && (BUILTINS.includes(rest[0]) || !(profile.commands as readonly string[]).includes(rest[0]))) { fail(`sudo: ${rest[0]}: command not found`); return done(); }
       // The command runs as the target with the target's groups and home; the arguments were expanded by the learner's shell.
       const r = exec({ ...cur(), user: who.name, groups: loginGroups(acc, who.name), home: who.home }, rest, { ...ctx, sudo: true });
       r.events.forEach(push);
@@ -1325,6 +1385,19 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
     case 'jobs': code = proc.jobsCommand(cur(), args, pio()); return done();
     case 'fg': case 'bg': { const r = proc.fgBg(cur(), cmd as 'fg' | 'bg', args, pio()); code = r.status; return done(r.state); }
     case 'date':
+      if (features.has('scripting')) {
+        // E8: date +FORMAT for scripts (backup-$(date +%F)); E9: the machine's time zone, or TZ= in the command's environment.
+        let utc = false, format: string | undefined;
+        for (const a of args) {
+          if (a === '-u' || a === '--utc' || a === '--universal') utc = true;
+          else if (a.startsWith('+') && format === undefined) format = a.slice(1);
+          else if (a.startsWith('-')) { fail('date: 模擬環境的 date 只支援 -u 與 +格式（不能用 -d 或設定時間）'); return done(); }
+          else { fail(`date: invalid date '${a}'`); return done(); }
+        }
+        const tz = ctx.env?.TZ, zone = utc ? UTC_ZONE : tz !== undefined ? zoneNamed(tz.replace(/^:/, '')) ?? UTC_ZONE : zoneOf(state), now = proc.clockOf(state).now;
+        print(format !== undefined ? formatDate(format, zone, now) : zoneDate(zone, now));
+        return done();
+      }
       if (args.length && !(args.length === 1 && args[0] === '-u')) { fail('date: 模擬環境的 date 只顯示機器固定的時間（不接受格式與設定）'); return done(); }
       print(dateText(proc.clockOf(state).now)); return done();
     case 'uptime':
@@ -1333,22 +1406,91 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
     case 'apt': { const r = apt(cur(), args, sio()); code = r.status; return done(r.state); }
     case 'apt-mark': { const r = aptMark(cur(), args, sio()); code = r.status; return done(r.state); }
     case 'dpkg': code = dpkg(cur(), args, sio()); return done();
-    case 'systemctl': { const r = systemctl(cur(), args, sio()); code = r.status; return done(r.state); }
+    case 'systemctl': {
+      // E7: starting or reloading ssh checks sshd_config first (sshd -t) and applies it after.
+      const remote = features.has('remote') && !!state.sshd;
+      if (remote) {
+        const pre = sshdControl(cur(), args, state.user, 'before');
+        if (pre.refused) { pre.refused.forEach(l => fail(l.text)); code = 1; return done(pre.state); }
+      }
+      const r = systemctl(cur(), args, { ...sio(), ...features.has('scripting') ? { script: serviceScript(profile) } : {} });
+      code = r.status;
+      return done(remote ? sshdControl(r.state, args, state.user, 'after', r.status).state : r.state);
+    }
     case 'journalctl': code = journalctl(cur(), args, sio()); return done();
 
-    default:
+    case 'ssh': case 'ssh-keygen': case 'ssh-copy-id': case 'ssh-keyscan': case 'scp': case 'sshd': {
+      // E7: other machines, keys and known_hosts (ssh.ts); a remote command runs on the remote machine's own shell.
+      const r = remoteCommand(cmd, cur(), args, { out: write, err: fail, user: state.user, tty: ctx.tty, stdin: ctx.stdin, profile, alone: (ctx.peers?.length ?? 1) === 1 });
+      code = r.status;
+      return done(r.state);
+    }
+    case 'exit': {
+      // E7: exit leaves a session opened with ssh (the interpreter's own exit, E8, ends a script first).
+      if (args.length > 1) { fail('bash: exit: too many arguments'); return done(); }
+      const n = args[0] === undefined ? state.status ?? 0 : /^[+-]?\d+$/.test(args[0]) ? ((Number(args[0]) % 256) + 256) % 256 : undefined;
+      if (n === undefined) fail(`bash: exit: ${args[0]}: numeric argument required`);
+      if (!state.login) { fail('exit：模擬環境不會關閉這個終端機（用 ssh 登入的遠端工作階段才用 exit 離開）'); return done(); }
+      code = n ?? 2;
+      return done({ ...state, logout: n ?? 2 });
+    }
+    case 'test': case '[': {
+      const r = testCommand(cur(), cmd, args);
+      r.errors.forEach(fail);
+      code = r.status;
+      return done();
+    }
+    case 'true': code = 0; return done();
+    case 'false': code = 1; return done();
+    case 'printf': {
+      const r = printf(args);
+      write(r.text);
+      r.errors.forEach(fail);
+      code = r.status;
+      return done();
+    }
+    case 'bash': case 'sh': {
+      const r = runBash(cur(), cmd, args, ctx);
+      r.events.forEach(push);
+      notices.push(...r.notices ?? []);
+      code = r.status;
+      return done(sameShell(r.state, cur()));
+    }
+    case 'crontab': case 'cron-next': case 'cron-run': case 'flock': case 'timedatectl': case 'systemd-analyze': {
+      // E9 (schedule.ts); flock runs its command like sudo does, a -c string through the interpreter.
+      const r = scheduleCommand(cmd, cur(), args, {
+        out: write, err: fail, user: state.user, tty: ctx.tty, profile,
+        argv: (s, argv) => { const x = exec(s, argv, { ...ctx, peers: undefined }); x.events.forEach(push); return { state: x.state, status: x.status }; },
+        text: (s, source, opts) => { const x = runText(s, source, profile, { ...opts, parent: ctx }); x.events.forEach(push); return { state: x.state, status: x.status }; },
+      });
+      code = r.status;
+      return done(r.state);
+    }
+
+    default: {
+      // E8: a name without a slash may be a script in PATH (a file starting with #! in /usr/local/bin…).
+      const path = features.has('scripting') && !cmd.includes('/') ? scriptInPath(cur(), cmd, ctx.env) ?? cmd : cmd;
       // E4: a path is a program to execute: bash's 127 when it is missing, 126 when it cannot be executed.
-      if (features.has('processes') && cmd.includes('/')) {
-        const w = walk(cur(), resolve(cmd));
+      if (features.has('processes') && path.includes('/')) {
+        const w = walk(cur(), resolve(path));
         if ('error' in w || !w.node) { fail(`bash: ${cmd}: ${ERRNO['error' in w ? w.error : 'ENOENT']}`); code = 'error' in w && w.error !== 'ENOENT' ? 126 : 127; }
         else if (w.node.kind === 'dir') { fail(`bash: ${cmd}: Is a directory`); code = 126; }
         else if (!allowed(w.node, 'x') || !(w.node.mode & 0o111)) { fail(`bash: ${cmd}: Permission denied`); code = 126; }
+        else if (features.has('scripting')) {
+          // E8: a script with a bash or sh shebang runs in the interpreter (as a child: the session keeps its directory and variables).
+          const r = runExecutable(cur(), w.path, path, args, ctx);
+          r.events.forEach(push);
+          notices.push(...r.notices ?? []);
+          code = r.status;
+          return done(sameShell(r.state, cur()));
+        }
         else { fail(`bash: ${cmd}: 模擬環境不執行程式檔（指令稿的直譯在之後的引擎階段）`); code = 126; }
         return done();
       }
       fail(`bash: ${cmd}: command not found（模擬環境支援：${profile.commands.join('、')}）`);
       code = 127;
       return done();
+    }
   }
 }
 /** id for a session user missing from the database (never on a lesson machine). */
@@ -1360,9 +1502,18 @@ const FIRST_UNKNOWN = 1000;
  * feature the line may be a pipeline with redirections.
  */
 export function run(state: FsState, input: string, profile: ShellProfile = LAB_PROFILE): RunResult {
+  return runInput(state, input, profile);
+}
+
+/** run() with standard input for the line and without a terminal (E7: ssh host command runs with what was piped into ssh, no tty). */
+export function runInput(state: FsState, input: string, profile: ShellProfile, stdin?: string | null, tty = true): RunResult {
   const features = new Set(profile.features ?? []);
   if (input.length > LIMITS.input) return { state, lines: [{ text: `輸入太長：一行最多 ${LIMITS.input} 個字元`, kind: 'err' }] };
-  if (features.has('pipes')) return runLine(state, input, profile, features);
+  // E7: during an interactive ssh session the line runs on the remote machine (exit there ends the session).
+  if (state.session && features.has('remote')) return remoteRun(state, input, profile);
+  // E8: the scripting profile's prompt is the interpreter itself (variables, ; && ||, if, for, functions…).
+  if (features.has('scripting')) return runInteractive(state, input, profile, stdin, tty);
+  if (features.has('pipes')) return runLine(state, input, profile, features, stdin, tty);
   const tokens = lex(input);
   if ('error' in tokens) return { state, lines: [{ text: tokens.error, kind: 'err' }] };
   if (!tokens.words.length) return { state, lines: [] };
@@ -1386,7 +1537,7 @@ type Target = { t: 'term'; kind: Line['kind'] } | { t: 'pipe' } | { t: 'null' } 
  * with the previous one's standard output as its standard input; standard error reaches the terminal unless redirected.
  * A stage of a pipeline with more than one stage is a subshell: cd, umask and newgrp there do not change the session.
  */
-function runLine(state: FsState, input: string, profile: ShellProfile, features: ReadonlySet<ShellFeature>): RunResult {
+function runLine(state: FsState, input: string, profile: ShellProfile, features: ReadonlySet<ShellFeature>, stdin?: string | null, tty = true): RunResult {
   // E4 (processes): every line sets $? (a syntax error is 2, as in bash; an empty line keeps it).
   const statusMode = features.has('processes');
   const withStatus = (s: FsState, status: number): FsState => statusMode ? { ...s, status } : s;
@@ -1398,15 +1549,36 @@ function runLine(state: FsState, input: string, profile: ShellProfile, features:
   if ('error' in line) return fail(line.error);
   if (line.stages.length > LIMITS.stages) return fail(`此模擬器的管線最多 ${LIMITS.stages} 段`);
   if (lexed.background) {
-    // E4: only sleep runs in the background (it is the one program that would keep running); bash prints [job] pid.
-    const only = line.stages.length === 1 && !line.stages[0].redirects.length && line.stages[0].argv[0]?.text === 'sleep';
-    if (!only) return fail('bash: 模擬環境的背景執行（&）只支援 sleep，例如 sleep 300 &', 1);
-    const argv = expand(state, line.stages[0].argv, features, j => j === 0), problem = proc.sleepProblem(argv.slice(1));
-    if (problem) return { state: withStatus(state, 1), lines: [{ text: problem, kind: 'err' }, { text: "Try 'sleep --help' for more information.", kind: 'err' }] };
-    if (proc.tableOf(state).length >= proc.MAX_PROCESSES) return fail(`bash: fork: 模擬環境最多 ${proc.MAX_PROCESSES} 個行程`, 1);
-    const r = proc.startJob(state, argv);
-    return { state: withStatus(r.state, 0), lines: [{ text: r.notice, kind: 'out' }] };
+    const r = background(state, line.stages, features);
+    return { state: withStatus(r.state, r.status), lines: r.lines };
   }
+  const r = runStages(state, line.stages, profile, { ...stdin !== undefined ? { stdin } : {}, ...tty ? {} : { tty: false } });
+  return { state: withStatus(r.state, r.status), lines: render(r.shown), ...r.clear ? { clear: true } : {} };
+}
+
+/** E4: a line ending in &: only sleep runs in the background (it is the one program that would keep running); bash prints [job] pid. */
+export function background(state: FsState, stages: readonly Stage[], features: ReadonlySet<ShellFeature>): { state: FsState; status: number; lines: Line[] } {
+  const err = (...texts: string[]) => ({ state, status: 1, lines: texts.map(text => ({ text, kind: 'err' as const })) });
+  const only = stages.length === 1 && !stages[0].redirects.length && stages[0].argv[0]?.text === 'sleep';
+  if (!only) return err('bash: 模擬環境的背景執行（&）只支援 sleep，例如 sleep 300 &');
+  const argv = expand(state, stages[0].argv, features, j => j === 0), problem = proc.sleepProblem(argv.slice(1));
+  if (problem) return err(problem, "Try 'sleep --help' for more information.");
+  if (proc.tableOf(state).length >= proc.MAX_PROCESSES) return err(`bash: fork: 模擬環境最多 ${proc.MAX_PROCESSES} 個行程`);
+  const r = proc.startJob(state, argv);
+  return { state: r.state, status: 0, lines: [{ text: r.notice, kind: 'out' }] };
+}
+
+/** E8: how the interpreter runs a pipeline of expanded stages: initial standard input, whether its output is a terminal, the environment. */
+export interface StageOptions { stdin?: string | null; tty?: boolean; env?: Readonly<Record<string, string>>; script?: ScriptCtx }
+/** E8: what reached the terminal (output and errors, in order), the exit status of the last stage and of each stage (pipefail). */
+export interface StagesResult { state: FsState; shown: Shown[]; status: number; statuses: number[]; clear: boolean }
+
+/**
+ * E2: the stages of a pipeline (see runLine). E8: also the interpreter's way to run commands, with an initial standard
+ * input, a terminal or not, and its environment, so permissions, pipes and redirection behave exactly as at the prompt.
+ */
+export function runStages(state: FsState, stages: readonly Stage[], profile: ShellProfile, opts: StageOptions = {}): StagesResult {
+  const features = new Set(profile.features ?? []);
   const shown: Shown[] = [];
   const route = (fds: readonly Target[], ev: Ev, piped: { data: string }) => {
     const to = fds[ev.fd];
@@ -1416,13 +1588,15 @@ function runLine(state: FsState, input: string, profile: ShellProfile, features:
   };
   // 1. Redirections, in order, on one copy of the file system.
   const nodes = new Map(state.nodes), opened = { ...state, nodes };
-  const plans = line.stages.map((stage, i) => {
-    const fds: Target[] = [{ t: 'null' }, i === line.stages.length - 1 ? { t: 'term', kind: 'out' } : { t: 'pipe' }, { t: 'term', kind: 'err' }];
+  const plans = stages.map((stage, i) => {
+    const fds: Target[] = [{ t: 'null' }, i === stages.length - 1 ? { t: 'term', kind: 'out' } : { t: 'pipe' }, { t: 'term', kind: 'err' }];
     const sinks: Sink[] = [], early: Ev[] = [];
     let stdin: string | null | undefined, stdinRegular = false, ok = true;
     for (const r of stage.redirects) {
       if (r.op === '2>&1') { fds[2] = fds[1]; continue; }
       if (r.op === '>&2') { fds[1] = fds[2]; continue; }
+      // E8: a here-document or here-string of the interpreter is standard input text.
+      if (r.op === 'here') { stdin = r.word?.text ?? ''; stdinRegular = false; continue; }
       if (!r.word) continue;
       const target = tilde(opened, r.word).text;
       const problem = (why: string) => { early.push({ fd: 2, data: `bash: ${target}: ${why}\n` }); ok = false; };
@@ -1442,8 +1616,9 @@ function runLine(state: FsState, input: string, profile: ShellProfile, features:
     return { stage, fds, sinks, early, stdin, stdinRegular, ok };
   });
   // 2. The commands, one stage after another.
-  let cur: FsState = opened, pipe: string | null = null, clear = false, status = 0;
-  const peers = line.stages.map(st => st.argv.map(w => w.text));
+  let cur: FsState = opened, pipe: string | null = opts.stdin ?? null, clear = false, status = 0;
+  const statuses: number[] = [];
+  const peers = stages.map(st => st.argv.map(w => w.text));
   for (const plan of plans) {
     const piped = { data: '' };
     plan.early.forEach(ev => route(plan.fds, ev, piped));
@@ -1452,7 +1627,10 @@ function runLine(state: FsState, input: string, profile: ShellProfile, features:
     if (plan.ok && plan.stage.argv.length) {
       const argv = expand(work, plan.stage.argv, features, j => j === 0);
       const stdin = plan.stdin !== undefined ? plan.stdin : pipe;
-      const r = exec(work, argv, { profile, features, stdin, stdinRegular: plan.stdin !== undefined && plan.stdinRegular, tty: plan.fds[1].t === 'term', peers });
+      const r = exec(work, argv, {
+        profile, features, stdin, stdinRegular: plan.stdin !== undefined && plan.stdinRegular, tty: plan.fds[1].t === 'term' && opts.tty !== false, peers,
+        ...opts.env ? { env: opts.env } : {}, ...opts.script ? { script: opts.script } : {},
+      });
       work = r.state;
       status = r.status;
       r.events.forEach(ev => route(plan.fds, ev, piped));
@@ -1471,22 +1649,23 @@ function runLine(state: FsState, input: string, profile: ShellProfile, features:
       work = { ...work, nodes: flushed };
     }
     pipe = piped.data;
+    statuses.push(status);
     cur = plans.length > 1 ? sameShell(work, state) : work;
   }
-  return { state: withStatus(cur, status), lines: render(shown), ...clear ? { clear: true } : {} };
+  return { state: cur, shown, status, statuses, clear };
 }
 
 /** E2: the state after a subshell: its file system and accounts, the shell's own working directory, umask and groups. */
-function sameShell(next: FsState, shell: FsState): FsState {
+export function sameShell(next: FsState, shell: FsState): FsState {
   const { umask: _m, groups: _g, ...rest } = next;
   void _m; void _g;
   return { ...rest, cwd: shell.cwd, ...shell.umask !== undefined ? { umask: shell.umask } : {}, ...shell.groups ? { groups: shell.groups } : {} };
 }
 
 /** E2: what reached the terminal, and as which stream (2>&1 shows errors as output, >&2 output as errors). */
-type Shown = { kind: Line['kind']; data: string };
+export type Shown = { kind: Line['kind']; data: string };
 /** E2: what reaches the terminal, as lines: output split at newlines (a last line without one too), errors in order. */
-function render(events: readonly Shown[]): Line[] {
+export function render(events: readonly Shown[]): Line[] {
   const lines: Line[] = [];
   let partial = '';
   for (const e of events) {
@@ -1510,8 +1689,162 @@ function copyOf(node: FsNode, user: string): FsNode {
   return { ...rest, owner: user };
 }
 
+// ------------------------------------------------------------------------------------------- E8: test, [ and printf
+
+class TestError extends Error {}
+const UNARY = ['-e', '-f', '-d', '-r', '-w', '-x', '-s', '-L', '-h', '-z', '-n'];
+const BINARY = ['=', '==', '!=', '<', '>', '-eq', '-ne', '-lt', '-le', '-gt', '-ge', '-nt', '-ot', '-ef'];
+
+/** E8: a file test (-e -f -d -r -w -x -s; -L and -h do not follow the last link) with the user's permissions. */
+export function fileTest(state: FsState, op: string, path: string): boolean {
+  const w = walk(state, physicalPath(state.nodes, resolvePath(state, path)), op !== '-L' && op !== '-h');
+  if ('error' in w || !w.node) return false;
+  const node = w.node, groups = groupsOf(state);
+  switch (op) {
+    case '-e': return true;
+    case '-f': return node.kind === 'file';
+    case '-d': return node.kind === 'dir';
+    case '-L': case '-h': return node.kind === 'link';
+    case '-s': return node.kind === 'dir' || (node.content ?? '').length > 0;
+    case '-r': return can(node, state.user, 'r', groups);
+    case '-w': return can(node, state.user, 'w', groups);
+    // root may execute what has any x bit (and enter every folder).
+    case '-x': return state.user === 'root' ? node.kind === 'dir' || (node.mode & 0o111) !== 0 : can(node, state.user, 'x', groups);
+    default: return false;
+  }
+}
+const integer = (t: string) => { if (!/^\s*[+-]?\d+\s*$/.test(t)) throw new TestError(`${t}: integer expression expected`); return Number(t); };
+/** E8: one test of two operands (string, integer or the -nt family, which needs timestamps the simulation does not have). */
+export function binaryTest(op: string, a: string, b: string): boolean {
+  switch (op) {
+    case '=': case '==': return a === b;
+    case '!=': return a !== b;
+    case '<': return a < b;
+    case '>': return a > b;
+    case '-eq': return integer(a) === integer(b);
+    case '-ne': return integer(a) !== integer(b);
+    case '-lt': return integer(a) < integer(b);
+    case '-le': return integer(a) <= integer(b);
+    case '-gt': return integer(a) > integer(b);
+    case '-ge': return integer(a) >= integer(b);
+    default: throw new TestError(`${op}: 模擬環境的檔案沒有時間戳記與 inode，不支援這個比較`);
+  }
+}
+/** E8: one test of one operand. */
+export function unaryTest(state: FsState, op: string, a: string): boolean {
+  if (op === '-z') return a === '';
+  if (op === '-n') return a !== '';
+  return fileTest(state, op, a);
+}
+function evalTest(state: FsState, a: readonly string[]): boolean {
+  switch (a.length) {
+    case 0: return false;
+    case 1: return a[0] !== '';
+    case 2:
+      if (a[0] === '!') return a[1] === '';
+      if (UNARY.includes(a[0])) return unaryTest(state, a[0], a[1]);
+      throw new TestError(`${a[0]}: unary operator expected`);
+    case 3:
+      if (BINARY.includes(a[1])) return binaryTest(a[1], a[0], a[2]);
+      if (a[0] === '!') return !evalTest(state, a.slice(1));
+      if (a[0] === '(' && a[2] === ')') return a[1] !== '';
+      if (a[1] === '-a' || a[1] === '-o') return a[1] === '-a' ? a[0] !== '' && a[2] !== '' : a[0] !== '' || a[2] !== '';
+      throw new TestError(`${a[1]}: binary operator expected`);
+    case 4:
+      if (a[0] === '!') return !evalTest(state, a.slice(1));
+      if (a[0] === '(' && a[3] === ')') return evalTest(state, a.slice(1, 3));
+  }
+  // More: -o is weaker than -a, ! and ( ) group (POSIX's XSI extension, as bash's test).
+  let i = 0;
+  const or = (): boolean => { let v = and(); while (a[i] === '-o') { i++; const r = and(); v = v || r; } return v; };
+  const and = (): boolean => { let v = not(); while (a[i] === '-a') { i++; const r = not(); v = v && r; } return v; };
+  const not = (): boolean => { if (a[i] === '!') { i++; return !not(); } return primary(); };
+  const primary = (): boolean => {
+    if (i >= a.length) throw new TestError('argument expected');
+    if (a[i] === '(') { i++; const v = or(); if (a[i] !== ')') throw new TestError("`)' expected"); i++; return v; }
+    if (UNARY.includes(a[i]) && i + 1 < a.length) { const op = a[i]; i += 2; return unaryTest(state, op, a[i - 1]); }
+    if (i + 2 < a.length && BINARY.includes(a[i + 1])) { const [x, op, y] = a.slice(i, i + 3); i += 3; return binaryTest(op, x, y); }
+    return a[i++] !== '';
+  };
+  const v = or();
+  if (i < a.length) throw new TestError('too many arguments');
+  return v;
+}
+/** E8: test and [ (bash's builtins): status 0 when the expression holds, 1 when not, 2 with bash's message when it is malformed. */
+export function testCommand(state: FsState, cmd: string, args: readonly string[]): { status: number; errors: string[] } {
+  let a = [...args];
+  if (cmd === '[') {
+    if (a.at(-1) !== ']') return { status: 2, errors: ["bash: [: missing `]'"] };
+    a = a.slice(0, -1);
+  }
+  try { return { status: evalTest(state, a) ? 0 : 1, errors: [] }; }
+  catch (e) { if (e instanceof TestError) return { status: 2, errors: [`bash: ${cmd}: ${e.message}`] }; throw e; }
+}
+
+/** E8: printf's backslash escapes (\n \t \\ \" \r \a \e and \0NNN octal). */
+export function printfEscapes(text: string): string {
+  return text.replace(/\\(0[0-7]{0,3}|[ntr\\"ae'])/g, (_, c: string) => c[0] === '0' ? String.fromCharCode(parseInt(c, 8) || 0)
+    : ({ n: '\n', t: '\t', r: '\r', '\\': '\\', '"': '"', a: '\x07', e: '\x1b', "'": "'" } as Record<string, string>)[c]);
+}
+/**
+ * E8: bash's printf: %s %b %c %d %i %u %o %x %X %f %e %% with the flags - 0 + and space, a width and a precision; the
+ * format is reused while arguments remain; a missing argument is empty (or 0); a bad number is bash's error and 0.
+ */
+export function printf(args: readonly string[]): { text: string; errors: string[]; status: number } {
+  if (!args.length) return { text: '', errors: ['printf: usage: printf [-v var] format [arguments]'], status: 2 };
+  if (args[0] === '-v') return { text: '', errors: ['bash: printf: -v: 模擬環境不支援 -v，請用 變數=$(printf …)'], status: 2 };
+  const [format, ...rest] = args[0] === '--' ? args.slice(1) : args;
+  if (format === undefined) return { text: '', errors: ['printf: usage: printf [-v var] format [arguments]'], status: 2 };
+  let text = '', i = 0, status = 0;
+  const errors: string[] = [];
+  const number = (arg: string | undefined, float: boolean): number => {
+    if (arg === undefined || arg === '') return 0;
+    if (/^['"]./.test(arg)) return arg.codePointAt(1)!;
+    if (float ? /^\s*[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(arg) : /^\s*[+-]?\d+$/.test(arg)) return Number(arg);
+    errors.push(`bash: printf: ${arg}: invalid number`); status = 1;
+    return float ? Number.parseFloat(arg) || 0 : Number.parseInt(arg, 10) || 0;
+  };
+  const pad = (body: string, flags: string, width: number, numeric: boolean) => {
+    if (body.length >= width) return body;
+    if (flags.includes('-')) return body.padEnd(width);
+    if (flags.includes('0') && numeric) { const sign = /^[+\- ]/.test(body) ? body[0] : ''; return sign + body.slice(sign.length).padStart(width - sign.length, '0'); }
+    return body.padStart(width);
+  };
+  do {
+    const start = i;
+    text += format.replace(/%([-+ 0#]*)(\d*)(?:\.(\d*))?([sbcdiuoxXfeE%])|\\(0[0-7]{0,3}|.)/g, (all, flags: string, w: string, prec: string | undefined, conv: string, esc: string) => {
+      if (esc !== undefined) return printfEscapes(all);
+      if (conv === '%') return '%';
+      const width = Number(w || 0), arg = rest[i++];
+      switch (conv) {
+        case 's': { const v = arg ?? ''; return pad(prec !== undefined ? v.slice(0, Number(prec)) : v, flags, width, false); }
+        case 'b': return pad(printfEscapes(arg ?? ''), flags, width, false);
+        case 'c': return pad((arg ?? '').slice(0, 1), flags, width, false);
+        case 'f': case 'e': case 'E': {
+          const n = number(arg, true), p = prec === undefined || prec === '' ? 6 : Number(prec);
+          let body = conv === 'f' ? n.toFixed(p) : n.toExponential(p).replace(/e([+-])(\d)$/, 'e$10$2');
+          if (conv === 'E') body = body.toUpperCase();
+          if (n >= 0 && flags.includes('+')) body = `+${body}`; else if (n >= 0 && flags.includes(' ')) body = ` ${body}`;
+          return pad(body, flags, width, true);
+        }
+        default: {
+          const n = Math.trunc(number(arg, false));
+          let body = conv === 'o' ? Math.abs(n).toString(8) : conv === 'x' ? Math.abs(n).toString(16) : conv === 'X' ? Math.abs(n).toString(16).toUpperCase() : String(Math.abs(n));
+          if (prec) body = body.padStart(Number(prec), '0');
+          body = (n < 0 ? '-' : flags.includes('+') ? '+' : flags.includes(' ') ? ' ' : '') + body;
+          return pad(body, flags, width, true);
+        }
+      }
+    });
+    if (i === start) break;
+  } while (i < rest.length);
+  return { text, errors, status };
+}
+
 /** The prompt, e.g. learner@logic-island:~/projects$ (LNX-0: the state's host when it has one; # for root, as in bash). */
 export function prompt(state: FsState): string {
+  // E7: in an ssh session, the remote machine's prompt.
+  if (state.session) state = activeState(state);
   const where = isInside(state.cwd, state.home) ? '~' + state.cwd.slice(state.home.length) : state.cwd;
   return `${state.user}@${state.host ?? DEFAULT_HOST}:${where}${state.user === 'root' ? '#' : '$'}`;
 }

@@ -3,6 +3,7 @@ import { accountsOf, findUser } from './accounts';
 import { DAY, isoStamp, journalStamp, parseSpan, parseWhen, relativeText, systemdStamp, type Seconds } from './clock';
 import { clockOf, commOf, nextPid, SIGNALS, tableOf, type Proc } from './processes';
 import { compilePattern, getopt } from './text';
+import { fromLocal, nextCalendar, offsetAt, offsetText, parseCalendar, toLocal, zoneJournal, zoneOf, zoneStamp } from './calendar';
 
 /*
  * Engine stage E6 (docs/curriculum/LNX0_TERMINAL_CAPABILITY.md §14): systemd services and the journal. Units are unit
@@ -12,6 +13,11 @@ import { compilePattern, getopt } from './text';
  * declares programs (by executable path) that start, or fail with a message unless a file exists, and how they react to
  * signals. Starting a service adds its process to the process table (E4); its messages go to the journal with the
  * machine's fixed "now". Restart= is evaluated at once (the clock never moves): see restart() for the exact rule.
+ *
+ * Engine stages E8 and E9 (§16, §17): on a scheduling machine (one with a time zone) the unit folders also hold .timer
+ * units (OnCalendar=, Persistent=, Unit=…) that systemctl starts, stops, shows (list-timers, status) and fires once at
+ * start when Persistent= finds a missed run; times are shown in the machine's zone. With the interpreter (E8), a
+ * Type=oneshot service whose ExecStart= is a bash script really runs it, as User=, and its output goes to the journal.
  */
 
 /** A unit file as systemd read it. */
@@ -36,13 +42,15 @@ export interface Program {
 /** The run state of a unit, as systemctl status shows it. */
 export interface UnitRun {
   active: 'active' | 'inactive' | 'failed' | 'activating';
-  sub: 'running' | 'exited' | 'dead' | 'failed' | 'auto-restart';
+  sub: 'running' | 'exited' | 'dead' | 'failed' | 'auto-restart' | 'waiting';
   since?: Seconds;
   result?: string;
   main?: number;
   /** How the last main process ended. */
   exit?: { pid: number; code: 'exited' | 'killed'; status: number };
   restarts?: number;
+  /** E9 (timers): when it last started its service. */
+  lastTrigger?: Seconds;
 }
 export interface ServiceDb { loaded: Readonly<Record<string, UnitFile>>; runtime: Readonly<Record<string, UnitRun>>; programs: readonly Program[] }
 
@@ -65,6 +73,11 @@ const KNOWN: Record<string, readonly string[]> = {
     'PrivateTmp', 'NoNewPrivileges', 'ProtectSystem', 'ProtectHome'],
   Install: ['WantedBy', 'RequiredBy', 'Alias', 'Also'],
 };
+/** E9: a .timer unit's own section (a timer has no [Service]). */
+const TIMER_KNOWN: Record<string, readonly string[]> = {
+  Unit: KNOWN.Unit, Install: KNOWN.Install,
+  Timer: ['OnCalendar', 'Persistent', 'Unit', 'AccuracySec', 'RandomizedDelaySec', 'FixedRandomDelay', 'OnBootSec', 'OnStartupSec', 'OnActiveSec', 'OnUnitActiveSec', 'OnUnitInactiveSec', 'WakeSystem', 'RemainAfterElapse'],
+};
 const LISTS = ['After', 'Before', 'Requires', 'Wants', 'WantedBy', 'RequiredBy'];
 const RESTARTS = ['no', 'always', 'on-success', 'on-failure', 'on-abnormal', 'on-abort', 'on-watchdog'] as const;
 const TYPES = ['simple', 'exec', 'forking', 'oneshot', 'notify'] as const;
@@ -83,23 +96,29 @@ export interface UnitConfig {
   warnings: string[];
   /** Why systemd refuses the unit (Loaded: bad-setting). */
   bad?: string;
+  /** Alias= names (systemctl reload sshd reaches ssh.service). */
+  alias: string[];
+  /** E9: a timer's settings. */
+  timer?: { calendars: string[]; persistent: boolean; unit?: string; onBoot?: number; onUnitActive?: number };
 }
 
 export function parseUnit(file: UnitFile): UnitConfig {
-  const c: UnitConfig = { after: [], requires: [], wants: [], type: 'simple', restart: 'no', restartSec: 0.1, burst: 5, interval: 10, remainAfterExit: false, wantedBy: [], warnings: [] };
+  const c: UnitConfig = { after: [], requires: [], wants: [], type: 'simple', restart: 'no', restartSec: 0.1, burst: 5, interval: 10, remainAfterExit: false, wantedBy: [], warnings: [], alias: [] };
+  const timer = file.name.endsWith('.timer'), known = timer ? TIMER_KNOWN : KNOWN;
+  if (timer) c.timer = { calendars: [], persistent: false };
   const lists: Record<string, string[]> = { After: c.after, Requires: c.requires, Wants: c.wants, WantedBy: c.wantedBy, Before: [], RequiredBy: [] };
   let section: string | null = null;
   file.text.split('\n').forEach((raw, i) => {
     const line = raw.trim(), at = `${file.path}:${i + 1}`;
     if (!line || line.startsWith('#') || line.startsWith(';')) return;
     const head = /^\[(.+)\]$/.exec(line);
-    if (head) { section = head[1]; if (!KNOWN[section]) c.warnings.push(`${at}: Unknown section '${section}'. Ignoring.`); return; }
+    if (head) { section = head[1]; if (!known[section]) c.warnings.push(`${at}: Unknown section '${section}'. Ignoring.`); return; }
     const eq = line.indexOf('=');
     if (eq < 0) { c.warnings.push(`${at}: Missing '=', ignoring line.`); return; }
     if (section === null) { c.warnings.push(`${at}: Assignment outside of section. Ignoring.`); return; }
-    if (!KNOWN[section]) return;
+    if (!known[section]) return;
     const key = line.slice(0, eq).trim(), value = line.slice(eq + 1).trim();
-    if (!KNOWN[section].includes(key)) { c.warnings.push(`${at}: Unknown key name '${key}' in section '${section}', ignoring.`); return; }
+    if (!known[section].includes(key)) { c.warnings.push(`${at}: Unknown key name '${key}' in section '${section}', ignoring.`); return; }
     const invalid = () => c.warnings.push(`${at}: Failed to parse ${key}= value, ignoring: ${value}`);
     if (LISTS.includes(key)) {
       const list = lists[key];
@@ -107,7 +126,19 @@ export function parseUnit(file: UnitFile): UnitConfig {
       else for (const v of value.split(/\s+/)) if (!list.includes(unitName(v))) list.push(key === 'WantedBy' || key === 'RequiredBy' ? v : unitName(v));
       return;
     }
+    if (section === 'Timer') {
+      const t = c.timer!;
+      if (key === 'OnCalendar') { if (!value) t.calendars = []; else if (parseCalendar(value)) t.calendars.push(value); else c.warnings.push(`${at}: Failed to parse calendar specification, ignoring: ${value}`); }
+      else if (key === 'Persistent') t.persistent = /^(yes|true|on|1)$/.test(value);
+      else if (key === 'Unit') t.unit = value || undefined;
+      else if (key === 'OnBootSec' || key === 'OnStartupSec' || key === 'OnUnitActiveSec') {
+        const span = parseSpan(value);
+        if (span === undefined) invalid(); else if (key === 'OnUnitActiveSec') t.onUnitActive = span; else t.onBoot = span;
+      }
+      return;
+    }
     switch (key) {
+      case 'Alias': c.alias.push(...value.split(/\s+/).filter(Boolean)); break;
       case 'Description': c.description = value || undefined; break;
       case 'Type': if ((TYPES as readonly string[]).includes(value)) c.type = value as UnitConfig['type']; else invalid(); break;
       case 'ExecStart': c.execStart = value || undefined; break;
@@ -120,7 +151,8 @@ export function parseUnit(file: UnitFile): UnitConfig {
       case 'RemainAfterExit': c.remainAfterExit = /^(yes|true|on|1)$/.test(value); break;
     }
   });
-  if (!c.execStart) c.bad = `${file.name}: Service has no ExecStart=, ExecStop=, or SuccessAction=. Refusing.`;
+  if (timer) { const t = c.timer!; if (!t.calendars.length && t.onBoot === undefined && t.onUnitActive === undefined) c.bad = `${file.name}: Timer unit lacks value setting. Refusing.`; }
+  else if (!c.execStart) c.bad = `${file.name}: Service has no ExecStart=, ExecStop=, or SuccessAction=. Refusing.`;
   return c;
 }
 
@@ -133,15 +165,15 @@ export function findUnitFile(nodes: ReadonlyMap<string, FsNode>, name: string): 
   return undefined;
 }
 
-/** Every *.service file in the unit folders (not in the .wants folders). */
-export function unitFilesOnDisk(nodes: ReadonlyMap<string, FsNode>): string[] {
+/** Every *.service file in the unit folders (not in the .wants folders); E9: and *.timer with `timers`. */
+export function unitFilesOnDisk(nodes: ReadonlyMap<string, FsNode>, timers = false): string[] {
   const names = new Set<string>();
   for (const dir of UNIT_DIRS) {
     const real = physicalPath(nodes, dir, true);
     if (nodes.get(real)?.kind !== 'dir') continue;
     for (const child of childrenOf(nodes, real)) {
       const name = child.slice(child.lastIndexOf('/') + 1);
-      if (name.endsWith('.service') && findUnitFile(nodes, name)) names.add(name);
+      if ((name.endsWith('.service') || (timers && name.endsWith('.timer'))) && findUnitFile(nodes, name)) names.add(name);
     }
   }
   return [...names].sort();
@@ -174,11 +206,20 @@ interface Work {
   procs: Proc[];
   lastPid: number;
   now: Seconds;
+  /** E8: runs a oneshot service's bash script (the scripting profile); absent below it. */
+  script?: ServiceScript;
 }
+/** E8: how a service's script runs: the new state, its output lines (to the journal), its status and journal identifier. */
+export type ServiceScript = (state: FsState, execStart: string, user: string) => { state: FsState; lines: string[]; status: number; id: string } | undefined;
+/** E9: the machine has timers (a scheduling machine: it has a time zone). */
+const timersOn = (state: FsState) => !!state.schedule;
 
-function begin(state: FsState): Work {
+function begin(state: FsState, script?: ServiceScript): Work {
   const db = state.services ?? { loaded: {}, runtime: {}, programs: [] };
-  return { state, nodes: new Map(state.nodes), loaded: { ...db.loaded }, runtime: { ...db.runtime }, journal: [...state.journal ?? []], procs: [...tableOf(state)], lastPid: nextPid(state) - 1, now: clockOf(state).now };
+  return {
+    state, nodes: new Map(state.nodes), loaded: { ...db.loaded }, runtime: { ...db.runtime }, journal: [...state.journal ?? []], procs: [...tableOf(state)], lastPid: nextPid(state) - 1, now: clockOf(state).now,
+    ...script ? { script } : {},
+  };
 }
 function finish(w: Work): FsState {
   const db = w.state.services ?? { loaded: {}, runtime: {}, programs: [] };
@@ -235,6 +276,21 @@ function spawn(w: Work, name: string, c: UnitConfig): Spawn {
     if (exe.error === 'No such file or directory') sys(w, name, 3, `${name}: Failed to locate executable ${exe.path}: ${exe.error}`);
     sys(w, name, 3, `${name}: Failed at step EXEC spawning ${exe.path}: ${exe.error}`);
     return { ok: false, pid, status: 203 };
+  }
+  // E8: a oneshot service whose ExecStart= is a bash script runs it (as User=, in /); its output goes to the journal.
+  if (c.type === 'oneshot' && w.script) {
+    const r = w.script(finish(w), line, user);
+    if (r) {
+      w.nodes = new Map(r.state.nodes);
+      w.procs = [...tableOf(r.state)];
+      w.lastPid = Math.max(w.lastPid, r.state.lastPid ?? 0);
+      for (const l of r.lines) log(w, name, r.id, 6, l, pid);
+      if (r.status !== 0) return { ok: false, pid, status: r.status };
+      sys(w, name, 6, `${name}: Deactivated successfully.`);
+      sys(w, name, 6, `Finished ${title}.`);
+      w.runtime[name] = c.remainAfterExit ? { active: 'active', sub: 'exited', since: w.now } : { active: 'inactive', sub: 'dead', since: w.now };
+      return { ok: true };
+    }
   }
   const program = programsOf(w).find(p => p.path === exe.path);
   const fails = program?.fail && !(program.fail.unless && w.nodes.has(physicalPath(w.nodes, program.fail.unless, true)));
@@ -306,7 +362,7 @@ function run(w: Work, name: string, c: UnitConfig, counter: number): boolean {
   }
 }
 
-type StartResult = { ok: true } | { ok: false; why: 'not-found' | 'bad' | 'dependency' | 'failed'; unit: string };
+type StartResult = { ok: true } | { ok: false; why: 'not-found' | 'bad' | 'dependency' | 'failed' | 'resources'; unit: string };
 
 /** Starts a unit and (first) what it Requires= and Wants=; a manual start resets the start limit (see §14). */
 function start(w: Work, name: string, chain: readonly string[] = []): StartResult {
@@ -314,6 +370,7 @@ function start(w: Work, name: string, chain: readonly string[] = []): StartResul
   if (!file) return { ok: false, why: 'not-found', unit: name };
   const c = parseUnit(file);
   if (c.bad) { if (!chain.length) sys(w, name, 3, c.bad); return { ok: false, why: 'bad', unit: name }; }
+  if (c.timer) return startTimer(w, name, c);
   const now = w.runtime[name];
   if (now?.active === 'active' || chain.includes(name) || chain.length > 8) return { ok: true };
   for (const dep of [...c.requires, ...c.wants.filter(d => !c.requires.includes(d))]) {
@@ -331,6 +388,13 @@ function start(w: Work, name: string, chain: readonly string[] = []): StartResul
 function stop(w: Work, name: string, chain: readonly string[] = []): void {
   const now = w.runtime[name];
   if (!now || (now.active !== 'active' && now.active !== 'activating') || chain.includes(name)) return;
+  if (name.endsWith('.timer')) {
+    const file = w.loaded[name], c = file ? parseUnit(file) : undefined;
+    w.runtime[name] = { active: 'inactive', sub: 'dead', since: w.now, ...now.lastTrigger !== undefined ? { lastTrigger: now.lastTrigger } : {} };
+    sys(w, name, 6, `${name}: Deactivated successfully.`);
+    sys(w, name, 6, `Stopped ${c ? titleOf(name, c) : name}.`);
+    return;
+  }
   for (const [other, file] of Object.entries(w.loaded)) {
     if (w.runtime[other]?.active === 'active' && parseUnit(file).requires.includes(name)) stop(w, other, [...chain, name]);
   }
@@ -351,6 +415,81 @@ function stop(w: Work, name: string, chain: readonly string[] = []): void {
   sys(w, name, 6, `${name}: Deactivated successfully.`);
   sys(w, name, 6, `Stopped ${title}.`);
   w.runtime[name] = { active: 'inactive', sub: 'dead', since: w.now, restarts: now.restarts };
+}
+
+// ---------------------------------------------------------------------------------------------------- E9: timers
+
+/** The service a timer starts (Unit=, else the timer's name with .service). */
+const triggers = (name: string, c: UnitConfig) => c.timer?.unit ?? name.replace(/\.timer$/, '.service');
+/** A timer's next elapse after now (OnCalendar= in the machine's zone, OnBootSec=, OnUnitActiveSec= after the last trigger). */
+export function nextElapse(state: FsState, c: UnitConfig, run: UnitRun | undefined): Seconds | undefined {
+  const t = c.timer;
+  if (!t) return undefined;
+  const now = clockOf(state).now, boot = clockOf(state).boot, zone = zoneOf(state), times: Seconds[] = [];
+  for (const text of t.calendars) { const spec = parseCalendar(text), next = spec ? nextCalendar(spec, zone, now, 1)[0] : undefined; if (next !== undefined) times.push(next); }
+  if (t.onBoot !== undefined && boot + t.onBoot > now) times.push(boot + t.onBoot);
+  if (t.onUnitActive && run?.lastTrigger !== undefined) times.push(run.lastTrigger + Math.max(1, Math.floor((now - run.lastTrigger) / t.onUnitActive) + 1) * t.onUnitActive);
+  return times.length ? Math.min(...times) : undefined;
+}
+/** Persistent=true: a calendar run was due between the last trigger and now (the machine was off, or the timer stopped). */
+function missedRun(state: FsState, c: UnitConfig, last: Seconds | undefined): boolean {
+  if (!c.timer?.persistent || last === undefined) return false;
+  const zone = zoneOf(state), now = clockOf(state).now;
+  return c.timer.calendars.some(text => { const spec = parseCalendar(text), next = spec ? nextCalendar(spec, zone, last, 1)[0] : undefined; return next !== undefined && next <= now; });
+}
+function startTimer(w: Work, name: string, c: UnitConfig): StartResult {
+  const before = w.runtime[name];
+  if (before?.active === 'active') return { ok: true };
+  const target = triggers(name, c);
+  if (!load(w, target)) {
+    sys(w, name, 4, `${name}: Refusing to start, unit ${target} to trigger not loaded.`);
+    sys(w, name, 4, `${name}: Failed with result 'resources'.`);
+    w.runtime[name] = { active: 'failed', sub: 'failed', since: w.now, result: 'resources' };
+    return { ok: false, why: 'resources', unit: name };
+  }
+  w.runtime[name] = { active: 'active', sub: 'waiting', since: w.now, ...before?.lastTrigger !== undefined ? { lastTrigger: before.lastTrigger } : {} };
+  sys(w, name, 6, `Started ${titleOf(name, c)}.`);
+  if (missedRun(w.state, c, before?.lastTrigger)) {
+    start(w, target);
+    w.runtime[name] = { ...w.runtime[name], lastTrigger: w.now };
+  }
+  return { ok: true };
+}
+/** A timestamp in the machine's zone (UTC unless it is a scheduling machine with another zone). */
+const stampOf = (state: FsState, t: Seconds) => zoneStamp(zoneOf(state), t);
+const leftText = (seconds: Seconds) => relativeText(seconds).replace(/ ago$/, ' left');
+
+/** systemctl status of a timer: Trigger is the next elapse, Triggers the service it starts. */
+function timerStatus(w: Work, name: string, file: UnitFile, io: SysIo, first: boolean): number {
+  if (!first) io.out('');
+  const c = parseUnit(file), now = w.runtime[name] ?? { active: 'inactive', sub: 'dead' };
+  const label = (l: string) => `${l}:`.padStart(12), enabled = enablement(w.nodes, name), next = now.active === 'active' ? nextElapse(w.state, c, now) : undefined;
+  io.out(`${now.active === 'active' ? '●' : now.active === 'failed' ? '×' : '○'} ${name}${c.description ? ` - ${c.description}` : ''}`);
+  io.out(c.bad ? `${label('Loaded')} bad-setting (Reason: Unit ${name} has a bad unit file setting.)` : `${label('Loaded')} loaded (${file.path}; ${enabled === 'static' ? 'static' : `${enabled ?? 'disabled'}; preset: enabled`})`);
+  const since = now.since !== undefined ? ` since ${stampOf(w.state, now.since)}; ${relativeText(w.now - now.since)}` : '';
+  io.out(`${label('Active')} ${now.active === 'failed' ? `failed (Result: ${now.result})` : `${now.active} (${now.sub})`}${since}`);
+  io.out(`${label('Trigger')} ${next !== undefined ? `${stampOf(w.state, next)}; ${leftText(next - w.now)}` : 'n/a'}`);
+  io.out(`${label('Triggers')} ● ${triggers(name, c)}`);
+  const lines = w.journal.filter(e => e.unit === name).slice(-10);
+  if (lines.length) { io.out(''); lines.forEach(e => io.out(journalLine(w.state, e))); }
+  if (changedOnDisk(w.nodes, file)) io.err(changedWarning(name));
+  return now.active === 'active' ? 0 : 3;
+}
+
+/** systemctl list-timers [--all]: NEXT LEFT LAST PASSED UNIT ACTIVATES, the soonest first. */
+function listTimers(w: Work, all: boolean, io: SysIo) {
+  const names = [...new Set([...Object.keys(w.loaded), ...unitFilesOnDisk(w.nodes, true)])].filter(n => n.endsWith('.timer')).sort();
+  const rows = names.map(name => {
+    const c = parseUnit(load(w, name)!), run = w.runtime[name], active = run?.active === 'active', next = active ? nextElapse(w.state, c, run) : undefined, last = run?.lastTrigger;
+    return { active, next, cells: [next !== undefined ? stampOf(w.state, next) : '-', next !== undefined ? relativeText(next - w.now).replace(/ ago$/, '') : '-',
+      last !== undefined ? stampOf(w.state, last) : '-', last !== undefined ? relativeText(w.now - last) : '-', name, triggers(name, c)] };
+  }).filter(r => all || r.active).sort((a, b) => (a.next ?? Infinity) - (b.next ?? Infinity));
+  const table = [['NEXT', 'LEFT', 'LAST', 'PASSED', 'UNIT', 'ACTIVATES'], ...rows.map(r => r.cells)];
+  const widths = table[0].map((_, i) => Math.max(...table.map(r => r[i].length)));
+  table.forEach(r => io.out(r.map((cell, i) => i === r.length - 1 ? cell : cell.padEnd(widths[i])).join(' ')));
+  io.out('');
+  io.out(`${rows.length} timers listed.`);
+  if (!all) io.out('Pass --all to see loaded but inactive timers, too.');
 }
 
 /**
@@ -427,7 +566,7 @@ function enable(w: Work, name: string, out: (line: string) => void): 'done' | 'm
 }
 /** daemon-reload: systemd reads every unit file again (and logs the warnings of the ones that changed). */
 function reload(w: Work) {
-  for (const name of new Set([...Object.keys(w.loaded), ...unitFilesOnDisk(w.nodes)])) {
+  for (const name of new Set([...Object.keys(w.loaded), ...unitFilesOnDisk(w.nodes, timersOn(w.state))])) {
     const file = findUnitFile(w.nodes, name), old = w.loaded[name];
     if (!file) { delete w.loaded[name]; continue; }
     if (old && old.text === file.text && old.path === file.path) continue;
@@ -438,18 +577,22 @@ function reload(w: Work) {
 
 // ------------------------------------------------------------------------------------------------------- systemctl
 
-export interface SysIo { out(line: string): void; err(line: string): void; user: string; tty: boolean }
+export interface SysIo { out(line: string): void; err(line: string): void; user: string; tty: boolean; /** E8 */ script?: ServiceScript }
 
 function journalLine(state: FsState, e: JournalEntry, format = 'short'): string {
   if (format === 'cat') return e.message;
-  const stamp = format === 'short-iso' ? isoStamp(e.time) : journalStamp(e.time);
+  // E9: in the machine's time zone (a machine without one is UTC, exactly as before).
+  const zone = zoneOf(state), local = toLocal(zone, e.time), offset = offsetAt(zone, e.time).offset;
+  const stamp = !state.schedule ? format === 'short-iso' ? isoStamp(e.time) : journalStamp(e.time) : format === 'short-iso' ? `${isoStamp(local).slice(0, -5)}${offsetText(offset)}` : zoneJournal(zone, e.time);
   return `${stamp} ${state.host ?? 'logic-island'} ${e.id}${e.pid !== undefined ? `[${e.pid}]` : ''}: ${e.message}`;
 }
 
+const state0 = (w: Work) => w.state;
 /** systemctl status of one unit; returns its exit status (0 running, 3 not running, 4 no such unit). */
 function statusOf(w: Work, name: string, io: SysIo, first: boolean): number {
   const file = load(w, name);
   if (!file) { io.err(`Unit ${name} could not be found.`); return 4; }
+  if (name.endsWith('.timer')) return timerStatus(w, name, file, io, first);
   if (!first) io.out('');
   const c = parseUnit(file), now = w.runtime[name] ?? { active: 'inactive', sub: 'dead' };
   const dot = now.active === 'active' || now.active === 'activating' ? '●' : now.active === 'failed' ? '×' : '○';
@@ -458,7 +601,7 @@ function statusOf(w: Work, name: string, io: SysIo, first: boolean): number {
   io.out(`${dot} ${name}${c.description ? ` - ${c.description}` : ''}`);
   io.out(c.bad ? `${label('Loaded')} bad-setting (Reason: Unit ${name} has a bad unit file setting.)`
     : `${label('Loaded')} loaded (${file.path}; ${enabled === 'static' ? 'static' : `${enabled ?? 'disabled'}; preset: enabled`})`);
-  const since = now.since !== undefined ? ` since ${systemdStamp(now.since)}; ${relativeText(w.now - now.since)}` : '';
+  const since = now.since !== undefined ? ` since ${state0(w).schedule ? stampOf(w.state, now.since) : systemdStamp(now.since)}; ${relativeText(w.now - now.since)}` : '';
   const state = now.active === 'failed' ? `failed (Result: ${now.result})` : now.active === 'activating' ? `activating (auto-restart) (Result: ${now.result})` : `${now.active} (${now.sub})`;
   io.out(`${label('Active')} ${state}${since}`);
   if (now.exit && now.active !== 'active') {
@@ -500,10 +643,12 @@ export function systemctl(state: FsState, args: readonly string[], io: SysIo): {
   if (!state.services) { io.err('System has not been booted with systemd as init system (PID 1). Can\'t operate.'); io.err('Failed to connect to bus: Host is down'); return { state, status: 1 }; }
   const o = getopt(args, 'at:qln:\x02:', { all: 'a', type: 't', now: '\x01', state: '\x02', failed: '\x03', 'no-pager': '\x04', quiet: 'q', full: 'l', lines: 'n', 'no-legend': '\x05' });
   if ('error' in o) { io.err(`systemctl: ${o.error}`); return { state, status: 1 }; }
-  const type = o.flags.get('t')?.at(-1);
-  if (type !== undefined && type !== 'service') { io.err(`模擬環境只有 service 類型的 unit（--type=${type} 不支援）`); return { state, status: 1 }; }
-  const [verb = 'list-units', ...rawUnits] = o.operands, units = rawUnits.map(unitName);
-  const w = begin(state), root = io.user === 'root';
+  const type = o.flags.get('t')?.at(-1), timers = timersOn(state);
+  if (type !== undefined && type !== 'service' && !(timers && type === 'timer')) { io.err(`模擬環境只有 service${timers ? ' 與 timer' : ''} 類型的 unit（--type=${type} 不支援）`); return { state, status: 1 }; }
+  const [verb = 'list-units', ...rawUnits] = o.operands;
+  const w = begin(state, io.script), root = io.user === 'root';
+  // E7: a name that is only an Alias= of a loaded unit (sshd → ssh.service) means that unit.
+  const units = rawUnits.map(unitName).map(n => findUnitFile(w.nodes, n) ? n : Object.keys(w.loaded).find(k => parseUnit(w.loaded[k]).alias.includes(n)) ?? n);
   const result = (status: number) => ({ state: finish(w), status });
   const needUnits = () => { if (units.length) return false; io.err(`Too few arguments.`); return true; };
   switch (verb) {
@@ -518,6 +663,7 @@ export function systemctl(state: FsState, args: readonly string[], io: SysIo): {
         const c = parseUnit(file);
         if (verb === 'stop') { stop(w, name); continue; }
         if (verb === 'reload') {
+          if (name.endsWith('.timer')) { io.err(`Failed to reload ${name}: Job type reload is not applicable for unit ${name}.`); status = 1; continue; }
           if (w.runtime[name]?.active !== 'active') { io.err(`${name} is not active, cannot reload.`); status = 1; continue; }
           if (!c.execReload) { io.err(`Failed to reload ${name}: Job type reload is not applicable for unit ${name}.`); status = 1; continue; }
           sys(w, name, 6, `Reloading ${titleOf(name, c)}...`);
@@ -532,6 +678,7 @@ export function systemctl(state: FsState, args: readonly string[], io: SysIo): {
         if (r.why === 'not-found') io.err(`Failed to ${verb} ${name}: Unit ${r.unit} not found.`);
         else if (r.why === 'bad') { io.err(`Failed to ${verb} ${name}: Unit ${name} has a bad unit file setting.`); io.err(`See system logs and 'systemctl status ${name}' for details.`); }
         else if (r.why === 'dependency') io.err(`A dependency job for ${name} failed. See 'journalctl -xe' for details.`);
+        else if (r.why === 'resources') { io.err(`Job for ${name} failed because of unavailable resources or another system error.`); io.err(`See "systemctl status ${name}" and "journalctl -xeu ${name}" for details.`); }
         else { io.err(`Job for ${name} failed because the control process exited with error code.`); io.err(`See "systemctl status ${name}" and "journalctl -xeu ${name}" for details.`); }
       }
       return result(status);
@@ -603,9 +750,14 @@ export function systemctl(state: FsState, args: readonly string[], io: SysIo): {
       });
       return { state, status };
     }
+    case 'list-timers': {
+      if (!timers) { io.err(`Unknown command verb '${verb}'.`); return { state, status: 1 }; }
+      listTimers(w, o.flags.has('a'), io);
+      return result(0);
+    }
     case 'list-units': {
       const filter = o.flags.has('\x03') ? 'failed' : o.flags.get('\x02')?.at(-1);
-      const names = [...new Set([...Object.keys(w.loaded), ...unitFilesOnDisk(w.nodes)])].sort();
+      const names = [...new Set([...Object.keys(w.loaded), ...unitFilesOnDisk(w.nodes, timers)])].filter(n => !type || n.endsWith(`.${type}`)).sort();
       const rows = names.map(name => {
         const file = load(w, name)!, c = parseUnit(file), r = w.runtime[name] ?? { active: 'inactive', sub: 'dead' };
         return { name, cells: [name, c.bad ? 'bad-setting' : 'loaded', r.active, r.sub, c.description ?? name], failed: r.active === 'failed' };
@@ -623,7 +775,7 @@ export function systemctl(state: FsState, args: readonly string[], io: SysIo): {
       return result(0);
     }
     case 'list-unit-files': {
-      const names = unitFilesOnDisk(w.nodes);
+      const names = unitFilesOnDisk(w.nodes, timers).filter(n => !type || n.endsWith(`.${type}`));
       const rows = names.map(name => { const e = enablement(w.nodes, name)!; return [name, e, e === 'static' ? '-' : 'enabled']; });
       grid([['UNIT FILE', 'STATE', 'PRESET'], ...rows]).forEach(l => io.out(l));
       io.out('');
@@ -669,10 +821,13 @@ export function journalctl(state: FsState, args: readonly string[], io: SysIo): 
     if (!r) { io.err(`Failed to parse priority value: ${one('p')}`); return 1; }
     range = r;
   }
+  const zone = zoneOf(state);
   const when = (f: string) => {
     const text = one(f);
     if (text === undefined) return { t: undefined as Seconds | undefined };
-    const t = parseWhen(text, now);
+    // E9: an absolute time is the machine's local time (UTC without a zone, as before).
+    const local = state.schedule ? parseWhen(text, toLocal(zone, now)) : undefined;
+    const t = state.schedule ? local === undefined ? undefined : /^[+-]|ago$|^now$/.test(text.trim()) ? now + (local - toLocal(zone, now)) : fromLocal(zone, local)[0] ?? local - zone.offset : parseWhen(text, now);
     return t === undefined ? { error: `Failed to parse timestamp: ${text}` } : { t };
   };
   const since = when('S'), until = when('U');
