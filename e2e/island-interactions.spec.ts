@@ -16,7 +16,8 @@ test('every published island\'s syllabus anchor exists on /curriculum and lands 
   // programming-languages: PL01–PL05 published in course production batch 1.
   // CN-1 (2026-11-22): the computer-networks island opened with CN01–CN05; AIF-1 opened the AI foundations island; LNX-1 the Linux systems island.
   // SRV-1 opened the network and servers island; LLM-1 the large-language-models island, GEN-1 the generative-ai island and WEB-1 the web foundations island (in region order: ai, web, sys).
-  expect(published.map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'large-language-models', 'generative-ai', 'web-foundations', 'linux-systems', 'network-servers']);
+  // DKR-1 opened the Docker containers island, between the Linux systems and network servers islands (the world's order).
+  expect(published.map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'large-language-models', 'generative-ai', 'web-foundations', 'linux-systems', 'docker-containers', 'network-servers']);
   for (const island of published) {
     await page.goto(`/curriculum#island-${island.id}`);
     const heading = page.locator(`#island-${island.id}`);
@@ -87,7 +88,8 @@ test.describe('region map (flag on)', () => {
   });
 
   test('a planned island has no place list and no course entry, in any region', async ({ page }) => {
-    for (const [region, island] of [['cs', 'systems-analysis'], ['ai', 'machine-learning'], ['design', 'ui-design'], ['web', 'frontend'], ['sys', 'docker-containers']] as const) {
+    // DKR-1 opened docker-containers, so the systems region's example is cloud-infrastructure (still planned).
+    for (const [region, island] of [['cs', 'systems-analysis'], ['ai', 'machine-learning'], ['design', 'ui-design'], ['web', 'frontend'], ['sys', 'cloud-infrastructure']] as const) {
       await openRegion(page, `/world/${region}?island=${island}`);
       await expect(page.getByRole('region', { name: /地點$/ })).toHaveCount(0);
       await expect(page.locator('button[data-route]')).toHaveCount(0);

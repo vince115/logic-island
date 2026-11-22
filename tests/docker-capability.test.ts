@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { curriculum, lessons } from '@/content/curriculum';
+import { curriculum, getLessonBySlug, lessons } from '@/content/curriculum';
 import { dockerFromBlueprint, serverFromBlueprint, terminalFromBlueprint } from '@/content/curriculum/lessons';
 import { ISLAND_IDS, ISLAND_PREFIX, PREPARED_ISLAND_IDS, validateContent, validateCurriculum, type LessonContent, type LessonMeta } from '@/content/curriculum/schema';
 import { UNITS } from '@/content/curriculum/units';
@@ -13,8 +13,10 @@ import { validateTerminalLessonsFirst } from './support/terminal-replays';
 /*
  * DKR-0 (docs/curriculum/DKR0_CONTAINER_CAPABILITY.md): the docker-containers island prepared for authoring on the existing
  * terminal capability (engine stage E20, the containers profile) and network-protocol scenes. dockerFromBlueprint maps the
- * five blueprint activities; a synthetic DKR04 lesson (a Docker host, transcripts and two exercises) validates; it is
- * refused while the island is prepared; nothing is published and the other islands' mappings are unchanged.
+ * five blueprint activities; a synthetic DKR04 lesson (a Docker host, transcripts and two exercises) validates; the other
+ * islands' mappings are unchanged. DKR-1 publishes the island (DKR01–DKR04), between linux-systems and network-servers.
+ * DKR-1 dropped the test that a synthetic DKR04 was refused while the island was prepared: no island is prepared any more,
+ * so it cannot be built; network-capability.test.ts keeps the refusal of a lesson outside the curriculum islands.
  */
 const outline = dockerFromBlueprint('DKR04', '用 docker run、ps、logs、exec 與 -p 管理容器（測試用大綱）。', 55);
 const meta: LessonMeta = {
@@ -72,23 +74,42 @@ describe('a synthetic DKR04 lesson', () => {
     void _t;
     expect(validateContent(meta, withoutTerminal, curriculum.visualizations).join('\n')).toContain('terminal');
   });
-  it('is refused while the island is prepared for authoring', () => {
-    const problems = validateCurriculum({ ...curriculum, lessons: [...lessons, meta], contents: { ...curriculum.contents, DKR04: content() } }).join('\n');
-    expect(problems).toContain('docker-containers is prepared for authoring, not a curriculum island yet');
-  });
 });
 
-describe('the docker-containers island: prepared in DKR-0', () => {
-  it('is prepared with its prefix and no units, lessons or pages; its 15 outlines stay planned', () => {
-    expect(PREPARED_ISLAND_IDS).toEqual(['docker-containers']);
-    expect(ISLAND_IDS).not.toContain('docker-containers');
+describe('the docker-containers island: prepared in DKR-0, published from DKR-1', () => {
+  it('is a curriculum island between linux-systems and network-servers with its first lessons written in id order and in its unit; the rest stay planned outlines without a page', () => {
+    expect(PREPARED_ISLAND_IDS).not.toContain('docker-containers');
+    expect(ISLAND_IDS).toContain('docker-containers');
+    expect(ISLAND_IDS.indexOf('docker-containers')).toBe(ISLAND_IDS.indexOf('linux-systems') + 1);
+    expect(ISLAND_IDS.indexOf('network-servers')).toBe(ISLAND_IDS.indexOf('docker-containers') + 1);
     expect(ISLAND_PREFIX['docker-containers']).toBe('DKR');
-    expect(UNITS['docker-containers']).toEqual([]);
-    expect(lessons.filter(l => l.islandId === 'docker-containers')).toEqual([]);
-    const planned = lessonsOfIsland('docker-containers');
-    expect(planned.map(l => l.lessonId)).toEqual(Array.from({ length: 15 }, (_, i) => `DKR${String(i + 1).padStart(2, '0')}`));
-    expect(planned.every(l => l.lessonStatus === 'planned' && !l.href)).toBe(true);
-    expect(getIsland('docker-containers')).toMatchObject({ status: 'planned' });
+    const written = lessons.filter(l => l.islandId === 'docker-containers');
+    expect(written.map(l => l.lessonId)).toEqual(written.map((_, i) => `DKR${String(i + 1).padStart(2, '0')}`));
+    expect(written.length).toBeGreaterThanOrEqual(4);
+    // DKR-1: one unit, DKR01–DKR04.
+    expect(UNITS['docker-containers'][0]).toMatchObject({ title: '容器與 Docker 入門', lessonIds: ['DKR01', 'DKR02', 'DKR03', 'DKR04'] });
+    expect(UNITS['docker-containers'].flatMap(u => u.lessonIds)).toEqual(written.map(l => l.lessonId));
+    // Every written lesson has its terminal content and its page; the architecture overviews add a network scene.
+    for (const l of written) {
+      expect(curriculum.contents[l.lessonId]?.terminal, l.lessonId).toBeDefined();
+      expect(getLessonBySlug(l.slug)?.lessonId, l.slug).toBe(l.lessonId);
+    }
+    expect(written.slice(0, 4).map(l => [l.lessonId, l.capabilities, l.activity, !!curriculum.contents[l.lessonId]?.network])).toEqual([
+      ['DKR01', ['terminal', 'network-protocol'], 'network-sequence', true],
+      ['DKR02', ['terminal', 'network-protocol'], 'network-sequence', true],
+      ['DKR03', ['terminal'], 'terminal-sim', false],
+      ['DKR04', ['terminal'], 'terminal-sim', false],
+    ]);
+    const outline = lessonsOfIsland('docker-containers');
+    expect(outline.map(l => l.lessonId)).toEqual(Array.from({ length: 15 }, (_, i) => `DKR${String(i + 1).padStart(2, '0')}`));
+    expect(outline.slice(0, written.length).every(l => l.lessonStatus === 'complete' && l.href === `/curriculum/${l.slug}`)).toBe(true);
+    for (const l of outline.slice(written.length)) {
+      expect(l.lessonStatus, l.lessonId).toBe('planned');
+      expect(l.href, l.lessonId).toBeUndefined();
+      expect(getLessonBySlug(l.slug), l.slug).toBeUndefined();
+    }
+    // Its lessons open on their own; its 3D landscape stays the planned one (IslandConfig.mapState, set by hand).
+    expect(getIsland('docker-containers')).toMatchObject({ status: written.length < 15 ? 'available' : 'complete', mapState: 'planned' });
   });
   it('leaves the curriculum valid', () => {
     expect(validateCurriculum(curriculum)).toEqual([]);

@@ -305,6 +305,62 @@ test('AI 群島入口：首頁「更多學習群島」→ 群島總覽，七座�
   expect((await page.request.get('/regions/labs')).status()).toBe(404);
 });
 
+// P6 added 系統與雲端工程群島 (six islands, no navigation groups). LNX-1 to LNX-5 opened Linux 系統島 (15 of 15), SRV-1 to
+// SRV-5 網路與伺服器島 (14 of 14) and DKR-1 Docker 容器島 (DKR01–DKR04 of 15): 33 of the region's 89 lessons.
+test('系統與雲端工程群島：首頁「更多學習群島」已開放 33／89 堂，群島總覽六座島，Linux 系統島與網路與伺服器島全部開放、Docker 容器島部分開放、其餘三座規劃中；側欄 Docker 容器島 4 堂可點、11 堂規劃中', async ({ page }, info) => {
+  const phone = info.project.name.startsWith('mobile');
+  if (!P9) {
+    await page.goto('/');
+    const more = page.getByRole('navigation', { name: '更多學習群島' });
+    if (!await more.isVisible()) await page.getByRole('button', { name: /清單/ }).first().click();
+    await expect(more.getByRole('link', { name: /系統與雲端工程群島/ })).toContainText('6 座主題島 · 已開放 33／89 堂');
+  }
+  await page.goto('/regions/sys');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('系統與雲端工程群島');
+  const main = page.locator('main');
+  await expect(main.locator('header').first()).toContainText('33 堂已開放');
+  await expect(main.locator('article')).toHaveCount(6);
+  // The complete islands say 已開放 and lead to their syllabus.
+  for (const [name, id, open] of [[/Linux 系統島/, 'linux-systems', 15], [/網路與伺服器島/, 'network-servers', 14]] as const) {
+    const card = main.getByRole('article', { name });
+    await expect(card).toContainText('已開放');
+    await expect(card).not.toContainText('部分開放');
+    await expect(card.getByRole('link')).toHaveAttribute('href', `/curriculum#island-${id}`);
+    await expect(card.getByRole('link')).toContainText(`${open} 堂已開放`);
+  }
+  // DKR-1: Docker 容器島 is open with 4 of its 15 lessons: its card says 部分開放 and leads to its syllabus, with no folded outline.
+  const docker = main.getByRole('article', { name: /Docker 容器島/ });
+  await expect(docker).toContainText('部分開放');
+  await expect(docker.getByRole('link')).toHaveAttribute('href', '/curriculum#island-docker-containers');
+  await expect(docker.getByRole('link')).toContainText('4 堂已開放');
+  await expect(docker.locator('details')).toHaveCount(0);
+  // CLD, CICD and KUB stay planned: each card's tag says 規劃中, and so does every lesson of their folded outlines (15 + 15 + 15).
+  await expect(main.locator('article > div:first-child').getByText('規劃中', { exact: true })).toHaveCount(3);
+  await expect(main.locator('article details').getByText('規劃中', { exact: true })).toHaveCount(45);
+  await expect(main.locator('a[href^="/curriculum/"]')).toHaveCount(0);
+  // Paths K, L and M lead mostly through the region; DKR01–DKR04 are on all three (K 39 → 43, L 25 → 29, M 20 → 24 open).
+  const paths = main.locator('section[aria-labelledby="region-paths"] li');
+  await expect(paths).toHaveCount(3);
+  await expect(paths.filter({ hasText: '全端部署' })).toContainText('路線共 62 堂 · 已開放 43 堂 · 其餘 19 堂規劃中');
+  await expect(paths.filter({ hasText: 'AI 基礎設施' })).toContainText('路線共 60 堂 · 已開放 29 堂 · 其餘 31 堂規劃中');
+  await expect(paths.filter({ hasText: '雲端與 DevOps 基礎' })).toContainText('路線共 48 堂 · 已開放 24 堂 · 其餘 24 堂規劃中');
+  // The sidebar: the region says 33／89 堂 and Docker 容器島 4／15 堂; its four lessons are links under 入門, the other 11 disabled rows.
+  const sidebar = page.locator('#site-sidebar');
+  if (phone) { await page.getByRole('button', { name: '選單' }).click(); await expect(sidebar).toBeVisible(); }
+  const tree = sidebar.getByRole('navigation', { name: '學習群島目錄' });
+  await expect(tree.getByRole('button', { name: /^系統與雲端工程群島/ })).toHaveAttribute('aria-expanded', 'true');
+  await expect(tree.getByRole('button', { name: /^系統與雲端工程群島/ })).toContainText('33／89 堂');
+  const dockerButton = tree.getByRole('button', { name: /^Docker 容器島/ });
+  await expect(dockerButton).toContainText('4／15 堂');
+  await dockerButton.click();
+  const dkr = tree.locator(`#${await dockerButton.getAttribute('aria-controls')}`);
+  await expect(dkr.locator('[aria-disabled="true"]')).toHaveCount(11);
+  await dkr.getByRole('button', { name: /^入門/ }).click();
+  await expect(dkr.locator('a[href^="/curriculum/"]')).toHaveCount(4);
+  for (const l of lessons.filter(l => l.islandId === 'docker-containers')) await expect(dkr.locator(`a[href="/curriculum/${l.slug}"]`), l.lessonId).toHaveCount(1);
+  if (phone) { await page.keyboard.press('Escape'); await expect(sidebar).toBeHidden(); }
+});
+
 // R7: Flexbox Playground — the preview is a real flex container that follows the controls, and the CSS matches it.
 test('Flexbox Playground：調整屬性後預覽與 CSS 同步，預設版面可一鍵套用，課程列為規劃中', async ({ page }) => {
   await page.goto('/learn/flexbox-playground');

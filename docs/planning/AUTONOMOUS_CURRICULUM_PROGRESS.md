@@ -13,7 +13,7 @@
 
 ## 總覽
 
-已發布 **189／520**（36.3%）；規劃中 331。
+已發布 **193／520**（37.1%）；規劃中 327。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
@@ -21,11 +21,11 @@
 | AI 人工智慧群島 | 25 | 135 | 15.6% |
 | 數位設計群島 | 0 | 56 | 0.0% |
 | 網頁與應用開發群島 | 15 | 40 | 27.3% |
-| 系統與雲端工程群島 | 29 | 60 | 32.6% |
+| 系統與雲端工程群島 | 33 | 56 | 37.1% |
 
 ## 下一批（自動選擇）
 
-目前沒有能力已備妥、先修已滿足的島嶼；先處理「能力缺口」的第一項。
+**Docker 容器島（DKR）**：DKR05 撰寫 Dockerfile、DKR06 Image 分層與建置快取、DKR07 Volume 與資料保存、DKR08 容器網路、DKR09 Docker Compose 多容器應用。島嶼能力：已備妥（可開始撰寫）；這幾堂解鎖其他島的 23 堂。
 
 能力缺口中最優先的是 **機器學習島（ML）**：需要 python-code + data-explorer (fixed datasets, metrics computed in the browser)；先修已滿足、可依序撰寫的有 25 堂，前 5 堂解鎖其他島的 39 堂。
 
@@ -59,7 +59,7 @@
 | 網頁與應用開發群島 | 響應式設計島（RWD） | 0／12 | web-code + responsive simulator (the standalone lab exists) | 缺少 | RWD01–RWD12（12 堂） | 缺少課程能力 |
 | 網頁與應用開發群島 | 行動應用島（MOB） | 0／13 | web-code + case-analysis | 缺少 | — | 缺少課程能力；MOB01 需要尚未發布的 RWD01 |
 | 系統與雲端工程群島 | Linux 系統島（LNX） | 15／15 | terminal (machines as data, transcripts replayed to their exact output, exercises checked by replaying the learner's commands in the simulated shell) | 可用 | 全島完成 | — |
-| 系統與雲端工程群島 | Docker 容器島（DKR） | 0／15 | container simulation | 缺少 | DKR01–DKR15（15 堂） | 缺少課程能力 |
+| 系統與雲端工程群島 | Docker 容器島（DKR） | 4／15 | terminal (engine stage E20 containers: images, the container lifecycle, a simulated Docker Hub, published ports, the docker group; then E21-E24) + network-protocol scenes; container-playground and case-study-board map to terminal-sim, architecture-diagram and pipeline-diagram to network-sequence | 已備妥（可開始撰寫） | DKR05–DKR15（11 堂） | — |
 | 系統與雲端工程群島 | 網路與伺服器島（SRV） | 14／14 | terminal (engine stages E10 sockets, E11 dns, E12 http, then E13-E19) + network-protocol scenes; request-path and architecture-diagram map to network-sequence | 可用 | 全島完成 | — |
 | 系統與雲端工程群島 | 雲端基礎設施島（CLD） | 0／15 | architecture simulation | 缺少 | CLD01–CLD15（15 堂） | 缺少課程能力 |
 | 系統與雲端工程群島 | DevOps 與 CI/CD 島（CICD） | 0／15 | pipeline simulation | 缺少 | CICD01–CICD05（5 堂） | 缺少課程能力；CICD06 需要尚未發布的 DKR11 |
@@ -72,7 +72,6 @@
 | 島嶼 | 需要的能力 | 可依序撰寫 | 解鎖其他島 | 備註 |
 |---|---|---|---|---|
 | 機器學習島（ML） | python-code + data-explorer (fixed datasets, metrics computed in the browser) | 25 | 39 | — |
-| Docker 容器島（DKR） | container simulation | 15 | 23 | — |
 | 系統分析與設計島（SA） | model-diagram (UML, DFD, BPMN, state and sequence models, checked by structure) | 20 | 20 | — |
 | 響應式設計島（RWD） | web-code + responsive simulator (the standalone lab exists) | 12 | 13 | — |
 | DevOps 與 CI/CD 島（CICD） | pipeline simulation | 5 | 7 | — |
@@ -97,9 +96,9 @@
 | 前端工程 | 22／62 | 否 |
 | 產品設計 | 0／56 | 否 |
 | AI 架構 | 23／66 | 否 |
-| 全端部署 | 39／62 | 否 |
-| AI 基礎設施 | 25／60 | 否 |
-| 雲端與 DevOps 基礎 | 20／48 | 否 |
+| 全端部署 | 43／62 | 否 |
+| AI 基礎設施 | 29／60 | 否 |
+| 雲端與 DevOps 基礎 | 24／48 | 否 |
 
 ## 先修依賴檢查
 
@@ -679,21 +678,21 @@
 
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
-| DKR01 | 容器概念：與虛擬機的差異 | 待能力 | LNX08 | architecture-diagram | 課程能力 |
-| DKR02 | Docker 架構：Client、Daemon 與 Registry | 待能力 | DKR01 | architecture-diagram | 課程能力、先修 DKR01 |
-| DKR03 | Image 與 Container 的生命週期 | 待能力 | DKR02 | container-playground | 課程能力、先修 DKR02 |
-| DKR04 | Docker CLI 常用指令 | 待能力 | DKR03 | container-playground | 課程能力、先修 DKR03 |
-| DKR05 | 撰寫 Dockerfile | 待能力 | DKR04、LNX09 | container-playground | 課程能力、先修 DKR04 |
-| DKR06 | Image 分層與建置快取 | 待能力 | DKR05 | container-playground | 課程能力、先修 DKR05 |
-| DKR07 | Volume 與資料保存 | 待能力 | DKR04、LNX07 | container-playground | 課程能力、先修 DKR04 |
-| DKR08 | 容器網路 | 待能力 | DKR04 | container-playground | 課程能力、先修 DKR04 |
-| DKR09 | Docker Compose 多容器應用 | 待能力 | DKR07、DKR08 | container-playground | 課程能力、先修 DKR07、DKR08 |
-| DKR10 | 多階段建置 | 待能力 | DKR06 | container-playground | 課程能力、先修 DKR06 |
-| DKR11 | Container Registry 與版本標籤 | 待能力 | DKR05 | pipeline-diagram | 課程能力、先修 DKR05 |
-| DKR12 | 容器安全 | 待能力 | DKR10、LNX07 | case-study-board | 課程能力、先修 DKR10 |
-| DKR13 | 容器除錯 | 待能力 | DKR09、LNX11 | container-playground | 課程能力、先修 DKR09 |
-| DKR14 | 健康檢查、資源限制與優雅關閉 | 待能力 | DKR13 | container-playground | 課程能力、先修 DKR13 |
-| DKR15 | Docker 容器島綜合專題：容器化並準備上線 | 待能力 | DKR11、DKR12、DKR14 | challenge-stages | 課程能力、先修 DKR11、DKR12、DKR14 |
+| DKR01 | 容器概念：與虛擬機的差異 | 已發布（閘門通過） | LNX08 | network-sequence | — |
+| DKR02 | Docker 架構：Client、Daemon 與 Registry | 已發布（閘門通過） | DKR01 | network-sequence | — |
+| DKR03 | Image 與 Container 的生命週期 | 已發布（閘門通過） | DKR02 | terminal-sim | — |
+| DKR04 | Docker CLI 常用指令 | 已發布（閘門通過） | DKR03 | terminal-sim | — |
+| DKR05 | 撰寫 Dockerfile | 大綱 | DKR04、LNX09 | container-playground | — |
+| DKR06 | Image 分層與建置快取 | 待先修 | DKR05 | container-playground | 先修 DKR05 |
+| DKR07 | Volume 與資料保存 | 大綱 | DKR04、LNX07 | container-playground | — |
+| DKR08 | 容器網路 | 大綱 | DKR04 | container-playground | — |
+| DKR09 | Docker Compose 多容器應用 | 待先修 | DKR07、DKR08 | container-playground | 先修 DKR07、DKR08 |
+| DKR10 | 多階段建置 | 待先修 | DKR06 | container-playground | 先修 DKR06 |
+| DKR11 | Container Registry 與版本標籤 | 待先修 | DKR05 | pipeline-diagram | 先修 DKR05 |
+| DKR12 | 容器安全 | 待先修 | DKR10、LNX07 | case-study-board | 先修 DKR10 |
+| DKR13 | 容器除錯 | 待先修 | DKR09、LNX11 | container-playground | 先修 DKR09 |
+| DKR14 | 健康檢查、資源限制與優雅關閉 | 待先修 | DKR13 | container-playground | 先修 DKR13 |
+| DKR15 | Docker 容器島綜合專題：容器化並準備上線 | 待先修 | DKR11、DKR12、DKR14 | challenge-stages | 先修 DKR11、DKR12、DKR14 |
 
 ### 系統與雲端工程群島 · 網路與伺服器島（SRV）
 

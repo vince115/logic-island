@@ -50,7 +50,7 @@ export const PYTHON_LANGUAGES = ['Python'] as const satisfies readonly Language[
 // LNX-1 (2026-11-22): the Linux systems island joins with LNX01–LNX04 (prepared in LNX-0).
 // WEB-1 (2026-11-23): the web foundations island joins with WEB01–WEB04 (prepared in WEB-0); in the world registry's order it comes before the systems region.
 // LLM-1 (2026-11-22): the large-language-models island joins with LLM01–LLM03 (prepared in LLM-0), after AI foundations in the AI region.
-export const ISLAND_IDS = ['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'large-language-models', 'generative-ai', 'web-foundations', 'linux-systems', 'network-servers'] as const;
+export const ISLAND_IDS = ['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'large-language-models', 'generative-ai', 'web-foundations', 'linux-systems', 'docker-containers', 'network-servers'] as const;
 /**
  * CN-0 (2026-11-21): islands registered for authoring before their first lesson is written. Their prefix and lesson
  * capability are known (so their lessons can be written and validated), but they are not curriculum islands yet: no
@@ -68,7 +68,8 @@ export const ISLAND_IDS = ['foundations', 'structures', 'algorithms', 'programmi
 // GEN-1 (2026-11-23): the generative-ai island joins with GEN01–GEN02 (prepared in LLM-0), after large-language-models.
 // DKR-0 (2026-11-23): the docker-containers island, written with the terminal capability (engine stage E20 containers on)
 // and network-protocol scenes for its architecture and pipeline overviews (docs/curriculum/DKR0_CONTAINER_CAPABILITY.md).
-export const PREPARED_ISLAND_IDS = ['docker-containers'] as const;
+// DKR-1 (2026-11-23): the docker-containers island joins with DKR01–DKR04, between the Linux systems and network servers islands (the world's order).
+export const PREPARED_ISLAND_IDS = [] as const;
 export type IslandId = typeof ISLAND_IDS[number] | typeof PREPARED_ISLAND_IDS[number];
 /**
  * F = 基礎程式島, D = 資料結構島, A = 演算法島, then a two-digit position (F01..F20). Phase F.0: the number is two digits in

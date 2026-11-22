@@ -6,11 +6,11 @@
 
 | 項目 | 數量 |
 |---|---|
-| 已發布課程 | 189 |
-| 規劃中課程 | 331 |
+| 已發布課程 | 193 |
+| 規劃中課程 | 327 |
 | 課程總數 | 520 |
-| 整體覆蓋率 | 36.3% |
-| 最近一批（第 32 批）完成 | 2 堂（GEN01、GEN02） |
+| 整體覆蓋率 | 37.1% |
+| 最近一批（第 33 批）完成 | 4 堂（DKR01、DKR02、DKR03、DKR04） |
 | 可完整學完的學習路線 | 2 條（APCS／資訊科學基礎、網路與系統）／12 條 |
 
 ## 批次
@@ -48,7 +48,8 @@
 | 29 | 2026-11-23 | WEB08、WEB09、WEB10 | `TBD` | #75 | 未合併 | 驗證器、發布閘門 182/182（併入 main 的 LLM-1 之後）、TypeScript、ESLint、Vitest 131 檔 3686 passed／9 skipped（含 Chromium：十堂網頁課的每個範例、參考解答、起始內容與常見錯誤，以及虛擬時鐘、載入順序與錯誤行號的測試）、Production build、E2E 桌機＋手機旗標關 461 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；e2e/webcode-lessons.spec.ts 在課程頁上把 40 個練習各做一遍）、測驗 24 題逐題複核、洩漏掃描 |
 | 30 | 2026-11-23 | WEB11、WEB12、WEB13 | `TBD` | — | 未合併 | 驗證器、發布閘門、TypeScript、ESLint、Vitest（併入 main 之前的 WEB-4 樹：131 檔 3694 passed／9 skipped，含 Chromium：十三堂網頁課的每個頁面，以及模擬伺服器、儲存空間、無障礙名稱／角色與 Tab 順序的測試）、Production build、E2E 桌機＋手機旗標關 467 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上 52 個練習各做一遍）；併入 main（LLM-1）後重跑 TypeScript、ESLint、完整 Vitest 與 E2E、測驗 24 題逐題複核、洩漏掃描 |
 | 31 | 2026-11-23 | WEB14、WEB15 | `TBD` | — | 未合併 | 驗證器、發布閘門、TypeScript、ESLint、Vitest（併入 main 之前的 WEB-5 樹：131 檔 3696 passed／9 skipped，含 Chromium：十五堂網頁課的每個頁面）、Production build、E2E 桌機＋手機旗標關 471 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上 61 個練習各做一遍）；併入 main（LLM-1）後重跑 TypeScript、ESLint、完整 Vitest 與 E2E、測驗 16 題逐題複核、洩漏掃描 |
-| 32 | 2026-11-23 | GEN01、GEN02 | `TBD` | — | 未合併 | TBD |
+| 32 | 2026-11-23 | GEN01、GEN02 | `TBD` | #78 | `5e4f35f` | TBD |
+| 33 | 2026-11-23 | DKR01、DKR02、DKR03、DKR04 | `TBD` | — | 未合併 | TBD |
 
 ## 各區域與島嶼
 
@@ -78,7 +79,7 @@
 | 網頁與應用開發群島 | 響應式設計島 | RWD | 0 | 12 | 0.0% |
 | 網頁與應用開發群島 | 行動應用島 | MOB | 0 | 13 | 0.0% |
 | 系統與雲端工程群島 | Linux 系統島 | LNX | 15 | 0 | 100.0% |
-| 系統與雲端工程群島 | Docker 容器島 | DKR | 0 | 15 | 0.0% |
+| 系統與雲端工程群島 | Docker 容器島 | DKR | 4 | 11 | 26.7% |
 | 系統與雲端工程群島 | 網路與伺服器島 | SRV | 14 | 0 | 100.0% |
 | 系統與雲端工程群島 | 雲端基礎設施島 | CLD | 0 | 15 | 0.0% |
 | 系統與雲端工程群島 | DevOps 與 CI/CD 島 | CICD | 0 | 15 | 0.0% |
@@ -297,8 +298,8 @@
 
 | 課程 | 名稱 | 製作狀態 | 教材完成度 | 互動 | 測試（發布閘門） | Commit | 發布狀態 |
 |---|---|---|---|---|---|---|---|
-| GEN01 | 生成模型概觀 | 完成 | 100% | 活動 sampling-explorer | 通過 | `TBD` | 已完成（待合併） |
-| GEN02 | 自回歸生成模型 | 完成 | 100% | 活動 sampling-explorer | 通過 | `TBD` | 已完成（待合併） |
+| GEN01 | 生成模型概觀 | 完成 | 100% | 活動 sampling-explorer | 通過 | `TBD` | 已發布 |
+| GEN02 | 自回歸生成模型 | 完成 | 100% | 活動 sampling-explorer | 通過 | `TBD` | 已發布 |
 | GEN03 | 自編碼器與 VAE | 規劃中 | 大綱 | — | — | — | 規劃中 |
 | GEN04 | GAN 生成對抗網路 | 規劃中 | 大綱 | — | — | — | 規劃中 |
 | GEN05 | 擴散模型 | 規劃中 | 大綱 | — | — | — | 規劃中 |
@@ -357,6 +358,26 @@
 | LNX13 | Bash Script 撰寫 | 完成 | 100% | 活動 terminal-sim | 通過 | `9b8d25f` | 已發布 |
 | LNX14 | 排程：cron 與 systemd timer | 完成 | 100% | 活動 terminal-sim | 通過 | `9b8d25f` | 已發布 |
 | LNX15 | Linux 系統島綜合專題：維護一台伺服器 | 完成 | 100% | 活動 challenge-stages | 通過 | `81b5427` | 已發布 |
+
+### 系統與雲端工程群島 · Docker 容器島（DKR）
+
+| 課程 | 名稱 | 製作狀態 | 教材完成度 | 互動 | 測試（發布閘門） | Commit | 發布狀態 |
+|---|---|---|---|---|---|---|---|
+| DKR01 | 容器概念：與虛擬機的差異 | 完成 | 100% | 活動 network-sequence | 通過 | `TBD` | 已完成（待合併） |
+| DKR02 | Docker 架構：Client、Daemon 與 Registry | 完成 | 100% | 活動 network-sequence | 通過 | `TBD` | 已完成（待合併） |
+| DKR03 | Image 與 Container 的生命週期 | 完成 | 100% | 活動 terminal-sim | 通過 | `TBD` | 已完成（待合併） |
+| DKR04 | Docker CLI 常用指令 | 完成 | 100% | 活動 terminal-sim | 通過 | `TBD` | 已完成（待合併） |
+| DKR05 | 撰寫 Dockerfile | 規劃中 | 大綱 | — | — | — | 規劃中 |
+| DKR06 | Image 分層與建置快取 | 規劃中 | 大綱 | — | — | — | 規劃中 |
+| DKR07 | Volume 與資料保存 | 規劃中 | 大綱 | — | — | — | 規劃中 |
+| DKR08 | 容器網路 | 規劃中 | 大綱 | — | — | — | 規劃中 |
+| DKR09 | Docker Compose 多容器應用 | 規劃中 | 大綱 | — | — | — | 規劃中 |
+| DKR10 | 多階段建置 | 規劃中 | 大綱 | — | — | — | 規劃中 |
+| DKR11 | Container Registry 與版本標籤 | 規劃中 | 大綱 | — | — | — | 規劃中 |
+| DKR12 | 容器安全 | 規劃中 | 大綱 | — | — | — | 規劃中 |
+| DKR13 | 容器除錯 | 規劃中 | 大綱 | — | — | — | 規劃中 |
+| DKR14 | 健康檢查、資源限制與優雅關閉 | 規劃中 | 大綱 | — | — | — | 規劃中 |
+| DKR15 | Docker 容器島綜合專題：容器化並準備上線 | 規劃中 | 大綱 | — | — | — | 規劃中 |
 
 ### 系統與雲端工程群島 · 網路與伺服器島（SRV）
 
