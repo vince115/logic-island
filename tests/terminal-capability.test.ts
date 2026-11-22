@@ -54,6 +54,15 @@ describe('the terminal capability', () => {
     expect(problems).toMatch(/LNX01: exercise backup needs a statement and hints/);
     expect(problems).toMatch(/LNX01: example tour is never shown/);
   });
+  it('remembers a replay per terminal content object, and replays a changed copy again (SRV-3)', () => {
+    const good = content();
+    expect(validateContent(meta, good, curriculum.visualizations)).toEqual([]);
+    expect(validateContent(meta, good, curriculum.visualizations)).toEqual([]);
+    const changed = structuredClone(good);
+    changed.terminal!.examples[0].steps[0].output = '/root';
+    expect(validateContent(meta, changed, curriculum.visualizations).join('\n')).toMatch(/LNX01: example tour: step 1 \(pwd\) prints "\/home\/learner", not "\/root"/);
+    expect(validateContent(meta, good, curriculum.visualizations)).toEqual([]);
+  });
   it('maps the blueprint activities: terminal-sim stays, the overview uses the terminal, SSH adds network scenes, the capstone its stages', () => {
     expect(terminalFromBlueprint('LNX04', 's', 50)).toMatchObject({ activity: 'terminal-sim', capabilities: ['terminal'], visualization: 'none', blueprintId: 'LNX04' });
     expect(terminalFromBlueprint('LNX01', 's', 40)).toMatchObject({ activity: 'terminal-sim', capabilities: ['terminal'] });
