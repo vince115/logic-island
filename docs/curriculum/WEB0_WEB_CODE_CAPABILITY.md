@@ -31,7 +31,7 @@
 
 ```ts
 webCode: {
-  examples: [{ id, title, description, files: { html, css?, js? }, observe: WebStep[], height?, expectErrors?, viewport? }],
+  examples: [{ id, title, description, files: { html, css?, js? }, observe: WebStep[], height?, expectErrors?, viewport?, widths? }],
   exercises: [{ id, title, statement, hints, explanation,
     fixed?: { html?, css?, js? },      // 學習者不能改的檔案
     starter: { html?, css?, js? },     // 學習者要完成的檔案（一開始看到的內容）
@@ -39,7 +39,7 @@ webCode: {
     steps: WebStep[],                  // 操作與檢查，依序在一份全新的頁面上執行
     mistakes: [{ files, why }],        // 常見錯誤：必須有一項檢查不通過
     variants?: [{ title, fixed, steps }],  // 換一份固定檔案再檢查一次（只顯示通過與否）
-    viewport? }],
+    viewport?, widths? }],            // widths：預覽可切換的寬度（RWD-0）
 }
 ```
 
@@ -58,6 +58,7 @@ webCode: {
 | `submit` | 和送出按鈕相同的 `requestSubmit`（先原生驗證，再 `submit` 事件） |
 | `tab` | 按下 Tab（`shift: true` 是 Shift+Tab）（W5）：先把 `keydown` 送給目前有焦點的元素（頁面取消它就不移動，可用來做焦點陷阱），再把焦點移到 Tab 順序的下一個：正數 `tabindex` 在前，其餘依文件順序；停用、隱藏與 `tabindex="-1"` 的元素略過，一組選項按鈕只停一次 |
 | `scroll` | 把頁面（`selector: ':page'`）或可捲動的元素捲到指定的垂直位置（WEB-2） |
+| `resize` | 把檢查頁面的視窗改成另一個寬度（240–1600，可同時指定高度 200–1200）（RWD-0）：同一份頁面在新的寬度重新排版，媒體查詢、百分比、`vw`、flex 換行、grid 的 `auto-fit` 與容器查詢都會跟著變，頁面自己的指令稿也看得到新的 `innerWidth` 與 `resize` 事件 |
 | `dispatch` | 在元素上觸發任何型別的事件（`mouseover`、`dblclick`、自訂事件；會冒泡，本來就不冒泡的 `mouseenter`、`focus` 等除外）（WEB-3） |
 | `wait` | 讓頁面的計時器執行這麼久（每步最多 10000 ms，全部最多 60000 ms）。檢查用的是虛擬時鐘（W2，WEB-3）：不會真的等待，計時器依時間先後、同時間依設定的先後執行，Promise 的回呼在計時器之間照常執行；第一步之前，延遲 0 的計時器已經執行過。預覽裡的計時器是真的。`Date.now()` 不是虛擬的 |
 
@@ -94,9 +95,13 @@ webCode: {
 
 ### 檢查怎麼執行
 
-「檢查」不看預覽，而是把目前的檔案載入一份**全新、固定大小**的頁面（預設 600 × 400 CSS 像素，練習可指定 `viewport`），放在畫面外，依序執行步驟後移除。因此結果和螢幕大小、和學習者在預覽裡點過什麼都無關；之後的響應式課程可以用不同的 `viewport` 檢查同一份答案。有 `variants` 的練習會再用另一份固定檔案（頁面裡不同的資料）執行一次，確認答案不是寫死的；這一部分只顯示通過與否。
+「檢查」不看預覽，而是把目前的檔案載入一份**全新、固定大小**的頁面（預設 600 × 400 CSS 像素，練習可指定 `viewport`），放在畫面外，依序執行步驟後移除。因此結果和螢幕大小、和學習者在預覽裡點過什麼都無關；響應式課程用 `resize` 步驟在同一次檢查裡換寬度（見下）。有 `variants` 的練習會再用另一份固定檔案（頁面裡不同的資料）執行一次，確認答案不是寫死的；這一部分只顯示通過與否。
 
 未捕捉的錯誤若發生在 `script.js`，主控台會附上行號（「…（script.js 第 3 行）」）。
+
+**在多個寬度檢查同一份答案（RWD-0）。** 框架不能改變自己的大小，所以 `resize` 步驟由框架向父頁要求：父頁（`runFrameJob`）改變畫面外那個框架的寬高後回覆，框架強制重新計算版面，再繼續下一步。步驟寫成「在第一個寬度檢查 → `resize` → 在下一個寬度檢查…」，每一步都列在課程頁上（「把頁面的寬度改成 1024px」）。`resize` 若沒有成功（父頁 2 秒內沒有回覆），之後的檢查一律不通過並說明原因，直到下一次 `resize` 成功為止：在錯的寬度量到的結果不算數。變體仍然各自從練習的 `viewport` 開始。
+
+**捲軸不佔寬度（RWD-1）。** 檢查用的框架剛好是視窗的大小。在捲軸會佔位置的系統上，比檢查視窗高的頁面原本會窄約 15px（360px 的視窗只剩 345px），寫對的答案會在寬度檢查失敗。所以檢查框架不畫自己的捲軸（harness 以文件採用的樣式表設定 `scrollbar-width: none`，不在頁面上加任何元素或屬性；頁面仍然可以捲動），媒體查詢看到的寬度和排版的寬度一致。頁面裡自己會捲動的元素不受影響。預覽不做這件事。
 
 載入或檢查超過 6 秒視為逾時，所有檢查以「頁面沒有在時間內完成載入與檢查」不通過。
 
@@ -123,6 +128,7 @@ webCode: {
 
 - **範例**：檔案以程式碼顯示（伺服器端上色，新增 HTML 與 CSS 的語法上色），旁邊是在沙盒框架裡執行的頁面；下方是分頁標題、主控台輸出、連結與表單的去向，以及「瀏覽器建立的 DOM 樹」（瀏覽器補上的 `tbody`、自動結束的 `p` 都看得到）。「動手改這個範例」可以修改檔案並重新執行。
 - **練習**：固定的檔案唯讀顯示；可編輯的檔案各有一個有標籤的編輯區；「執行」更新預覽，「檢查」執行步驟，「重設」回到起始內容。步驟清單在檢查前就看得到，結果寫在同一份清單與 `aria-live="polite"` 的區域。
+- **預覽寬度（RWD-0）**：範例或練習有 `widths`（1–5 個 240–1600 的整數）時，預覽上方有一組按鈕（`role="group"`，目前的選項以 `aria-pressed` 標示）：每個寬度一顆，加上「填滿欄位」。選了寬度，框架就真的是那麼寬（裡面的頁面依那個寬度排版，媒體查詢看得到），欄位比較窄時用 `transform: scale()` 縮小顯示，並寫出「頁面寬 1024px，縮小成 40% 顯示」；切換寬度不會重新載入頁面，頁面變高時框架跟著長高。一開始顯示第一個寬度。
 - **無障礙**：編輯區是原生 `textarea`，Tab 鍵照常移動焦點（沒有鍵盤陷阱）；檢查進行中按鈕用 `aria-disabled` 而不是 `disabled`，焦點留在按鈕上；框架有 `title`；通過與否除了顏色還有文字與圖示。沒有動畫，不需要為 `prefers-reduced-motion` 另外處理（頁面自己的 CSS 看得到讀者的設定）。
 - **手機**：程式碼與預覽在 760px 以下改為上下排列；長行在自己的區塊內捲動，頁面不會橫向捲動；觸控裝置的編輯區字級為 16px（避免聚焦時縮放）。
 
@@ -148,6 +154,7 @@ Chromium 是 Playwright 的 headless Chromium，頁面的載入方式和課程�
 - 迴圈保護不涵蓋行內事件屬性、無窮遞迴的 Promise 與 `for…of` 無限的產生器；這些情況仍可能讓分頁沒有回應，重新整理即可。
 - 鍵盤操作是指令稿產生的事件，只模擬 §3 列出的預設行為；Tab 移動焦點不模擬。
 - `input` 操作以程式設定欄位的值：瀏覽器只對使用者親手輸入的文字套用 `minlength`／`maxlength` 的驗證，所以這兩個屬性無法用檢查重現。
+- 響應式課程（RWD-0）：檢查與預覽改變的只有視窗的寬高。裝置像素比固定（頁面沒有網路，`srcset` 選了哪一張圖看不出來，只能檢查標記）、使用者縮放、`prefers-color-scheme` 與 `prefers-reduced-motion` 不能在檢查裡切換、沒有觸控事件與螢幕方向；手機瀏覽器在沒有 viewport meta 時的虛擬視窗也無法重現（預覽一律是 `width=device-width` 的行為）。
 - `navigated` 比對的是連結上寫的 `href`，不解析相對路徑；捲動位置沒有檢查。
 
 ## 9. 之後的引擎階段（依課程需要，向下相容）
@@ -159,6 +166,7 @@ Chromium 是 Playwright 的 headless Chromium，頁面的載入方式和課程�
 | W3（WEB-4 完成） | 框架裡固定回應的 `fetch`（路由、狀態碼、延遲、失敗）、`request` 檢查與預覽的請求清單 | WEB11 |
 | W4（WEB-4 完成） | 記憶體中的 `localStorage`、`sessionStorage` 與 Cookie、`storage`／`cookie` 檢查、預覽保留儲存的資料 | WEB12 |
 | W5（WEB-4 完成） | 無障礙檢查：`name`、`role`，以及 `tab` 操作的 Tab 順序 | WEB13 |
+| W7（RWD-0、RWD-1 完成） | `resize` 操作（同一份答案在多個寬度檢查）、預覽寬度切換 `widths`、切換後回報頁面高度；檢查框架不畫自己的捲軸 | RWD01– |
 | W6（未建立） | 載入時間軸與指標的模型（不是量測）。WEB14 改以頁面呈現順序與版面位移，量測交給真實的開發者工具；模型留在 [INTERACTIVE_LAB_ROADMAP](INTERACTIVE_LAB_ROADMAP.md) 的 `metric-explorer` | — |
 
 ## 10. 藍圖活動的對應（`webFromBlueprint`）
@@ -169,6 +177,10 @@ Chromium 是 Playwright 的 headless Chromium，頁面的載入方式和課程�
 | `pipeline-diagram`、`concurrency-timeline`、`memory-inspector`、`a11y-checker`、`metric-explorer` | WEB01、WEB10、WEB12、WEB13、WEB14 | 這些互動尚未建立（見 [INTERACTIVE_LAB_ROADMAP](INTERACTIVE_LAB_ROADMAP.md)）；課改用頁面（`dom-explorer`），不放替身 |
 | `protocol-sequence` | WEB11 | `dom-explorer`，`['web-code']`（WEB-4 決定）：頁面向模擬伺服器送出請求，預覽列出每個請求與回應的狀態碼，這份清單就是請求與回應的順序，不另外加 `network-protocol` 情境 |
 | `challenge-stages` | WEB15 | `['web-code', 'visualization']` |
+
+### 響應式設計島（`responsiveFromBlueprint`，RWD-0）
+
+響應式設計島（RWD）是第二座以 `web-code` 撰寫的島。藍圖的 `responsive-sim`、`flexbox-playground`、`grid-playground`、`mobile-nav-sim` 是 `/learn` 底下既有的獨立實驗（課文以「互動實驗島」提到它們，作為延伸練習）；課程頁裡的活動一律是 `dom-explorer`、`['web-code']`：可切換寬度的預覽，加上在多個寬度檢查的練習。綜合專題（`challenge-stages`）是 `['web-code', 'visualization']`。各課的範圍與批次見 [RESPONSIVE_DESIGN_ISLAND](RESPONSIVE_DESIGN_ISLAND.md)。
 
 ## 11. 批次規劃（依編號連續發布）
 

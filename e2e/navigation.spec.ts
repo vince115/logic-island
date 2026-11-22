@@ -272,7 +272,7 @@ test('AI 群島入口：首頁「更多學習群島」→ 群島總覽，七座�
   // A path's length is lessons to take, never lessons written: the open and planned counts are spelled out (R7).
   await expect(paths.filter({ hasText: 'AI 架構' })).toContainText('路線共 66 堂 · 已開放 23 堂 · 其餘 43 堂規劃中');
   await page.goto('/regions/web');
-  await expect(page.locator('section[aria-labelledby="region-paths"] li')).toHaveText([/前端工程.*路線共 62 堂 · 已開放 22 堂 · 其餘 40 堂規劃中/]);
+  await expect(page.locator('section[aria-labelledby="region-paths"] li')).toHaveText([/前端工程.*路線共 62 堂 · 已開放 26 堂 · 其餘 36 堂規劃中/]);
   await page.goto('/regions/ai');
   await expect(page.getByRole('navigation', { name: '麵包屑' })).toHaveText(/探索群島.*五大群島.*AI 人工智慧群島/);
   const sidebar = page.locator('#site-sidebar');
@@ -289,7 +289,7 @@ test('AI 群島入口：首頁「更多學習群島」→ 群島總覽，七座�
 });
 
 // R7: Flexbox Playground — the preview is a real flex container that follows the controls, and the CSS matches it.
-test('Flexbox Playground：調整屬性後預覽與 CSS 同步，預設版面可一鍵套用，課程列為規劃中', async ({ page }) => {
+test('Flexbox Playground：調整屬性後預覽與 CSS 同步，預設版面可一鍵套用，已發布的課程是連結', async ({ page }) => {
   await page.goto('/learn/flexbox-playground');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Flexbox Playground');
   const preview = page.getByTestId('flex-preview'), css = page.locator('pre code');
@@ -311,8 +311,11 @@ test('Flexbox Playground：調整屬性後預覽與 CSS 同步，預設版面可
   await expect(preview.locator('> div').nth(1)).toHaveCSS('flex-grow', '1');
   await expect(css).toContainText('.item:nth-child(2)');
   const lessons = page.getByRole('region', { name: '使用這個實驗的課程' });
+  // RWD-1: RWD03 and RWD04 are published (as web-code lessons); the lab links to them.
   await expect(lessons.getByText('RWD03')).toBeVisible();
-  await expect(lessons.locator('a')).toHaveCount(0);
+  await expect(lessons.getByRole('link', { name: /Flexbox 基礎/ })).toHaveAttribute('href', '/curriculum/flexbox-basics');
+  await expect(lessons.getByRole('link', { name: /Flexbox 進階/ })).toHaveAttribute('href', '/curriculum/flexbox-advanced');
+  await expect(lessons.locator('a')).toHaveCount(2);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
@@ -386,8 +389,11 @@ test('Responsive Layout Simulator：預覽框以真實寬度套用媒體查詢�
   await expect.poll(columns).toBe(4);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const lessons = page.getByRole('region', { name: '使用這個實驗的課程' });
+  // RWD-1: RWD01 and RWD02 are published and linked; the lessons still planned stay unlinked text.
   await expect(lessons.getByText('RWD01')).toBeVisible();
-  await expect(lessons.locator('a')).toHaveCount(0);
+  await expect(lessons.getByRole('link', { name: /響應式原則與行動優先/ })).toHaveAttribute('href', '/curriculum/responsive-principles-mobile-first');
+  await expect(lessons.locator('a')).toHaveCount(2);
+  await expect(lessons.getByText('RWD07')).toBeVisible();
 });
 
 // R8.3: Mobile Navigation Simulator — four working patterns, operated by keyboard, with measured touch targets.

@@ -154,4 +154,32 @@ describe('webContentProblems', () => {
       `exercise badge waits more than ${WEB_LIMITS.waitTotal} ms in all`, `exercise greet: html is longer than ${WEB_LIMITS.file} characters`,
     ]);
   });
+  it('accepts resize steps and preview widths within bounds, and names the ones outside them (RWD-0)', () => {
+    const c = webContent();
+    const check: WebStep = { check: 'count', selector: 'h1', count: 1, label: 'x' };
+    c.examples[0].widths = [360, 768, 1024];
+    c.exercises[0].widths = [360];
+    c.exercises[0].steps = [check, { do: 'resize', width: 240 }, check, { do: 'resize', width: 1600, height: 1200 }, check];
+    expect(webContentProblems(c)).toEqual([]);
+    c.examples[0].widths = [];
+    c.examples[1].widths = [200, 360];
+    c.exercises[0].widths = [320, 360, 480, 768, 1024, 1280];
+    c.exercises[1].widths = [360.5];
+    c.exercises[0].steps = [{ do: 'resize', width: 239 }, { do: 'resize', width: 1601 }, { do: 'resize', width: 800.5 }, { do: 'resize', width: 800, height: 199 }, { do: 'resize', width: 800, height: 1201 }, check];
+    const [first, second] = c.examples.map(e => e.id);
+    expect(webContentProblems(c)).toEqual([
+      `example ${first} offers 1–5 preview widths of 240–1600`, `example ${second} offers 1–5 preview widths of 240–1600`,
+      ...[1, 2, 3, 4, 5].map(n => `exercise heading: step ${n} resizes to a width of 240–1600 (and a height of 200–1200)`),
+      'exercise heading offers 1–5 preview widths of 240–1600', 'exercise badge offers 1–5 preview widths of 240–1600',
+    ]);
+  });
+  it('does not believe a check made after a resize that did not happen, until a later resize succeeds (RWD-0)', () => {
+    const steps: WebStep[] = [{ do: 'resize', width: 1024, height: 700 }, { check: 'count', selector: 'h1', count: 1, label: 'wide' }, { do: 'resize', width: 360 }, { check: 'count', selector: 'h1', count: 1, label: 'narrow' }];
+    expect(judge(steps, [{ ok: true }, { ok: true, actual: '1' }, { ok: true }, { ok: true, actual: '1' }]).map(r => r.ok)).toEqual([true, true]);
+    // The first resize failed: the check after it would have measured the page at the old width.
+    expect(judge(steps, [{ ok: false }, { ok: true, actual: '1' }, { ok: true }, { ok: false, actual: '2' }])).toEqual([
+      { label: 'wide', ok: false, message: '無法把頁面的寬度改成 1024px、高度 700px：這個操作無法執行。' }, { label: 'narrow', ok: false, message: '目前有 2 個 `h1`。' }]);
+    expect(judge(steps, [{ ok: true }, { ok: true, actual: '1' }, { ok: false }, { ok: true, actual: '1' }]).map(r => [r.ok, r.message])).toEqual([
+      [true, ''], [false, '無法把頁面的寬度改成 360px：這個操作無法執行。']]);
+  });
 });

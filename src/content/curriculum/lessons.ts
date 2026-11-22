@@ -429,16 +429,38 @@ const WEB_SHAPES: Readonly<Record<string, Pick<Outline, 'activity' | 'capabiliti
   // WEB-4: fetch (WEB11) is taught on pages whose requests a pretend server answers (engine stage W3); the page's list
   // of requests and answers is the sequence, so no network-protocol scene is added.
   'protocol-sequence': { activity: 'dom-explorer', capabilities: ['web-code'], visualization: 'none' },
+  // RWD-0: the responsive design island's activities.
+  'responsive-sim': { activity: 'dom-explorer', capabilities: ['web-code'], visualization: 'none' },
+  'flexbox-playground': { activity: 'dom-explorer', capabilities: ['web-code'], visualization: 'none' },
+  'grid-playground': { activity: 'dom-explorer', capabilities: ['web-code'], visualization: 'none' },
+  'mobile-nav-sim': { activity: 'dom-explorer', capabilities: ['web-code'], visualization: 'none' },
   'challenge-stages': { activity: 'challenge-stages', capabilities: ['web-code', 'visualization'], visualization: 'challenge-stages' },
 };
-export function webFromBlueprint(lessonId: string, summary: string, minutes: number): Outline {
+/** The blueprint activities each web-code island maps. */
+const WEB_ACTIVITIES: Readonly<Record<'web-foundations' | 'responsive-design', readonly string[]>> = {
+  'web-foundations': ['dom-explorer', 'pipeline-diagram', 'concurrency-timeline', 'memory-inspector', 'a11y-checker', 'metric-explorer', 'protocol-sequence', 'challenge-stages'],
+  'responsive-design': ['responsive-sim', 'flexbox-playground', 'grid-playground', 'mobile-nav-sim', 'challenge-stages'],
+};
+function webOutline(lessonId: string, summary: string, minutes: number, island: 'web-foundations' | 'responsive-design', what: string): Outline {
   const b = planning.plannedLessons.find(l => l.lessonId === lessonId);
-  if (!b || b.islandId !== 'web-foundations') throw new Error(`${lessonId} is not a web foundations lesson of the blueprint`);
-  const s = WEB_SHAPES[b.activity];
+  if (!b || b.islandId !== island) throw new Error(`${lessonId} is not a ${what} lesson of the blueprint`);
+  const s = WEB_ACTIVITIES[island].includes(b.activity) ? WEB_SHAPES[b.activity] : undefined;
   if (!s) throw new Error(`${lessonId}: no web lesson shape for the blueprint activity ${b.activity}`);
   return { slug: b.slug, title: b.title, summary, objectives: b.learningObjectives, concepts: b.concepts, difficulty: b.difficulty as Difficulty,
     minutes, prerequisites: b.prerequisites as LessonId[], recommended: b.recommended as AnyLessonId[], apcs: ['none'],
     status: 'complete', version: '1.0.0', ...s, blueprintId: lessonId };
+}
+export function webFromBlueprint(lessonId: string, summary: string, minutes: number): Outline {
+  return webOutline(lessonId, summary, minutes, 'web-foundations', 'web foundations');
+}
+/**
+ * RWD-0 (2026-11-23): a responsive design lesson written from its blueprint outline, on the web-code capability: pages in
+ * a preview whose width the learner switches, and exercises whose one answer is checked at several viewport widths
+ * (the resize step). The blueprint's responsive-sim, flexbox-playground, grid-playground and mobile-nav-sim name the
+ * standalone labs under /learn (linked from the lessons as further practice); in a lesson the activity is dom-explorer.
+ */
+export function responsiveFromBlueprint(lessonId: string, summary: string, minutes: number): Outline {
+  return webOutline(lessonId, summary, minutes, 'responsive-design', 'responsive design');
 }
 /** Batches 1–5: the programming-languages island's written lessons, PL20 its capstone. */
 const programmingLanguages: Outline[] = [
@@ -597,6 +619,14 @@ const webFoundations: Outline[] = [
   webFromBlueprint('WEB15', '不用框架，分五關完成小島圖書館的四頁網站：以語意結構與全站共用的樣式表建立頁面，用表單的 submit 與事件委派做出願望清單，以 fetch 取得新書並交代載入中、沒有資料與失敗三種狀態，用 localStorage 記住分類，最後補上選單按鈕的無障礙名稱與狀態、defer 與預留位置，通過無障礙與效能的檢查。', 110),
 ];
 
+/** RWD-1 (2026-11-23): the responsive design island's first lessons, on the web-code capability with the resize step and preview widths (WEB0_WEB_CODE_CAPABILITY.md, RESPONSIVE_DESIGN_ISLAND.md). */
+const responsiveDesign: Outline[] = [
+  responsiveFromBlueprint('RWD01', '從寫死 960px 的頁面在窄視窗得橫向捲動出發，說明響應式設計如何以同一份 HTML 依寬度調整版面，用 max-width 加 margin: 0 auto、圖片的 max-width: 100% 與一條 min-width 媒體查詢寫出行動優先的頁面，並以內容優先決定原始碼順序與斷點、以漸進增強確保頁面始終可用。', 45),
+  responsiveFromBlueprint('RWD02', '在 head 加上 viewport 設定讓手機照裝置寬度排版且不限制縮放，分辨 px 與相對單位：百分比以包含區塊的寬度為準、em 跟著元素字級而 rem 跟著根字級、vw 與 dvh 跟著視窗，並找出 100vw 加內距、固定寬度與長字串造成的橫向捲動加以修正。', 50),
+  responsiveFromBlueprint('RWD03', '用 display: flex 建立 flex 容器，以 flex-direction 決定主軸與交錯軸，用 justify-content 分配主軸的剩餘空間、以 align-items 與 align-self 在交錯軸對齊，搭配 gap 與 auto 外距做出水平導覽列與正中央的內容，並在動手前算出項目的位置。', 55),
+  responsiveFromBlueprint('RWD04', '以 flex-basis 為起始大小，計算 flex-grow 如何分配剩餘空間、flex-shrink 如何依比例縮小，分辨 flex: 1、auto、none 等簡寫，用 min-width: 0 修好被長內容撐破的項目，並以 flex-wrap 與 gap 做出不靠媒體查詢也會自動換行、填滿每一行的卡片列。', 55),
+];
+
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */
 function idAt(islandId: (typeof ISLAND_IDS)[number], index: number, blueprintId?: string): LessonId {
   const id = `${ISLAND_PREFIX[islandId]}${String(index + 1).padStart(2, '0')}` as LessonId;
@@ -606,7 +636,7 @@ function idAt(islandId: (typeof ISLAND_IDS)[number], index: number, blueprintId?
 /** F, D and A are taught in the program languages: every lesson there declares program-code. */
 const program = (list: Omit<Outline, 'capabilities'>[]): Outline[] => list.map(o => ({ ...o, capabilities: ['program-code'] }));
 const outlines: Record<(typeof ISLAND_IDS)[number], Outline[]> = {
-  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages, networks, 'ai-foundations': aiFoundations, 'large-language-models': largeLanguageModels, 'web-foundations': webFoundations, 'linux-systems': linuxSystems, 'network-servers': networkServers };
+  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages, networks, 'ai-foundations': aiFoundations, 'large-language-models': largeLanguageModels, 'web-foundations': webFoundations, 'responsive-design': responsiveDesign, 'linux-systems': linuxSystems, 'network-servers': networkServers };
 
 /** Every lesson the blueprint outlines, written or not (validateCurriculum's recommended-lesson check). */
 export const outlinedLessonIds: readonly string[] = planning.plannedLessons.map(l => l.lessonId);

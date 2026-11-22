@@ -27,6 +27,12 @@ export function runFrameJob(job: FrameJob): Promise<WebRun> {
       const data = event.data;
       if (event.source !== frame.contentWindow || !data || data.li !== job.nonce) return;
       if (data.kind === 'ready') frame.contentWindow!.postMessage({ li: job.nonce, kind: 'run', steps: job.steps }, '*');
+      // RWD-0: a resize step asks for another viewport; the frame continues once it is told the size has changed.
+      else if (data.kind === 'resize' && data.width >= 240 && data.width <= 1600) {
+        frame.style.width = data.width + 'px';
+        if (data.height >= 200 && data.height <= 1200) frame.style.height = data.height + 'px';
+        frame.contentWindow!.postMessage({ li: job.nonce, kind: 'resized', id: data.id }, '*');
+      }
       else if (data.kind === 'result') {
         done();
         resolve({ results: data.results, console: data.console, tree: data.tree, height: data.height, navigations: data.navigations,
