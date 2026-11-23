@@ -426,6 +426,20 @@ export const DIAG_MANUAL: Record<'ping' | 'traceroute' | 'mtr' | 'tcpdump' | 'se
   },
 };
 
+/** E20: the Docker CLI (DKR0_CONTAINER_CAPABILITY.md §5). */
+export const CONTAINER_MANUAL: Record<'docker', ManualEntry> = {
+  docker: {
+    usage: 'docker run [-d] [--name 名稱] [-p 主機埠:容器埠] [-e 變數=值] [--rm] [-it] IMAGE [指令…] | ps [-a] | images | pull IMAGE[:TAG] | logs [--tail N] 容器 | exec 容器 指令… | stop|start|restart|rm [-f] 容器… | rmi IMAGE | container prune [-f] | port 容器 | inspect -f \'{{.State.Status}}\' 容器',
+    summary: '管理 Image 與 Container（Docker CE 27.5.1 的模擬）',
+    description: ['Image 是唯讀的範本，Container 是由 Image 建立、有自己可寫層的執行個體：docker run 建立並啟動（created → running），程式結束是 exited，docker rm 刪除（可寫層與日誌一起消失）。',
+      'docker ps 只列出執行中的容器，-a 也列出停止的；STATUS 是 Up 3 minutes、Exited (0) 2 minutes ago 或 Created。docker logs 印出容器的輸出，停止後仍在，刪除後就沒有了。',
+      '-p 8080:80 把主機的 8080 埠轉到容器的 80 埠（主機上由 docker-proxy 監聽），所以 curl localhost:8080 會連到容器裡的服務；容器停止就連不到。',
+      '沒有 sudo 時使用者必須在 docker 群組裡（usermod -aG docker 之後要重新登入或 newgrp docker）；docker 群組等於主機的 root 權限。',
+      '模擬環境沒有鍵盤：互動式的 Shell（-it）會立刻結束，請用 docker exec 容器 指令；Dockerfile、Volume、網路與 Compose 在之後的引擎階段。'],
+    options: [['-d', 'run：在背景執行（印出容器 ID）；--name 指定名稱，--rm 結束後自動刪除'], ['-p', 'run：公開連接埠（主機埠:容器埠）'], ['-e', 'run、exec：環境變數'], ['-it', 'run、exec：互動式的終端機'], ['-a', 'ps：也列出停止的容器'], ['-f', 'rm：強制刪除執行中的容器；container prune：不再詢問']],
+  },
+};
+
 /** The pages a feature changes: cat reads standard input and echo has -n with pipes; chmod has -R with accounts. */
 const FEATURE_MANUAL: [ShellFeature, CommandName, ManualEntry][] = [
   ['edge', 'sleep', { usage: 'sleep 秒數[smhd]', summary: '等待一段時間', description: ['從 edge 階段起，sleep 讓模擬的時鐘前進（課程裡每一台機器一起）：快取會過期、Age 會增加、date 與日誌的時間跟著改變。sleep 300 & 仍然只是一個背景工作，不會讓時間前進。'], options: [] }],
@@ -470,7 +484,7 @@ export function manualEntry(cmd: CommandName, features: Iterable<ShellFeature> =
   const special = FEATURE_MANUAL.find(([f, c]) => c === cmd && have.has(f));
   if (special) return special[2];
   return (MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd] ?? (STREAM_MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd] ?? (USER_MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd]
-    ?? (SYSTEM_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (LATER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (SERVER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (DIAG_MANUAL as Record<string, ManualEntry>)[cmd];
+    ?? (SYSTEM_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (LATER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (SERVER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (DIAG_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (CONTAINER_MANUAL as Record<string, ManualEntry>)[cmd];
 }
 
 const optionLines = (options: [string, string][], indent: string, width: number) => options.map(([flag, text]) => `${indent}${flag.padEnd(width)}${text}`);

@@ -23,6 +23,7 @@ import { hupsMaster, masterOf, nginxCommand, nginxControl, reloadRunning } from 
 import { nft, ufw } from './firewall';
 import { mtr, ping, tcpdump, traceroute } from './diag';
 import { sed } from './sed';
+import { docker } from './docker';
 
 /*
  * P7 Linux Terminal Simulator: the command interpreter. A fixed table of commands works on the virtual file system in
@@ -63,6 +64,8 @@ import { sed } from './sed';
  * blocks (nginx.ts, proxy.ts); FIREWALL_PROFILE adds firewall — ufw and an nft subset deciding what other hosts reach
  * (firewall.ts), and remote sessions that see the lesson's network; TUNNELS_PROFILE adds tunnels — ssh -L/-R/-J and
  * ~/.ssh/config (tunnels.ts).
+ * Engine stage E20 (docs/curriculum/DKR0_CONTAINER_CAPABILITY.md): CONTAINERS_PROFILE adds containers — a Docker Engine with
+ * images, containers, a simulated Docker Hub and published ports (docker.ts).
  */
 
 export interface Line { text: string; kind: 'out' | 'err' }
@@ -104,14 +107,16 @@ export const E16_COMMANDS = ['ufw', 'nft'] as const;
  * only this profile and above list, so the `command not found` list of every lower profile (and of published lessons) stays.
  */
 export const E19_COMMANDS = ['ping', 'traceroute', 'mtr', 'tcpdump', 'sed'] as const;
+/** E20: the Docker CLI (CONTAINERS_PROFILE); only this profile lists it, so every lower profile's command list stays. */
+export const E20_COMMANDS = ['docker'] as const;
 /** The commands of the files profile (the manual of E1 covers exactly these). */
 export type FilesCommand = typeof COMMANDS[number] | typeof E1_COMMANDS[number];
 export type CommandName = FilesCommand | typeof E2_COMMANDS[number] | typeof E3_COMMANDS[number] | typeof E4_COMMANDS[number] | typeof E5_COMMANDS[number] | typeof E6_COMMANDS[number]
   | typeof E7_COMMANDS[number] | typeof E8_COMMANDS[number] | typeof E9_COMMANDS[number] | typeof E10_COMMANDS[number] | typeof E11_COMMANDS[number]
-  | typeof E12_COMMANDS[number] | typeof E13_COMMANDS[number] | typeof E14_COMMANDS[number] | typeof E16_COMMANDS[number] | typeof E19_COMMANDS[number];
+  | typeof E12_COMMANDS[number] | typeof E13_COMMANDS[number] | typeof E14_COMMANDS[number] | typeof E16_COMMANDS[number] | typeof E19_COMMANDS[number] | typeof E20_COMMANDS[number];
 /** Every command any profile may list. */
 export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS, ...E2_COMMANDS, ...E3_COMMANDS, ...E4_COMMANDS, ...E5_COMMANDS, ...E6_COMMANDS,
-  ...E7_COMMANDS, ...E8_COMMANDS, ...E9_COMMANDS, ...E10_COMMANDS, ...E11_COMMANDS, ...E12_COMMANDS, ...E13_COMMANDS, ...E14_COMMANDS, ...E16_COMMANDS, ...E19_COMMANDS];
+  ...E7_COMMANDS, ...E8_COMMANDS, ...E9_COMMANDS, ...E10_COMMANDS, ...E11_COMMANDS, ...E12_COMMANDS, ...E13_COMMANDS, ...E14_COMMANDS, ...E16_COMMANDS, ...E19_COMMANDS, ...E20_COMMANDS];
 
 /**
  * Behaviour a profile switches on besides its commands. E1: glob (* ? [...] and ~), help-option (指令 --help, long
@@ -121,10 +126,10 @@ export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS
  * interpreter, also at the prompt). E9: scheduling (time zones, cron, timers). E10: sockets. E11: dns. E12: http. E13: tls.
  * E14: nginx. E15: proxy (nginx's reverse proxy and upstreams). E16: firewall (ufw, nft; connections from other hosts). E17: tunnels
  * (ssh -L/-R/-J and ~/.ssh/config). E18: edge (HTTP caching: nginx's proxy_cache, validators, a CDN edge, time that passes with
- * sleep, curl -w timings). E19: diagnostics (ping, traceroute, mtr, tcpdump -r and a sed subset).
+ * sleep, curl -w timings). E19: diagnostics (ping, traceroute, mtr, tcpdump -r and a sed subset). E20: containers (docker).
  */
 export type ShellFeature = 'glob' | 'help-option' | 'multi-source' | 'ls-extra' | 'pipes' | 'accounts' | 'processes' | 'packages' | 'services' | 'remote' | 'scripting' | 'scheduling'
-  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics';
+  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers';
 
 /** LNX-0: the commands a session may run (E1: and the features it switches on; none by default). */
 export interface ShellProfile { readonly id: string; readonly commands: readonly CommandName[]; readonly features?: readonly ShellFeature[] }
@@ -185,11 +190,14 @@ export const TUNNELS_PROFILE: ShellProfile = { id: 'tunnels', commands: above(FI
 export const EDGE_PROFILE: ShellProfile = { id: 'edge', commands: above(TUNNELS_PROFILE, []), features: [...TUNNELS_PROFILE.features!, 'edge'] };
 /** E19: the edge profile plus ping, traceroute, mtr, tcpdump -r and a documented subset of sed. */
 export const DIAGNOSTICS_PROFILE: ShellProfile = { id: 'diagnostics', commands: above(EDGE_PROFILE, E19_COMMANDS), features: [...EDGE_PROFILE.features!, 'diagnostics'] };
+/** E20: the diagnostics profile plus the Docker CLI: images, containers, a simulated Docker Hub and published ports. */
+export const CONTAINERS_PROFILE: ShellProfile = { id: 'containers', commands: above(DIAGNOSTICS_PROFILE, E20_COMMANDS), features: [...DIAGNOSTICS_PROFILE.features!, 'containers'] };
 /** The profiles a lesson machine may name (TerminalMachine.profile), from the narrowest. */
 export const PROFILES = {
   lab: LAB_PROFILE, files: FILES_PROFILE, streams: STREAMS_PROFILE, users: USERS_PROFILE, processes: PROCESSES_PROFILE, packages: PACKAGES_PROFILE, services: SERVICES_PROFILE,
   remote: REMOTE_PROFILE, scripting: SCRIPTING_PROFILE, scheduling: SCHEDULING_PROFILE, sockets: SOCKETS_PROFILE, dns: DNS_PROFILE, http: HTTP_PROFILE,
   tls: TLS_PROFILE, nginx: NGINX_PROFILE, proxy: PROXY_PROFILE, firewall: FIREWALL_PROFILE, tunnels: TUNNELS_PROFILE, edge: EDGE_PROFILE, diagnostics: DIAGNOSTICS_PROFILE,
+  containers: CONTAINERS_PROFILE,
 } as const;
 export type ProfileId = keyof typeof PROFILES;
 
@@ -288,6 +296,7 @@ const HELP: [CommandName | null, string][] = [
   ['mtr', '  mtr --report -c 次數 [-n] [-w] 主機  每一跳的遺失率與延遲統計'],
   ['tcpdump', '  tcpdump -r 擷取檔 [-n] [-A] [-c N] [過濾條件]  讀取擷取的封包'],
   ['sed', '  sed [-n] [-i] [-E] \'Np\' | \'/樣式/p\' | \'s/舊/新/[g]\' [檔案…]  印出或取代行（模擬環境的子集）'],
+  ['docker', '  docker run|ps|images|pull|logs|exec|stop|start|rm|rmi|port|inspect …  管理 Image 與 Container（需要 docker 群組或 sudo）'],
   ['man', '  man 指令                顯示指令的說明頁（也可以用 指令 --help）'],
 ];
 /** The lines that change when a profile has the feature (the lab keeps its own lines). */
@@ -1598,6 +1607,12 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
       // E13: certbot runs a deploy hook through the shell (as the user it runs as, root).
       const r = cmd === 'certbot' ? certbot(cur(), args, { ...io, hook: (s, source) => { const x = runText(s, source, profile, { parent: ctx }); return { state: x.state, status: x.status }; } })
         : NET_COMMANDS[cmd as keyof typeof NET_COMMANDS](cur(), args, io);
+      code = r.status;
+      return done(r.state);
+    }
+    case 'docker': {
+      // E20 (docker.ts): the daemon's images and containers; the socket decides who may use it (root or the docker group).
+      const r = docker(cur(), args, { out: write, err: fail, user: state.user, tty: ctx.tty, stdin: ctx.stdin });
       code = r.status;
       return done(r.state);
     }

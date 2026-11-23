@@ -509,8 +509,8 @@ test.describe('P8.5 visual decisions', () => {
     await expect(labels).toHaveCount(islandsInRegion('sys').length);
     await reframed();
     await expectLabelsClear(page);
-    // A pin focuses its island; the address follows.
-    await page.getByRole('button', { name: '聚焦Docker 容器島（規劃中）', exact: true }).click();
+    // A pin focuses its island; the address follows. (DKR-1 opened Docker 容器島, so its label no longer says 規劃中.)
+    await page.getByRole('button', { name: '聚焦Docker 容器島', exact: true }).click();
     await expect(page).toHaveURL(/\/world\/sys\?island=docker-containers$/);
     await expect(page.getByRole('region', { name: 'Docker 容器島教材入口' })).toBeVisible();
     // Back to captions while focused: the same island is still focused, the address has not changed.

@@ -148,6 +148,10 @@ import { SRV11 } from './content/SRV11';
 import { SRV12 } from './content/SRV12';
 import { SRV13 } from './content/SRV13';
 import { SRV14 } from './content/SRV14';
+import { DKR01 } from './content/DKR01';
+import { DKR02 } from './content/DKR02';
+import { DKR03 } from './content/DKR03';
+import { DKR04 } from './content/DKR04';
 import { LLM01 } from './content/LLM01';
 import { LLM02 } from './content/LLM02';
 import { LLM03 } from './content/LLM03';
@@ -232,7 +236,7 @@ export const curriculum: Curriculum = {
     AIF11, AIF12, AIF13, AIF14, AIF15, AIF16, AIF17, AIF18, AIF19, AIF20,
     LNX01, LNX02, LNX03, LNX04, LNX05, LNX06, LNX07,
     LNX08, LNX09, LNX10, LNX11, LNX12, LNX13, LNX14, LNX15,
-    SRV01, SRV02, SRV03, SRV04, SRV05, SRV06, SRV07, SRV08, SRV09, SRV10, SRV11, SRV12, SRV13, SRV14,
+    SRV01, SRV02, SRV03, SRV04, SRV05, SRV06, SRV07, SRV08, SRV09, SRV10, SRV11, SRV12, SRV13, SRV14, DKR01, DKR02, DKR03, DKR04,
     LLM01, LLM02, LLM03, GEN01, GEN02, WEB01, WEB02, WEB03, WEB04, WEB05, WEB06, WEB07,
     WEB08, WEB09, WEB10, WEB11, WEB12, WEB13, WEB14, WEB15,
     RWD01, RWD02, RWD03, RWD04, RWD05, RWD06, RWD07, RWD08,
