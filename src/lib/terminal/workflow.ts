@@ -46,7 +46,7 @@ function needsProblems(jobs: WorkflowJob[], issues: Issues) {
 /** Parses a workflow file's text; the errors (sorted by position) when it is not valid. */
 export function parseWorkflow(path: string, text: string): WorkflowParse {
   let root: Y;
-  try { root = parseYaml(text); } catch (e) {
+  try { root = parseYaml(text, { keep: true }); } catch (e) {
     if (!(e instanceof YamlError)) throw e;
     if (e.code === 'syntax') return { ok: false, yaml: true, errors: [{ line: e.line, col: e.column, message: `You have an error in your yaml syntax on line ${e.line}` }] };
     return { ok: false, yaml: false, errors: [{ line: e.line, col: e.column, message: e.code === 'duplicate-key' ? `'${e.detail}' is already defined` : e.detail }] };

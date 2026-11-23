@@ -38,6 +38,7 @@
 | `runs-on` | 每個 label 都要有 runner（預設 `ubuntu-latest`、`ubuntu-24.04`、`ubuntu-22.04`，課程可以改）；沒有時 job 一直 queued（真實的行為：Waiting for a runner），run 不會結束，依賴它的 job 也不會開始 |
 | 結論 | run：被取消是 cancelled，有 job 失敗（不算 `continue-on-error` 的）是 failure，有 job 被取消是 cancelled，全部略過是 skipped，其他 success。上限：一個 run 最多 12 個 job（超過的 matrix 組合不建立，超過的 job 是 skipped）、每個 job 最多 30 個 step |
 | 重新執行 | `gh run rerun` 以現在的時間計算新的 attempt（`GITHUB_RUN_ATTEMPT` 加一，不穩定的工具依它決定）；`--failed` 只重新執行失敗或被取消的 job 和依賴它們的 job，其他 job 保留上一次的結果（記錄、時間與 ID 都不變）。檔案讀 run 的 commit 上的 workflow |
+| 修正（E29 一併） | `rerun --failed` 原本以 job 的鍵選擇，matrix 只要有一條失敗就整個重新執行；現在以每一條（鍵加 matrix 的值）為單位：只重新執行失敗與被取消的那幾條，成功的沿用，依賴它們的 job 每一條都重新執行。已發布的 CICD 課都還沒有用到（見 `CICD0_E29_ARTIFACTS.md` §9） |
 | 取消 | `gh run cancel` 在現在的時刻把每個還沒結束的 job 截斷（同 fail-fast），run 是 cancelled |
 
 ## 4. runner 與 step（`runner.ts`、`actions-job.ts`）

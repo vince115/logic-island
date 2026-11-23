@@ -21,6 +21,7 @@
 | 位置 | 每個節點多了 `col`（從 1 起，和 `line` 一樣是起點）；mapping 多了 `keys`，是每個鍵寫在哪一行哪一欄。序列的 `col` 是 `-` 的位置，`- key: value` 的 mapping 從 key 起算，flow 集合（`[a, b]`、`{k: v}`）的元素各有自己的欄 |
 | `YamlError` | 原本的 `message`（yaml.v3 的 `yaml: line N: …` 或子集自己的句子）完全不變，另外帶 `code`（`syntax`、`unsupported`、`duplicate-key`）、`line`、`column` 與 `detail`（去掉 `yaml: line N: ` 的文字；重複的鍵是鍵名）。呼叫的人可以自己決定怎麼呈現 |
 | Compose | `compose.ts` 只多了佔位的 `col: 0, keys: []`；錯誤仍是 `e.message`，所以 `docker compose` 的所有訊息逐字相同 |
+| 區塊純量（E29 補充） | 多行的 `run: |` 等區塊純量（`|`、`|-`、`|+`、`>`、`>-`、`>+`）一直由 E23 的子集支援；E29 讓 workflow 檔案的 keep（`|+`、`>+`）保留結尾的空行（`parseYaml(text, { keep: true })`），Compose 不變。見 `CICD0_E29_ARTIFACTS.md` §9 |
 | 其他 | 錨點與別名仍以原來的句子拒絕；`on` 仍是字串鍵（純量一律保留文字，不會變成 YAML 1.1 的布林值） |
 
 ## 3. Workflow 檔案與驗證（`workflow.ts`、`workflow-read.ts`、`workflow-job.ts`）

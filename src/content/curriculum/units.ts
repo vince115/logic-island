@@ -75,11 +75,12 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '安全、除錯與上線準備', summary: '以資安審查找出 root、特權、socket 與留在層裡的機密，USER、能力、唯讀與 tmpfs、最小基底與弱點掃描；以狀態、日誌、inspect 與 events 除錯，結束碼、重啟迴圈與 OOMKilled；健康檢查、CPU 與記憶體上限、重新啟動策略、SIGTERM 與 PID 1 的優雅關閉', lessonIds: range('DKR', 12, 14) },
     { title: '綜合專題', summary: '分六關把三層式的應用從筆電帶到可以上線：多階段、非 root 的 Image，Compose 開發環境與健康檢查，找出並移除留在舊 Image 的金鑰，版本標籤與私有 Registry，以 digest 與正式環境的設定上線，依檢查清單驗收並修好手動部署造成的故障', lessonIds: ['DKR15'] },
   ],
-  // CICD-1 (2026-11-23): CICD01 on the devops-explorer's deployment histories (D1); CICD-2: CICD02 on E25 git and E26 forge; CICD-3: CICD03–CICD05 on E27 workflows and E28 actions; the later lessons need E29–E31, D2–D4.
+  // CICD-1 (2026-11-23): CICD01 on the devops-explorer's deployment histories (D1); CICD-2: CICD02 on E25 git and E26 forge; CICD-3: CICD03–CICD05 on E27 workflows and E28 actions; CICD-4: CICD06–CICD08 on E29 artifacts; the later lessons need E30–E31, D2–D4.
   'devops-cicd': [
     { title: 'DevOps 與交付的基本觀念', summary: '開發與維運的隔閡、共同責任與自動化，小批量與快速回饋，DORA 的四個指標與怎麼讀它們', lessonIds: ['CICD01'] },
     { title: '團隊協作與 Git', summary: '分支與 Pull Request、同事審查與分支保護、Trunk-based 與 Git Flow、merge 與 rebase 的歷史、三種合併方式與解決衝突', lessonIds: ['CICD02'] },
     { title: '持續整合與 GitHub Actions', summary: '頻繁整合、自動建置、快速回饋與綠燈主分支；workflow、job、step 與 action、runner、觸發事件與篩選、needs、matrix 與輸出、最小權限；測試金字塔、測試的順序與報告、平行執行與不穩定的測試', lessonIds: ['CICD03', 'CICD04', 'CICD05'] },
+    { title: '建置、設定與機密', summary: '可重現建置、產出物與快取、在管線裡建置並推送 Image、版本號；設定與程式碼分離、環境變數與各環境的值、預設值與設定驗證；機密與一般設定、secret 的存放與遮蔽、script injection、最小權限、輪替與外洩應變', lessonIds: ['CICD06', 'CICD07', 'CICD08'] },
   ],
   'network-servers': [
     { title: '位址、名稱與請求', summary: '公有與私有 IP、介面與路由、監聽埠與 socket、ss、lsof 與 nc；DNS 區域、A／CNAME／MX／TXT、TTL 與快取、dig；用 curl 讀懂 HTTP 請求、回應、狀態碼與重新導向', lessonIds: range('SRV', 1, 3) },

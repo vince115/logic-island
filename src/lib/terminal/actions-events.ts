@@ -9,6 +9,7 @@ import { parseWorkflow, workflowFiles, workflowName } from './workflow';
 import { changedPaths, nextScheduled, pullChangedPaths, triggers, type WorkflowEvent } from './workflow-match';
 import { cancelJobAt, createRun, executeAttempt, saveRun, workflowAt, type Actx, type NewRun } from './actions';
 import { lastAttempt, type WorkflowRun } from './actions-model';
+import { commitArt, retractArt, settleArt } from './artifacts-run';
 
 /*
  * Engine stage E28 (docs/curriculum/CICD0_E28_ACTIONS.md §2): the events that start runs. After a git or gh command the
@@ -24,7 +25,7 @@ const repoObj = (f: Forge) => ({ full_name: repoPath(f), name: repoPath(f).split
 
 /** Runs a change of the forge with Actions' context; the state with the new runs, objects and counters. */
 export function withActions(state: FsState, fn: (x: Actx) => void): FsState {
-  const g = new Git(state, silent), x: Actx = { g, ci: { state: state.ci! } };
+  const g = new Git(state, silent), x: Actx = { g, ci: { state: state.ci! }, ...state.ci?.art && state.docker?.registries ? { reg: state.docker.registries } : {} };
   fn(x);
   return { ...g.result(), ci: x.ci.state };
 }
@@ -93,7 +94,9 @@ export function actionsAfter(before: FsState, after: FsState): FsState {
 }
 
 /** Before a git or gh command (and a check): the schedule events whose times the clock has passed (at most MAX_SCHEDULED). */
-export function actionsTick(state: FsState): FsState {
+export function actionsTick(state0: FsState): FsState {
+  // E29: first the effects of runs whose time has come (refs the GITHUB_TOKEN pushed, images pushed to registries).
+  const state = settleArt(state0);
   const ci = state.ci, now = clockOf(state).now;
   if (!ci || !state.git || ci.scheduled >= now) return state;
   const due: { at: number; url: string; path: string; text: string; cron: string; name: string }[] = [];
@@ -133,12 +136,14 @@ export function rerunRun(x: Actx, forge: Forge, run: WorkflowRun, failedOnly: bo
   const prev = lastAttempt(run), attempt = executeAttempt(x, forge, run, wf, prev.attempt + 1, at, actor, failedOnly ? prev : undefined);
   const next = { ...run, attempts: [...run.attempts, attempt] };
   saveRun(forge, next);
+  commitArt(x.ci, forge, next, attempt);
   return next;
 }
 
 /** gh run cancel: every unfinished job is cut now. */
-export function cancelRun(forge: Forge, run: WorkflowRun, at: number): WorkflowRun {
+export function cancelRun(forge: Forge, run: WorkflowRun, at: number, ci?: Actx['ci']): WorkflowRun {
   const a = lastAttempt(run), next = { ...run, attempts: [...run.attempts.slice(0, -1), { ...a, jobs: a.jobs.map(j => cancelJobAt(j, at)), cancelledAt: at }] };
   saveRun(forge, next);
+  retractArt(ci, forge, run.id, at);
   return next;
 }

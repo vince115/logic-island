@@ -4,6 +4,7 @@ import {
 } from './fs';
 import { actionsAfter, actionsTick } from './actions-events';
 import { findTool, runTool } from './ci-tools';
+import { settleArt } from './artifacts-run';
 import { ACCOUNT_NAME, accountsOf, findGroup, findUser, groupById, loginGroups, nextId, umaskSymbolic, writeAccountFiles } from './accounts';
 import { escapeGlob, expandGlob, hasMagic, type GlobIo } from './glob';
 import { helpPage, manualPage } from './manual';
@@ -148,10 +149,11 @@ export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS
  * requests, reviews, branch protection and repository settings on github.example; gh.ts, forge.ts). E27: workflows (GitHub
  * Actions workflow files: parsing, validation, triggers, expressions, token permissions, gh workflow list and view;
  * workflow*.ts, expr*.ts). E28: actions (runs of the workflows on simulated GitHub-hosted runners, CI tools, gh run and gh
- * workflow run; actions*.ts, runner.ts, ci-tools.ts, gh-run*.ts).
+ * workflow run; actions*.ts, runner.ts, ci-tools.ts, gh-run*.ts). E29: artifacts (caches, artifacts, Docker on runners, Actions
+ * secrets and variables with masking, the GITHUB_TOKEN's effects; artifacts*.ts, actions-cache.ts, gh-secret.ts …).
  */
 export type ShellFeature = 'glob' | 'help-option' | 'multi-source' | 'ls-extra' | 'pipes' | 'accounts' | 'processes' | 'packages' | 'services' | 'remote' | 'scripting' | 'scheduling'
-  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers' | 'images' | 'storage-net' | 'compose' | 'runtime' | 'git' | 'forge' | 'workflows' | 'actions';
+  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers' | 'images' | 'storage-net' | 'compose' | 'runtime' | 'git' | 'forge' | 'workflows' | 'actions' | 'artifacts';
 
 /** LNX-0: the commands a session may run (E1: and the features it switches on; none by default). */
 export interface ShellProfile { readonly id: string; readonly commands: readonly CommandName[]; readonly features?: readonly ShellFeature[] }
@@ -232,12 +234,16 @@ export const WORKFLOWS_PROFILE: ShellProfile = { id: 'workflows', commands: abov
 export const ACTIONS_PROFILE: ShellProfile = { id: 'actions', commands: above(WORKFLOWS_PROFILE, []), features: [...WORKFLOWS_PROFILE.features!, 'actions'] };
 /** E28: what a run: step's shell on a GitHub-hosted runner has — the git profile's commands but docker (Docker on runners is E29); not a lesson profile. */
 export const RUNNER_PROFILE: ShellProfile = { id: 'runner', commands: GIT_PROFILE.commands.filter(c => c !== 'docker'), features: GIT_PROFILE.features };
+/** E29 (docs/curriculum/CICD0_E29_ARTIFACTS.md): the actions profile plus caches, artifacts, Docker on runners, secrets and variables; no new commands. */
+export const ARTIFACTS_PROFILE: ShellProfile = { id: 'artifacts', commands: above(ACTIONS_PROFILE, []), features: [...ACTIONS_PROFILE.features!, 'artifacts'] };
+/** E29: an artifacts machine's runner shell — the git profile's commands with docker, and gh (with the job's GITHUB_TOKEN); not a lesson profile. */
+export const RUNNER_ARTIFACTS_PROFILE: ShellProfile = { id: 'runner', commands: FORGE_PROFILE.commands, features: GIT_PROFILE.features };
 /** The profiles a lesson machine may name (TerminalMachine.profile), from the narrowest. */
 export const PROFILES = {
   lab: LAB_PROFILE, files: FILES_PROFILE, streams: STREAMS_PROFILE, users: USERS_PROFILE, processes: PROCESSES_PROFILE, packages: PACKAGES_PROFILE, services: SERVICES_PROFILE,
   remote: REMOTE_PROFILE, scripting: SCRIPTING_PROFILE, scheduling: SCHEDULING_PROFILE, sockets: SOCKETS_PROFILE, dns: DNS_PROFILE, http: HTTP_PROFILE,
   tls: TLS_PROFILE, nginx: NGINX_PROFILE, proxy: PROXY_PROFILE, firewall: FIREWALL_PROFILE, tunnels: TUNNELS_PROFILE, edge: EDGE_PROFILE, diagnostics: DIAGNOSTICS_PROFILE,
-  containers: CONTAINERS_PROFILE, images: IMAGES_PROFILE, 'storage-net': STORAGE_NET_PROFILE, compose: COMPOSE_PROFILE, runtime: RUNTIME_PROFILE, git: GIT_PROFILE, forge: FORGE_PROFILE, workflows: WORKFLOWS_PROFILE, actions: ACTIONS_PROFILE,
+  containers: CONTAINERS_PROFILE, images: IMAGES_PROFILE, 'storage-net': STORAGE_NET_PROFILE, compose: COMPOSE_PROFILE, runtime: RUNTIME_PROFILE, git: GIT_PROFILE, forge: FORGE_PROFILE, workflows: WORKFLOWS_PROFILE, actions: ACTIONS_PROFILE, artifacts: ARTIFACTS_PROFILE,
 } as const;
 export type ProfileId = keyof typeof PROFILES;
 
@@ -1672,7 +1678,8 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
       // E22: the storage-net profile adds volumes, bind mounts, tmpfs and networks.
       // E23: the compose profile adds docker compose, health checks, multi-stage builds and registries.
       // E24: the runtime profile adds limits, restart policies, signals, stats, top, kill, events and the runtime fields of inspect.
-      const r = docker(cur(), args, { out: write, err: fail, user: state.user, tty: ctx.tty, stdin: ctx.stdin, ...features.has('images') ? { images: true } : {}, ...features.has('storage-net') ? { storageNet: true } : {}, ...features.has('compose') ? { compose: true } : {},
+      // E29: on an artifacts machine, effects of runs whose time has come (images a runner pushed) first.
+      const r = docker(features.has('artifacts') ? settleArt(cur()) : cur(), args, { out: write, err: fail, user: state.user, tty: ctx.tty, stdin: ctx.stdin, ...features.has('images') ? { images: true } : {}, ...features.has('storage-net') ? { storageNet: true } : {}, ...features.has('compose') ? { compose: true } : {},
         ...features.has('runtime') ? { runtime: true } : {} });
       code = r.status;
       return done(r.state);
@@ -1690,7 +1697,9 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
       // E27: the workflows profile adds gh workflow list and view.
       // E28: the actions profile adds gh run, gh workflow run|enable|disable and real check results; pushes and pull requests start runs.
       const before = features.has('actions') ? actionsTick(cur()) : cur();
-      const r = gh(before, args, { out: print, err: fail, user: state.user, tty: ctx.tty, ...features.has('workflows') ? { workflows: true } : {}, ...features.has('actions') ? { actions: true } : {} });
+      // E29: the artifacts profile adds gh run download, gh secret, gh variable and gh cache (and standard input for gh secret set); on a runner gh uses GH_TOKEN.
+      const r = gh(before, args, { out: print, err: fail, user: state.user, tty: ctx.tty, ...features.has('workflows') ? { workflows: true } : {}, ...features.has('actions') ? { actions: true } : {},
+        ...features.has('artifacts') ? { artifacts: true } : {}, ...features.has('artifacts') || cur().git?.token ? { stdin: ctx.stdin, env: ctx.env ?? {} } : {} });
       code = r.status;
       const after = features.has('actions') ? actionsAfter(before, r.state) : r.state;
       return done(r.advance ? advanceClock(after, r.advance) : after);

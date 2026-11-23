@@ -40,7 +40,8 @@ export function jsonOf(r: WorkflowRun, t: number, web: string, workflowId: numbe
   return Object.fromEntries([...fields].sort().map(f => [f, all[f]]));
 }
 
-export interface ViewOptions { verbose: boolean; job?: JobResult; footer: boolean; web: string }
+/** artifacts (E29): the run's artifacts, listed under ARTIFACTS (an expired one marked). */
+export interface ViewOptions { verbose: boolean; job?: JobResult; footer: boolean; web: string; artifacts?: readonly { name: string; expiresAt: number }[] }
 /** gh run view's screen at a time. */
 export function viewLines(r: WorkflowRun, t: number, o: ViewOptions): string[] {
   const a = lastAttempt(r), st = runStatus(r, t), conclusion = st === 'completed' ? runConclusion(r) : undefined;
@@ -59,6 +60,7 @@ export function viewLines(r: WorkflowRun, t: number, o: ViewOptions): string[] {
     for (const { j, n } of notes) out.push(`${n.level === 'failure' ? 'X' : n.level === 'warning' ? '!' : '-'} ${n.message}`, `${j.name}: .github#${n.step}`, '');
     out.pop();
   }
+  if (o.artifacts?.length) out.push('', 'ARTIFACTS', ...o.artifacts.map(x => (x.expiresAt <= t ? `${x.name} (expired)` : x.name)));
   if (!o.footer) return out;
   out.push('');
   if (o.job) out.push(`To see the full job log, try: gh run view --log --job=${o.job.id}`);

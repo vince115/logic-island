@@ -3,6 +3,7 @@ import { parseTime, DEFAULT_NOW } from './clock';
 import { machineState, type TerminalFile, type TerminalMachine } from './lesson';
 import { PROFILES } from './shell';
 import type { CiCondition, CiState, CiTool } from './actions-model';
+import { runnerDocker } from './artifacts-lesson';
 
 /*
  * Engine stage E28 as lesson data (docs/curriculum/CICD0_E28_ACTIONS.md §7). A machine of the actions profile runs the
@@ -16,6 +17,8 @@ export interface TerminalCiCase {
   when?: CiCondition[];
   stdout?: string; stderr?: string; exit?: number; seconds?: number;
   writes?: { path: string; content: string }[];
+  /** E29 (artifacts profile): the seconds when the tool's cache folder already exists (a restored cache). */
+  cachedSeconds?: number;
 }
 export interface TerminalCiTool {
   /** The exact words, e.g. 'npm test'. */
@@ -25,6 +28,8 @@ export interface TerminalCiTool {
   /** The first case whose conditions hold decides; when none does, the tool prints nothing and succeeds. */
   cases: TerminalCiCase[];
   flaky?: { failOnAttempts: number[]; stdout?: string; stderr?: string; exit?: number; seconds?: number };
+  /** E29 (artifacts profile): the folder it fills when it succeeds (~/.npm, node_modules), which actions/cache can keep. */
+  cache?: string;
 }
 export interface TerminalActions {
   /** The runs-on labels that have runners (default ubuntu-latest, ubuntu-24.04, ubuntu-22.04); a job naming another label waits. */
@@ -90,14 +95,17 @@ export function actionsProblems(m: TerminalMachine, actions: boolean): string[] 
 
 const tool = (t: TerminalCiTool): CiTool => ({
   command: t.command.split(' '), where: t.where ?? 'both',
-  cases: t.cases.map(c => ({ when: c.when ?? [], stdout: c.stdout ?? '', stderr: c.stderr ?? '', exit: c.exit ?? 0, seconds: c.seconds ?? 1, writes: c.writes ?? [] })),
+  cases: t.cases.map(c => ({ when: c.when ?? [], stdout: c.stdout ?? '', stderr: c.stderr ?? '', exit: c.exit ?? 0, seconds: c.seconds ?? 1, writes: c.writes ?? [], ...c.cachedSeconds !== undefined ? { cachedSeconds: c.cachedSeconds } : {} })),
+  ...t.cache !== undefined ? { cache: t.cache } : {},
   ...t.flaky ? { flaky: { failOnAttempts: t.flaky.failOnAttempts, stdout: t.flaky.stdout ?? '', stderr: t.flaky.stderr ?? '', exit: t.flaky.exit ?? 1, seconds: t.flaky.seconds ?? 1 } } : {},
 });
 const dir = (path: string, owner = 'root', mode = 0o755): TerminalFile => ({ path, kind: 'dir', mode, owner });
 const OS_RELEASE = 'PRETTY_NAME="Ubuntu 24.04.1 LTS"\nNAME="Ubuntu"\nVERSION_ID="24.04"\nVERSION="24.04.1 LTS (Noble Numbat)"\nID=ubuntu\n';
 
 /** The runner image: Ubuntu with the user runner (sudo without a password, docker group), the lesson's files, the machine's clock. */
-export function runnerMachine(m: TerminalMachine): TerminalMachine {
+export function runnerMachine(m: TerminalMachine, artifacts = false): TerminalMachine {
+  // E29: the artifacts profile's runners have Docker (the machine's Docker Hub images and registries, nothing local).
+  const docker = artifacts ? runnerDocker(m) : undefined;
   const base: TerminalFile[] = [dir('/etc'), { path: '/etc/os-release', kind: 'file', mode: 0o644, owner: 'root', content: OS_RELEASE }, dir('/home'), dir('/home/runner', 'runner', 0o750),
     dir('/home/runner/work', 'runner'), dir('/opt'), dir('/opt/hostedtoolcache', 'runner'), dir('/tmp', 'root', 0o1777)];
   const listed = new Set((m.actions?.runnerFiles ?? []).map(f => f.path));
@@ -105,15 +113,16 @@ export function runnerMachine(m: TerminalMachine): TerminalMachine {
   return {
     id: `${m.id}/runner`, title: 'GitHub-hosted runner', user: 'runner', cwd: '/home/runner', host: 'fv-az101-1', profile: 'git', files, now: m.now ?? DEFAULT_NOW,
     accounts: { users: [{ name: 'runner', uid: 1001 }], groups: [{ name: 'sudo', members: ['runner'] }, { name: 'adm', members: ['runner'] }, { name: 'docker', gid: 118, members: ['runner'] }] },
+    ...docker ? { docker } : {},
   };
 }
 
 /** E28: the machine's CI state — its tools, the runner image, the labels and the ID counters. */
-export function actionsState(m: TerminalMachine, state: FsState, actions: boolean): FsState {
+export function actionsState(m: TerminalMachine, state: FsState, actions: boolean, artifacts = false): FsState {
   if (!actions || actionsProblems(m, actions).length) return state;
   const a = m.actions ?? {};
   const ci: CiState = {
-    tools: (a.tools ?? []).map(tool), runner: machineState(runnerMachine(m)), labels: a.labels ?? DEFAULT_LABELS,
+    tools: (a.tools ?? []).map(tool), runner: machineState(runnerMachine(m, artifacts)), labels: a.labels ?? DEFAULT_LABELS,
     next: { run: a.ids?.run ?? 4100000001, job: a.ids?.job ?? 11300000001 }, scheduled: parseTime(m.now ?? DEFAULT_NOW)!, calls: {},
   };
   return { ...state, ci };

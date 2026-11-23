@@ -21,6 +21,9 @@ import { workflowProblems, workflowState } from './workflow-lesson';
 import { describeWorkflowCheck, workflowCheckProblems, workflowFailure, type WorkflowCheck } from './workflow-checks';
 import { actionsProblems, actionsState } from './actions-lesson';
 import { describeRunCheck, runCheckProblems, runFailure, type RunCheck } from './actions-checks';
+import { artifactsProblems, artifactsState } from './artifacts-lesson';
+import { artifactsCheckProblems, artifactsFailure, commitProblem, commitTag, describeArtifactsCheck, describeCommit, type ArtifactsCheck } from './artifacts-checks';
+import { settleArt } from './artifacts-run';
 
 /*
  * Engine stages E10–E12 as lesson data (docs/curriculum/SRV0_SERVER_CAPABILITY.md §9). A machine of the sockets profile is
@@ -42,7 +45,7 @@ export interface TerminalZone { zone: string; text: string }
 export type TerminalListen = Listen;
 export type TerminalResponder = Responder;
 /** Which of the stages a machine's profile has. */
-export interface ServerLevels { sockets: boolean; dns: boolean; http: boolean; tls: boolean; nginx: boolean; proxy: boolean; firewall: boolean; tunnels: boolean; edge: boolean; diagnostics: boolean; containers: boolean; images: boolean; storageNet: boolean; compose?: boolean; runtime?: boolean; git?: boolean; forge?: boolean; workflows?: boolean; actions?: boolean }
+export interface ServerLevels { sockets: boolean; dns: boolean; http: boolean; tls: boolean; nginx: boolean; proxy: boolean; firewall: boolean; tunnels: boolean; edge: boolean; diagnostics: boolean; containers: boolean; images: boolean; storageNet: boolean; compose?: boolean; runtime?: boolean; git?: boolean; forge?: boolean; workflows?: boolean; actions?: boolean; artifacts?: boolean }
 
 /** E10–E12 (lesson checks). */
 export type ServerCheck =
@@ -70,7 +73,9 @@ export type ServerCheck =
   /** E27: workflow (workflow-checks.ts). */
   | WorkflowCheck
   /** E28: run (actions-checks.ts). */
-  | RunCheck;
+  | RunCheck
+  /** E29: secret and variable (artifacts-checks.ts). */
+  | ArtifactsCheck;
 
 export const RESOLV_CONF = '# This is /run/systemd/resolve/stub-resolv.conf managed by man:systemd-resolved(8).\n# Do not edit.\n\nnameserver 127.0.0.53\noptions edns0 trust-ad\nsearch .\n';
 const NAMED_CONF = '// This is the primary configuration file for the BIND DNS server named.\n\ninclude "/etc/bind/named.conf.options";\ninclude "/etc/bind/named.conf.local";\n';
@@ -190,7 +195,7 @@ export function serverState(m: TerminalMachine, state: FsState, lv: ServerLevels
     if (m.named !== undefined) next = { ...next, dns: { ...next.dns!, named: loadNamed(next).zones } };
   }
   if (lv.http) next = { ...next, http: { responders: (m.responders ?? []).map(r => ({ ...r, routes: r.routes.map(x => ({ ...x })) })) } };
-  return actionsState(m, workflowState(m, forgeState(m, gitState(m, dockerState(m, edgeState(m, netState(m, webState(m, next, lv), lv), lv), lv), !!lv.git), !!lv.forge), !!lv.workflows), !!lv.actions);
+  return artifactsState(m, actionsState(m, workflowState(m, forgeState(m, gitState(m, dockerState(m, edgeState(m, netState(m, webState(m, next, lv), lv), lv), lv), !!lv.git), !!lv.forge), !!lv.workflows), !!lv.actions, !!lv.artifacts), !!lv.artifacts);
 }
 
 const LINE = (max: number) => (t: unknown) => typeof t === 'string' && t.length >= 1 && t.length <= max && !t.includes('\n');
@@ -199,7 +204,7 @@ const HEADER_NAME = /^[A-Za-z0-9!#$%&'*+.^_`|~-]{1,64}$/;
 
 /** E10–E12: the problems of a machine's (expanded) server data; `own` is whether listen addresses are checked against it. */
 export function serverProblems(m: TerminalMachine, lv: ServerLevels, names?: readonly string[]): string[] {
-  const problems: string[] = [...webProblems(m, lv), ...netProblems(m, lv, () => machineState(m)), ...edgeProblems(m, lv, names), ...dockerProblems(m, lv), ...gitProblems(m, !!lv.git), ...forgeProblems(m, !!lv.forge), ...workflowProblems(m, !!lv.workflows), ...actionsProblems(m, !!lv.actions)], fail = (what: string) => problems.push(what);
+  const problems: string[] = [...webProblems(m, lv), ...netProblems(m, lv, () => machineState(m)), ...edgeProblems(m, lv, names), ...dockerProblems(m, lv), ...gitProblems(m, !!lv.git), ...forgeProblems(m, !!lv.forge), ...workflowProblems(m, !!lv.workflows), ...actionsProblems(m, !!lv.actions), ...artifactsProblems(m, !!lv.artifacts)], fail = (what: string) => problems.push(what);
   const listens = [...(m.processes ?? []).flatMap(p => p.listen ?? []), ...(m.programs ?? []).flatMap(p => p.listen ?? [])];
   if (!lv.sockets && (m.interfaces !== undefined || m.gateway !== undefined || m.connections !== undefined || m.resolved !== undefined || listens.length))
     fail('interfaces, gateway, connections, resolved and listen need the sockets profile (engine stage E10)');
@@ -308,12 +313,16 @@ export function serverCheckProblems(c: ServerCheck, lv: ServerLevels, known: (ho
         return 'headers and requestHeaders of an http check need an edge machine (engine stage E18) and [name, value] pairs';
       return null;
     case 'cache': return edgeCheckProblems(c, lv, known);
-    case 'container': case 'image': case 'build': case 'volume': case 'network': case 'compose': case 'registry': return dockerCheckProblems(c, lv);
+    case 'container': case 'image': case 'build': case 'volume': case 'network': case 'compose': case 'registry':
+      // E29: a registry check's tag may end with a branch's current commit.
+      if (c.kind === 'registry' && c.commit !== undefined) { const p = commitProblem(c.commit, !!lv.artifacts); if (p) return p; }
+      return dockerCheckProblems(c, lv);
     case 'cert': case 'nginx': return webCheckProblems(c, lv, known);
     case 'branch': case 'worktree': case 'tag': return gitCheckProblems(c, !!lv.git);
     case 'pull-request': case 'protection': return forgeCheckProblems(c, !!lv.forge);
     case 'workflow': return workflowCheckProblems(c, !!lv.workflows);
-    case 'run': return runCheckProblems(c, !!lv.actions);
+    case 'run': return runCheckProblems(c, !!lv.actions, !!lv.artifacts);
+    case 'secret': case 'variable': return artifactsCheckProblems(c, !!lv.artifacts);
     // E22: a reach check from a container is the daemon's (docker-lesson.ts).
     case 'reach': return 'container' in c ? dockerCheckProblems(c, lv) : netCheckProblems(c, lv, known);
     case 'firewall': case 'tunnel': return netCheckProblems(c, lv, known);
@@ -335,12 +344,14 @@ export function describeServerCheck(c: ServerCheck): string {
       return `${on(c.host)}GET ${c.url}${sent.length ? `（帶著 ${sent.join('、')}）` : ''} 應該回應${[...parts, ...more].join('、') || '成功'}`;
     }
     case 'cache': return describeEdgeCheck(c);
-    case 'container': case 'image': case 'build': case 'volume': case 'network': case 'compose': case 'registry': return describeDockerCheck(c);
+    case 'container': case 'image': case 'build': case 'volume': case 'network': case 'compose': case 'registry':
+      return describeDockerCheck(c.kind === 'registry' && c.commit ? { ...c, tag: `${c.tag}<${describeCommit(c.commit)}>` } : c);
     case 'cert': case 'nginx': return describeWebCheck(c);
     case 'branch': case 'worktree': case 'tag': return describeGitCheck(c);
     case 'pull-request': case 'protection': return describeForgeCheck(c);
     case 'workflow': return describeWorkflowCheck(c);
     case 'run': return describeRunCheck(c);
+    case 'secret': case 'variable': return describeArtifactsCheck(c);
     case 'reach': return 'container' in c ? describeDockerCheck(c) : describeNetCheck(c);
     case 'firewall': case 'tunnel': return describeNetCheck(c);
   }
@@ -376,13 +387,20 @@ export function serverFailure(c: ServerCheck, end: FsState, hostState: (host: st
       return null;
     }
     case 'cert': case 'nginx': return webFailure(c, end, hostState);
-    case 'branch': case 'worktree': case 'tag': return gitFailure(c, end);
-    case 'pull-request': case 'protection': return forgeFailure(c, end);
+    // E29: effects of runs whose time has come (pushes with the GITHUB_TOKEN, images pushed to registries) first.
+    case 'branch': case 'worktree': case 'tag': return gitFailure(c, settleArt(end));
+    case 'pull-request': case 'protection': return forgeFailure(c, settleArt(end));
     case 'workflow': return workflowFailure(c, end);
     case 'run': return runFailure(c, end);
+    case 'secret': case 'variable': return artifactsFailure(c, end);
     case 'reach': return 'container' in c ? dockerFailure(c, end) : netFailure(c, end);
     case 'firewall': case 'tunnel': return netFailure(c, end);
     case 'cache': return edgeFailure(c, end, resolve, h => h === undefined ? end : end.firewall ? viewOfHost(end, h) : hostState(h));
-    case 'container': case 'image': case 'build': case 'volume': case 'network': case 'compose': case 'registry': return dockerFailure(c, end);
+    case 'container': case 'image': case 'build': case 'volume': case 'network': case 'compose': return dockerFailure(c, end);
+    case 'registry': {
+      if (!c.commit) return dockerFailure(c, settleArt(end));
+      const tag = commitTag(c.tag, c.commit, end);
+      return tag === undefined ? `${c.commit.repo} 沒有 ${c.commit.ref ?? '預設分支'}` : dockerFailure({ ...c, tag }, settleArt(end));
+    }
   }
 }

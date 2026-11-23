@@ -1,3 +1,4 @@
+import type { TerminalSecret, TerminalVariable } from './artifacts-lesson';
 import type { FsState } from './fs';
 import { parseTime } from './clock';
 import { validRefName } from './git-core';
@@ -53,6 +54,8 @@ export interface TerminalForgeRepo {
   next?: number;
   /** E27 (workflows profile): the repository's Workflow permissions, the GITHUB_TOKEN's default (read: restricted, the default; write: permissive). */
   workflowPermissions?: 'read' | 'write';
+  /** E29 (artifacts profile): Actions secrets (obviously fake values) and variables, at repository level or an environment's, and the environments. */
+  secrets?: TerminalSecret[]; variables?: TerminalVariable[]; environments?: string[];
 }
 export interface TerminalForge { login: string; name?: string; email?: string; repos?: TerminalForgeRepo[] }
 

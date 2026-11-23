@@ -9,6 +9,10 @@ import { apiCommand } from './gh-api';
 import { workflowCommand } from './gh-workflow';
 import { runCommand } from './gh-run';
 import type { CiState } from './actions-model';
+import type { RunnerToken } from './git-state';
+import { valuesCommand } from './gh-secret';
+import { cacheCommand } from './gh-artifacts';
+import { runnerGate } from './gh-token';
 
 /*
  * Engine stage E26 (docs/curriculum/CICD0_E26_FORGE.md): the GitHub CLI (gh about 2.65) against the simulated
@@ -23,6 +27,8 @@ export const GH_SUPPORTED = 'auth status、repo view、pr create|list|view|diff|
 export const GH_SUPPORTED_WORKFLOWS = `${GH_SUPPORTED}、workflow list|view`;
 /** E28: the actions profile adds gh workflow run|enable|disable and gh run. */
 export const GH_SUPPORTED_ACTIONS = `${GH_SUPPORTED}、workflow list|view|run|enable|disable、run list|view|watch|rerun|cancel`;
+/** E29: the artifacts profile adds gh run download, gh secret, gh variable and gh cache. */
+export const GH_SUPPORTED_ARTIFACTS = `${GH_SUPPORTED}、workflow list|view|run|enable|disable、run list|view|watch|rerun|cancel|download、secret set|list|delete、variable set|list|get|delete、cache list|delete`;
 const UNSUPPORTED = ['issue', 'release', 'run', 'workflow', 'secret', 'variable', 'gist', 'browse', 'codespace', 'label', 'search', 'cache', 'project', 'ruleset', 'org',
   'ssh-key', 'gpg-key', 'config', 'extension', 'alias', 'status', 'completion', 'attestation', 'copilot'];
 
@@ -30,6 +36,8 @@ export interface Gh {
   g: Git; account: ForgeAccount; /** Runs git steps whose output gh does not show. */ quiet<T>(fn: () => T): T;
   /** E28 (actions profile): the machine's CI state (run and job counters), and how far gh run watch moves the clock. */
   ci?: { state: CiState }; advance?: number;
+  /** E29 (artifacts profile): gh run download, secrets and variables; standard input (gh secret set NAME < file); on a runner, the job's GITHUB_TOKEN. */
+  artifacts?: boolean; stdin?: string | null; token?: RunnerToken;
 }
 export type Flags = { values: Map<string, string[]>; rest: string[] };
 export const flag = (f: Flags, name: string) => f.values.get(name)?.at(-1);
@@ -146,23 +154,30 @@ function usage(g: Git, supported: string) {
 }
 
 /** gh 指令 子指令 …: runs one gh command on the machine (needs the forge profile's account; E27: workflows adds gh workflow). */
-export function gh(state: FsState, args: readonly string[], io: GitIo & { workflows?: boolean; actions?: boolean }): { state: FsState; status: number; advance?: number } {
+export function gh(state: FsState, args: readonly string[], io: GitIo & { workflows?: boolean; actions?: boolean; artifacts?: boolean; stdin?: string | null; env?: Readonly<Record<string, string>> }): { state: FsState; status: number; advance?: number } {
   let muted = false;
   const g = new Git(state, { ...io, out: l => { if (!muted) io.out(l); }, err: l => { if (!muted) io.err(l); } }), account = state.git?.account;
   const name = args[0];
-  const supported = io.actions ? GH_SUPPORTED_ACTIONS : io.workflows ? GH_SUPPORTED_WORKFLOWS : GH_SUPPORTED;
+  // E29: on a runner (its git state has the job's GITHUB_TOKEN) gh is the artifacts profile's, gated by the token's permissions.
+  const token = state.git?.token, art = !!io.artifacts || !!token;
+  io = { ...io, ...token ? { workflows: true, actions: true } : {} };
+  const supported = art ? GH_SUPPORTED_ARTIFACTS : io.actions ? GH_SUPPORTED_ACTIONS : io.workflows ? GH_SUPPORTED_WORKFLOWS : GH_SUPPORTED;
   if (name === undefined || name === 'help' || name === '-h' || name === '--help') { usage(g, supported); return { state, status: 0 }; }
   if (name === '--version' || name === 'version') { g.out(...GH_VERSION); return { state, status: 0 }; }
   if (!account) { g.err('To get started with GitHub CLI, please run:  gh auth login', 'Alternatively, populate the GH_TOKEN environment variable with a GitHub API authentication token.'); return { state, status: 4 }; }
   const quiet = <T>(fn: () => T): T => { const was = muted; muted = true; try { return fn(); } finally { muted = was; } };
-  const h: Gh = { g, account, quiet, ...io.actions && state.ci ? { ci: { state: state.ci } } : {} }, rest = [...args.slice(1)];
+  const h: Gh = { g, account, quiet, ...io.actions && state.ci ? { ci: { state: state.ci } } : {}, ...art ? { artifacts: true, stdin: io.stdin ?? null } : {}, ...token ? { token } : {} }, rest = [...args.slice(1)];
   let status: number;
-  if (name === 'auth') status = authCommand(h, rest);
+  const gate = token ? runnerGate(g, token, g.forge[0] ? repoPath(g.forge[0]) : undefined, name, rest, io.env ?? {}) : undefined;
+  if (gate !== undefined) status = gate;
+  else if (name === 'auth') status = authCommand(h, rest);
   else if (name === 'repo') status = repoCommand(h, rest);
   else if (name === 'pr') status = prCommand(h, rest);
   else if (name === 'api') status = apiCommand(h, rest);
   else if (name === 'workflow' && io.workflows) status = workflowCommand(h, rest);
   else if (name === 'run' && h.ci) status = runCommand(h, rest);
+  else if ((name === 'secret' || name === 'variable') && art) status = valuesCommand(h, name, rest);
+  else if (name === 'cache' && art) status = cacheCommand(h, rest);
   else if (UNSUPPORTED.includes(name)) { g.err(`gh ${name}：模擬環境不支援這個指令（支援的指令：${supported}）`); status = 1; }
   else { g.err(`unknown command "${name}" for "gh"`, '', 'Usage:  gh <command> <subcommand> [flags]'); status = 1; }
   const result = g.result();

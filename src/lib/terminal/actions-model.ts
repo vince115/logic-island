@@ -1,5 +1,6 @@
 import type { FsState } from './fs';
 import type { Obj, Val } from './expr-value';
+import type { ArtState, JobArt } from './artifacts-model';
 
 /*
  * Engine stage E28 (docs/curriculum/CICD0_E28_ACTIONS.md): what GitHub Actions keeps. A run is computed in full when it
@@ -17,6 +18,8 @@ export interface CiCondition { path?: string; includes?: string; excludes?: stri
 export interface CiCase {
   when: readonly CiCondition[]; stdout: string; stderr: string; exit: number; seconds: number;
   writes: readonly { path: string; content: string }[];
+  /** E29: the seconds when the tool's cache folder exists. */
+  cachedSeconds?: number;
 }
 /** A CI tool the lesson declares (npm test, pytest): its result follows the files, so fixing the source fixes the test. */
 export interface CiTool {
@@ -25,6 +28,8 @@ export interface CiTool {
   cases: readonly CiCase[];
   /** Fails on these attempts (a runner's run attempt; on the learner's machine, the how-many-th call). */
   flaky?: { failOnAttempts: readonly number[]; stdout: string; stderr: string; exit: number; seconds: number };
+  /** E29: the folder it fills when it succeeds (relative to the working folder, ~/… or absolute). */
+  cache?: string;
 }
 export interface CiState {
   tools: readonly CiTool[];
@@ -39,6 +44,8 @@ export interface CiState {
   calls: Readonly<Record<string, number>>;
   /** On a runner: the run attempt. */
   attempt?: number;
+  /** E29 (artifacts profile): artifact and cache IDs and the effects of runs not yet due. */
+  art?: ArtState;
 }
 
 export interface LogLine { t: number; text: string }
@@ -48,6 +55,8 @@ export interface StepResult {
   conclusion: JobConclusion;
   outcome: JobConclusion;
   lines: readonly LogLine[];
+  /** E29: an actions/cache step's result (true: the key matched exactly). */
+  cacheHit?: boolean;
 }
 export interface Annotation { level: 'failure' | 'warning' | 'notice'; message: string; step: number }
 export interface JobResult {
@@ -71,6 +80,8 @@ export interface JobResult {
   runner?: string;
   /** Rerun of failed jobs: this result was kept from an earlier attempt. */
   reused?: boolean;
+  /** E29: the caches, artifacts and effects the job left behind. */
+  art?: JobArt;
 }
 export interface RunAttempt { attempt: number; startedAt: number; actor: string; jobs: readonly JobResult[]; cancelledAt?: number }
 export interface WorkflowRun {

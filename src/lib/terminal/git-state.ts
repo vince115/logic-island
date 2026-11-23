@@ -42,7 +42,10 @@ export interface GitRepo {
 }
 /** A bare repository on the simulated forge (https://github.example/<owner>/<repo>.git). */
 export interface ForgeRepo { url: string; head: string; refs: ReadonlyMap<string, Sha>; known: ReadonlySet<Sha>; /** E26 (forge profile): settings, protection and pull requests (forge-state.ts). */ site?: ForgeSite }
-export interface GitState { objects: Objects; repos: readonly GitRepo[]; forge: readonly ForgeRepo[]; /** The lesson's commit labels → IDs (for checks that name a commit by its label). */ labels?: ReadonlyMap<string, Sha>; /** E26: the gh account logged in to github.example (forge profile). */ account?: ForgeAccount }
+export interface GitState { objects: Objects; repos: readonly GitRepo[]; forge: readonly ForgeRepo[]; /** The lesson's commit labels → IDs (for checks that name a commit by its label). */ labels?: ReadonlyMap<string, Sha>; /** E26: the gh account logged in to github.example (forge profile). */ account?: ForgeAccount;
+  /** E29: on a runner, the job's GITHUB_TOKEN (its permissions decide git push and gh). */ token?: RunnerToken }
+/** E29: the GITHUB_TOKEN of a job on a runner. */
+export interface RunnerToken { permissions: Readonly<Record<string, string>>; login: string }
 
 export const FORGE_HOST = 'github.example';
 /** A forge repository's URL: https://github.example/owner/repo.git */

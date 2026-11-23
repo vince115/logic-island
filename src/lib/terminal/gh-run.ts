@@ -7,6 +7,7 @@ import { cancelRun, rerunRun } from './actions-events';
 import { matchesWorkflow } from './actions-checks';
 import { completedAt, lastAttempt, runConclusion, runStatus, symbol, type JobResult, type WorkflowRun } from './actions-model';
 import { JSON_FIELDS, jsonOf, listRow, logLines, viewLines } from './gh-run-view';
+import { downloadCommand } from './gh-artifacts';
 
 /*
  * Engine stage E28 (docs/curriculum/CICD0_E28_ACTIONS.md §5): gh run list, view, watch, rerun and cancel against the runs
@@ -77,7 +78,8 @@ function viewCommand(h: Gh, args: string[]): number {
     g.out(...logLines(run, job ? [job] : lastAttempt(run).jobs, g.now, on(f, 'log-failed')));
     return 0;
   }
-  g.out(...viewLines(run, g.now, { verbose: on(f, 'verbose'), ...job ? { job } : {}, footer: true, web }));
+  const artifacts = h.artifacts ? (forge.site?.artifacts ?? []).filter(x => x.runId === run.id && x.at <= g.now) : [];
+  g.out(...viewLines(run, g.now, { verbose: on(f, 'verbose'), ...job ? { job } : {}, footer: true, web, ...artifacts.length ? { artifacts } : {} }));
   return on(f, 'exit-status') && st === 'completed' && runConclusion(run) !== 'success' ? 1 : 0;
 }
 
@@ -116,7 +118,7 @@ function cancelCommand(h: Gh, args: string[]): number {
   const found = findRun(h, f, 'run ID');
   if (!found) return 1;
   if (runStatus(found.run, g.now) === 'completed') { g.err('Cannot cancel a workflow run that is completed'); return 1; }
-  cancelRun(found.forge, found.run, g.now);
+  cancelRun(found.forge, found.run, g.now, h.ci);
   g.out(`✓ Request to cancel workflow ${found.run.id} submitted.`);
   return 0;
 }
@@ -129,6 +131,7 @@ export function runCommand(h: Gh, args: string[]): number {
   if (sub === 'watch') return watchCommand(h, rest);
   if (sub === 'rerun') return rerunCommand(h, rest);
   if (sub === 'cancel') return cancelCommand(h, rest);
+  if (sub === 'download' && h.artifacts) return downloadCommand(h, rest);
   if (sub === 'download' || sub === 'delete') { g.err(`gh run ${sub}：模擬環境不支援（artifact 在引擎階段 E29）`); return 1; }
   g.err(sub === undefined ? 'gh run：要加子指令，例如 gh run list' : `unknown command "${sub}" for "gh run"`);
   return 1;

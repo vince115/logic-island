@@ -138,8 +138,11 @@ function flow(s: string, i0: number, no: number, base: number): { v: Y; end: num
   return { v: { t: 'map', m, line: no, col: base + open, keys }, end: i };
 }
 
-/** Parses the subset; throws YamlError with yaml.v3's message (or the subset's own sentence). */
-export function parseYaml(text: string): Y {
+/**
+ * Parses the subset; throws YamlError with yaml.v3's message (or the subset's own sentence). E29: workflow files pass
+ * keep, so |+ and >+ keep their trailing empty lines as YAML says (compose files keep E23's behaviour: one newline).
+ */
+export function parseYaml(text: string, opts: { keep?: boolean } = {}): Y {
   const raw = text.split('\n').map(l => l.replace(/\r$/, ''));
   const lines: Line[] = [];
   let started = false;
@@ -188,10 +191,13 @@ export function parseYaml(text: string): Y {
       out.push(r.slice(Math.min(width, w)));
     }
     while (p < lines.length && lines[p].raw < k) p++;
+    // E29 (workflows): keep (+) keeps the trailing empty lines (the file's last newline is not one).
+    const kept = opts.keep && head[1] === '+' ? out.length - (k >= raw.length && raw.at(-1) === '' ? 1 : 0) : 0;
+    const tail = kept ? out.slice(0, kept).reverse().findIndex(x => x !== '') : 0;
     while (out.length && out.at(-1) === '') out.pop();
     const folded = head[0] === '>' ? out.reduce((acc, x, i) => i === 0 ? x : x === '' ? `${acc}\n` : acc.endsWith('\n') ? acc + x : `${acc} ${x}`, '') : out.join('\n');
     const chomp = head[1];
-    return { t: 'str', v: chomp === '-' ? folded : `${folded}\n`, q: true, line: l.no, col };
+    return { t: 'str', v: chomp === '-' ? folded : `${folded}\n${'\n'.repeat(Math.max(0, tail))}`, q: true, line: l.no, col };
   }
   function map(ind: number): Y {
     const m: [string, Y][] = [], keys: YamlPos[] = [], first = cur().no, seen = new Map<string, number>();
