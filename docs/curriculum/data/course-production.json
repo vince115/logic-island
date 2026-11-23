@@ -456,7 +456,9 @@
       ],
       "commit": "TBD",
       "tests": "TBD",
-      "notes": "GEN-1：生成式 AI 島開放（llm-explorer；GEN02 是第一堂同時有 python-code 與探索器的課，Python 標準庫的字元取樣器、序列 log 機率、temperature／top-k／top-p 與偵測重複的 greedy）；生成模型概觀、自回歸生成模型兩課"
+      "notes": "GEN-1：生成式 AI 島開放（llm-explorer；GEN02 是第一堂同時有 python-code 與探索器的課，Python 標準庫的字元取樣器、序列 log 機率、temperature／top-k／top-p 與偵測重複的 greedy）；生成模型概觀、自回歸生成模型兩課",
+      "pr": "#78",
+      "merged": "5e4f35f"
     },
     {
       "id": 33,
@@ -519,6 +521,19 @@
       "merged": "896db3d"
     },
     {
+      "id": 37,
+      "date": "2026-11-23",
+      "lessons": [
+        "DKR01",
+        "DKR02",
+        "DKR03",
+        "DKR04"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "DKR-1：Docker 容器島開放（terminal 能力，引擎階段 E20 containers：daemon 狀態、Image、模擬的 Registry、容器的檔案系統與可寫層、Docker CE 27.5.1 格式的 CLI、經 docker-proxy 的連接埠對應、docker 群組的 socket 權限）；容器概念、Docker 架構、Image 與 Container 的生命週期、Docker CLI 常用指令四課"
+    },
+    {
       "id": 38,
       "date": "2026-11-23",
       "lessons": [
@@ -528,7 +543,7 @@
         "MOB08"
       ],
       "commit": "TBD",
-      "tests": "驗證器、發布閘門、TypeScript、ESLint、Vitest 134 檔 3869 passed／9 skipped（含 Chromium：39 堂網頁課的每個範例、參考解答、起始內容與常見錯誤，各在一般與傳統捲軸的瀏覽器跑一遍；練習指定的預覽高度、wait 之後的畫格；之後 highlight 測試改成每 150 支程式一組，9 → 27 個測試，該檔單獨重跑通過）、Production build、E2E 桌機＋手機旗標關 519 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上每個練習各做一遍）、測驗 32 題逐題複核、洩漏掃描",
+      "tests": "驗證器、發布閘門、TypeScript、ESLint、Vitest 137 檔 3991 passed／9 skipped（併入 main `e5da508` 之後的完整一輪；含 Chromium：39 堂網頁課的每個範例、參考解答、起始內容與常見錯誤，各在一般與傳統捲軸的瀏覽器跑一遍；練習指定的預覽高度、wait 之後的畫格；highlight 測試改成每 150 支程式一組）、Production build、E2E 桌機＋手機旗標關 521 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上每個練習各做一遍）、測驗 32 題逐題複核、洩漏掃描",
       "notes": "MOB-2：行動表單與虛擬鍵盤（type、inputmode、autocomplete、減少輸入、欄位捲動）、安全區域／方向／動態視窗高度（viewport-fit、env() 經由自訂屬性、橫放、dvh 與 svh）、原生／跨平台／PWA 的選擇（定性的比較、從需求出發的規則表 chooseRoute、功能偵測與退路）、PWA 基礎（Web App Manifest、圖示與 maskable、安裝條件、顯示模式；以頁面內固定的檢查器代替瀏覽器的 Manifest 檢查）。引擎小改：練習可指定預覽高度、wait 之後等一個畫格。預覽做不到的事（虛擬鍵盤、安全區域的實際數值、安裝）都以明說的替身教，檢查只看頁面自己做的事"
     }
   ]

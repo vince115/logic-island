@@ -67,6 +67,8 @@ MOB-1 合併後（main `896db3d`）：對正式站執行課程 E2E（MOB01–MOB
 
 MOB-2 的結果（隔離副本，旗標關）：TypeScript 與 ESLint 通過；Vitest **134 檔、3869 passed／9 skipped**（highlight 分組之前的完整一輪；分組後該檔 27 個測試單獨重跑通過）；Production build 通過；E2E 桌機＋手機 **519 passed／2 failed／297 skipped**（兩個失敗同上，#36）；洩漏掃描（`src`、`docs`、`tests`、`e2e`）clean。
 
+併入 main `e5da508`（DKR-1 之後）再跑完整一輪：TypeScript 與 ESLint 通過；Vitest **137 檔、3991 passed／9 skipped**；Production build 通過；E2E 桌機＋手機 **521 passed／2 failed／297 skipped**（兩個失敗同上，#36）；洩漏掃描 clean。
+
 ## Private Vitest Runner（2026-11-22，分支 `trials/private-test-runner`）
 
 用法與選項：`docs/exam-system/34_T3J_PRIVATE_BANK_AND_CI_ACTIVATION.md` 第 2 節。**以下是本機隔離 checkout 的結果，不是 CI：公開 CI 沒有私有題庫，也不執行這個 Runner。**

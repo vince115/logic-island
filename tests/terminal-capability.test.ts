@@ -95,12 +95,12 @@ describe('isolation from the other capabilities', () => {
     expect(validateCurriculum(curriculum)).toEqual([]);
     // LNX-1: only the Linux systems island's lessons use the terminal capability.
     for (const l of lessons) {
-      // SRV-1: the network and servers island uses the terminal capability too.
-      const linux = l.islandId === 'linux-systems' || l.islandId === 'network-servers';
+      // SRV-1: the network and servers island uses the terminal capability too. DKR-1: so does the Docker containers island.
+      const linux = l.islandId === 'linux-systems' || l.islandId === 'network-servers' || l.islandId === 'docker-containers';
       expect(l.capabilities.includes('terminal'), l.lessonId).toBe(linux);
       // LNX-4: LNX12 (SSH) pairs its terminal machines with a network-protocol scene, so its activity is network-sequence.
-      // LNX-5: the capstone LNX15 is a challenge-stages lesson.
-      expect(l.activity === 'terminal-sim', l.lessonId).toBe(linux && !['LNX12', 'LNX15', 'SRV02', 'SRV03', 'SRV04', 'SRV05', 'SRV06', 'SRV07', 'SRV08', 'SRV10', 'SRV11', 'SRV14'].includes(l.lessonId));
+      // LNX-5: the capstone LNX15 is a challenge-stages lesson. DKR-1: DKR01 and DKR02 (architecture overviews) are network-sequence.
+      expect(l.activity === 'terminal-sim', l.lessonId).toBe(linux && !['LNX12', 'LNX15', 'DKR01', 'DKR02', 'SRV02', 'SRV03', 'SRV04', 'SRV05', 'SRV06', 'SRV07', 'SRV08', 'SRV10', 'SRV11', 'SRV14'].includes(l.lessonId));
       expect(!!curriculum.contents[l.lessonId]?.terminal, l.lessonId).toBe(linux);
     }
   });

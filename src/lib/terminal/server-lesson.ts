@@ -12,6 +12,7 @@ import { describeWebCheck, expandWeb, webCheckProblems, webFailure, webProblems,
 import { describeNetCheck, expandNet, netCheckProblems, netFailure, netProblems, netState, sshConfigFiles, viewOfHost, type NetCheck } from './net-lesson';
 import { machineState } from './lesson';
 import { describeEdgeCheck, edgeCheckProblems, edgeFailure, edgeProblems, edgeState, expandEdge, type EdgeCheck } from './edge-lesson';
+import { describeDockerCheck, dockerCheckProblems, dockerFailure, dockerProblems, dockerState, expandDocker, type DockerCheck } from './docker-lesson';
 
 /*
  * Engine stages E10–E12 as lesson data (docs/curriculum/SRV0_SERVER_CAPABILITY.md §9). A machine of the sockets profile is
@@ -33,7 +34,7 @@ export interface TerminalZone { zone: string; text: string }
 export type TerminalListen = Listen;
 export type TerminalResponder = Responder;
 /** Which of the stages a machine's profile has. */
-export interface ServerLevels { sockets: boolean; dns: boolean; http: boolean; tls: boolean; nginx: boolean; proxy: boolean; firewall: boolean; tunnels: boolean; edge: boolean; diagnostics: boolean }
+export interface ServerLevels { sockets: boolean; dns: boolean; http: boolean; tls: boolean; nginx: boolean; proxy: boolean; firewall: boolean; tunnels: boolean; edge: boolean; diagnostics: boolean; containers: boolean }
 
 /** E10–E12 (lesson checks). */
 export type ServerCheck =
@@ -51,7 +52,9 @@ export type ServerCheck =
   /** E15–E17: reach, firewall and tunnel (net-lesson.ts). */
   | NetCheck
   /** E18: cache (edge-lesson.ts). */
-  | EdgeCheck;
+  | EdgeCheck
+  /** E20: container and image (docker-lesson.ts). */
+  | DockerCheck;
 
 export const RESOLV_CONF = '# This is /run/systemd/resolve/stub-resolv.conf managed by man:systemd-resolved(8).\n# Do not edit.\n\nnameserver 127.0.0.53\noptions edns0 trust-ad\nsearch .\n';
 const NAMED_CONF = '// This is the primary configuration file for the BIND DNS server named.\n\ninclude "/etc/bind/named.conf.options";\ninclude "/etc/bind/named.conf.local";\n';
@@ -144,6 +147,8 @@ export function expandServer(m: TerminalMachine, lv: ServerLevels): TerminalMach
   if (lv.tunnels) for (const f of sshConfigFiles(m, m.home ?? (m.user === 'root' ? '/root' : `/home/${m.user}`))) add(f);
   // E19: the lesson's capture files.
   expandEdge(m, lv, { file: add, dir });
+  // E20: Docker CE (the docker group, the socket, docker.service and containerd.service).
+  expandDocker(m, lv, { file: add, dir }, procs, programs, services, pidFrom, groups);
   files.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
   return { ...m, files, processes: procs, programs, services, ...users.length || groups.length ? { accounts: { ...m.accounts, users, groups } } : {} };
 }
@@ -167,7 +172,7 @@ export function serverState(m: TerminalMachine, state: FsState, lv: ServerLevels
     if (m.named !== undefined) next = { ...next, dns: { ...next.dns!, named: loadNamed(next).zones } };
   }
   if (lv.http) next = { ...next, http: { responders: (m.responders ?? []).map(r => ({ ...r, routes: r.routes.map(x => ({ ...x })) })) } };
-  return edgeState(m, netState(m, webState(m, next, lv), lv), lv);
+  return dockerState(m, edgeState(m, netState(m, webState(m, next, lv), lv), lv), lv);
 }
 
 const LINE = (max: number) => (t: unknown) => typeof t === 'string' && t.length >= 1 && t.length <= max && !t.includes('\n');
@@ -176,7 +181,7 @@ const HEADER_NAME = /^[A-Za-z0-9!#$%&'*+.^_`|~-]{1,64}$/;
 
 /** E10–E12: the problems of a machine's (expanded) server data; `own` is whether listen addresses are checked against it. */
 export function serverProblems(m: TerminalMachine, lv: ServerLevels, names?: readonly string[]): string[] {
-  const problems: string[] = [...webProblems(m, lv), ...netProblems(m, lv, () => machineState(m)), ...edgeProblems(m, lv, names)], fail = (what: string) => problems.push(what);
+  const problems: string[] = [...webProblems(m, lv), ...netProblems(m, lv, () => machineState(m)), ...edgeProblems(m, lv, names), ...dockerProblems(m, lv)], fail = (what: string) => problems.push(what);
   const listens = [...(m.processes ?? []).flatMap(p => p.listen ?? []), ...(m.programs ?? []).flatMap(p => p.listen ?? [])];
   if (!lv.sockets && (m.interfaces !== undefined || m.gateway !== undefined || m.connections !== undefined || m.resolved !== undefined || listens.length))
     fail('interfaces, gateway, connections, resolved and listen need the sockets profile (engine stage E10)');
@@ -285,6 +290,7 @@ export function serverCheckProblems(c: ServerCheck, lv: ServerLevels, known: (ho
         return 'headers and requestHeaders of an http check need an edge machine (engine stage E18) and [name, value] pairs';
       return null;
     case 'cache': return edgeCheckProblems(c, lv, known);
+    case 'container': case 'image': return dockerCheckProblems(c, lv);
     case 'cert': case 'nginx': return webCheckProblems(c, lv, known);
     case 'reach': case 'firewall': case 'tunnel': return netCheckProblems(c, lv, known);
   }
@@ -305,6 +311,7 @@ export function describeServerCheck(c: ServerCheck): string {
       return `${on(c.host)}GET ${c.url}${sent.length ? `（帶著 ${sent.join('、')}）` : ''} 應該回應${[...parts, ...more].join('、') || '成功'}`;
     }
     case 'cache': return describeEdgeCheck(c);
+    case 'container': case 'image': return describeDockerCheck(c);
     case 'cert': case 'nginx': return describeWebCheck(c);
     case 'reach': case 'firewall': case 'tunnel': return describeNetCheck(c);
   }
@@ -342,5 +349,6 @@ export function serverFailure(c: ServerCheck, end: FsState, hostState: (host: st
     case 'cert': case 'nginx': return webFailure(c, end, hostState);
     case 'reach': case 'firewall': case 'tunnel': return netFailure(c, end);
     case 'cache': return edgeFailure(c, end, resolve, h => h === undefined ? end : end.firewall ? viewOfHost(end, h) : hostState(h));
+    case 'container': case 'image': return dockerFailure(c, end);
   }
 }
