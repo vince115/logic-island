@@ -664,7 +664,21 @@
       ],
       "commit": "TBD",
       "tests": "TBD",
-      "notes": "CICD-3：終端機引擎階段 E27 workflows（workflow 檔案的模型、GitHub 風格的驗證訊息、觸發與篩選、運算式、GITHUB_TOKEN 權限）與 E28 actions（push、PR、dispatch 與排程產生的 run 在全新的模擬 runner 上執行、依工作區檔案決定結果的 CI 工具與不穩定的測試、PR 的狀態檢查、gh run）；持續整合、GitHub Actions 入門、管線中的自動化測試三課"
+      "notes": "CICD-3：終端機引擎階段 E27 workflows（workflow 檔案的模型、GitHub 風格的驗證訊息、觸發與篩選、運算式、GITHUB_TOKEN 權限）與 E28 actions（push、PR、dispatch 與排程產生的 run 在全新的模擬 runner 上執行、依工作區檔案決定結果的 CI 工具與不穩定的測試、PR 的狀態檢查、gh run）；持續整合、GitHub Actions 入門、管線中的自動化測試三課",
+      "pr": "#93",
+      "merged": "c8d9b2a"
+    },
+    {
+      "id": 48,
+      "date": "2026-11-24",
+      "lessons": [
+        "CICD06",
+        "CICD07",
+        "CICD08"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "CICD-4：終端機引擎階段 E29 artifacts（actions/cache 與 restore-keys、upload／download-artifact 與 gh run download、runner 上的 Docker 建置與推送、儲存庫與 environment 層級的 secret 與 variable、日誌遮蔽、GITHUB_TOKEN 對 git push 與 gh 的影響、逐片的 rerun --failed）；建置管線與產出物、環境變數與設定管理、機密管理三課"
     }
   ]
 }

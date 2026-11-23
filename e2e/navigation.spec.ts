@@ -307,19 +307,19 @@ test('AI 群島入口：首頁「更多學習群島」→ 群島總覽，七座�
 
 // P6 added 系統與雲端工程群島 (six islands, no navigation groups). LNX-1 to LNX-5 opened Linux 系統島 (15 of 15), SRV-1 to
 // SRV-5 網路與伺服器島 (14 of 14), DKR-1 to DKR-6 Docker 容器島 (15 of 15) and CICD-1 DevOps 與 CI/CD 島 (CICD01 of 15):
-// 49 of the region's 89 lessons (CICD-2: CICD02 too; CICD-3: CICD03–CICD05).
-test('系統與雲端工程群島：首頁「更多學習群島」已開放 49／89 堂，群島總覽六座島，Linux 系統島、網路與伺服器島與 Docker 容器島全部開放、DevOps 與 CI/CD 島部分開放、其餘兩座規劃中；側欄 Docker 容器島 15 堂可點、DevOps 與 CI/CD 島 1 堂可點、14 堂規劃中', async ({ page }, info) => {
+// 52 of the region's 89 lessons (CICD-2: CICD02 too; CICD-3: CICD03–CICD05; CICD-4: CICD06–CICD08).
+test('系統與雲端工程群島：首頁「更多學習群島」已開放 52／89 堂，群島總覽六座島，Linux 系統島、網路與伺服器島與 Docker 容器島全部開放、DevOps 與 CI/CD 島部分開放、其餘兩座規劃中；側欄 Docker 容器島 15 堂可點、DevOps 與 CI/CD 島 1 堂可點、14 堂規劃中', async ({ page }, info) => {
   const phone = info.project.name.startsWith('mobile');
   if (!P9) {
     await page.goto('/');
     const more = page.getByRole('navigation', { name: '更多學習群島' });
     if (!await more.isVisible()) await page.getByRole('button', { name: /清單/ }).first().click();
-    await expect(more.getByRole('link', { name: /系統與雲端工程群島/ })).toContainText('6 座主題島 · 已開放 49／89 堂');
+    await expect(more.getByRole('link', { name: /系統與雲端工程群島/ })).toContainText('6 座主題島 · 已開放 52／89 堂');
   }
   await page.goto('/regions/sys');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('系統與雲端工程群島');
   const main = page.locator('main');
-  await expect(main.locator('header').first()).toContainText('49 堂已開放');
+  await expect(main.locator('header').first()).toContainText('52 堂已開放');
   await expect(main.locator('article')).toHaveCount(6);
   // The complete islands say 已開放 and lead to their syllabus (DKR-6: Docker 容器島 too, 15 of 15).
   for (const [name, id, open] of [[/Linux 系統島/, 'linux-systems', 15], [/網路與伺服器島/, 'network-servers', 14], [/Docker 容器島/, 'docker-containers', 15]] as const) {
@@ -330,28 +330,28 @@ test('系統與雲端工程群島：首頁「更多學習群島」已開放 49�
     await expect(card.getByRole('link')).toContainText(`${open} 堂已開放`);
   }
   await expect(main.getByRole('article', { name: /Docker 容器島/ }).locator('details')).toHaveCount(0);
-  // CICD-1 to CICD-3: DevOps 與 CI/CD 島 is open with 5 of its 15 lessons: its card says 部分開放 and leads to its syllabus, with no folded outline.
+  // CICD-1 to CICD-4: DevOps 與 CI/CD 島 is open with 8 of its 15 lessons: its card says 部分開放 and leads to its syllabus, with no folded outline.
   const devops = main.getByRole('article', { name: /DevOps 與 CI\/CD 島/ });
   await expect(devops).toContainText('部分開放');
   await expect(devops.getByRole('link')).toHaveAttribute('href', '/curriculum#island-devops-cicd');
-  await expect(devops.getByRole('link')).toContainText('5 堂已開放');
+  await expect(devops.getByRole('link')).toContainText('8 堂已開放');
   await expect(devops.locator('details')).toHaveCount(0);
   // CLD and KUB stay planned: each card's tag says 規劃中, and so does every lesson of their folded outlines (15 + 15).
   await expect(main.locator('article > div:first-child').getByText('規劃中', { exact: true })).toHaveCount(2);
   await expect(main.locator('article details').getByText('規劃中', { exact: true })).toHaveCount(30);
   await expect(main.locator('a[href^="/curriculum/"]')).toHaveCount(0);
-  // Paths K, L and M lead mostly through the region; CICD01 is on all three (K 48 → 49, L 36 → 37, M 29 → 30 open; CICD-2: CICD02 too, K 50, L 38, M 31; CICD-3: CICD03–CICD04, K 52, L 40, M 33).
+  // Paths K, L and M lead mostly through the region; CICD01 is on all three (K 48 → 49, L 36 → 37, M 29 → 30 open; CICD-2: CICD02 too, K 50, L 38, M 31; CICD-3: CICD03–CICD04, K 52, L 40, M 33; CICD-4: CICD06–CICD07, K 54, L 42, M 35).
   const paths = main.locator('section[aria-labelledby="region-paths"] li');
   await expect(paths).toHaveCount(3);
-  await expect(paths.filter({ hasText: '全端部署' })).toContainText('路線共 62 堂 · 已開放 52 堂 · 其餘 10 堂規劃中');
-  await expect(paths.filter({ hasText: 'AI 基礎設施' })).toContainText('路線共 60 堂 · 已開放 40 堂 · 其餘 20 堂規劃中');
-  await expect(paths.filter({ hasText: '雲端與 DevOps 基礎' })).toContainText('路線共 48 堂 · 已開放 33 堂 · 其餘 15 堂規劃中');
-  // The sidebar: the region says 49／89 堂 and Docker 容器島 15 堂; all fifteen lessons are links under 入門, 中級 and 進階, no disabled row.
+  await expect(paths.filter({ hasText: '全端部署' })).toContainText('路線共 62 堂 · 已開放 54 堂 · 其餘 8 堂規劃中');
+  await expect(paths.filter({ hasText: 'AI 基礎設施' })).toContainText('路線共 60 堂 · 已開放 42 堂 · 其餘 18 堂規劃中');
+  await expect(paths.filter({ hasText: '雲端與 DevOps 基礎' })).toContainText('路線共 48 堂 · 已開放 35 堂 · 其餘 13 堂規劃中');
+  // The sidebar: the region says 52／89 堂 and Docker 容器島 15 堂; all fifteen lessons are links under 入門, 中級 and 進階, no disabled row.
   const sidebar = page.locator('#site-sidebar');
   if (phone) { await page.getByRole('button', { name: '選單' }).click(); await expect(sidebar).toBeVisible(); }
   const tree = sidebar.getByRole('navigation', { name: '學習群島目錄' });
   await expect(tree.getByRole('button', { name: /^系統與雲端工程群島/ })).toHaveAttribute('aria-expanded', 'true');
-  await expect(tree.getByRole('button', { name: /^系統與雲端工程群島/ })).toContainText('49／89 堂');
+  await expect(tree.getByRole('button', { name: /^系統與雲端工程群島/ })).toContainText('52／89 堂');
   const dockerButton = tree.getByRole('button', { name: /^Docker 容器島/ });
   // A complete island's button shows its lesson count alone (15 堂), as Linux 系統島 and 網路與伺服器島 do.
   await expect(dockerButton).toContainText('15 堂');
@@ -364,15 +364,15 @@ test('系統與雲端工程群島：首頁「更多學習群島」已開放 49�
   await dkr.getByRole('button', { name: /^進階/ }).click();
   await expect(dkr.locator('a[href^="/curriculum/"]')).toHaveCount(15);
   for (const l of lessons.filter(l => l.islandId === 'docker-containers')) await expect(dkr.locator(`a[href="/curriculum/${l.slug}"]`), l.lessonId).toHaveCount(1);
-  // CICD-1 to CICD-3: DevOps 與 CI/CD 島 says 5／15 堂; CICD01–CICD05 are links under 入門 and 中級, the other 10 are disabled rows.
+  // CICD-1 to CICD-4: DevOps 與 CI/CD 島 says 8／15 堂; CICD01–CICD08 are links under 入門 and 中級, the other 7 are disabled rows.
   const devopsButton = tree.getByRole('button', { name: /^DevOps 與 CI\/CD 島/ });
-  await expect(devopsButton).toContainText('5／15 堂');
+  await expect(devopsButton).toContainText('8／15 堂');
   await devopsButton.click();
   const cicd = tree.locator(`#${await devopsButton.getAttribute('aria-controls')}`);
-  await expect(cicd.locator('[aria-disabled="true"]')).toHaveCount(10);
+  await expect(cicd.locator('[aria-disabled="true"]')).toHaveCount(7);
   await cicd.getByRole('button', { name: /^入門/ }).click();
   await cicd.getByRole('button', { name: /^中級/ }).click();
-  await expect(cicd.locator('a[href^="/curriculum/"]')).toHaveCount(5);
+  await expect(cicd.locator('a[href^="/curriculum/"]')).toHaveCount(8);
   for (const l of lessons.filter(l => l.islandId === 'devops-cicd')) await expect(cicd.locator(`a[href="/curriculum/${l.slug}"]`), l.lessonId).toHaveCount(1);
   if (phone) { await page.keyboard.press('Escape'); await expect(sidebar).toBeHidden(); }
 });

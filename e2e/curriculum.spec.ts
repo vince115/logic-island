@@ -65,12 +65,12 @@ test('課綱目錄：十六座島，F／D／A／PL／DB／CN／AIF 各 20 堂、
   await expect(dkr.locator('ol a')).toHaveCount(15);
   for (const l of lessons.filter(l => l.islandId === 'docker-containers')) await expect(dkr.locator(`ol a[href="/curriculum/${l.slug}"]`), l.lessonId).toHaveCount(1);
   await expect(dkr.locator('ol').getByText('規劃中', { exact: true })).toHaveCount(0);
-  // CICD-1 to CICD-3: DevOps 與 CI/CD 島 lists its 15 lessons: CICD01–CICD05 are links, the other 10 are marked 規劃中 and not linked.
+  // CICD-1 to CICD-4: DevOps 與 CI/CD 島 lists its 15 lessons: CICD01–CICD08 are links, the other 7 are marked 規劃中 and not linked.
   const cicd = page.getByRole('region', { name: /DevOps 與 CI\/CD 島/ });
   await expect(cicd.getByRole('listitem')).toHaveCount(15);
-  await expect(cicd.locator('ol a')).toHaveCount(5);
+  await expect(cicd.locator('ol a')).toHaveCount(8);
   for (const l of lessons.filter(l => l.islandId === 'devops-cicd')) await expect(cicd.locator(`ol a[href="/curriculum/${l.slug}"]`), l.lessonId).toHaveCount(1);
-  await expect(cicd.locator('ol').getByText('規劃中', { exact: true })).toHaveCount(10);
+  await expect(cicd.locator('ol').getByText('規劃中', { exact: true })).toHaveCount(7);
   // MOB-1 to MOB-3: 行動應用島 lists its 13 lessons, all written since MOB-3.
   await expect(page.getByRole('region', { name: /行動應用島/ }).getByRole('listitem')).toHaveCount(13);
   await expect(page.getByRole('region', { name: /行動應用島/ }).locator('ol a')).toHaveCount(13);
