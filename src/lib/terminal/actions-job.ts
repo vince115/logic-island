@@ -9,11 +9,13 @@ import type { WorkflowJob, WorkflowStep } from './workflow-job';
 import { permissionLines, type TokenPermissions } from './workflow-perms';
 import { checkout, fileCommand, prepareRunner, runStepScript, shellOf, workflowCommands } from './runner';
 import type { Annotation, CiState, JobResult, LogLine, StepResult } from './actions-model';
-import { RUNNER_ARTIFACTS_PROFILE } from './shell';
+import { RUNNER_ARTIFACTS_PROFILE, RUNNER_DEPLOY_PROFILE } from './shell';
+import { hostsClock } from './deploy-hosts';
 import { prepareArt, stepEffect, type ArtPlan } from './artifacts-job';
 import { maskText, masksOf, type ActionsEffect, type ArtifactEntry, type CacheEntry } from './artifacts-model';
 import { restoreCache, saveCache, type CacheStep } from './actions-cache';
 import { downloadArtifact, uploadArtifact } from './actions-artifact';
+import type { JobEnv } from './environments-model';
 
 /*
  * Engine stage E28 (docs/curriculum/CICD0_E28_ACTIONS.md §4): one job on a fresh runner — Set up job (with the
@@ -36,6 +38,8 @@ export interface JobPlan {
   base: FsState; ci: CiState; objects: Objects; repoUrl: string; workspace: string; attempt: number; sha: string; ref: string;
   /** E29 (artifacts profile): secrets, variables, caches, artifacts, the forge copy and registries; the cache scope is ref. */
   art?: ArtPlan;
+  /** E30 (environments profile): the job's gate, and environment.url (evaluated at the end of the job). */
+  env?: { gate: JobEnv; url?: string };
 }
 
 const first = (run: string) => run.split('\n').find(l => l.trim())?.trim() ?? '';
@@ -67,7 +71,8 @@ export function executeJob(p: JobPlan): JobResult {
   const art = p.art, saved: CacheEntry[] = [], effects: ActionsEffect[] = [];
   let uploaded: ArtifactEntry[] = [];
   if (art) state = prepareArt(state, art, p.permissions, p.objects);
-  const at = (t: number) => { if (state.clock) state = { ...state, clock: { ...state.clock, now: t } }; };
+  // E31: the deploy hosts' clocks follow the runner's (a container started over ssh starts then).
+  const at = (t: number) => { if (state.clock) state = { ...state, clock: { ...state.clock, now: t } }; if (art?.hosts) state = hostsClock(state, t); };
   const steps: StepResult[] = [], annotations: Annotation[] = [], masks: string[] = [...art?.masks ?? []], stepsCtx: Record<string, Val> = {};
   const extraEnv: Record<string, string> = {}, extraPath: string[] = [];
   const envNow: Record<string, string> = {};
@@ -150,7 +155,7 @@ export function executeJob(p: JobPlan): JobResult {
           const dir = evalText(s.workingDirectory ?? p.job.defaults.workingDirectory ?? p.wf.defaults.workingDirectory ?? '.', sctx);
           const env = { ...p.defaults, ...envNow, ...extraEnv, ...stepEnv, PATH: [...extraPath, p.defaults.PATH].join(':') };
           at(t);
-          const r = runStepScript(state, { script, shell: s.shell ?? p.job.defaults.shell ?? p.wf.defaults.shell, env, cwd: dir, n, ...art ? { profile: RUNNER_ARTIFACTS_PROFILE } : {} });
+          const r = runStepScript(state, { script, shell: s.shell ?? p.job.defaults.shell ?? p.wf.defaults.shell, env, cwd: dir, n, ...art ? { profile: art.hosts ? RUNNER_DEPLOY_PROFILE : RUNNER_ARTIFACTS_PROFILE } : {} });
           state = r.state; t = Math.max(t, clockOf(state).now);
           // E29: what the step pushed (refs with the GITHUB_TOKEN, images to a registry) reaches the world at its end.
           if (art) { const e = stepEffect(was, state, art, t, p.objects); if (e) effects.push(e); }
@@ -197,6 +202,9 @@ export function executeJob(p: JobPlan): JobResult {
   for (const [k, v] of p.job.outputs) { try { outputs[k] = evalText(v, ctx()); } catch { outputs[k] = ''; } }
   // E29: GitHub does not pass a job output that holds a secret.
   if (art) for (const k of Object.keys(outputs)) if (masksOf(masks).some(m => m !== '***' && outputs[k].includes(m))) { delete outputs[k]; skipped.push(`##[warning]Skip output '${k}' since it may contain secret.`); }
+  // E30: environment.url may use the steps' outputs; it is the deployment's URL.
+  let envUrl: string | undefined;
+  if (p.env?.url !== undefined) { try { envUrl = evalText(p.env.url, ctx()); } catch { envUrl = undefined; } }
   add('Complete job', t, t, [...skipped, 'Cleaning up orphan processes'], 'success');
   let continueOnError = false;
   try { continueOnError = evalBool(p.job.continueOnError, ctx()); } catch { continueOnError = false; }
@@ -204,5 +212,6 @@ export function executeJob(p: JobPlan): JobResult {
     id: p.id, key: p.key, name: p.name, ...p.matrix ? { matrix: p.matrix } : {}, labels: p.labels, queuedAt: p.queuedAt, startedAt: started, completedAt: t,
     conclusion: failed || timedOut ? 'failure' : 'success', continueOnError, steps, outputs, annotations, runner: p.runnerName,
     ...art ? { art: { caches: saved, artifacts: uploaded, effects } } : {},
+    ...p.env ? { env: { ...p.env.gate, ...envUrl ? { url: envUrl } : {} } } : {},
   };
 }

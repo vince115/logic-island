@@ -10,6 +10,7 @@ import { changedPaths, nextScheduled, pullChangedPaths, triggers, type WorkflowE
 import { cancelJobAt, createRun, executeAttempt, saveRun, workflowAt, type Actx, type NewRun } from './actions';
 import { lastAttempt, type WorkflowRun } from './actions-model';
 import { commitArt, retractArt, settleArt } from './artifacts-run';
+import { deployHostsOf } from './deploy-hosts';
 
 /*
  * Engine stage E28 (docs/curriculum/CICD0_E28_ACTIONS.md §2): the events that start runs. After a git or gh command the
@@ -25,7 +26,7 @@ const repoObj = (f: Forge) => ({ full_name: repoPath(f), name: repoPath(f).split
 
 /** Runs a change of the forge with Actions' context; the state with the new runs, objects and counters. */
 export function withActions(state: FsState, fn: (x: Actx) => void): FsState {
-  const g = new Git(state, silent), x: Actx = { g, ci: { state: state.ci! }, ...state.ci?.art && state.docker?.registries ? { reg: state.docker.registries } : {} };
+  const g = new Git(state, silent), x: Actx = { g, ci: { state: state.ci! }, ...state.ci?.art && state.docker?.registries ? { reg: state.docker.registries } : {}, ...deployHostsOf(state) };
   fn(x);
   return { ...g.result(), ci: x.ci.state };
 }
@@ -142,7 +143,10 @@ export function rerunRun(x: Actx, forge: Forge, run: WorkflowRun, failedOnly: bo
 
 /** gh run cancel: every unfinished job is cut now. */
 export function cancelRun(forge: Forge, run: WorkflowRun, at: number, ci?: Actx['ci']): WorkflowRun {
-  const a = lastAttempt(run), next = { ...run, attempts: [...run.attempts.slice(0, -1), { ...a, jobs: a.jobs.map(j => cancelJobAt(j, at)), cancelledAt: at }] };
+  const a0 = lastAttempt(run);
+  // E30: a run its concurrency group holds (pending) is cancelled before it starts.
+  const a = a0.pending || (a0.after !== undefined && at < a0.startedAt) ? (({ pending: _p, ...rest }) => { void _p; return { ...rest, startedAt: at }; })(a0) : a0;
+  const next = { ...run, attempts: [...run.attempts.slice(0, -1), { ...a, jobs: a.jobs.map(j => cancelJobAt(a === a0 ? j : { ...j, queuedAt: Math.min(j.queuedAt, at) }, at)), cancelledAt: at }] };
   saveRun(forge, next);
   retractArt(ci, forge, run.id, at);
   return next;

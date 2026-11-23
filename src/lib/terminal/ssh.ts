@@ -8,6 +8,8 @@ import { MAX_JOURNAL } from './services';
 import { dnsResolver } from './dns';
 import { basicResolver, fromView, indexByName, interfacesOf, listenersOf, nameOf, reach, sourceAddress, viewFrom, type Listen } from './sockets';
 import { decideIn } from './firewall';
+import { collectRegistries, shareRegistries } from './deploy-hosts';
+import { mergeRegistries } from './artifacts-run';
 
 /*
  * Engine stage E7 (docs/curriculum/LNX0_TERMINAL_CAPABILITY.md §15): SSH between the machines of one lesson. Nothing
@@ -446,8 +448,10 @@ export function remoteRun(state: FsState, input: string, profile: ShellProfile):
     void _s;
     return { state: { ...local, ...state.status !== undefined ? { status: 255 } : {} }, lines: [{ text: '（模擬環境：這個工作階段的封包被防火牆丟棄，終端機沒有回應；等 TCP 重送逾時之後）', kind: 'err' }, { text: 'client_loop: send disconnect: Broken pipe', kind: 'err' }] };
   }
-  const place = (remote: FsState) => viewing ? fromView(state, at, remote) : withHost(state, at, remote);
-  const r = runInput(viewing ? viewFrom(state, at) : state.net!.hosts[at].state, input, profile);
+  // E31: a deploy host's daemon sees the lesson's registries as this machine has them, and its pushes come back.
+  const deploy = !!profile.features?.includes('deploy-hosts'), shared = deploy ? shareRegistries(state, at) : state;
+  const place = (remote: FsState) => { const s = viewing ? fromView(shared, at, remote) : withHost(shared, at, remote); return deploy ? collectRegistries(s, at, mergeRegistries) : s; };
+  const r = runInput(viewing ? viewFrom(shared, at) : shared.net!.hosts[at].state, input, profile);
   if (r.state.logout === undefined) return { ...r, state: place(r.state) };
   const { logout, login: _l, ...remote } = r.state;
   void _l;
@@ -903,7 +907,9 @@ function ssh(state: FsState, args: readonly string[], io: RemoteIo): { state: Fs
   // A command (its words joined, as ssh does) or, without one, the lines of standard input, run by the remote shell.
   // E16: from the firewall profile up it runs in a view of the network from the remote machine.
   const viewing = !!io.profile.features?.includes('firewall');
-  let remote = viewing ? viewFrom(withHost(base, conn.at, login.state), conn.at) : login.state, status = 0;
+  // E31: a deploy host's daemon sees the lesson's registries as this machine has them, and its pushes come back.
+  const deploy = !!io.profile.features?.includes('deploy-hosts'), entered = deploy ? shareRegistries(withHost(base, conn.at, login.state), conn.at) : undefined;
+  let remote = viewing ? viewFrom(entered ?? withHost(base, conn.at, login.state), conn.at) : entered ? entered.net!.hosts[conn.at].state : login.state, status = 0;
   const lines = command.length ? [command.join(' ')] : (io.stdin ?? '').split('\n').filter(l => l.trim());
   if (!command.length) io.err('Pseudo-terminal will not be allocated because stdin is not a terminal.');
   for (const line of lines) {
@@ -916,7 +922,8 @@ function ssh(state: FsState, args: readonly string[], io: RemoteIo): { state: Fs
   }
   const { logout: _o, login: _l, ...kept } = remote;
   void _o; void _l;
-  const placed = viewing ? fromView(base, conn.at, kept) : withHost(base, conn.at, kept);
+  const placed0 = viewing ? fromView(entered ?? base, conn.at, kept) : withHost(entered ?? base, conn.at, kept);
+  const placed = deploy ? collectRegistries(placed0, conn.at, mergeRegistries) : placed0;
   // -R listeners of a command end with it.
   return { state: tunnels && c.remotes.length ? closeSessionForwards(placed, conn.at) : placed, status };
 }

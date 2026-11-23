@@ -8,6 +8,8 @@ import { matchesWorkflow } from './actions-checks';
 import { completedAt, lastAttempt, runConclusion, runStatus, symbol, type JobResult, type WorkflowRun } from './actions-model';
 import { JSON_FIELDS, jsonOf, listRow, logLines, viewLines } from './gh-run-view';
 import { downloadCommand } from './gh-artifacts';
+import { settleEnv } from './environments-run';
+import { envReg } from './gh-environments';
 
 /*
  * Engine stage E28 (docs/curriculum/CICD0_E28_ACTIONS.md §5): gh run list, view, watch, rerun and cancel against the runs
@@ -90,6 +92,11 @@ function watchCommand(h: Gh, args: string[]): number {
   if (!found) return 1;
   const { forge, run } = found, end = completedAt(run), failed = () => on(f, 'exit-status') && runConclusion(run) !== 'success' ? 1 : 0;
   if (runStatus(run, g.now) === 'completed') { g.out(`Run ${run.workflowName} (${run.id}) has already completed with '${runConclusion(run)}'`); return failed(); }
+  // E30: a deployment waiting for a review (or a run held by its concurrency group) has no end yet.
+  const review = lastAttempt(run).jobs.find(j => j.env?.reviewers.length && j.completedAt === undefined && j.startedAt === undefined && j.env.review === undefined);
+  if (end === undefined && review) { g.err(`gh run watch：run ${run.id} 的 ${review.name} 在等待 environment ${review.env!.name} 的審核，真實的 gh 會一直等下去；用 gh api repos/{owner}/{repo}/actions/runs/${run.id}/pending_deployments 查看，再以 -X POST 核准或拒絕`); return 1; }
+  if (end === undefined && (lastAttempt(run).pending || lastAttempt(run).jobs.some(j => j.concurrency && j.concurrency.until === undefined)))
+    { g.err(`gh run watch：run ${run.id} 在等待 concurrency group 裡的另一個 run（或 job）結束，真實的 gh 會一直等下去`); return 1; }
   if (end === undefined) { g.err(`gh run watch：run ${run.id} 有 job 一直在等 runner（沒有符合 runs-on 的 runner），真實的 gh 會一直等下去；用 gh run cancel ${run.id} 取消`); return 1; }
   g.out(`Refreshing run status every 3 seconds. Press Ctrl+C to quit.`, '', ...viewLines(run, end, { verbose: true, footer: false, web: webUrl(forge) }), '',
     `${symbol('completed', runConclusion(run))} Run ${run.workflowName} (${run.id}) completed with '${runConclusion(run)}'`);
@@ -106,7 +113,8 @@ function rerunCommand(h: Gh, args: string[]): number {
   const { forge, run } = found, url = api(forge, `actions/runs/${run.id}/${on(f, 'failed') ? 'rerun-failed-jobs' : 'rerun'}`);
   if (runStatus(run, g.now) !== 'completed') { g.err(`failed to rerun: HTTP 403: This workflow is already running (${url})`); return 1; }
   if (on(f, 'failed') && !lastAttempt(run).jobs.some(j => j.conclusion === 'failure' || j.conclusion === 'cancelled')) { g.err(`failed to rerun: HTTP 403: This workflow run cannot be retried (${url})`); return 1; }
-  const next = rerunRun({ g, ci: h.ci! }, forge, run, on(f, 'failed'), g.now, account.login);
+  // E31: on a deploy-hosts machine the runners see the registries and the hosts as they are now.
+  const next = rerunRun({ g, ci: h.ci!, ...g.state.ci?.deploy ? envReg(g) : {} }, forge, run, on(f, 'failed'), g.now, account.login);
   if (!next) { g.err(`failed to rerun: HTTP 422: Unable to retry this workflow run because its workflow file is invalid (${url})`); return 1; }
   g.out(`✓ Requested rerun${on(f, 'failed') ? ' (failed jobs)' : ''} of run ${run.id}`);
   return 0;
@@ -119,6 +127,8 @@ function cancelCommand(h: Gh, args: string[]): number {
   if (!found) return 1;
   if (runStatus(found.run, g.now) === 'completed') { g.err('Cannot cancel a workflow run that is completed'); return 1; }
   cancelRun(found.forge, found.run, g.now, h.ci);
+  // E30: a pending run of its concurrency group or a held job may start earlier now.
+  if (h.ci?.state.env) settleEnv({ g, ci: h.ci, ...envReg(g) }, found.forge, g.now);
   g.out(`✓ Request to cancel workflow ${found.run.id} submitted.`);
   return 0;
 }

@@ -107,7 +107,7 @@ export type WebLanguage = typeof WEB_LANGUAGES[number];
  */
 export const LESSON_ACTIVITIES = ['sql-playground', 'erd-builder', 'normalization-steps', 'query-plan', 'transaction-timeline',
   'protocol-sequence', 'architecture-diagram', 'ds-comparison', 'challenge-stages', 'packet-journey', 'network-sequence', 'terminal-sim',
-  'token-explorer', 'sampling-explorer', 'embedding-space', 'dom-explorer', 'deployment-simulator'] as const;
+  'token-explorer', 'sampling-explorer', 'embedding-space', 'dom-explorer', 'deployment-simulator', 'monitoring-dashboard'] as const;
 export type LessonActivity = typeof LESSON_ACTIVITIES[number];
 
 /**
@@ -137,7 +137,8 @@ export type LessonActivity = typeof LESSON_ACTIVITIES[number];
  * src/lib/webcode/lesson.ts). CICD-0 adds devops-explorer: authored deployment histories with their DORA metrics and a
  * minute-by-minute rollout simulator (recreate, rolling, blue-green, canary with gates, migrations, feature flags), all
  * integer arithmetic in the browser, with exercises whose answers are computed from the data (`content.devops`,
- * src/lib/devops). It may be combined with terminal and visualization only.
+ * src/lib/devops). D3 adds monitoring dashboards (per-minute series, incidents, alert rules evaluated minute by minute)
+ * for the monitoring-dashboard activity. It may be combined with terminal and visualization only.
  */
 export const LESSON_CAPABILITIES = ['program-code', 'sql', 'er-diagram', 'normalization', 'query-plan', 'transaction-timeline',
   'driver-code', 'protocol-sequence', 'architecture-diagram', 'visualization', 'network-protocol', 'python-code', 'terminal', 'llm-explorer', 'web-code',
@@ -161,13 +162,13 @@ const CAPABILITY_ACTIVITY: Record<LessonActivity, LessonCapability> = { 'sql-pla
   'token-explorer': 'llm-explorer', 'sampling-explorer': 'llm-explorer', 'embedding-space': 'llm-explorer',
   // WEB-0: a web lesson's pages run in a sandboxed frame, beside the DOM the browser built from them.
   'dom-explorer': 'web-code',
-  // CICD-0: the devops-explorer's deployment histories and rollout simulator (D1, D2); monitoring-dashboard joins with D3.
-  'deployment-simulator': 'devops-explorer' };
+  // CICD-0: the devops-explorer's deployment histories and rollout simulator (D1, D2), and its dashboards and alert rules (D3).
+  'deployment-simulator': 'devops-explorer', 'monitoring-dashboard': 'devops-explorer' };
 /** LLM-0: the activities of the llm-explorer capability, and the explorers of `content.llm` each one needs. */
 export const LLM_ACTIVITIES = ['token-explorer', 'sampling-explorer', 'embedding-space'] as const satisfies readonly LessonActivity[];
 const LLM_ACTIVITY_PART = { 'token-explorer': 'tokenizers', 'sampling-explorer': 'samplers', 'embedding-space': 'embeddings' } as const;
 /** CICD-0: the activities of the devops-explorer capability, and the capabilities it may be combined with. */
-export const DEVOPS_ACTIVITIES = ['deployment-simulator'] as const satisfies readonly LessonActivity[];
+export const DEVOPS_ACTIVITIES = ['deployment-simulator', 'monitoring-dashboard'] as const satisfies readonly LessonActivity[];
 const DEVOPS_COMPANIONS: readonly LessonCapability[] = ['devops-explorer', 'terminal', 'visualization'];
 /** The shared visualizations a database lesson may show (with the visualization capability). */
 export const DATABASE_VISUALIZATIONS = ['ds-comparison', 'challenge-stages'] as const;
@@ -607,7 +608,7 @@ export function validateCurriculum({ islands, lessons, contents, visualizations,
     // CICD-0: devops-explorer pairs with terminal and visualization only; without the terminal its activity is its own.
     if (capabilities.includes('devops-explorer')) {
       if (capabilities.some(c => !DEVOPS_COMPANIONS.includes(c))) fail(at, `devops-explorer is combined with ${DEVOPS_COMPANIONS.slice(1).join(' and ')} only`);
-      if (!capabilities.includes('terminal') && !(DEVOPS_ACTIVITIES as readonly string[]).includes(lesson.activity ?? '')) fail(at, `a devops-explorer lesson without the terminal names ${DEVOPS_ACTIVITIES.join(', ')} as its activity`);
+      if (!capabilities.includes('terminal') && !(DEVOPS_ACTIVITIES as readonly string[]).includes(lesson.activity ?? '')) fail(at, `a devops-explorer lesson without the terminal names ${DEVOPS_ACTIVITIES.join(' or ')} as its activity`);
     }
     if (program && LANGUAGES.some(l => !lesson.supportedLanguages.includes(l))) fail(at, `supportedLanguages must include ${LANGUAGES.join(', ')}`);
     if (python && lesson.supportedLanguages.join() !== PYTHON_LANGUAGES.join()) fail(at, 'a python-code lesson offers Python only');
@@ -703,7 +704,7 @@ export function validateDatabaseContent(lesson: LessonMeta, content: LessonConte
   }
   const { driverCode, sequences, ops, network, terminal, llm, webCode, devops } = content;
   // LLM-0: an explorer counts as an example (its data is checked by llmContentProblems, in validateContent). CICD-0: so
-  // does a devops-explorer history or rollout (devopsContentProblems).
+  // does a devops-explorer history, rollout or dashboard (devopsContentProblems).
   const examples = [...sql?.examples ?? [], ...er?.diagrams ?? [], ...normalization?.examples ?? [],
     ...queryPlan?.trees ?? [], ...transactions?.timelines ?? [], ...transactions?.schedules ?? [],
     ...driverCode?.examples ?? [], ...sequences ?? [], ...ops?.replication ?? [], ...ops?.backups ?? [], ...network?.scenes ?? [], ...terminal?.examples ?? [],
@@ -823,10 +824,12 @@ export function validateContent(lesson: LessonMeta, content: LessonContent, visu
     const part = lesson.activity && (LLM_ACTIVITIES as readonly string[]).includes(lesson.activity) ? LLM_ACTIVITY_PART[lesson.activity as typeof LLM_ACTIVITIES[number]] : undefined;
     if (part && !content.llm[part]?.length) fail(`the ${lesson.activity} activity needs at least one of content.llm.${part}`);
   }
-  // CICD-0: the histories', rollouts' and exercises' data; the deployment-simulator activity shows at least one of them.
+  // CICD-0: the histories', rollouts', dashboards' and exercises' data; the deployment-simulator activity shows a history or
+  // a rollout, the monitoring-dashboard activity (D3) a dashboard.
   if (content.devops) {
     for (const p of devopsContentProblems(content.devops)) fail(p);
     if (lesson.activity === 'deployment-simulator' && !content.devops.histories?.length && !content.devops.rollouts?.length) fail('the deployment-simulator activity needs at least one of content.devops.histories or content.devops.rollouts');
+    if (lesson.activity === 'monitoring-dashboard' && !content.devops.dashboards?.length) fail('the monitoring-dashboard activity needs at least one of content.devops.dashboards');
   }
   if (!hasProgramCode(lesson)) return [...problems, ...validateDatabaseContent(lesson, content)];
   // AIF-0: a trace shows a language the lesson teaches (PL15's JavaScript trace is one of its languages).

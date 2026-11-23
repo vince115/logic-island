@@ -54,7 +54,11 @@ export function viewLines(r: WorkflowRun, t: number, o: ViewOptions): string[] {
     if (!(o.verbose || o.job || (js === 'completed' && j.conclusion === 'failure'))) continue;
     for (const s of j.steps) { if (t < s.startedAt) break; const ss = stepStatus(s, t); out.push(`  ${symbol(ss, ss === 'completed' ? s.conclusion : undefined)} ${s.name}`); }
   }
+  // E30: what waiting and pending jobs (or a pending run) wait for.
+  const waits = waitLines(r, o.job ? [o.job] : a.jobs, t);
+  if (waits.length) out.push('', ...waits);
   const notes = (o.job ? [o.job] : a.jobs).filter(j => jobStatus(j, t) === 'completed').flatMap(j => j.annotations.map(n => ({ j, n })));
+  if (a.note && !a.jobs.length && st === 'completed') out.push('', 'ANNOTATIONS', `X ${a.note}`);
   if (notes.length) {
     out.push('', 'ANNOTATIONS');
     for (const { j, n } of notes) out.push(`${n.level === 'failure' ? 'X' : n.level === 'warning' ? '!' : '-'} ${n.message}`, `${j.name}: .github#${n.step}`, '');
@@ -67,6 +71,20 @@ export function viewLines(r: WorkflowRun, t: number, o: ViewOptions): string[] {
   else if (conclusion === 'failure') out.push(`To see what failed, try: gh run view ${r.id} --log-failed`);
   else out.push('For more information about a job, try: gh run view --job=<job-id>');
   out.push(`View this run on GitHub: ${runUrl(o.web, r)}`);
+  return out;
+}
+
+/** E30: the lines under JOBS for jobs waiting at their environment, jobs and runs held by their concurrency group. */
+function waitLines(r: WorkflowRun, jobs: readonly JobResult[], t: number): string[] {
+  const out: string[] = [];
+  if (runStatus(r, t) === 'pending' && r.group) out.push(`Waiting for a run in the concurrency group '${r.group.name}' to complete`);
+  for (const j of jobs) {
+    const st = jobStatus(j, t);
+    if (st === 'pending' && j.concurrency) out.push(`${j.name}: Waiting for a job in the concurrency group '${j.concurrency.group}' to complete`);
+    if (st !== 'waiting' || !j.env) continue;
+    if (j.env.reviewers.length && !(j.env.review && j.env.review.at <= t)) out.push(`${j.name}: Waiting for review: ${j.env.name} needs approval to start deploying changes.`);
+    else if (j.env.timerEnd !== undefined && t < j.env.timerEnd) out.push(`${j.name}: Waiting for the wait timer of ${j.env.name} (${elapsedText(j.env.timerEnd - t)} left)`);
+  }
   return out;
 }
 

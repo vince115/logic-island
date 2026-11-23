@@ -174,13 +174,13 @@ export type DockerCheck =
    * read-only root file system, this user (Config.User), and these capabilities dropped. DKR-5: privileged or not, and
    * whether the Docker socket (a bind mount whose source ends in docker.sock) is mounted.
    */
-  | { kind: 'container'; name: string; absent?: true; state?: 'created' | 'running' | 'exited' | 'restarting'; image?: string; port?: string; exitCode?: number; env?: string; health?: 'starting' | 'healthy' | 'unhealthy';
+  | { kind: 'container'; /** E31 (deploy-hosts): a remote machine whose daemon is read (deploy-checks.ts). */ host?: string; name: string; absent?: true; state?: 'created' | 'running' | 'exited' | 'restarting'; image?: string; port?: string; exitCode?: number; env?: string; health?: 'starting' | 'healthy' | 'unhealthy';
       oomKilled?: boolean; restartCount?: number; restartPolicy?: string; memory?: number; cpus?: number; readOnly?: boolean; user?: string; capDrop?: string[]; privileged?: boolean; dockerSocket?: boolean }
   /**
    * E20: the image is local (absent: it is not). E21: its config has this label (K=V), environment variable (K=V), CMD,
    * ENTRYPOINT (exec form, exactly), USER, exposed TCP port and working directory, and this many layers (RootFS).
    */
-  | { kind: 'image'; name: string; absent?: true; label?: string; env?: string; cmd?: string[]; entrypoint?: string[]; user?: string; port?: number; workdir?: string; layers?: number; /** E23: a repository digest (sha256:…) it has; the name may also be NAME@sha256:… */ digest?: string; /** E23: at most this many bytes */ maxSize?: number }
+  | { kind: 'image'; /** E31 (deploy-hosts): a remote machine whose daemon is read. */ host?: string; name: string; absent?: true; label?: string; env?: string; cmd?: string[]; entrypoint?: string[]; user?: string; port?: number; workdir?: string; layers?: number; /** E23: a repository digest (sha256:…) it has; the name may also be NAME@sha256:… */ digest?: string; /** E23: at most this many bytes */ maxSize?: number }
   /**
    * E21: building the context (with its Dockerfile, or `file`), then again after a change to the file `change` (a path in
    * the context), keeps the steps `cached` CACHED and runs the steps `rebuilt` again (each names a step by its beginning,

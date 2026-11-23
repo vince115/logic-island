@@ -1,6 +1,6 @@
 # CICD-0：DevOps 與 CI/CD 島的 `devops-explorer` 課程能力
 
-> 2026-11-23。目標：讓 DevOps 與 CI/CD 島（`devops-cicd`，前綴 CICD，15 堂）可以撰寫、驗證、發布。本階段**不寫任何課程內容**，只把島嶼登錄為預備島嶼、建立逐課的活動對應，並建好新能力 `devops-explorer` 的 **D1**（部署紀錄與 DORA 指標）與 **D2**（部署模擬，`deployment-simulator` 活動）。本文件是終端機引擎階段 **E25–E31** 與 `devops-explorer` 階段 **D1–D4** 的唯一說明處：D1、D2 在此完整規定（§5–§9），其餘是規劃中的階段與範圍（§10）。之後的進度與下一批由 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 計算。
+> 2026-11-23。目標：讓 DevOps 與 CI/CD 島（`devops-cicd`，前綴 CICD，15 堂）可以撰寫、驗證、發布。本階段**不寫任何課程內容**，只把島嶼登錄為預備島嶼、建立逐課的活動對應，並建好新能力 `devops-explorer` 的 **D1**（部署紀錄與 DORA 指標）與 **D2**（部署模擬，`deployment-simulator` 活動）。本文件是終端機引擎階段 **E25–E31** 與 `devops-explorer` 階段 **D1–D4** 的唯一說明處：D1、D2 在此完整規定（§5–§9），**D3**（監控儀表板與告警規則，`monitoring-dashboard` 活動，CICD-4）在 §10.3，其餘是規劃中的階段與範圍（§10）。之後的進度與下一批由 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 計算。
 
 ## 1. 範圍
 
@@ -10,6 +10,7 @@
 | 新能力 `devops-explorer` | `content.devops`（`src/lib/devops/types.ts`）、`devopsContentProblems`（`check.ts`，由 `validateContent` 呼叫）、元件 `src/components/curriculum/devops-explorer.tsx` 與 `devops-lesson.tsx`；可以和 `terminal`、`visualization` 一起宣告，不和其他能力配對 |
 | D1 `history`（已完成，§5） | 課程撰寫的部署紀錄（每次部署的變更提交時間、上線時間、是否造成故障、偵測與恢復時間），算出四個 DORA 指標；時間軸圖與等效表格 |
 | D2 `rollout`（已完成，§6） | 部署模擬：一組相同的執行個體從舊版本換到新版本，逐分鐘模擬重建、滾動更新、藍綠部署、金絲雀發布（含閘門與中止）、資料庫的擴充與收縮、功能旗標；三張圖與逐分鐘的表格 |
+| D3 `dashboards`（已完成，§10.3） | 監控儀表板（`monitoring-dashboard`）：每分鐘的時間序列（標註黃金訊號，可由種子產生器產生）、事故期間、告警規則逐分鐘評估（未觸發、等待中、觸發中、已恢復）、偵測延遲、漏掉的事故、誤報與通知數；事故時間線與嚴重等級矩陣 |
 | 練習（§7） | `number`、`field`、`choice`、`table` 四種填答形式，查詢 `dora`、`dora-best`、`rollout`、`rollout-best`；以及 `rollout-plan`（學習者設定策略參數，模擬後檢查條件）。答案一律由模擬器算出，**不寫在課程資料裡** |
 
 不新增任何執行期套件；沒有亂數，所有數字是整數運算，伺服器的畫面與瀏覽器一致。D1、D2 是**自創的教學模型**，不宣稱符合任何調度系統、負載平衡器、雲端或監控產品的語意；用到 maxSurge／maxUnavailable 這兩個詞時，只有「百分比怎麼取整」照 Kubernetes 的做法（§6.4），讓之後 KUB 島的 `cluster-sim` 不會互相矛盾。
@@ -34,7 +35,7 @@
 | CICD15 | challenge-stages | `challenge-stages` | terminal、devops-explorer、visualization | E25–E31、D2、D3 | 和 DKR15 相同的形狀 |
 
 - 每一列都可以**先對應**，即使它需要的階段還沒建好；但課程內容（`content.terminal` 的新 profile、`content.devops` 的儀表板）不存在時課無法發布。
-- **CICD11、CICD12** 對應到 `monitoring-dashboard`，這個活動在 D3（CICD-4）才登錄；在那之前 `cicdFromBlueprint` 拋出「the monitoring-dashboard activity is not registered yet (it is built with D3)」。
+- **CICD11、CICD12** 對應到 `monitoring-dashboard`，這個活動在 D3（CICD-4）登錄（§10.3）；登錄之前 `cicdFromBlueprint` 拋出「the monitoring-dashboard activity is not registered yet (it is built with D3)」。D3 之後 CICD11 可以建立；CICD12 另外需要 D4，`DEVOPS_STAGES_BUILT`（`['D1', 'D2', 'D3']`）沒有 D4，所以仍拋出「CICD12: the devops-explorer stage D4 is not built yet (the monitoring-dashboard activity needs D3 and D4)」。
 - `pipeline-sim`、`case-study-board`、`decision-simulation` 只是藍圖的名稱，**不加入** `LESSON_ACTIVITIES`（登錄它們會被當成已實作的活動）。`/learn` 上規劃中的 `cicd-pipeline` 實驗室（活動 `pipeline-sim`）保持規劃中。
 - 其他島的 `deployment-simulator` 課（SA18、DL24、OPS03／06／07／08、CLD03／10／11）與 `monitoring-dashboard` 課（OPS13／14／19、KUB12）之後會沿用同一個模型，所以模型保持通用（版本、執行個體、流量），不為本島過度設計。
 - `cicdFromBlueprint` 對其他島的課回報「not a DevOps and CI/CD lesson」；標題、目標、概念、難度、先修取自藍圖。
@@ -44,7 +45,7 @@
 - `src/content/curriculum/schema.ts`：`PREPARED_ISLAND_IDS = ['devops-cicd']`、`LessonPrefixWritten` 加上 `'CICD'`、`ISLAND_PREFIX['devops-cicd'] = 'CICD'`。**不**移入 `ISLAND_IDS`（CICD-1 才移入，放在 `network-servers` 之後，系統區的順序）。
 - `src/content/curriculum/units.ts`：`'devops-cicd': []`。
 - 在第一堂課寫好、島嶼移入 `ISLAND_IDS` 之前，`validateCurriculum` 拒絕任何 CICD 課（「devops-cicd is prepared for authoring, not a curriculum island yet」）。15 堂仍是規劃中、沒有頁面；已發布的課與頁面不變。
-- `LESSON_CAPABILITIES` 加上 `devops-explorer`；`LESSON_ACTIVITIES` 加上 **`deployment-simulator`**（只有它；`monitoring-dashboard` 在 D3 才加入），`CAPABILITY_ACTIVITY['deployment-simulator'] = 'devops-explorer'`，`DEVOPS_ACTIVITIES = ['deployment-simulator']`。
+- `LESSON_CAPABILITIES` 加上 `devops-explorer`；`LESSON_ACTIVITIES` 加上 **`deployment-simulator`**（CICD-0 只有它），`CAPABILITY_ACTIVITY['deployment-simulator'] = 'devops-explorer'`，`DEVOPS_ACTIVITIES = ['deployment-simulator']`。**D3** 加上 **`monitoring-dashboard`**：`CAPABILITY_ACTIVITY['monitoring-dashboard'] = 'devops-explorer'`、`DEVOPS_ACTIVITIES = ['deployment-simulator', 'monitoring-dashboard']`；它和 `deployment-simulator` 的先例相同，在活動登錄中維持 `planned`（版本 0.1.0、說明是「必要：…」），直到第一堂用它的完整課（CICD11）發布；`IMPLEMENTED_TEXT['monitoring-dashboard']` 已寫好，屆時才採用。OPS13／14／19 與 KUB12 之後沿用同一個活動。
 - **活動登錄的影響**（`src/content/world/activities.ts`）：活動是否「已實作」的既有規則是「有完整的課使用它」（或它是已實作的單一工具實驗室）。`deployment-simulator` 本來就因為藍圖的 10 堂課出現在登錄中，狀態是 `planned`；加入 `LESSON_ACTIVITIES` **不改變**它的狀態、版本或科目，要等第一堂用它的完整課（CICD01）發布才變成 `implemented`。`IMPLEMENTED_TEXT` 加上它的文字說明，同時規則改為「說明只在活動已實作時採用，規劃中的活動一律寫『必要：實作時提供與畫面等效的文字說明』」；其他有說明的活動全部已實作，所以登錄的其他內容逐字不變（`tests/devops-capability.test.ts` 斷言）。
 - `tests/llm-capability.test.ts` 原本斷言「沒有預備中的島」（`[]`），現在改成恰好是 `['devops-cicd']`（同樣嚴格）。
 
@@ -55,10 +56,10 @@
 | 批次 | 課程 | 先完成的階段 |
 |---|---|---|
 | CICD-0 | 無 | 登錄與對應（§2、§3）、本文件、**D1**、**D2**（已完成） |
-| CICD-1 | CICD01–02 | E25 `git`、E26 `forge` |
-| CICD-2 | CICD03–05 | E27 `workflows`（**已完成**，見 [CICD0_E27_WORKFLOWS](CICD0_E27_WORKFLOWS.md)） | workflow 檔案的模型（不執行）：YAML 子集加上欄位與結構化的錯誤（Compose 的訊息不變）、GitHub 風格的驗證訊息、push／pull_request／workflow_dispatch／schedule 觸發與 GitHub 的過濾樣式、`${{ }}` 運算式與函式（文字代換在 Bash 之前，script injection 是真的）、matrix 展開、GITHUB_TOKEN 權限的解析；`gh workflow list`／`view` | `workflow` |
-| CICD-3 | CICD06–08 | E29 `artifacts`（**已完成**，見 [CICD0_E29_ARTIFACTS](CICD0_E29_ARTIFACTS.md)） | `actions/cache@v4`（key、restore-keys、分支範圍）與依快取縮短的 CI 工具、`upload-artifact`／`download-artifact@v4` 與 `gh run download`、runner 上的 Docker（建置並以 `--password-stdin` 推送到課程的 Registry）、儲存庫與 environment 層級的 secret 與 variable（`gh secret`／`gh variable`，日誌遮蔽成 `***`）、GITHUB_TOKEN 對 `git push` 與 `gh` 的影響；E28 的 `rerun --failed` 改為逐片重新執行、workflow 檔案的 `|+`／`>+` | `secret`、`variable`；`run` 的 `cacheHit`、`artifact`；`registry` 的 `commit` |
-| CICD-4 | CICD09–11 | E30 `environments`、E31 `deploy-hosts`、D3（登錄 `monitoring-dashboard`） |
+| CICD-1 | CICD01–02 | E25 `git`、E26 `forge`（已完成） |
+| CICD-2 | CICD03–05 | E27 `workflows`、E28 `actions`（已完成） |
+| CICD-3 | CICD06–08 | E29 `artifacts`（已完成） |
+| CICD-4 | CICD09–11 | E30 `environments`、E31 `deploy-hosts`、D3（登錄 `monitoring-dashboard`，**已完成**，§10.3） |
 | CICD-5 | CICD12–14 | D4 |
 | CICD-6 | CICD15 | 無（綜合專題單獨一批，和 DKR-6 相同） |
 
@@ -231,11 +232,11 @@ Profile 延續 `runtime` 之後的線性鏈（RANK 25–31）。每個階段只�
 |---|---|---|
 | E25 `git`（**已完成**，見 [CICD0_E25_GIT](CICD0_E25_GIT.md)） | 真實的 blob、tree、commit、annotated tag 與 SHA-1；refs、HEAD、index、工作目錄、remote-tracking refs；`github.example` 上的遠端存在 `FsState.git`；git 2.43 的常用指令，三方合併採用 git 的 xdiff 演算法（和真實 git 逐字比對過），衝突可以有多段 | `branch`、`worktree`、`tag` |
 | E26 `forge`（**已完成**，見 [CICD0_E26_FORGE](CICD0_E26_FORGE.md)） | github.example 上的儲存庫設定與分支保護（必要的核准與狀態檢查、線性歷史、force push、刪除）、編號的 Pull Request、課程宣告的審查者（依時鐘審查）、不能核准自己的 PR、merge／squash／rebase 寫出與 GitHub 相同形狀的歷史、違反保護的 push 被 GH006 拒絕；`gh`（auth、repo view、pr create／list／view／diff／checkout／review／merge／checks／close、`gh api` 的 repo 與 branch protection GET／PUT／PATCH／DELETE） | `pull-request`、`protection` |
-| E27 `workflows`（`workflow.ts`、`expr.ts`） | `yaml.ts` 加上欄位的 column 與結構化的 `YamlError`；workflow 的結構與 GitHub 的驗證訊息；`push`、`pull_request`、`workflow_dispatch`、`schedule` 觸發與篩選語法；運算式的 context、運算子與函式（含 `hashFiles`）；運算式先以文字代換再交給 Bash，所以 script injection 真的會發生；GITHUB_TOKEN 的有效權限；`gh workflow list/view` | `workflow` |
+| E27 `workflows`（**已完成**，見 [CICD0_E27_WORKFLOWS](CICD0_E27_WORKFLOWS.md)） | workflow 檔案的模型（不執行）：YAML 子集加上欄位與結構化的錯誤（Compose 的訊息不變）、GitHub 風格的驗證訊息、push／pull_request／workflow_dispatch／schedule 觸發與 GitHub 的過濾樣式、`${{ }}` 運算式與函式（文字代換在 Bash 之前，script injection 是真的）、matrix 展開、GITHUB_TOKEN 權限的解析；`gh workflow list`／`view` | `workflow` |
 | E28 `actions`（**已完成**，見 [CICD0_E28_ACTIONS](CICD0_E28_ACTIONS.md)） | push、PR（opened／synchronize，在試合併 commit 上執行）、workflow_dispatch 與 schedule 產生 run；依 `needs` 執行的 job、平行的時間、matrix 與 fail-fast、`if`、timeout、continue-on-error；每個 job 一台全新的 runner，`actions/checkout@v4` 寫入檔案與 git 儲存庫，`run:` 先代換運算式再交給 Bash（沒寫 `shell:` 是 `bash -e {0}`，`shell: bash` 才加上 `--noprofile --norc -eo pipefail`）；`GITHUB_*` 環境與 `GITHUB_OUTPUT` 等檔案、workflow 指令與遮蔽；依工作區檔案決定結果的 CI 工具（含不穩定的測試）；job 結果成為 PR 的狀態檢查；`gh run list／view／watch／rerun／cancel`、`gh workflow run／enable／disable` | `run` |
-| E29 `artifacts` | `actions/cache@v4`、`upload-artifact@v4`／`download-artifact@v4`、runner 上的 E20–E24 Docker；repo 與環境層級的 secret 與 variable、`gh secret`／`gh variable`、值必須通過 `FAKE_TOKEN`、日誌遮蔽為 `***`；GITHUB_TOKEN 的寫入權限 | `secret`、`variable`；`run` 加上 `cacheHit`、`artifact` |
-| E30 `environments` | 必要審查者、等待計時、部署分支政策；等待中的 run 與核准端點；concurrency 與 cancel-in-progress；部署紀錄；以 `workflow_dispatch` 的輸入回滾到較早的 digest | `environment`、`deployment` |
-| E31 `deploy-hosts` | 遠端機器可宣告 Docker daemon；`ssh deploy@prod-01 'docker pull …@sha256 && docker run …'`；runner 可連到課程宣告的主機，`curl -fsS http://staging-01:8000/healthz` 的冒煙測試是真的 | `container`、`http` 加上 `host?` |
+| E29 `artifacts`（**已完成**，見 [CICD0_E29_ARTIFACTS](CICD0_E29_ARTIFACTS.md)） | `actions/cache@v4`（key、restore-keys、分支範圍）與依快取縮短的 CI 工具、`upload-artifact`／`download-artifact@v4` 與 `gh run download`、runner 上的 Docker（建置並以 `--password-stdin` 推送到課程的 Registry）、儲存庫與 environment 層級的 secret 與 variable（`gh secret`／`gh variable`，日誌遮蔽成 `***`）、GITHUB_TOKEN 對 `git push` 與 `gh` 的影響；E28 的 `rerun --failed` 改為逐片重新執行、workflow 檔案的 `|+`／`>+` | `secret`、`variable`；`run` 的 `cacheHit`、`artifact`；`registry` 的 `commit` |
+| E30 `environments`（**已完成**，見 [CICD0_E30_ENVIRONMENTS](CICD0_E30_ENVIRONMENTS.md)） | 必要審查者、等待計時、部署分支政策；等待中的 run 與核准端點；concurrency 與 cancel-in-progress；部署紀錄；以 `workflow_dispatch` 的輸入回滾到較早的 digest | `environment`、`deployment` |
+| E31 `deploy-hosts`（**已完成**，見 [CICD0_E31_DEPLOY_HOSTS](CICD0_E31_DEPLOY_HOSTS.md)） | 遠端機器可宣告 Docker daemon；`ssh deploy@prod-01 'docker pull …@sha256 && docker run …'`；runner 可連到課程宣告的主機，`curl -fsS http://staging-01:8000/healthz` 的冒煙測試是真的 | `container`、`http` 加上 `host?` |
 
 資料：`TerminalMachine.forge`、`TerminalVariant.forge`（變體讓從 `gh` 輸出讀到的答案無法直接打出來）、`TerminalRemote.docker`。尚待決定（產品負責人）：學習者怎麼改儲存庫設定（`gh api` 的 JSON、設定面板或唯讀）；`/learn` 的 `cicd-pipeline` 實驗室要不要在 E28 之後成為終端機實驗室。
 
@@ -243,8 +244,97 @@ Profile 延續 `runtime` 之後的線性鏈（RANK 25–31）。每個階段只�
 
 | 階段 | 範圍 | 練習 |
 |---|---|---|
-| D3 `dashboards`（`monitoring-dashboard`，CICD-4 登錄） | 每分鐘的時間序列，標註黃金訊號；事故區間；告警規則（指標、運算子、門檻、可選的視窗平均或最大值、`for` 分鐘、嚴重度）；逐分鐘評估 pending、firing、resolved（語意類似常見的告警系統但保持中立）；結果：偵測延遲、漏掉的事故、誤報、通知數（告警疲勞）；事故時間線（CICD14）：依序的事件、偵測與恢復時間、依課程給的矩陣判定嚴重等級；約 180 點的序列用重用 `src/lib/llm/prng.ts` 的種子產生器 | `alert-eval`、`alert-rule`（例如「每個事故 5 分鐘內偵測、最多 1 次誤報」）、`incident` |
+| D3 `dashboards`（`monitoring-dashboard`，CICD-4 登錄；**已完成**，見 §10.3） | 每分鐘的時間序列，標註黃金訊號；事故區間；告警規則（指標、運算子、門檻、可選的視窗平均或最大值、`for` 分鐘、嚴重度）；逐分鐘評估 pending、firing、resolved（語意類似常見的告警系統但保持中立）；結果：偵測延遲、漏掉的事故、誤報、通知數（告警疲勞）；事故時間線（CICD14）：依序的事件、偵測與恢復時間、依課程給的矩陣判定嚴重等級；約 180 點的序列用重用 `src/lib/llm/prng.ts` 的種子產生器 | `alert-eval`、`alert-rule`（例如「每個事故 5 分鐘內偵測、最多 1 次誤報」）、`incident` |
 | D4 `logs`（`monitoring-dashboard`） | 紀錄（時間、服務、主機、等級、訊息、欄位，可選原始行）；欄位與等級篩選（只用欄位／值的控制項，不發明查詢語言）；以關聯 ID 串起跨服務的請求；分組計數；遮蔽規則（欄位名稱或樣式）；保留容量（量 × 天數） | `correlate`、`redact`（mustHide、mustKeep）、`retention` |
+
+### 10.3 D3：監控儀表板與告警規則（`monitoring-dashboard`，**已完成**）
+
+`src/lib/devops/series.ts`、`alerts.ts`、`incident.ts`、`dashboard.ts`、`dashboard-check.ts`；元件 `dashboard-view.tsx`（加上 `dashboard-chart.tsx`、`alert-rule-fields.tsx`、`alert-results.tsx`、`incident-timeline.tsx`）。和 D1、D2 一樣是**自創的教學模型**：等待（pending）再觸發（firing）的想法類似常見的監控系統，但規則是本課程自己的，不宣稱符合任何產品的語意，文字也不提任何產品。模型只有「序列、訊號、規則、事故」，沒有 CICD 專屬的欄位，所以 OPS13／14／19 與 KUB12 之後可以沿用。
+
+#### 10.3.1 資料（`content.devops.dashboards`）
+
+```ts
+interface DashboardExplorer { id; title; description; dashboard: Dashboard }
+interface Dashboard {
+  service: string;
+  minutes: number;                      // 1–360；第 t 分鐘涵蓋 [t, t + 1)
+  series: MetricSeries[];               // 至少一條
+  incidents?: Incident[];               // 依時間、不重疊
+  rules?: AlertRule[];                  // 課程的規則；探索器從第一條開始
+  severity?: SeverityMatrix;            // 事故的嚴重等級矩陣（CICD14）
+}
+interface MetricSeries { id; label; unit; signal: 'latency' | 'traffic' | 'errors' | 'saturation'; values?: number[]; shape?: SeriesShape }
+interface SeriesShape { seed; baseline; noise?; changes?: ({ kind: 'step'; at; delta } | { kind: 'ramp'; from; to; delta } | { kind: 'spike'; at; minutes; delta })[] }
+interface AlertRule { id; label; series; op: '>' | '>=' | '<' | '<='; threshold; window?: { agg: 'avg' | 'max' | 'min'; minutes }; forMinutes; severity: 'critical' | 'warning' | 'info' }
+interface Incident { id; label; start; end; usersPercent?; events?: { at; kind: 'detected' | 'acknowledged' | 'mitigated' | 'resolved' | 'note'; text }[] }
+interface SeverityMatrix { rows: { label; minUsersPercent }[]; columns: { label; minMinutes }[]; levels: string[][] }
+```
+
+- 每條序列每分鐘一個 **≥ 0 的整數**，標註一個黃金訊號（延遲、流量、錯誤、飽和度）與單位。可以逐點寫出（`values`，長度必須等於 `minutes`），或寫成**形狀**（`shape`）由產生器算出，作者不必手寫約 180 個點。
+- **產生器**（決定性）：第 t 分鐘的值 = `baseline` + 雜訊 + 各個變化（依宣告順序），最後小於 0 的改成 0。
+  - 雜訊：⌊u_t × (2 × noise + 1)⌋ − noise，u_t 是 `mulberry32(seed)`（`src/lib/llm/prng.ts`）的第 t 個數，每分鐘抽一次（noise 為 0 時不抽），所以範圍是 −noise…noise。
+  - `step`：從第 `at` 分鐘起加 delta。`ramp`：第 from ≤ t < to 分鐘加 ⌊delta × (t − from + 1) ÷ (to − from)⌋（負數也向下取整，例如 ⌊−5 ÷ 2⌋ = −3），第 `to` 分鐘起加 delta。`spike`：第 at ≤ t < at + minutes 分鐘加 delta，之後不加。
+- 事故是使用者受影響的期間 [start, end)；`usersPercent` 與 `events` 只有事故時間線與嚴重等級用得到。
+
+#### 10.3.2 告警規則的評估（`evaluateAlert`）
+
+1. **規則的值**：沒有視窗時是序列在第 t 分鐘的值；有視窗時是第 t − W + 1 到 t 分鐘（W = `window.minutes`）的平均、最大值或最小值。視窗還沒滿（t < W − 1）時**沒有值，條件不成立**。
+2. **比較**：門檻是整數；平均**不先取整**，以 sum op threshold × W 精確比較（15 ÷ 3 = 5：`> 5` 不成立、`>= 5` 成立）。畫面與 `value-at` 查詢把平均寫到小數點後一位，四捨五入（§5.3 的 roundHalfUp）。
+3. **狀態**（每分鐘一個）：條件不成立 → `inactive`（未觸發），但觸發中之後的第一個不成立的分鐘是 `resolved`（已恢復）；條件成立 → 連續成立的分鐘數 ≤ `forMinutes` 時是 `pending`（等待中），第 forMinutes + 1 個連續成立的分鐘起是 `firing`（觸發中）。`for` 為 0 時第一個成立的分鐘就觸發；等待中的條件中斷就回到未觸發，不發通知。
+4. **觸發期間** [start, end)：從第一個觸發中的分鐘到已恢復的那一分鐘；到儀表板結束仍在觸發就記 end = minutes、`open`。**每個觸發期間是一次通知**（恢復的通知不算）。
+5. **事故的偵測**：事故 [start, end) 的偵測時刻是 start ≤ t < end 之中第一個觸發中的分鐘，**偵測延遲** = t − start；事故期間內沒有任何觸發中的分鐘就是**漏掉**。觸發期間和任何事故都不重疊（iv.start < i.end 且 i.start < iv.end 都不成立）就是**誤報**。在事故開始前就觸發、一路延續到事故期間的，延遲是 0，也不算誤報；事故結束後才觸發的（視窗與持續時間造成的延遲）同時是「漏掉」與「誤報」。
+6. 結果（`AlertResult`）：每分鐘的值、條件、狀態；觸發期間與對應的事故；每個事故的偵測時刻與延遲；第一次觸發與第一次恢復的分鐘；通知、誤報、漏掉、偵測到的事故數與觸發中的分鐘數。
+
+手算的例子（`tests/support/dashboard-fixture.ts` 的 `tiny`：12 分鐘的錯誤率 1 1 2 9 9 9 1 1 8 1 1 1‰，事故 [3, 6)）：
+
+| 規則 | 觸發期間 | 通知 | 誤報 | 偵測延遲 |
+|---|---|---|---|---|
+| 錯誤率 > 5，立即 | 第 3–5、8 分鐘 | 2 | 1（第 8 分鐘） | 0 |
+| 錯誤率 > 5，持續 2 分鐘 | 第 5 分鐘（第 3、4、8 分鐘等待中） | 1 | 0 | 2 |
+| 3 分鐘平均 > 5 | 第 4–6 分鐘（20 ÷ 3 = 6.7、9、6.3） | 1 | 0 | 1 |
+
+#### 10.3.3 事故時間線與嚴重等級（`incident.ts`，給 CICD14）
+
+- 偵測時間 = detected − start；確認時間 = acknowledged − detected；止血時間 = mitigated − start；**恢復時間 = end − start**（影響的期間，不是結案）。事件依時間排列、不早於 start；detected、acknowledged、mitigated、resolved 各最多一次，且依這個順序。
+- 嚴重等級：矩陣的列由影響最多的使用者往下排到 `minUsersPercent` 0，欄由最長的影響往下排到 `minMinutes` 0；事故落在第一個 minUsersPercent ≤ usersPercent 的列、第一個 minMinutes ≤ 恢復時間的欄。分級的定義由課程提供（每個組織不同），模型只查表。
+- 事故時間線**不和告警規則連動**：detected 是課程記錄的時刻（可以寫成和某條規則第一次觸發的分鐘相同，但驗證不檢查）。
+
+#### 10.3.4 練習
+
+| 查詢 `task` | 值 |
+|---|---|
+| `series`（`metric`：`value-at`（要 `minute`）、`max`、`min`、`max-at`、`signal`） | 數字（序列的單位），或文字（`signal`：英文名稱或延遲、流量、錯誤、飽和度等中文） |
+| `alert`（`rule`：課程規則的 id，或直接寫一條條件；`metric`：`first-firing`、`first-resolved`、`notifications`、`false-alerts`、`missed`、`detected`、`firing-minutes`、`detection-delay`（要 `incident`）、`state-at`、`value-at`（要 `minute`）） | 數字（分鐘、次、個；`value-at` 的平均有一位小數），或文字（`state-at`：未觸發、等待中、觸發中、已恢復，也接受英文） |
+| `incident`（`metric`：`time-to-detect`、`time-to-acknowledge`、`time-to-mitigate`、`time-to-recover`、`severity`） | 分鐘，或嚴重等級的文字 |
+
+- **alert-eval** 就是 `number`／`field`／`table`／`choice` 題配上 `alert` 查詢（例如第一次觸發在第幾分鐘、發了幾次通知、某分鐘是什麼狀態）；**黃金訊號的分類**用 `choice` 或 `table` 配上 `series` 的 `signal`；**事故時間線**用 `table` 配上 `incident` 查詢。不需要新的填答形式。
+- 新的填答形式 **`alert-rule`**（規劃題）：學習者設定指標、比較、門檻、視窗計算（不用、平均、最大值、最小值）、視窗長度、持續時間（欄位 `series`、`op`、`threshold`、`agg`、`window`、`for`），檢查器用這條規則在儀表板上逐分鐘評估，逐項檢查條件：`detectWithin`（每個事故都要偵測到，且延遲 ≤ N）、`maxMissed`、`maxFalseAlerts`、`maxNotifications`（都含等號）。符合條件的規則都通過；`reference` 是其中一條，驗證器確認它通過。訊息寫出違反了什麼，例如「誤報有 1 次，超過上限 0。」、「事故「資料庫連線耗盡」第 130 分鐘開始，第 140 分鐘才觸發，延遲 10 分鐘，超過 3 分鐘。」。
+- 驗證（`dashboardProblems`、`alertPlanProblems`，由 `devopsContentProblems` 呼叫）：服務名稱、`minutes` 1–360；序列的 id 不重複（和事故、規則共用 id 空間）、名稱與單位不空白、訊號合法、恰好有 values 或 shape 之一、values 的長度與範圍、種子、基準、雜訊、每個變化的時間在儀表板內且 delta ≠ 0；事故在儀表板內、依時間不重疊、usersPercent 0–100、事件的順序；矩陣的列與欄遞減到 0、等級的形狀；規則的序列存在、比較合法、門檻是 ≥ 0 的整數、視窗 1–min(60, minutes) 分鐘、`for` 0–60、嚴重度合法；`alert-rule` 的參考規則合法、至少一個條件且都是 ≥ 0 的整數、偵測類的條件需要事故、參考規則符合全部條件；參考答案通過、常見錯誤不通過（同 §9）。
+- `validateContent`：活動是 `monitoring-dashboard` 時至少要有一個儀表板（「the monitoring-dashboard activity needs at least one of content.devops.dashboards」）。
+
+#### 10.3.5 UI（`dashboard-view.tsx`）
+
+- 每條序列一張 SVG 折線圖（不用圖表套件）：事故期間是底色，所選規則監看的那條序列畫出門檻的虛線，規則有視窗時再畫一條細虛線表示視窗的值，選取的分鐘有底色；每張圖有 `<title>`（最大值與它的分鐘、事故數、門檻）與 `<desc>`，下面是等效的表格（每列 10 分鐘，選取的分鐘標出）。
+- 告警規則編輯器：「課程的規則」選單載入一條規則；指標、比較、視窗計算是下拉選單，門檻、視窗長度、持續時間是輸入欄（不用視窗時視窗長度停用）；改了任何欄位就成為「自訂」。不合法時每個欄位 `aria-invalid` 並以 `aria-describedby` 指向 `role="alert"` 的錯誤清單，不畫狀態列與結果；「恢復課程的規則」。
+- 結果：總計卡片（通知、誤報、偵測到與漏掉的事故、觸發中的分鐘，`aria-live`）、每分鐘的狀態列（SVG，四種狀態四種顏色加上事故期間的橫條）與圖例、事故的偵測表、觸發期間的表（每列一次通知，標出對應的事故或「誤報」）、「狀態的變化（狀態列的文字版）」表（每段相同狀態的分鐘）。
+- 共用的步進器（方向鍵、Home、End）逐分鐘移動，`aria-live` 說明這一分鐘每條序列的值、規則的值、條件是否成立、告警狀態與進行中的事故。
+- 事故時間線：有事件或 usersPercent 的事故各一段，事件表、四個時間（寫出算式）、嚴重等級矩陣表（落在的格子標出）。
+- 練習：`alert-rule` 用和探索器相同的欄位元件，按「檢查」後寫出你的規則的通知、誤報、漏掉與每個事故的偵測延遲；參考解答寫出參考規則與它的評估結果。
+- 文字全是繁體中文；在 390 px 寬時控制項變成單欄、圖隨欄寬縮放、表格在自己的框裡捲動，頁面沒有水平捲動（暫時頁面在瀏覽器中以 390 × 844 量過 `scrollWidth` = 390，量完即刪除）。
+
+#### 10.3.6 只在課文說明的部分
+
+- 真實的監控與告警系統（查詢語言、抓取間隔、告警分組與靜音、通知路由、重複通知）、值班排班與呼叫、狀態頁；百分位數怎麼由請求算出（序列直接給 p95）。
+- 多條規則的組合（同時觸發的去重、相依的告警）、SLO 與錯誤預算的消耗率告警、異常偵測與動態門檻。
+- 事故指揮、對外溝通與不究責的事後檢討（CICD14 以課文與終端機演練教，探索器只提供時間與嚴重等級）。
+
+#### 10.3.7 沒有把握的地方
+
+- **pending／for 的邊界**：「條件連續成立 for 分鐘之後（第 for + 1 個分鐘）才觸發」是本模型逐分鐘評估時的選擇；真實系統以評估間隔與時間戳記判定，邊界可能差一個評估週期，課文不宜把分鐘數說成任何產品的行為。
+- **誤報與漏掉的定義**：以「觸發期間是否和事故期間重疊」判定；真實的值班團隊會依事後檢討人工判定（例如事故結束後才觸發的告警），本模型把這種情況同時算成漏掉與誤報，課文要說明。
+- **恢復時間**：本模型用影響期間（end − start）；DORA 的失敗部署復原時間（§5）與常見的 MTTR 有不同的起點與終點定義，課文要點明是哪一個。
+- **嚴重等級**：矩陣與 SEV 名稱由課程提供，沒有通用標準。
+- **D4 未建**：CICD12 需要 D3 與 D4，`cicdFromBlueprint('CICD12')` 仍拒絕（「CICD12: the devops-explorer stage D4 is not built yet (the monitoring-dashboard activity needs D3 and D4)」）。
 
 ## 11. 測試
 
@@ -252,6 +342,9 @@ Profile 延續 `runtime` 之後的線性鏈（RANK 25–31）。每個階段只�
 |---|---|
 | `tests/devops-capability.test.ts` | `CICD_SHAPES` 15 列逐一斷言（活動、能力、需要的階段、CICD10 的可選終端機、CICD11／12 在 D3 前無法建立）、其他島的課被拒絕；島嶼登錄（預備、沒有單元與頁面、15 堂規劃中、被 `validateCurriculum` 拒絕）；只登錄 `deployment-simulator`、它在活動登錄中仍是規劃中、其他活動不變；四捨五入與中位數；兩個團隊的 DORA 指標（手算）；紀錄的每種驗證錯誤；整數分配、maxSurge／maxUnavailable 的取整、錯誤餘數；四種策略逐分鐘的執行個體與承接量、總計；藍綠的立即回滾；金絲雀的閘門未通過、樣本不足、p95、沒有閘門；擴充與收縮（太早收縮、正確順序、忘了擴充）與驗證；功能旗標；情境的驗證錯誤；每種查詢、數字與文字的比對、每道練習的參考答案通過、常見錯誤不通過；規劃題的模擬與訊息、參數解析；`devopsContentProblems` 的各種錯誤；合成的 CICD10 通過 `validateContent` 與發布閘門、內容與能力的綁定、能力的配對規則；`validateCurriculum(curriculum)` 是 `[]` |
 | `tests/devops-explorer-dom.test.tsx` | 部署紀錄的指標文字、時間軸與等效表格、中位數標記、選取部署的說明；部署模擬的總計、三張圖與逐分鐘表格、改策略與參數重新模擬、不合法參數的警示、閘門開關、步進器的方向鍵與 Home／End、旗標；數字、選擇、表格、規劃題的檢查；參考解答由資料算出 |
+| `tests/devops-capability.test.ts`（D3） | 產生器的手算值（step、ramp、spike、負的 ramp、取 0）、雜訊和 `draws(seed)` 逐點相同且可重現、換種子就不同；序列與儀表板的驗證錯誤；`tiny` 三條規則逐分鐘的狀態、觸發期間、通知、誤報、延遲；平均的精確比較（15 ÷ 3 = 5）與一位小數；最大值、最小值視窗、到最後仍觸發；事故後才觸發（漏掉且誤報）；`api` 的告警疲勞與偵測延遲；事故時間與嚴重等級；`series`、`alert`、`incident` 每種查詢與錯誤；每道 D3 練習的參考答案通過、常見錯誤不通過；`alert-rule` 的評估、訊息與欄位解析；驗證錯誤；合成的 CICD11 通過 `validateContent` 與發布閘門，活動與內容的綁定；CICD11 可以建立、CICD12 因 D4 被拒絕；`monitoring-dashboard` 在活動登錄中仍是規劃中 |
+| `tests/devops-explorer-dom.test.tsx`（D3） | 四張折線圖與每列 10 分鐘的等效表格、事故的底色、門檻只畫在規則的序列；選規則與改欄位重新評估（總計、偵測表、觸發期間表、視窗線）；不合法的門檻 `aria-invalid` 與警示；步進器的方向鍵與 Home／End 及每分鐘的說明；狀態變化表；事故時間線與矩陣；`alert-rule` 練習的檢查與結果、黃金訊號表、算出的參考解答 |
+| `tests/support/dashboard-fixture.ts` | 只供測試：`tiny`（12 分鐘逐點寫出）與 `api`（180 分鐘、四個黃金訊號、兩次事故與一次尖峰，全部由產生器產生）、七道 D3 練習與一堂合成的 CICD11 課 |
 | `tests/support/devops-fixture.ts` | 只供測試：兩個團隊的部署紀錄、四個部署情境（結帳服務、有問題的金絲雀、結構變更、功能旗標）、八道練習與一堂合成的 CICD10 課（沒有真實的課程檔案） |
 
 ## 12. 只在課文說明的部分
@@ -262,6 +355,7 @@ Profile 延續 `runtime` 之後的線性鏈（RANK 25–31）。每個階段只�
 - Vault 與雲端的 secret 儲存、改寫 git 歷史來清除 secret。
 - 服務網格與負載平衡器產品、真實的監控與日誌系統、值班呼叫與狀態頁。
 - `gh --jq`／`--template`、終端機動畫。
+- D3 沒有模擬的部分見 §10.3.6。
 - D2 沒有模擬：流量隨時間變化（rpm 固定）、自動擴展、影子部署、多於兩個版本同時存在、請求重試、工作階段黏著、延遲隨負載變化（p95 是宣告的數字）、資料回填的耗時（expand 視為立即可用）。
 
 ## 13. 沒有把握的地方
@@ -270,12 +364,14 @@ Profile 延續 `runtime` 之後的線性鏈（RANK 25–31）。每個階段只�
 - **算法的細節**：DORA 報告以問卷的區間回答，沒有規定中位數、四捨五入或「每週平均」的算法；§5.3 的規則是本課程為了能手算而固定的。
 - **maxSurge／maxUnavailable**：百分比的取整與「兩者都是 0 時 unavailable 改為 1」依 Kubernetes 的 deployment 控制器（`ResolveFenceposts`）的行為撰寫，沒有逐字核對最新版本的原始碼；控制迴圈的時間與先縮後擴的順序是本模型自己的規則，不是 Kubernetes 的。
 - **E25–E31 的輸出格式**：gh、runner 日誌、GitHub 的 YAML 與驗證訊息、`hashFiles` 與快取的文字都無法離線核對；這些階段建置時要逐項列在本節，教學上最關鍵的（結束碼的註記、`***`、403 與保護規則的錯誤）優先。git 的合併與 rebase 衝突處理簡化為一段。
+- **D3**：pending／for 的邊界、誤報與漏掉的判定、恢復時間的定義、嚴重等級沒有通用標準，見 §10.3.7。
 
 ## 14. 改動的既有規則與測試
 
 - `schema.ts`：新能力、新活動、預備島嶼、前綴、`content.devops` 與它的驗證接線、配對規則（§9）。
 - `activities.ts`：`IMPLEMENTED_TEXT` 的說明只在活動已實作時採用（§3）；其他活動的登錄內容不變。
-- `lessons.ts`：`cicdFromBlueprint` 與 `CICD_SHAPES`；其他島的對應與錯誤不變。
+- `lessons.ts`：`cicdFromBlueprint` 與 `CICD_SHAPES`；其他島的對應與錯誤不變。D3 加上 `DEVOPS_STAGES_BUILT`：課需要的 devops-explorer 階段（D1–D4）沒有全部建好時拒絕建立（CICD12 等 D4）。
+- D3（§10.3）：`schema.ts` 登錄 `monitoring-dashboard`，`validateCurriculum` 的訊息改為「names deployment-simulator or monitoring-dashboard as its activity」，`devopsContentProblems` 沒有探索器時的訊息改為「(a history, a rollout or a dashboard)」，`tests/devops-capability.test.ts` 對應的斷言同步更新（同樣嚴格）；`activities.ts` 加上 `monitoring-dashboard` 的 `IMPLEMENTED_TEXT`（規劃中時不採用）。
 - `database-lesson.tsx`：加入 devops 的探索器、練習與說明；其他課的頁面不變。
 - `tests/llm-capability.test.ts`：預備島嶼的斷言由 `[]` 改為 `['devops-cicd']`。
 - `docs/curriculum/data/island-capabilities.json`：`devops-cicd` 改為 `prepared`，`AUTONOMOUS_CURRICULUM_PROGRESS.md` 依它以 `scripts/curriculum-queue.ts` 重新產生；`COURSE_CONTENT_SPECIFICATION.md` 加上 DevOps 的範例形式與 CICD-0 的列。`COURSE_INVENTORY.md` 只記發布的批次，沒有改動（沒有課發布）。

@@ -2,6 +2,7 @@ import type { Forge, Git } from './git-core';
 import { API_BASE, protectionJson, type ForgeSite, type Protection } from './forge-state';
 import { defaultBranch, repoPath, webUrl } from './forge';
 import { baseRepo, flag, on, parseFlags, type Gh } from './gh';
+import { envApi, ENV_ENDPOINTS } from './gh-environments';
 
 /*
  * Engine stage E26 (docs/curriculum/CICD0_E26_FORGE.md): gh api against github.example's REST API (GitHub Enterprise's
@@ -11,10 +12,11 @@ import { baseRepo, flag, on, parseFlags, type Gh } from './gh';
  * "gh: message (HTTP status)" line.
  */
 
-type Json = null | boolean | number | string | Json[] | { [k: string]: Json };
-type Reply = { status: number; body?: Record<string, unknown> };
-const DOCS = 'https://docs.github.com/rest';
-const fail = (status: number, message: string, doc = DOCS): Reply => ({ status, body: { message, documentation_url: doc, status: String(status) } });
+export type Json = null | boolean | number | string | Json[] | { [k: string]: Json };
+/** E30: a body may be a JSON array (pending deployments, deployment statuses). */
+export type Reply = { status: number; body?: Record<string, unknown> | unknown[] };
+export const DOCS = 'https://docs.github.com/rest';
+export const fail = (status: number, message: string, doc = DOCS): Reply => ({ status, body: { message, documentation_url: doc, status: String(status) } });
 
 /** -F / -f fields as gh builds the JSON body: key[sub]=v nests, key[]=v appends; -F converts true, false, null, integers and @file. */
 function fieldsBody(g: Git, typed: readonly string[], raw: readonly string[]): Record<string, Json> | string {
@@ -46,8 +48,8 @@ function fieldsBody(g: Git, typed: readonly string[], raw: readonly string[]): R
 }
 function readText(g: Git, path: string): string | undefined { const n = g.nodes.get(g.abs(path)); return n?.kind === 'file' ? n.content ?? '' : undefined; }
 
-const isBool = (v: unknown) => typeof v === 'boolean';
-const invalid = (doc: string, why: string) => fail(422, `Invalid request.\n\n${why}`, doc);
+export const isBool = (v: unknown) => typeof v === 'boolean';
+export const invalid = (doc: string, why: string) => fail(422, `Invalid request.\n\n${why}`, doc);
 const notBool = (doc: string, k: string, v: unknown) => invalid(doc, `For 'properties/${k}', ${JSON.stringify(v)} is not a boolean.`);
 
 /** PUT …/protection: GitHub's validation of the body, then the new protection. */
@@ -134,6 +136,8 @@ export function apiCommand(h: Gh, args: string[]): number {
   if (!fl) return 1;
   if (fl.rest.length !== 1) { g.err(`accepts 1 arg(s), received ${fl.rest.length}`); return 1; }
   if (on(fl, 'jq') || on(fl, 'template') || on(fl, 'include') || on(fl, 'verbose')) { g.err('gh api：模擬環境不支援 --jq、--template、--include、--verbose（輸出是排版過的 JSON）'); return 1; }
+  // E30: the deployments list reads its query (environment, sha, ref).
+  const query = new URLSearchParams(/\?(.*)$/.exec(fl.rest[0])?.[1] ?? '');
   let endpoint = fl.rest[0].replace(/^https:\/\/github\.example\/api\/v3\//, '').replace(/^\//, '').replace(/\?.*$/, '');
   let forge: Forge | undefined;
   if (/\{(owner|repo|branch)\}/.test(endpoint)) {
@@ -163,9 +167,12 @@ export function apiCommand(h: Gh, args: string[]): number {
   const m = /^repos\/([^/]+)\/([^/]+)(\/.*)?$/.exec(endpoint);
   if (m) {
     forge = g.forge.find(x => repoPath(x).toLowerCase() === `${m[1]}/${m[2]}`.toLowerCase());
-    reply = forge ? route(h, forge, m[3] ?? '', method, body) : fail(404, 'Not Found');
+    reply = forge ? (h.environments ? envApi(h, forge, m[3] ?? '', method, body, query) : undefined) ?? route(h, forge, m[3] ?? '', method, body) : fail(404, 'Not Found');
   }
-  if (!reply) { g.err('gh api：模擬環境只支援 user、repos/{owner}/{repo}（GET、PATCH）與 repos/{owner}/{repo}/branches/{branch}/protection（GET、PUT、DELETE）'); return 1; }
+  // E30 (environments profile): users/{login}.
+  const user = /^users\/([^/]+)$/.exec(endpoint);
+  if (h.environments && user && method === 'GET') reply = envApi(h, undefined, endpoint, method, body, query);
+  if (!reply) { g.err(`gh api：模擬環境只支援 user、repos/{owner}/{repo}（GET、PATCH）與 repos/{owner}/{repo}/branches/{branch}/protection（GET、PUT、DELETE）${h.environments ? `；environments profile 另有 ${ENV_ENDPOINTS}` : ''}`); return 1; }
   return print(h, reply, on(fl, 'silent'));
 }
 
@@ -173,6 +180,6 @@ function print(h: Gh, r: Reply, silent: boolean): number {
   const { g } = h;
   if (r.body && !silent) g.out(...JSON.stringify(r.body, null, 2).split('\n'));
   if (r.status < 400) return 0;
-  g.err(...`gh: ${String(r.body?.message)} (HTTP ${r.status})`.split('\n'));
+  g.err(...`gh: ${String((r.body as { message?: unknown } | undefined)?.message)} (HTTP ${r.status})`.split('\n'));
   return 1;
 }

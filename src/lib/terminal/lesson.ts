@@ -23,6 +23,8 @@ import type { TerminalDocker } from './docker-lesson';
 import type { TerminalGit } from './git-lesson';
 import type { TerminalForge } from './forge-lesson';
 import type { TerminalActions } from './actions-lesson';
+import { remoteDocker, remoteResponders, type TerminalRemoteDeploy } from './deploy-lesson';
+import { settleArt } from './artifacts-run';
 
 /*
  * LNX-0 (2026-11-22): the terminal lesson capability (docs/curriculum/LNX0_TERMINAL_CAPABILITY.md). A Linux lesson
@@ -205,7 +207,8 @@ export interface TerminalMachine {
  * an Ubuntu server with OpenSSH has unless listed (/etc/ssh/sshd_config, the ssh.service unit, enabled and running), so a
  * lesson lists only what matters (homes, authorized_keys, a changed sshd_config, an Include file…).
  */
-export interface TerminalRemote {
+/** E31 (deploy-hosts profile): a remote may also run Docker and let runners reach it (TerminalRemoteDeploy). */
+export interface TerminalRemote extends TerminalRemoteDeploy {
   host: string;
   title?: string;
   /** IPv4 address (ssh by address works too). */
@@ -324,10 +327,10 @@ export type TerminalCheck =
   | { kind: 'cron'; user?: string; source?: string; schedule?: string; command?: string; absent?: true }
   /** E9: a timer is (not) active / enabled, its next elapse is this local time (YYYY-MM-DD HH:MM:SS). */
   | { kind: 'timer'; unit: string; active?: boolean; enabled?: boolean; next?: string }
-  /** E10–E12: listen, dns and http (server-lesson.ts); E20: container and image (docker-lesson.ts); E25: branch, worktree and tag (git-checks.ts); E26: pull-request and protection (forge-checks.ts); E27: workflow (workflow-checks.ts); E28: run (actions-checks.ts); E29: secret and variable (artifacts-checks.ts). */
+  /** E10–E12: listen, dns and http (server-lesson.ts); E20: container and image (docker-lesson.ts); E25: branch, worktree and tag (git-checks.ts); E26: pull-request and protection (forge-checks.ts); E27: workflow (workflow-checks.ts); E28: run (actions-checks.ts); E29: secret and variable (artifacts-checks.ts); E30: environment and deployment (environments-checks.ts). */
   | ServerCheck;
 export const TERMINAL_CHECK_KINDS = ['exists', 'absent', 'mode', 'owner', 'content', 'cwd', 'output', 'unchanged', 'link', 'user', 'group', 'umask', 'process', 'package', 'service',
-  'ssh', 'known-host', 'cron', 'timer', 'listen', 'dns', 'http', 'cert', 'nginx', 'reach', 'firewall', 'tunnel', 'cache', 'container', 'image', 'build', 'volume', 'network', 'compose', 'registry', 'branch', 'worktree', 'tag', 'pull-request', 'protection', 'workflow', 'run', 'secret', 'variable'] as const satisfies readonly TerminalCheck['kind'][];
+  'ssh', 'known-host', 'cron', 'timer', 'listen', 'dns', 'http', 'cert', 'nginx', 'reach', 'firewall', 'tunnel', 'cache', 'container', 'image', 'build', 'volume', 'network', 'compose', 'registry', 'branch', 'worktree', 'tag', 'pull-request', 'protection', 'workflow', 'run', 'secret', 'variable', 'environment', 'deployment'] as const satisfies readonly TerminalCheck['kind'][];
 /** E7: the checks of files that may name a remote machine (host). */
 const PATH_KINDS = ['exists', 'absent', 'mode', 'owner', 'content', 'unchanged', 'link'];
 
@@ -385,14 +388,15 @@ const SYSTEM_FIELDS = ['kernel', 'release', 'version', 'machine', 'os'] as const
 /** E1: the shell profile a machine's sessions use (lab unless it says files, streams or users). */
 export const profileOf = (machine: Pick<TerminalMachine, 'profile'>): ShellProfile => PROFILES[machine.profile ?? 'lab'] ?? LAB_PROFILE;
 /** Each profile includes the ones before it: files (E1) < streams (E2) < users (E3) < processes (E4) < packages (E5) < services (E6). */
-const RANK: Record<ProfileId, number> = { lab: 0, files: 1, streams: 2, users: 3, processes: 4, packages: 5, services: 6, remote: 7, scripting: 8, scheduling: 9, sockets: 10, dns: 11, http: 12, tls: 13, nginx: 14, proxy: 15, firewall: 16, tunnels: 17, edge: 18, diagnostics: 19, containers: 20, images: 21, 'storage-net': 22, compose: 23, runtime: 24, git: 25, forge: 26, workflows: 27, actions: 28, artifacts: 29 };
+const RANK: Record<ProfileId, number> = { lab: 0, files: 1, streams: 2, users: 3, processes: 4, packages: 5, services: 6, remote: 7, scripting: 8, scheduling: 9, sockets: 10, dns: 11, http: 12, tls: 13, nginx: 14, proxy: 15, firewall: 16, tunnels: 17, edge: 18, diagnostics: 19, containers: 20, images: 21, 'storage-net': 22, compose: 23, runtime: 24, git: 25, forge: 26, workflows: 27, actions: 28, artifacts: 29, environments: 30, 'deploy-hosts': 31 };
 const rankOf = (machine: Pick<TerminalMachine, 'profile'>) => RANK[machine.profile ?? 'lab'] ?? 0;
 /** E10–E12: which of the server stages a machine's profile has. */
 const levelsOf = (machine: Pick<TerminalMachine, 'profile'>): ServerLevels => ({
   sockets: rankOf(machine) >= RANK.sockets, dns: rankOf(machine) >= RANK.dns, http: rankOf(machine) >= RANK.http, tls: rankOf(machine) >= RANK.tls, nginx: rankOf(machine) >= RANK.nginx,
   proxy: rankOf(machine) >= RANK.proxy, firewall: rankOf(machine) >= RANK.firewall, tunnels: rankOf(machine) >= RANK.tunnels,
   edge: rankOf(machine) >= RANK.edge, diagnostics: rankOf(machine) >= RANK.diagnostics, containers: rankOf(machine) >= RANK.containers, images: rankOf(machine) >= RANK.images, storageNet: rankOf(machine) >= RANK['storage-net'], compose: rankOf(machine) >= RANK.compose, runtime: rankOf(machine) >= RANK.runtime, git: rankOf(machine) >= RANK.git, forge: rankOf(machine) >= RANK.forge,
-  workflows: rankOf(machine) >= RANK.workflows, actions: rankOf(machine) >= RANK.actions, artifacts: rankOf(machine) >= RANK.artifacts,
+  workflows: rankOf(machine) >= RANK.workflows, actions: rankOf(machine) >= RANK.actions, artifacts: rankOf(machine) >= RANK.artifacts, environments: rankOf(machine) >= RANK.environments,
+  deployHosts: rankOf(machine) >= RANK['deploy-hosts'],
 });
 
 /** E3: a users machine's database: the base and its user (defaultAccounts) with the machine's groups and users laid over it. */
@@ -483,6 +487,8 @@ export function remoteMachine(machine: TerminalMachine, r: TerminalRemote): Term
     ...rankOf(machine) >= RANK.firewall ? { peers: [{ host: machine.host ?? 'logic-island', address: machine.address ?? interfacesOfMachine(machine)[0]?.address ?? '10.0.0.10' }, ...(machine.remotes ?? []).filter(o => o !== r).map(o => ({ host: o.host, address: o.address, ...o.aliases ? { aliases: o.aliases } : {} }))] } : {},
     ...rankOf(machine) >= RANK.tls ? { issuers: [...machine.certificates ?? [], ...(machine.remotes ?? []).filter(o => o !== r).flatMap(o => o.certificates ?? [])] } : {},
   };
+  // E31: a deploy-hosts remote's Docker daemon (the lesson's registries, the local machine's pullable images) and the responders its images name.
+  const docker = rankOf(machine) >= RANK['deploy-hosts'] ? remoteDocker(machine, r) : undefined;
   return {
     id: `${machine.id}/${r.host}`, title: r.title ?? r.host, user: 'root', cwd: '/root', host: r.host, profile: machine.profile, files,
     ...r.accounts ? { accounts: r.accounts } : {}, ...machine.now ? { now: machine.now } : {}, ...machine.boot ? { boot: machine.boot } : {},
@@ -490,7 +496,7 @@ export function remoteMachine(machine: TerminalMachine, r: TerminalRemote): Term
     processes: [{ pid: 1, ppid: 0, user: 'root', command: '/sbin/init', stat: 'Ss' },
       ...running ? [{ pid: 700, user: 'root', command: 'sshd: /usr/sbin/sshd -D [listener] 0 of 10-100 startups', stat: 'Ss', unit: 'ssh.service' }] : [], ...r.processes ?? []],
     services: [{ unit: 'ssh.service', active: running ? 'active' : 'inactive' }, ...r.services ?? []],
-    ...r.journal ? { journal: r.journal } : {}, ...server,
+    ...r.journal ? { journal: r.journal } : {}, ...server, ...docker ? { docker, responders: remoteResponders(machine, r, docker) } : {},
   };
 }
 /** E7: a remote machine's state: its own machine state (no network of its own) with its sshd's key and applied options. */
@@ -595,7 +601,7 @@ export function describeCheck(check: TerminalCheck): string {
 }
 function describe(check: TerminalCheck): string {
   switch (check.kind) {
-    case 'listen': case 'dns': case 'http': case 'cert': case 'nginx': case 'reach': case 'firewall': case 'tunnel': case 'cache': case 'container': case 'image': case 'build': case 'volume': case 'network': case 'compose': case 'registry': case 'branch': case 'worktree': case 'tag': case 'pull-request': case 'protection': case 'workflow': case 'run': case 'secret': case 'variable': return describeServerCheck(check);
+    case 'listen': case 'dns': case 'http': case 'cert': case 'nginx': case 'reach': case 'firewall': case 'tunnel': case 'cache': case 'container': case 'image': case 'build': case 'volume': case 'network': case 'compose': case 'registry': case 'branch': case 'worktree': case 'tag': case 'pull-request': case 'protection': case 'workflow': case 'run': case 'secret': case 'variable': case 'environment': case 'deployment': return describeServerCheck(check);
     case 'exists': return `${check.path} 應該存在${check.type === 'dir' ? '（目錄）' : check.type === 'file' ? '（檔案）' : ''}`;
     case 'absent': return `${check.path} 應該不存在`;
     case 'mode': return `${check.path} 的權限應該是 ${octal(check.mode)}`;
@@ -648,7 +654,9 @@ function describe(check: TerminalCheck): string {
 }
 
 /** Why a check fails on a state (start: the machine before the commands; reference: the solution's last output), or null when it holds. */
-function failure(check: TerminalCheck, start0: FsState, end0: FsState, outputs: string[], reference: string, commands: readonly string[] = []): string | null {
+function failure(check: TerminalCheck, start0: FsState, end00: FsState, outputs: string[], reference: string, commands: readonly string[] = []): string | null {
+  // E31: on a deploy-hosts machine, what runs did by now (to the hosts too) happens first.
+  const end0 = end00.ci?.deploy ? settleArt(end00) : end00;
   // E7: a check of files may name a remote machine.
   const host = 'host' in check && PATH_KINDS.includes(check.kind) ? check.host : undefined;
   const end = host ? hostState(end0, host) : end0, start = host ? hostState(start0, host) : start0;
@@ -656,7 +664,7 @@ function failure(check: TerminalCheck, start0: FsState, end0: FsState, outputs: 
   const node = 'path' in check ? end.nodes.get(check.path) : undefined;
   const kindName = (n: FsNode) => n.kind === 'dir' ? '目錄' : n.kind === 'link' ? '符號連結' : '檔案';
   switch (check.kind) {
-    case 'listen': case 'dns': case 'http': case 'cert': case 'nginx': case 'reach': case 'firewall': case 'tunnel': case 'cache': case 'container': case 'image': case 'build': case 'volume': case 'network': case 'compose': case 'registry': case 'branch': case 'worktree': case 'tag': case 'pull-request': case 'protection': case 'workflow': case 'run': case 'secret': case 'variable': return serverFailure(check, end, h => hostState(end, h), dnsResolver);
+    case 'listen': case 'dns': case 'http': case 'cert': case 'nginx': case 'reach': case 'firewall': case 'tunnel': case 'cache': case 'container': case 'image': case 'build': case 'volume': case 'network': case 'compose': case 'registry': case 'branch': case 'worktree': case 'tag': case 'pull-request': case 'protection': case 'workflow': case 'run': case 'secret': case 'variable': case 'environment': case 'deployment': return serverFailure(check, end, h => hostState(end, h), dnsResolver);
     case 'exists':
       if (!node) return '它還不存在';
       return check.type && node.kind !== check.type ? `它是${kindName(node)}` : null;
@@ -1163,7 +1171,7 @@ export function terminalContentProblems(content: TerminalLessonContent, given?: 
       if (c.kind === 'ssh' && (!ACCOUNT_NAME.test(c.user) || !['publickey', 'password'].includes(c.method) || typeof c.allowed !== 'boolean')) fail(`${at}: an ssh check needs a user, a method (publickey or password) and allowed`);
       if (c.kind === 'cron' && (machineRank < RANK.scheduling || (c.schedule !== undefined && 'error' in parseCron(c.schedule.trim().split(/\s+/))) || (c.user !== undefined && !ACCOUNT_NAME.test(c.user)))) fail(`${at}: a cron check needs a scheduling machine (engine stage E9) and a valid schedule`);
       if (c.kind === 'timer' && (machineRank < RANK.scheduling || !TIMER.test(c.unit) || (c.next !== undefined && parseTime(c.next) === undefined))) fail(`${at}: a timer check needs a scheduling machine (engine stage E9), a unit like backup.timer and a next time YYYY-MM-DD HH:MM:SS`);
-      if (c.kind === 'listen' || c.kind === 'dns' || c.kind === 'http' || c.kind === 'cert' || c.kind === 'nginx' || c.kind === 'cache' || c.kind === 'container' || c.kind === 'image' || c.kind === 'build' || c.kind === 'volume' || c.kind === 'network' || c.kind === 'compose' || c.kind === 'registry' || c.kind === 'branch' || c.kind === 'worktree' || c.kind === 'tag' || c.kind === 'pull-request' || c.kind === 'protection' || c.kind === 'workflow' || c.kind === 'run' || c.kind === 'secret' || c.kind === 'variable') { const p = serverCheckProblems(c, levelsOf(valid.get(x.machine) ?? {}), known); if (p) fail(`${at}: ${p}`); }
+      if (c.kind === 'listen' || c.kind === 'dns' || c.kind === 'http' || c.kind === 'cert' || c.kind === 'nginx' || c.kind === 'cache' || c.kind === 'container' || c.kind === 'image' || c.kind === 'build' || c.kind === 'volume' || c.kind === 'network' || c.kind === 'compose' || c.kind === 'registry' || c.kind === 'branch' || c.kind === 'worktree' || c.kind === 'tag' || c.kind === 'pull-request' || c.kind === 'protection' || c.kind === 'workflow' || c.kind === 'run' || c.kind === 'secret' || c.kind === 'variable' || c.kind === 'environment' || c.kind === 'deployment') { const p = serverCheckProblems(c, levelsOf(valid.get(x.machine) ?? {}), known); if (p) fail(`${at}: ${p}`); }
       // Fix (E19 batch): an output check may require that the answer came from a command matching fromCommand (a regular expression).
       if (c.kind === 'output' && c.fromCommand !== undefined) { try { new RegExp(c.fromCommand); } catch { fail(`${at}: fromCommand is not a regular expression`); } }
       // E16–E17: reach, firewall and tunnel may also name the exercise's machine itself.

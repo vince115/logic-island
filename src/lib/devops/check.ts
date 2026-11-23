@@ -1,3 +1,5 @@
+import { dashboardProblems } from './dashboard';
+import { ALERT_FIELDS, alertPlanAnswer, alertPlanProblems, checkAlertPlan, dashboardQueryValue } from './dashboard-check';
 import { doraMetrics, historyProblems, type DoraMetrics } from './history';
 import { rolloutProblems, simulateRollout, strategyIssues, strategyProblems, strategyText, type InstanceAmount, type RolloutResult, type RolloutScenario, type Strategy } from './rollout';
 import { DORA_METRICS, DORA_RANKED, devopsExplorers, ROLLOUT_METRICS, ROLLOUT_RANKED, type DevopsBlank, type DevopsExercise, type DevopsLessonContent, type DevopsQuery, type DoraMetric, type PlanConstraints, type RolloutPlanTask } from './types';
@@ -7,7 +9,8 @@ import { DORA_METRICS, DORA_RANKED, devopsExplorers, ROLLOUT_METRICS, ROLLOUT_RA
  * lesson's explorers; its answer is computed here from the data (history.ts, rollout.ts), never written in the lesson,
  * and the learner's answer is compared with it: numbers exactly (at the decimals the value has), words without regard
  * to case and spaces, with their Chinese aliases. A rollout-plan exercise simulates the learner's own parameters and
- * checks the constraints. devopsContentProblems is what validateContent runs on `content.devops`.
+ * checks the constraints. D3's dashboard queries and alert-rule task are in dashboard-check.ts, dispatched from here.
+ * devopsContentProblems is what validateContent runs on `content.devops`.
  */
 
 export type DevopsValue =
@@ -125,6 +128,7 @@ export function devopsQueryValue(q: DevopsQuery, c: DevopsLessonContent): Devops
       if (scored[0].score === scored[1].score) throw new Error(`candidates ${scored[0].id} and ${scored[1].id} tie on ${q.metric}`);
       return { type: 'text', value: scored[0].id, shown: scored[0].id, aliases: [scored[0].id] };
     }
+    case 'series': case 'alert': case 'incident': return dashboardQueryValue(q, c);
   }
 }
 
@@ -155,7 +159,7 @@ export const PLAN_FIELDS: Record<RolloutPlanTask['strategy'], Record<string, str
 };
 /** The keys of a learner's answer: `value` (number, field), `choice` (an option's index), each blank's id, or the plan's fields. */
 export const answerKeys = (e: DevopsExercise): string[] => e.kind === 'table' ? e.blanks.map(b => b.id) : e.kind === 'choice' ? ['choice']
-  : e.kind === 'rollout-plan' ? Object.keys(PLAN_FIELDS[e.plan.strategy]) : ['value'];
+  : e.kind === 'rollout-plan' ? Object.keys(PLAN_FIELDS[e.plan.strategy]) : e.kind === 'alert-rule' ? Object.keys(ALERT_FIELDS) : ['value'];
 
 /** A plan's parameters as the learner types them. */
 export function planAnswer(st: Strategy): Record<string, string> {
@@ -242,6 +246,7 @@ function checkPlan(task: RolloutPlanTask, c: DevopsLessonContent, answer: Record
 /** Checks a learner's answer against the values computed from the lesson's explorers. */
 export function checkDevopsAnswer(e: DevopsExercise, c: DevopsLessonContent, answer: Record<string, string>): { ok: boolean; messages: string[] } {
   if (e.kind === 'rollout-plan') return checkPlan(e.plan, c, answer);
+  if (e.kind === 'alert-rule') return checkAlertPlan(e.plan, c, answer);
   const messages: string[] = [];
   if (e.kind === 'choice') {
     const chosen = answer.choice?.trim();
@@ -267,6 +272,7 @@ export function correctOption(e: DevopsExercise & { kind: 'choice' }, c: DevopsL
 export function referenceAnswer(e: DevopsExercise, c: DevopsLessonContent): Record<string, string> {
   if (e.kind === 'choice') return { choice: String(correctOption(e, c)) };
   if (e.kind === 'rollout-plan') return planAnswer(e.plan.reference);
+  if (e.kind === 'alert-rule') return alertPlanAnswer(e.plan.reference);
   const shown = (b: DevopsBlank) => { const v = devopsQueryValue(b.query, c); return v.type === 'text' ? v.shown : v.value.toFixed(v.decimals); };
   return e.kind === 'table' ? Object.fromEntries(e.blanks.map(b => [b.id, shown(b)])) : { value: shown(e.blank) };
 }
@@ -282,13 +288,14 @@ export function devopsContentProblems(c: DevopsLessonContent): string[] {
   const ids = new Set<string>();
   const unique = (id: string) => { if (ids.has(id)) problems.push(`duplicate id ${id}`); ids.add(id); };
   const explorers = devopsExplorers(c);
-  if (!explorers.length) problems.push('a devops-explorer lesson needs at least one explorer (a history or a rollout)');
+  if (!explorers.length) problems.push('a devops-explorer lesson needs at least one explorer (a history, a rollout or a dashboard)');
   for (const x of explorers) {
     unique(x.id);
     if (!x.title?.trim() || !x.description?.trim()) problems.push(`explorer ${x.id} needs a title and a description`);
   }
   for (const h of c.histories ?? []) problems.push(...historyProblems(h.history).map(p => `history ${h.id}: ${p}`));
   for (const r of c.rollouts ?? []) problems.push(...rolloutProblems(r.scenario).map(p => `rollout ${r.id}: ${p}`));
+  for (const d of c.dashboards ?? []) problems.push(...dashboardProblems(d.dashboard).map(p => `dashboard ${d.id}: ${p}`));
   if (problems.length) return problems;
 
   for (const e of c.exercises) {
@@ -339,6 +346,12 @@ export function devopsContentProblems(c: DevopsLessonContent): string[] {
           const v = planViolations(p.constraints, simulatePlan(p, c, p.reference));
           if (v.length) { fail(`the reference plan breaks its constraints: ${v.join(' ')}`); sound = false; }
         }
+      } catch (err) { fail((err as Error).message); sound = false; }
+    }
+    if (e.kind === 'alert-rule') {
+      try {
+        const bad = alertPlanProblems(e.plan, c);
+        if (bad.length) { for (const b of bad) fail(b); sound = false; }
       } catch (err) { fail((err as Error).message); sound = false; }
     }
     if (!sound) continue;

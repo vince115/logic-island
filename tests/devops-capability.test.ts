@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { curriculum, getLessonBySlug, lessons } from '@/content/curriculum';
-import { CICD_SHAPES, cicdFromBlueprint, dockerFromBlueprint, llmFromBlueprint } from '@/content/curriculum/lessons';
+import { CICD_SHAPES, cicdFromBlueprint, DEVOPS_STAGES_BUILT, dockerFromBlueprint, llmFromBlueprint } from '@/content/curriculum/lessons';
 import { DEVOPS_ACTIVITIES, ISLAND_IDS, ISLAND_PREFIX, LESSON_ACTIVITIES, LESSON_CAPABILITIES, PREPARED_ISLAND_IDS, validateContent, validateCurriculum, type LessonMeta } from '@/content/curriculum/schema';
 import { UNITS } from '@/content/curriculum/units';
 import { getIsland } from '@/content/world';
@@ -9,11 +9,18 @@ import { lessonsOfIsland } from '@/content/world/catalog';
 import { labRegistry } from '@/content/world/labs';
 import planning from '@/content/world/planning-data.json';
 import { publishProblems } from '@/lib/curriculum/publish-gate';
+import { alertConstraintTexts, alertPlanAnswer, alertViolations, parseAlertPlan } from '@/lib/devops/dashboard-check';
 import { checkDevopsAnswer, devopsContentProblems, devopsQueryValue, matchesDevopsValue, parseDevopsNumber, parsePlan, referenceAnswer } from '@/lib/devops/check';
+import { conditionText, evaluateAlert, ruleValueText } from '@/lib/devops/alerts';
+import { dashboardProblems, evaluateOn, type Dashboard } from '@/lib/devops/dashboard';
+import { incidentTimes, severityOf } from '@/lib/devops/incident';
+import { generateSeries, seriesProblems, seriesValues } from '@/lib/devops/series';
+import { draws } from '@/lib/llm/prng';
 import { clockText, doraMetrics, durationText, historyProblems, median, roundHalfUp } from '@/lib/devops/history';
 import { resolveRolling, rolloutProblems, simulateRollout, splitByWeights, strategyProblems, type RolloutScenario } from '@/lib/devops/rollout';
 import type { DevopsExercise, DevopsLessonContent } from '@/lib/devops/types';
 import { badCanary, checkout, devopsContent, devopsLesson, exercises, flagged, schemaChange, teamA, teamB } from './support/devops-fixture';
+import { api, dashboardContent, dashboardExercises, dashboardLesson, tiny } from './support/dashboard-fixture';
 import { validateTerminalLessonsFirst } from './support/terminal-replays';
 
 /*
@@ -53,11 +60,13 @@ describe('cicdFromBlueprint (CICD_SHAPES)', () => {
     expect(shape('CICD13')).toEqual(['terminal-sim', ['terminal', 'devops-explorer'], 'none']);
     expect(shape('CICD14')).toEqual(['terminal-sim', ['terminal', 'devops-explorer'], 'none']);
     expect(shape('CICD15')).toEqual(['challenge-stages', ['terminal', 'devops-explorer', 'visualization'], 'challenge-stages']);
-    // CICD11 and CICD12 are mapped to monitoring-dashboard, which is registered with D3 (CICD-4): they cannot be built yet.
+    // CICD11 and CICD12 are mapped to monitoring-dashboard, registered with D3 (CICD-4): CICD11 can be built; CICD12 also
+    // needs D4 (logs), which is not built, so it is still refused.
     expect(CICD_SHAPES.CICD11).toMatchObject({ activity: 'monitoring-dashboard', capabilities: ['devops-explorer'], stages: ['D3'] });
     expect(CICD_SHAPES.CICD12).toMatchObject({ activity: 'monitoring-dashboard', capabilities: ['devops-explorer', 'terminal'], stages: ['D3', 'D4'] });
-    expect(() => cicdFromBlueprint('CICD11', 's', 50)).toThrow(/CICD11: the monitoring-dashboard activity is not registered yet \(it is built with D3\)/);
-    expect(() => cicdFromBlueprint('CICD12', 's', 50)).toThrow(/monitoring-dashboard activity is not registered yet/);
+    expect(shape('CICD11')).toEqual(['monitoring-dashboard', ['devops-explorer'], 'none']);
+    expect(DEVOPS_STAGES_BUILT).toEqual(['D1', 'D2', 'D3']);
+    expect(() => cicdFromBlueprint('CICD12', 's', 50)).toThrow(/^CICD12: the devops-explorer stage D4 is not built yet \(the monitoring-dashboard activity needs D3 and D4\)$/);
     // The stages each lesson waits for.
     expect(Object.fromEntries(Object.entries(CICD_SHAPES).map(([id, s]) => [id, s.stages.join(' ')]))).toEqual({
       CICD01: 'D1', CICD02: 'E25 E26', CICD03: 'E25 E26 E27 E28', CICD04: 'E25 E26 E27 E28', CICD05: 'E25 E26 E27 E28',
@@ -103,11 +112,12 @@ describe('the devops-cicd island: prepared in CICD-0, published from CICD-1', ()
     // Its lessons open on their own; its 3D landscape stays the planned one (IslandConfig.mapState, set by hand).
     expect(getIsland('devops-cicd')).toMatchObject({ status: written.length < 15 ? 'available' : 'complete', mapState: 'planned' });
   });
-  it('registers devops-explorer and deployment-simulator only; the other blueprint names stay planned', () => {
+  it('registers devops-explorer with deployment-simulator (D1, D2) and monitoring-dashboard (D3) only; the other blueprint names stay planned', () => {
     expect(LESSON_CAPABILITIES).toContain('devops-explorer');
-    expect(DEVOPS_ACTIVITIES).toEqual(['deployment-simulator']);
+    expect(DEVOPS_ACTIVITIES).toEqual(['deployment-simulator', 'monitoring-dashboard']);
     expect(LESSON_ACTIVITIES).toContain('deployment-simulator');
-    for (const a of ['monitoring-dashboard', 'pipeline-sim', 'case-study-board', 'decision-simulation']) expect(LESSON_ACTIVITIES, a).not.toContain(a);
+    expect(LESSON_ACTIVITIES).toContain('monitoring-dashboard');
+    for (const a of ['pipeline-sim', 'case-study-board', 'decision-simulation']) expect(LESSON_ACTIVITIES, a).not.toContain(a);
     expect(labRegistry.find(l => l.id === 'cicd-pipeline')).toMatchObject({ status: 'planned', activities: ['pipeline-sim'] });
   });
   it('kept deployment-simulator planned in the activity registry until a complete lesson used it: CICD01 (CICD-1) makes it implemented', () => {
@@ -120,6 +130,13 @@ describe('the devops-cicd island: prepared in CICD-0, published from CICD-1', ()
     // Every activity with a described text equivalent is implemented, and every planned one carries the requirement.
     for (const a of activities.filter(x => x.type === 'activity' && x.accessibility.textAlternative !== '必要：實作時提供與畫面等效的文字說明')) expect(a.availability, a.id).toBe('implemented');
     for (const a of activities.filter(x => x.type === 'activity' && x.availability === 'planned')) expect(a.accessibility.textAlternative, a.id).toBe('必要：實作時提供與畫面等效的文字說明');
+  });
+  it('keeps monitoring-dashboard planned in the activity registry until a complete lesson uses it (D3 registers it, no lesson yet)', () => {
+    expect(lessons.some(l => l.activity === 'monitoring-dashboard')).toBe(false);
+    expect(getActivity('monitoring-dashboard')).toMatchObject({ availability: 'planned', version: '0.1.0',
+      accessibility: { keyboard: true, textAlternative: '必要：實作時提供與畫面等效的文字說明' } });
+    // The blueprint's six lessons on three islands name it (CICD11/12, OPS13/14/19, KUB12); registering it adds none.
+    expect(planning.plannedLessons.filter(l => l.activity === 'monitoring-dashboard').map(l => l.lessonId).sort()).toEqual(['CICD11', 'CICD12', 'KUB12', 'OPS13', 'OPS14', 'OPS19']);
   });
   it('leaves the curriculum valid', () => {
     expect(validateCurriculum(curriculum)).toEqual([]);
@@ -376,7 +393,7 @@ describe('devops exercises: answers computed from the data', () => {
   it('validates content: computable answers, sound choices, failing mistakes, a passing reference plan', () => {
     expect(devopsContentProblems(content)).toEqual([]);
     const withExercise = (e: DevopsExercise): DevopsLessonContent => ({ ...devopsContent(), exercises: [e] });
-    expect(devopsContentProblems({ exercises: [] })).toEqual(['a devops-explorer lesson needs at least one explorer (a history or a rollout)']);
+    expect(devopsContentProblems({ exercises: [] })).toEqual(['a devops-explorer lesson needs at least one explorer (a history, a rollout or a dashboard)']);
     expect(devopsContentProblems(withExercise({ ...ex('x-per-week'), mistakes: [{ answer: { value: '2.5' }, why: '其實是對的' }] })))
       .toEqual(['exercise x-per-week: the typical mistake "其實是對的" passes the check']);
     expect(devopsContentProblems(withExercise({ ...ex('x-per-week'), mistakes: [{ answer: { lead: '1' }, why: '錯的欄位' }] })))
@@ -420,8 +437,221 @@ describe('a synthetic CICD10 lesson (deployment-simulator)', () => {
     // The rules on a published lesson's place (DKR04, a terminal lesson).
     const swap = (patch: Partial<LessonMeta>) => validateCurriculum({ ...curriculum, lessons: lessons.map(l => l.lessonId === 'DKR04' ? { ...l, ...patch } : l) }).join('\n');
     expect(swap({ capabilities: ['terminal', 'devops-explorer'] })).not.toMatch(/DKR04: devops-explorer is combined|DKR04: a devops-explorer lesson/);
-    expect(swap({ capabilities: ['devops-explorer'] })).toMatch(/DKR04: a devops-explorer lesson without the terminal names deployment-simulator as its activity/);
+    expect(swap({ capabilities: ['devops-explorer'] })).toMatch(/DKR04: a devops-explorer lesson without the terminal names deployment-simulator or monitoring-dashboard as its activity/);
     expect(swap({ capabilities: ['devops-explorer', 'network-protocol'], activity: 'deployment-simulator' })).toMatch(/DKR04: devops-explorer is combined with terminal and visualization only/);
     expect(swap({ capabilities: ['terminal'], activity: 'deployment-simulator' })).toMatch(/DKR04: activity deployment-simulator needs the devops-explorer capability/);
+  });
+});
+
+// ---- D3 ------------------------------------------------------------------------------------------------------------
+describe('D3: series generated from a declared shape', () => {
+  it('adds the steps, ramps and spikes as documented, clamped to 0', () => {
+    // 10, step +5 from 2, ramp +8 over 4–7 (⌊8 × k ÷ 4⌋ = 2, 4, 6, 8), spike −30 at 9–10.
+    expect(generateSeries({ seed: 1, baseline: 10, changes: [{ kind: 'step', at: 2, delta: 5 }, { kind: 'ramp', from: 4, to: 8, delta: 8 }, { kind: 'spike', at: 9, minutes: 2, delta: -30 }] }, 12))
+      .toEqual([10, 10, 15, 15, 17, 19, 21, 23, 23, 0, 0, 23]);
+    // A falling ramp floors too: ⌊−5 × 1 ÷ 2⌋ = −3, then −5.
+    expect(generateSeries({ seed: 1, baseline: 10, changes: [{ kind: 'ramp', from: 0, to: 2, delta: -5 }] }, 3)).toEqual([7, 5, 5]);
+  });
+  it('draws the noise from the seeded generator, one draw a minute, deterministically', () => {
+    const shape = { seed: 42, baseline: 100, noise: 5 };
+    const v = generateSeries(shape, 50);
+    expect(v).toEqual(draws(42, 50).map(u => 100 + Math.floor(u * 11) - 5));
+    expect(generateSeries(shape, 50)).toEqual(v);
+    expect(v.every(x => x >= 95 && x <= 105)).toBe(true);
+    expect(new Set(v).size).toBeGreaterThan(5);
+    expect(generateSeries({ ...shape, seed: 43 }, 50)).not.toEqual(v);
+    // The api fixture's errors: the incident, the one-minute blip and the ramp, as generated.
+    const errors = seriesValues(api().series[2], 180);
+    expect([errors[60], errors[100], errors[101], errors[130], errors[131], errors[145]]).toEqual([41, 29, 4, 8, 11, 3]);
+  });
+  it('rejects series and dashboards that are inconsistent', () => {
+    const s = tiny().series[0];
+    expect(seriesProblems({ ...s, values: [1, 2] }, 12)).toEqual(['has 2 values for 12 minutes']);
+    expect(seriesProblems({ ...s, signal: 'speed' as 'latency' }, 12)).toEqual(['signal must be one of latency, traffic, errors, saturation']);
+    expect(seriesProblems({ ...s, shape: { seed: 1, baseline: 1 } }, 12)).toEqual(['needs either values or a shape (not both)']);
+    expect(seriesProblems({ ...s, values: undefined, shape: { seed: -1, baseline: 1, changes: [{ kind: 'ramp', from: 5, to: 5, delta: 1 }, { kind: 'spike', at: 12, minutes: 1, delta: 0 }] } }, 12))
+      .toEqual(['the seed is a whole number 0…4294967295', 'change 1 (ramp): 0 ≤ from < to ≤ 12', 'change 2 (spike): delta is a whole number other than 0', 'change 2 (spike): at is a minute of the dashboard (0…11)']);
+    const d = tiny();
+    expect(dashboardProblems({ ...d, minutes: 0 })).toEqual(['minutes must be 1…360']);
+    expect(dashboardProblems({ ...d, incidents: [{ id: 'i1', label: 'x', start: 3, end: 6 }, { id: 'i2', label: 'y', start: 5, end: 8 }] })).toEqual(['incident i2: incidents are listed in order and do not overlap']);
+    expect(dashboardProblems({ ...d, incidents: [{ id: 'err', label: 'x', start: 6, end: 3 }] })).toEqual(['duplicate id err', 'incident err: 0 ≤ start < end ≤ 12']);
+    expect(dashboardProblems({ ...d, rules: [{ ...d.rules![0], series: 'p99', threshold: 1.5, forMinutes: -1 }] }))
+      .toEqual(['rule spike: no series p99', 'rule spike: the threshold is a whole number ≥ 0', 'rule spike: for is a whole number of minutes 0…60']);
+    expect(dashboardProblems({ ...d, rules: [{ ...d.rules![0], window: { agg: 'avg', minutes: 13 } }] })).toEqual(['rule spike: the window is 1…12 minutes']);
+    const a = api();
+    expect(dashboardProblems({ ...a, incidents: [{ ...a.incidents![0], events: [{ at: 65, kind: 'acknowledged', text: 't' }, { at: 66, kind: 'detected', text: 't' }] }] }))
+      .toEqual(['incident a: detected, acknowledged, mitigated and resolved happen in that order']);
+    expect(dashboardProblems({ ...a, severity: { ...a.severity!, rows: [...a.severity!.rows].reverse() } })).toEqual(['the severity rows go from the most users down to minUsersPercent 0']);
+    expect(dashboardProblems(a)).toEqual([]);
+  });
+});
+
+describe('D3: alert rules evaluated minute by minute (tiny, worked out in tests/support/dashboard-fixture.ts)', () => {
+  const d = tiny();
+  const run = (id: string) => evaluateOn(d, d.rules!.find(r => r.id === id)!);
+  it('fires at once with for 0: two notifications, one of them a false alert', () => {
+    const r = run('spike');
+    expect(r.states).toEqual(['inactive', 'inactive', 'inactive', 'firing', 'firing', 'firing', 'resolved', 'inactive', 'firing', 'resolved', 'inactive', 'inactive']);
+    expect(r.intervals).toEqual([{ start: 3, end: 6, open: false, incident: 'i1' }, { start: 8, end: 9, open: false }]);
+    expect(r.incidents).toEqual([{ id: 'i1', label: '結帳失敗', start: 3, detectedAt: 3, delay: 0 }]);
+    expect([r.notifications, r.falseAlerts, r.missed, r.detected, r.firingMinutes, r.firstFiring, r.firstResolved]).toEqual([2, 1, 0, 1, 4, 3, 6]);
+  });
+  it('stays pending for `for` minutes, and a short spike never fires', () => {
+    const r = run('patient');
+    expect(r.states).toEqual(['inactive', 'inactive', 'inactive', 'pending', 'pending', 'firing', 'resolved', 'inactive', 'pending', 'inactive', 'inactive', 'inactive']);
+    expect([r.notifications, r.falseAlerts, r.incidents[0].delay]).toEqual([1, 0, 2]);
+  });
+  it('compares a window average exactly, has no value before the window is full, and shows it to one decimal', () => {
+    const r = run('smooth');
+    expect(r.values.slice(0, 5)).toEqual([undefined, undefined, { sum: 4, count: 3 }, { sum: 12, count: 3 }, { sum: 20, count: 3 }]);
+    expect(r.values.map(ruleValueText)).toEqual(['—', '—', '1.3', '4.0', '6.7', '9.0', '6.3', '3.7', '3.3', '3.3', '3.3', '1.0']);
+    expect(r.intervals).toEqual([{ start: 4, end: 7, open: false, incident: 'i1' }]);
+    expect([r.notifications, r.falseAlerts, r.incidents[0].delay]).toEqual([1, 0, 1]);
+    // 15 ÷ 3 = 5 exactly: > 5 does not hold, >= 5 does (no rounding in the comparison).
+    const series = { ...d.series[0], values: [5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
+    expect(evaluateAlert({ series: 'err', op: '>', threshold: 5, window: { agg: 'avg', minutes: 3 }, forMinutes: 0 }, series, 12).holds[2]).toBe(false);
+    expect(evaluateAlert({ series: 'err', op: '>=', threshold: 5, window: { agg: 'avg', minutes: 3 }, forMinutes: 0 }, series, 12).holds[2]).toBe(true);
+  });
+  it('uses max and min windows, the other operators, and leaves an interval open at the end', () => {
+    const max = evaluateOn(d, { series: 'err', op: '>=', threshold: 8, window: { agg: 'max', minutes: 2 }, forMinutes: 0 });
+    expect(max.intervals).toEqual([{ start: 3, end: 7, open: false, incident: 'i1' }, { start: 8, end: 10, open: false }]);
+    const min = evaluateOn(d, { series: 'err', op: '<', threshold: 2, window: { agg: 'min', minutes: 2 }, forMinutes: 0 });
+    // Minimum of 1 1 | 1 2 | 2 9 | 9 9 | 9 9 | 9 1 | 1 1 | 1 8 | 8 1 | 1 1 | 1 1 < 2: holds at 1, 2 and 6–11.
+    expect(min.states.map(s => s[0]).join('')).toBe('iffriiffffff');
+    expect(min.intervals).toEqual([{ start: 1, end: 3, open: false }, { start: 6, end: 12, open: true }]);
+    // Firing before the incident and through its start: detected at its start, delay 0, not a false alert.
+    const low = evaluateOn(d, { series: 'err', op: '>=', threshold: 1, forMinutes: 0 });
+    expect([low.intervals, low.incidents[0].delay, low.falseAlerts]).toEqual([[{ start: 0, end: 12, open: true, incident: 'i1' }], 0, 0]);
+  });
+  it('misses an incident when the rule fires only after it ended (late: the interval is also a false alert)', () => {
+    const late = evaluateOn(d, { series: 'err', op: '>', threshold: 5, window: { agg: 'avg', minutes: 3 }, forMinutes: 2 });
+    expect(late.intervals).toEqual([{ start: 6, end: 7, open: false }]);
+    expect([late.missed, late.falseAlerts]).toEqual([1, 1]);
+    const short: Dashboard = { ...d, incidents: [{ id: 'i1', label: '結帳失敗', start: 3, end: 5 }] };
+    const r = evaluateOn(short, { series: 'err', op: '>', threshold: 5, forMinutes: 2 });
+    expect([r.incidents[0].detectedAt, r.missed, r.falseAlerts]).toEqual([undefined, 1, 1]);
+    expect(conditionText({ series: 'err', op: '>', threshold: 5, window: { agg: 'avg', minutes: 3 }, forMinutes: 2 }, d.series[0])).toBe('錯誤率（‰）的 3 分鐘平均 > 5，持續 2 分鐘才觸發');
+  });
+  it('evaluates the api rules: alert fatigue against detection delay', () => {
+    const a = api();
+    const noisy = evaluateOn(a, a.rules![0]), slow = evaluateOn(a, a.rules![1]);
+    expect(noisy.intervals.map(i => [i.start, i.end, i.incident ?? '誤報'])).toEqual([[60, 68, 'a'], [100, 101, '誤報'], [131, 145, 'b']]);
+    expect(slow.intervals.map(i => [i.start, i.end, i.incident ?? '誤報'])).toEqual([[66, 76, 'a'], [140, 151, 'b']]);
+    expect([noisy.notifications, noisy.falseAlerts, noisy.incidents.map(i => i.delay)]).toEqual([3, 1, [0, 1]]);
+    expect([slow.notifications, slow.falseAlerts, slow.incidents.map(i => i.delay)]).toEqual([2, 0, [6, 10]]);
+    // CPU sees the database incident only.
+    const cpu = evaluateOn(a, { series: 'cpu', op: '>', threshold: 70, forMinutes: 2 });
+    expect([cpu.incidents.map(i => i.delay), cpu.missed]).toEqual([[undefined, 2], 1]);
+  });
+});
+
+describe('D3: incident timelines and severity', () => {
+  it('computes the times from the events and the severity from the matrix', () => {
+    const [a, b] = api().incidents!;
+    expect(incidentTimes(a)).toEqual({ detect: 2, acknowledge: 3, mitigate: 8, recover: 8 });
+    expect(incidentTimes(b)).toEqual({ detect: 4, acknowledge: 4, mitigate: 15, recover: 15 });
+    expect(incidentTimes({ id: 'x', label: 'x', start: 0, end: 5 })).toEqual({ recover: 5 });
+    const m = api().severity!;
+    // a: 40% → row 0, 8 minutes → column 2 → SEV2; b: 3% → row 2, 15 minutes → column 1 → SEV3.
+    expect(severityOf(a, m)).toEqual({ level: 'SEV2', row: 0, column: 2 });
+    expect(severityOf(b, m)).toEqual({ level: 'SEV3', row: 2, column: 1 });
+    expect(severityOf({ ...a, usersPercent: 30, end: 90 }, m)).toEqual({ level: 'SEV1', row: 0, column: 0 });
+    expect(severityOf({ ...a, usersPercent: undefined }, m)).toBeUndefined();
+  });
+});
+
+describe('D3 exercises: alert-eval, golden signals, incidents and the alert-rule task', () => {
+  const c = dashboardContent();
+  const dx = (id: string) => dashboardExercises().find(e => e.id === id)!;
+  it('computes the series, alert and incident queries', () => {
+    const q = (query: Parameters<typeof devopsQueryValue>[0]) => devopsQueryValue(query, c);
+    expect(q({ task: 'alert', dashboard: 'api', rule: 'noisy', metric: 'first-firing' })).toMatchObject({ value: 60, unit: '分鐘' });
+    expect(q({ task: 'alert', dashboard: 'api', rule: 'slow', metric: 'detection-delay', incident: 'a' })).toMatchObject({ value: 6 });
+    expect(q({ task: 'alert', dashboard: 'tiny', rule: 'spike', metric: 'first-resolved' })).toMatchObject({ value: 6 });
+    expect(q({ task: 'alert', dashboard: 'tiny', rule: { series: 'err', op: '>', threshold: 5, forMinutes: 1 }, metric: 'notifications' })).toMatchObject({ value: 1 });
+    expect(q({ task: 'alert', dashboard: 'tiny', rule: 'smooth', metric: 'value-at', minute: 4 })).toEqual({ type: 'number', value: 6.7, decimals: 1, unit: '‰' });
+    expect(q({ task: 'alert', dashboard: 'tiny', rule: 'spike', metric: 'value-at', minute: 4 })).toEqual({ type: 'number', value: 9, decimals: 0, unit: '‰' });
+    const state = q({ task: 'alert', dashboard: 'tiny', rule: 'patient', metric: 'state-at', minute: 4 });
+    expect(['pending', '等待中', 'PENDING', '觸發中'].map(t => matchesDevopsValue(state, t))).toEqual([true, true, true, false]);
+    expect(q({ task: 'series', dashboard: 'api', series: 'errors', metric: 'value-at', minute: 100 })).toMatchObject({ value: 29, unit: '‰' });
+    expect(q({ task: 'series', dashboard: 'api', series: 'p95', metric: 'max-at' })).toMatchObject({ unit: '分鐘' });
+    const signal = q({ task: 'series', dashboard: 'api', series: 'cpu', metric: 'signal' });
+    expect(['saturation', '飽和度', 'Saturation', '流量'].map(t => matchesDevopsValue(signal, t))).toEqual([true, true, true, false]);
+    expect(q({ task: 'incident', dashboard: 'api', incident: 'b', metric: 'severity' })).toMatchObject({ value: 'SEV3' });
+    expect(q({ task: 'incident', dashboard: 'api', incident: 'b', metric: 'time-to-acknowledge' })).toMatchObject({ value: 4 });
+    expect(() => q({ task: 'alert', dashboard: 'api', rule: 'noisy', metric: 'detection-delay' })).toThrow(/needs an incident/);
+    expect(() => q({ task: 'alert', dashboard: 'api', rule: { series: 'cpu', op: '>', threshold: 70, forMinutes: 2 }, metric: 'detection-delay', incident: 'a' })).toThrow(/misses incident a/);
+    expect(() => q({ task: 'alert', dashboard: 'tiny', rule: 'smooth', metric: 'value-at', minute: 1 })).toThrow(/before its window is full/);
+    expect(() => q({ task: 'alert', dashboard: 'tiny', rule: 'spike', metric: 'state-at' })).toThrow(/needs a minute/);
+    expect(() => q({ task: 'alert', dashboard: 'tiny', rule: 'nope', metric: 'notifications' })).toThrow(/no rule nope/);
+    expect(() => q({ task: 'alert', dashboard: 'tiny', rule: { series: 'err', op: '>', threshold: -1, forMinutes: 0 }, metric: 'notifications' })).toThrow(/threshold/);
+    expect(() => q({ task: 'incident', dashboard: 'tiny', incident: 'i1', metric: 'time-to-detect' })).toThrow(/no detected event/);
+    expect(() => q({ task: 'incident', dashboard: 'tiny', incident: 'i1', metric: 'severity' })).toThrow(/no severity matrix/);
+    expect(() => q({ task: 'series', dashboard: 'nope', series: 'x', metric: 'max' })).toThrow(/no dashboard nope/);
+  });
+  it('accepts every reference answer and rejects every typical mistake', () => {
+    expect(devopsContentProblems(c)).toEqual([]);
+    for (const e of dashboardExercises()) {
+      expect(checkDevopsAnswer(e, c, referenceAnswer(e, c)).ok, e.id).toBe(true);
+      for (const m of e.mistakes) expect(checkDevopsAnswer(e, c, m.answer).ok, `${e.id}: ${m.why}`).toBe(false);
+    }
+    expect(referenceAnswer(dx('x-noisy'), c)).toEqual({ n: '3', f: '1', d: '1' });
+    expect(referenceAnswer(dx('x-incident'), c)).toEqual({ ttd: '2', ttr: '8', sev: 'SEV2' });
+    expect(checkDevopsAnswer(dx('x-signals'), c, { p95: 'latency', rpm: 'Traffic', errors: '錯誤率', cpu: '使用率' }).ok).toBe(true);
+    expect(checkDevopsAnswer(dx('x-average'), c, { value: '6.67' }).ok).toBe(false);
+  });
+  it('checks an alert rule by evaluating the learner\'s own rule against the constraints', () => {
+    const e = dx('x-rule');
+    const rule = (patch: Record<string, string>) => checkDevopsAnswer(e, c, { series: 'errors', op: '>', threshold: '10', agg: 'none', window: '', for: '1', ...patch });
+    expect(rule({})).toEqual({ ok: true, messages: [] });
+    // Any rule that meets the constraints passes: a 2-minute minimum, or for 2.
+    expect(rule({ agg: 'min', window: '2', for: '0' }).ok).toBe(true);
+    expect(rule({ for: '2 分鐘' }).ok).toBe(true);
+    expect(rule({ for: '0' }).messages).toEqual(['誤報有 1 次，超過上限 0。']);
+    expect(rule({ agg: 'avg', window: '10', for: '5' }).messages).toEqual([
+      '事故「有問題的版本」第 60 分鐘開始，第 66 分鐘才觸發，延遲 6 分鐘，超過 3 分鐘。', '事故「資料庫連線耗盡」第 130 分鐘開始，第 140 分鐘才觸發，延遲 10 分鐘，超過 3 分鐘。']);
+    expect(rule({ series: 'cpu', threshold: '70', for: '2' }).messages).toEqual(['事故「有問題的版本」在它持續的期間沒有觸發告警（漏掉了）。']);
+    expect(rule({ threshold: '', op: '=', for: 'x' }).messages).toEqual(['「比較」要選 >、>=、< 或 <=。', '還沒有填「門檻（整數）」。', '「持續多久才觸發（分鐘）」要填 0 以上的整數。']);
+    expect(rule({ agg: 'avg', window: '' }).messages).toEqual(['還沒有填「視窗長度（分鐘）」。']);
+    expect(rule({ agg: 'avg', window: '200' }).messages).toEqual(['視窗要填 1–60 的整數分鐘。']);
+    expect(rule({ series: 'latency' }).messages).toEqual(['請選擇一個指標。']);
+    expect(parseAlertPlan({ series: 'errors', op: '<=', threshold: '１２', agg: 'max', window: '3 分鐘', for: '0' })).toEqual({
+      rule: { series: 'errors', op: '<=', threshold: 12, forMinutes: 0, window: { agg: 'max', minutes: 3 } }, messages: [] });
+    expect(alertConstraintTexts({ detectWithin: 3, maxMissed: 0, maxFalseAlerts: 0, maxNotifications: 2 })).toEqual(['每個事故都在開始後 3 分鐘內觸發', '漏掉的事故最多 0 個', '誤報最多 0 次', '通知最多 2 次']);
+    const noisy = evaluateOn(api(), api().rules![0]);
+    expect(alertViolations({ maxNotifications: 2, maxMissed: 0 }, noisy)).toEqual(['通知有 3 次，超過上限 2。']);
+  });
+  it('validates alert-rule tasks and dashboard content', () => {
+    const plan = dx('x-rule') as Extract<DevopsExercise, { kind: 'alert-rule' }>;
+    const withExercise = (e: DevopsExercise): DevopsLessonContent => ({ ...dashboardContent(), exercises: [e] });
+    expect(devopsContentProblems(withExercise({ ...plan, plan: { ...plan.plan, reference: { series: 'errors', op: '>', threshold: 10, forMinutes: 0 } } })))
+      .toEqual(['exercise x-rule: the reference rule breaks its constraints: 誤報有 1 次，超過上限 0。']);
+    expect(devopsContentProblems(withExercise({ ...plan, plan: { ...plan.plan, constraints: {} } }))).toEqual(['exercise x-rule: an alert-rule task needs at least one constraint']);
+    expect(devopsContentProblems(withExercise({ ...plan, plan: { ...plan.plan, dashboard: 'nope' } }))).toEqual(['exercise x-rule: no dashboard nope']);
+    expect(devopsContentProblems(withExercise({ ...plan, plan: { ...plan.plan, reference: { ...plan.plan.reference, series: 'p99' } } }))).toEqual(['exercise x-rule: the reference rule: no series p99']);
+    expect(devopsContentProblems(withExercise({ ...plan, mistakes: [{ answer: { ...alertPlanAnswer(plan.plan.reference), for: '2' }, why: '其實也對' }] })))
+      .toEqual(['exercise x-rule: the typical mistake "其實也對" passes the check']);
+    const tinyOnly: DevopsLessonContent = { dashboards: [{ ...dashboardContent().dashboards![0] }], exercises: [{ ...plan, plan: { ...plan.plan, dashboard: 'tiny', constraints: { maxNotifications: 1 }, reference: { series: 'err', op: '>', threshold: 5, forMinutes: 2 } }, mistakes: [{ answer: { series: 'err', op: '>', threshold: '5', agg: 'none', window: '', for: '0' }, why: '兩次通知' }] }] };
+    expect(devopsContentProblems(tinyOnly)).toEqual([]);
+    expect(devopsContentProblems({ ...dashboardContent(), dashboards: [{ ...dashboardContent().dashboards![0], dashboard: { ...tiny(), service: ' ' } }] })).toEqual(['dashboard tiny: needs a service name']);
+  });
+});
+
+describe('a synthetic CICD11 lesson (monitoring-dashboard)', () => {
+  const m11 = metaOf('CICD11', cicdFromBlueprint('CICD11', '用儀表板讀四大黃金訊號，設定有行動意義的告警（測試用大綱）。', 50));
+  it('validates and passes the publish gate', () => {
+    expect(m11).toMatchObject({ activity: 'monitoring-dashboard', capabilities: ['devops-explorer'], visualizationType: 'none' });
+    expect(validateContent(m11, dashboardLesson(), curriculum.visualizations)).toEqual([]);
+    expect(publishProblems(m11, dashboardLesson())).toEqual([]);
+  });
+  it('needs a dashboard for the monitoring-dashboard activity, and a history or rollout for deployment-simulator', () => {
+    const noDashboard = dashboardLesson();
+    noDashboard.devops = { ...devopsContent(), exercises: [] };
+    noDashboard.sections = devopsLesson().sections;
+    expect(validateContent(m11, noDashboard, curriculum.visualizations)).toContain('CICD11: the monitoring-dashboard activity needs at least one of content.devops.dashboards');
+    expect(validateContent(meta, { ...devopsLesson(), devops: { ...dashboardContent() }, sections: dashboardLesson().sections }, curriculum.visualizations))
+      .toContain('CICD10: the deployment-simulator activity needs at least one of content.devops.histories or content.devops.rollouts');
+    const hidden = dashboardLesson(); hidden.sections[2].blocks.pop();
+    expect(validateContent(m11, hidden, curriculum.visualizations)).toContain('CICD11: example api-slow is never shown');
   });
 });

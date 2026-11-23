@@ -434,7 +434,8 @@ export function llmFromBlueprint(lessonId: string, summary: string, minutes: num
  * `stages` are the devops-explorer stages (D1–D4) and terminal engine stages (E25–E31) the lesson needs: a lesson can be
  * mapped before they are built, but it cannot publish until its content exists. `optional` capabilities are added with
  * `withOptional` (CICD10's terminal example, E15 nginx upstream weights in front of two E20 containers). An activity not
- * registered yet (monitoring-dashboard, registered with D3 in CICD-4) cannot be built: the builder says so. The blueprint
+ * registered yet cannot be built, nor can a lesson whose devops-explorer stages are not all built (DEVOPS_STAGES_BUILT:
+ * CICD12 waits for D4, the logs): the builder says so. monitoring-dashboard is registered with D3 (CICD-4). The blueprint
  * names pipeline-sim, case-study-board and decision-simulation stay planned names; none of them is a lesson activity.
  */
 type CicdShape = { blueprint: string; activity: string; capabilities: LessonCapability[]; optional?: LessonCapability[]; visualization: VisualizationType; stages: readonly string[] };
@@ -456,12 +457,16 @@ export const CICD_SHAPES: Readonly<Record<string, CicdShape>> = {
   CICD14: { blueprint: 'case-study-board', activity: 'terminal-sim', capabilities: ['terminal', 'devops-explorer'], visualization: 'none', stages: ['E31', 'D3'] },
   CICD15: { blueprint: 'challenge-stages', activity: 'challenge-stages', capabilities: ['terminal', 'devops-explorer', 'visualization'], visualization: 'challenge-stages', stages: ['E25', 'E26', 'E27', 'E28', 'E29', 'E30', 'E31', 'D2', 'D3'] },
 };
+/** The devops-explorer stages that exist (docs/curriculum/CICD0_DEVOPS_CAPABILITY.md §4); D4 (logs) is planned. */
+export const DEVOPS_STAGES_BUILT: readonly string[] = ['D1', 'D2', 'D3'];
 export function cicdFromBlueprint(lessonId: string, summary: string, minutes: number, withOptional = false): Outline {
   const b = planning.plannedLessons.find(l => l.lessonId === lessonId);
   if (!b || b.islandId !== 'devops-cicd') throw new Error(`${lessonId} is not a DevOps and CI/CD lesson of the blueprint`);
   const s = CICD_SHAPES[lessonId];
   if (!s || s.blueprint !== b.activity) throw new Error(`${lessonId}: no devops-cicd lesson shape for the blueprint activity ${b.activity}`);
   if (!(LESSON_ACTIVITIES as readonly string[]).includes(s.activity)) throw new Error(`${lessonId}: the ${s.activity} activity is not registered yet (it is built with ${s.stages.join(', ')})`);
+  const waiting = s.stages.filter(x => /^D\d$/.test(x) && !DEVOPS_STAGES_BUILT.includes(x));
+  if (waiting.length) throw new Error(`${lessonId}: the devops-explorer stage ${waiting.join(', ')} is not built yet (the ${s.activity} activity needs ${s.stages.filter(x => /^D\d$/.test(x)).join(' and ')})`);
   if (withOptional && !s.optional) throw new Error(`${lessonId} has no optional capability`);
   return { slug: b.slug, title: b.title, summary, objectives: b.learningObjectives, concepts: b.concepts, difficulty: b.difficulty as Difficulty,
     minutes, prerequisites: b.prerequisites as LessonId[], recommended: b.recommended as AnyLessonId[], apcs: ['none'], visualization: s.visualization,
