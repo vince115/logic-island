@@ -24,6 +24,7 @@ import { nft, ufw } from './firewall';
 import { mtr, ping, tcpdump, traceroute } from './diag';
 import { sed } from './sed';
 import { docker } from './docker';
+import { tar } from './tar';
 
 /*
  * P7 Linux Terminal Simulator: the command interpreter. A fixed table of commands works on the virtual file system in
@@ -111,14 +112,16 @@ export const E16_COMMANDS = ['ufw', 'nft'] as const;
 export const E19_COMMANDS = ['ping', 'traceroute', 'mtr', 'tcpdump', 'sed'] as const;
 /** E20: the Docker CLI (CONTAINERS_PROFILE); only this profile lists it, so every lower profile's command list stays. */
 export const E20_COMMANDS = ['docker'] as const;
+/** E22: tar (create, list and extract, with gzip) for the volume backup pattern (STORAGE_NET_PROFILE and above only). */
+export const E22_COMMANDS = ['tar'] as const;
 /** The commands of the files profile (the manual of E1 covers exactly these). */
 export type FilesCommand = typeof COMMANDS[number] | typeof E1_COMMANDS[number];
 export type CommandName = FilesCommand | typeof E2_COMMANDS[number] | typeof E3_COMMANDS[number] | typeof E4_COMMANDS[number] | typeof E5_COMMANDS[number] | typeof E6_COMMANDS[number]
   | typeof E7_COMMANDS[number] | typeof E8_COMMANDS[number] | typeof E9_COMMANDS[number] | typeof E10_COMMANDS[number] | typeof E11_COMMANDS[number]
-  | typeof E12_COMMANDS[number] | typeof E13_COMMANDS[number] | typeof E14_COMMANDS[number] | typeof E16_COMMANDS[number] | typeof E19_COMMANDS[number] | typeof E20_COMMANDS[number];
+  | typeof E12_COMMANDS[number] | typeof E13_COMMANDS[number] | typeof E14_COMMANDS[number] | typeof E16_COMMANDS[number] | typeof E19_COMMANDS[number] | typeof E20_COMMANDS[number] | typeof E22_COMMANDS[number];
 /** Every command any profile may list. */
 export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS, ...E2_COMMANDS, ...E3_COMMANDS, ...E4_COMMANDS, ...E5_COMMANDS, ...E6_COMMANDS,
-  ...E7_COMMANDS, ...E8_COMMANDS, ...E9_COMMANDS, ...E10_COMMANDS, ...E11_COMMANDS, ...E12_COMMANDS, ...E13_COMMANDS, ...E14_COMMANDS, ...E16_COMMANDS, ...E19_COMMANDS, ...E20_COMMANDS];
+  ...E7_COMMANDS, ...E8_COMMANDS, ...E9_COMMANDS, ...E10_COMMANDS, ...E11_COMMANDS, ...E12_COMMANDS, ...E13_COMMANDS, ...E14_COMMANDS, ...E16_COMMANDS, ...E19_COMMANDS, ...E20_COMMANDS, ...E22_COMMANDS];
 
 /**
  * Behaviour a profile switches on besides its commands. E1: glob (* ? [...] and ~), help-option (指令 --help, long
@@ -129,10 +132,11 @@ export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS
  * E14: nginx. E15: proxy (nginx's reverse proxy and upstreams). E16: firewall (ufw, nft; connections from other hosts). E17: tunnels
  * (ssh -L/-R/-J and ~/.ssh/config). E18: edge (HTTP caching: nginx's proxy_cache, validators, a CDN edge, time that passes with
  * sleep, curl -w timings). E19: diagnostics (ping, traceroute, mtr, tcpdump -r and a sed subset). E20: containers (docker).
- * E21: images (docker build, layers and the build cache, docker history).
+ * E21: images (docker build, layers and the build cache, docker history). E22: storage-net (volumes, bind mounts, tmpfs,
+ * Docker networks and their DNS, tar).
  */
 export type ShellFeature = 'glob' | 'help-option' | 'multi-source' | 'ls-extra' | 'pipes' | 'accounts' | 'processes' | 'packages' | 'services' | 'remote' | 'scripting' | 'scheduling'
-  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers' | 'images';
+  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers' | 'images' | 'storage-net';
 
 /** LNX-0: the commands a session may run (E1: and the features it switches on; none by default). */
 export interface ShellProfile { readonly id: string; readonly commands: readonly CommandName[]; readonly features?: readonly ShellFeature[] }
@@ -197,12 +201,14 @@ export const DIAGNOSTICS_PROFILE: ShellProfile = { id: 'diagnostics', commands: 
 export const CONTAINERS_PROFILE: ShellProfile = { id: 'containers', commands: above(DIAGNOSTICS_PROFILE, E20_COMMANDS), features: [...DIAGNOSTICS_PROFILE.features!, 'containers'] };
 /** E21: the containers profile plus docker build (Dockerfiles, layers, the build cache), docker history and image configs; no new commands. */
 export const IMAGES_PROFILE: ShellProfile = { id: 'images', commands: above(CONTAINERS_PROFILE, []), features: [...CONTAINERS_PROFILE.features!, 'images'] };
+/** E22: the images profile plus volumes, bind mounts, tmpfs, Docker networks (their DNS, host and none) and tar. */
+export const STORAGE_NET_PROFILE: ShellProfile = { id: 'storage-net', commands: above(IMAGES_PROFILE, E22_COMMANDS), features: [...IMAGES_PROFILE.features!, 'storage-net'] };
 /** The profiles a lesson machine may name (TerminalMachine.profile), from the narrowest. */
 export const PROFILES = {
   lab: LAB_PROFILE, files: FILES_PROFILE, streams: STREAMS_PROFILE, users: USERS_PROFILE, processes: PROCESSES_PROFILE, packages: PACKAGES_PROFILE, services: SERVICES_PROFILE,
   remote: REMOTE_PROFILE, scripting: SCRIPTING_PROFILE, scheduling: SCHEDULING_PROFILE, sockets: SOCKETS_PROFILE, dns: DNS_PROFILE, http: HTTP_PROFILE,
   tls: TLS_PROFILE, nginx: NGINX_PROFILE, proxy: PROXY_PROFILE, firewall: FIREWALL_PROFILE, tunnels: TUNNELS_PROFILE, edge: EDGE_PROFILE, diagnostics: DIAGNOSTICS_PROFILE,
-  containers: CONTAINERS_PROFILE, images: IMAGES_PROFILE,
+  containers: CONTAINERS_PROFILE, images: IMAGES_PROFILE, 'storage-net': STORAGE_NET_PROFILE,
 } as const;
 export type ProfileId = keyof typeof PROFILES;
 
@@ -302,10 +308,12 @@ const HELP: [CommandName | null, string][] = [
   ['tcpdump', '  tcpdump -r 擷取檔 [-n] [-A] [-c N] [過濾條件]  讀取擷取的封包'],
   ['sed', '  sed [-n] [-i] [-E] \'Np\' | \'/樣式/p\' | \'s/舊/新/[g]\' [檔案…]  印出或取代行（模擬環境的子集）'],
   ['docker', '  docker run|ps|images|pull|logs|exec|stop|start|rm|rmi|port|inspect …  管理 Image 與 Container（需要 docker 群組或 sudo）'],
+  ['tar', '  tar czf 封存檔 [-C 目錄] 路徑… | tzf 封存檔 | xzf 封存檔 [-C 目錄]  建立、列出與解開 tar（.tgz）封存檔'],
   ['man', '  man 指令                顯示指令的說明頁（也可以用 指令 --help）'],
 ];
 /** The lines that change when a profile has the feature (the lab keeps its own lines). */
 const HELP_FEATURE: [ShellFeature, CommandName, string][] = [
+  ['storage-net', 'docker', '  docker volume|network|build|history|run|ps|images|pull|logs|exec|stop|start|rm|rmi|port|inspect …  Volume、網路、Image 與 Container（需要 docker 群組或 sudo）'],
   ['images', 'docker', '  docker build|history|run|ps|images|pull|logs|exec|stop|start|rm|rmi|port|inspect …  建置與管理 Image 與 Container（需要 docker 群組或 sudo）'],
   ['ls-extra', 'ls', '  ls [-l] [-a] [-h] [-d] [路徑…]  列出目錄內容；-l 詳細資料，-a 隱藏項目，-h 易讀的大小，-d 目錄本身'],
   ['multi-source', 'cp', '  cp [-r] 來源… 目的地      複製；複製目錄要加 -r；多個來源時目的地必須是目錄'],
@@ -1275,13 +1283,15 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
       const name = o.operands[0], user = findUser(acc, name ?? state.user);
       if (name !== undefined && !user) { fail(`id: '${name}': no such user`); return done(); }
       const groups = name !== undefined ? loginGroups(acc, name) : [...groupsOf(state)];
-      const uid = user?.uid ?? FIRST_UNKNOWN, gidOf = (g: string) => findGroup(acc, g)?.gid;
+      // E22: a container's process may run as a number no account has (docker run -u 1000): id prints the bare number.
+      const bare = !user && name === undefined && /^\d+$/.test(state.user);
+      const uid = user?.uid ?? (bare ? Number(state.user) : FIRST_UNKNOWN), gidOf = (g: string) => findGroup(acc, g)?.gid;
       const both = (id: number | undefined, label: string) => id === undefined ? label : `${id}(${label})`;
       const named = o.flags.has('n');
       if (which[0] === 'u') print(named ? user?.name ?? state.user : String(uid));
       else if (which[0] === 'g') print(named ? groups[0] ?? '' : String(gidOf(groups[0]) ?? user?.gid ?? ''));
       else if (which[0] === 'G') print(groups.map(g => named ? g : String(gidOf(g) ?? g)).join(' '));
-      else print(`uid=${both(uid, user?.name ?? state.user)} gid=${both(gidOf(groups[0]) ?? user?.gid, groups[0] ?? '')} groups=${groups.map(g => both(gidOf(g), g)).join(',')}`);
+      else print(`uid=${bare ? uid : both(uid, user?.name ?? state.user)} gid=${both(gidOf(groups[0]) ?? user?.gid, groups[0] ?? '')} groups=${groups.map(g => both(gidOf(g), g)).join(',')}`);
       return done();
     }
 
@@ -1463,8 +1473,10 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
       if ('bad' in o) { badOption(o); return done(); }
       if (o.operands.length < 2) { usage(o.operands.length ? `${cmd}: missing operand after '${o.operands[0]}'` : `${cmd}: missing operand`); return done(); }
       const acc = accounts(), [spec, ...targets] = o.operands;
-      const userNamed = (n: string) => findUser(acc, n) ?? (/^\d+$/.test(n) ? acc.users.find(u => u.uid === Number(n)) : undefined);
-      const groupNamed = (n: string) => findGroup(acc, n) ?? (/^\d+$/.test(n) ? groupById(acc, Number(n)) : undefined);
+      // E22: a number that no account has is kept as the number (chown 999:999 for a container's user), as on Linux.
+      const anyId = features.has('storage-net');
+      const userNamed = (n: string) => findUser(acc, n) ?? (/^\d+$/.test(n) ? acc.users.find(u => u.uid === Number(n)) ?? (anyId ? { name: n, uid: Number(n), gid: Number(n) } : undefined) : undefined);
+      const groupNamed = (n: string) => findGroup(acc, n) ?? (/^\d+$/.test(n) ? groupById(acc, Number(n)) ?? (anyId ? { name: n, gid: Number(n), members: [] } : undefined) : undefined);
       let owner: string | undefined, group: string | undefined;
       if (cmd === 'chgrp') {
         const g = groupNamed(spec);
@@ -1476,7 +1488,7 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
         if (u) { const found = userNamed(u); if (!found) { fail(`chown: invalid user: '${spec}'`); return done(); } owner = found.name; }
         if (g) { const found = groupNamed(g); if (!found) { fail(`chown: invalid group: '${spec}'`); return done(); } group = found.name; }
         // user: (a colon and no group) means the user's login group.
-        else if (g === '' && owner) group = groupById(acc, findUser(acc, owner)!.gid)?.name;
+        else if (g === '' && owner) { const u = findUser(acc, owner); group = u ? groupById(acc, u.gid)?.name : owner; }
       }
       for (const target of targets) {
         const w = walk(cur(), resolve(target));
@@ -1619,7 +1631,14 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
     case 'docker': {
       // E20 (docker.ts): the daemon's images and containers; the socket decides who may use it (root or the docker group).
       // E21: the images profile adds docker build and docker history.
-      const r = docker(cur(), args, { out: write, err: fail, user: state.user, tty: ctx.tty, stdin: ctx.stdin, ...features.has('images') ? { images: true } : {} });
+      // E22: the storage-net profile adds volumes, bind mounts, tmpfs and networks.
+      const r = docker(cur(), args, { out: write, err: fail, user: state.user, tty: ctx.tty, stdin: ctx.stdin, ...features.has('images') ? { images: true } : {}, ...features.has('storage-net') ? { storageNet: true } : {} });
+      code = r.status;
+      return done(r.state);
+    }
+    case 'tar': {
+      // E22 (tar.ts): GNU tar's create, list and extract with gzip, as the session's user.
+      const r = tar(cur(), args, { out: write, err: fail });
       code = r.status;
       return done(r.state);
     }

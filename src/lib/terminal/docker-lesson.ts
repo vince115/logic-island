@@ -2,10 +2,15 @@ import { LIMITS, parentOf, resolvePath, type FsState } from './fs';
 import { DEFAULT_NOW, parseTime } from './clock';
 import { commOf, tableOf } from './processes';
 import {
-  buildFor, containerEnv, DEFAULT_OS_RELEASE, digestOf, findContainer, IMAGE_COMMANDS, imageIdOf, imageNodes, parseRef, settleDocker, statusText, syncDocker,
+  buildFor, containerEnv, DEFAULT_OS_RELEASE, digestOf, E22_IMAGE_COMMANDS, findContainer, IMAGE_COMMANDS, imageIdOf, imageNodes, parseRef, settleDocker, statusText, syncDocker,
   type DockerContainer, type DockerImage, type DockerProgram, type DockerState, type HistoryRow, type LogSeed, type PortBinding,
 } from './docker';
 import { rootfsOf, type BuildPackage } from './build';
+import {
+  assignAddresses, builtinNetworks, ensureVolumeDir, hostsText, imageVolumes, isVolumeName, mountedNodes, NETWORK_NAME, networkView, nextSubnet, overlaps, parseVolumeFlag, prepareMounts,
+  resolvText, volumeDir, type DockerNetwork,
+} from './storage-net';
+import { basicResolver, networkOf, parseCidr, reach } from './sockets';
 import type { TerminalFile, TerminalMachine, TerminalProcess, TerminalService } from './lesson';
 import type { Program } from './services';
 import { sha256 } from './ssh';
@@ -60,6 +65,8 @@ export interface TerminalImage {
   packages?: { apt?: BuildPackage[]; pip?: BuildPackage[]; npm?: BuildPackage[]; aptLists?: number };
   /** E21: docker history's rows, oldest first (a row with a size, or layer: true, is a layer; the layer sizes add up to size). */
   history?: { createdBy: string; size?: number; layer?: boolean }[];
+  /** E22: its VOLUME paths (each container gets an anonymous volume there). */
+  volumes?: string[];
 }
 /** E21: what a program does when a container runs it (matched by its exact words, after an entrypoint script hands over). */
 export interface TerminalProgram {
@@ -97,8 +104,17 @@ export interface TerminalContainer {
   /** Files of its writable layer. */
   files?: { path: string; content: string }[];
   rm?: boolean;
+  /** E22: -v specs (NAME:/path, /host/path:/path[:ro]), the network (default bridge) with its aliases there, and -u. */
+  volumes?: string[];
+  network?: string;
+  aliases?: string[];
+  user?: string;
 }
-export interface TerminalDocker { images?: TerminalImage[]; containers?: TerminalContainer[]; /** E21 */ programs?: TerminalProgram[] }
+/** E22: a volume that exists at the start, with files (paths from the volume's root; owner: a user of the host, or a number). */
+export interface TerminalVolume { name: string; created?: string; files?: { path: string; content: string; owner?: string; mode?: number }[] }
+/** E22: a user-defined bridge network (default subnet: the next free 172.18.0.0/16, 172.19.0.0/16…). */
+export interface TerminalNetwork { name: string; subnet?: string; created?: string }
+export interface TerminalDocker { images?: TerminalImage[]; containers?: TerminalContainer[]; /** E21 */ programs?: TerminalProgram[]; /** E22 */ volumes?: TerminalVolume[]; networks?: TerminalNetwork[] }
 
 export type DockerCheck =
   /** E20: the container exists (absent: it does not) in this state, from this image, with this port published (HOST:CONTAINER), exit code and environment variable (K=V). */
@@ -113,8 +129,14 @@ export type DockerCheck =
    * the context), keeps the steps `cached` CACHED and runs the steps `rebuilt` again (each names a step by its beginning,
    * e.g. 'RUN pip install'). The builds run on a copy of the machine after the commands.
    */
-  | { kind: 'build'; context: string; file?: string; change: string; cached?: string[]; rebuilt?: string[] };
-export interface DockerLevels { containers: boolean; images?: boolean }
+  | { kind: 'build'; context: string; file?: string; change: string; cached?: string[]; rebuilt?: string[] }
+  /** E22: the volume exists (absent: it does not), with this file (a path from its root) whose content contains `content`. */
+  | { kind: 'volume'; name: string; absent?: true; file?: string; content?: string }
+  /** E22: the network exists (absent: it does not), with this container attached, of this driver and subnet. */
+  | { kind: 'network'; name: string; absent?: true; container?: string; driver?: 'bridge'; subnet?: string }
+  /** E22: from the running container, a connection to `to` (a name its DNS should know, or an address) on port: succeeded, refused, timeout, or the name does not resolve. */
+  | { kind: 'reach'; container: string; to: string; port: number; result: 'succeeded' | 'refused' | 'timeout' | 'unresolved' };
+export interface DockerLevels { containers: boolean; images?: boolean; storageNet?: boolean }
 
 const DOCKER_GID = 988;
 const DOCKERD = '/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock';
@@ -157,7 +179,7 @@ export function expandDocker(m: TerminalMachine, lv: DockerLevels, add: { file(f
 }
 
 /** A lesson image as the daemon's image. */
-function imageOf(i: TerminalImage, m: TerminalMachine): DockerImage | undefined {
+function imageOf(i: TerminalImage, m: TerminalMachine, e22 = false): DockerImage | undefined {
   const ref = parseRef(i.name), created = parseTime(i.created);
   if (!ref || created === undefined) return undefined;
   const responder = i.http ? (m.responders ?? []).find(r => r.id === i.http!.responder) : undefined;
@@ -166,11 +188,13 @@ function imageOf(i: TerminalImage, m: TerminalMachine): DockerImage | undefined 
     cmd: [...i.cmd], entrypoint: [...i.entrypoint ?? []], env: [...i.env ?? []], workdir: i.workdir ?? '/', expose: [...i.expose ?? []],
     ...i.http && responder ? { http: { port: i.http.port, responder: { ...responder, routes: responder.routes.map(r => ({ ...r })) }, ...i.http.accessLog ? { accessLog: i.http.accessLog } : {} } } : {},
     service: !!i.service, logs: [...i.logs ?? []], ...i.output !== undefined ? { output: i.output } : {}, exit: i.exit ?? 0, ...i.stopExit !== undefined ? { stopExit: i.stopExit } : {},
-    commands: [...i.commands ?? IMAGE_COMMANDS], files: (i.files ?? []).map(f => ({ ...f })), osRelease: i.osRelease ?? DEFAULT_OS_RELEASE,
+    commands: [...i.commands ?? (e22 ? E22_IMAGE_COMMANDS : IMAGE_COMMANDS)], files: (i.files ?? []).map(f => ({ ...f })), osRelease: i.osRelease ?? DEFAULT_OS_RELEASE,
     layers: i.layers ?? (i.history ? i.history.filter(isLayer).length : 3), local: !!i.pulled, pullable: i.registry !== false,
     // E21: the config's USER and labels, the package tables and the declared history.
     ...i.user ? { user: i.user } : {}, ...i.labels ? { labels: { ...i.labels } } : {}, ...i.packages ? { packages: { ...i.packages } } : {},
     ...i.history ? { history: i.history.map((h): HistoryRow => ({ created, createdBy: h.createdBy, size: h.size ?? 0, empty: !isLayer(h), comment: 'buildkit.dockerfile.v0' })) } : {},
+    // E22: the image's VOLUME paths.
+    ...e22 && i.volumes?.length ? { volumes: [...i.volumes] } : {},
   };
 }
 const isLayer = (h: { size?: number; layer?: boolean }) => h.layer ?? (h.size ?? 0) > 0;
@@ -192,7 +216,7 @@ const seeds = (list: readonly LogSeed[], t: number) => list.map(s => typeof s ==
 /** E20: the daemon's state of a machine (on the state machineState built), with docker-proxy for the running containers' ports. */
 export function dockerState(m: TerminalMachine, state: FsState, lv: DockerLevels): FsState {
   if (!lv.containers || m.docker === undefined) return state;
-  const images = (m.docker.images ?? []).map(i => imageOf(i, m)).filter((i): i is DockerImage => !!i);
+  const images = (m.docker.images ?? []).map(i => imageOf(i, m, !!lv.storageNet)).filter((i): i is DockerImage => !!i);
   const host = m.host ?? 'logic-island';
   const containers: DockerContainer[] = [];
   let ip = 2;
@@ -223,7 +247,52 @@ export function dockerState(m: TerminalMachine, state: FsState, lv: DockerLevels
   const daemonPid = tableOf(state).find(p => p.command === DOCKERD)?.pid;
   const programs = lv.images ? (m.docker.programs ?? []).map(p => programOf(p, m)) : [];
   const docker: DockerState = { images, containers, seq: containers.length, ...daemonPid !== undefined ? { daemonPid } : {}, ...programs.length ? { programs } : {}, ...lv.images ? { hostProcesses: true as const } : {} };
+  if (lv.storageNet) return syncDocker(storageNetState(m, state, docker));
   return syncDocker({ ...state, docker });
+}
+
+/**
+ * E22: the daemon's volumes and networks at the start: bridge, host and none, the lesson's networks (with the next free
+ * subnets), its volumes (folders of /var/lib/docker/volumes with their files), and each container's mounts (created and
+ * filled from the image as docker run does), networks and addresses (in the order the containers are listed).
+ */
+function storageNetState(m: TerminalMachine, state: FsState, d0: DockerState): FsState {
+  const now = parseTime(m.now ?? DEFAULT_NOW) ?? 0, list = m.docker!;
+  let d: DockerState = { ...d0, storageNet: true, networks: builtinNetworks(now), volumes: [], containers: [] };
+  for (const n of list.networks ?? []) {
+    const c = n.subnet ? parseCidr(n.subnet) : undefined, auto = nextSubnet(d);
+    const subnet = c ? `${networkOf(c.address, c.prefix)}/${c.prefix}` : auto?.subnet, gateway = c ? networkOf(c.address, c.prefix).replace(/\d+$/, x => String(Number(x) + 1)) : auto?.gateway;
+    const created = n.created !== undefined ? parseTime(n.created) ?? now : now;
+    const net: DockerNetwork = { name: n.name, id: hex(`network/${n.name}/${created}/${d.networks!.length}`), driver: 'bridge', ...subnet ? { subnet } : {}, ...gateway ? { gateway } : {}, created };
+    d = { ...d, networks: [...d.networks!, net] };
+  }
+  const nodes = new Map(state.nodes);
+  for (const v of list.volumes ?? []) {
+    ensureVolumeDir(nodes, v.name);
+    for (const f of v.files ?? []) {
+      const path = `${volumeDir(v.name)}${f.path}`;
+      for (let at = parentOf(path); !nodes.has(at); at = parentOf(at)) nodes.set(at, { kind: 'dir', mode: 0o755, owner: 'root' });
+      nodes.set(path, { kind: 'file', mode: f.mode ?? 0o644, owner: f.owner ?? 'root', content: f.content });
+    }
+    d = { ...d, volumes: [...d.volumes!, { name: v.name, created: v.created !== undefined ? parseTime(v.created) ?? now : now }] };
+  }
+  let host: FsState = { ...state, nodes, docker: d };
+  const given = list.containers ?? [];
+  for (const c0 of d0.containers) {
+    const t = given.find(x => x.name === c0.name)!, img = d.images.find(i => i.id === c0.image);
+    const mounts = (t.volumes ?? []).map(v => parseVolumeFlag(v, m.cwd ?? state.cwd, c0.id)).filter((x): x is Exclude<typeof x, { error: string }> => !('error' in x));
+    if (img) mounts.push(...imageVolumes(img, mounts, c0.id));
+    let c: DockerContainer = { ...c0, ip: undefined, networks: { [t.network ?? 'bridge']: { aliases: [...t.aliases ?? []] } }, ...mounts.length ? { mounts } : {}, ...t.user ? { user: t.user } : {} };
+    const p = prepareMounts(host, d, c, c0.created);
+    host = p.host; d = p.d; c = p.c;
+    if (c.status === 'running') { const a = assignAddresses(d, c); if (!('missing' in a)) c = a; }
+    const files = new Map(c.nodes);
+    files.set('/etc/hosts', { kind: 'file', mode: 0o644, owner: 'root', content: hostsText(d, c) });
+    files.set('/etc/resolv.conf', { kind: 'file', mode: 0o644, owner: 'root', content: resolvText(host, d, c) });
+    c = { ...c, nodes: files };
+    d = { ...d, containers: [...d.containers, c] };
+  }
+  return { ...host, docker: d };
 }
 
 /** E20: the problems of a machine's Docker data. */
@@ -256,7 +325,13 @@ export function dockerProblems(m: TerminalMachine, lv: DockerLevels): string[] {
     if (i.output !== undefined && (typeof i.output !== 'string' || i.output.length > LIMITS.fileLength)) fail(`${at}: output at most ${LIMITS.fileLength} characters`);
     if (i.service && i.output !== undefined) fail(`${at}: a service keeps running; output is for an image that prints and exits`);
     if ((i.exit !== undefined && !whole(i.exit, 0, 255)) || (i.stopExit !== undefined && !whole(i.stopExit, 0, 255))) fail(`${at}: exit and stopExit are 0..255`);
-    if (i.commands !== undefined && (!Array.isArray(i.commands) || i.commands.some(c => !IMAGE_COMMANDS.includes(c)))) fail(`${at}: commands are among ${IMAGE_COMMANDS.join(' ')}`);
+    const allowed = lv.storageNet ? E22_IMAGE_COMMANDS : IMAGE_COMMANDS;
+    if (i.commands !== undefined && (!Array.isArray(i.commands) || i.commands.some(c => !allowed.includes(c)))) fail(`${at}: commands are among ${allowed.join(' ')}`);
+    // E22: VOLUME paths.
+    if (i.volumes !== undefined) {
+      if (!lv.storageNet) fail(`${at}: volumes need the storage-net profile (engine stage E22)`);
+      else if (!Array.isArray(i.volumes) || i.volumes.length > 8 || i.volumes.some(v => !normalized(v) || v === '/')) fail(`${at}: volumes are at most 8 absolute paths`);
+    }
     if ((i.files ?? []).length > 40 || (i.files ?? []).some(f => !normalized(f.path) || f.path === '/' || typeof f.content !== 'string' || f.content.length > LIMITS.fileLength)) fail(`${at}: at most 40 files with absolute paths and contents of at most ${LIMITS.fileLength} characters`);
     if (i.osRelease !== undefined && (typeof i.osRelease !== 'string' || i.osRelease.length > 1000)) fail(`${at}: osRelease at most 1000 characters`);
     if (i.layers !== undefined && !whole(i.layers, 1, 20)) fail(`${at}: layers are 1..20`);
@@ -299,9 +374,37 @@ export function dockerProblems(m: TerminalMachine, lv: DockerLevels): string[] {
       if (p.http !== undefined && (!whole(p.http.port, 1, 65535) || !responders.has(p.http.responder) || (p.http.accessLog !== undefined && p.http.accessLog !== 'nginx'))) fail(`${at}: http needs a port 1..65535, a responder of the machine and accessLog nginx or nothing`);
     }
   }
+  // E22: volumes and networks of the daemon, and each container's mounts, network and user.
+  const e22 = [d.volumes, d.networks, ...containers.flatMap(c => [c.volumes, c.network, c.aliases, c.user])].some(x => x !== undefined);
+  if (e22 && !lv.storageNet) fail('volumes, networks and the containers\' volumes, network, aliases and user need the storage-net profile (engine stage E22)');
+  const networks = new Map<string, string | undefined>([['bridge', '172.17.0.0/16'], ['host', undefined], ['none', undefined]]);
+  if (lv.storageNet) {
+    const vols = new Set<string>();
+    for (const v of d.volumes ?? []) {
+      if (!isVolumeName(v.name ?? '') || vols.has(v.name)) fail(`volume ${v.name}: a name of [a-zA-Z0-9][a-zA-Z0-9_.-]+, listed once`);
+      vols.add(v.name);
+      if (v.created !== undefined && (parseTime(v.created) === undefined || parseTime(v.created)! > now)) fail(`volume ${v.name}: created must be a time YYYY-MM-DD HH:MM:SS not after now`);
+      if ((v.files ?? []).length > 40 || (v.files ?? []).some(f => !normalized(f.path) || f.path === '/' || typeof f.content !== 'string' || f.content.length > LIMITS.fileLength || (f.owner !== undefined && !/^(?:[a-z_][a-z0-9_-]{0,31}|\d+)$/.test(f.owner)) || (f.mode !== undefined && !whole(f.mode, 0, 0o777))))
+        fail(`volume ${v.name}: at most 40 files with paths from the volume's root (/…), an owner (a user or a number) and a mode 0..0777`);
+    }
+    for (const n of d.networks ?? []) {
+      const c = n.subnet === undefined ? undefined : parseCidr(n.subnet);
+      if (!NETWORK_NAME.test(n.name ?? '') || networks.has(n.name)) { fail(`network ${n.name}: a name of [a-zA-Z0-9][a-zA-Z0-9_.-], not bridge, host or none, listed once`); continue; }
+      if (n.subnet !== undefined && (!c || c.prefix < 8 || c.prefix > 30)) fail(`network ${n.name}: subnet is an IPv4 CIDR (/8../30)`);
+      if (c && [...networks.values()].some(x => { const t = x ? parseCidr(x) : undefined; return t && overlaps(c.address, c.prefix, t.address, t.prefix); })) fail(`network ${n.name}: its subnet overlaps another network's`);
+      networks.set(n.name, c ? `${c.address}/${c.prefix}` : `172.${18 + networks.size - 3}.0.0/16`);
+    }
+  }
   const names = new Set<string>(), bound: { b: PortBinding; name: string }[] = [];
   for (const c of containers) {
     const at = `container ${c.name}`;
+    if (lv.storageNet) {
+      for (const v of c.volumes ?? []) { const p = parseVolumeFlag(v, '/', 'x'); if ('error' in p) fail(`${at}: volume ${v}: ${p.error}`); }
+      if (c.network !== undefined && !networks.has(c.network)) fail(`${at}: network ${c.network} is not bridge, host, none or a network of the lesson`);
+      if (c.aliases !== undefined && (!c.aliases.length || c.aliases.some(a => !NETWORK_NAME.test(a)) || !c.network || ['bridge', 'host', 'none'].includes(c.network))) fail(`${at}: aliases need a user-defined network`);
+      if (c.user !== undefined && !/^[a-z_][a-z0-9_-]{0,31}(?::[a-z_][a-z0-9_-]{0,31})?$|^\d+(?::\d+)?$/.test(c.user)) fail(`${at}: user is a user name or uid (optionally :group)`);
+      if ((c.network === 'host' || c.network === 'none') && (c.ports ?? []).length) fail(`${at}: a container on the ${c.network} network publishes no ports`);
+    }
     if (typeof c.name !== 'string' || !NAME.test(c.name)) fail(`${at}: a name of [a-zA-Z0-9][a-zA-Z0-9_.-]`);
     if (names.has(c.name)) fail(`${at}: listed twice`);
     names.add(c.name);
@@ -322,7 +425,7 @@ export function dockerProblems(m: TerminalMachine, lv: DockerLevels): string[] {
     for (const p of c.ports ?? []) {
       const b = portOf(p);
       if (!b || !whole(b.host, 1, 65535) || !whole(b.container, 1, 65535)) { fail(`${at}: port ${p} is HOST:CONTAINER or IP:HOST:CONTAINER`); continue; }
-      if (c.state !== 'running') continue;
+      if (c.state !== 'running' || c.network === 'host' || c.network === 'none') continue;
       const clash = bound.find(x => x.b.host === b.host && x.b.proto === b.proto && (x.b.hostIp === b.hostIp || x.b.hostIp === '0.0.0.0' || b.hostIp === '0.0.0.0'));
       if (clash) fail(`${at}: port ${b.host} is already published by ${clash.name} (port is already allocated)`);
       bound.push({ b, name: c.name });
@@ -334,6 +437,23 @@ export function dockerProblems(m: TerminalMachine, lv: DockerLevels): string[] {
 /** E20: the problems of a check. */
 export function dockerCheckProblems(c: DockerCheck, lv: DockerLevels): string | null {
   if (!lv.containers) return `a ${c.kind} check needs a containers machine (engine stage E20)`;
+  // E22: volume, network and reach from a container.
+  if (c.kind === 'volume' || c.kind === 'network' || c.kind === 'reach') {
+    if (!lv.storageNet) return `a ${c.kind === 'reach' ? 'reach check from a container' : `${c.kind} check`} needs a storage-net machine (engine stage E22)`;
+    if (c.kind === 'volume') {
+      if (!isVolumeName(c.name ?? '') || (c.file !== undefined && !normalized(c.file)) || (c.content !== undefined && (c.file === undefined || typeof c.content !== 'string')) || (c.absent && (c.file ?? c.content) !== undefined))
+        return 'a volume check needs a volume name, a file path from the volume\'s root (/…), content only with a file, and nothing else with absent';
+      return null;
+    }
+    if (c.kind === 'network') {
+      if (!NETWORK_NAME.test(c.name ?? '') || (c.container !== undefined && !NAME.test(c.container)) || (c.driver !== undefined && c.driver !== 'bridge') || (c.subnet !== undefined && !parseCidr(c.subnet)) || (c.absent && (c.container ?? c.driver ?? c.subnet) !== undefined))
+        return 'a network check needs a network name, a container name, the driver bridge, a subnet CIDR, and nothing else with absent';
+      return null;
+    }
+    if (!NAME.test(c.container ?? '') || typeof c.to !== 'string' || !/^[A-Za-z0-9._-]{1,253}$/.test(c.to) || !whole(c.port, 1, 65535) || !['succeeded', 'refused', 'timeout', 'unresolved'].includes(c.result))
+      return 'a reach check from a container needs a container name, a name or address, a port 1..65535 and a result succeeded, refused, timeout or unresolved';
+    return null;
+  }
   if (c.kind === 'build') {
     if (!lv.images) return 'a build check needs an images machine (engine stage E21)';
     if (!normalized(c.context) || (c.file !== undefined && !normalized(c.file)) || typeof c.change !== 'string' || !c.change || c.change.startsWith('/') || c.change.includes('..')
@@ -358,6 +478,13 @@ export function dockerCheckProblems(c: DockerCheck, lv: DockerLevels): string | 
   return null;
 }
 export function describeDockerCheck(c: DockerCheck): string {
+  if (c.kind === 'volume') return c.absent ? `應該沒有名為 ${c.name} 的 Volume` : `應該有名為 ${c.name} 的 Volume${c.file ? `，裡面有 ${c.file}${c.content !== undefined ? `（內容包含「${c.content}」）` : ''}` : ''}`;
+  if (c.kind === 'network') {
+    if (c.absent) return `應該沒有名為 ${c.name} 的網路`;
+    const parts = [c.container ? `容器 ${c.container} 連在上面` : '', c.driver ? `驅動程式是 ${c.driver}` : '', c.subnet ? `子網路是 ${c.subnet}` : ''].filter(Boolean);
+    return `應該有名為 ${c.name} 的網路${parts.length ? `（${parts.join('，')}）` : ''}`;
+  }
+  if (c.kind === 'reach') return `從容器 ${c.container} 連到 ${c.to} 的 ${c.port} 埠應該${{ succeeded: '成功', refused: '被拒絕（Connection refused）', timeout: '逾時（不同的網路連不到）', unresolved: '查不到這個名稱' }[c.result]}`;
   if (c.kind === 'build') {
     const parts = [c.cached?.length ? `「${c.cached.join('」「')}」命中快取（CACHED）` : '', c.rebuilt?.length ? `「${c.rebuilt.join('」「')}」重新執行` : ''].filter(Boolean);
     return `建置 ${c.context}${c.file ? `（${c.file}）` : ''}，改了 ${c.change} 之後再建置一次時，${parts.join('，')}`;
@@ -395,13 +522,51 @@ function buildFailure(c: Extract<DockerCheck, { kind: 'build' }>, end: FsState):
   }
   return null;
 }
+/** E22: volume, network and reach from a container, on the daemon (and the host's files) after the commands. */
+function storageNetFailure(c: Extract<DockerCheck, { kind: 'volume' | 'network' | 'reach' }>, end: FsState): string | null {
+  const d = end.docker!;
+  if (!d.storageNet) return '這台機器的 profile 沒有 Volume 與網路（引擎階段 E22）';
+  if (c.kind === 'volume') {
+    const v = (d.volumes ?? []).find(x => x.name === c.name);
+    if (c.absent) return v ? `仍有 Volume ${c.name}` : null;
+    if (!v) return `沒有名為 ${c.name} 的 Volume`;
+    if (c.file === undefined) return null;
+    const node = end.nodes.get(`${volumeDir(c.name)}${c.file}`);
+    if (node?.kind !== 'file') return `Volume ${c.name} 裡沒有 ${c.file}`;
+    if (c.content !== undefined && !(node.content ?? '').includes(c.content)) return `Volume ${c.name} 的 ${c.file} 不包含題目要的內容`;
+    return null;
+  }
+  if (c.kind === 'network') {
+    const n = (d.networks ?? []).find(x => x.name === c.name);
+    if (c.absent) return n ? `仍有網路 ${c.name}` : null;
+    if (!n) return `沒有名為 ${c.name} 的網路`;
+    if (c.driver && n.driver !== c.driver) return `它的驅動程式是 ${n.driver}`;
+    if (c.subnet) { const want = parseCidr(c.subnet)!; if (n.subnet !== `${networkOf(want.address, want.prefix)}/${want.prefix}`) return `它的子網路是 ${n.subnet ?? '（沒有）'}`; }
+    if (c.container) {
+      const x = d.containers.find(k => k.name === c.container);
+      if (!x) return `沒有名為 ${c.container} 的容器`;
+      if (x.networks?.[n.name] === undefined) return `容器 ${c.container} 連在 ${Object.keys(x.networks ?? {}).join('、') || '（沒有網路）'}`;
+    }
+    return null;
+  }
+  const x = d.containers.find(k => k.name === c.container);
+  if (!x) return `沒有名為 ${c.container} 的容器`;
+  if (x.status !== 'running') return `容器 ${c.container} 沒有在執行`;
+  const view: FsState = { ...end, nodes: mountedNodes(end, x), host: x.hostname ?? x.id.slice(0, 12), ...networkView(end, d, x) };
+  const r0 = basicResolver(view, c.to, 4);
+  const got = 'error' in r0 ? 'unresolved' : (() => { const r = reach(view, r0.found.address, c.port); return r.result === 'ok' ? 'succeeded' : r.result; })();
+  const word = { succeeded: '成功', refused: '被拒絕', timeout: '逾時', unresolved: `查不到 ${c.to}` } as const;
+  return got === c.result ? null : `結果是${word[got]}`;
+}
+
 /** E20: the check on the state after the commands (the daemon as it is now: containers whose sleep ended have exited). */
 export function dockerFailure(c: DockerCheck, end0: FsState): string | null {
   const end = settleDocker(end0), d = end.docker;
   if (!d) return '這台機器沒有安裝 Docker';
-  const problem = dockerCheckProblems(c, { containers: true, images: true });
+  const problem = dockerCheckProblems(c, { containers: true, images: true, storageNet: true });
   if (problem) return problem;
   if (c.kind === 'build') return buildFailure(c, end);
+  if (c.kind === 'volume' || c.kind === 'network' || c.kind === 'reach') return storageNetFailure(c, end);
   if (c.kind === 'image') {
     const ref = parseRef(c.name)!, img = d.images.find(i => i.local && !i.dangling && i.repo === ref.repo && i.tag === ref.tag);
     if (c.absent) return img ? `仍有 Image ${c.name}` : null;

@@ -163,6 +163,8 @@ interface Stage {
   entrypoint: string[];
   expose: number[];
   labels: Record<string, string>;
+  /** E22: VOLUME paths. */
+  volumes: string[];
   history: HistoryRow[];
   rootfs: string[];
   chain: string[];
@@ -232,7 +234,7 @@ const codenameOf = (osRelease: string) => /^VERSION_CODENAME="?([a-z]+)"?$/m.exe
 const SYSTEM_USERS: [string, number, number, string][] = [['root', 0, 0, '/root'], ['daemon', 1, 1, '/usr/sbin'], ['bin', 2, 2, '/bin'], ['sys', 3, 3, '/dev'], ['www-data', 33, 33, '/var/www'], ['nobody', 65534, 65534, '/nonexistent']];
 const SYSTEM_GROUPS: [string, number][] = [['root', 0], ['daemon', 1], ['bin', 2], ['sys', 3], ['www-data', 33], ['nogroup', 65534]];
 /** /etc/passwd and /etc/group of the build container as E3's accounts (the system accounts when the files are missing). */
-function accountsOf(nodes: ReadonlyMap<string, FsNode>): { users: Account[]; groups: GroupEntry[] } {
+export function accountsOf(nodes: ReadonlyMap<string, FsNode>): { users: Account[]; groups: GroupEntry[] } {
   const users: Account[] = [], groups: GroupEntry[] = [];
   for (const l of (nodes.get('/etc/passwd')?.content ?? '').split('\n')) {
     const f = l.split(':');
@@ -595,6 +597,8 @@ export interface BuildOptions {
   noCache: boolean;
   target?: string;
   quiet: boolean;
+  /** E22 (the storage-net profile): VOLUME is supported. */
+  storageNet?: boolean;
 }
 export interface BuildStep { label: string; cached: boolean }
 export interface BuildResult { state: FsState; status: number; steps: BuildStep[]; id?: string }
@@ -681,7 +685,7 @@ export function build(state: FsState, d: DockerState, o: BuildOptions, io: Io, h
     if ((ins.keyword === 'COPY' || ins.keyword === 'ADD') && ins.flags.from !== undefined) return fail(`failed to solve: ${ins.keyword} --from（多階段建置）：模擬環境在引擎階段 E23 才支援`, src(ins.line, ins.end));
     if (ins.keyword === 'RUN' && Object.keys(ins.flags).length) return fail(`failed to solve: 模擬環境不支援 RUN --${Object.keys(ins.flags)[0]}`, src(ins.line, ins.end));
     if ((ins.keyword === 'COPY' || ins.keyword === 'ADD') && Object.keys(ins.flags).some(f => f !== 'chown' && f !== 'chmod')) return fail(`failed to solve: 模擬環境的 ${ins.keyword} 只支援 --chown 與 --chmod`, src(ins.line, ins.end));
-    if (LATER[ins.keyword]) return fail(`failed to solve: ${ins.keyword}：模擬環境在引擎階段 ${LATER[ins.keyword]} 才支援`, src(ins.line, ins.end));
+    if (LATER[ins.keyword] && !(o.storageNet && ins.keyword === 'VOLUME')) return fail(`failed to solve: ${ins.keyword}：模擬環境在引擎階段 ${LATER[ins.keyword]} 才支援`, src(ins.line, ins.end));
   }
   // The base image (ARG substitution on the FROM line): local first, else what Docker Hub serves.
   const fromText = substitute(stage.from.args.split(/\s+/)[0], globalArgs);
@@ -715,7 +719,7 @@ export function build(state: FsState, d: DockerState, o: BuildOptions, io: Io, h
   const s: Stage = {
     nodes: base ? imageFs(base) : new Map<string, FsNode>([['/', { kind: 'dir', mode: 0o755, owner: 'root' }]]), weights: new Map(base?.weights ?? []), ...base?.apt ? { apt: base.apt } : {},
     env: [...base?.env ?? []], workdir: base?.workdir ?? '/', user: base?.user ?? '', cmd: [...base?.cmd ?? []], entrypoint: [...base?.entrypoint ?? []], expose: [...base?.expose ?? []],
-    labels: { ...base?.labels ?? {} }, history: base ? historyOf(base).map(r => ({ ...r })) : [], rootfs: base ? rootfsOf(base) : [], chain: base ? chainOf(base) : [], layerSizes: base ? layerSizesOf(base) : [], base,
+    labels: { ...base?.labels ?? {} }, volumes: [...base?.volumes ?? []], history: base ? historyOf(base).map(r => ({ ...r })) : [], rootfs: base ? rootfsOf(base) : [], chain: base ? chainOf(base) : [], layerSizes: base ? layerSizesOf(base) : [], base,
   };
   const inherited = s.history.length;
   const fromKey = base ? `from/${base.id}` : 'from/scratch';
@@ -789,6 +793,15 @@ export function build(state: FsState, d: DockerState, o: BuildOptions, io: Io, h
         if (ins.keyword === 'CMD') { s.cmd = list; cmdSet = true; }
         else { s.entrypoint = list; if (!cmdSet) s.cmd = []; }
         meta(`${ins.keyword} ${goList(list)}`);
+        continue;
+      }
+      case 'VOLUME': {
+        // E22: VOLUME ["/data"] or VOLUME /data /logs: config only (each container gets an anonymous volume there).
+        const paths = (ins.json ?? sub(ins.args).split(/\s+/).filter(Boolean)).map(p => sub(p));
+        if (!paths.length) return fail(`failed to solve: dockerfile parse error on line ${ins.line}: VOLUME requires at least one argument`, src(ins.line, ins.end));
+        if (paths.some(p => !p.startsWith('/'))) return fail(`failed to solve: 模擬環境的 VOLUME 需要絕對路徑（${paths.find(p => !p.startsWith('/'))}）`, src(ins.line, ins.end));
+        s.volumes = [...new Set([...s.volumes, ...paths])];
+        meta(`VOLUME [${paths.join(' ')}]`);
         continue;
       }
       case 'USER': {
@@ -910,7 +923,7 @@ export function build(state: FsState, d: DockerState, o: BuildOptions, io: Io, h
   const own = s.history.slice(inherited);
   for (let i = 0; i < own.length; i++) if (own[i].created < 0) own[i].created = own.slice(0, i).reverse().find(r => r.created >= 0)?.created ?? own.find(r => r.created >= 0)?.created ?? now;
   const created = own.length ? Math.max(...own.map(r => r.created)) : base?.created ?? now;
-  const config = { env: s.env, cmd: s.cmd, entrypoint: s.entrypoint, workdir: s.workdir, expose: s.expose, user: s.user, labels: s.labels, rootfs: s.rootfs, history: s.history.map(r => [r.created, r.createdBy, r.size, r.empty]), created };
+  const config = { env: s.env, cmd: s.cmd, entrypoint: s.entrypoint, workdir: s.workdir, expose: s.expose, user: s.user, labels: s.labels, rootfs: s.rootfs, history: s.history.map(r => [r.created, r.createdBy, r.size, r.empty]), created, ...s.volumes.length ? { volumes: s.volumes } : {} };
   const id = hex(`image-config/${JSON.stringify(config)}`);
   const kk = n++;
   show(`#${kk} exporting to image`);
@@ -928,6 +941,7 @@ export function build(state: FsState, d: DockerState, o: BuildOptions, io: Io, h
     exit: same ? base?.exit ?? 0 : 0, ...same && base?.stopExit !== undefined ? { stopExit: base.stopExit } : {}, commands: [...base?.commands ?? []], files: [], osRelease: base?.osRelease ?? '',
     layers: s.rootfs.length, local: true, pullable: false, built: true, nodes: s.nodes, weights: s.weights, history: s.history, rootfs: s.rootfs, chain: s.chain, user: s.user, labels: s.labels,
     ...base?.packages ? { packages: base.packages } : {}, ...s.apt ? { apt: s.apt } : {}, ...!same || base?.ownMain ? { ownMain: true } : {}, ...scratch ? { scratch: true } : {},
+    ...s.volumes.length ? { volumes: s.volumes } : {},
   };
   // The tags move to the new image; an image left without a tag is dangling (<none> <none>).
   let images = [...d.images];

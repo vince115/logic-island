@@ -11,6 +11,7 @@ import { nginxCertificate, nginxServe, plainOnTls, type UpstreamFn, type Upstrea
 import { base64 } from './ssh';
 import { resolvePath } from './fs';
 import { containerAccess } from './docker';
+import { containerReader } from './storage-net';
 
 /*
  * Engine stage E12 (docs/curriculum/SRV0_SERVER_CAPABILITY.md §8): HTTP/1.1 with curl. A machine's responders are lesson
@@ -58,6 +59,9 @@ export interface Responder {
   id: string; server?: string; keepAlive?: boolean; routes: Route[]; delay?: number; /** E18: a CDN edge in front of an origin (routes unused). */ cdn?: CdnConfig;
   /** E20 (set by the engine, not by lessons): the container whose published port this responder answers on (its access log). */
   container?: string;
+  /** E22 (set by the engine): the request reaches the container directly (from another container, or with --network host), so its log shows the real client; via: the address docker-proxy connects from (a user-defined network's gateway). */
+  direct?: true;
+  via?: string;
 }
 
 export const CURL_VERSION = '8.5.0';
@@ -338,10 +342,10 @@ function placed(get: () => FsState, at: 'self' | number, host: FsState): FsState
 export function serveResponder(get: () => FsState, set: (s: FsState) => void, at: 'self' | number, host: FsState, r: Responder, req: Request, now: number, client: string, depth = 0): { res: Response; host: FsState } {
   const out = serveOn(get, set, at, host, r, req, now, client, depth);
   // E20: a container's service writes the request to the container's log (docker logs).
-  return r.container ? { ...out, host: containerAccess(out.host, r, req, out.res, now) } : out;
+  return r.container ? { ...out, host: containerAccess(out.host, r, req, out.res, now, client) } : out;
 }
 function serveOn(get: () => FsState, set: (s: FsState) => void, at: 'self' | number, host: FsState, r: Responder, req: Request, now: number, client: string, depth: number): { res: Response; host: FsState } {
-  if (!host.http?.edge) return { res: respond(r, req, now, fileReader(host), client), host };
+  if (!host.http?.edge) return { res: respond(r, req, now, readerOf(host, r), client), host };
   if (r.cdn) {
     if (depth >= 3) return { res: respond({ ...r, routes: [] }, req, now), host };
     const cfg = r.cdn;
@@ -362,7 +366,7 @@ function serveOn(get: () => FsState, set: (s: FsState) => void, at: 'self' | num
   }
   const route = routeOf(r, req);
   if (route?.purge && (route.methods ?? ['POST']).includes(req.method)) return purgeApi(get, set, at, host, r, route, req, now);
-  let res = respond(r, req, now, fileReader(host), client);
+  let res = respond(r, req, now, readerOf(host, r), client);
   if (route && res.status === 200 && (route.etag || route.lastModified)) {
     const lm = route.lastModified !== undefined ? parseTime(route.lastModified) : undefined;
     const etag = route.etag === true ? bodyEtag(res.body) : route.etag;
@@ -406,6 +410,8 @@ export function withHost(state: FsState, at: 'self' | number, host: FsState): Fs
 }
 /** The files a responder's root route reads (as www-data, or root on a machine without it). */
 export const fileReader = (host: FsState) => (path: string) => { const r = readAs(host, 'www-data', path); return 'text' in r ? r.text : undefined; };
+/** E22: a container's service (storage-net profile) reads its root from the container's own files, mounts included. */
+const readerOf = (host: FsState, r: Responder) => r.container && host.docker?.storageNet ? containerReader(host, r.container) : fileReader(host);
 
 /**
  * curl [-v] [-s] [-S] [-I] [-i] [-L] [-f] [-k] [-o file] [-w format] [-H header] [-X method] [-d data] [-A agent] [--cacert f]

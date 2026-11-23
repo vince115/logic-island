@@ -58,12 +58,12 @@ test('課綱目錄：十五座島，F／D／A／PL／DB／CN／AIF 各 20 堂、
   await expect(gen.locator('ol a')).toHaveCount(2);
   for (const l of lessons.filter(l => l.islandId === 'generative-ai')) await expect(gen.locator(`ol a[href="/curriculum/${l.slug}"]`), l.lessonId).toHaveCount(1);
   await expect(gen.locator('ol').getByText('規劃中', { exact: true })).toHaveCount(18);
-  // DKR-1, DKR-2: Docker 容器島 lists its 15 lessons: DKR01–DKR06 are links, the other 9 are marked 規劃中 and not linked.
+  // DKR-1 to DKR-3: Docker 容器島 lists its 15 lessons: DKR01–DKR08 are links, the other 7 are marked 規劃中 and not linked.
   const dkr = page.getByRole('region', { name: /Docker 容器島/ });
   await expect(dkr.getByRole('listitem')).toHaveCount(15);
-  await expect(dkr.locator('ol a')).toHaveCount(6);
+  await expect(dkr.locator('ol a')).toHaveCount(8);
   for (const l of lessons.filter(l => l.islandId === 'docker-containers')) await expect(dkr.locator(`ol a[href="/curriculum/${l.slug}"]`), l.lessonId).toHaveCount(1);
-  await expect(dkr.locator('ol').getByText('規劃中', { exact: true })).toHaveCount(9);
+  await expect(dkr.locator('ol').getByText('規劃中', { exact: true })).toHaveCount(7);
   // MOB-1 to MOB-3: 行動應用島 lists its 13 lessons, all written since MOB-3.
   await expect(page.getByRole('region', { name: /行動應用島/ }).getByRole('listitem')).toHaveCount(13);
   await expect(page.getByRole('region', { name: /行動應用島/ }).locator('ol a')).toHaveCount(13);

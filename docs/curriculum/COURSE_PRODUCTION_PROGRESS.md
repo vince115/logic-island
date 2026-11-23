@@ -6,11 +6,11 @@
 
 | 項目 | 數量 |
 |---|---|
-| 已發布課程 | 220 |
-| 規劃中課程 | 300 |
+| 已發布課程 | 222 |
+| 規劃中課程 | 298 |
 | 課程總數 | 520 |
-| 整體覆蓋率 | 42.3% |
-| 最近一批（第 40 批）完成 | 5 堂（MOB09、MOB10、MOB11、MOB12、MOB13） |
+| 整體覆蓋率 | 42.7% |
+| 最近一批（第 41 批）完成 | 2 堂（DKR07、DKR08） |
 | 可完整學完的學習路線 | 2 條（APCS／資訊科學基礎、網路與系統）／12 條 |
 
 ## 批次
@@ -55,8 +55,9 @@
 | 36 | 2026-11-23 | MOB01、MOB02、MOB03、MOB04 | `TBD` | #82 | `896db3d` | 驗證器、發布閘門、TypeScript、ESLint、Vitest 134 檔 3860 passed／9 skipped（含 Chromium：35 堂網頁課的每個範例、參考解答、起始內容與常見錯誤，各在一般與傳統捲軸的瀏覽器跑一遍；指標步驟與模擬的指標捕捉、box 的至少／至多、按鍵的 code、對話框的 close 與 method=dialog）、Production build、E2E 桌機＋手機旗標關 511 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上每個練習各做一遍，含 MOB04 的指標練習；Mobile Navigation Simulator 的課程連結）、測驗 32 題逐題複核、洩漏掃描 |
 | 37 | 2026-11-23 | DKR01、DKR02、DKR03、DKR04 | `TBD` | #83 | `e5da508` | TBD |
 | 38 | 2026-11-23 | MOB05、MOB06、MOB07、MOB08 | `TBD` | #84 | `cc11e38` | 驗證器、發布閘門、TypeScript、ESLint、Vitest 137 檔 3991 passed／9 skipped（併入 main `e5da508` 之後的完整一輪；含 Chromium：39 堂網頁課的每個範例、參考解答、起始內容與常見錯誤，各在一般與傳統捲軸的瀏覽器跑一遍；練習指定的預覽高度、wait 之後的畫格；highlight 測試改成每 150 支程式一組）、Production build、E2E 桌機＋手機旗標關 521 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上每個練習各做一遍）、測驗 32 題逐題複核、洩漏掃描 |
-| 39 | 2026-11-23 | DKR05、DKR06 | `TBD` | — | 未合併 | TBD |
-| 40 | 2026-11-23 | MOB09、MOB10、MOB11、MOB12、MOB13 | `TBD` | — | 未合併 | 驗證器、發布閘門、TypeScript、ESLint、Vitest 137 檔 4007 passed／9 skipped（含 Chromium：44 堂網頁課的每個範例、參考解答、起始內容與常見錯誤，各在一般與傳統捲軸的瀏覽器跑一遍；模擬的 Service Worker：第一次造訪、回訪與等待中的新版本、離線、瀏覽器會強制的規則；預覽面板的 DOM 測試）、Production build、E2E 桌機＋手機旗標關 533 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上每個練習各做一遍；MOB09 的 Service Worker 面板在真實課程頁上操作）、測驗 40 題逐題複核、洩漏掃描 |
+| 39 | 2026-11-23 | DKR05、DKR06 | `TBD` | #85 | `7d63b60` | TBD |
+| 40 | 2026-11-23 | MOB09、MOB10、MOB11、MOB12、MOB13 | `TBD` | — | 未合併 | 驗證器、發布閘門、TypeScript、ESLint、Vitest 138 檔 4056 passed／9 skipped（併入 main 7d63b60 之後；含 Chromium：44 堂網頁課的每個範例、參考解答、起始內容與常見錯誤，各在一般與傳統捲軸的瀏覽器跑一遍；模擬的 Service Worker：第一次造訪、回訪與等待中的新版本、離線、瀏覽器會強制的規則；預覽面板的 DOM 測試）、Production build、E2E 桌機＋手機旗標關 532 passed／3 failed／297 skipped（兩個失敗為 main 既有回歸 #36，另一個是負載敏感的 D.3-5b，單獨重跑通過；課程頁上每個練習各做一遍；MOB09 的 Service Worker 面板在真實課程頁上操作）、測驗 40 題逐題複核、洩漏掃描 |
+| 41 | 2026-11-23 | DKR07、DKR08 | `TBD` | — | 未合併 | TBD |
 
 ## 各區域與島嶼
 
@@ -86,7 +87,7 @@
 | 網頁與應用開發群島 | 響應式設計島 | RWD | 12 | 0 | 100.0% |
 | 網頁與應用開發群島 | 行動應用島 | MOB | 13 | 0 | 100.0% |
 | 系統與雲端工程群島 | Linux 系統島 | LNX | 15 | 0 | 100.0% |
-| 系統與雲端工程群島 | Docker 容器島 | DKR | 6 | 9 | 40.0% |
+| 系統與雲端工程群島 | Docker 容器島 | DKR | 8 | 7 | 53.3% |
 | 系統與雲端工程群島 | 網路與伺服器島 | SRV | 14 | 0 | 100.0% |
 | 系統與雲端工程群島 | 雲端基礎設施島 | CLD | 0 | 15 | 0.0% |
 | 系統與雲端工程群島 | DevOps 與 CI/CD 島 | CICD | 0 | 15 | 0.0% |
@@ -409,10 +410,10 @@
 | DKR02 | Docker 架構：Client、Daemon 與 Registry | 完成 | 100% | 活動 network-sequence | 通過 | `TBD` | 已發布 |
 | DKR03 | Image 與 Container 的生命週期 | 完成 | 100% | 活動 terminal-sim | 通過 | `TBD` | 已發布 |
 | DKR04 | Docker CLI 常用指令 | 完成 | 100% | 活動 terminal-sim | 通過 | `TBD` | 已發布 |
-| DKR05 | 撰寫 Dockerfile | 完成 | 100% | 活動 terminal-sim | 通過 | `TBD` | 已完成（待合併） |
-| DKR06 | Image 分層與建置快取 | 完成 | 100% | 活動 terminal-sim | 通過 | `TBD` | 已完成（待合併） |
-| DKR07 | Volume 與資料保存 | 規劃中 | 大綱 | — | — | — | 規劃中 |
-| DKR08 | 容器網路 | 規劃中 | 大綱 | — | — | — | 規劃中 |
+| DKR05 | 撰寫 Dockerfile | 完成 | 100% | 活動 terminal-sim | 通過 | `TBD` | 已發布 |
+| DKR06 | Image 分層與建置快取 | 完成 | 100% | 活動 terminal-sim | 通過 | `TBD` | 已發布 |
+| DKR07 | Volume 與資料保存 | 完成 | 100% | 活動 terminal-sim | 通過 | `TBD` | 已完成（待合併） |
+| DKR08 | 容器網路 | 完成 | 100% | 活動 terminal-sim | 通過 | `TBD` | 已完成（待合併） |
 | DKR09 | Docker Compose 多容器應用 | 規劃中 | 大綱 | — | — | — | 規劃中 |
 | DKR10 | 多階段建置 | 規劃中 | 大綱 | — | — | — | 規劃中 |
 | DKR11 | Container Registry 與版本標籤 | 規劃中 | 大綱 | — | — | — | 規劃中 |

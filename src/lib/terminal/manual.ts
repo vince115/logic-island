@@ -451,8 +451,32 @@ export const IMAGES_MANUAL: ManualEntry = {
   options: [...CONTAINER_MANUAL.docker.options, ['-t', 'build：Image 的名稱與標籤（可以給好幾個）'], ['--no-cache', 'build：不使用建置快取']],
 };
 
+/** E22: tar, for the volume backup pattern (DKR0_CONTAINER_CAPABILITY.md §12). */
+export const STORAGE_MANUAL: Record<'tar', ManualEntry> = {
+  tar: {
+    usage: 'tar -c|-t|-x [-z] [-v] -f 封存檔 [-C 目錄] [路徑…]（也可以寫成 tar czf 封存檔 …）', summary: '建立、列出與解開 tar 封存檔（GNU tar 1.35 的子集）',
+    description: ['c 建立、t 列出、x 解開；z 以 gzip 壓縮（讀取時自動辨認）；f 指定封存檔；-C 目錄 先切換到那個目錄再處理後面的路徑（解開時是解到那裡）；v 列出每個成員（t 時是 ls -l 般的詳細資料）。',
+      '備份 Volume 的常見寫法：docker run --rm -v 資料:/data -v $(pwd):/backup alpine tar czf /backup/data.tgz -C /data .（用 -C /data . 讓成員是 ./ 開頭的相對路徑）。還原：tar xzf data.tgz -C 目的地。',
+      '以 root 解開時保留封存檔裡的擁有者（依名稱，系統沒有那個名稱時用數字 ID），一般使用者解開的檔案屬於自己。模擬環境的封存檔內容不是真實的 tar 與 gzip 位元組（大小與真實的不同）。'],
+    options: [['-c', '建立'], ['-t', '列出內容'], ['-x', '解開'], ['-z', 'gzip 壓縮'], ['-v', '列出處理的成員'], ['-f', '封存檔'], ['-C', '切換到這個目錄']],
+  },
+};
+
+/** E22: the Docker CLI of the storage-net profile: volumes, bind mounts, tmpfs and networks too. */
+export const STORAGE_NET_MANUAL: ManualEntry = {
+  ...IMAGES_MANUAL,
+  usage: `docker volume create|ls|inspect|rm|prune … | network create|ls|inspect|connect|disconnect|rm|prune … | run [-v 來源:路徑[:ro]] [--mount type=volume|bind|tmpfs,source=…,target=…] [--tmpfs 路徑] [--network 網路] [-u 使用者] … | ${IMAGES_MANUAL.usage}`,
+  description: [...IMAGES_MANUAL.description.slice(0, -1),
+    '-v 名稱:/路徑 掛載具名 Volume（docker rm 之後資料仍在，可以給好幾個容器共用；新的空 Volume 先複製 Image 在那個路徑的內容）；-v /主機路徑:/路徑（或 ./相對路徑）是 bind mount，雙方即時看到同一份檔案；加 :ro 唯讀；--tmpfs 路徑 在記憶體裡，容器停止就消失。',
+    '檔案的擁有者是數字 UID：容器裡以非 root 的 USER 執行時，寫不進主機上 root 擁有的 bind mount（Permission denied）；在主機上 chown 成那個 UID，或用 -u 指定合適的 UID。',
+    '自訂的 bridge 網路（docker network create）有內建 DNS（127.0.0.11），同一個網路上的容器以名稱互連；預設的 bridge 不解析名稱。不同網路的容器互相連不到。-p 是給主機與外界的；容器之間用容器自己的連接埠。--network host 直接使用主機的連接埠（-p 被忽略），--network none 沒有網路。',
+    '模擬環境沒有鍵盤：互動式的 Shell（-it）會立刻結束，請用 docker exec 容器 指令；Compose 與多階段建置的 COPY --from 在之後的引擎階段。'],
+  options: [...IMAGES_MANUAL.options, ['-v', 'run：掛載 Volume 或主機的資料夾（來源:路徑[:ro]）'], ['--network', 'run：連到這個網路（bridge、host、none 或自訂的網路）']],
+};
+
 /** The pages a feature changes: cat reads standard input and echo has -n with pipes; chmod has -R with accounts. */
 const FEATURE_MANUAL: [ShellFeature, CommandName, ManualEntry][] = [
+  ['storage-net', 'docker', STORAGE_NET_MANUAL],
   ['images', 'docker', IMAGES_MANUAL],
   ['edge', 'sleep', { usage: 'sleep 秒數[smhd]', summary: '等待一段時間', description: ['從 edge 階段起，sleep 讓模擬的時鐘前進（課程裡每一台機器一起）：快取會過期、Age 會增加、date 與日誌的時間跟著改變。sleep 300 & 仍然只是一個背景工作，不會讓時間前進。'], options: [] }],
   ['edge', 'date', { usage: 'date [-u] [+格式]', summary: '顯示機器的時間', description: ['+%F 是 2026-11-22、+%H:%M 是時與分、+%s 是 1970 年起的秒數；有時區的機器顯示當地時間，-u 顯示 UTC。從 edge 階段起 sleep 會讓時鐘前進。'], options: [['-u', '顯示 UTC']] }],
@@ -496,7 +520,7 @@ export function manualEntry(cmd: CommandName, features: Iterable<ShellFeature> =
   const special = FEATURE_MANUAL.find(([f, c]) => c === cmd && have.has(f));
   if (special) return special[2];
   return (MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd] ?? (STREAM_MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd] ?? (USER_MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd]
-    ?? (SYSTEM_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (LATER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (SERVER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (DIAG_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (CONTAINER_MANUAL as Record<string, ManualEntry>)[cmd];
+    ?? (SYSTEM_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (LATER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (SERVER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (DIAG_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (STORAGE_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (CONTAINER_MANUAL as Record<string, ManualEntry>)[cmd];
 }
 
 const optionLines = (options: [string, string][], indent: string, width: number) => options.map(([flag, text]) => `${indent}${flag.padEnd(width)}${text}`);
