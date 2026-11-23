@@ -83,7 +83,7 @@ function probe(host: FsState, d: DockerState, c: DockerContainer, config: Health
  * success is healthy and clears the streak; a failure counts unless the container is still in its start period and was
  * never healthy; `retries` in a row is unhealthy. Probes at the same readiness give the same result, so they are run once.
  */
-export function advanceHealth(host: FsState): FsState {
+export function advanceHealth(host: FsState, changed?: (c: DockerContainer, status: HealthState['status'], t: Seconds) => void): FsState {
   const d0 = host.docker;
   if (!d0) return host;
   const now = clockOf(host).now;
@@ -102,8 +102,11 @@ export function advanceHealth(host: FsState): FsState {
       let r = memo.get(key);
       if (!r) { r = probe(host, d, c0, config, t); memo.set(key, r); }
       h.log = [...h.log, { start: t, end: t, exitCode: r.exitCode, output: r.output }].slice(-5);
+      const was = h.status;
       if (r.exitCode === 0) h = { ...h, status: 'healthy', streak: 0 };
       else if (!(h.status === 'starting' && t - started < startPeriod)) { const streak = h.streak + 1; h = { ...h, streak, ...streak >= retries ? { status: 'unhealthy' as const } : {} }; }
+      // E24: a change of status is an event (health_status: healthy).
+      if (changed && h.status !== was) changed(c0, h.status, t);
       h.next = t + (h.status === 'starting' && t - started < startPeriod ? startInterval : interval);
     }
     d = { ...d, containers: d.containers.map(x => x.id === c0.id ? { ...x, health: h } : x) };

@@ -600,7 +600,21 @@
       ],
       "commit": "TBD",
       "tests": "TBD",
-      "notes": "DKR-4：引擎階段 E23（compose：docker compose 的 YAML 子集、config、up／ps／logs／exec／stop／start／restart／down、depends_on 的等待條件、Compose 與 Dockerfile 的健康檢查、pg_isready；多階段建置、COPY --from、scratch 與 distroless、--target、ARG；課程宣告的私有 Registry、tag、login、push、以 digest pull 與執行、不可變標籤；compose、registry、image digest／maxSize 與 container health 檢查）；Docker Compose 多容器應用、多階段建置、Container Registry 與版本標籤三課"
+      "notes": "DKR-4：引擎階段 E23（compose：docker compose 的 YAML 子集、config、up／ps／logs／exec／stop／start／restart／down、depends_on 的等待條件、Compose 與 Dockerfile 的健康檢查、pg_isready；多階段建置、COPY --from、scratch 與 distroless、--target、ARG；課程宣告的私有 Registry、tag、login、push、以 digest pull 與執行、不可變標籤；compose、registry、image digest／maxSize 與 container health 檢查）；Docker Compose 多容器應用、多階段建置、Container Registry 與版本標籤三課",
+      "pr": "#88",
+      "merged": "bad5bab"
+    },
+    {
+      "id": 43,
+      "date": "2026-11-23",
+      "lessons": [
+        "DKR12",
+        "DKR13",
+        "DKR14"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "DKR-5：引擎階段 E24（runtime：完整的 docker inspect 與 Go template、課程宣告的主程式行為、--memory／--cpus 與 OOMKilled、docker stats／top／update／wait、重新啟動策略與退避、docker stop／kill 與停止訊號、sh -c 與 --init 的 PID 1、docker events、--read-only／--cap-drop／--security-opt／--privileged；E23 三個差異的修正；container 檢查的 restarting、oomKilled、restartCount、restartPolicy、memory、cpus、readOnly、user、capDrop、privileged、dockerSocket；E20 起 .sh 路徑的當機修正）；容器安全、容器除錯、健康檢查、資源限制與優雅關閉三課"
     }
   ]
 }

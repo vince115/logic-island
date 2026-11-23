@@ -306,18 +306,24 @@ export function goValue(v: unknown, top = true): string {
   return String(v);
 }
 type Scope = { dot: unknown; vars: Record<string, unknown> };
+/** Go's truth of a value in {{if}}: false, 0, nil, and empty strings, lists and maps are false. */
+const truthy = (v: unknown) => !(v === undefined || v === null || v === false || v === 0 || v === '' || (Array.isArray(v) && !v.length) || (typeof v === 'object' && !Array.isArray(v) && !Object.keys(v as object).length));
 /**
  * docker inspect -f on the storage-net profile: text, {{.A.B}}, {{json .A}}, {{range .A}}…{{end}} (also {{range $k, $v := .A}}),
- * {{index .A "key"}} and {{(index .A "key").B}}, $variables. Anything else is said, not faked.
+ * {{index .A "key"}} and {{(index .A "key").B}}, $variables. E24 (funcs, the runtime profile): {{if …}}…{{else}}…{{end}},
+ * println, print, len, join, upper, lower, eq, ne and not, as Go's text/template and docker/cli's functions have them.
+ * Anything else is said, not faked.
  */
-export function goTemplate(format: string, data: unknown): { text: string } | { error: string } {
+export function goTemplate(format: string, data: unknown, opts: { funcs?: boolean } = {}): { text: string } | { error: string } {
   const src = format.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
   const tokens: ({ t: 'text'; v: string } | { t: 'act'; v: string })[] = [];
   let at = 0;
   for (const m of src.matchAll(/\{\{-?\s*([\s\S]*?)\s*-?\}\}/g)) { if (m.index > at) tokens.push({ t: 'text', v: src.slice(at, m.index) }); tokens.push({ t: 'act', v: m[1] }); at = m.index + m[0].length; }
   if (at < src.length) tokens.push({ t: 'text', v: src.slice(at) });
   let i = 0;
-  const unsupported = (a: string) => ({ error: `docker inspect：模擬環境的 --format 只支援 {{.欄位}}、{{json .欄位}}、{{range .欄位}}…{{end}} 與 {{index .欄位 "鍵"}}（不支援 {{${a}}}）` });
+  const unsupported = (a: string) => ({ error: opts.funcs
+    ? `docker inspect：模擬環境的 --format 只支援 {{.欄位}}、{{json .欄位}}、{{range .欄位}}…{{end}}、{{if …}}…{{else}}…{{end}}、{{index .欄位 "鍵"}} 與 println、print、len、join、upper、lower、eq、ne、not（不支援 {{${a}}}）`
+    : `docker inspect：模擬環境的 --format 只支援 {{.欄位}}、{{json .欄位}}、{{range .欄位}}…{{end}} 與 {{index .欄位 "鍵"}}（不支援 {{${a}}}）` });
   const field = (base: unknown, parts: readonly string[], shown: string): { v: unknown } | { error: string } => {
     let v = base;
     for (const p of parts) {
@@ -325,6 +331,15 @@ export function goTemplate(format: string, data: unknown): { text: string } | { 
       else return { error: `template: :1: executing "" at <${shown}>: 模擬環境沒有 ${shown} 這個欄位（或它不是物件）` };
     }
     return { v };
+  };
+  // E24: the operands of a function: fields, variables, quoted strings, numbers and booleans.
+  const words = (text: string) => [...text.matchAll(/"(?:[^"\\]|\\.)*"|\([^)]*\)|\S+/g)].map(m => m[0]);
+  const operand = (w: string, s: Scope): { v: unknown } | { error: string } => {
+    if (/^"/.test(w)) return { v: JSON.parse(w) as string };
+    if (/^-?\d+(\.\d+)?$/.test(w)) return { v: Number(w) };
+    if (w === 'true' || w === 'false') return { v: w === 'true' };
+    if (w === 'nil') return { v: null };
+    return evalExpr(w.replace(/^\((.*)\)$/, '$1'), s);
   };
   const evalExpr = (expr: string, s: Scope): { v: unknown } | { error: string } => {
     const e = expr.trim();
@@ -338,22 +353,64 @@ export function goTemplate(format: string, data: unknown): { text: string } | { 
     if (m) { const name = m[1] ?? ''; if (!(name in s.vars)) return { error: `template: :1: undefined variable "$${name}"` }; return field(s.vars[name], m[2].split('.').filter(Boolean), e); }
     m = /^((?:\.[A-Za-z_]\w*)+)$/.exec(e);
     if (m) return field(s.dot, m[1].split('.').filter(Boolean), e);
+    if (opts.funcs) {
+      const [fn, ...rest] = words(e), args: unknown[] = [];
+      for (const w of rest) { const r = operand(w, s); if ('error' in r) return r; args.push(r.v); }
+      const str = (v: unknown) => typeof v === 'string' ? v : goValue(v);
+      switch (fn) {
+        case 'len': return args.length === 1 ? { v: Array.isArray(args[0]) ? args[0].length : typeof args[0] === 'string' ? args[0].length : args[0] && typeof args[0] === 'object' ? Object.keys(args[0] as object).length : 0 } : unsupported(e);
+        case 'upper': return args.length === 1 ? { v: str(args[0]).toUpperCase() } : unsupported(e);
+        case 'lower': return args.length === 1 ? { v: str(args[0]).toLowerCase() } : unsupported(e);
+        case 'join': return args.length === 2 && Array.isArray(args[0]) ? { v: (args[0] as unknown[]).map(str).join(str(args[1])) } : unsupported(e);
+        case 'eq': return args.length >= 2 ? { v: args.slice(1).some(x => x === args[0]) } : unsupported(e);
+        case 'ne': return args.length === 2 ? { v: args[0] !== args[1] } : unsupported(e);
+        case 'not': return args.length === 1 ? { v: !truthy(args[0]) } : unsupported(e);
+      }
+    }
     return unsupported(e);
   };
-  const block = (s: Scope, stop: boolean): { text: string } | { error: string } => {
+  // E24: skips a branch of {{if}} to its {{else}} or {{end}} (nested if and range blocks included); which one it found.
+  const skip = (): 'else' | 'end' | null => {
+    for (let depth = 0; i < tokens.length;) {
+      const tk = tokens[i++];
+      if (tk.t !== 'act') continue;
+      if (/^(if|range)\s/.test(tk.v)) depth++;
+      else if (tk.v === 'end') { if (!depth) return 'end'; depth--; }
+      else if (tk.v === 'else' && !depth) return 'else';
+    }
+    return null;
+  };
+  const block = (s: Scope, stop: boolean, branch = false): { text: string; stopped?: 'else' | 'end' } | { error: string } => {
     let out = '';
     while (i < tokens.length) {
       const tk = tokens[i++];
       if (tk.t === 'text') { out += tk.v; continue; }
       const a = tk.v;
-      if (a === 'end') { if (stop) return { text: out }; return { error: 'template: :1: unexpected {{end}}' }; }
+      if (a === 'end') { if (stop) return { text: out, stopped: 'end' }; return { error: 'template: :1: unexpected {{end}}' }; }
+      if (opts.funcs && a === 'else') { if (branch) return { text: out, stopped: 'else' }; return { error: 'template: :1: unexpected {{else}}' }; }
+      const iff = opts.funcs ? /^if\s+(.+)$/.exec(a) : null;
+      if (iff) {
+        const cond = evalExpr(iff[1], s);
+        if ('error' in cond) return cond;
+        if (truthy(cond.v)) {
+          const b = block(s, true, true);
+          if ('error' in b) return b;
+          out += b.text;
+          if (b.stopped === 'else' && skip() !== 'end') return { error: 'template: :1: unexpected EOF' };
+        } else {
+          const where = skip();
+          if (!where) return { error: 'template: :1: unexpected EOF' };
+          if (where === 'else') { const b = block(s, true); if ('error' in b) return b; out += b.text; }
+        }
+        continue;
+      }
       const r = /^range\s+(?:(\$\w+)\s*(?:,\s*(\$\w+))?\s*:=\s*)?(.+)$/.exec(a);
       if (r) {
         const over = evalExpr(r[3], s);
         if ('error' in over) return over;
         const start = i, items: [unknown, unknown][] = Array.isArray(over.v) ? over.v.map((v, k) => [k, v]) : over.v && typeof over.v === 'object' ? Object.keys(over.v as object).sort().map(k => [k, (over.v as Record<string, unknown>)[k]]) : [];
         // An empty range still has to find its {{end}}.
-        if (!items.length) { const skip = block({ dot: undefined, vars: s.vars }, true); if ('error' in skip) return skip; }
+        if (!items.length) { const skipped = block({ dot: undefined, vars: s.vars }, true); if ('error' in skipped) return skipped; }
         for (const [k, v] of items) {
           i = start;
           const vars = { ...s.vars, ...r[1] && r[2] ? { [r[1].slice(1)]: k, [r[2].slice(1)]: v } : r[1] ? { [r[1].slice(1)]: v } : {} };
@@ -363,6 +420,15 @@ export function goTemplate(format: string, data: unknown): { text: string } | { 
         }
         continue;
       }
+      // E24: println and print (Go's fmt.Sprintln and Sprint of the operands).
+      const pr = opts.funcs ? /^(println|print)(?:\s+(.*))?$/.exec(a) : null;
+      if (pr) {
+        const vals: unknown[] = [];
+        for (const w of words(pr[2] ?? '')) { const v = operand(w, s); if ('error' in v) return v; vals.push(v.v); }
+        const texts = vals.map(v => typeof v === 'string' ? v : goValue(v));
+        out += pr[1] === 'println' ? `${texts.join(' ')}\n` : texts.reduce((acc, t, k) => acc + (k && typeof vals[k] !== 'string' && typeof vals[k - 1] !== 'string' ? ' ' : '') + t, '');
+        continue;
+      }
       const j = /^json\s+(.+)$/.exec(a);
       const v = evalExpr(j ? j[1] : a, s);
       if ('error' in v) return v;
@@ -370,7 +436,8 @@ export function goTemplate(format: string, data: unknown): { text: string } | { 
     }
     return stop ? { error: 'template: :1: unexpected EOF' } : { text: out };
   };
-  return block({ dot: data, vars: { '': data } }, false);
+  const r = block({ dot: data, vars: { '': data } }, false);
+  return 'error' in r ? r : { text: r.text };
 }
 /** Prints inspect objects: JSON (four spaces), or each one through the template; the status. */
 export function printObjects(x: Pick<E22Cli, 'out' | 'err'>, objects: readonly Record<string, unknown>[], format: string | undefined): number {

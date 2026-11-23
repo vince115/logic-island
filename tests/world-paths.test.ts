@@ -129,8 +129,9 @@ describe('activity registry (F.0)', () => {
     expect(of('lab').every(a => a.availability === 'implemented' && a.subjects[0] === 'labs')).toBe(true);
     // One entry per activity the lessons name that is not an existing visualization (61 for the CS and AI plan).
     // RWD-1: and one per activity of an implemented tool lab, which stays when its lessons are written with another
-    // activity (the Flexbox Playground, whose two lessons are web-code lessons).
-    const ofLabs = labRegistry.filter(l => l.kind === 'tool' && l.status === 'implemented').flatMap(l => l.activities);
+    // activity (the Flexbox Playground, whose two lessons are web-code lessons). DKR-5: a planned tool lab's activity stays
+    // too (the Docker Container Playground: DKR03–DKR14 were outlined with container-playground and written as terminal-sim).
+    const ofLabs = labRegistry.filter(l => l.kind === 'tool').flatMap(l => l.activities);
     const named = new Set([...catalogLessons.map(l => l.activity), ...ofLabs].filter(id => id !== 'none' && !(id in visualizations)));
     expect(of('activity').map(a => a.id).sort()).toEqual([...named].sort());
     // Phase F.1a: the SQL playground is implemented (the written database lessons use it); F.1b adds the ER builder and

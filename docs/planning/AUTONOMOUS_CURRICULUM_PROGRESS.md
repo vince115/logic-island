@@ -13,7 +13,7 @@
 
 ## 總覽
 
-已發布 **225／520**（43.3%）；規劃中 295。
+已發布 **228／520**（43.8%）；規劃中 292。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
@@ -21,11 +21,11 @@
 | AI 人工智慧群島 | 25 | 135 | 15.6% |
 | 數位設計群島 | 0 | 56 | 0.0% |
 | 網頁與應用開發群島 | 40 | 15 | 72.7% |
-| 系統與雲端工程群島 | 40 | 49 | 44.9% |
+| 系統與雲端工程群島 | 43 | 46 | 48.3% |
 
 ## 下一批（自動選擇）
 
-**Docker 容器島（DKR）**：DKR12 容器安全、DKR13 容器除錯、DKR14 健康檢查、資源限制與優雅關閉、DKR15 Docker 容器島綜合專題：容器化並準備上線。島嶼能力：已備妥（可開始撰寫）；這幾堂解鎖其他島的 0 堂。
+**Docker 容器島（DKR）**：DKR15 Docker 容器島綜合專題：容器化並準備上線。島嶼能力：已備妥（可開始撰寫）；這幾堂解鎖其他島的 0 堂。
 
 能力缺口中最優先的是 **機器學習島（ML）**：需要 python-code + data-explorer (fixed datasets, metrics computed in the browser)；先修已滿足、可依序撰寫的有 25 堂，前 5 堂解鎖其他島的 39 堂。
 
@@ -59,7 +59,7 @@
 | 網頁與應用開發群島 | 響應式設計島（RWD） | 12／12 | web-code with preview widths and the resize step (one answer checked at several viewport widths); the standalone labs stay as further practice | 可用 | 全島完成 | — |
 | 網頁與應用開發群島 | 行動應用島（MOB） | 13／13 | web-code at phone sizes: pointer steps with modelled capture, touch targets measured with at least and at most, dialogs; analysis lessons are cases a learner repairs on a page | 可用 | 全島完成 | — |
 | 系統與雲端工程群島 | Linux 系統島（LNX） | 15／15 | terminal (machines as data, transcripts replayed to their exact output, exercises checked by replaying the learner's commands in the simulated shell) | 可用 | 全島完成 | — |
-| 系統與雲端工程群島 | Docker 容器島（DKR） | 11／15 | terminal (engine stage E20 containers: images, the container lifecycle, a simulated Docker Hub, published ports, the docker group; then E21-E24) + network-protocol scenes; container-playground and case-study-board map to terminal-sim, architecture-diagram and pipeline-diagram to network-sequence | 已備妥（可開始撰寫） | DKR12–DKR15（4 堂） | — |
+| 系統與雲端工程群島 | Docker 容器島（DKR） | 14／15 | terminal (engine stage E20 containers: images, the container lifecycle, a simulated Docker Hub, published ports, the docker group; then E21-E24) + network-protocol scenes; container-playground and case-study-board map to terminal-sim, architecture-diagram and pipeline-diagram to network-sequence | 已備妥（可開始撰寫） | DKR15–DKR15（1 堂） | — |
 | 系統與雲端工程群島 | 網路與伺服器島（SRV） | 14／14 | terminal (engine stages E10 sockets, E11 dns, E12 http, then E13-E19) + network-protocol scenes; request-path and architecture-diagram map to network-sequence | 可用 | 全島完成 | — |
 | 系統與雲端工程群島 | 雲端基礎設施島（CLD） | 0／15 | architecture simulation | 缺少 | CLD01–CLD15（15 堂） | 缺少課程能力 |
 | 系統與雲端工程群島 | DevOps 與 CI/CD 島（CICD） | 0／15 | pipeline simulation | 缺少 | CICD01–CICD15（15 堂） | 缺少課程能力 |
@@ -689,10 +689,10 @@
 | DKR09 | Docker Compose 多容器應用 | 已發布（閘門通過） | DKR07、DKR08 | terminal-sim | — |
 | DKR10 | 多階段建置 | 已發布（閘門通過） | DKR06 | terminal-sim | — |
 | DKR11 | Container Registry 與版本標籤 | 已發布（閘門通過） | DKR05 | network-sequence | — |
-| DKR12 | 容器安全 | 大綱 | DKR10、LNX07 | case-study-board | — |
-| DKR13 | 容器除錯 | 大綱 | DKR09、LNX11 | container-playground | — |
-| DKR14 | 健康檢查、資源限制與優雅關閉 | 待先修 | DKR13 | container-playground | 先修 DKR13 |
-| DKR15 | Docker 容器島綜合專題：容器化並準備上線 | 待先修 | DKR11、DKR12、DKR14 | challenge-stages | 先修 DKR12、DKR14 |
+| DKR12 | 容器安全 | 已發布（閘門通過） | DKR10、LNX07 | terminal-sim | — |
+| DKR13 | 容器除錯 | 已發布（閘門通過） | DKR09、LNX11 | terminal-sim | — |
+| DKR14 | 健康檢查、資源限制與優雅關閉 | 已發布（閘門通過） | DKR13 | terminal-sim | — |
+| DKR15 | Docker 容器島綜合專題：容器化並準備上線 | 大綱 | DKR11、DKR12、DKR14 | challenge-stages | — |
 
 ### 系統與雲端工程群島 · 網路與伺服器島（SRV）
 
