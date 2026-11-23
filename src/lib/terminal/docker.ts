@@ -4,7 +4,7 @@ import { clockOf, nextPid, tableOf, type Proc } from './processes';
 import { sha256 } from './ssh';
 import { listenersOf, reach } from './sockets';
 import type { Request, Responder, Response } from './http';
-import { commandNames, runInput, tokenize, type CommandName, type ShellProfile } from './shell';
+import { advanceClock, commandNames, runInput, tokenize, type CommandName, type ShellProfile } from './shell';
 import { scriptCommandNames } from './script';
 import { accountsOf as imageAccounts, build, chainOf, historyOf, imageFs, layerSizesOf, rootfsOf, userOf, type BuildHooks, type BuildResult, type CacheEntry, type ImagePackages, type Weight } from './build';
 import type { PackageDb } from './packages';
@@ -16,6 +16,11 @@ import { goTemplate, networkCli, POINTERS, STRUCTS, volumeCli, type E22Cli } fro
 import { advanceHealth, activeTest, healthConfigJson, healthJson, healthSuffix, parseDuration, startHealth, type HealthConfig, type HealthState } from './health';
 import { composeCommand } from './compose';
 import { digestRefOf, loginCommand, logoutCommand, pullAny, pushCommand, tagCommand, type DigestRef, type DockerRegistry, type RegistryCli } from './registry';
+import {
+  afterExit, capsOf, composeEvents, dieAttrs, emit, eventsCommand, inspectRuntime, killCommand, logsBetween, nanoText, normalizeCap, parseBytes, processesOf, psRowsOf, restartProblem, RUNTIME_STAGE,
+  schedule, settleRuntime, signalNumber, startEvents, startFailure, stateOf, statsCommand, stopCommand, timeArg, topCommand, updateCommand, waitCommand,
+  type DockerEvent, type Limits, type RuntimeCli, type RuntimeSpec,
+} from './runtime';
 
 /*
  * Engine stage E20 (docs/curriculum/DKR0_CONTAINER_CAPABILITY.md §5): containers. A machine of the containers profile may
@@ -108,6 +113,9 @@ export interface DockerImage {
   ready?: number;
   /** E23: pulled by digest (name@sha256:…): it has a repository but no tag (docker images shows TAG <none>). */
   digestOnly?: true;
+  /** E24: its STOPSIGNAL, and what its main process does over time (the lesson's declaration). */
+  stopSignal?: string;
+  runtime?: RuntimeSpec;
 }
 /** E21: a row of docker history (CREATED BY as BuildKit records it; empty: a config change, no layer). */
 export interface HistoryRow { created: Seconds; createdBy: string; size: number; empty: boolean; comment: string }
@@ -126,6 +134,8 @@ export interface DockerProgram {
   http?: { port: number; responder: Responder; accessLog?: 'nginx' };
   /** E23: seconds after the start before its service accepts connections. */
   ready?: number;
+  /** E24: what it does over time (needs, exits, memory, signals…). */
+  runtime?: RuntimeSpec;
 }
 export interface PortBinding { hostIp: string; host: number; container: number; proto: 'tcp' | 'udp' }
 export type ContainerStatus = 'created' | 'running' | 'exited';
@@ -177,6 +187,32 @@ export interface DockerContainer {
   readyAt?: Seconds;
   labels?: Readonly<Record<string, string>>;
   restart?: string;
+  /**
+   * E24 (the runtime profile): its limits; the restart manager's count, backoff (ms) and the time it starts again (restarting);
+   * stopped by hand (docker kill: unless-stopped does not restart it); the OOM kill and the start error of its last run; what its
+   * main process does (spec) and its planned exit (plan), and the end that comes first (endsAt with endExit, endOom, endLogs);
+   * its stop signal and timeout, --init, and the security options.
+   */
+  limits?: Limits;
+  restartCount?: number;
+  backoff?: number;
+  restartAt?: Seconds;
+  manualStop?: true;
+  oomKilled?: true;
+  error?: string;
+  spec?: RuntimeSpec;
+  plan?: { t: Seconds; exit: number; logs: readonly LogSeed[] };
+  endExit?: number;
+  endOom?: true;
+  endLogs?: readonly LogSeed[];
+  stopSignal?: string;
+  stopTimeout?: number;
+  init?: true;
+  readOnly?: true;
+  capAdd?: string[];
+  capDrop?: string[];
+  securityOpt?: string[];
+  privileged?: true;
 }
 export interface DockerState {
   images: readonly DockerImage[];
@@ -201,6 +237,9 @@ export interface DockerState {
   repoDigests?: Readonly<Record<string, readonly string[]>>;
   /** E23: what a RUN step's build tools do (go build, npm run build): the files they write in the build container. */
   tools?: readonly BuildTool[];
+  /** E24 (the runtime profile): restart policies, limits, signals and the daemon's container events. */
+  runtime?: true;
+  events?: readonly DockerEvent[];
 }
 /** E23: a build tool a lesson declares: a RUN command (its exact words) and the files it writes (relative to WORKDIR or absolute). */
 export interface BuildTool {
@@ -409,7 +448,7 @@ const withNetFiles = (host: FsState, d: DockerState, c: DockerContainer): Docker
   return { ...c, nodes };
 };
 /** E22: a container that stops loses its addresses and what its tmpfs mounts held (E20's containers are unchanged). */
-const stopped = (c: DockerContainer): DockerContainer => { if (!c.networks && !c.tmpfs) return c; const { tmpfs: _t, ...rest } = releaseAddresses(c); void _t; return rest; };
+export const stopped = (c: DockerContainer): DockerContainer => { if (!c.networks && !c.tmpfs) return c; const { tmpfs: _t, ...rest } = releaseAddresses(c); void _t; return rest; };
 /** E22: a removed container's anonymous volumes go with it (docker rm -v, and --rm). */
 export function dropAnonymous(state: FsState, d: DockerState, c: DockerContainer): { state: FsState; d: DockerState } {
   const gone = (c.mounts ?? []).filter(m => m.anonymous && m.type === 'volume' && !d.containers.some(o => o.id !== c.id && (o.mounts ?? []).some(x => x.source === m.source))).map(m => m.source);
@@ -485,6 +524,11 @@ export function runIn(c: DockerContainer, img: DockerImage | undefined, argv: re
       const row = (pid: number, comm: string) => `${String(pid).padStart(7)} ?        00:00:00 ${comm.slice(0, 15)}`;
       // Fix (E20): ps as the container's main process is PID 1 and the only process.
       if (o.main) return done([{ stream: 1, text: '    PID TTY          TIME CMD' }, { stream: 1, text: row(1, 'ps') }]);
+      // E24: PID 1 may be /bin/sh -c (a shell-form CMD) or docker-init (--init), with the program under it as PID 7.
+      if (o.host?.docker?.runtime) {
+        const kids = psRowsOf(c), mine = 6 + kids.length + c.execs;
+        return done([{ stream: 1, text: '    PID TTY          TIME CMD' }, ...kids.map((k, n) => ({ stream: 1 as const, text: row(n ? 6 + n : 1, k) })), { stream: 1, text: row(mine, 'ps') }]);
+      }
       const main = mainCommand(c), self = 7 + c.execs;
       return done([{ stream: 1, text: '    PID TTY          TIME CMD' }, { stream: 1, text: row(1, main) }, { stream: 1, text: row(self, 'ps') }]);
     }
@@ -519,6 +563,11 @@ export function runIn(c: DockerContainer, img: DockerImage | undefined, argv: re
       if (missing) return done([{ stream: 2, text: `${name}: 1: ${missing}: not found` }], 127);
       return shellLine(c, line, { ...o, system: systemOf(img, o.system), busybox: isAlpine(img) });
     }
+  }
+  // E24: without CAP_CHOWN (--cap-drop CHOWN or ALL) root cannot give files away: chown and chgrp fail (EPERM).
+  if ((name === 'chown' || name === 'chgrp') && o.host?.docker?.runtime && (c.user ?? 'root').split(':')[0] === 'root' && !capsOf(c).has('CAP_CHOWN')) {
+    const files = rest.filter(a => !a.startsWith('-')).slice(1);
+    if (files.length) return done(files.map(f => ({ stream: 2 as const, text: `${name}: changing ${name === 'chown' ? 'ownership' : 'group'} of '${f}': Operation not permitted` })), 1);
   }
   return shellLine(c, [name, ...rest].map(quoteArg).join(' '), { ...o, system: systemOf(img, o.system), busybox: isAlpine(img) });
 }
@@ -577,10 +626,19 @@ function shellLine(c: DockerContainer, line: string, o: { tty: boolean; workdir?
   if (!e22) return { lines, status: lines.some(l => l.stream === 2) ? 1 : 0, nodes: r.state.nodes };
   // E22: what changed under a mount goes back to the host (never through a read-only mount); the services' access lines too.
   const u = unmount(e22, c, r.state.nodes), logs = peerLogs(r.state, e22.docker!);
-  if (u.refused) lines.push({ stream: 2, text: readOnlyError(line, u.refused, cwd) });
+  // E24: --read-only: the container's own layer does not change (its tmpfs, volumes and bind mounts do; Docker's /etc/hosts,
+  // /etc/hostname and /etc/resolv.conf are bind mounts too), and the command gets EROFS.
+  let refused = u.refused, own = u.nodes;
+  if (c.readOnly && e22.docker?.runtime) {
+    const docker = new Set(['/etc/hosts', '/etc/hostname', '/etc/resolv.conf']);
+    const same = (a: FsNode | undefined, b: FsNode) => !!a && a.kind === b.kind && a.mode === b.mode && a.owner === b.owner && a.group === b.group && (a.content ?? '') === (b.content ?? '') && (a.target ?? '') === (b.target ?? '');
+    const changed = [...u.nodes].find(([p, n]) => !docker.has(p) && !same(c.nodes.get(p), n))?.[0] ?? [...c.nodes.keys()].find(p => !docker.has(p) && !u.nodes.has(p));
+    if (changed !== undefined) { refused ??= changed; own = c.nodes; }
+  }
+  if (refused) lines.push({ stream: 2, text: readOnlyError(line, refused, cwd) });
   // Each command's own exit status (curl 7, ping 1, getent 2, ls 2…), as the shell's $? has it.
-  const status = u.refused ? 1 : r.state.status ?? (lines.some(l => l.stream === 2) ? 1 : 0);
-  return { lines, status, nodes: u.nodes, hostNodes: u.hostNodes, ...u.tmpfs ? { tmpfs: u.tmpfs } : {}, ...Object.keys(logs).length ? { logs } : {} };
+  const status = refused ? 1 : r.state.status ?? (lines.some(l => l.stream === 2) ? 1 : 0);
+  return { lines, status, nodes: own, hostNodes: u.hostNodes, ...u.tmpfs ? { tmpfs: u.tmpfs } : {}, ...Object.keys(logs).length ? { logs } : {} };
 }
 /**
  * E22: the groups of a container's process: -u USER:GROUP names the group (a name of the image's /etc/group or a number);
@@ -680,7 +738,14 @@ export function syncDocker(state: FsState): FsState {
     const uid = name === 'root' || name === '0' ? 'root' : /^\d+$/.test(name) ? name : (c.nodes.get('/etc/passwd')?.content ?? '').split('\n').map(l => l.split(':')).find(f => f[0] === name)?.[2] ?? name;
     // E22: with --network host the main process listens on the host's ports itself (ss -tlnp shows it).
     const own = modeOf(c) === 'host' ? hostServed(d, c) : undefined;
-    table.push({ pid: ++last, ppid: shim, user: uid, command: effective(c).join(' ') || c.path, stat: 'Ss', cpu: 0, rss: 4096, vsz: 8192, shr: 2048, tty: '?', start: c.started ?? now, time: 0, nice: 0, ...own?.listen.length ? { listen: own.listen } : {} });
+    // E24: docker-init (--init) or /bin/sh -c (a shell-form CMD) is the shim's child, and the program is its child.
+    const chain = d.runtime ? processesOf(c) : [{ command: effective(c).join(' ') || c.path }];
+    let parent = shim;
+    chain.forEach((p, k) => {
+      const pid = ++last, lastOne = k === chain.length - 1;
+      table.push({ pid, ppid: parent, user: uid, command: p.command, stat: 'Ss', cpu: 0, rss: 4096, vsz: 8192, shr: 2048, tty: '?', start: c.started ?? now, time: 0, nice: 0, ...lastOne && own?.listen.length ? { listen: own.listen } : {} });
+      parent = pid;
+    });
   }
   if (modeOf(c) === 'host') responders.push(...hostServed(d, c).responders);
   }
@@ -691,6 +756,8 @@ export function syncDocker(state: FsState): FsState {
 /** Containers whose sleep has ended by now exit (0); --rm ones are removed. Then the host's proxies follow. */
 export function settleDocker(state0: FsState): FsState {
   if (!state0.docker) return state0;
+  // E24: the runtime's own settle (planned exits, OOM kills and restarts, in time order).
+  if (state0.docker.runtime) return settleRuntime(state0);
   // E23: the health probes that were due by now (before a container that ended its sleep is seen as exited).
   const state = state0.docker.compose ? advanceHealth(state0) : state0, d = state.docker!;
   const now = clockOf(state).now;
@@ -712,7 +779,9 @@ export type Started = { c: DockerContainer; lines: Outcome['lines']; hostNodes?:
  * program's) `ready` seconds.
  */
 export function start(state: FsState, d: DockerState, c0: DockerContainer, now: Seconds): Started {
-  const s = startProcess(state, d, c0, now);
+  let s = startProcess(state, d, c0, now);
+  // E24: its planned end and the OOM kill; an exit right away goes to the restart policy; a start error is State.Error.
+  if (d.runtime) s = runtimeStarted(state, s, now);
   if (!d.compose || 'error' in s) return s;
   const { health: _h, readyAt: _r, ...c } = s.c;
   void _h; void _r;
@@ -721,10 +790,37 @@ export function start(state: FsState, d: DockerState, c0: DockerContainer, now: 
   const ready = prog ? prog.ready : !c.custom && !img?.ownMain ? img?.ready : undefined;
   return { ...s, c: { ...c, ...activeTest(c.healthcheck) ? { health: startHealth(c.healthcheck, now) } : {}, ...ready ? { readyAt: now + ready } : {} } };
 }
+/** E24: a container that started (or failed to): its schedule (planned exit, OOM kill), an OOM at once, the restart policy. */
+function runtimeStarted(state: FsState, s: Started, now: Seconds): Started {
+  if ('error' in s) return { ...s, c: { ...s.c, error: s.error.replace(/^Error response from daemon: /, '') } };
+  let c = s.c;
+  if (c.status === 'running') {
+    const after = c.spec?.exitAfter, at = (secs: number) => Math.round(now * 1000 + secs * 1000) / 1000;
+    const plan = c.endsAt !== undefined ? { t: c.endsAt, exit: 0, logs: [] } : after ? { t: at(after.seconds), exit: after.exit, logs: after.logs } : undefined;
+    c = schedule(state, { ...c, ...plan ? { plan } : {} });
+    if (c.endsAt !== undefined && c.endsAt <= now) c = exitAtNow(c, now);
+    return { ...s, c };
+  }
+  // A program that printed and exited: over the memory limit at its start it is OOM-killed instead.
+  const limit = c.limits?.memory, m = c.spec?.memory;
+  if (c.status === 'exited' && limit !== undefined && m && m.start > limit) c = { ...c, exitCode: 137, oomKilled: true };
+  return { ...s, c: c.status === 'exited' ? afterExit(c, now) : c };
+}
+/** E24: a scheduled end that is due at once (an exit after 0 seconds, an OOM kill at the start). */
+function exitAtNow(c: DockerContainer, now: Seconds): DockerContainer {
+  const { endsAt: _e, endExit: _x, endOom: _o, endLogs: _l, plan: _p, ...rest } = c;
+  void _e; void _x; void _o; void _l; void _p;
+  const ended = stopped({ ...rest, status: 'exited', exitCode: c.endExit ?? 0, finished: now, ip: undefined, logs: [...c.logs, ...seedLines(c.endLogs ?? [], now)], ...c.endOom ? { oomKilled: true as const } : {} });
+  return afterExit(ended, now);
+}
 function startProcess(state: FsState, d: DockerState, c0: DockerContainer, now: Seconds): Started {
   const img = imageById(d, c0.image);
-  const { http: _old, stopExit: _stop, ...rest0 } = c0;
+  const { http: _old, stopExit: _stop, ...rest1 } = c0;
   void _old; void _stop;
+  // E24: what the last run left (its schedule, OOM kill, error and spec) goes; a restart keeps the count and the backoff.
+  const { spec: _sp, plan: _pl, endExit: _ex, endOom: _eo, endLogs: _el, oomKilled: _oo, error: _er, restartAt: _ra, endsAt: _ea, ...rest2 } = rest1;
+  void _sp; void _pl; void _ex; void _eo; void _el; void _oo; void _er; void _ra; void _ea;
+  const rest0 = d.runtime ? rest2 : rest1;
   let c: DockerContainer = { ...rest0, started: now };
   const why = bindProblem(state, d, c);
   if (why) return { error: `Error response from daemon: ${why}`, status: 125, c: c0 };
@@ -741,6 +837,22 @@ function startProcess(state: FsState, d: DockerState, c0: DockerContainer, now: 
   const running = (lines: Outcome['lines'], extra: Partial<DockerContainer> = {}): Started => ({ c: { ...c, status: 'running', exitCode: 0, finished: undefined, endsAt: undefined, ...extra, logs: [...c.logs, ...lines.map(l => ({ ...l, t: now }))] }, lines });
   const exited = (lines: Outcome['lines'], status: number, nodes = c.nodes): Started => ({ c: stopped({ ...c, nodes, status: 'exited', exitCode: status, finished: now, ip: undefined, endsAt: undefined, logs: [...c.logs, ...lines.map(l => ({ ...l, t: now }))] }), lines });
   const name = argv[0]?.slice(argv[0].lastIndexOf('/') + 1);
+  // E24: PID 1 must exist: a path (absolute or relative) that is neither one of the image's executables, a file of the
+  // container nor a program the lesson declares is runc's stat error — the shell of a shell-form CMD on an image without
+  // /bin/sh (distroless, scratch) too. The image's own main process is the lesson's declaration and is not checked.
+  const imageMain = !!img && !c.custom && !img.ownMain;
+  if (d.runtime && !imageMain && argv[0]?.includes('/') && !(img?.commands ?? IMAGE_COMMANDS).includes(name ?? '')) {
+    const seen = e22 ? mountedNodes(e22, c) : c.nodes, abs = argv[0].startsWith('/') ? argv[0] : `${c.workdir === '/' ? '' : c.workdir}/${argv[0].replace(/^\.\//, '')}`;
+    const direct = (d.programs ?? []).some(p => p.command.length === argv.length && p.command.every((w, i) => w === argv[i]));
+    if (!seen.has(abs) && !direct) {
+      const msg = `Error response from daemon: failed to create task for container: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: "${argv[0]}": stat ${argv[0]}: no such file or directory: unknown`;
+      return { error: msg, status: 127, c: { ...c0, exitCode: 127 } };
+    }
+  }
+  // E24: the program's (or the image's own) spec: what it needs at its start, and what it does over time.
+  const spec = d.runtime ? imageMain ? img!.runtime : programFor(d, argv)?.runtime : undefined;
+  if (spec) c = { ...c, spec };
+  if (d.runtime) { const f = startFailure(state, d, c, spec); if (f) return exited(f.lines, f.exit); }
   // A shell without -c (ubuntu's and alpine's CMD too): it reads its standard input; without -i that is empty and it exits at once.
   if ((name === 'sh' || name === 'bash') && argv.length === 1 && (img?.commands ?? IMAGE_COMMANDS).includes(name)) return c.interactive ? running([]) : exited([], 0, c.nodes);
   // E22: with --network host the service listens on the host's ports; one already taken there stops it.
@@ -775,18 +887,21 @@ function startProcess(state: FsState, d: DockerState, c0: DockerContainer, now: 
   return { ...exited(r.lines, r.status, r.nodes), ...more };
 }
 /** E21: the declared program a command line is (exactly its words; a shell form's /bin/sh -c line too). */
-function programFor(d: DockerState, argv: readonly string[]): DockerProgram | undefined {
+export function programFor(d: DockerState, argv: readonly string[]): DockerProgram | undefined {
   const same = (a: readonly string[]) => (d.programs ?? []).find(p => p.command.length === a.length && p.command.every((w, i) => w === a[i]));
   const name = argv[0]?.slice(argv[0].lastIndexOf('/') + 1);
-  if ((name === 'sh' || name === 'bash') && argv[1] === '-c' && argv.length === 3) {
+  if ((name === 'sh' || name === 'bash') && argv[1] === '-c' && (argv.length === 3 || (d.runtime && argv.length > 3))) {
     const t = tokenize(argv[2].replace(/^exec\s+/, ''));
     if ('words' in t && !/[|<>;&`$]/.test(argv[2])) return same(t.words);
   }
   return same(argv);
 }
 /** docker stop: SIGTERM; a server exits 0 (or its stopExit), a process that ignores SIGTERM as PID 1 is killed after 10 s (137). */
-export function stop(c: DockerContainer, img: DockerImage | undefined, now: Seconds): DockerContainer {
-  const isServer = !!img?.service && !c.custom && !img.ownMain;
+export function stop(c0: DockerContainer, img: DockerImage | undefined, now: Seconds): DockerContainer {
+  const isServer = !!img?.service && !c0.custom && !img.ownMain;
+  // E24: a stopped container has no planned end and no pending restart (E20–E23's containers have neither).
+  const { restartAt: _r, plan: _p, endExit: _x, endOom: _o, endLogs: _l, ...c } = c0;
+  void _r; void _p; void _x; void _o; void _l;
   // E21: a declared program's exit status after docker stop is the lesson's (default 137: PID 1 without a SIGTERM handler).
   return stopped({ ...c, status: 'exited', exitCode: c.stopExit ?? (isServer ? img?.stopExit ?? 0 : img?.stopExit ?? 137), finished: now, ip: undefined, endsAt: undefined });
 }
@@ -801,6 +916,8 @@ export interface DockerIo {
   storageNet?: boolean;
   /** E23 (the compose profile): docker compose, health checks, multi-stage builds, docker tag, login, logout, push and pull by digest. */
   compose?: boolean;
+  /** E24 (the runtime profile): limits, restart policies, signals, stats, top, kill, update, wait, events and inspect's runtime fields. */
+  runtime?: boolean;
 }
 export type DockerResult = { state: FsState; status: number };
 
@@ -816,7 +933,12 @@ const USAGE: Record<string, [string, string]> = {
   volume: ['COMMAND', 'Manage volumes'], network: ['COMMAND', 'Manage networks'],
   tag: ['SOURCE_IMAGE[:TAG] TARGET_IMAGE[:TAG]', 'Create a tag TARGET_IMAGE that refers to SOURCE_IMAGE'], push: ['[OPTIONS] NAME[:TAG]', 'Upload an image to a registry'],
   login: ['[OPTIONS] [SERVER]', 'Log in to a registry'], logout: ['[SERVER]', 'Log out from a registry'], compose: ['[OPTIONS] COMMAND', 'Docker Compose'],
+  kill: ['[OPTIONS] CONTAINER [CONTAINER...]', 'Kill one or more running containers'], stats: ['[OPTIONS] [CONTAINER...]', 'Display a live stream of container(s) resource usage statistics'],
+  top: ['CONTAINER [ps OPTIONS]', 'Display the running processes of a container'], update: ['[OPTIONS] CONTAINER [CONTAINER...]', 'Update configuration of one or more containers'],
+  wait: ['CONTAINER [CONTAINER...]', 'Block until one or more containers stop, then print their exit codes'], events: ['[OPTIONS]', 'Get real time events from the server'],
 };
+/** E24: what the runtime profile adds (below it these say engine stage E24). */
+const E24_COMMANDS = ['events', 'kill', 'stats', 'top', 'update', 'wait'];
 /** E23: what the compose profile adds (below it these say engine stage E23). */
 const E23_COMMANDS = ['compose', 'tag', 'push', 'login', 'logout'];
 /** E21: what the images profile adds (below it these say engine stage E21). */
@@ -856,17 +978,20 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
     ['', 'Usage:  docker [OPTIONS] COMMAND', '', 'A self-sufficient runtime for containers', '', 'Common Commands:'].forEach(out);
     for (const c of ['run', 'exec', 'ps', 'images', 'pull', ...io.images ? ['build'] : [], ...io.compose ? ['push', 'login', 'logout'] : [], 'version', 'info']) out(`  ${c.padEnd(12)}${c === 'build' ? 'Build an image from a Dockerfile' : USAGE[c][1]}`);
     out(''); out('Commands:');
-    for (const c of ['history', 'inspect', 'logs', 'port', 'restart', 'rm', 'rmi', 'start', 'stop', ...io.compose ? ['tag'] : []].filter(c => c !== 'history' || io.images)) out(`  ${c.padEnd(12)}${USAGE[c][1]}`);
+    const listed = ['history', 'inspect', 'logs', 'port', 'restart', 'rm', 'rmi', 'start', 'stop', ...io.compose ? ['tag'] : []].filter(c => c !== 'history' || io.images);
+    // E24: events, kill, stats, top, update and wait (docker's own list is alphabetical).
+    for (const c of io.runtime ? [...listed, ...E24_COMMANDS].sort() : listed) out(`  ${c.padEnd(12)}${USAGE[c][1]}`);
     // E22: the management commands volume and network (E23: and compose).
     if (io.storageNet) { out(''); out('Management Commands:'); for (const c of [...io.compose ? ['compose'] : [], 'network', 'volume']) out(`  ${c.padEnd(12)}${USAGE[c][1]}`); }
-    out(''); out(io.compose ? '（模擬環境只支援上面這些指令，以及 docker container ls|prune、docker image ls|pull|push|tag|rm|build|history|prune、docker volume create|ls|inspect|rm|prune、docker network create|ls|inspect|connect|disconnect|rm|prune 與 docker compose up|down|ps|logs|exec|build|config|start|stop|restart|pull|ls）' : io.storageNet ? '（模擬環境只支援上面這些指令，以及 docker container ls|prune、docker image ls|pull|rm|build|history|prune、docker volume create|ls|inspect|rm|prune 與 docker network create|ls|inspect|connect|disconnect|rm|prune）' : io.images ? '（模擬環境只支援上面這些指令，以及 docker container ls|prune 與 docker image ls|pull|rm|build|history|prune）' : '（模擬環境只支援上面這些指令，以及 docker container ls|prune 與 docker image ls|pull|rm）');
+    out(''); out(io.runtime ? '（模擬環境只支援上面這些指令，以及 docker container ls|prune|inspect|kill|stats|top|update|wait、docker image ls|pull|push|tag|rm|build|history|prune|inspect、docker volume create|ls|inspect|rm|prune、docker network create|ls|inspect|connect|disconnect|rm|prune 與 docker compose up|down|ps|logs|exec|build|config|start|stop|restart|pull|ls）' : io.compose ? '（模擬環境只支援上面這些指令，以及 docker container ls|prune、docker image ls|pull|push|tag|rm|build|history|prune、docker volume create|ls|inspect|rm|prune、docker network create|ls|inspect|connect|disconnect|rm|prune 與 docker compose up|down|ps|logs|exec|build|config|start|stop|restart|pull|ls）' : io.storageNet ? '（模擬環境只支援上面這些指令，以及 docker container ls|prune、docker image ls|pull|rm|build|history|prune、docker volume create|ls|inspect|rm|prune 與 docker network create|ls|inspect|connect|disconnect|rm|prune）' : io.images ? '（模擬環境只支援上面這些指令，以及 docker container ls|prune 與 docker image ls|pull|rm|build|history|prune）' : '（模擬環境只支援上面這些指令，以及 docker container ls|prune 與 docker image ls|pull|rm）');
     return result(0);
   }
   if (args[0] === '--version' || args[0] === '-v') { out(`Docker version ${DOCKER_VERSION}, build ${DOCKER_BUILD}`); return result(0); }
   // Management commands (docker container rm, docker image ls) are the same commands.
   let path = 'docker', sub = args[0], rest = args.slice(1);
   const MANAGED: Record<string, Record<string, string>> = {
-    container: { ls: 'ps', list: 'ps', ps: 'ps', run: 'run', exec: 'exec', logs: 'logs', start: 'start', stop: 'stop', restart: 'restart', rm: 'rm', remove: 'rm', prune: 'prune', port: 'port', inspect: 'inspect' },
+    container: { ls: 'ps', list: 'ps', ps: 'ps', run: 'run', exec: 'exec', logs: 'logs', start: 'start', stop: 'stop', restart: 'restart', rm: 'rm', remove: 'rm', prune: 'prune', port: 'port', inspect: 'inspect',
+      ...io.runtime ? { kill: 'kill', stats: 'stats', top: 'top', update: 'update', wait: 'wait' } : {} },
     image: { ls: 'images', list: 'images', pull: 'pull', rm: 'rmi', remove: 'rmi', inspect: 'inspect', ...io.images ? E21_MANAGED.image : {}, ...io.compose ? { tag: 'tag', push: 'push' } : {} },
     ...io.images ? { buildx: E21_MANAGED.buildx, builder: E21_MANAGED.builder } : {},
   };
@@ -883,9 +1008,12 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
   else path = `docker ${sub}`;
   if (io.images && sub === 'commit') { err('docker commit：模擬環境不支援（請寫成 Dockerfile，用 docker build 建置）'); return result(1); }
   if (io.storageNet && sub === 'cp') { err('docker cp：模擬環境不支援（請用 bind mount 或 Volume 在主機與容器之間交換檔案，或用 docker exec 容器 cat 檔案）'); return result(1); }
-  const e22Command = io.storageNet && (sub === 'volume' || sub === 'network'), e23Command = io.compose && E23_COMMANDS.includes(sub);
+  const e22Command = io.storageNet && (sub === 'volume' || sub === 'network'), e23Command = io.compose && E23_COMMANDS.includes(sub), e24Command = io.runtime && E24_COMMANDS.includes(sub);
+  // E24: pause is not modelled; vulnerability scanners are left to the lesson's text (or a report file it provides).
+  if (io.runtime && (sub === 'pause' || sub === 'unpause')) { err(`docker ${sub}：模擬環境不支援（暫停的容器在真實的 Docker 是 Up … (Paused)，它的行程收到 SIGSTOP 的 cgroup freezer；請在課文說明）`); return result(1); }
+  if (io.runtime && sub === 'scout') { err('docker scout：模擬環境不模擬弱點掃描工具（掃描的結果依資料庫與時間而不同）；課程可以提供一份掃描報告的檔案，用 cat 閱讀'); return result(1); }
   if (io.compose && sub === 'search') { err('docker search：模擬環境不支援（課程的 Registry 不提供搜尋；請直接寫出 Image 的名稱）'); return result(1); }
-  if (LATER[sub] && !(io.images && (sub === 'build' || sub === 'history')) && !e22Command && !e23Command) { err(`docker ${sub}：模擬環境在引擎階段 ${LATER[sub]} 才支援`); return result(1); }
+  if (LATER[sub] && !(io.images && (sub === 'build' || sub === 'history')) && !e22Command && !e23Command && !e24Command) { err(`docker ${sub}：模擬環境在引擎階段 ${LATER[sub]} 才支援`); return result(1); }
   if (!USAGE[sub]) { err(`docker: '${sub}' is not a docker command.`); err("See 'docker --help'"); return result(1); }
   const usageError = (line: string) => { err(line); err(`See '${path} --help'.`); err(''); err(`Usage:  ${path} ${USAGE[sub][0]}`); err(''); err(USAGE[sub][1]); return result(1); };
   const needArgs = (min: number, exact = false) => usageError(`"${path}" requires ${exact ? 'exactly' : 'at least'} ${min} argument${min === 1 ? '' : 's'}.`);
@@ -926,7 +1054,14 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
     return result(0);
   }
   // E23: docker compose (compose.ts) asks the daemon only for what needs it (config does not).
-  if (sub === 'compose') { const r = composeCommand({ state, args: rest, io: { ...io, out, raw: io.out, err }, allowed: socketAllowed(state, io.user), denied: denied('ps') }); state = r.state; return result(r.status); }
+  if (sub === 'compose') {
+    const before = io.runtime ? settleDocker(state).docker : undefined;
+    const r = composeCommand({ state, args: rest, io: { ...io, out, raw: io.out, err }, allowed: socketAllowed(state, io.user), denied: denied('ps') });
+    state = r.state;
+    // E24: what Compose created, started, stopped and removed are the daemon's events too.
+    if (before && state.docker) state = { ...state, docker: composeEvents(before, state.docker, clockOf(state).now) };
+    return result(r.status);
+  }
   if (!socketAllowed(state, io.user)) {
     if (sub === 'build') { err(`ERROR: ${denied('build')}`); return result(1); }
     err(sub === 'run' ? `docker: ${denied('run')}.` : denied(sub)); if (sub === 'run') err("See 'docker run --help'."); return result(sub === 'run' ? 125 : 1);
@@ -1015,7 +1150,7 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
       }
       // Values of one filter are alternatives; different filters must all match (moby's filters.Args).
       const match = (c: DockerContainer, k: string, v: string) => {
-        if (k === 'status') return c.status === v;
+        if (k === 'status') return stateOf(c) === v;
         if (k === 'name') return c.name.includes(v);
         // publish: the host ports of HostConfig.PortBindings; expose: Config.ExposedPorts (the image's EXPOSE and the -p container ports).
         if (k === 'publish') return c.ports.some(b => ports.publish.has(`${b.host}/${b.proto}`));
@@ -1025,7 +1160,7 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
         return [...imageById(d0, c.image)?.expose.map(p => `${p}/tcp`) ?? [], ...c.ports.map(b => `${b.container}/${b.proto}`)].some(p => ports.expose.has(p));
       };
       const keys = [...new Set(filters.map(([k]) => k))];
-      const list = d0.containers.filter(c => (all || filters.some(([k]) => k === 'status') || c.status === 'running')
+      const list = d0.containers.filter(c => (all || filters.some(([k]) => k === 'status') || c.status === 'running' || c.restartAt !== undefined)
         && keys.every(k => filters.some(([fk, v]) => fk === k && match(c, k, v))))
         .map((c, i) => ({ c, i })).sort((a, b) => b.c.created - a.c.created || b.i - a.i).map(x => x.c);
       if (quiet) { list.forEach(c => out(noTrunc ? c.id : short(c.id))); return result(0); }
@@ -1034,7 +1169,7 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
         return {
           ID: noTrunc ? c.id : short(c.id), Image: img?.local && (parseRef(c.ref) ? localImage(d0, parseRef(c.ref)!)?.id === c.image : io.compose && c.ref.includes('@') ? findLocal(d0, c.ref)?.id === c.image : false) ? c.ref : short(c.image),
           Command: goQuote(noTrunc ? cmd : ellipsis(cmd, 20)), RunningFor: `${humanDuration(now - c.created)} ago`, CreatedAt: `${isoText(c.created)} +0000 UTC`,
-          Status: statusText(c, now), Ports: displayPorts(c, img), Names: c.name, State: c.status,
+          Status: statusText(c, now), Ports: displayPorts(c, img), Names: c.name, State: stateOf(c),
           // E22: the volumes' names (a bind mount's source), at most 15 characters each unless --no-trunc, and the networks.
           ...io.storageNet ? { Mounts: (c.mounts ?? []).filter(m => m.type !== 'tmpfs').map(m => noTrunc ? m.source : ellipsis(m.source, 15)).join(','), Networks: Object.keys(c.networks ?? {}).sort().join(',') } : {},
         };
@@ -1071,6 +1206,13 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
     }
     case 'run': return runCommand();
     case 'build': return buildCommand();
+    case 'kill': case 'stats': case 'top': case 'update': case 'wait': case 'events': {
+      // E24 (runtime.ts): signals, the resource view, ps of a container, new limits, waiting for an exit, the event log.
+      const x = runtimeCli();
+      const r = sub === 'kill' ? killCommand(x) : sub === 'stats' ? statsCommand(x) : sub === 'top' ? topCommand(x) : sub === 'update' ? updateCommand(x, clockOf(state).cpus) : sub === 'wait' ? waitCommand(x) : eventsCommand(x);
+      state = r.state;
+      return result(r.status);
+    }
     case 'tag': case 'push': case 'login': case 'logout': {
       // E23 (registry.ts): docker tag, docker login and logout (~/.docker/config.json), docker push to the lesson's registries.
       const x: RegistryCli = { state, args: rest, now, stdin: io.stdin, out, raw: io.out, err, user: io.user, path };
@@ -1139,7 +1281,7 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
       return result(0);
     }
     case 'logs': {
-      let tail: number | undefined, stamps = false, follow = false;
+      let tail: number | undefined, stamps = false, follow = false, since: Seconds | undefined, until: Seconds | undefined;
       const names: string[] = [];
       for (let i = 0; i < rest.length; i++) {
         const a = rest[i];
@@ -1148,14 +1290,23 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
         else if (a === '-ft' || a === '-tf') { follow = true; stamps = true; }
         else if (a === '-n' || a === '--tail') { const v = rest[++i] ?? ''; if (v === 'all') tail = undefined; else if (/^\d+$/.test(v)) tail = Number(v); else { err(`invalid argument "${v}" for "${a}" flag: strconv.ParseInt: parsing "${v}": invalid syntax`); return result(125); } }
         else if (a.startsWith('--tail=')) { const v = a.slice(7); tail = v === 'all' ? undefined : Number(v); }
+        else if (/^--(since|until)(=|$)/.test(a)) {
+          // E24: --since and --until (a duration before now, a time, or Unix seconds); below the runtime profile they say E24.
+          const flag = a.split('=')[0];
+          if (!io.runtime) { err(`docker logs ${flag}：模擬環境在引擎階段 ${RUNTIME_STAGE} 才支援`); return result(1); }
+          const v = a.includes('=') ? a.slice(a.indexOf('=') + 1) : rest[++i] ?? '', t = timeArg(v, now);
+          if (t === null) { err(`Error response from daemon: invalid value for "${flag.slice(2)}": failed to parse value as time or duration: "${v}"`); return result(1); }
+          if (flag === '--since') since = t; else until = t;
+        }
         else if (a.startsWith('-')) return flagError(a);
         else names.push(a);
       }
       if (names.length !== 1) return needArgs(1, true);
       const c = findContainer(d0, names[0]);
       if (!c) { err(noSuch(names[0])); return result(1); }
-      const lines = tail === undefined ? c.logs : tail === 0 ? [] : c.logs.slice(-tail);
-      for (const l of lines) { const text = stamps ? `${rfc3339(l.t).replace('Z', '.000000000Z')} ${l.text}` : l.text; if (l.stream === 1) out(text); else err(text); }
+      const kept = io.runtime ? logsBetween(c.logs, since, until) : c.logs;
+      const lines = tail === undefined ? kept : tail === 0 ? [] : kept.slice(-tail);
+      for (const l of lines) { const text = stamps ? `${io.runtime ? nanoText(l.t) : rfc3339(l.t).replace('Z', '.000000000Z')} ${l.text}` : l.text; if (l.stream === 1) out(text); else err(text); }
       if (follow && c.status === 'running') err('（模擬環境：-f 不會持續等待新的輸出；容器繼續執行，需要時再執行一次 docker logs）');
       return result(0);
     }
@@ -1180,6 +1331,8 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
       if (words.length < 2) return needArgs(2);
       const c = findContainer(d0, words[0]);
       if (!c) { err(noSuch(words[0])); return result(1); }
+      // E24: a container waiting for its restart (moby's errContainerIsRestarting).
+      if (c.restartAt !== undefined) { err(`Error response from daemon: Container ${c.id} is restarting, wait until the container is running`); return result(1); }
       if (c.status !== 'running') { err(`Error response from daemon: container ${c.id} is not running`); return result(1); }
       const img = imageById(d0, c.image), argv = words.slice(1), name = argv[0].slice(argv[0].lastIndexOf('/') + 1);
       if ((name === 'sh' || name === 'bash') && argv.length === 1 && (img?.commands ?? IMAGE_COMMANDS).includes(name)) {
@@ -1200,6 +1353,8 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
       return result(r.status);
     }
     case 'stop': case 'start': case 'restart': case 'rm': {
+      // E24: docker stop and restart send the stop signal and wait (runtime.ts).
+      if (io.runtime && (sub === 'stop' || sub === 'restart')) { const r = stopCommand(runtimeCli(), sub === 'restart'); state = r.state; return result(r.status); }
       let force = false, attach = false, volumes = false;
       const names: string[] = [];
       for (let i = 0; i < rest.length; i++) {
@@ -1222,6 +1377,10 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
         const put = (x: DockerContainer | null) => { d = { ...d, containers: x ? d.containers.map(y => y.id === c.id ? x : y) : d.containers.filter(y => y.id !== c.id) }; };
         if (sub === 'rm') {
           if (c.status === 'running' && !force) { err(`Error response from daemon: cannot remove container "/${c.name}": container is running: stop the container before removing or force remove`); status = 1; continue; }
+          // E24: a container waiting for its restart is not removed without -f either; -f kills a running one first.
+          if (c.restartAt !== undefined && !force) { err(`Error response from daemon: cannot remove container "/${c.name}": container is restarting: stop the container before removing or force remove`); status = 1; continue; }
+          if (c.status === 'running') { d = emit(d, now, 'kill', c, { signal: '9' }); d = emit(d, now, 'die', c, dieAttrs({ ...c, exitCode: 137, finished: now })); }
+          d = emit(d, now, 'destroy', c);
           put(null); out(n);
           // E22: -v removes its anonymous volumes too.
           if (volumes && io.storageNet) { const r = dropAnonymous(state, d, c); state = r.state; d = r.d; }
@@ -1232,8 +1391,10 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
           out(n); continue;
         }
         // start, restart: stop first (restart), then start.
-        const before = sub === 'restart' && c.status === 'running' ? stop(c, img, now) : c;
-        if (sub === 'start' && c.status === 'running') { out(n); continue; }
+        const before0 = sub === 'restart' && c.status === 'running' ? stop(c, img, now) : c;
+        if (sub === 'start' && (c.status === 'running' || c.restartAt !== undefined)) { out(n); continue; }
+        // E24: docker start resets the restart manager (its count and backoff) and the "stopped by hand" mark.
+        const before = d.runtime ? { ...before0, restartCount: 0, backoff: undefined, manualStop: undefined } : before0;
         state = syncDocker({ ...state, docker: { ...d, containers: d.containers.map(y => y.id === c.id ? before : y) } });
         d = state.docker!;
         const s = start(state, d, before, now);
@@ -1242,6 +1403,8 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
         if (s.hostNodes) state = { ...state, nodes: s.hostNodes };
         if (s.logs) d = withLogs(d, s.logs);
         put(s.c.rm && s.c.status === 'exited' ? null : s.c);
+        d = startEvents(d, s.c, now);
+        if (s.c.rm && s.c.status === 'exited') d = emit(d, now, 'destroy', s.c);
         if (attach) {
           for (const l of s.lines) if (l.stream === 1) out(l.text); else err(l.text);
           // Fix (E20): attached, docker start exits with the container's exit code (as docker run does).
@@ -1317,10 +1480,10 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
         io.out('Are you sure you want to continue? [y/N] ');
         if (answer !== 'y' && answer !== 'yes') { out(''); return result(0); }
       }
-      const gone = d0.containers.filter(c => c.status !== 'running');
+      const gone = d0.containers.filter(c => c.status !== 'running' && c.restartAt === undefined);
       if (gone.length) { out('Deleted Containers:'); gone.forEach(c => out(c.id)); out(''); }
       out(`Total reclaimed space: ${humanSize(gone.reduce((n, c) => n + layerSize(c, imageById(d0, c.image)), 0))}`);
-      save({ ...d0, containers: d0.containers.filter(c => c.status === 'running') });
+      save(gone.reduce((d: DockerState, c) => emit(d, now, 'destroy', c), { ...d0, containers: d0.containers.filter(c => !gone.includes(c)) }));
       return result(0);
     }
     case 'port': {
@@ -1365,8 +1528,9 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
         if (net || vol) { objects.push(net ? networkJson(d0, net) : volumeJson(vol!)); continue; }
         if (!c && !img) { err(io.images && path === 'docker image inspect' ? `Error response from daemon: No such image: ${parseRef(n) ? refText(parseRef(n)!) : n}` : `Error: No such object: ${n}`); status = 1; continue; }
         const tags = d0.images.filter(i => i.local && !i.dangling && !i.digestOnly && i.id === img?.id).map(refText);
-        objects.push(c ? (io.compose ? inspectContainer23(d0, c) : io.storageNet ? inspectContainer22(d0, c) : inspectContainer(c, imageById(d0, c.image), !!io.images))
-          : io.compose ? inspectImage23(d0, img!, tags) : io.storageNet ? inspectImage22(img!, tags) : inspectImage(img!, !!io.images, tags));
+        // E24: the runtime fields of a container (State, RestartCount, the limits, restart policy and security options) and an image's StopSignal.
+        objects.push(c ? (io.runtime ? inspectRuntime(state, d0, c, inspectContainer23(d0, c)) : io.compose ? inspectContainer23(d0, c) : io.storageNet ? inspectContainer22(d0, c) : inspectContainer(c, imageById(d0, c.image), !!io.images))
+          : io.runtime ? inspectImage24(d0, img!, tags) : io.compose ? inspectImage23(d0, img!, tags) : io.storageNet ? inspectImage22(img!, tags) : inspectImage(img!, !!io.images, tags));
       }
       // E23: a container without a health check has no State.Health; Go's template stops at the nil value.
       if (io.compose && format !== undefined) {
@@ -1376,11 +1540,13 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
       }
       // E22: Go's templates with range and index, and the typed values' printing (pointers, structs).
       if (io.storageNet && format !== undefined) {
-        for (const o of objects) { const r = goTemplate(format, o); if ('error' in r) { err(r.error); return result(1); } out(r.text); }
+        for (const o of objects) { const r = goTemplate(format, o, { funcs: !!io.runtime }); if ('error' in r) { err(r.error); return result(1); } out(r.text); }
         return result(status);
       }
       if (format === undefined) {
         if (objects.length) { out(JSON.stringify(objects, null, 4)); err('（模擬環境：只列出模擬的欄位；真實的 docker inspect 還有更多欄位）'); }
+        // E24: a privileged container is called out (it has every capability and the host's devices).
+        if (io.runtime && objects.some(o => (o.HostConfig as { Privileged?: boolean } | undefined)?.Privileged === true)) err('（注意：HostConfig.Privileged 是 true：這個容器有所有的 Linux 能力與主機的裝置，等於主機的 root；只在確實需要時才用 --privileged）');
         return result(status);
       }
       for (const o of objects) {
@@ -1393,6 +1559,8 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
   }
   return result(1);
 
+  /** E24: what the runtime's commands need (runtime.ts). */
+  function runtimeCli(): RuntimeCli { return { state, args: rest, now, path, out, err, flagError, needArgs }; }
   /** E22: docker volume … and docker network … (storage-net-cli.ts). */
   function volumeCommand(): DockerResult { const r = volumeCli(cli()); state = r.state; return result(r.status); }
   function networkCommand(): DockerResult { const r = networkCli(cli()); state = r.state; return result(r.status); }
@@ -1443,6 +1611,9 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
     // E23: --health-cmd and the other --health-* flags, --no-healthcheck.
     const health: Partial<HealthConfig> = {};
     let noHealth = false;
+    // E24: limits, the restart policy, the stop signal and timeout, --init and the security options (the last value of a flag wins).
+    const rt: Record<string, string[]> = {};
+    let readOnly = false, privileged = false, init = false;
     let i = 0;
     const value = (a: string, flag: string): string | undefined => a.length > flag.length ? a.slice(flag.length).replace(/^=/, '') : rest[++i];
     for (; i < rest.length && rest[i].startsWith('-') && rest[i] !== '-'; i++) {
@@ -1477,6 +1648,15 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
           health[({ '--health-interval': 'interval', '--health-timeout': 'timeout', '--health-start-period': 'startPeriod', '--health-start-interval': 'startInterval' } as const)[flag as '--health-interval']] = sec;
         }
       }
+      else if (/^--(memory|memory-swap|cpus|cpu-shares|restart|cap-add|cap-drop|security-opt|stop-signal|stop-timeout|read-only|privileged|init)(=|$)/.test(a)) {
+        // Below the runtime profile the E24 flags say which engine stage brings them.
+        const flag = a.split('=')[0];
+        if (!io.runtime) { err(`docker run ${flag}：模擬環境在引擎階段 ${RUNTIME_STAGE} 才支援`); return result(125); }
+        if (flag === '--read-only') readOnly = true;
+        else if (flag === '--privileged') privileged = true;
+        else if (flag === '--init') init = true;
+        else (rt[flag] ??= []).push(value(a, flag) ?? '');
+      }
       else if (/^-[a-zA-Z]/.test(a) && !a.startsWith('--')) {
         // Short flags may be combined (-dit) and a value may follow its letter (-p8080:80) or come next (-p 8080:80).
         for (let k = 1; k < a.length; k++) {
@@ -1485,13 +1665,16 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
           else if (ch === 'i') interactive = true;
           else if (ch === 't') tty = true;
           else if (ch === 'v' && !io.storageNet) { err(`docker run -v：模擬環境在引擎階段 ${LATER.volume} 才支援`); return result(125); }
-          else if (ch === 'p' || ch === 'e' || ch === 'w' || (io.storageNet && (ch === 'v' || ch === 'u'))) {
+          else if ((ch === 'm' || ch === 'c') && !io.runtime) { err(`docker run -${ch}：模擬環境在引擎階段 ${RUNTIME_STAGE} 才支援`); return result(125); }
+          else if (ch === 'p' || ch === 'e' || ch === 'w' || (io.storageNet && (ch === 'v' || ch === 'u')) || (io.runtime && (ch === 'm' || ch === 'c'))) {
             const v = k + 1 < a.length ? a.slice(k + 1) : rest[++i];
             if (v === undefined) { err(`flag needs an argument: '${ch}' in -${ch}`); err("See 'docker run --help'."); return result(125); }
             if (ch === 'e') env.push(v);
             else if (ch === 'w') workdir = v;
             else if (ch === 'v') vols.push(v);
             else if (ch === 'u') user = v;
+            else if (ch === 'm') (rt['--memory'] ??= []).push(v);
+            else if (ch === 'c') (rt['--cpu-shares'] ??= []).push(v);
             else { const p = parsePublish(v); if ('error' in p) { err(`docker: ${p.error}.`); err("See 'docker run --help'."); return result(125); } ports.push(p); }
             break;
           } else return flagError(`-${ch}`);
@@ -1500,6 +1683,21 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
     }
     const words = rest.slice(i);
     if (!words.length) return needArgs(1);
+    // E24: the CLI reads the runtime flags first (sizes, numbers, the restart policy's format, --rm with --restart).
+    const last = (f: string) => rt[f]?.at(-1), limits: Limits = {};
+    const restart = last('--restart'), stopTimeout = last('--stop-timeout');
+    if (io.runtime) {
+      const flagBad = (flag: string, v: string, why: string) => { err(`invalid argument "${v}" for "${flag}" flag: ${why}`); err("See 'docker run --help'."); return result(125); };
+      const mem = last('--memory'), swap = last('--memory-swap'), cpus = last('--cpus'), shares = last('--cpu-shares');
+      if (mem !== undefined) { const n = parseBytes(mem); if (n === null) return flagBad('-m, --memory', mem, `invalid size: '${mem}'`); limits.memory = n; }
+      if (swap !== undefined) { const n = swap === '-1' ? -1 : parseBytes(swap); if (n === null) return flagBad('--memory-swap', swap, `invalid size: '${swap}'`); limits.memorySwap = n; }
+      if (cpus !== undefined) { if (!/^\d+(\.\d+)?$/.test(cpus)) return flagBad('--cpus', cpus, `failed to parse ${cpus} as a rational number`); limits.nanoCpus = Math.round(Number(cpus) * 1e9); }
+      if (shares !== undefined) { if (!/^\d+$/.test(shares)) return flagBad('-c, --cpu-shares', shares, `strconv.ParseInt: parsing "${shares}": invalid syntax`); limits.cpuShares = Number(shares); }
+      if (stopTimeout !== undefined && !/^-?\d+$/.test(stopTimeout)) return flagBad('--stop-timeout', stopTimeout, `strconv.ParseInt: parsing "${stopTimeout}": invalid syntax`);
+      const pr = restart === undefined ? null : restartProblem(restart);
+      if (pr && !pr.daemon) { err(`docker: ${pr.error}.`); err("See 'docker run --help'."); return result(125); }
+      if (rm && restart !== undefined && !pr && restart.split(':')[0] !== 'no') { err('docker: Conflicting options: --restart and --rm.'); err("See 'docker run --help'."); return result(125); }
+    }
     if (name !== undefined && !/^\/?[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(name)) { err(`docker: Error response from daemon: Invalid container name (${name}), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed.`); err("See 'docker run --help'."); return result(125); }
     // E23: an image may be named by digest (NAME@sha256:…).
     const atDigest = !!io.compose && words[0].includes('@');
@@ -1531,6 +1729,33 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
     if (!cmd.length && !img.entrypoint.length) { err('docker: Error response from daemon: no command specified.'); err("See 'docker run --help'."); save(d); return result(125); }
     // E22: the mounts (with the image's VOLUME paths as anonymous volumes) and the network.
     const createError = (text: string) => { err(`docker: ${text.replace(/\.$/, '')}.`); err("See 'docker run --help'."); save(d); return result(125); };
+    // E24: what the daemon refuses at create (moby's texts), then the container's runtime fields.
+    let e24: Partial<DockerContainer> = {};
+    if (io.runtime) {
+      const cpus = clockOf(state).cpus;
+      if (limits.memorySwap !== undefined && limits.memory === undefined) return createError('Error response from daemon: You should always set the Memory limit when using Memoryswap limit, see usage');
+      if (limits.memory !== undefined && limits.memory < 6 * 1024 * 1024) return createError('Error response from daemon: Minimum memory limit allowed is 6MB');
+      if (limits.memory !== undefined && limits.memorySwap !== undefined && limits.memorySwap !== -1 && limits.memorySwap < limits.memory) return createError('Error response from daemon: Minimum memoryswap limit should be larger than memory limit, see usage');
+      if (limits.nanoCpus !== undefined && (limits.nanoCpus < 1e7 || limits.nanoCpus > cpus * 1e9)) return createError(`Error response from daemon: Range of CPUs is from 0.01 to ${cpus.toFixed(2)}, as there are only ${cpus} CPUs available`);
+      const pr = restart === undefined ? null : restartProblem(restart);
+      if (pr) return createError(`Error response from daemon: ${pr.error}`);
+      const caps: Record<'CapAdd' | 'CapDrop', string[]> = { CapAdd: [], CapDrop: [] };
+      for (const [kind, flag] of [['CapAdd', '--cap-add'], ['CapDrop', '--cap-drop']] as const) for (const raw of rt[flag] ?? []) for (const one of raw.split(',').filter(Boolean)) {
+        const n = normalizeCap(one);
+        if (!n) return createError(`Error response from daemon: invalid ${kind}: unknown capability: "${one.toUpperCase().startsWith('CAP_') ? one.toUpperCase() : `CAP_${one.toUpperCase()}`}"`);
+        if (!caps[kind].includes(n)) caps[kind].push(n);
+      }
+      const stopSignal = last('--stop-signal') ?? img.stopSignal;
+      if (stopSignal !== undefined && signalNumber(stopSignal) === undefined) return createError(`Error response from daemon: Invalid signal: ${stopSignal}`);
+      const opts = rt['--security-opt'] ?? [];
+      const badOpt = opts.find(o => !/^(no-new-privileges(:(true|false))?|no-new-privileges=(true|false)|(seccomp|apparmor|label)[=:].+)$/.test(o));
+      if (badOpt !== undefined) return createError(`Error response from daemon: invalid --security-opt 2: "${badOpt}"`);
+      e24 = {
+        ...Object.keys(limits).length ? { limits } : {}, ...restart !== undefined ? { restart } : {}, ...init ? { init: true as const } : {},
+        ...stopSignal !== undefined ? { stopSignal } : {}, ...stopTimeout !== undefined ? { stopTimeout: Number(stopTimeout) } : {}, ...readOnly ? { readOnly: true as const } : {},
+        ...caps.CapAdd.length ? { capAdd: caps.CapAdd } : {}, ...caps.CapDrop.length ? { capDrop: caps.CapDrop } : {}, ...opts.length ? { securityOpt: opts } : {}, ...privileged ? { privileged: true as const } : {},
+      };
+    }
     let e22: Partial<DockerContainer> = {};
     if (io.storageNet) {
       const mounts: DockerMount[] = [];
@@ -1554,7 +1779,7 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
     const [path0, ...args0] = img.entrypoint.length ? [...img.entrypoint, ...cmd] : cmd;
     let c: DockerContainer = {
       id, name: given ?? generatedName(d, id), ref: words[0], image: img.id, path: path0 ?? '', args: args0, cmd, custom: words.length > 1, created: now, status: 'created', exitCode: 0, ports,
-      env: env.map(e => e.includes('=') ? e : `${e}=`), workdir: workdir ?? img.workdir, rm, tty, interactive, logs: [], nodes: imageNodes(img, id), execs: 0, ...img.user ? { user: img.user } : {}, ...e22,
+      env: env.map(e => e.includes('=') ? e : `${e}=`), workdir: workdir ?? img.workdir, rm, tty, interactive, logs: [], nodes: imageNodes(img, id), execs: 0, ...img.user ? { user: img.user } : {}, ...e22, ...e24,
     };
     // E23: the image's HEALTHCHECK with the --health-* flags over it (--no-healthcheck: none).
     if (io.compose && !noHealth) {
@@ -1568,7 +1793,7 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
       const p = prepareMounts(state, d, c, now);
       state = p.host; d = p.d; c = p.c;
     }
-    d = { ...d, seq: d.seq + 1, containers: [...d.containers, c] };
+    d = emit({ ...d, seq: d.seq + 1, containers: [...d.containers, c] }, now, 'create', c);
     state = syncDocker({ ...state, docker: d });
     const s = start(state, d, c, now);
     if ('error' in s) {
@@ -1582,8 +1807,8 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
     if (s.hostNodes) state = { ...state, nodes: s.hostNodes };
     if (s.logs) d = withLogs(d, s.logs);
     const removed = c.rm && c.status === 'exited';
-    d = { ...d, containers: removed ? d.containers.filter(x => x.id !== id) : d.containers.map(x => x.id === id ? c : x) };
-    if (removed) { const r = dropAnonymous(state, d, c); state = r.state; d = r.d; }
+    d = startEvents({ ...d, containers: removed ? d.containers.filter(x => x.id !== id) : d.containers.map(x => x.id === id ? c : x) }, c, now);
+    if (removed) { d = emit(d, now, 'destroy', c); const r = dropAnonymous(state, d, c); state = r.state; d = r.d; }
     save(d);
     if (detach) { out(id); return result(0); }
     // Attached: what the container prints, as it prints it.
@@ -1598,6 +1823,14 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
         if (c.rm && io.storageNet) { const r = dropAnonymous(state, state.docker!, c); state = syncDocker({ ...r.state, docker: r.d }); }
         err(`（模擬環境沒有鍵盤：容器裡的互動式 Shell 立刻收到 exit 而結束（Exited (0)）；要讓它留著，請用 docker run -dit，再用 docker exec ${c.name} 指令）`);
         return result(0);
+      }
+      // E24: attached, docker run waits for a planned end (a crash, a finished job, an OOM kill); the clock moves to it.
+      if (io.runtime && c.endsAt !== undefined && c.endsAt - now <= 3600) {
+        const from = c.logs.length, ends = c.endsAt, seeds = c.endLogs ?? [], code = c.endExit ?? 0;
+        state = settleDocker(advanceClock(state, ends - now));
+        const after = state.docker!.containers.find(x => x.id === id);
+        for (const l of after ? after.logs.slice(from) : seedLines(seeds, ends)) if (l.stream === 1) out(l.text); else err(l.text);
+        return result(after ? after.exitCode : code);
       }
       err(`（模擬環境沒有 Ctrl-C：容器 ${c.name} 留在背景繼續執行；伺服器通常用 docker run -d 在背景啟動）`);
       return result(0);
@@ -1699,6 +1932,8 @@ export function deleteImage(d: DockerState, img: DockerImage): { d: DockerState;
 
 /** docker ps's STATUS: Created, Up …, Exited (N) … ago (moby's State.String). */
 export function statusText(c: DockerContainer, now: Seconds): string {
+  // E24: waiting for its restart (moby's State.String: the last exit code and when it exited).
+  if (c.restartAt !== undefined) return `Restarting (${c.exitCode}) ${humanDuration(now - (c.finished ?? now))} ago`;
   if (c.status === 'running') return `Up ${humanDuration(now - (c.started ?? c.created))}${healthSuffix(c)}`;
   if (c.status === 'created' || c.started === undefined) return 'Created';
   return `Exited (${c.exitCode}) ${humanDuration(now - (c.finished ?? now))} ago`;
@@ -1800,6 +2035,11 @@ function inspectImage23(d: DockerState, i: DockerImage, tags: string[]): Record<
   const base = inspectImage22(i, tags) as { Config: Record<string, unknown> };
   const hub = d.images.filter(x => x.local && x.id === i.id && x.pullable && !x.built && !x.dangling).map(x => `${x.repo}@sha256:${x.digest}`);
   return { ...base, RepoDigests: [...new Set([...hub, ...d.repoDigests?.[i.id] ?? []])], Config: { ...base.Config, ...i.healthcheck ? { Healthcheck: healthConfigJson(i.healthcheck) } : {} } };
+}
+/** E24: an image's STOPSIGNAL (Config.StopSignal, only when it has one). */
+function inspectImage24(d: DockerState, i: DockerImage, tags: string[]): Record<string, unknown> {
+  const base = inspectImage23(d, i, tags) as { Config: Record<string, unknown> };
+  return i.stopSignal ? { ...base, Config: { ...base.Config, StopSignal: i.stopSignal } } : base;
 }
 function inspectImage22(i: DockerImage, tags: string[]): Record<string, unknown> {
   const base = inspectImage(i, true, tags) as { Config: Record<string, unknown> };

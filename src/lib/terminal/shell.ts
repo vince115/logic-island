@@ -134,10 +134,11 @@ export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS
  * sleep, curl -w timings). E19: diagnostics (ping, traceroute, mtr, tcpdump -r and a sed subset). E20: containers (docker).
  * E21: images (docker build, layers and the build cache, docker history). E22: storage-net (volumes, bind mounts, tmpfs,
  * Docker networks and their DNS, tar). E23: compose (docker compose, health checks, multi-stage builds, registries: tag, login,
- * push and pull by digest).
+ * push and pull by digest). E24: runtime (docker inspect's runtime fields, exit codes, resource limits and OOM, restart policies,
+ * signals and docker stop's grace period, docker stats, top, kill, update, wait and events, security options).
  */
 export type ShellFeature = 'glob' | 'help-option' | 'multi-source' | 'ls-extra' | 'pipes' | 'accounts' | 'processes' | 'packages' | 'services' | 'remote' | 'scripting' | 'scheduling'
-  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers' | 'images' | 'storage-net' | 'compose';
+  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers' | 'images' | 'storage-net' | 'compose' | 'runtime';
 
 /** LNX-0: the commands a session may run (E1: and the features it switches on; none by default). */
 export interface ShellProfile { readonly id: string; readonly commands: readonly CommandName[]; readonly features?: readonly ShellFeature[] }
@@ -206,12 +207,14 @@ export const IMAGES_PROFILE: ShellProfile = { id: 'images', commands: above(CONT
 export const STORAGE_NET_PROFILE: ShellProfile = { id: 'storage-net', commands: above(IMAGES_PROFILE, E22_COMMANDS), features: [...IMAGES_PROFILE.features!, 'storage-net'] };
 /** E23: the storage-net profile plus docker compose, health checks, multi-stage builds and registries (docker tag, login, push, pull by digest); no new commands. */
 export const COMPOSE_PROFILE: ShellProfile = { id: 'compose', commands: above(STORAGE_NET_PROFILE, []), features: [...STORAGE_NET_PROFILE.features!, 'compose'] };
+/** E24: the compose profile plus runtime inspection, exit codes, limits and OOM, restart policies, signals and graceful stops, stats, top, kill, events and security options; no new commands. */
+export const RUNTIME_PROFILE: ShellProfile = { id: 'runtime', commands: above(COMPOSE_PROFILE, []), features: [...COMPOSE_PROFILE.features!, 'runtime'] };
 /** The profiles a lesson machine may name (TerminalMachine.profile), from the narrowest. */
 export const PROFILES = {
   lab: LAB_PROFILE, files: FILES_PROFILE, streams: STREAMS_PROFILE, users: USERS_PROFILE, processes: PROCESSES_PROFILE, packages: PACKAGES_PROFILE, services: SERVICES_PROFILE,
   remote: REMOTE_PROFILE, scripting: SCRIPTING_PROFILE, scheduling: SCHEDULING_PROFILE, sockets: SOCKETS_PROFILE, dns: DNS_PROFILE, http: HTTP_PROFILE,
   tls: TLS_PROFILE, nginx: NGINX_PROFILE, proxy: PROXY_PROFILE, firewall: FIREWALL_PROFILE, tunnels: TUNNELS_PROFILE, edge: EDGE_PROFILE, diagnostics: DIAGNOSTICS_PROFILE,
-  containers: CONTAINERS_PROFILE, images: IMAGES_PROFILE, 'storage-net': STORAGE_NET_PROFILE, compose: COMPOSE_PROFILE,
+  containers: CONTAINERS_PROFILE, images: IMAGES_PROFILE, 'storage-net': STORAGE_NET_PROFILE, compose: COMPOSE_PROFILE, runtime: RUNTIME_PROFILE,
 } as const;
 export type ProfileId = keyof typeof PROFILES;
 
@@ -316,6 +319,7 @@ const HELP: [CommandName | null, string][] = [
 ];
 /** The lines that change when a profile has the feature (the lab keeps its own lines). */
 const HELP_FEATURE: [ShellFeature, CommandName, string][] = [
+  ['runtime', 'docker', '  docker stats|top|kill|update|wait|events|compose|tag|push|login|logout|volume|network|build|history|run|ps|images|pull|logs|exec|stop|start|rm|rmi|port|inspect …  資源限制、重新啟動、訊號與關閉、Compose、Registry、Volume、網路、Image 與 Container（需要 docker 群組或 sudo）'],
   ['compose', 'docker', '  docker compose|tag|push|login|logout|volume|network|build|history|run|ps|images|pull|logs|exec|stop|start|rm|rmi|port|inspect …  Compose、Registry、Volume、網路、Image 與 Container（需要 docker 群組或 sudo）'],
   ['storage-net', 'docker', '  docker volume|network|build|history|run|ps|images|pull|logs|exec|stop|start|rm|rmi|port|inspect …  Volume、網路、Image 與 Container（需要 docker 群組或 sudo）'],
   ['images', 'docker', '  docker build|history|run|ps|images|pull|logs|exec|stop|start|rm|rmi|port|inspect …  建置與管理 Image 與 Container（需要 docker 群組或 sudo）'],
@@ -1637,7 +1641,9 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
       // E21: the images profile adds docker build and docker history.
       // E22: the storage-net profile adds volumes, bind mounts, tmpfs and networks.
       // E23: the compose profile adds docker compose, health checks, multi-stage builds and registries.
-      const r = docker(cur(), args, { out: write, err: fail, user: state.user, tty: ctx.tty, stdin: ctx.stdin, ...features.has('images') ? { images: true } : {}, ...features.has('storage-net') ? { storageNet: true } : {}, ...features.has('compose') ? { compose: true } : {} });
+      // E24: the runtime profile adds limits, restart policies, signals, stats, top, kill, events and the runtime fields of inspect.
+      const r = docker(cur(), args, { out: write, err: fail, user: state.user, tty: ctx.tty, stdin: ctx.stdin, ...features.has('images') ? { images: true } : {}, ...features.has('storage-net') ? { storageNet: true } : {}, ...features.has('compose') ? { compose: true } : {},
+        ...features.has('runtime') ? { runtime: true } : {} });
       code = r.status;
       return done(r.state);
     }

@@ -486,8 +486,23 @@ export const COMPOSE_MANUAL: ManualEntry = {
   options: [...STORAGE_NET_MANUAL.options, ['compose', 'Compose：up -d、down、ps、logs、exec、config'], ['--password-stdin', 'login：從標準輸入讀取密碼或 Token']],
 };
 
+/** E24: the Docker CLI of the runtime profile (DKR0_CONTAINER_CAPABILITY.md §14): limits, restart policies, signals and the runtime's views too. */
+export const RUNTIME_MANUAL: ManualEntry = {
+  ...COMPOSE_MANUAL,
+  usage: `docker run [-m 記憶體] [--memory-swap 記憶體] [--cpus N] [--cpu-shares N] [--restart no|always|unless-stopped|on-failure[:N]] [--init] [--stop-signal 訊號] [--stop-timeout 秒] [--read-only] [--cap-drop 能力] [--cap-add 能力] [--security-opt no-new-privileges] [--privileged] … | stop [-t 秒] [-s 訊號] | kill [-s 訊號] | stats [--no-stream] [-a] | top 容器 | update [-m …] [--cpus …] [--restart …] 容器 | wait 容器 | events --since 時間 [--until 時間] [--filter …] | logs [--since 時間] … | ${COMPOSE_MANUAL.usage}`,
+  description: [...COMPOSE_MANUAL.description.slice(0, -1),
+    '結束碼：docker ps -a 的 Exited (N)；程式自己結束是它的結束碼（1 等），被訊號 n 結束是 128+n（SIGKILL 是 137、SIGTERM 是 143）。docker inspect -f \'{{.State.ExitCode}}\'、{{.State.OOMKilled}}、{{.RestartCount}} 讀出原因；docker logs 看程式印了什麼。',
+    '-m（--memory）限制記憶體：程式用的記憶體超過限制時被核心的 OOM killer 結束（Exited (137)，OOMKilled 是 true）。--cpus 限制 CPU。docker stats --no-stream 列出各容器的 CPU %、記憶體用量與限制（模擬的數字由課程決定）。',
+    '--restart：no（預設）、on-failure[:N]（結束碼不是 0 才重新啟動，最多 N 次）、always、unless-stopped。一直當掉的容器在 docker ps 是 Restarting (1) …，每次等待的時間加倍（最多一分鐘）。docker stop 之後不會再被重新啟動。健康檢查不健康不會讓 Docker 重新啟動容器。',
+    'docker stop 送出 StopSignal（預設 SIGTERM），最多等 -t 秒（預設 10）再送 SIGKILL。PID 1 的程式要自己處理 SIGTERM；Shell 形式的 CMD 讓 /bin/sh 當 PID 1，它不會轉送 SIGTERM，程式要等到逾時被 SIGKILL（137）。用 exec 形式、在指令稿裡用 exec，或 --init。等待的時間會讓時鐘前進。',
+    '--read-only 讓容器的根檔案系統唯讀（要寫的路徑用 --tmpfs 或 Volume）；--cap-drop ALL 拿掉 Linux 能力；--security-opt no-new-privileges 禁止提升權限；--privileged 等於把主機交給容器。',
+    '模擬環境沒有鍵盤：互動式的 Shell（-it）會立刻結束，請用 docker exec 容器 指令；docker stats 與 docker events 不會持續更新，只印出一次。'],
+  options: [...COMPOSE_MANUAL.options, ['-m', 'run、update：記憶體上限（例如 256m）'], ['--restart', 'run、update：重新啟動策略'], ['-t', 'stop：等待幾秒再送 SIGKILL']],
+};
+
 /** The pages a feature changes: cat reads standard input and echo has -n with pipes; chmod has -R with accounts. */
 const FEATURE_MANUAL: [ShellFeature, CommandName, ManualEntry][] = [
+  ['runtime', 'docker', RUNTIME_MANUAL],
   ['compose', 'docker', COMPOSE_MANUAL],
   ['storage-net', 'docker', STORAGE_NET_MANUAL],
   ['images', 'docker', IMAGES_MANUAL],

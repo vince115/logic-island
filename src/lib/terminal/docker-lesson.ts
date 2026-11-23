@@ -2,9 +2,10 @@ import { LIMITS, parentOf, resolvePath, type FsState } from './fs';
 import { DEFAULT_NOW, parseTime } from './clock';
 import { commOf, tableOf } from './processes';
 import {
-  buildFor, byDigest, containerEnv, DEFAULT_OS_RELEASE, digestOf, E22_IMAGE_COMMANDS, findContainer, IMAGE_COMMANDS, imageIdOf, imageNodes, parseRef, settleDocker, statusText, syncDocker,
+  buildFor, byDigest, containerEnv, DEFAULT_OS_RELEASE, digestOf, E22_IMAGE_COMMANDS, effective, findContainer, IMAGE_COMMANDS, imageIdOf, imageNodes, parseRef, programFor, settleDocker, statusText, syncDocker,
   type BuildTool, type DockerContainer, type DockerImage, type DockerProgram, type DockerState, type HistoryRow, type LogSeed, type PortBinding,
 } from './docker';
+import { dieAttrs, emit, normalizeCap, parseBytes, policyOf, restartProblem, schedule, signalNumber, stateOf, type DockerEvent, type RuntimeSpec } from './runtime';
 import { activeTest, parseDuration, startHealth, type HealthConfig } from './health';
 import { digestRefOf, hostOf, manifestOf, type DockerRegistry } from './registry';
 import { composeContainer } from './compose';
@@ -27,7 +28,7 @@ import { sha256 } from './ssh';
  */
 
 /** E20: an image of the lesson: on Docker Hub (unless registry: false) and, when pulled, already local. */
-export interface TerminalImage {
+export interface TerminalImage extends TerminalRuntime {
   /** REPOSITORY[:TAG] (default tag latest), e.g. nginx:1.27, hello-world, bitnami/redis:7.4. */
   name: string;
   /** Bytes (docker images shows 192MB). */
@@ -78,7 +79,25 @@ export interface TerminalImage {
   healthcheck?: TerminalHealthcheck;
   ready?: number;
   tags?: string[];
+  /** E24: its STOPSIGNAL (SIGQUIT for nginx), and what its own main process does over time (TerminalRuntime). */
+  stopSignal?: string;
 }
+/**
+ * E24: what a main process (a program's, or an image's own) does over time, as lesson data: the environment variables it
+ * needs (else it prints missingEnv and exits), its own exit after some seconds, its memory (bytes at the start, growth per
+ * second, a ceiling), CPU percent and process count (docker stats), the signals it handles (SIGTERM: { seconds, logs, exit }),
+ * the paths it writes at the start (a read-only root file system makes it print readOnlyError and exit) and the
+ * capabilities it needs (else capMissing).
+ */
+export interface TerminalRuntime {
+  needsEnv?: string[]; missingEnv?: { output: string; exit?: number };
+  exitAfter?: { seconds: number; exit?: number; logs?: LogSeed[] };
+  memory?: { start: number; growth?: number; max?: number }; cpu?: number; pids?: number;
+  signals?: Record<string, { seconds?: number; logs?: LogSeed[]; exit?: number }>;
+  writes?: string[]; readOnlyError?: { output: string; exit?: number };
+  caps?: string[]; capMissing?: { output: string; exit?: number };
+}
+const RUNTIME_KEYS = ['needsEnv', 'missingEnv', 'exitAfter', 'memory', 'cpu', 'pids', 'signals', 'writes', 'readOnlyError', 'caps', 'capMissing'] as const;
 /** E23: a health check as lesson data. */
 export interface TerminalHealthcheck { test: string[]; interval?: string; timeout?: string; retries?: number; startPeriod?: string; startInterval?: string }
 /** E23: a private registry of the lesson (images named with its host are served by it). Tokens must be obviously fake lesson tokens. */
@@ -86,7 +105,7 @@ export interface TerminalRegistry { host: string; users?: { name: string; token:
 /** E23: a build tool a RUN step may use (its exact words), what it needs and the files it writes (size: what each weighs). */
 export interface TerminalBuildTool { command: string[]; needs?: string[]; missing?: { output: string; exit?: number }; writes: { path: string; size: number; mode?: number }[]; output?: string; exit?: number; seconds?: number }
 /** E21: what a program does when a container runs it (matched by its exact words, after an entrypoint script hands over). */
-export interface TerminalProgram {
+export interface TerminalProgram extends TerminalRuntime {
   command: string[];
   /** Files it needs, relative to the working directory or absolute; the first one missing makes it print `missing` (standard error) and exit. */
   needs?: string[];
@@ -128,6 +147,14 @@ export interface TerminalContainer {
   network?: string;
   aliases?: string[];
   user?: string;
+  /**
+   * E24: --restart, -m (256m), --memory-swap, --cpus, --init, --read-only, --tmpfs paths, --cap-add, --cap-drop,
+   * --security-opt, --privileged, --stop-signal and --stop-timeout; how many times it was restarted, and whether its last
+   * run was OOM-killed (an exited container with exit code 137).
+   */
+  restart?: string; memory?: string; memorySwap?: string; cpus?: number; init?: boolean; readOnly?: boolean; tmpfs?: string[];
+  capAdd?: string[]; capDrop?: string[]; securityOpt?: string[]; privileged?: boolean; stopSignal?: string; stopTimeout?: number;
+  restartCount?: number; oomKilled?: boolean;
 }
 /** E22: a volume that exists at the start, with files (paths from the volume's root; owner: a user of the host, or a number). */
 export interface TerminalVolume { name: string; created?: string; files?: { path: string; content: string; owner?: string; mode?: number }[] }
@@ -139,8 +166,14 @@ export interface TerminalDocker {
 }
 
 export type DockerCheck =
-  /** E20: the container exists (absent: it does not) in this state, from this image, with this port published (HOST:CONTAINER), exit code and environment variable (K=V). E23: and this health. */
-  | { kind: 'container'; name: string; absent?: true; state?: 'created' | 'running' | 'exited'; image?: string; port?: string; exitCode?: number; env?: string; health?: 'starting' | 'healthy' | 'unhealthy' }
+  /**
+   * E20: the container exists (absent: it does not) in this state, from this image, with this port published (HOST:CONTAINER),
+   * exit code and environment variable (K=V). E23: and this health. E24: restarting as a state; its last run OOM-killed (or
+   * not), restarted at least restartCount times, this restart policy (on-failure:3), memory limit (bytes), CPUs, a
+   * read-only root file system, this user (Config.User), and these capabilities dropped.
+   */
+  | { kind: 'container'; name: string; absent?: true; state?: 'created' | 'running' | 'exited' | 'restarting'; image?: string; port?: string; exitCode?: number; env?: string; health?: 'starting' | 'healthy' | 'unhealthy';
+      oomKilled?: boolean; restartCount?: number; restartPolicy?: string; memory?: number; cpus?: number; readOnly?: boolean; user?: string; capDrop?: string[] }
   /**
    * E20: the image is local (absent: it is not). E21: its config has this label (K=V), environment variable (K=V), CMD,
    * ENTRYPOINT (exec form, exactly), USER, exposed TCP port and working directory, and this many layers (RootFS).
@@ -162,7 +195,7 @@ export type DockerCheck =
   | { kind: 'compose'; project: string; service: string; absent?: true; state?: 'created' | 'running' | 'exited'; health?: 'starting' | 'healthy' | 'unhealthy'; image?: string }
   /** E23: the registry's repository has the tag (absent: it does not), pointing to this digest, or to the content of this local image. */
   | { kind: 'registry'; registry: string; repository: string; tag: string; absent?: true; digest?: string; image?: string };
-export interface DockerLevels { containers: boolean; images?: boolean; storageNet?: boolean; compose?: boolean }
+export interface DockerLevels { containers: boolean; images?: boolean; storageNet?: boolean; compose?: boolean; runtime?: boolean }
 
 const DOCKER_GID = 988;
 const DOCKERD = '/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock';
@@ -211,8 +244,23 @@ export function healthOf(h: TerminalHealthcheck): HealthConfig {
 }
 /** E23: the executables an image may list on the compose profile: E22's, pg_isready, and the lesson's build tools. */
 const composeCommands = (m: TerminalMachine) => [...E22_IMAGE_COMMANDS, 'pg_isready', ...(m.docker?.tools ?? []).map(t => (t.command?.[0] ?? '').slice((t.command?.[0] ?? '').lastIndexOf('/') + 1)).filter(Boolean)];
+/** E24: a lesson's runtime declaration as the daemon's spec (defaults filled in), or undefined when it declares none. */
+export function specOf(t: TerminalRuntime): RuntimeSpec | undefined {
+  if (!RUNTIME_KEYS.some(k => t[k] !== undefined)) return undefined;
+  const lines = (x: { output: string; exit?: number } | undefined) => x ? { output: x.output, exit: x.exit ?? 1 } : undefined;
+  const signals = t.signals ? Object.fromEntries(Object.entries(t.signals).map(([k, v]) => [k.toUpperCase().replace(/^SIG/, ''), { seconds: v.seconds ?? 0, logs: [...v.logs ?? []], exit: v.exit ?? 0 }])) : undefined;
+  const spec: RuntimeSpec = {
+    ...t.needsEnv ? { needsEnv: [...t.needsEnv] } : {}, ...t.missingEnv ? { missingEnv: lines(t.missingEnv)! } : {},
+    ...t.exitAfter ? { exitAfter: { seconds: t.exitAfter.seconds, exit: t.exitAfter.exit ?? 1, logs: [...t.exitAfter.logs ?? []] } } : {},
+    ...t.memory ? { memory: { start: t.memory.start, growth: t.memory.growth ?? 0, ...t.memory.max !== undefined ? { max: t.memory.max } : {} } } : {},
+    ...t.cpu !== undefined ? { cpu: t.cpu } : {}, ...t.pids !== undefined ? { pids: t.pids } : {}, ...signals ? { signals } : {},
+    ...t.writes ? { writes: [...t.writes] } : {}, ...t.readOnlyError ? { readOnlyError: lines(t.readOnlyError)! } : {},
+    ...t.caps ? { caps: [...t.caps] } : {}, ...t.capMissing ? { capMissing: lines(t.capMissing)! } : {},
+  };
+  return spec;
+}
 /** A lesson image as the daemon's image. */
-function imageOf(i: TerminalImage, m: TerminalMachine, e22 = false, e23 = false): DockerImage | undefined {
+function imageOf(i: TerminalImage, m: TerminalMachine, e22 = false, e23 = false, e24 = false): DockerImage | undefined {
   const ref = parseRef(i.name), created = parseTime(i.created);
   if (!ref || created === undefined) return undefined;
   const responder = i.http ? (m.responders ?? []).find(r => r.id === i.http!.responder) : undefined;
@@ -230,17 +278,19 @@ function imageOf(i: TerminalImage, m: TerminalMachine, e22 = false, e23 = false)
     ...e22 && i.volumes?.length ? { volumes: [...i.volumes] } : {},
     // E23: HEALTHCHECK and how long its service takes to start.
     ...e23 && i.healthcheck ? { healthcheck: healthOf(i.healthcheck) } : {}, ...e23 && i.ready ? { ready: i.ready } : {},
+    // E24: STOPSIGNAL and what its main process does over time.
+    ...e24 && i.stopSignal ? { stopSignal: i.stopSignal } : {}, ...e24 && specOf(i) ? { runtime: specOf(i)! } : {},
   };
 }
 const isLayer = (h: { size?: number; layer?: boolean }) => h.layer ?? (h.size ?? 0) > 0;
 /** E21: a lesson program as the daemon's. */
-function programOf(p: TerminalProgram, m: TerminalMachine): DockerProgram {
+function programOf(p: TerminalProgram, m: TerminalMachine, e24 = false): DockerProgram {
   const responder = p.http ? (m.responders ?? []).find(r => r.id === p.http!.responder) : undefined;
   return {
     command: [...p.command], needs: [...p.needs ?? []], ...p.missing ? { missing: { output: p.missing.output, exit: p.missing.exit ?? 1 } } : {}, service: !!p.service, logs: [...p.logs ?? []],
     ...p.output !== undefined ? { output: p.output } : {}, exit: p.exit ?? 0, ...p.stopExit !== undefined ? { stopExit: p.stopExit } : {},
     ...p.http && responder ? { http: { port: p.http.port, responder: { ...responder, routes: responder.routes.map(r => ({ ...r })) }, ...p.http.accessLog ? { accessLog: p.http.accessLog } : {} } } : {},
-    ...p.ready ? { ready: p.ready } : {},
+    ...p.ready ? { ready: p.ready } : {}, ...e24 && specOf(p) ? { runtime: specOf(p)! } : {},
   };
 }
 const portOf = (text: string): PortBinding | undefined => {
@@ -255,7 +305,7 @@ export function dockerState(m: TerminalMachine, state: FsState, lv: DockerLevels
   // E23: an image named with a private registry's host is that registry's (local only when pulled).
   const hosts = new Set(lv.compose ? (m.docker.registries ?? []).map(r => r.host) : []);
   const inRegistry = (i: TerminalImage) => { const r = parseRef(i.name); const h = r ? hostOf(r.repo) : undefined; return !!h && hosts.has(h); };
-  const all = (m.docker.images ?? []).map(i => ({ t: i, img: imageOf(i, m, !!lv.storageNet, !!lv.compose) })).filter((x): x is { t: TerminalImage; img: DockerImage } => !!x.img);
+  const all = (m.docker.images ?? []).map(i => ({ t: i, img: imageOf(i, m, !!lv.storageNet, !!lv.compose, !!lv.runtime) })).filter((x): x is { t: TerminalImage; img: DockerImage } => !!x.img);
   const images = all.map(x => inRegistry(x.t) ? { ...x.img, pullable: false } : x.img).filter(i => i.pullable || i.local);
   const host = m.host ?? 'logic-island';
   const containers: DockerContainer[] = [];
@@ -285,11 +335,53 @@ export function dockerState(m: TerminalMachine, state: FsState, lv: DockerLevels
     });
   }
   const daemonPid = tableOf(state).find(p => p.command === DOCKERD)?.pid;
-  const programs = lv.images ? (m.docker.programs ?? []).map(p => programOf(p, m)) : [];
+  const programs = lv.images ? (m.docker.programs ?? []).map(p => programOf(p, m, !!lv.runtime)) : [];
   let docker: DockerState = { images, containers, seq: containers.length, ...daemonPid !== undefined ? { daemonPid } : {}, ...programs.length ? { programs } : {}, ...lv.images ? { hostProcesses: true as const } : {} };
   if (lv.compose) docker = composeState(m, docker, all.filter(x => inRegistry(x.t)));
-  if (lv.storageNet) return syncDocker(storageNetState(m, state, docker));
+  if (lv.runtime) docker = runtimeState(m, docker);
+  if (lv.storageNet) return syncDocker(lv.runtime ? scheduled(storageNetState(m, state, docker)) : storageNetState(m, state, docker));
   return syncDocker({ ...state, docker });
+}
+
+/**
+ * E24: the runtime profile's daemon: each container's runtime fields (limits, restart policy, signals, security options,
+ * restart count, OOM kill), what its main process does (the program's or the image's spec), and the events of its life so
+ * far (create, start, die). A running container's planned exit and OOM kill are scheduled from its start (scheduled).
+ */
+function runtimeState(m: TerminalMachine, d0: DockerState): DockerState {
+  const given = m.docker!.containers ?? [], events: DockerEvent[] = [];
+  let d: DockerState = { ...d0, runtime: true };
+  const containers = d0.containers.map(c0 => {
+    const t = given.find(x => x.name === c0.name)!, img = d0.images.find(i => i.id === c0.image);
+    const caps = (list: string[] | undefined) => (list ?? []).map(x => normalizeCap(x)).filter((x): x is string => !!x);
+    const memory = t.memory !== undefined ? parseBytes(t.memory) ?? undefined : undefined, memorySwap = t.memorySwap !== undefined ? (t.memorySwap === '-1' ? -1 : parseBytes(t.memorySwap) ?? undefined) : undefined;
+    const limits = { ...memory !== undefined ? { memory } : {}, ...memorySwap !== undefined ? { memorySwap } : {}, ...t.cpus !== undefined ? { nanoCpus: Math.round(t.cpus * 1e9) } : {} };
+    const stopSignal = t.stopSignal ?? img?.stopSignal;
+    let c: DockerContainer = {
+      ...c0, ...Object.keys(limits).length ? { limits } : {}, ...t.restart !== undefined ? { restart: t.restart } : {}, ...t.init ? { init: true as const } : {}, ...t.readOnly ? { readOnly: true as const } : {},
+      ...caps(t.capAdd).length ? { capAdd: caps(t.capAdd) } : {}, ...caps(t.capDrop).length ? { capDrop: caps(t.capDrop) } : {}, ...t.securityOpt?.length ? { securityOpt: [...t.securityOpt] } : {},
+      ...t.privileged ? { privileged: true as const } : {}, ...stopSignal ? { stopSignal } : {}, ...t.stopTimeout !== undefined ? { stopTimeout: t.stopTimeout } : {},
+      ...t.restartCount ? { restartCount: t.restartCount } : {}, ...t.oomKilled ? { oomKilled: true as const } : {},
+    };
+    const imageMain = !!img && !c.custom && !img.ownMain, spec = imageMain ? img!.runtime : programFor(d0, effective(c))?.runtime;
+    if (spec && c.status !== 'created') c = { ...c, spec };
+    // A running container's own exit (exitAfter) counts from its start.
+    if (c.status === 'running' && spec?.exitAfter) c = { ...c, plan: { t: (c.started ?? 0) + spec.exitAfter.seconds, exit: spec.exitAfter.exit, logs: spec.exitAfter.logs } };
+    return c;
+  });
+  d = { ...d, containers };
+  for (const c of containers) {
+    const at = (t: number, action: string, extra: Record<string, string> = {}) => { const one = emit({ ...d, events: [] }, t, action, c, extra).events![0]; events.push(one); };
+    at(c.created, 'create');
+    if (c.started !== undefined) at(c.started, 'start');
+    if (c.finished !== undefined) { if (c.oomKilled) at(c.finished, 'oom'); at(c.finished, 'die', dieAttrs(c)); }
+  }
+  return { ...d, events: events.map((e, k) => ({ e, k })).sort((a, b) => a.e.t - b.e.t || a.k - b.k).map(x => x.e) };
+}
+/** E24: the running containers' planned exits and OOM kills, from their starts (the host's swap decides the OOM limit). */
+function scheduled(state: FsState): FsState {
+  const d = state.docker!;
+  return { ...state, docker: { ...d, containers: d.containers.map(c => c.status === 'running' ? schedule(state, c) : c) } };
 }
 
 /**
@@ -353,6 +445,8 @@ function storageNetState(m: TerminalMachine, state: FsState, d0: DockerState): F
   for (const c0 of d0.containers) {
     const t = given.find(x => x.name === c0.name)!, img = d.images.find(i => i.id === c0.image);
     const mounts = (t.volumes ?? []).map(v => parseVolumeFlag(v, m.cwd ?? state.cwd, c0.id)).filter((x): x is Exclude<typeof x, { error: string }> => !('error' in x));
+    // E24: --tmpfs paths (the runtime profile's containers).
+    if (d0.runtime) for (const target of t.tmpfs ?? []) mounts.push({ type: 'tmpfs', source: '', target, readonly: false, via: 'mount' });
     if (img) mounts.push(...imageVolumes(img, mounts, c0.id));
     let c: DockerContainer = { ...c0, ip: undefined, networks: { [t.network ?? 'bridge']: { aliases: [...t.aliases ?? []] } }, ...mounts.length ? { mounts } : {}, ...t.user ? { user: t.user } : {} };
     const p = prepareMounts(host, d, c, c0.created);
@@ -376,6 +470,22 @@ function healthProblem(h: TerminalHealthcheck): string | null {
     return 'healthcheck.test is ["CMD", executable, …], ["CMD-SHELL", "line"] or ["NONE"]';
   for (const k of ['interval', 'timeout', 'startPeriod', 'startInterval'] as const) if (h[k] !== undefined && (typeof h[k] !== 'string' || parseDuration(h[k]!) === null)) return `healthcheck.${k} is a duration such as 5s or 1m30s`;
   if (h.retries !== undefined && !whole(h.retries, 0, 100)) return 'healthcheck.retries is 0..100';
+  return null;
+}
+/** E24: why a runtime declaration is not one, or null. */
+function runtimeProblem(t: TerminalRuntime): string | null {
+  const out = (x: { output: string; exit?: number } | undefined) => x === undefined || (typeof x.output === 'string' && x.output.length <= LIMITS.fileLength && (x.exit === undefined || whole(x.exit, 0, 255)));
+  if (t.needsEnv !== undefined && (!Array.isArray(t.needsEnv) || t.needsEnv.some(n => !/^[A-Za-z_][A-Za-z0-9_]*$/.test(n)))) return 'needsEnv lists environment variable names';
+  if (![t.missingEnv, t.readOnlyError, t.capMissing].every(out)) return 'missingEnv, readOnlyError and capMissing are { output, exit 0..255 }';
+  if (t.exitAfter !== undefined && (!(typeof t.exitAfter.seconds === 'number' && t.exitAfter.seconds >= 0 && t.exitAfter.seconds <= 86400) || (t.exitAfter.exit !== undefined && !whole(t.exitAfter.exit, 0, 255)) || (t.exitAfter.logs ?? []).some(s => !line(500)(seedText(s)))))
+    return 'exitAfter is { seconds 0..86400, exit 0..255, one-line logs }';
+  if (t.memory !== undefined && (!whole(t.memory.start, 0, 2 ** 40) || (t.memory.growth !== undefined && !(typeof t.memory.growth === 'number' && t.memory.growth >= 0 && t.memory.growth <= 2 ** 36)) || (t.memory.max !== undefined && !whole(t.memory.max, t.memory.start, 2 ** 40))))
+    return 'memory is { start bytes, growth bytes per second, max ≥ start }';
+  if ((t.cpu !== undefined && !(typeof t.cpu === 'number' && t.cpu >= 0 && t.cpu <= 6400)) || (t.pids !== undefined && !whole(t.pids, 1, 1000))) return 'cpu is 0..6400 (percent of one CPU) and pids 1..1000';
+  if (t.signals !== undefined && (typeof t.signals !== 'object' || Object.entries(t.signals).some(([k, v]) => signalNumber(k) === undefined || signalNumber(k) === 9 || (v.seconds !== undefined && !(typeof v.seconds === 'number' && v.seconds >= 0 && v.seconds <= 3600)) || (v.exit !== undefined && !whole(v.exit, 0, 255)) || (v.logs ?? []).some(s => !line(500)(seedText(s))))))
+    return 'signals maps a signal (not SIGKILL) to { seconds 0..3600, one-line logs, exit 0..255 }';
+  if (t.writes !== undefined && (!Array.isArray(t.writes) || t.writes.length > 20 || t.writes.some(w => typeof w !== 'string' || !w || w.includes('..')))) return 'writes lists at most 20 paths';
+  if (t.caps !== undefined && (!Array.isArray(t.caps) || t.caps.some(x => typeof x !== 'string' || !normalizeCap(x) || normalizeCap(x) === 'ALL'))) return 'caps lists capabilities (CHOWN, SETUID, NET_BIND_SERVICE…)';
   return null;
 }
 /** E20: the problems of a machine's Docker data. */
@@ -409,7 +519,9 @@ export function dockerProblems(m: TerminalMachine, lv: DockerLevels): string[] {
     if (i.output !== undefined && (typeof i.output !== 'string' || i.output.length > LIMITS.fileLength)) fail(`${at}: output at most ${LIMITS.fileLength} characters`);
     if (i.service && i.output !== undefined) fail(`${at}: a service keeps running; output is for an image that prints and exits`);
     if ((i.exit !== undefined && !whole(i.exit, 0, 255)) || (i.stopExit !== undefined && !whole(i.stopExit, 0, 255))) fail(`${at}: exit and stopExit are 0..255`);
-    const allowed = lv.compose ? composeCommands(m) : lv.storageNet ? E22_IMAGE_COMMANDS : IMAGE_COMMANDS;
+    // E24: and the executables of the lesson's programs (node, python…), which run as PID 1.
+    const allowed = lv.runtime ? [...composeCommands(m), ...(m.docker?.programs ?? []).map(p => (p.command?.[0] ?? '').slice((p.command?.[0] ?? '').lastIndexOf('/') + 1)).filter(Boolean)]
+      : lv.compose ? composeCommands(m) : lv.storageNet ? E22_IMAGE_COMMANDS : IMAGE_COMMANDS;
     if (i.commands !== undefined && (!Array.isArray(i.commands) || i.commands.some(c => !allowed.includes(c)))) fail(`${at}: commands are among ${allowed.join(' ')}`);
     // E22: VOLUME paths.
     if (i.volumes !== undefined) {
@@ -428,6 +540,15 @@ export function dockerProblems(m: TerminalMachine, lv: DockerLevels): string[] {
         if (i.ready !== undefined && !whole(i.ready, 0, 3600)) fail(`${at}: ready is 0..3600 seconds`);
         const host = ref ? hostOf(ref.repo) : undefined;
         if (i.tags !== undefined && (!host || !(d.registries ?? []).some(r => r.host === host) || !Array.isArray(i.tags) || i.tags.some(t => !/^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$/.test(t) || t === ref!.tag))) fail(`${at}: tags are other tags of an image of a registry the lesson declares`);
+      }
+    }
+    // E24: STOPSIGNAL and the runtime declaration.
+    if (i.stopSignal !== undefined || RUNTIME_KEYS.some(k => i[k] !== undefined)) {
+      if (!lv.runtime) fail(`${at}: stopSignal and the runtime fields (${RUNTIME_KEYS.join(', ')}) need the runtime profile (engine stage E24)`);
+      else {
+        if (i.stopSignal !== undefined && (typeof i.stopSignal !== 'string' || signalNumber(i.stopSignal) === undefined)) fail(`${at}: stopSignal is a signal (SIGTERM, SIGQUIT…)`);
+        const p = runtimeProblem(i);
+        if (p) fail(`${at}: ${p}`);
       }
     }
     // E21: the config's USER and labels, package tables and history.
@@ -466,6 +587,11 @@ export function dockerProblems(m: TerminalMachine, lv: DockerLevels): string[] {
       if ((p.exit !== undefined && !whole(p.exit, 0, 255)) || (p.stopExit !== undefined && !whole(p.stopExit, 0, 255)) || (p.missing?.exit !== undefined && !whole(p.missing.exit, 0, 255))) fail(`${at}: exit codes are 0..255`);
       if ((p.logs ?? []).length > 50 || (p.logs ?? []).some(s => !line(500)(seedText(s)))) fail(`${at}: at most 50 log lines of one line each`);
       if (p.http !== undefined && (!whole(p.http.port, 1, 65535) || !responders.has(p.http.responder) || (p.http.accessLog !== undefined && p.http.accessLog !== 'nginx'))) fail(`${at}: http needs a port 1..65535, a responder of the machine and accessLog nginx or nothing`);
+      // E24: the runtime declaration.
+      if (RUNTIME_KEYS.some(k => p[k] !== undefined)) {
+        if (!lv.runtime) fail(`${at}: the runtime fields (${RUNTIME_KEYS.join(', ')}) need the runtime profile (engine stage E24)`);
+        else { const q = runtimeProblem(p); if (q) fail(`${at}: ${q}`); }
+      }
     }
   }
   // E23: the private registries (fake lesson tokens only) and the build tools.
@@ -522,6 +648,26 @@ export function dockerProblems(m: TerminalMachine, lv: DockerLevels): string[] {
   const names = new Set<string>(), bound: { b: PortBinding; name: string }[] = [];
   for (const c of containers) {
     const at = `container ${c.name}`;
+    // E24: the container's runtime fields.
+    const e24 = [c.restart, c.memory, c.memorySwap, c.cpus, c.init, c.readOnly, c.tmpfs, c.capAdd, c.capDrop, c.securityOpt, c.privileged, c.stopSignal, c.stopTimeout, c.restartCount, c.oomKilled];
+    if (e24.some(x => x !== undefined)) {
+      if (!lv.runtime) fail(`${at}: restart, memory, memorySwap, cpus, init, readOnly, tmpfs, capAdd, capDrop, securityOpt, privileged, stopSignal, stopTimeout, restartCount and oomKilled need the runtime profile (engine stage E24)`);
+      else {
+        if (c.restart !== undefined && (typeof c.restart !== 'string' || restartProblem(c.restart))) fail(`${at}: restart is no, always, unless-stopped or on-failure[:N]`);
+        const mem = c.memory === undefined ? undefined : parseBytes(String(c.memory));
+        if (c.memory !== undefined && (mem === null || mem! < 6 * 1024 * 1024)) fail(`${at}: memory is a size of at least 6MB (256m, 1g)`);
+        if (c.memorySwap !== undefined && (c.memory === undefined || (c.memorySwap !== '-1' && (parseBytes(String(c.memorySwap)) ?? 0) < (mem ?? 0)))) fail(`${at}: memorySwap needs memory and is at least as large (or -1)`);
+        if (c.cpus !== undefined && !(typeof c.cpus === 'number' && c.cpus >= 0.01 && c.cpus <= 64)) fail(`${at}: cpus is 0.01..64`);
+        if ([c.capAdd, c.capDrop].some(l => l !== undefined && (!Array.isArray(l) || l.some(x => typeof x !== 'string' || !normalizeCap(x))))) fail(`${at}: capAdd and capDrop are capabilities (NET_ADMIN, CHOWN, ALL…)`);
+        if (c.securityOpt !== undefined && (!Array.isArray(c.securityOpt) || c.securityOpt.some(o => !/^(no-new-privileges(:(true|false))?|(seccomp|apparmor|label)[=:].+)$/.test(o)))) fail(`${at}: securityOpt is no-new-privileges[:true] or seccomp=, apparmor=, label=`);
+        if (c.tmpfs !== undefined && (!Array.isArray(c.tmpfs) || c.tmpfs.some(x => !normalized(x)))) fail(`${at}: tmpfs paths are absolute`);
+        if (c.stopSignal !== undefined && signalNumber(c.stopSignal) === undefined) fail(`${at}: stopSignal is a signal (SIGTERM, SIGQUIT…)`);
+        if (c.stopTimeout !== undefined && !whole(c.stopTimeout, -1, 3600)) fail(`${at}: stopTimeout is -1..3600 seconds`);
+        if (c.restartCount !== undefined && !whole(c.restartCount, 0, 10000)) fail(`${at}: restartCount is 0..10000`);
+        if (c.oomKilled && (c.state !== 'exited' || c.exitCode !== 137)) fail(`${at}: an OOM-killed container is exited with exit code 137`);
+        if (c.init !== undefined && typeof c.init !== 'boolean') fail(`${at}: init is true or false`);
+      }
+    }
     if (lv.storageNet) {
       for (const v of c.volumes ?? []) { const p = parseVolumeFlag(v, '/', 'x'); if ('error' in p) fail(`${at}: volume ${v}: ${p.error}`); }
       if (c.network !== undefined && !networks.has(c.network)) fail(`${at}: network ${c.network} is not bridge, host, none or a network of the lesson`);
@@ -613,7 +759,16 @@ export function dockerCheckProblems(c: DockerCheck, lv: DockerLevels): string | 
     return null;
   }
   if (c.health !== undefined && !lv.compose) return 'health of a container check needs a compose machine (engine stage E23)';
-  if (!NAME.test(c.name ?? '') || (c.state !== undefined && !['created', 'running', 'exited'].includes(c.state)) || (c.image !== undefined && !parseRef(c.image)) || (c.health !== undefined && !['starting', 'healthy', 'unhealthy'].includes(c.health))
+  // E24: the runtime's fields of a container check.
+  const e24 = [c.oomKilled, c.restartCount, c.restartPolicy, c.memory, c.cpus, c.readOnly, c.user, c.capDrop].some(x => x !== undefined) || c.state === 'restarting';
+  if (e24) {
+    if (!lv.runtime) return 'state restarting, oomKilled, restartCount, restartPolicy, memory, cpus, readOnly, user and capDrop of a container check need a runtime machine (engine stage E24)';
+    if (c.absent || (c.oomKilled !== undefined && typeof c.oomKilled !== 'boolean') || (c.restartCount !== undefined && !whole(c.restartCount, 0, 10000)) || (c.restartPolicy !== undefined && (typeof c.restartPolicy !== 'string' || restartProblem(c.restartPolicy) !== null))
+      || (c.memory !== undefined && !whole(c.memory, 0, 2 ** 40)) || (c.cpus !== undefined && !(typeof c.cpus === 'number' && c.cpus >= 0 && c.cpus <= 64)) || (c.readOnly !== undefined && typeof c.readOnly !== 'boolean')
+      || (c.user !== undefined && typeof c.user !== 'string') || (c.capDrop !== undefined && (!Array.isArray(c.capDrop) || c.capDrop.some(x => typeof x !== 'string' || !normalizeCap(x)))))
+      return 'a container check needs oomKilled true or false, a restartCount 0..10000, a restart policy (on-failure:3), a memory limit in bytes, cpus 0..64, readOnly true or false, a user, capabilities to drop, and nothing else with absent';
+  }
+  if (!NAME.test(c.name ?? '') || (c.state !== undefined && !['created', 'running', 'exited', 'restarting'].includes(c.state)) || (c.image !== undefined && !parseRef(c.image)) || (c.health !== undefined && !['starting', 'healthy', 'unhealthy'].includes(c.health))
     || (c.port !== undefined && !PORT.test(c.port)) || (c.exitCode !== undefined && !whole(c.exitCode, 0, 255)) || (c.env !== undefined && !ENV.test(c.env))
     || (c.absent && (c.state ?? c.image ?? c.port ?? c.exitCode ?? c.env ?? c.health) !== undefined))
     return 'a container check needs a container name, a state among created running exited, an image reference, a port HOST:CONTAINER, an exit code 0..255, an env NAME=value, and nothing else with absent';
@@ -651,7 +806,11 @@ export function describeDockerCheck(c: DockerCheck): string {
     return `本機應該有 Image ${c.name}${parts.length ? `（${parts.join('，')}）` : ''}`;
   }
   if (c.absent) return `應該沒有名為 ${c.name} 的容器`;
-  const parts = [c.state ? `狀態是 ${c.state}` : '', c.image ? `由 ${c.image} 建立` : '', c.port ? `公開連接埠 ${c.port}` : '', c.exitCode !== undefined ? `結束碼是 ${c.exitCode}` : '', c.env ? `環境變數有 ${c.env}` : '', c.health ? `健康狀態是 ${HEALTH_WORDS[c.health]}` : ''].filter(Boolean);
+  const parts = [c.state ? `狀態是 ${c.state}` : '', c.image ? `由 ${c.image} 建立` : '', c.port ? `公開連接埠 ${c.port}` : '', c.exitCode !== undefined ? `結束碼是 ${c.exitCode}` : '', c.env ? `環境變數有 ${c.env}` : '', c.health ? `健康狀態是 ${HEALTH_WORDS[c.health]}` : '',
+    // E24
+    c.oomKilled !== undefined ? `OOMKilled 是 ${c.oomKilled}` : '', c.restartCount !== undefined ? `至少重新啟動了 ${c.restartCount} 次` : '', c.restartPolicy ? `重新啟動策略是 ${c.restartPolicy}` : '',
+    c.memory !== undefined ? `記憶體上限是 ${c.memory} 位元組` : '', c.cpus !== undefined ? `CPU 上限是 ${c.cpus}` : '', c.readOnly !== undefined ? (c.readOnly ? '根檔案系統是唯讀的' : '根檔案系統可以寫入') : '',
+    c.user !== undefined ? (c.user ? `以 ${c.user} 執行` : '沒有指定使用者（以 Image 的 USER 或 root 執行）') : '', c.capDrop?.length ? `拿掉了 ${c.capDrop.map(x => normalizeCap(x) ?? x).join('、')} 能力` : ''].filter(Boolean);
   return `應該有名為 ${c.name} 的容器${parts.length ? `（${parts.join('，')}）` : ''}`;
 }
 /** E21: the build check: build the context, change the file, build again, and read which steps were CACHED. */
@@ -718,7 +877,7 @@ function storageNetFailure(c: Extract<DockerCheck, { kind: 'volume' | 'network' 
 export function dockerFailure(c: DockerCheck, end0: FsState): string | null {
   const end = settleDocker(end0), d = end.docker;
   if (!d) return '這台機器沒有安裝 Docker';
-  const problem = dockerCheckProblems(c, { containers: true, images: true, storageNet: true, compose: true });
+  const problem = dockerCheckProblems(c, { containers: true, images: true, storageNet: true, compose: true, runtime: true });
   if (problem) return problem;
   if (c.kind === 'build') return buildFailure(c, end);
   if (c.kind === 'volume' || c.kind === 'network' || c.kind === 'reach') return storageNetFailure(c, end);
@@ -751,7 +910,7 @@ export function dockerFailure(c: DockerCheck, end0: FsState): string | null {
   const x = d.containers.find(k => k.name === c.name) ?? findContainer(d, c.name);
   if (c.absent) return x ? `仍有容器 ${c.name}（${statusText(x, end.clock?.now ?? 0)}）` : null;
   if (!x) return `沒有名為 ${c.name} 的容器`;
-  if (c.state && x.status !== c.state) return `它的狀態是 ${x.status}`;
+  if (c.state && (d.runtime ? stateOf(x) : x.status) !== c.state) return `它的狀態是 ${d.runtime ? stateOf(x) : x.status}`;
   if (c.image) {
     const want = parseRef(c.image)!, img = d.images.find(i => i.id === x.image);
     if (!img || img.repo !== want.repo || img.tag !== want.tag) return `它是由 ${x.ref} 建立的`;
@@ -767,6 +926,18 @@ export function dockerFailure(c: DockerCheck, end0: FsState): string | null {
     if (x.status !== 'running') return '它沒有在執行';
     if (x.health?.status !== c.health) return `它的健康狀態是 ${HEALTH_WORDS[x.health?.status ?? 'starting']}`;
   }
+  // E24: the runtime's fields.
+  if (c.oomKilled !== undefined && !!x.oomKilled !== c.oomKilled) return x.oomKilled ? '它是被 OOM killer 結束的（OOMKilled 是 true）' : '它不是被 OOM killer 結束的（OOMKilled 是 false）';
+  if (c.restartCount !== undefined && (x.restartCount ?? 0) < c.restartCount) return `它只重新啟動了 ${x.restartCount ?? 0} 次`;
+  if (c.restartPolicy !== undefined) {
+    const want = policyOf(c.restartPolicy), got = policyOf(x.restart);
+    if (want.name !== got.name || want.max !== got.max) return `它的重新啟動策略是 ${got.name}${got.max ? `:${got.max}` : ''}`;
+  }
+  if (c.memory !== undefined && (x.limits?.memory ?? 0) !== c.memory) return x.limits?.memory ? `它的記憶體上限是 ${x.limits.memory} 位元組` : '它沒有記憶體上限';
+  if (c.cpus !== undefined && (x.limits?.nanoCpus ?? 0) !== Math.round(c.cpus * 1e9)) return x.limits?.nanoCpus ? `它的 CPU 上限是 ${x.limits.nanoCpus / 1e9}` : '它沒有 CPU 上限';
+  if (c.readOnly !== undefined && !!x.readOnly !== c.readOnly) return x.readOnly ? '它的根檔案系統是唯讀的' : '它的根檔案系統可以寫入（沒有 --read-only）';
+  if (c.user !== undefined && (x.user ?? '') !== c.user) return x.user ? `它以 ${x.user} 執行` : '它沒有指定使用者（以 root 執行）';
+  for (const cap of c.capDrop ?? []) { const n = normalizeCap(cap)!; if (!(x.capDrop ?? []).includes(n) && !(x.capDrop ?? []).includes('ALL')) return x.capDrop?.length ? `它拿掉的能力是 ${x.capDrop.join('、')}` : '它沒有拿掉任何能力（沒有 --cap-drop）'; }
   return null;
 }
 /** E23: compose and registry, on the daemon after the commands. */

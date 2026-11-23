@@ -372,13 +372,13 @@ const SYSTEM_FIELDS = ['kernel', 'release', 'version', 'machine', 'os'] as const
 /** E1: the shell profile a machine's sessions use (lab unless it says files, streams or users). */
 export const profileOf = (machine: Pick<TerminalMachine, 'profile'>): ShellProfile => PROFILES[machine.profile ?? 'lab'] ?? LAB_PROFILE;
 /** Each profile includes the ones before it: files (E1) < streams (E2) < users (E3) < processes (E4) < packages (E5) < services (E6). */
-const RANK: Record<ProfileId, number> = { lab: 0, files: 1, streams: 2, users: 3, processes: 4, packages: 5, services: 6, remote: 7, scripting: 8, scheduling: 9, sockets: 10, dns: 11, http: 12, tls: 13, nginx: 14, proxy: 15, firewall: 16, tunnels: 17, edge: 18, diagnostics: 19, containers: 20, images: 21, 'storage-net': 22, compose: 23 };
+const RANK: Record<ProfileId, number> = { lab: 0, files: 1, streams: 2, users: 3, processes: 4, packages: 5, services: 6, remote: 7, scripting: 8, scheduling: 9, sockets: 10, dns: 11, http: 12, tls: 13, nginx: 14, proxy: 15, firewall: 16, tunnels: 17, edge: 18, diagnostics: 19, containers: 20, images: 21, 'storage-net': 22, compose: 23, runtime: 24 };
 const rankOf = (machine: Pick<TerminalMachine, 'profile'>) => RANK[machine.profile ?? 'lab'] ?? 0;
 /** E10–E12: which of the server stages a machine's profile has. */
 const levelsOf = (machine: Pick<TerminalMachine, 'profile'>): ServerLevels => ({
   sockets: rankOf(machine) >= RANK.sockets, dns: rankOf(machine) >= RANK.dns, http: rankOf(machine) >= RANK.http, tls: rankOf(machine) >= RANK.tls, nginx: rankOf(machine) >= RANK.nginx,
   proxy: rankOf(machine) >= RANK.proxy, firewall: rankOf(machine) >= RANK.firewall, tunnels: rankOf(machine) >= RANK.tunnels,
-  edge: rankOf(machine) >= RANK.edge, diagnostics: rankOf(machine) >= RANK.diagnostics, containers: rankOf(machine) >= RANK.containers, images: rankOf(machine) >= RANK.images, storageNet: rankOf(machine) >= RANK['storage-net'], compose: rankOf(machine) >= RANK.compose,
+  edge: rankOf(machine) >= RANK.edge, diagnostics: rankOf(machine) >= RANK.diagnostics, containers: rankOf(machine) >= RANK.containers, images: rankOf(machine) >= RANK.images, storageNet: rankOf(machine) >= RANK['storage-net'], compose: rankOf(machine) >= RANK.compose, runtime: rankOf(machine) >= RANK.runtime,
 });
 
 /** E3: a users machine's database: the base and its user (defaultAccounts) with the machine's groups and users laid over it. */

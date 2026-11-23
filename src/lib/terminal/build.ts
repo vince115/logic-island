@@ -168,6 +168,8 @@ interface Stage {
   volumes: string[];
   /** E23: HEALTHCHECK. */
   healthcheck?: HealthConfig;
+  /** E24: STOPSIGNAL. */
+  stopSignal?: string;
   history: HistoryRow[];
   rootfs: string[];
   chain: string[];
@@ -735,7 +737,7 @@ export function build(state: FsState, d: DockerState, o: BuildOptions, io: Io, h
     if (ins.keyword === 'RUN' && Object.keys(ins.flags).length) return fail(`failed to solve: 模擬環境不支援 RUN --${Object.keys(ins.flags)[0]}`, src(ins.line, ins.end));
     if ((ins.keyword === 'COPY' || ins.keyword === 'ADD') && Object.keys(ins.flags).some(f => f !== 'chown' && f !== 'chmod' && !(o.compose && f === 'from')))
       return fail(`failed to solve: 模擬環境的 ${ins.keyword} 只支援 --chown${o.compose && ins.keyword === 'COPY' ? '、--chmod 與 --from' : ' 與 --chmod'}`, src(ins.line, ins.end));
-    if (LATER[ins.keyword] && !(o.storageNet && ins.keyword === 'VOLUME') && !(o.compose && ins.keyword === 'HEALTHCHECK')) return fail(`failed to solve: ${ins.keyword}：模擬環境在引擎階段 ${LATER[ins.keyword]} 才支援`, src(ins.line, ins.end));
+    if (LATER[ins.keyword] && !(o.storageNet && ins.keyword === 'VOLUME') && !(o.compose && ins.keyword === 'HEALTHCHECK') && !(d.runtime && ins.keyword === 'STOPSIGNAL')) return fail(`failed to solve: ${ins.keyword}：模擬環境在引擎階段 ${LATER[ins.keyword]} 才支援`, src(ins.line, ins.end));
   }
   // The base images (ARG substitution on the FROM line): local first, else what Docker Hub serves; each is resolved once.
   const nameOf = (r: ImageRef) => hooks.qualified(r);
@@ -824,7 +826,7 @@ export function build(state: FsState, d: DockerState, o: BuildOptions, io: Io, h
       nodes: base ? imageFs(base) : new Map<string, FsNode>([['/', { kind: 'dir', mode: 0o755, owner: 'root' }]]), weights: new Map(base?.weights ?? []), ...base?.apt ? { apt: base.apt } : {},
       env: [...base?.env ?? []], workdir: base?.workdir ?? '/', user: base?.user ?? '', cmd: [...base?.cmd ?? []], entrypoint: [...base?.entrypoint ?? []], expose: [...base?.expose ?? []],
       labels: { ...base?.labels ?? {} }, volumes: [...base?.volumes ?? []], history: base ? historyOf(base).map(r => ({ ...r })) : [], rootfs: base ? rootfsOf(base) : [], chain: base ? chainOf(base) : [], layerSizes: base ? layerSizesOf(base) : [], base,
-      ...base?.healthcheck ? { healthcheck: base.healthcheck } : {},
+      ...base?.healthcheck ? { healthcheck: base.healthcheck } : {}, ...base?.stopSignal ? { stopSignal: base.stopSignal } : {},
     };
     const inherited = s.history.length;
     // The stage's variables: its ARGs (a --build-arg wins over the default) and ENV.
@@ -890,6 +892,14 @@ export function build(state: FsState, d: DockerState, o: BuildOptions, io: Io, h
           meta(`VOLUME [${paths.join(' ')}]`);
           continue;
         }
+        case 'STOPSIGNAL': {
+          // E24: config only (docker stop sends it instead of SIGTERM; docker run checks that it is a signal).
+          const sig = sub(ins.args.trim());
+          if (!sig || /\s/.test(sig)) return fail(`failed to solve: dockerfile parse error on line ${ins.line}: STOPSIGNAL requires exactly one argument`, src(ins.line, ins.end));
+          s.stopSignal = sig;
+          meta(`STOPSIGNAL ${sig}`);
+          continue;
+        }
         case 'HEALTHCHECK': {
           // E23: config only (its test runs in each container while it runs).
           const h = parseHealthcheckInstruction(ins.args);
@@ -914,6 +924,8 @@ export function build(state: FsState, d: DockerState, o: BuildOptions, io: Io, h
       const runEnv = vars();
       let def: string, createdBy: string;
       const plan: { from: string; to: string }[] = [];
+      // E24: COPY --from=STAGE / / (the whole file system) carries what the stage's base image weighs, not only its files' bytes.
+      let extra = 0;
       // E23: COPY --from reads another stage's (or an image's) files, by absolute paths; everything else reads the context.
       const fromText = copyFrom(ins), fromAt = fromText === undefined ? undefined : stageIndex(fromText, i);
       let source: ReadonlyMap<string, FsNode> = context, sourceWeights: ReadonlyMap<string, Weight> = new Map(), sourceKey = '';
@@ -939,6 +951,10 @@ export function build(state: FsState, d: DockerState, o: BuildOptions, io: Io, h
         const list = (ins.json ?? ins.args.split(/\s+/).filter(Boolean)).map(sub);
         if (list.length < 2) return fail(`failed to solve: dockerfile parse error on line ${ins.line}: ${ins.keyword} requires at least two arguments, but only one was provided. Destination could not be determined`, src(ins.line, ins.end));
         const dest = list.at(-1)!, sources = list.slice(0, -1);
+        if (d.runtime && fromText !== undefined && sources.some(x => (x.replace(/^\/+/, '') || '.') === '.')) {
+          const root = fromAt !== undefined ? built.get(fromAt)!.root : copyImages.get(fromText) ?? null;
+          if (root) extra = Math.max(0, root.size - [...root.weights?.values() ?? []].reduce((n, w) => n + w.size, 0));
+        }
         if (ins.keyword === 'ADD' && sources.some(x => /^(https?|git):\/\//.test(x) || /\.(tar|tar\.gz|tgz|tar\.xz|txz|tar\.bz2)$/.test(x)))
           return fail('failed to solve: ADD：模擬環境只支援複製本機的一般檔案（網址的下載與壓縮檔的自動解開不模擬；請用 COPY）', src(ins.line, ins.end));
         const destAbs = resolvePath({ cwd: s.workdir, home: '/' }, dest), into = (tail: string) => `${destAbs === '/' ? '' : destAbs}/${tail}`;
@@ -1021,7 +1037,7 @@ export function build(state: FsState, d: DockerState, o: BuildOptions, io: Io, h
       block(label, body, `DONE ${secs(run.seconds)}`);
       steps.push({ label: stepLabel, cached: false });
       // The step's layer (none when it changed nothing) and its entry in the build cache.
-      const diff = diffOf(before, s.nodes, s.weights);
+      const diff0 = diffOf(before, s.nodes, s.weights), diff = { ...diff0, size: diff0.size + (diff0.id ? extra : 0) };
       if (diff.id) { s.chain.push(chained(s.chain, diff.id)); s.rootfs.push(diff.id); s.layerSizes.push(diff.size); newLayers++; }
       s.history.push({ created: now, createdBy, size: diff.size, empty: !diff.id, comment: 'buildkit.dockerfile.v0' });
       cache[nextKey] = { nodes: new Map(s.nodes), weights: new Map(s.weights), ...s.apt ? { apt: s.apt } : {}, created: now, size: diff.size, ...diff.id ? { diffId: diff.id } : {} };
@@ -1034,7 +1050,7 @@ export function build(state: FsState, d: DockerState, o: BuildOptions, io: Io, h
     built.set(i, { s, key, newLayers, created, root: base, scratch: up ? up.scratch : !base });
   }
   const final = built.get(at)!, s = final.s, base = final.root, scratch = final.scratch, created = final.created, newLayers = final.newLayers;
-  const config = { env: s.env, cmd: s.cmd, entrypoint: s.entrypoint, workdir: s.workdir, expose: s.expose, user: s.user, labels: s.labels, rootfs: s.rootfs, history: s.history.map(r => [r.created, r.createdBy, r.size, r.empty]), created, ...s.volumes.length ? { volumes: s.volumes } : {}, ...s.healthcheck ? { healthcheck: s.healthcheck } : {} };
+  const config = { env: s.env, cmd: s.cmd, entrypoint: s.entrypoint, workdir: s.workdir, expose: s.expose, user: s.user, labels: s.labels, rootfs: s.rootfs, history: s.history.map(r => [r.created, r.createdBy, r.size, r.empty]), created, ...s.volumes.length ? { volumes: s.volumes } : {}, ...s.healthcheck ? { healthcheck: s.healthcheck } : {}, ...s.stopSignal ? { stopSignal: s.stopSignal } : {} };
   const id = hex(`image-config/${JSON.stringify(config)}`);
   const kk = n++;
   show(`#${kk} exporting to image`);
@@ -1053,6 +1069,8 @@ export function build(state: FsState, d: DockerState, o: BuildOptions, io: Io, h
     layers: s.rootfs.length, local: true, pullable: false, built: true, nodes: s.nodes, weights: s.weights, history: s.history, rootfs: s.rootfs, chain: s.chain, user: s.user, labels: s.labels,
     ...base?.packages ? { packages: base.packages } : {}, ...s.apt ? { apt: s.apt } : {}, ...!same || base?.ownMain ? { ownMain: true } : {}, ...scratch ? { scratch: true } : {},
     ...s.volumes.length ? { volumes: s.volumes } : {}, ...s.healthcheck ? { healthcheck: s.healthcheck } : {}, ...same && base?.ready ? { ready: base.ready } : {},
+    // E24: STOPSIGNAL, and the base's behaviour over time when it runs the base's own main process.
+    ...s.stopSignal ? { stopSignal: s.stopSignal } : {}, ...same && base?.runtime ? { runtime: base.runtime } : {},
   };
   // The tags move to the new image; an image left without a tag is dangling (<none> <none>).
   let images = [...d.images];

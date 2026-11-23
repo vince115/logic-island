@@ -1,6 +1,6 @@
 # DKR-0：Docker 容器島的課程能力與引擎階段 E20
 
-> 2026-11-23。目標：讓 Docker 容器島（`docker-containers`，前綴 DKR，15 堂）可以撰寫、驗證、發布。本島**不需要新的課程能力或活動**：和網路與伺服器島（[SRV0_SERVER_CAPABILITY](SRV0_SERVER_CAPABILITY.md)）一樣沿用 LNX-0 的 `terminal` 能力（[LNX0_TERMINAL_CAPABILITY](LNX0_TERMINAL_CAPABILITY.md)）與 CN-0 的 `network-protocol` 情境。本文件也是終端機引擎階段 **E20** `containers`、**E21** `images`（§11）、**E22** `storage-net`（§12）與 **E23** `compose`（§13）的唯一說明處（E1–E9 在 LNX0，E10–E19 在 SRV0），以及之後 E24 的規劃。之後的進度與下一批由 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 計算。
+> 2026-11-23。目標：讓 Docker 容器島（`docker-containers`，前綴 DKR，15 堂）可以撰寫、驗證、發布。本島**不需要新的課程能力或活動**：和網路與伺服器島（[SRV0_SERVER_CAPABILITY](SRV0_SERVER_CAPABILITY.md)）一樣沿用 LNX-0 的 `terminal` 能力（[LNX0_TERMINAL_CAPABILITY](LNX0_TERMINAL_CAPABILITY.md)）與 CN-0 的 `network-protocol` 情境。本文件也是終端機引擎階段 **E20** `containers`、**E21** `images`（§11）、**E22** `storage-net`（§12）、**E23** `compose`（§13）與 **E24** `runtime`（§14）的唯一說明處（E1–E9 在 LNX0，E10–E19 在 SRV0）。之後的進度與下一批由 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 計算。
 
 ## 1. 範圍
 
@@ -10,6 +10,7 @@
 | E20 `containers` | Docker CE 27.5.1 的模擬：daemon 的 Image 與 Container、模擬的 Docker Hub（課程宣告哪些 Image 拉得到）、容器的生命週期與可寫層、日誌、`docker exec`、連接埠對應（主機上的 `docker-proxy`、`curl` 經由它連到容器的服務）、`docker` 群組與 socket 的權限；`docker` 指令（§5） |
 | E21 `images` | `docker build`（BuildKit，預設的建置器）：Dockerfile 的解析、在建置容器裡執行 RUN、由建置內容 COPY／ADD 與 `.dockerignore`、每一步的層與大小、建置快取（`CACHED` 與失效）、`docker history`、Image 設定在 `docker run` 時生效、標籤與 dangling Image、`docker image prune`、`image`／`build` 檢查（§11） |
 | E23 `compose` | Docker Compose v2（`docker compose`：YAML 子集、變數代換、驗證、`config`、`up`／`down`／`ps`／`logs`／`exec`／`build`／`pull`／`start`／`stop`／`restart`／`ls`、depends_on 與健康檢查的等待）、健康檢查（Compose、Dockerfile 的 HEALTHCHECK、`--health-*`；`(healthy)` 與 `.State.Health`）、多階段建置（`COPY --from`、`FROM` 階段、`--target`、scratch、distroless、課程宣告的建置工具）、Registry（`docker tag`、`login`／`logout`、`push`、以 digest 拉取、denied／unauthorized／不可變標籤）、`compose`／`registry` 檢查與 `image` 的 digest（§13） |
+| E24 `runtime` | 主程式隨時間做的事（課程宣告：需要的環境變數、自己結束、記憶體、CPU、處理的訊號、啟動時寫的路徑、需要的能力）、結束碼、`docker logs --since`、`-m`／`--cpus` 與 OOM（137、`OOMKilled`）、重新啟動策略與重啟迴圈（moby 的退避、`Restarting (1) …`、on-failure:N）、`docker stop` 的寬限期與 PID 1（Shell 形式、exec 形式、`--init`、STOPSIGNAL）、`docker kill`、`stats`、`top`、`update`、`wait`、`events`、docker inspect 的執行期欄位與 template 的函式、`--read-only`、`--cap-drop` 與其他安全選項、E23 已知差異的三項修正（§14） |
 | E22 `storage-net` | Volume（具名、匿名、Image 的 VOLUME、copy-up）、bind mount（雙向即時）、tmpfs、唯讀掛載、以數字 UID 決定的擁有者與權限錯誤、備份用的 `tar`；`docker network`（bridge、host、none、自訂網路與內建 DNS、connect／disconnect）、容器之間連得到什麼、`--network host`／`none`、`docker inspect` 的 Mounts 與 Networks、`volume`／`network`／`reach` 檢查（§12） |
 
 不新增任何執行期套件；所有輸出由課程資料與機器的固定時鐘決定（§5.6）。
@@ -39,7 +40,7 @@
 
 ## 4. 批次與引擎階段
 
-課程編號即位置，依序連續發布；每一批先完成它需要的引擎階段（各自的 profile 與測試），再寫課。profile 延續**線性鏈**：… < edge < diagnostics < **containers**（E20）< **images**（E21）< **storage-net**（E22）< **compose**（E23）< E24。
+課程編號即位置，依序連續發布；每一批先完成它需要的引擎階段（各自的 profile 與測試），再寫課。profile 延續**線性鏈**：… < edge < diagnostics < **containers**（E20）< **images**（E21）< **storage-net**（E22）< **compose**（E23）< **runtime**（E24）。
 
 | 批次 | 課程 | 引擎階段 |
 |---|---|---|
@@ -47,7 +48,7 @@
 | DKR-2 | DKR05–DKR06 | **E21** `images`（已完成，§11）Dockerfile 與建置：解析 Dockerfile（FROM、RUN、COPY、WORKDIR、ENV、CMD、ENTRYPOINT、USER、EXPOSE）、`.dockerignore`、`docker build`（BuildKit 的輸出）、每個指令一層、快取命中（`CACHED`）與失效、指令順序、`docker history`、Image 大小；RUN 只執行模擬環境認得的指令（套件安裝依 E5 的套件資料） |
 | DKR-3 | DKR07–DKR08 | **E22** `storage-net`（已完成，§12）Volume 與網路：`docker volume`、`-v`／`--mount`（具名 Volume、bind mount 對應主機的檔案、tmpfs）、UID 不同造成的權限錯誤、重建容器後資料保留；`docker network`（預設 bridge、自訂網路與內建 DNS 127.0.0.11、容器以名稱互連、`--network host`）、哪些埠需要 `-p` |
 | DKR-4 | DKR09–DKR11 | **E23** `compose`（已完成，§13）Compose、多階段建置與 Registry：`compose.yaml`（services、ports、environment、volumes、depends_on 與 `condition: service_healthy`）、`docker compose up -d`／`ps`／`logs`／`down`；多階段建置（`COPY --from`、精簡基底、建置參數）；`docker tag`、`push`、以 digest 拉取、私有 Registry 的 `docker login`、不可變標籤與 `latest` 的風險（DKR11 的管線情境） |
-| DKR-5 | DKR12–DKR14 | **E24** 檢查與執行期限制：完整的 `docker inspect`、`HEALTHCHECK` 與 `(healthy)`／`(unhealthy)`、`--memory`／`--cpus`、記憶體不足的 `OOMKilled` 與 137、`--restart` 策略與重啟迴圈（`Restarting (1) …`）、SIGTERM 的處理與優雅關閉（`docker stop -t`）、`docker stats`、`top`、`kill`、`events`；DKR12（安全，`case-study-board`）用 E21 的 `USER`、E24 的 `--read-only` 與 `--cap-drop` |
+| DKR-5 | DKR12–DKR14 | **E24** `runtime`（已完成，§14）檢查與執行期限制：完整的 `docker inspect`（State、RestartCount、HostConfig 的限制與策略、`--format` 的函式）、HEALTHCHECK（E23）、`--memory`／`--cpus`、記憶體不足的 `OOMKilled` 與 137、`--restart` 策略與重啟迴圈（`Restarting (1) …`、on-failure:N）、SIGTERM 的處理、PID 1 與優雅關閉（`docker stop -t`、Shell 與 exec 形式、`--init`、STOPSIGNAL）、`docker stats`、`top`、`kill`、`update`、`wait`、`events`、`logs --since`；DKR12（安全，`case-study-board`）用 E21 的 `USER`、`docker history` 與 inspect 讀出 Image 裡的秘密、E24 的 `--read-only`、`--tmpfs`、`--cap-drop`、`no-new-privileges`，弱點掃描只在課文（或課程提供的報告檔案） |
 | DKR-6 | DKR15 | 綜合專題，單獨一批（用 E20–E24 已有的一切） |
 
 先修：DKR01 需要 LNX08；DKR 的同島先修都排在前面（`scripts/curriculum-queue.ts` 檢查）。
@@ -93,7 +94,7 @@
 | `docker container prune [-f]` | `WARNING! This will remove all stopped containers.`、`Are you sure you want to continue? [y/N] `；沒有鍵盤時說明（請加 `-f` 或 `echo y \|`），管線的答案不會顯示，所以下一行接在提示後面；`Deleted Containers:`、每個完整 ID、空行、`Total reclaimed space: 5B` |
 | `docker port 容器 [埠[/協定]]` | `80/tcp -> 0.0.0.0:8080` 與 `80/tcp -> [::]:8080`；指定埠時只印位址；沒有：`Error: No public port '81/tcp' published for web` |
 | `docker inspect [-f 格式] 名稱…` | 先找容器，再找 Image。`-f` 支援 `{{.欄位.欄位}}`、`{{json .欄位}}` 與字面文字；模擬的欄位：`.Id`、`.Created`（RFC 3339，整秒）、`.Path`、`.Args`、`.State`（Status、Running、Paused、Restarting、OOMKilled、Dead、ExitCode、Error、StartedAt、FinishedAt；沒有過的時間是 `0001-01-01T00:00:00Z`）、`.Image`、`.Name`（`/web`）、`.RestartCount`、`.HostConfig.PortBindings`、`.HostConfig.AutoRemove`、`.Config`（Hostname、Env、Cmd、Image、WorkingDir、Entrypoint、ExposedPorts、Tty、OpenStdin）、`.NetworkSettings`（IPAddress、Gateway、Ports）；Image 是 Id、RepoTags、RepoDigests、Created、Size、Os、Architecture、Config。值照 Go 的 text/template 印（`[nginx -g daemon off;]`、`true`）。沒有 `-f` 時印出模擬的欄位的 JSON 並說明真實的輸出有更多欄位；模擬環境沒有的欄位（例如 `.State.Health`、`.State.Pid`）說明不支援（結束碼 1），不印假的值。找不到：`Error: No such object: x` |
-| 其他 | `docker` 沒有參數印縮短的 Usage 與支援的指令；不存在的指令 `docker: 'x' is not a docker command.`、`See 'docker --help'`；真實存在但屬於之後階段的指令（build、history、volume、network、compose、push、tag、login、stats、top、kill…）說明是哪一個引擎階段（E21–E24）。`images` profile 起 build、history、`docker image build|history|prune`、`docker buildx build` 可用（§11）；`containers` profile 仍說明是 E21 |
+| 其他 | `docker` 沒有參數印縮短的 Usage 與支援的指令；不存在的指令 `docker: 'x' is not a docker command.`、`See 'docker --help'`；真實存在但屬於之後階段的指令（build、history、volume、network、compose、push、tag、login、stats、top、kill…）說明是哪一個引擎階段（E21–E24；E24 的指令從 `runtime` profile 起可用，§14）。`images` profile 起 build、history、`docker image build|history|prune`、`docker buildx build` 可用（§11）；`containers` profile 仍說明是 E21 |
 
 ### 5.4 `--format`
 
@@ -151,8 +152,8 @@ machines: [{ ..., profile: 'containers',
 ## 8. 只在課文說明、或不支援的部分
 
 - **核心機制**：namespace、cgroup、overlay2 的分層、OCI 規格、containerd 與 runc 的分工、Hypervisor 與虛擬機——模擬環境只模擬 CLI 看得到的結果，DKR01、DKR02 以網路情境與課文說明。容器裡的程式不出現在主機的 `ps`（真實的主機看得到它們）。
-- **E21–E24 的功能**（§4）：Dockerfile 與 `docker build`、`history`（E21 已完成，§11；`docker commit` 在 `images` profile 說明不支援）；Volume、bind mount、`docker network`、容器之間以名稱連線（E22 已完成，§12）；Compose、多階段建置、`tag`／`push`／`login`、以 digest 拉取、HEALTHCHECK 與健康狀態（E23 已完成，§13）；資源限制、OOMKilled、重新啟動策略、`stats`／`top`／`kill`／`events`／`pause`（E24）。在較低的 profile 輸入這些指令時說明是哪一個階段。
-- **其他**：`docker create`、`attach`、`cp`、`rename`、`system prune`、`save`／`load`、`context`、`buildx`；daemon 停止的情形（`systemctl stop docker` 不影響 `docker` 指令：`Cannot connect to the Docker daemon` 留到 E24）；互動式的終端機（`-it` 的 Shell、`docker logs -f` 的等待、前景伺服器的 Ctrl-C）；`docker exec -d`、`-u`；`docker ps -s`、`-n`、`-l` 與其他過濾條件；`--format` 的函式；`ls -l` 在容器裡的欄位依模擬環境的 `ls`；`ps` 只支援不加選項（BusyBox 的 `ps` 版面不同）；`/etc/resolv.conf`、IPv6 的 socket、`docker0`、iptables。
+- **E21–E24 的功能**（§4）：Dockerfile 與 `docker build`、`history`（E21 已完成，§11；`docker commit` 在 `images` profile 說明不支援）；Volume、bind mount、`docker network`、容器之間以名稱連線（E22 已完成，§12）；Compose、多階段建置、`tag`／`push`／`login`、以 digest 拉取、HEALTHCHECK 與健康狀態（E23 已完成，§13）；資源限制、OOMKilled、重新啟動策略、`stats`／`top`／`kill`／`events`（E24 已完成，§14；`pause` 說明不支援）。在較低的 profile 輸入這些指令時說明是哪一個階段。
+- **其他**：`docker create`、`attach`、`cp`、`rename`、`system prune`、`save`／`load`、`context`、`buildx`；daemon 停止的情形（`systemctl stop docker` 不影響 `docker` 指令；`Cannot connect to the Docker daemon` 與 daemon 重新啟動後的 always／unless-stopped 在 E24 也只在課文說明，§14.8）；互動式的終端機（`-it` 的 Shell、`docker logs -f` 的等待、前景伺服器的 Ctrl-C）；`docker exec -d`、`-u`；`docker ps -s`、`-n`、`-l` 與其他過濾條件；`--format` 的函式；`ls -l` 在容器裡的欄位依模擬環境的 `ls`；`ps` 只支援不加選項（BusyBox 的 `ps` 版面不同）；`/etc/resolv.conf`、IPv6 的 socket、`docker0`、iptables。
 - **日誌**：Image 的 `logs` 是課程寫好的固定文字（例如 nginx 的 `[notice]` 行裡的時間），不會隨啟動時間改變；`-t` 的時間戳記才是啟動的時間。
 - **大小**：`docker container prune` 的回收空間只算可寫層裡內容改變的檔案的位元組（真實的值另有 overlay 的中繼資料）。
 
@@ -203,7 +204,7 @@ machines: [{ ..., profile: 'containers',
 |---|---|
 | 建置內容 | `docker build [選項] 資料夾`：資料夾（相對於目前目錄）裡的每個檔案，扣掉 `.dockerignore` 排除的；Dockerfile 預設是 `資料夾/Dockerfile`，`-f` 相對於目前目錄。不讀標準輸入（`-`）與網址 |
 | Dockerfile 的解析 | 開頭的 parser directive（`# syntax=…`、`# escape=…`）忽略；`#` 開頭的行是註解（續行中的註解行也拿掉）；行尾 `\` 續行，**反斜線與換行直接拿掉**（所以 `apt-get update && \`＋下一行縮排變成 `&&     apt-get`，history 也是這樣）。指令不分大小寫；JSON 陣列是 exec 形式，否則是 shell 形式；`FROM`、`RUN`、`COPY`、`ADD` 前面的 `--旗標=值` 另外讀。變數代換（`$X`、`${X}`、`${X:-預設}`、`${X:+值}`、`\$`）用在 FROM（只有第一個 FROM 之前的 ARG）、COPY、ADD、WORKDIR、ENV、LABEL、EXPOSE、USER；RUN 的變數由建置容器的 Shell 展開（ARG 與 ENV 都是它的環境變數） |
-| 指令 | FROM（`AS 名稱`）、RUN、COPY（`--chown`、`--chmod`）、ADD（只有本機的一般檔案）、WORKDIR、ENV、ARG、EXPOSE（TCP）、CMD、ENTRYPOINT（exec 與 shell 形式）、USER、LABEL。VOLUME 說明是 E22（`storage-net` profile 起可用，§12.3），HEALTHCHECK、STOPSIGNAL 是 E24，`COPY --from` 是 E23，ONBUILD、SHELL、MAINTAINER、`RUN --mount` 說明不支援，here-document（`RUN <<EOF`）說明不支援 |
+| 指令 | FROM（`AS 名稱`）、RUN、COPY（`--chown`、`--chmod`）、ADD（只有本機的一般檔案）、WORKDIR、ENV、ARG、EXPOSE（TCP）、CMD、ENTRYPOINT（exec 與 shell 形式）、USER、LABEL。VOLUME 說明是 E22（`storage-net` profile 起可用，§12.3），HEALTHCHECK 是 E24（`compose` profile 起可用，§13.4），STOPSIGNAL 是 E24（`runtime` profile 起可用，§14.4），`COPY --from` 是 E23，ONBUILD、SHELL、MAINTAINER、`RUN --mount` 說明不支援，here-document（`RUN <<EOF`）說明不支援 |
 | 多階段 | 只建置目標階段（最後一個，或 `--target`）：BuildKit 略過用不到的階段，所以其他階段不出現在輸出；有兩個以上的 FROM 時步驟名稱帶階段名（`[app 2/3]`，沒有名稱時 `[stage-1 2/3]`） |
 | 基底 Image | FROM 先找本機的 Image（含建置出來的），再找模擬的 Docker Hub。只在 Docker Hub 的基底下載到**建置快取**，不會成為 `docker images` 裡的 Image（第一次的 FROM 步驟列出各層的下載與解開，之後只有 resolve）。`FROM scratch` 是空的檔案系統 |
 | 步驟 | FROM 與每個 RUN、COPY、ADD、WORKDIR 是一步（`[k/N]`）；ENV、ARG、LABEL、EXPOSE、CMD、ENTRYPOINT、USER 只改 Image 的設定，不是步驟，但寫進 history（0B） |
@@ -491,7 +492,7 @@ docker: {
 | 檔案 | 目前資料夾往上找 `compose.yaml`、`compose.yml`、`docker-compose.yaml`、`docker-compose.yml`，或 `-f 檔案`（`--project-directory`、`--env-file`）。找不到：`no configuration file provided: not found`；`-f` 不存在：`open /…: no such file or directory` |
 | 變數代換 | 所有的值（不含鍵）：`${VAR}`、`$VAR`、`${VAR:-預設}`、`${VAR-預設}`、`${VAR:+值}`、`${VAR+值}`、`${VAR:?訊息}`、`${VAR?訊息}`、`$$` 是 `$`。變數取自 Shell **匯出**的變數（`export`，優先）與專案資料夾的 `.env`（或 `--env-file`）。沒有設定：`WARN[0000] The "TAG" variable is not set. Defaulting to a blank string.`（每個變數一次）；`:?`：`error while interpolating services.web.image: required variable TAG is missing a value: 訊息` |
 | 驗證 | 頂層只能是 version、name、services、networks、volumes、`x-*`（configs、secrets、include 說明不支援）；打錯的鍵是 `validating /…/compose.yaml: services.web additional properties 'imgae' not allowed`；Compose 規格裡有、模擬環境沒有模擬的服務鍵（deploy、logging、profiles、tmpfs、expose…）說明不支援，不假裝；型別錯誤 `… services.web.ports must be a list`。`version` 印 `WARN[0000] …: the attribute \`version\` is obsolete, it will be ignored, please remove it to avoid potential confusion` |
-| 服務 | `image`、`build`（字串或 context、dockerfile、args（mapping 或清單）、target）、`ports`（`"8080:80"`、`"127.0.0.1:8080:80"`、`/udp`、長格式 target／published／host_ip／protocol；只寫容器埠或範圍說明不支援）、`environment`（mapping 或 `K=V` 清單；只有 `K` 時取 Shell 的值）、`env_file`（字串、清單或 `{path, required}`；`environment` 優先）、`volumes`（`名稱:/路徑[:ro]`、`./相對`／`/絕對`／`~/` 的 bind、`/路徑` 的匿名 Volume、長格式 type／source／target／read_only）、`networks`（清單或 mapping 加 `aliases`）、`depends_on`（清單，或 mapping 加 `condition`：service_started、service_healthy、service_completed_successfully，`required`、`restart`）、`healthcheck`（test 字串或清單、interval、timeout、retries、start_period、start_interval、`disable: true`）、`restart`（no、always、unless-stopped、on-failure[:N]；只記錄，重新啟動的行為是 E24）、`command`、`entrypoint`（字串依 sh 的規則切成字）、`user`、`working_dir`、`container_name`、`labels`。頂層 `volumes`、`networks`（name、external、driver: local／bridge） |
+| 服務 | `image`、`build`（字串或 context、dockerfile、args（mapping 或清單）、target）、`ports`（`"8080:80"`、`"127.0.0.1:8080:80"`、`/udp`、長格式 target／published／host_ip／protocol；只寫容器埠或範圍說明不支援）、`environment`（mapping 或 `K=V` 清單；只有 `K` 時取 Shell 的值）、`env_file`（字串、清單或 `{path, required}`；`environment` 優先）、`volumes`（`名稱:/路徑[:ro]`、`./相對`／`/絕對`／`~/` 的 bind、`/路徑` 的匿名 Volume、長格式 type／source／target／read_only）、`networks`（清單或 mapping 加 `aliases`）、`depends_on`（清單，或 mapping 加 `condition`：service_started、service_healthy、service_completed_successfully，`required`、`restart`）、`healthcheck`（test 字串或清單、interval、timeout、retries、start_period、start_interval、`disable: true`）、`restart`（no、always、unless-stopped、on-failure[:N]；`compose` profile 只記錄，`runtime` profile 起照 §14.3 重新啟動）、`command`、`entrypoint`（字串依 sh 的規則切成字）、`user`、`working_dir`、`container_name`、`labels`。頂層 `volumes`、`networks`（name、external、driver: local／bridge） |
 | 專案錯誤 | `service "web" depends on undefined service "dbb": invalid compose project`、`service "web" refers to undefined volume data: invalid compose project`、`service "web" refers to undefined network back: invalid compose project`、`service "web" has neither an image nor a build context specified: invalid compose project`、`dependency cycle detected: a -> b -> a`、condition 錯誤 `… must be one of the following: "service_started", "service_healthy", "service_completed_successfully"` |
 | 專案名稱 | `-p` ＞ `COMPOSE_PROJECT_NAME`（匯出的變數）＞ 頂層 `name` ＞ 資料夾名稱（轉小寫、只留 `[a-z0-9_-]`、開頭必須是字母或數字：`My.App` → `myapp`）。`-p`／`name` 不合法：`invalid project name "Demo": must consist only of lowercase alphanumeric characters, hyphens, and underscores as well as start with a letter or number` |
 | 命名 | 容器 `專案-服務-1`（`container_name` 優先），預設網路 `專案_default`、自訂網路 `專案_鍵`，Volume `專案_鍵`（`name` 或 `external` 時是那個名稱）；建置的 Image 是 `專案-服務:latest`（有 `image` 時用它） |
@@ -607,8 +608,8 @@ Compose 的檔案、Dockerfile、Token 檔（例如 `~/ci-token.txt`，模式 06
 
 ### 13.9 只在課文說明、或不模擬的部分
 
-- **Compose**：TTY 的進度畫面（`[+] Running`、✔ 與秒數）、`--scale` 與一個服務多個容器、profiles、`extends`、`include`、configs、secrets、deploy、`docker compose run`／`rm`／`create`／`kill`／`port`／`cp`／`watch`、`restart` 策略的實際重新啟動（E24）、`--abort-on-container-exit`、日誌的顏色、`logs -f` 的等待、Compose 檔案的合併（多個 `-f`）。
-- **健康檢查**：探測的實際耗時與 timeout（只有連不到的情形視為逾時）、`docker events` 的 health_status 事件、不健康時的自動重新啟動（E24）、從主機經 docker-proxy 的連線不受 `ready` 影響（服務在 ready 之前從主機連得到）。
+- **Compose**：TTY 的進度畫面（`[+] Running`、✔ 與秒數）、`--scale` 與一個服務多個容器、profiles、`extends`、`include`、configs、secrets、deploy、`docker compose run`／`rm`／`create`／`kill`／`port`／`cp`／`watch`、`restart` 策略的實際重新啟動（`runtime` profile 起，§14）、`--abort-on-container-exit`、日誌的顏色、`logs -f` 的等待、Compose 檔案的合併（多個 `-f`）。
+- **健康檢查**：探測的實際耗時與 timeout（只有連不到的情形視為逾時）、`docker events` 的 health_status 事件（`runtime` profile 起有，§14.4）、不健康時的自動重新啟動（Docker 本身不會，§14.8）、從主機經 docker-proxy 的連線不受 `ready` 影響（服務在 ready 之前從主機連得到）。
 - **建置**：真實的編譯器（課程宣告建置工具的結果）、BuildKit 的並行與 `--platform`、`RUN --mount=type=cache`、`COPY --link`、bake。
 - **Registry**：manifest list（多平台的 index）、真實的 Docker Hub 帳號與推送、Token 的有效期與 scope、憑證輔助程式（credential helper）、HTTPS 與 `insecure-registries`、`docker search`、`docker manifest`、cosign 等簽章、Registry 的垃圾回收。課程的 Token 只是課程資料，不是秘密，也不能像真實的 Token。
 
@@ -619,3 +620,122 @@ Compose 的檔案、Dockerfile、Token 檔（例如 `~/ci-token.txt`，模式 06
 - **健康檢查**：第一次探測的時間（interval 或 start_interval）、start_interval 的預設 5s 只在 start_period 內使用、探測執行檔找不到時 ExitCode 是 -1、`Health check exceeded timeout` 的寫法、HEALTHCHECK 的 history 寫法（BuildKit 的 `%q`）、沒有健康檢查時 template 錯誤的欄位位置（`:1:2:`，沿用 §10 `docker info --format` 的算法）。
 - **pg_isready**：主機無法解析時真實的 pg_isready 也是 `no response`（2）；啟動中的 `rejecting connections`（1）不模擬（ready 之前一律是 no response）。
 - **Registry**：`docker login` 警告裡的網址（Docker 24 起的 `https://docs.docker.com/go/credential-store/`）、錯誤的帳號密碼與私有 Registry 未登入時的 `unauthorized: authentication required`（registry:2 是 `no basic auth credentials`，各家 Registry 不同）、不可變標籤的訊息（依 Amazon ECR）、`Mounted from`、`An image does not exist locally with the tag:`（較新的 daemon 可能寫 `tag does not exist: …`）、`docker push -q` 只印名稱、manifest 的 `size`（模擬的 JSON 的位元組數，真實的層大小是壓縮後的）、拉取時的層 ID（模擬環境顯示 diff ID 的前 12 個字，真實的是壓縮後 blob 的 digest）、從 Docker Hub 拉下的 Image 推到私有 Registry 時 digest 改變（模擬環境依 Image ID 算，真實的多平台 index 與單一平台 manifest 不同）。
+
+## 14. 引擎階段 E24：`runtime` profile（`src/lib/terminal/runtime.ts`、`docker.ts`、`docker-lesson.ts`、`build.ts`、`health.ts`、`storage-net-cli.ts`）
+
+> 2026-11-23。給 DKR12（容器安全）、DKR13（容器除錯）與 DKR14（健康檢查、資源限制與優雅關閉），DKR15 的綜合專題也會用到。依 Docker CE 27.5.1（Compose 的部分是 v2.32.4）。E20–E23 的行為與所有已發布的課（DKR01–DKR11 與其他島）逐字不變：全部 40 堂終端機課的範例、參考解答、典型錯誤、變體與檢查的訊息在改動前後逐一重播比對，輸出相同；新的行為只在 `runtime` profile 起出現。
+
+### 14.1 選用方式
+
+| 項目 | 內容 |
+|---|---|
+| `RUNTIME_PROFILE` | `compose` 的一切，**沒有新的指令**（`docker` 已在 E20），feature `runtime`。`docker` 收到 `runtime: true` 時才有 `docker stats`、`top`、`kill`、`update`、`wait`、`events`（`docker container kill|stats|top|update|wait` 也是）、`docker run` 的 E24 選項、`docker logs --since`／`--until`、Dockerfile 的 `STOPSIGNAL`、docker inspect 的執行期欄位與 Go template 的函式 |
+| profile 以下 | `docker stats|top|kill|update|wait|events|pause` 仍是「模擬環境在引擎階段 E24（健康檢查、資源限制與重新啟動） 才支援」（和改動前相同）；`docker run` 的 `--memory`／`-m`、`--memory-swap`、`--cpus`、`--cpu-shares`／`-c`、`--restart`、`--read-only`、`--cap-add`、`--cap-drop`、`--security-opt`、`--privileged`、`--init`、`--stop-signal`、`--stop-timeout` 與 `docker logs --since`／`--until` 說明 E24（原本是 `unknown flag`／`unknown shorthand flag`，已發布的課沒有用到，重播確認）；STOPSIGNAL 仍是 E24 的建置錯誤；`docker run --health-cmd` 在 `compose` 以下仍是 `unknown flag` |
+| 說明頁與 help | `docker --help`、`man docker` 印 `RUNTIME_MANUAL`；`help` 的 docker 行加上 stats、top、kill、update、wait、events；沒有參數的 `docker` 的 Commands 依字母順序多了 events、kill、stats、top、update、wait |
+| 課程資料 | Image 與程式的執行期欄位（§14.6）、Image 的 `stopSignal`、容器的 `restart`、`memory`、`cpus` 等（§14.6）需要 `runtime`（「`… need the runtime profile (engine stage E24)`」）；container 檢查的 E24 欄位需要 runtime 機器 |
+| `docker pause`、`unpause` | `runtime` profile 說明不支援（課文說明 `Up … (Paused)` 與 cgroup freezer），不假裝 |
+| `docker scout` | `runtime` profile 說明不模擬弱點掃描工具（較低的 profile 仍是 `'scout' is not a docker command.`）；**決定**：不模擬任何廠商掃描器的輸出，課程需要時提供一份一般格式的掃描報告檔案讓學習者用 `cat` 閱讀，課文說明它是課程資料 |
+
+### 14.2 主程式的模型（課程宣告，模擬環境不執行程式）
+
+容器的主程式（課程宣告的**程式**，或 Image 自己的主程式）可以宣告它隨時間做的事；`docker run` 與每次重新啟動時套用：
+
+| 宣告 | 行為 |
+|---|---|
+| `needsEnv`、`missingEnv` | 需要的環境變數（`-e` 與 Image 的 ENV；沒有或是空字串都算缺）：缺的時候把 `missingEnv.output` 印到標準錯誤並以 `exit`（預設 1）結束，例如 `Error: DATABASE_URL is not set` |
+| `exitAfter` | 啟動後幾秒自己結束（當掉或工作完成），先印 `logs`（可以是標準錯誤），結束碼 `exit`（預設 1） |
+| `memory`、`cpu`、`pids` | 記憶體（位元組）：啟動時 `start`、每秒增加 `growth`、最多 `max`；CPU 是一顆 CPU 的百分比；行程數。給 `docker stats` 與 OOM |
+| `signals` | 它處理的訊號（`TERM`、`INT`、`QUIT`…）：收到時印 `logs`，`seconds` 秒後以 `exit`（預設 0）結束；沒有列出的訊號它沒有處理 |
+| `writes`、`readOnlyError` | 啟動時要寫的路徑（相對於工作目錄）：根檔案系統唯讀（`--read-only`）而那個路徑不在可寫的掛載（tmpfs、Volume、bind mount）底下時印 `readOnlyError` 並結束 |
+| `caps`、`capMissing` | 需要的 Linux 能力（CHOWN、SETUID、SETGID、NET_BIND_SERVICE…）：容器沒有時印 `capMissing` 並結束（例如 nginx 在 `--cap-drop ALL` 時的 `chown(…) failed (1: Operation not permitted)`） |
+| 沒有宣告 | E20–E23 的行為：伺服器以 SIGTERM 結束（0 或 `stopExit`），`stopExit` 是 137 的（程式預設）是 PID 1 沒有處理 SIGTERM；`docker stats` 的記憶體是 8MiB（`sleep`、`sh` 是 512KiB）、CPU 0% |
+
+### 14.3 daemon 的模型
+
+| 項目 | 內容 |
+|---|---|
+| 時間 | 所有轉變都在算得出的時間點：程式的 `exitAfter`、記憶體越過上限的時刻（OOM）、重新啟動的時刻；`sleep`（edge 起）、`docker stop` 的等待、`docker wait` 與附加的 `docker run` 讓時鐘前進，下一個 `docker` 指令（或檢查）依時間順序補做到現在，中間的健康檢查探測也在各自的時間跑。時間精確到毫秒（重新啟動的延遲是毫秒） |
+| 記憶體與 OOM | `-m` 是上限（go-units 的 RAMInBytes：`64m` 是 64MiB）；主機沒有 swap（課程機器的預設）時用量**越過** `-m` 的那一刻被 OOM killer 結束：結束碼 137、`State.OOMKilled` 是 true、事件 `oom` 再 `die`；主機有 swap 時上限是 `--memory-swap`（沒寫時是 `-m` 的兩倍，`-1` 不限制）。啟動時就超過的立刻結束。沒有 `-m` 的程式照樣執行。`docker update -m` 立刻套用（已經超過就是現在被結束） |
+| 重新啟動策略 | `--restart no|always|unless-stopped|on-failure[:N]`、Compose 的 `restart:`。依 moby 的 restart manager：容器結束時（程式自己結束、OOM、`docker kill`）決定是否重新啟動——always 一律；unless-stopped 除非被手動停止過（`docker kill` 算）；on-failure 在結束碼不是 0 而且重新啟動不到 N 次時。等待時間從 100 ms 起每次加倍，最多一分鐘；這一次執行了 10 秒以上就回到 100 ms。等待中的容器是 **restarting**：`docker ps`（不加 `-a` 也列出）的 STATUS 是 `Restarting (1) 2 seconds ago`（結束碼與結束了多久），`State.Status` 是 restarting、`Running` 與 `Restarting` 是 true；`RestartCount` 在決定重新啟動時加一。`docker stop` 取消重新啟動；`docker start`、`docker restart` 把計數與等待時間歸零。**不健康（unhealthy）的容器 Docker 不會重新啟動**，只回報（Swarm 與 Compose 的 deploy 才會） |
+| 訊號與 PID 1 | `docker stop` 送 StopSignal（`--stop-signal`、Image 的 STOPSIGNAL，預設 SIGTERM）給 PID 1，最多等 `-t`（`--stop-timeout`，預設 10 秒），時間到送 SIGKILL（137）。PID 1 是什麼決定結果：exec 形式（或 Shell 那一行以 `exec` 開頭、官方 Image 的 entrypoint 指令稿交棒）是**程式自己**：有處理就照它的宣告結束，沒有處理就**忽略**（核心不對 PID 1 套用預設動作），逾時被 SIGKILL；Shell 形式的 CMD 讓 **`/bin/sh -c` 當 PID 1**，它沒有處理也**不轉送**，程式收不到 SIGTERM，一律逾時被 SIGKILL（137）；`--init` 讓 **docker-init** 當 PID 1，它把訊號轉給子行程：程式有處理就照宣告結束，沒有處理就死於那個訊號（128+n，SIGTERM 是 143）；docker-init 底下是 `sh -c` 時 sh 死於那個訊號（143）。CHLD、CONT、URG、WINCH 這類預設忽略的訊號不會結束程式。`docker stop` 等待的秒數讓**時鐘前進**（幾個容器一起停時是最久的那個） |
+| 行程 | `docker exec 容器 ps`：Shell 形式是 PID 1 `sh`、程式在 PID 7；`--init` 是 PID 1 `docker-init`、程式（或 sh）在 7；`ps` 自己接在後面。主機的行程表（images profile 起已有 shim 與主程式）多了 docker-init 與 sh 這一層，`docker top` 與 `State.Pid` 用主機的 PID |
+| 安全選項 | `--read-only`：容器自己的層不能改，寫入是 `Read-only file system`（`touch`、`>` 重新導向、`mkdir` 等 E22 的訊息，結束碼 1）；`--tmpfs`、Volume、bind mount 照樣可寫，Docker 的 `/etc/hosts`、`/etc/hostname`、`/etc/resolv.conf` 是 bind mount 也可寫。能力：預設是 Docker 的 14 個（CHOWN、DAC_OVERRIDE、FSETID、FOWNER、MKNOD、NET_RAW、SETGID、SETUID、SETFCAP、SETPCAP、NET_BIND_SERVICE、SYS_CHROOT、KILL、AUDIT_WRITE），`--cap-drop`（可以是 ALL）拿掉、`--cap-add` 加上，`--privileged` 是全部；沒有 CAP_CHOWN 時容器裡 root 的 `chown`／`chgrp` 是 `chown: changing ownership of 'x': Operation not permitted`（1），程式需要的能力照它的宣告。`--security-opt no-new-privileges`、`seccomp=`、`apparmor=`、`label=` 只記錄在 inspect；`--privileged` 在 inspect 時另外提醒它的風險 |
+| 事件 | daemon 記錄容器的事件：`create`、`start`、`die`（exitCode、execDuration）、`kill`（signal）、`oom`、`stop`、`restart`（docker restart）、`destroy`、`health_status: healthy|unhealthy|starting`（狀態改變時）；屬性是 Image 的標籤、容器的標籤（Compose 的 `com.docker.compose.*`）、`image`（使用者打的名稱）、`name`。課程宣告的容器有 create、start、die（與 oom）的事件；Compose 建立、啟動、停止、移除的容器由指令前後的差異補上事件（時間是各自的 created／started／finished，停止與移除是指令結束時） |
+
+### 14.4 指令與格式（Docker CE 27.5.1）
+
+| 指令 | 行為與格式 |
+|---|---|
+| `docker run` 的新選項 | `-m`／`--memory`、`--memory-swap`、`--cpus`、`-c`／`--cpu-shares`、`--restart`、`--init`、`--stop-signal`、`--stop-timeout`、`--read-only`、`--cap-add`、`--cap-drop`（逗號分隔或重複，CLI 正規化成 `CAP_X`、`ALL`）、`--security-opt`、`--privileged`。CLI 的錯誤（`docker:` 前綴或 pflag 的訊息加 See 行，125）：`invalid argument "abc" for "-m, --memory" flag: invalid size: 'abc'`、`invalid argument "abc" for "--cpus" flag: failed to parse abc as a rational number`、`invalid restart policy format: maximum retry count must be an integer`、`Conflicting options: --restart and --rm`。daemon 的錯誤（`docker: Error response from daemon: ….`）：`Minimum memory limit allowed is 6MB`、`You should always set the Memory limit when using Memoryswap limit, see usage`、`Minimum memoryswap limit should be larger than memory limit, see usage`、`Range of CPUs is from 0.01 to 2.00, as there are only 2 CPUs available`、`invalid restart policy: unknown policy 'x'; use one of 'no', 'always', 'on-failure', or 'unless-stopped'`、`… maximum retry count can only be used with 'on-failure'`、`invalid CapAdd: unknown capability: "CAP_FOO"`、`Invalid signal: SIGFOO`、`invalid --security-opt 2: "x"`。附加（不加 `-d`）時程式會在算得出的時間結束（`exitAfter`、OOM，一小時以內）就等到那時（時鐘前進），印出之後的日誌並以容器的結束碼結束 |
+| `docker exec` | restarting 的容器：`Error response from daemon: Container <ID> is restarting, wait until the container is running`（1） |
+| `docker ps` | restarting 的容器不加 `-a` 也列出，STATUS 是 `Restarting (1) Less than a second ago`，`{{.State}}` 與 `-f status=restarting` 是 restarting；`Exited (137) 3 seconds ago`、`Exited (143) …` 照結束碼 |
+| `docker logs [--since 時間] [--until 時間] [-t] [-n N] 容器` | 時間是 Go 的 duration（`10m`，從現在往前算）、RFC 3339（`2026-11-22T10:00:00Z`）、日期或 Unix 秒數；不合法：`Error response from daemon: invalid value for "since": failed to parse value as time or duration: "x"`。`-t` 的時間有毫秒（`2026-11-22T10:00:03.711000000Z`）。重新啟動的容器日誌接著寫（每次的啟動訊息都在） |
+| `docker inspect` | 容器的 `State`（Status：created、running、restarting、exited；Running、Paused、Restarting、OOMKilled、Dead、Pid（主機的 PID，沒有執行是 0）、ExitCode、Error（啟動失敗的原因）、StartedAt、FinishedAt（RFC3339Nano）、Health）、`RestartCount`、`HostConfig` 多了 RestartPolicy（Name、MaximumRetryCount）、CapAdd、CapDrop、Privileged、ReadonlyRootfs、SecurityOpt、CpuShares、Memory、NanoCpus、MemorySwap（有 `-m` 而沒寫時是兩倍）、Init（只在 `--init` 時）、`Config` 多了 StopSignal、StopTimeout（有設定時）；Image 的 `Config.StopSignal`。`-f` 的 Go template（§12.4 的一切）多了 `{{if …}}…{{else}}…{{end}}`、`println`、`print`、`len`、`join`、`upper`、`lower`、`eq`、`ne`、`not`；`{{.State}}` 與 `{{.HostConfig.RestartPolicy}}` 照 Go 印出 struct（`{running true false false false false 902 0  2026-11-22T10:00:00Z 0001-01-01T00:00:00Z <nil>}`、`{on-failure 3}`）；`printf` 等其他函式說明不支援。`--privileged` 的容器在標準錯誤多一行提醒 |
+| `docker stop [-t N] [-s 訊號] 容器…`、`docker restart` | 依 §14.3；成功印名稱。`-t x`：`invalid argument "x" for "-t, --timeout" flag: strconv.ParseInt: parsing "x": invalid syntax`；`-s FOO`：`Error response from daemon: Invalid signal: FOO`。restarting 的容器：取消重新啟動。restart 是 stop 再 start（計數歸零），事件多一個 `restart` |
+| `docker kill [-s 訊號] 容器…` | 預設 SIGKILL（137）；`-s TERM` 照 §14.3 的 PID 1 規則（沒有處理的 PID 1 什麼也不發生，容器照樣執行）。沒有在執行：`Error response from daemon: cannot kill container: web: container <ID> is not running`。被 kill 的容器算手動停止（unless-stopped 不重新啟動；always 與 on-failure 照樣重新啟動） |
+| `docker stats [--no-stream] [-a] [--no-trunc] [--format …] [容器…]` | `CONTAINER ID   NAME   CPU %   MEM USAGE / LIMIT   MEM %   NET I/O   BLOCK I/O   PIDS`（tabwriter）；CPU % 是程式宣告的百分比（`--cpus` 是上限）、`%.2f%%`；記憶體用 go-units 的 BytesSize（`7.598MiB / 2GiB`），上限是 `-m` 或主機的記憶體；MEM % 兩位小數；NET I/O 與 BLOCK I/O 一律 `0B / 0B`（**簡化**）；PIDS 是宣告的行程數（至少是 PID 1 那一串）；停止的容器是 `0.00%   0B / 0B   0.00%   0B / 0B   0B / 0B   0`。`--format` 的欄位 ID、Container、Name、CPUPerc、MemUsage、MemPerc、NetIO、BlockIO、PIDs。**不加 `--no-stream` 也只印一次**（另外說明真實的會持續更新） |
+| `docker top 容器` | `ps -ef` 的欄位（UID、PID、PPID、C、STIME、TTY、TIME、CMD），tabwriter 的最小欄寬 20、間隔 3；主機的 PID。沒有在執行：`Error response from daemon: container <ID> is not running`；ps 的選項說明不支援 |
+| `docker update [-m …] [--memory-swap …] [--cpus …] [-c …] [--restart …] 容器…` | 立刻套用並印名稱；沒有選項：`You must provide one or more flags when using this command.`；`-m` 大於已設定的 swap：`Error response from daemon: Cannot update container <ID>: Memory limit should be smaller than already set memoryswap limit, update the memoryswap at the same time`；`--rm` 的容器不能改重新啟動策略 |
+| `docker wait 容器…` | 等到結束（時鐘前進到那時）再印結束碼；已經結束的立刻印；一直執行、不會自己結束的說明真實的會一直等 |
+| `docker events --since … [--until …] [-f container=…\|event=…\|type=container]` | `2026-11-22T10:00:03.711000000Z container oom <完整 ID> (image=api:exec, name=w)`，屬性依鍵排序；`event=health_status` 比對前綴。**非阻塞**：沒有 `--since` 只說明（真實的會等之後的事件），沒有 `--until` 印到現在並說明真實的會繼續等；`--format` 與其他過濾條件說明不支援；只有容器的事件（Image、網路、Volume、exec 的事件不模擬） |
+| Dockerfile 的 `STOPSIGNAL` | 只改設定（history 一列 `STOPSIGNAL SIGINT`，0B），`docker run` 檢查它是不是訊號 |
+
+### 14.5 E23 已知差異的修正（只在 `runtime` 起）
+
+| # | 修正 |
+|---|---|
+| 1 | Shell 形式的 CMD／ENTRYPOINT 在沒有 `/bin/sh` 的 Image（distroless、scratch）上**啟動失敗**：`docker: Error response from daemon: failed to create task for container: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: "/bin/sh": stat /bin/sh: no such file or directory: unknown.`（127，容器留在 Created，`State.Error` 是這段原因）。`compose` 以下課程宣告的程式仍照樣啟動 |
+| 2 | 主程式是路徑（含 `/`，絕對或相對）而它不是 Image 的執行檔、不在容器的檔案裡、也不是課程宣告的程式時，是 runc 的 `exec: "/app/server": stat /app/server: no such file or directory`；只有名稱時仍是 `executable file not found in $PATH`。Image 自己的主程式（課程宣告的）不檢查 |
+| 3 | `COPY --from=階段 / /`（整個檔案系統）的層大小加上來源的基底 Image 的大小（扣掉已經以檔案計重的部分），所以 `FROM node:22-slim AS build` 再 `FROM scratch` + `COPY --from=build / /` 是 220MB（compose 以下只算檔案的位元組） |
+
+### 14.6 課程資料與檢查
+
+```ts
+docker: {
+  images: [{ …E20–E23 的欄位, stopSignal?: 'SIGQUIT',
+             needsEnv?, missingEnv?, exitAfter?: { seconds, exit?, logs? }, memory?: { start, growth?, max? }, cpu?, pids?,
+             signals?: { QUIT: { seconds?: 1, logs?: [...], exit?: 0 } }, writes?: ['/var/cache/nginx/client_temp'], readOnlyError?, caps?: ['CHOWN'], capMissing? }],
+  programs?: [{ …E21–E23 的欄位, …同樣的執行期欄位 }],
+  containers: [{ …E20–E22 的欄位, restart?: 'on-failure:3', memory?: '256m', memorySwap?, cpus?: 0.5, init?, readOnly?, tmpfs?: ['/tmp'],
+                 capAdd?, capDrop?, securityOpt?, privileged?, stopSignal?, stopTimeout?, restartCount?, oomKilled? }],
+}
+```
+
+| 規則 | 內容 |
+|---|---|
+| 執行期欄位 | 需要 `runtime`；`needsEnv` 是變數名稱；`missingEnv`、`readOnlyError`、`capMissing` 是 `{ output, exit 0–255 }`；`exitAfter.seconds` 0–86400；記憶體 0–2^40 位元組、`max` 不小於 `start`；`cpu` 0–6400；`pids` 1–1000；`signals` 的鍵是訊號（不能是 SIGKILL），秒數 0–3600；`writes` 最多 20 個路徑；`caps` 是能力的名稱；`stopSignal` 是訊號。`runtime` 起 Image 的 `commands` 也可以列課程程式的執行檔（node、python…） |
+| 容器 | `restart` 是合法的策略；`memory` 至少 6MB、`memorySwap` 要有 `memory` 且不比它小（或 `-1`）；`cpus` 0.01–64；能力是 Docker 認得的名稱；`securityOpt` 是 no-new-privileges、seccomp=、apparmor=、label=；`tmpfs` 是絕對路徑；`stopTimeout` -1–3600；`oomKilled` 的容器是 exited 而且結束碼 137。執行中的容器從它的 `started` 起算 `exitAfter` 與記憶體 |
+
+| 檢查 | 意義 |
+|---|---|
+| `{ kind: 'container', name, state?: '…' \| 'restarting', exitCode?, oomKilled?, restartCount?, restartPolicy?, memory?, cpus?, readOnly?, user?, capDrop? }` | E20–E23 的欄位之外：狀態可以是 restarting（等待重新啟動；這時 `exited` 不通過）、最後一次執行是否被 OOM 結束（重新啟動後是 false）、**至少**重新啟動了幾次、重新啟動策略（`on-failure:3` 依名稱與次數比對）、記憶體上限（位元組，和 `HostConfig.Memory` 相同）、CPU（`--cpus` 的值）、根檔案系統唯讀、`Config.User`（`''` 是沒有指定）、拿掉的能力（每一個都要在 CapDrop 裡，ALL 包含全部）。這些欄位需要 runtime 機器，不能和 `absent` 一起。訊息例：`它只重新啟動了 1 次`、`它的重新啟動策略是 no`、`它沒有記憶體上限`、`它的狀態是 restarting` |
+| `output`（既有） | 讀出 `docker inspect -f '{{.State.ExitCode}}'`、`{{.RestartCount}}` 等的答案，配合變體讓答案不能直接打出來 |
+
+### 14.7 測試
+
+| 檔案 | 內容 |
+|---|---|
+| `tests/terminal-e24.test.ts` | profile（指令同 compose、多一個 feature）與分界（`compose` 以下新的 run 選項、`-m`、`-c`、`logs --since`、`container kill` 說明 E24，stats／kill／top／events／update／wait／pause 的訊息不變，STOPSIGNAL 的建置錯誤不變，`docker scout` 不變，資料欄位要 `runtime`）、說明頁與 help 與 Commands 的順序、pause 與 scout；缺環境變數（日誌、ExitCode、附加時的結束碼）、`exitAfter`（附加時等待、時鐘前進、`logs -t`／`--since`／`--until` 與錯誤）、0／1／137／143；OOM（越過上限的時刻到毫秒、沒有上限照樣執行、啟動時就超過、課程宣告的 OOM 容器）、`docker stats`（版面、格式、`--cpus` 的上限、停止的容器、不加 `--no-stream`）、`docker update`（放寬、swap 的錯誤、立刻 OOM、CPU 範圍、沒有選項、重新啟動策略）、`docker run` 的每種錯誤；always 的重新啟動迴圈（Restarting、退避的時間點、RestartCount、`-f status=restarting`、rm 的錯誤、stop 取消）、on-failure:3 放棄、exit 0 不重新啟動、退避的規則（加倍、十秒重設、上限一分鐘、unless-stopped 與手動停止）、`docker kill` 與 always／unless-stopped、不健康不重新啟動、Compose 的 `restart:`；Shell 形式與 exec 形式的 docker stop（PID 1、ps、時鐘、日誌、事件）、`stop -t`／`-s`、`kill -s TERM` 被忽略、錯誤、restart；`--init`（ps、top、143、sh 之下）；STOPSIGNAL（Image、Dockerfile、`--stop-signal`、`--stop-timeout`）；`docker wait`；inspect 的 JSON 與欄位順序、template 的函式、State.Pid 與主機的 ps、privileged 的提醒、State.Error；`docker top`；`docker events`（屬性、過濾、錯誤、健康、kill、restart）；`--read-only`、`--tmpfs`、Volume、nginx 的唯讀錯誤、`--cap-drop`（程式、chown、`--cap-add`）、Image 裡的秘密（ENV、ARG、RUN 行）；E23 的三項修正（含 compose 以下不變）；資料驗證、container 檢查的 E24 欄位與訊息、練習的參考解答與典型錯誤、合成課程通過 `terminalContentProblems`、不改動傳入的狀態 |
+| `tests/support/runtime-fixture.ts` | 只供測試：rt-01（`runtime` profile、2 顆 CPU）；`~/api` 的 Node.js 服務（Shell 形式與 exec 形式的 Dockerfile；server.js 需要 DATABASE_URL、2 秒處理 SIGTERM；worker.js 每秒多 10MB；crash.js 3 秒後當掉；boom.js 立刻以 1 結束；plain.js 沒有處理 SIGTERM）、`~/secrets`（ENV 與 ARG 的秘密）、`~/static`（`COPY --from=build / /`）；nginx（STOPSIGNAL SIGQUIT、寫快取與 pid 檔、需要 CHOWN／SETGID／SETUID）、node、alpine、distroless、team/worker；一個之前被 OOM 結束的容器；一個練習（以 exec 形式、記憶體上限與 on-failure:3 執行並優雅地停止） |
+
+`tests/terminal-e1.test.ts` 的 `PROFILES` 期望值加上 `runtime`。所有已發布的課的 `terminalContentProblems` 仍是 `[]`（逐一重播比對，E24 前後輸出相同）。
+
+### 14.8 只在課文說明、或不模擬的部分
+
+- **核心機制**：cgroup v2 的 memory.max、memory.high 與回收、OOM killer 怎麼挑行程（模擬環境一律結束整個容器）、CPU 的 CFS 配額與 `--cpu-shares` 的實際效果（只記錄在 inspect；`docker stats` 的 CPU % 是課程宣告的數字）、`--pids-limit`、`--ulimit`、`--oom-kill-disable`、`--memory-reservation`。
+- **數字**：`docker stats` 的 NET I/O 與 BLOCK I/O 一律 `0B / 0B`，記憶體與 CPU 是課程宣告的模型（真實的會隨負載跳動）；沒有宣告的程式是 8MiB、`sleep` 與 `sh` 是 512KiB、CPU 0%。
+- **daemon 重新啟動**：`systemctl restart docker` 之後 always 的容器會被啟動、unless-stopped 而被手動停止的不會（這正是兩者的差別）——模擬環境的 daemon 不會重新啟動，課文說明。`--live-restore` 也只在課文說明。
+- **健康檢查與重新啟動**：Docker 不會因為 unhealthy 重新啟動容器（只回報）；Swarm 的服務、Kubernetes 的 liveness probe、Compose 的 `deploy`（Swarm）才會，在課文說明。
+- **安全**：seccomp 與 AppArmor 的設定檔、user namespace（`--userns-remap`）、rootless Docker、`no-new-privileges` 的效果（setuid 程式不能提升權限，模擬環境沒有 setuid 程式）、各能力的完整效果（只模擬 CHOWN 與程式宣告的需要）；容器裡非 root 綁定 1024 以下的埠——Docker 20.10 起容器的 `net.ipv4.ip_unprivileged_port_start` 是 0，所以**不需要** NET_BIND_SERVICE（`--network host` 才需要），課文照這個說明，模擬環境不把它當成錯誤。弱點掃描（Trivy、Docker Scout、Grype）只在課文說明，或由課程提供報告檔案。
+- **其他**：`docker pause`／`unpause`、`docker events` 的 Image／網路／Volume／exec 事件與 `--format`、`docker stats` 的持續更新畫面、`docker top` 的 ps 選項、`docker compose stop`／`down`／`restart` 不等待寬限期（照 E23 的方式結束容器，時鐘不前進）、Compose 的 `stop_signal`、`stop_grace_period`、`mem_limit`、`cpus`、`deploy.resources`（說明不支援）。
+
+### 14.9 沒有把握的地方（依記得的格式寫，並在此註明）
+
+- **PID 1 與 Shell**：模擬環境照 Docker 文件的說法：Shell 形式的 `/bin/sh -c` 是 PID 1、不轉送訊號。真實的 bash 與較新的 dash 在 `-c` 只有一個簡單指令時可能直接 exec 那個指令（那時程式就是 PID 1，SIGTERM 會到達它）；課程要逐字展示時用兩個以上的指令或明確的指令稿，課文說明「不要依賴這個最佳化」。`--init` 之下 sh 死於 SIGTERM（143）、docker-init 不把訊號送給整個行程群組（沒有 `-g`）依 tini 的預設；容器裡程式在 PID 7 的編號是模擬的。
+- **錯誤訊息**：`Conflicting options: --restart and --rm`（較新的版本可能允許某些組合）、`invalid restart policy: …` 的寫法（moby 25 起的 ValidateRestartPolicy）、`Invalid signal: SIGFOO`（moby/sys 的大寫 I）、`invalid --security-opt 2: "x"`、`invalid CapAdd: unknown capability: "CAP_FOO"`、`cannot kill container: web: container <ID> is not running`、`container is restarting: stop the container before removing or force remove`、`Cannot update container …`、`Container <ID> is restarting, wait until the container is running`、`You must provide one or more flags when using this command.`、`Range of CPUs is from 0.01 to 2.00, as there are only 2 CPUs available`、events 的 `invalid value for "since": failed to parse value as time or duration: "x"`，依記憶與 moby／docker/cli 原始碼的印象，沒有在 27.5.1 逐字核對。
+- **重新啟動**：RestartCount 在決定重新啟動時加一、`docker start`／`restart` 把它歸零、`docker kill` 讓 always 照樣重新啟動而 unless-stopped 不會（moby 的 HasBeenManuallyStopped 與 restart manager 的 cancel），依原始碼的印象；restarting 的容器 `State.Pid` 是 0、FinishedAt 是上一次結束的時間。自動重新啟動是否另有 `restart` 事件（模擬環境只記 `start`）。
+- **inspect**：`HostConfig` 欄位的順序是模擬的子集（真實的有更多欄位、順序不同）；`CapAdd`／`CapDrop` 由 CLI 正規化成 `CAP_X`；沒有 `-m` 時 MemorySwap 是 0；`Init` 只在 `--init` 時出現；`StopSignal` 與 `StopTimeout` 只在有設定時出現；`{{.State}}` 的 struct 印法裡 Health 是 `<nil>`（有健康檢查時真實的會印位址）；StartedAt 的小數只到毫秒。
+- **docker stats**：欄位的寬度與 `--no-trunc`、`-a` 的組合、停止的容器的列（真實的可能是 `--`）；預設的 table 格式在指定容器時是否改用 `{{.Container}}` 欄。
+- **docker events**：時間在 UTC 時印 `Z`（CLI 以本地時區印 `+08:00` 這類）；die 事件的 `execDuration` 屬性（較新的版本有）；docker stop 的事件順序（kill、kill、die、stop）與 rm -f 的（kill、die、destroy）。
+- **OOM**：用量**越過**上限的那一刻（剛好等於時也算）被結束；主機有 swap 時以 `--memory-swap` 為準是模型的簡化（真實的還受 swappiness 與回收影響）。
+- **COPY --from=階段 / /**：加上的大小是基底 Image 的大小扣掉已計重的檔案，模型的數字；真實的層是實際檔案的 tar 大小。

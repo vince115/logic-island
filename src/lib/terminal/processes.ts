@@ -104,7 +104,7 @@ const fixed1 = (n: number) => (Math.round(n * 10) / 10).toFixed(1);
 /** ps TIME in the BSD format: minutes:seconds. */
 const shortTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 /** ps TIME in the Unix format: HH:MM:SS. */
-const longTime = (s: number) => { const t = Math.floor(s); return [Math.floor(t / 3600), Math.floor((t % 3600) / 60), t % 60].map(n => String(n).padStart(2, '0')).join(':'); };
+export const longTime = (s: number) => { const t = Math.floor(s); return [Math.floor(t / 3600), Math.floor((t % 3600) / 60), t % 60].map(n => String(n).padStart(2, '0')).join(':'); };
 /** top TIME+: minutes:seconds.hundredths. */
 const topTime = (s: number) => { const h = Math.round(s * 100); return `${Math.floor(h / 6000)}:${String(Math.floor((h % 6000) / 100)).padStart(2, '0')}.${String(h % 100).padStart(2, '0')}`; };
 /** procps shortens a user name longer than 8 characters to 7 and a +. */
@@ -136,7 +136,7 @@ const PS_USAGE = ['', 'Usage:', ' ps [options]', '', " Try 'ps --help <simple|li
  * Fix (E19 batch): ps's START and STIME as procps-ng's pr_stime prints them — in the machine's local time (its time zone,
  * UTC without one): HH:MM on the same day as now, MonDD in the same year, else the year.
  */
-function startText(state: FsState, start: Seconds, now: Seconds): string {
+export function startText(state: FsState, start: Seconds, now: Seconds): string {
   const z = zoneOf(state), s = fields(toLocal(z, start)), n = fields(toLocal(z, now)), two = (x: number) => String(x).padStart(2, '0');
   const day = (f: typeof s) => Date.UTC(f.year, f.month, f.day);
   if (s.year !== n.year) return String(s.year);

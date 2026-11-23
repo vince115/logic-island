@@ -40,7 +40,8 @@
 - E22（`storage-net`，DKR07 起，見 [DKR0_CONTAINER_CAPABILITY](DKR0_CONTAINER_CAPABILITY.md) §12）：Volume 的內容就是主機的 `/var/lib/docker/volumes/名稱/_data`；iptables／NAT、veth 與 `docker0` 等 bridge 介面、overlay 網路、local 以外的 Volume 驅動程式只在課文說明。容器之間只看得到共同網路上的容器（自訂網路解析名稱，預設 bridge 只有位址），容器經由閘道連到主機自己的服務、內建 DNS 轉送外部名稱都不模擬。Alpine 的 `ping`、`tar`、`nc` 用 iputils、GNU tar、OpenBSD nc 的版面（真實是 BusyBox），要逐字展示時請用 Debian 系的 Image；tar 封存檔的大小不是真實的大小。`--network host` 的容器埠被占用時，日誌是說明文字而不是 nginx 的 `bind() failed`。
 - E22 起 `docker run` 的 `-v`、`--mount`、`--tmpfs`、`--network` 在較低的 profile 說明是 E22（原本是 `unknown flag`；DKR01–DKR06 沒有用到，輸出不變）。
 - E23（`compose`，DKR09 起，見 [DKR0_CONTAINER_CAPABILITY](DKR0_CONTAINER_CAPABILITY.md) §13）：`docker compose` 的進度一律是 plain 格式（每個事件一行 ` Container shop-db-1  Healthy`，寫到標準錯誤），不模擬終端機上會重畫的 `[+] Running` 與 ✔ 畫面；compose.yaml 只支援文件寫明的 YAML 子集（錨點、別名、合併鍵、跨行的純量會說明不支援）；Compose 規格裡模擬環境沒有模擬的鍵（deploy、profiles、logging…）與子指令（run、rm…）說明不支援。`docker compose up` 等相依的服務健康時時鐘會前進。健康檢查只在固定的時間點探測，探測的執行檔（`curl`、`pg_isready`）必須是 Image 宣告的；服務的 `ready` 只影響從容器裡看（從主機經 docker-proxy 立刻連得到）。建置工具（`go build` 等）的結果由課程宣告，不是真的編譯。Registry 由課程宣告（Token 必須是明顯是假的課程資料）：digest 是模擬的 manifest 的 SHA-256（相同內容相同 digest、重新建置是新的），層的大小不是壓縮後的大小，拉取時顯示的層 ID 是 diff ID；Docker Hub 不能登入或推送（`denied`）。`docker run --health-cmd` 在 `compose` 以下仍是 `unknown flag`（改動前就是如此）。
-- E23 的已知差異（DKR10 撰寫時發現，留給 E24 修正，課程沒有依賴）：Shell 形式的 CMD／ENTRYPOINT 在沒有 `/bin/sh` 的 Image（distroless、scratch）照樣啟動（真實的 Docker 會啟動失敗）；ENTRYPOINT 的絕對路徑不存在時訊息是 `executable file not found in $PATH`（真實的 runc 是 `stat …: no such file or directory`）；`COPY --from=build / /` 不會帶上基底 Image 的大小。DKR10 只在課文說明這些情形。
+- E23 的已知差異（DKR10 撰寫時發現，課程沒有依賴）：Shell 形式的 CMD／ENTRYPOINT 在沒有 `/bin/sh` 的 Image（distroless、scratch）照樣啟動（真實的 Docker 會啟動失敗）；ENTRYPOINT 的絕對路徑不存在時訊息是 `executable file not found in $PATH`（真實的 runc 是 `stat …: no such file or directory`）；`COPY --from=build / /` 不會帶上基底 Image 的大小。**三項都在 E24 修正，只在 `runtime` profile 以上**（DKR12 起的課，見 [DKR0_CONTAINER_CAPABILITY](DKR0_CONTAINER_CAPABILITY.md) §14.5）；`compose` profile（DKR09–DKR11）維持原樣，DKR10 的課文說明對它的 profile 仍然正確。
+- E24（`runtime`，DKR12 起，見 [DKR0_CONTAINER_CAPABILITY](DKR0_CONTAINER_CAPABILITY.md) §14）：主程式的行為（需要的環境變數、當掉、記憶體的成長、處理的訊號）由課程宣告，不是真的程式；`docker stats` 的數字是模型（NET I/O 與 BLOCK I/O 一律 `0B / 0B`），`docker stats` 與 `docker events` 不會持續更新；Shell 形式的 `/bin/sh -c` 一律不轉送訊號（真實的 bash 與較新的 dash 在只有一個指令時可能直接 exec，課文不要依賴這一點）；daemon 不會重新啟動（always 與 unless-stopped 在 daemon 重新啟動後的差別只在課文說明）；Docker 不會重新啟動 unhealthy 的容器；`docker compose stop`／`down` 不等待寬限期；`pause`、弱點掃描（`docker scout` 等）不模擬，課程可以提供掃描報告的檔案。`docker run` 的 E24 選項與 `docker logs --since` 在較低的 profile 說明是 E24（原本是 `unknown flag`；DKR01–DKR11 沒有用到，輸出不變）。
 
 ## 引擎修正後的課文更正
 
@@ -48,6 +49,6 @@
 
 ## 後續批次
 
-DKR-2（DKR05–06，E21 Dockerfile 建置、分層與快取；引擎階段已完成，見 DKR0 §11）、DKR-3（DKR07–08，E22 Volume 與網路；引擎階段已完成，見 DKR0 §12）、DKR-4（DKR09–11，E23 Compose、多階段建置與 Registry；引擎階段已完成，見 DKR0 §13）、DKR-5（DKR12–14，E24 inspect、健康檢查、資源限制與 OOM）、DKR-6（DKR15 綜合專題）。
+DKR-2（DKR05–06，E21 Dockerfile 建置、分層與快取；引擎階段已完成，見 DKR0 §11）、DKR-3（DKR07–08，E22 Volume 與網路；引擎階段已完成，見 DKR0 §12）、DKR-4（DKR09–11，E23 Compose、多階段建置與 Registry；引擎階段已完成，見 DKR0 §13）、DKR-5（DKR12–14，E24 inspect、資源限制與 OOM、重新啟動策略、訊號與優雅關閉、安全選項；引擎階段已完成，見 DKR0 §14）、DKR-6（DKR15 綜合專題）。
 
 課程狀態與 3D 地景分離：Docker 容器島的 `mapState` 仍是 `'planned'`。
