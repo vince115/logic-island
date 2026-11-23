@@ -1,0 +1,128 @@
+# KUB-0：Kubernetes 與可靠性工程島的課程能力
+
+> 2026-11-24。目標：讓 Kubernetes 與可靠性工程島（`kubernetes-reliability`，前綴 KUB，15 堂）可以撰寫、驗證、發布。本階段**不寫任何課程內容**，只把島嶼登錄為預備島嶼、建立逐課的活動對應（`KUB_SHAPES`），並建好終端機引擎階段 **E32 `cluster`**（以真實的 `kubectl` 操作模擬的 Kubernetes 叢集）。E32 的完整規格在 [KUB0_E32_CLUSTER](KUB0_E32_CLUSTER.md)；本文件是 E32–E40 與 `devops-explorer` 階段 D5、D6 的總說明處，之後每個階段另有自己的 `KUB0_E3x_*.md`。之後的進度與下一批由 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 計算。
+
+## 1. 範圍
+
+| 部分 | 內容 |
+|---|---|
+| KUB-0（登錄） | `PREPARED_ISLAND_IDS = ['kubernetes-reliability']`、`LessonPrefixWritten` 與 `ISLAND_PREFIX` 加上 `KUB`、`UNITS['kubernetes-reliability'] = []`、`kubeFromBlueprint` 與逐課的 `KUB_SHAPES`；沒有課程、頁面、旗標、3D、GLB 或 `mapState` 的改動 |
+| E32 `cluster`（已完成） | `CLUSTER_PROFILE`（RANK 32，`deploy-hosts` 之上，`E32_COMMANDS = ['kubectl']`）；叢集的共用模型（節點、API 物件、排程器、kubelet 的 Pod 生命週期、事件、kubeconfig）與 kubectl 的動詞、表格與輸出格式；檢查 `kube-object`、`kube-pod` |
+| E33–E40、D5、D6 | 規劃中（§5、§6），範圍已定，細節在各自的批次寫入 |
+
+不新增任何執行期套件；沒有亂數（UID、名稱的後綴、容器 ID 都由資料的 SHA-256 算出）；時鐘只在 `sleep` 與 `kubectl wait` 時前進。叢集是**虛構的 kubeadm 叢集**，輸出依真實 kubectl v1.32 的格式撰寫，但無法離線與真實叢集逐字比對，所以凡是憑記憶寫的文字都列在 §9。
+
+## 2. 活動對應（`kubeFromBlueprint`，`src/content/curriculum/lessons.ts`）
+
+和 CICD 島相同，用**逐課的表格** `KUB_SHAPES`（15 列，測試逐列斷言，`tests/kube-capability.test.ts`）。`stages` 是那一課需要的終端機引擎階段（E32–E40，加上它倚賴的較早階段）與 `devops-explorer` 階段；KUB 範圍（E32–E40）的引擎階段要在 `KUBE_STAGES_BUILT`、D 階段要在 `DEVOPS_STAGES_BUILT` 才能建立那一課，否則 `kubeFromBlueprint` 會說哪一個階段還沒做好。
+
+| 課 | 藍圖活動 | 課程活動 | 能力 | 需要的階段 | 理由 |
+|---|---|---|---|---|---|
+| KUB01 | cluster-sim | `terminal-sim` | terminal | E32、E33、E34 | 和 Compose（E23，一台主機）比較叢集的期望狀態；刪除 Pod、排空節點時親眼看到調和 |
+| KUB02 | architecture-diagram | `network-sequence` | terminal、network-protocol | E32 | 同 DKR01、DKR02、SRV05：場景描出 `kubectl apply` 之後 API server → etcd → controller → scheduler 綁定 → kubelet → containerd；旁邊以 `kubectl get nodes`、`get pods -n kube-system` 看 static pod |
+| KUB03 | cluster-sim | `terminal-sim` | terminal | E32、E33 | Pod 的 manifest、多個容器與 init container、生命週期、探針 |
+| KUB04 | cluster-sim | `terminal-sim` | terminal | E32–E34 | ReplicaSet、Deployment、擴縮、標籤與選擇器、自我修復 |
+| KUB05 | cluster-sim | `terminal-sim` | terminal | E35 | Service、Endpoints、叢集 DNS、NodePort 與 LoadBalancer |
+| KUB06 | cluster-sim | `terminal-sim` | terminal | E36 | ConfigMap 與 Secret，以 `base64 -d` 證明 Secret 只是編碼 |
+| KUB07 | request-path | `network-sequence` | terminal、network-protocol | E35、E37（+E13） | 同 SRV 的請求路徑：client → LB → ingress controller → Service → Pod 與 TLS 終結，旁邊是真的 Ingress 與 HTTPRoute |
+| KUB08 | cluster-sim | `terminal-sim` | terminal | E38 | PV、PVC、StorageClass、StatefulSet、備份 |
+| KUB09 | cluster-sim | `terminal-sim` | terminal | E39 | Helm |
+| KUB10 | cluster-sim | `terminal-sim` | terminal | E40 | requests 與 limits、HPA、metrics-server |
+| KUB11 | cluster-sim | `terminal-sim` | terminal（`withOptional`：devops-explorer） | E34、E35 | readiness 決定誰收流量；rollout 的歷史與 undo；可選的 D2 對照同 CICD10 |
+| KUB12 | monitoring-dashboard | `monitoring-dashboard` | devops-explorer、terminal | D3（+D4）、E40 | 同 CICD12：節點與 Pod 的序列，加上 `kubectl top`、`get events`、RESTARTS 與 `describe node` 的 Allocated resources；Prometheus 以 Pod 提供的 `/metrics` 文字頁（E12 responder）說明，PromQL 只在課文 |
+| KUB13 | metric-explorer | `monitoring-dashboard` | devops-explorer | D3、D4、**D5** | 三本柱：序列、帶 `trace_id` 的日誌、追蹤的瀑布圖 |
+| KUB14 | metric-explorer | `monitoring-dashboard` | devops-explorer | **D6** | SLI、SLO、SLA、錯誤預算、燃燒率告警 |
+| KUB15 | challenge-stages | `challenge-stages` | terminal、devops-explorer、visualization | E32–E40、D3、D5、D6 | 同 CICD15、DKR15 的形狀 |
+
+**`metric-explorer` 不登錄**：KUB13、KUB14 擴充 `devops-explorer` 的既有活動 `monitoring-dashboard`。`CAPABILITY_ACTIVITY` 每個活動只對應一種能力，而 `metric-explorer` 也是 ML19–ML22（模型評估指標）的藍圖活動；綁到 `devops-explorer` 會讓之後的 ML 課拿到錯的能力。這和 `architecture-diagram` 維持 `content.ops`、SRV 與 DKR 改對應 `network-sequence` 是同一個避免撞名的做法。WEB14、MOB10 的 `metric-explorer` 已對應 `dom-explorer`，不受影響。
+
+## 3. 島嶼與活動的登錄
+
+- `src/content/curriculum/schema.ts`：`PREPARED_ISLAND_IDS = ['kubernetes-reliability']`、`LessonPrefixWritten` 加上 `'KUB'`、`ISLAND_PREFIX['kubernetes-reliability'] = 'KUB'`。**不**移入 `ISLAND_IDS`（KUB-1 才移入，放在 `devops-cicd` 之後，系統區的順序）。
+- `src/content/curriculum/units.ts`：`'kubernetes-reliability': []`。
+- 在第一堂課寫好、島嶼移入 `ISLAND_IDS` 之前，`validateCurriculum` 拒絕任何 KUB 課（「kubernetes-reliability is prepared for authoring, not a curriculum island yet」）。15 堂仍是規劃中、沒有頁面；已發布的課與頁面不變。
+- `LESSON_ACTIVITIES`、`LESSON_CAPABILITIES`、實驗室都**沒有**改動。
+- `tests/devops-capability.test.ts` 與 `tests/llm-capability.test.ts` 的 `PREPARED_ISLAND_IDS` 斷言由 `[]` 改為 `['kubernetes-reliability']`（照實反映目前唯一的預備島嶼）。
+- `docs/curriculum/data/island-capabilities.json`：`kubernetes-reliability` 由 `missing` 改為 `prepared`；`AUTONOMOUS_CURRICULUM_PROGRESS.md` 以 `scripts/curriculum-queue.ts` 重新產生（下一批成為 KUB01–KUB05），`COURSE_PRODUCTION_PROGRESS.md` 以 `scripts/course-progress.ts` 檢查（沒有變動），兩者的 `--check` 都通過。
+
+**活動登錄的影響**（`src/content/world/activities.ts` 由目錄課程的藍圖活動產生 planned 項目）：
+- `cluster-sim`：沒有實驗室（`P7_SYSTEMS_LABS` 說它只是課程活動），只有 KUB 用；隨著課寫好，它的島嶼清單會縮小，**KUB11 寫好後這個項目會從 `/learn` 的活動登錄消失**（已決定，不另加實驗室）。目前仍是 planned。
+- `request-path`：仍列出（規劃中的 `network-request` 實驗室保留它，DKR-5 的規則）。
+- `architecture-diagram`：經由 DB19 維持 implemented，島嶼清單之後少了 `kubernetes-reliability`。
+- `metric-explorer`：只為 ML 維持 planned。
+- `monitoring-dashboard`：已 implemented；D5、D6 的批次再把 `IMPLEMENTED_TEXT` 補上追蹤與 SLO 的說明。
+
+## 4. 批次與階段
+
+課程依編號發布。每一批先建好它的階段，再寫課。
+
+| 批次 | 課 | 先建的階段 |
+|---|---|---|
+| KUB-0 | 無 | 登錄（§3）、`KUB_SHAPES`、本文件、**E32**（[KUB0_E32_CLUSTER](KUB0_E32_CLUSTER.md)） |
+| KUB-1 | KUB01–KUB04 | **E33**、**E34**；島嶼移入 `ISLAND_IDS`（`devops-cicd` 之後） |
+| KUB-2 | KUB05–KUB07 | **E35**、**E36**、**E37** |
+| KUB-3 | KUB08–KUB10 | **E38**、**E39**（Helm 在終端機裡模擬，已決定）、**E40** |
+| KUB-4 | KUB11–KUB14 | **D5**、**D6**（KUB11、KUB12 不需要新階段） |
+| KUB-5 | KUB15 | 無（只有總結專題） |
+
+D5、D6 只在 `src/lib/devops` 與 `src/components/curriculum`，可以和任何 E 階段平行。KUB-2 或 KUB-3 太大時，在階段的邊界分批（同 CICD-1 的調整）。
+
+`KUBE_STAGES_BUILT = ['E32']`；之後每個批次在建好階段時加上它。
+
+## 5. 終端機引擎階段 E32–E40
+
+profile 的鏈接在 `deploy-hosts`（RANK 31）之後，每個 profile 包含它之下的一切。`services` 已經是 E6 的 profile 名稱，所以新的 profile／feature 是：`cluster`、`probes`、`workloads`、`kube-net`、`kube-config`、`ingress`、`kube-storage`、`helm`、`autoscaling`。新的指令只列在自己的 profile 與之上：`E32_COMMANDS = ['kubectl']`、`E36_COMMANDS = ['base64']`、`E39_COMMANDS = ['helm']`，所以較低 profile 的 `command not found` 清單不變。
+
+每個階段照 E2x、E3x 的做法：自己的 `tests/terminal-eNN.test.ts`；每一堂已發布的終端機課逐一重播、輸出相同；`tests/terminal-e1.test.ts` 的 `PROFILES` 加上新的 profile；檔案都不到 300 行；一個 `docs/curriculum/KUB0_E3x_*.md`。
+
+| 階段 | 狀態 | 範圍 | 檢查 |
+|---|---|---|---|
+| **E32 `cluster`** | **已完成** | 共用模型、kubeconfig、`version`、`cluster-info`、`api-resources`（子集）、命名空間、節點、kube-system；`get`、`describe`、`apply -f`、`create -f`、`delete`、`label`、`annotate`、`taint`、`run`、`logs`、`exec`、`events`、`wait`；排程器與 kubelet 的生命週期（[KUB0_E32_CLUSTER](KUB0_E32_CLUSTER.md)） | `kube-object`、`kube-pod` |
+| E33 `probes` | 規劃 | liveness、readiness、startup（`httpGet` 對容器的 responder、`tcpSocket`、`exec`）；程式上課程宣告的隨時間變化的健康狀態；READY 欄、Ready 條件、`Unhealthy`／`Killing` 事件與 liveness 重啟；`terminationGracePeriodSeconds`、`preStop`、E24 `signals` 處理 SIGTERM、Terminating | `kube-pod` 的 `ready` 取得探針的意義 |
+| E34 `workloads` | 規劃 | ReplicaSet、Deployment 的控制器、owner、改標籤讓 Pod 脫離、選擇器不可變；`create deployment`、`scale`、`set image`；滾動更新（沿用 `src/lib/devops/rollout.ts` 的 `resolveRolling`）、`minReadySeconds`、`progressDeadlineSeconds`、revisionHistoryLimit；`rollout status|history|undo|pause|resume|restart`；`cordon`、`uncordon`、`drain --ignore-daemonsets`、課程宣告的節點故障（NotReady，300 秒後驅逐） | `kube-workload`、`kube-rollout` |
+| E35 `kube-net` | 規劃 | Service（ClusterIP、NodePort、LoadBalancer、headless；LB 沒有宣告位址池時是 `<pending>`）、`expose`、具名 targetPort、Endpoints 與 EndpointSlice、CoreDNS 與 `ndots:5`、Pod 內的 `curl`／`getent`／`nslookup`（E22 的容器網路）、從學習者機器以 E12 `curl` 到 NodePort 與 LB、`port-forward` | `kube-service`；`http`、`reach` 加上 `pod?` |
+| E36 `kube-config` | 規劃 | `create configmap|secret generic|tls|docker-registry`、`-o yaml` 的 base64 與 `base64` 指令（GNU coreutils 9.4，76 欄換行）、`env`／`envFrom`／`valueFrom`／`optional`、CreateContainerConfigError、掛載與更新的延遲、`subPath`、`immutable`、`imagePullSecrets`（E23 Registry）、tls Secret 讀 E13 的 PEM | — |
+| E37 `ingress` | 規劃 | 課程宣告的 ingress-nginx、Ingress v1 的 host 與路徑規則、預設後端 404、TLS（E13 `tls.ts`；沒有 Secret 時是 Fake Certificate、ssl-redirect 308）；Gateway API v1 子集（GatewayClass、Gateway、HTTPRoute 與 E15 `proxy.ts` 的平滑加權輪替） | `http`、`kube-object` |
+| E38 `kube-storage` | 規劃 | StorageClass、PV／PVC 綁定與存取模式（RWO 跨節點是 Multi-Attach）、PV 的內容是檔案樹（同 E22 Volume）、`emptyDir`；StatefulSet 的順序、穩定 DNS、`volumeClaimTemplates`；`kubectl exec … -- tar` 與 `kubectl cp` 子集 | `kube-volume`；`kube-pod` 的檔案 |
+| E39 `helm` | 規劃（已決定模擬） | Chart 檔案、新的 Go template 引擎（不改 `storage-net-cli.ts` 的 `goTemplate`）、values 的優先順序、`.Release`／`.Chart`／`.Capabilities`、install／upgrade／list／status／history／rollback／uninstall／get／template／lint／show／repo／pull；Release 存成 Secret | `helm-release` |
+| E40 `autoscaling` | 規劃 | requests／limits、QoS、在 limit 被 OOMKilled（E24 的記憶體模型）、metrics-server 與 `kubectl top`、課程宣告的負載（沿用 D3 的 `generateSeries`）、HPA `autoscaling/v2`（容忍 0.1、15 秒同步、預設的擴張策略、300 秒縮減穩定視窗）、`autoscale`、Pending（Insufficient cpu）；節點自動擴展在 E40 決定 | `kube-hpa` |
+
+**變體**：`TerminalVariant.kube` 取代整個叢集資料（節點、manifest），所以從 `kubectl get` 讀到的答案不能直接打進去（同 `docker`、`git` 的變體）。E32 已實作。
+
+**資料**：`TerminalMachine.kube`（E32：`nodes`、`created`、`pullSeconds`、`images`、`manifests`、`namespace`）；之後的階段加上 `addons`（metricsServer、ingressNginx、gateway、lbPool、儲存的 provisioner、nodePool?）、`load[]`、`charts`／`repos`。每個階段的欄位在它的 profile 以下被拒絕：「needs the X profile (engine stage E3x)」。上限：5 個節點、60 個 Pod、20 個 Deployment，讓 settle 的迴圈保持便宜。
+
+## 6. `devops-explorer` 階段 D5、D6（規劃）
+
+| 階段 | 範圍 |
+|---|---|
+| D5 `traces` | `content.devops.traces`：span（16 位十六進位 ID、parent、service、name、整數毫秒的 start／duration、status、kind、attributes），加上以 `src/lib/llm/prng.ts` 的種子產生器；算出追蹤時間、self time（span 減去子 span 的聯集）、關鍵路徑、瓶頸服務、以 nearest rank 算的 p95；日誌（D4 的 `trace_id`）到追蹤的連結與 D3 分鐘的 exemplar；**head sampling** 用本課程文件化的 trace-id 門檻規則（不宣稱 OpenTelemetry 的位元）；**tail sampling** 規則；**基數**是各標籤不同值數的乘積。查詢 `trace`、`sampling`、`cardinality`；新練習 `sampling-plan` |
+| D6 `slo` | 情境的 `bucketMinutes` 為 1、5 或 60，最多 720 格；good 與 total 事件的序列；以 permyriad 表示的目標與 `windowMinutes`；可選的 SLA 賠償表；燃燒率告警（長視窗、短視窗、以十分之一表示的倍數）。全部是整數運算（交叉相乘比較、顯示時四捨五入同 CICD0 §5.3），多視窗告警以 D3 的狀態機與事故比對評估。查詢 sli、預算事件、已用與剩餘百分比、某時的燃燒率、預算耗盡時間、SLA 賠償；練習 `burn-alert` |
+
+`DEVOPS_STAGES_BUILT` 在各自的批次加上 D5、D6。
+
+## 7. 新的檢查種類
+
+E32 有 `kube-object`、`kube-pod`（[KUB0_E32_CLUSTER](KUB0_E32_CLUSTER.md) §15，`src/lib/terminal/kube-checks.ts`，接在 `TERMINAL_CHECK_KINDS`）。之後：`kube-workload`（kind、name、readyReplicas、image、所有 Pod 在目前的 revision）、`kube-rollout`（revision、change-cause、歷史的筆數）、`kube-service`（type、readyEndpoints、port、nodePort）、`kube-volume`（PVC Bound、storageClass、容量）、`kube-hpa`（min、max、target、replicas 的範圍）、`helm-release`（`helm-checks.ts`：status、revision、chart 版本、某個路徑的值）；`http`、`reach` 加上 `pod?`（從那個 Pod 發出請求）。
+
+## 8. 要固定的版本（全部標記「待核對」）
+
+Kubernetes、kubectl 與伺服器 v1.32.3；`kubectl version` 印出的 Kustomize v5.5.0；containerd 1.7.24、CoreDNS 1.11.3、etcd 3.5.16-0、pause 3.10；ingress-nginx controller v1.12.x、Gateway API v1.2.1（standard channel）、metrics-server v0.7.2；Helm v3.16.4；節點作業系統 Ubuntu 24.04（E32 印出 `Ubuntu 24.04.1 LTS`、核心 `6.8.0-48-generic`）。
+
+## 9. 只在課文說明的部分
+
+雲端的負載平衡器與 cloud-controller-manager；CNI 的內部（veth、iptables、IPVS、eBPF、Calico、Cilium）與 NetworkPolicy（E32 的叢集也沒有 CNI 的 Pod）；etcd 的內部（Raft、compaction、`etcdctl snapshot`）；admission 與 webhook、RBAC 的細節（最多提到 `auth can-i`）；CRD 與 operator；DaemonSet、Job、CronJob（只在 kube-system 裡看得到）；PodDisruptionBudget；VPA 與 cluster autoscaler 的內部；server-side apply、清單的 strategic merge（清單整個取代，已文件化）、kustomize `-k`；Secret 的靜態加密、KMS 與外部 Secret；託管的 Kubernetes 與 kubeadm 的安裝；`kubectl debug`、`attach`、`proxy`、`edit`；watch 模式；Prometheus server、PromQL 與 Grafana；OpenTelemetry Collector 與 SDK 的設定；混沌工程工具（演練改用刪除 Pod、排空節點與課程宣告的節點故障）；Helm 的 `create` 樣板與 OCI chart。
+
+## 10. 風險
+
+- 這是目前最大的引擎範圍（九個階段）。對策：嚴格的階段切分、每次都重播所有已發布的課、§5 的上限。
+- 輸出無法離線與真實叢集比對；每個階段的「沒有把握的地方」列出要核對的文字。
+- 控制器的時間是固定、文件化的模型，不是真實的 informer 延遲。
+- YAML 子集與 Helm template 子集可能慢慢擴大。
+- 以固定的選擇取代真實的亂數（名稱、IP、端點），都已文件化。
+- `cluster-sim` 從 `/learn` 的活動登錄消失可能讓人意外（已決定接受）。
+
+## 11. 沒有把握的地方
+
+- E32 的所有輸出文字見 [KUB0_E32_CLUSTER](KUB0_E32_CLUSTER.md) §18。
+- §8 的版本號（包括 kubeadm 叢集裡 etcd、CoreDNS 的版本搭配）。
+- KUB12 以 `monitoring-dashboard` 加上終端機是否足以呈現 Allocated resources 與 `kubectl top`（E40 之後再確認）。

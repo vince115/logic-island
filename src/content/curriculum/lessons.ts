@@ -475,6 +475,56 @@ export function cicdFromBlueprint(lessonId: string, summary: string, minutes: nu
     capabilities: withOptional ? [...s.capabilities, ...s.optional!] : [...s.capabilities], blueprintId: lessonId };
 }
 /**
+ * KUB-0 (2026-11-24): a lesson of the kubernetes-reliability island written from its blueprint outline (slug, title,
+ * objectives, concepts, difficulty, prerequisites), docs/curriculum/KUB0_KUBERNETES_CAPABILITY.md §2. The shape is chosen
+ * per lesson, as CICD_SHAPES does: the blueprint's cluster-sim is the terminal with a simulated cluster (kubectl, engine
+ * stages E32–E40), architecture-diagram (KUB02) and request-path (KUB07) pair the terminal with network-protocol scenes,
+ * KUB12–KUB14 are the devops-explorer's monitoring-dashboard (metric-explorer is not registered: ML19–ML22 keep that name
+ * for model metrics), and the capstone is challenge-stages. `stages` are the terminal engine stages (E32–E40, plus older
+ * ones a lesson leans on) and devops-explorer stages (D3–D6) it needs; a lesson whose KUB engine stages
+ * (KUBE_STAGES_BUILT) or devops-explorer stages (DEVOPS_STAGES_BUILT) are not all built cannot be built yet: the builder
+ * says so. KUB11's optional devops-explorer (a D2 rollout beside kubectl) is added with `withOptional`.
+ */
+type KubeShape = { blueprint: string; activity: string; capabilities: LessonCapability[]; optional?: LessonCapability[]; visualization: VisualizationType; stages: readonly string[] };
+const cluster = (stages: string[]): KubeShape => ({ blueprint: 'cluster-sim', activity: 'terminal-sim', capabilities: ['terminal'], visualization: 'none', stages });
+export const KUB_SHAPES: Readonly<Record<string, KubeShape>> = {
+  KUB01: cluster(['E32', 'E33', 'E34']),
+  KUB02: { blueprint: 'architecture-diagram', activity: 'network-sequence', capabilities: ['terminal', 'network-protocol'], visualization: 'none', stages: ['E32'] },
+  KUB03: cluster(['E32', 'E33']),
+  KUB04: cluster(['E32', 'E33', 'E34']),
+  KUB05: cluster(['E35']),
+  KUB06: cluster(['E36']),
+  KUB07: { blueprint: 'request-path', activity: 'network-sequence', capabilities: ['terminal', 'network-protocol'], visualization: 'none', stages: ['E35', 'E37', 'E13'] },
+  KUB08: cluster(['E38']),
+  KUB09: cluster(['E39']),
+  KUB10: cluster(['E40']),
+  KUB11: { ...cluster(['E34', 'E35']), optional: ['devops-explorer'] },
+  KUB12: { blueprint: 'monitoring-dashboard', activity: 'monitoring-dashboard', capabilities: ['devops-explorer', 'terminal'], visualization: 'none', stages: ['D3', 'D4', 'E40'] },
+  KUB13: { blueprint: 'metric-explorer', activity: 'monitoring-dashboard', capabilities: ['devops-explorer'], visualization: 'none', stages: ['D3', 'D4', 'D5'] },
+  KUB14: { blueprint: 'metric-explorer', activity: 'monitoring-dashboard', capabilities: ['devops-explorer'], visualization: 'none', stages: ['D6'] },
+  KUB15: { blueprint: 'challenge-stages', activity: 'challenge-stages', capabilities: ['terminal', 'devops-explorer', 'visualization'], visualization: 'challenge-stages',
+    stages: ['E32', 'E33', 'E34', 'E35', 'E36', 'E37', 'E38', 'E39', 'E40', 'D3', 'D5', 'D6'] },
+};
+/** The terminal engine stages of the KUB range (E32–E40) that exist (KUB0_KUBERNETES_CAPABILITY.md §4): E32, built in KUB-0. */
+export const KUBE_STAGES_BUILT: readonly string[] = ['E32'];
+const KUBE_RANGE = /^E(3[2-9]|40)$/;
+export function kubeFromBlueprint(lessonId: string, summary: string, minutes: number, withOptional = false): Outline {
+  const b = planning.plannedLessons.find(l => l.lessonId === lessonId);
+  if (!b || b.islandId !== 'kubernetes-reliability') throw new Error(`${lessonId} is not a Kubernetes and reliability lesson of the blueprint`);
+  const s = KUB_SHAPES[lessonId];
+  if (!s || s.blueprint !== b.activity) throw new Error(`${lessonId}: no kubernetes-reliability lesson shape for the blueprint activity ${b.activity}`);
+  if (!(LESSON_ACTIVITIES as readonly string[]).includes(s.activity)) throw new Error(`${lessonId}: the ${s.activity} activity is not registered yet`);
+  const engine = s.stages.filter(x => KUBE_RANGE.test(x) && !KUBE_STAGES_BUILT.includes(x));
+  if (engine.length) throw new Error(`${lessonId}: the terminal engine stage ${engine.join(', ')} is not built yet (the lesson needs ${s.stages.filter(x => KUBE_RANGE.test(x)).join(', ')})`);
+  const devops = s.stages.filter(x => /^D\d$/.test(x) && !DEVOPS_STAGES_BUILT.includes(x));
+  if (devops.length) throw new Error(`${lessonId}: the devops-explorer stage ${devops.join(', ')} is not built yet (the lesson needs ${s.stages.filter(x => /^D\d$/.test(x)).join(', ')})`);
+  if (withOptional && !s.optional) throw new Error(`${lessonId} has no optional capability`);
+  return { slug: b.slug, title: b.title, summary, objectives: b.learningObjectives, concepts: b.concepts, difficulty: b.difficulty as Difficulty,
+    minutes, prerequisites: b.prerequisites as LessonId[], recommended: b.recommended as AnyLessonId[], apcs: ['none'], visualization: s.visualization,
+    status: 'complete', version: '1.0.0', activity: s.activity as LessonActivity,
+    capabilities: withOptional ? [...s.capabilities, ...s.optional!] : [...s.capabilities], blueprintId: lessonId };
+}
+/**
  * WEB-0 (2026-11-23): a web foundations lesson written from its blueprint outline (slug, title, objectives, concepts,
  * difficulty, prerequisites). Its body is the web-code capability: pages in a sandboxed frame beside the DOM the browser
  * built, and exercises checked on that page. dom-explorer is that activity. The island's other blueprint activities

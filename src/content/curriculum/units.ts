@@ -85,6 +85,8 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '日誌、回滾與事故', summary: '結構化日誌、集中收集、關聯 ID、遮蔽敏感資料與保留期限；以 digest 回滾、功能旗標、向前修復、相容的資料庫遷移與發布檢查清單；嚴重等級、事故指揮與對外溝通、時間線與不究責的事後檢討', lessonIds: ['CICD12', 'CICD13', 'CICD14'] },
     { title: '綜合專題', summary: '分六關把咖啡店的點餐服務從 commit 帶到上線：PR 與必要檢查、只建置一次的 Image 與快取、各環境的設定與機密、以同一個 digest 晉升、金絲雀計畫與症狀告警、回滾演練與事故時間', lessonIds: ['CICD15'] },
   ],
+  // KUB-0 (2026-11-24): the kubernetes-reliability island is prepared for authoring; its units come with its first lessons.
+  'kubernetes-reliability': [],
   'network-servers': [
     { title: '位址、名稱與請求', summary: '公有與私有 IP、介面與路由、監聽埠與 socket、ss、lsof 與 nc；DNS 區域、A／CNAME／MX／TXT、TTL 與快取、dig；用 curl 讀懂 HTTP 請求、回應、狀態碼與重新導向', lessonIds: range('SRV', 1, 3) },
     { title: '憑證與網頁伺服器', summary: '憑證鏈、ACME 與 Let\'s Encrypt、certbot 自動更新、HSTS 與到期監控；網頁伺服器與應用伺服器、並行模型、逾時與 502／504；nginx 的 server 與 location、nginx -t 與 reload、存取與錯誤日誌', lessonIds: range('SRV', 4, 6) },

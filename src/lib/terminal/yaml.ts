@@ -246,6 +246,24 @@ export function parseYaml(text: string, opts: { keep?: boolean } = {}): Y {
   return root;
 }
 
+/**
+ * E32 (docs/curriculum/KUB0_E32_CLUSTER.md §3): a stream of several documents, as kubectl reads manifests. A line that is
+ * exactly `---` (optionally followed by a comment) at column 1 separates documents; each document is parsed by
+ * parseYaml with the other documents' lines blanked, so line numbers in errors stay the file's. Documents with nothing
+ * but comments are skipped (kubectl skips them). parseYaml itself is unchanged: Compose still refuses several documents.
+ */
+export function parseYamlDocuments(text: string): Y[] {
+  const raw = text.split('\n'), docs: Y[] = [];
+  let from = 0;
+  const flush = (to: number) => {
+    const part = raw.map((l, k) => k >= from && k < to ? l : '');
+    if (part.slice(from, to).some(l => stripComment(l).trim() !== '')) docs.push(parseYaml(part.join('\n')));
+  };
+  raw.forEach((l, k) => { if (/^---(\s+#.*)?\s*$/.test(l.replace(/\r$/, ''))) { flush(k); from = k + 1; } });
+  flush(raw.length);
+  return docs;
+}
+
 // ------------------------------------------------------------------------------------------------- output
 
 /** An ordered mapping for the emitter (keys keep their order, numbers too). */

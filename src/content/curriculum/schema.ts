@@ -79,18 +79,23 @@ export const ISLAND_IDS = ['foundations', 'structures', 'algorithms', 'programmi
 // docs/curriculum/CICD0_DEVOPS_CAPABILITY.md. CICD-1 moves it to ISLAND_IDS after network-servers.
 // CICD-1 (2026-11-23): the devops-cicd island joins with CICD01, after network-servers (the world's order: the cloud
 // infrastructure island between them is still planned).
-export const PREPARED_ISLAND_IDS = [] as const;
+// KUB-0 (2026-11-24): the kubernetes-reliability island is prepared for authoring, written with the terminal capability
+// (engine stages E32–E40: a simulated cluster driven with kubectl, from E32 cluster on), network-protocol scenes (KUB02,
+// KUB07) and the devops-explorer (KUB12–KUB14), docs/curriculum/KUB0_KUBERNETES_CAPABILITY.md. KUB-1 moves it to
+// ISLAND_IDS after devops-cicd.
+export const PREPARED_ISLAND_IDS = ['kubernetes-reliability'] as const;
 export type IslandId = typeof ISLAND_IDS[number] | typeof PREPARED_ISLAND_IDS[number];
 /**
  * F = 基礎程式島, D = 資料結構島, A = 演算法島, then a two-digit position (F01..F20). Phase F.0: the number is two digits in
  * the type too (it was any string, so DB01 or AG01 type-checked as a D or A lesson); IDs of every island, planned ones
  * included, are AnyLessonId in src/content/world/lesson-id.ts and are always parsed with their whole prefix.
  */
-export type LessonPrefixWritten = 'F' | 'D' | 'A' | 'DB' | 'PL' | 'CN' | 'AIF' | 'LNX' | 'SRV' | 'LLM' | 'GEN' | 'WEB' | 'RWD' | 'MOB' | 'DKR' | 'CICD';
+export type LessonPrefixWritten = 'F' | 'D' | 'A' | 'DB' | 'PL' | 'CN' | 'AIF' | 'LNX' | 'SRV' | 'LLM' | 'GEN' | 'WEB' | 'RWD' | 'MOB' | 'DKR' | 'CICD' | 'KUB';
 export type LessonId = `${LessonPrefixWritten}${LessonNumber}`;
 /** 2026-11-20 (course production, batch 1): the programming-languages island (PL) joins with its first written lessons. */
 export const ISLAND_PREFIX: Record<IslandId, LessonPrefixWritten> = { foundations: 'F', structures: 'D', algorithms: 'A', databases: 'DB', 'programming-languages': 'PL', networks: 'CN', 'ai-foundations': 'AIF', 'linux-systems': 'LNX',
-  'network-servers': 'SRV', 'large-language-models': 'LLM', 'generative-ai': 'GEN', 'web-foundations': 'WEB', 'responsive-design': 'RWD', 'mobile-apps': 'MOB', 'docker-containers': 'DKR', 'devops-cicd': 'CICD' };
+  'network-servers': 'SRV', 'large-language-models': 'LLM', 'generative-ai': 'GEN', 'web-foundations': 'WEB', 'responsive-design': 'RWD', 'mobile-apps': 'MOB', 'docker-containers': 'DKR', 'devops-cicd': 'CICD',
+  'kubernetes-reliability': 'KUB' };
 
 /**
  * Phase F.1a: a lesson taught in a query language instead of the four programming languages. A SQL lesson has no program

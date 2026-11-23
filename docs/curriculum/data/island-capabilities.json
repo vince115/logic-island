@@ -125,8 +125,9 @@
       "note": "CICD-0 prepared the island with the new devops-explorer capability (cicdFromBlueprint) and built D1 and D2 for CICD01 and CICD10; CICD-1 published CICD01 on D1 (the island opens); CICD02 needs E25-E26 and moves to the next batch, CICD-2 (CICD03-CICD05) E27-E28, CICD-3 (CICD06-CICD08) E29, CICD-4 (CICD09-CICD11) E30, E31 and D3 (registers monitoring-dashboard), CICD-5 (CICD12-CICD14) D4, CICD-6 is the capstone (CICD0_DEVOPS_CAPABILITY.md)"
     },
     "kubernetes-reliability": {
-      "capability": "cluster simulation",
-      "status": "missing"
+      "capability": "terminal (engine stages E32 cluster, E33 probes, E34 workloads, E35 kube-net, E36 kube-config, E37 ingress, E38 kube-storage, E39 helm, E40 autoscaling: a simulated cluster driven with kubectl and helm) + network-protocol (KUB02, KUB07) + devops-explorer (monitoring-dashboard with D3-D6 for KUB12-KUB14); a per-lesson mapping (KUB_SHAPES)",
+      "status": "prepared",
+      "note": "KUB-0 prepared the island (kubeFromBlueprint) and built engine stage E32 cluster; KUB-1 (KUB01-KUB04) needs E33-E34 and moves the island to ISLAND_IDS, KUB-2 (KUB05-KUB07) E35-E37, KUB-3 (KUB08-KUB10) E38-E40, KUB-4 (KUB11-KUB14) D5-D6, KUB-5 is the capstone (KUB0_KUBERNETES_CAPABILITY.md)"
     }
   }
 }

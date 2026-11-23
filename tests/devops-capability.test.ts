@@ -92,7 +92,8 @@ describe('cicdFromBlueprint (CICD_SHAPES)', () => {
 
 describe('the devops-cicd island: prepared in CICD-0, published from CICD-1', () => {
   it('is a curriculum island after network-servers with its first lessons written in id order and in its unit; the rest stay planned outlines without a page', () => {
-    expect(PREPARED_ISLAND_IDS).toEqual([]);
+    // KUB-0 prepared kubernetes-reliability, now the only prepared island (devops-cicd is not among them).
+    expect(PREPARED_ISLAND_IDS).toEqual(['kubernetes-reliability']);
     expect(ISLAND_IDS).toContain('devops-cicd');
     // The world's order in the systems region: LNX, DKR, SRV, CLD (still planned), CICD, KUB.
     expect(ISLAND_IDS.indexOf('devops-cicd')).toBe(ISLAND_IDS.indexOf('network-servers') + 1);
