@@ -234,7 +234,7 @@ export function loadProject(state: FsState, o: { file?: string; name?: string; e
   for (const [svc, v] of servicesY.m) {
     const path = `services.${svc}`;
     if (!/^[a-zA-Z0-9._-]+$/.test(svc)) throw invalid(`services Additional property ${svc} is not allowed`);
-    const m = mapOf(v, path) ?? { t: 'map' as const, m: [], line: 0 };
+    const m = mapOf(v, path) ?? { t: 'map' as const, m: [], line: 0, col: 0, keys: [] };
     for (const [k] of m.m) {
       if (SERVICE_OTHER.includes(k)) throw new ComposeError(`docker compose：模擬環境不支援 ${path}.${k}（請從 ${baseName(file)} 移除，或改用模擬環境支援的寫法）`);
       if (!SERVICE_KEYS.includes(k) && !k.startsWith('x-')) throw invalid(`${path} additional properties '${k}' not allowed`);

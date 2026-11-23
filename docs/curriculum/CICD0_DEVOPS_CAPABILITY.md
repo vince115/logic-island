@@ -56,7 +56,7 @@
 |---|---|---|
 | CICD-0 | 無 | 登錄與對應（§2、§3）、本文件、**D1**、**D2**（已完成） |
 | CICD-1 | CICD01–02 | E25 `git`、E26 `forge` |
-| CICD-2 | CICD03–05 | E27 `workflows`、E28 `actions` |
+| CICD-2 | CICD03–05 | E27 `workflows`（**已完成**，見 [CICD0_E27_WORKFLOWS](CICD0_E27_WORKFLOWS.md)） | workflow 檔案的模型（不執行）：YAML 子集加上欄位與結構化的錯誤（Compose 的訊息不變）、GitHub 風格的驗證訊息、push／pull_request／workflow_dispatch／schedule 觸發與 GitHub 的過濾樣式、`${{ }}` 運算式與函式（文字代換在 Bash 之前，script injection 是真的）、matrix 展開、GITHUB_TOKEN 權限的解析；`gh workflow list`／`view` | `workflow` |
 | CICD-3 | CICD06–08 | E29 `artifacts` |
 | CICD-4 | CICD09–11 | E30 `environments`、E31 `deploy-hosts`、D3（登錄 `monitoring-dashboard`） |
 | CICD-5 | CICD12–14 | D4 |
@@ -232,7 +232,7 @@ Profile 延續 `runtime` 之後的線性鏈（RANK 25–31）。每個階段只�
 | E25 `git`（**已完成**，見 [CICD0_E25_GIT](CICD0_E25_GIT.md)） | 真實的 blob、tree、commit、annotated tag 與 SHA-1；refs、HEAD、index、工作目錄、remote-tracking refs；`github.example` 上的遠端存在 `FsState.git`；git 2.43 的常用指令，三方合併採用 git 的 xdiff 演算法（和真實 git 逐字比對過），衝突可以有多段 | `branch`、`worktree`、`tag` |
 | E26 `forge`（**已完成**，見 [CICD0_E26_FORGE](CICD0_E26_FORGE.md)） | github.example 上的儲存庫設定與分支保護（必要的核准與狀態檢查、線性歷史、force push、刪除）、編號的 Pull Request、課程宣告的審查者（依時鐘審查）、不能核准自己的 PR、merge／squash／rebase 寫出與 GitHub 相同形狀的歷史、違反保護的 push 被 GH006 拒絕；`gh`（auth、repo view、pr create／list／view／diff／checkout／review／merge／checks／close、`gh api` 的 repo 與 branch protection GET／PUT／PATCH／DELETE） | `pull-request`、`protection` |
 | E27 `workflows`（`workflow.ts`、`expr.ts`） | `yaml.ts` 加上欄位的 column 與結構化的 `YamlError`；workflow 的結構與 GitHub 的驗證訊息；`push`、`pull_request`、`workflow_dispatch`、`schedule` 觸發與篩選語法；運算式的 context、運算子與函式（含 `hashFiles`）；運算式先以文字代換再交給 Bash，所以 script injection 真的會發生；GITHUB_TOKEN 的有效權限；`gh workflow list/view` | `workflow` |
-| E28 `actions`（`runner.ts`、`actions.ts`） | 依 `needs` 執行的 job、平行的時間、matrix 與 fail-fast；每個 job 一台全新的 runner `FsState`；`actions/checkout@v4`、`run:` 以 `bash --noprofile --norc -eo pipefail` 執行；`GITHUB_*` 環境變數與檔案、workflow commands；CI 工具一般化 E23 的 `BuildTool`（依工作目錄的檔案決定結果、`flaky`）；真實的步驟名稱與日誌；`gh run list/view/watch/rerun/cancel`、`gh workflow run`、`gh pr checks`；必要檢查接到 E26 的合併 | `run` |
+| E28 `actions`（**已完成**，見 [CICD0_E28_ACTIONS](CICD0_E28_ACTIONS.md)） | push、PR（opened／synchronize，在試合併 commit 上執行）、workflow_dispatch 與 schedule 產生 run；依 `needs` 執行的 job、平行的時間、matrix 與 fail-fast、`if`、timeout、continue-on-error；每個 job 一台全新的 runner，`actions/checkout@v4` 寫入檔案與 git 儲存庫，`run:` 先代換運算式再交給 Bash（沒寫 `shell:` 是 `bash -e {0}`，`shell: bash` 才加上 `--noprofile --norc -eo pipefail`）；`GITHUB_*` 環境與 `GITHUB_OUTPUT` 等檔案、workflow 指令與遮蔽；依工作區檔案決定結果的 CI 工具（含不穩定的測試）；job 結果成為 PR 的狀態檢查；`gh run list／view／watch／rerun／cancel`、`gh workflow run／enable／disable` | `run` |
 | E29 `artifacts` | `actions/cache@v4`、`upload-artifact@v4`／`download-artifact@v4`、runner 上的 E20–E24 Docker；repo 與環境層級的 secret 與 variable、`gh secret`／`gh variable`、值必須通過 `FAKE_TOKEN`、日誌遮蔽為 `***`；GITHUB_TOKEN 的寫入權限 | `secret`、`variable`；`run` 加上 `cacheHit`、`artifact` |
 | E30 `environments` | 必要審查者、等待計時、部署分支政策；等待中的 run 與核准端點；concurrency 與 cancel-in-progress；部署紀錄；以 `workflow_dispatch` 的輸入回滾到較早的 digest | `environment`、`deployment` |
 | E31 `deploy-hosts` | 遠端機器可宣告 Docker daemon；`ssh deploy@prod-01 'docker pull …@sha256 && docker run …'`；runner 可連到課程宣告的主機，`curl -fsS http://staging-01:8000/healthz` 的冒煙測試是真的 | `container`、`http` 加上 `host?` |

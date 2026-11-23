@@ -706,10 +706,13 @@ const dockerContainers: Outline[] = [
   dockerFromBlueprint('DKR15', '把三層式的拾光書屋從筆電上手打的 docker run 帶到可以上線：以兩個階段建置 distroless、nonroot、exec 形式的 API Image 並試跑優雅關閉，修好 Compose 開發環境的具名 Volume、pg_isready 健康檢查與 service_healthy，從 docker history 找出經由 ARG 與 ENV 包進舊 Image 的付款金鑰、撤銷後刪除舊 Image 並改以唯讀掛載的檔案提供，以 SemVer 與 commit 標籤從 --password-stdin 登入推送到私有 Registry、不推送 latest，以 deploy 帳號拉取並以 digest、--read-only 加 tmpfs、--cap-drop ALL、no-new-privileges、記憶體與 CPU 上限、unless-stopped 與只綁 127.0.0.1 上線，最後照上線檢查清單以 ps、logs、inspect、events、stats 與 curl 驗收第二台主機，找出手動部署造成的 OOM 重啟迴圈並以審查過的部署指令稿從根本修好。', 90),
 ];
 
-/** CICD-1 (2026-11-23): the devops-cicd island's first lesson, on the devops-explorer capability (CICD0_DEVOPS_CAPABILITY.md); CICD-2 adds CICD02 on the terminal with engine stages E25 git and E26 forge. */
+/** CICD-1 (2026-11-23): the devops-cicd island's first lesson, on the devops-explorer capability (CICD0_DEVOPS_CAPABILITY.md); CICD-2 adds CICD02 on the terminal with engine stages E25 git and E26 forge, CICD-3 CICD03–CICD05 on E27 workflows and E28 actions. */
 const devopsCicd: Outline[] = [
   cicdFromBlueprint('CICD01', '從開發與維運的隔閡說明 DevOps 要解決的問題與共同責任、自動化的做法，用同一週八個變更的一次上線與分開上線比較小批量與快速回饋如何縮短前置時間、縮小故障範圍並加快復原，再以兩個團隊同一季的部署紀錄算出 deployment frequency、change lead time、change fail rate 與 failed deployment recovery time 四個 DORA 指標，並說明指標該怎麼讀、為什麼不能拿來排名。', 45),
   cicdFromBlueprint('CICD02', '在一個小型圖書館團隊的模擬 GitHub 上實際開分支、推送、開 Pull Request、等同事審查再合併，說明分支保護的規則並用 gh api 讀取與設定，比較 Trunk-based development 與 Git Flow 的取捨，再以 merge 與 rebase 的歷史形狀、主機上的三種合併方式與衝突的解決，在落後且衝突的分支、凌亂的 PR 與共用分支三個情境中選擇並執行合適的做法。', 55),
+  cicdFromBlueprint('CICD03', '在一個渡輪時刻表團隊的模擬 GitHub 上，比較三週才整合一次的分支與每天小步整合的差別，跟著一次推送看 GitHub Actions 在全新的 runner 上自動執行 lint、建置與測試並回報成 Pull Request 的檢查，用 gh run list、watch 與 view --log-failed 讀出失敗的 step，說明快速回饋的做法與以要求的狀態檢查讓主分支保持綠燈，再在主分支紅燈時找出造成失敗的 commit、修好程式讓它重新變綠，讓紅燈的 Pull Request 修好後才合併，並替新的儲存庫要求 build 檢查。', 50),
+  cicdFromBlueprint('CICD04', '在一個渡輪團隊的模擬 GitHub 上撰寫並推送 workflow 檔案，看真實的 run 由 workflow、job 到 step 展開，分辨以 uses 引用的 action 與以 run 執行的指令，認識 GitHub-hosted runner 與 runs-on 的 label，設定 push、Pull Request 的分支與路徑篩選、帶輸入的 workflow_dispatch 與以 UTC 計時的 schedule，用 needs、matrix、step 與 job 的輸出串起多個 job，讀懂無效 workflow 的錯誤，並以 workflow 與 job 層級的 permissions 讓 GITHUB_TOKEN 只有需要的最小權限。', 60),
+  cicdFromBlueprint('CICD05', '在一個渡輪訂票團隊的模擬 GitHub Actions 上，依測試金字塔比較單元、整合與端對端測試的數量與速度，把 e2e 排在最前面的單一 job 改成以 needs 串起的三層 job，讓單元測試在 20 秒內失敗、後面的 job 略過，以 if: always() 印出 JUnit 風格的測試報告，用 matrix 把端對端測試分成 3 片平行執行縮短回饋時間並說明 fail-fast，再從 --log-failed 找出跨瀏覽器 Nightly 裡的不穩定測試，以 gh run rerun --failed 確認它是偶發的失敗，並說明記錄、隔離與修正原因為什麼比一直重新執行或刪掉測試重要。', 55),
 ];
 
 /** RWD-1 (2026-11-23): the responsive design island's first lessons, on the web-code capability with the resize step and preview widths (WEB0_WEB_CODE_CAPABILITY.md, RESPONSIVE_DESIGN_ISLAND.md); RWD-2 adds RWD05–RWD08, RWD-3 RWD09–RWD12 (the capstone): the island is complete. */

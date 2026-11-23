@@ -2,7 +2,8 @@ import type { Forge, Git, Repo } from './git-core';
 import { switchCommand } from './git-cli-switch';
 import { mergeCommand } from './git-cli-merge';
 import { checksOf, pushed, type ForgeReview } from './forge-state';
-import { defaultBranch, headOf, repoPath, savePull } from './forge';
+import { completedAt } from './actions-model';
+import { defaultBranch, headOf, repoPath, savePull, webUrl } from './forge';
 import { flag, on, parseFlags, type Gh } from './gh';
 import { findPull, table } from './gh-pr';
 
@@ -90,19 +91,29 @@ export function checksPr(h: Gh, args: string[]): number {
   const { g } = h;
   const f = parseFlags(g, 'pr checks [<number> | <url> | <branch>]', args, ['R|repo=', 'required', 'watch', 'fail-fast', 'i|interval=', 'w|web']);
   if (!f) return 1;
-  if (on(f, 'watch') || on(f, 'web')) { g.err('gh pr checks --watch／--web：模擬環境不支援（結果由課程宣告；GitHub Actions 的執行在引擎階段 E28）'); return 1; }
+  // E28 (actions profile): --watch moves the clock to the end of the head's runs and prints the final table (gh run watch's decision).
+  if ((on(f, 'watch') && !h.ci) || on(f, 'web')) { g.err('gh pr checks --watch／--web：模擬環境不支援（結果由課程宣告；GitHub Actions 的執行在引擎階段 E28）'); return 1; }
   const found = findPull(h, f);
   if (!found) return 1;
   const { forge, pr } = found, required = forge.site!.protection.get(pr.base)?.checks?.contexts ?? [];
-  const results = checksOf(forge.site!, g.store, headOf(pr)).filter(c => !on(f, 'required') || required.includes(c.context));
+  let at = g.now;
+  if (on(f, 'watch')) {
+    const ends = (forge.site!.runs ?? []).filter(r => r.headSha === headOf(pr) && r.createdAt <= g.now).map(r => completedAt(r));
+    if (ends.some(e => e === undefined)) { g.err('gh pr checks --watch：有 job 一直在等 runner（沒有符合 runs-on 的 runner），真實的 gh 會一直等下去'); return 1; }
+    at = Math.max(g.now, ...ends as number[]);
+    h.advance = at - g.now;
+  }
+  const results = checksOf(forge.site!, g.store, headOf(pr), at, webUrl(forge)).filter(c => !on(f, 'required') || required.includes(c.context));
   if (!results.length) { g.err(`no ${on(f, 'required') ? 'required ' : ''}checks reported on the '${pr.head}' branch`); return 1; }
-  const order = { failure: 0, pending: 1, success: 2 } as const, mark = { failure: 'X', pending: '*', success: '✓' } as const;
+  // E28: Actions' results add cancelled and skipped, gh's names (CI/test (push)) and the jobs' URLs.
+  const order = { failure: 0, cancelled: 1, pending: 2, success: 3, skipped: 4 } as const, mark = { failure: 'X', cancelled: '-', pending: '*', success: '✓', skipped: '-' } as const;
   const n = (c: string) => results.filter(x => x.conclusion === c).length;
-  g.out(n('failure') ? 'Some checks were not successful' : n('pending') ? 'Some checks are still pending' : 'All checks were successful',
-    `0 cancelled, ${n('failure')} failing, ${n('success')} successful, 0 skipped, and ${n('pending')} pending checks`, '');
-  const rows = [...results].sort((a, b) => order[a.conclusion] - order[b.conclusion] || (a.context < b.context ? -1 : 1));
-  g.out(...table([['', 'NAME', 'DESCRIPTION', 'ELAPSED', 'URL'], ...rows.map(c => [mark[c.conclusion], c.context, c.description, elapsed(c.seconds), ''])]));
-  return n('failure') ? 1 : n('pending') ? 8 : 0;
+  g.out(n('failure') ? 'Some checks were not successful' : n('pending') ? 'Some checks are still pending' : n('cancelled') ? 'Some checks were cancelled' : 'All checks were successful',
+    `${n('cancelled')} cancelled, ${n('failure')} failing, ${n('success')} successful, ${n('skipped')} skipped, and ${n('pending')} pending checks`, '');
+  const nameOf = (c: typeof results[number]) => c.name ?? c.context;
+  const rows = [...results].sort((a, b) => order[a.conclusion] - order[b.conclusion] || (nameOf(a) < nameOf(b) ? -1 : 1));
+  g.out(...table([['', 'NAME', 'DESCRIPTION', 'ELAPSED', 'URL'], ...rows.map(c => [mark[c.conclusion], nameOf(c), c.description, elapsed(c.seconds), c.url ?? ''])]));
+  return n('failure') || n('cancelled') ? 1 : n('pending') ? 8 : 0;
 }
 
 export function closePr(h: Gh, args: string[]): number {

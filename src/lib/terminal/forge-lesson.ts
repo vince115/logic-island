@@ -51,6 +51,8 @@ export interface TerminalForgeRepo {
   pulls?: TerminalForgePull[];
   /** The next pull request number (default one more than the highest declared). */
   next?: number;
+  /** E27 (workflows profile): the repository's Workflow permissions, the GITHUB_TOKEN's default (read: restricted, the default; write: permissive). */
+  workflowPermissions?: 'read' | 'write';
 }
 export interface TerminalForge { login: string; name?: string; email?: string; repos?: TerminalForgeRepo[] }
 

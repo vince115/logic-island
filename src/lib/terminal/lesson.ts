@@ -22,6 +22,7 @@ import type { PathDecl } from './diag';
 import type { TerminalDocker } from './docker-lesson';
 import type { TerminalGit } from './git-lesson';
 import type { TerminalForge } from './forge-lesson';
+import type { TerminalActions } from './actions-lesson';
 
 /*
  * LNX-0 (2026-11-22): the terminal lesson capability (docs/curriculum/LNX0_TERMINAL_CAPABILITY.md). A Linux lesson
@@ -195,6 +196,8 @@ export interface TerminalMachine {
   git?: TerminalGit;
   /** E26 (the local machine): gh's login on github.example and, per forge repository, settings, protection, personas, checks and pull requests. */
   forge?: TerminalForge;
+  /** E28 (the local machine): GitHub Actions' runner labels and image, the first run and job IDs, and CI tools (npm test, pytest). */
+  actions?: TerminalActions;
 }
 
 /**
@@ -321,10 +324,10 @@ export type TerminalCheck =
   | { kind: 'cron'; user?: string; source?: string; schedule?: string; command?: string; absent?: true }
   /** E9: a timer is (not) active / enabled, its next elapse is this local time (YYYY-MM-DD HH:MM:SS). */
   | { kind: 'timer'; unit: string; active?: boolean; enabled?: boolean; next?: string }
-  /** E10–E12: listen, dns and http (server-lesson.ts); E20: container and image (docker-lesson.ts); E25: branch, worktree and tag (git-checks.ts); E26: pull-request and protection (forge-checks.ts). */
+  /** E10–E12: listen, dns and http (server-lesson.ts); E20: container and image (docker-lesson.ts); E25: branch, worktree and tag (git-checks.ts); E26: pull-request and protection (forge-checks.ts); E27: workflow (workflow-checks.ts); E28: run (actions-checks.ts). */
   | ServerCheck;
 export const TERMINAL_CHECK_KINDS = ['exists', 'absent', 'mode', 'owner', 'content', 'cwd', 'output', 'unchanged', 'link', 'user', 'group', 'umask', 'process', 'package', 'service',
-  'ssh', 'known-host', 'cron', 'timer', 'listen', 'dns', 'http', 'cert', 'nginx', 'reach', 'firewall', 'tunnel', 'cache', 'container', 'image', 'build', 'volume', 'network', 'compose', 'registry', 'branch', 'worktree', 'tag', 'pull-request', 'protection'] as const satisfies readonly TerminalCheck['kind'][];
+  'ssh', 'known-host', 'cron', 'timer', 'listen', 'dns', 'http', 'cert', 'nginx', 'reach', 'firewall', 'tunnel', 'cache', 'container', 'image', 'build', 'volume', 'network', 'compose', 'registry', 'branch', 'worktree', 'tag', 'pull-request', 'protection', 'workflow', 'run'] as const satisfies readonly TerminalCheck['kind'][];
 /** E7: the checks of files that may name a remote machine (host). */
 const PATH_KINDS = ['exists', 'absent', 'mode', 'owner', 'content', 'unchanged', 'link'];
 
@@ -382,13 +385,14 @@ const SYSTEM_FIELDS = ['kernel', 'release', 'version', 'machine', 'os'] as const
 /** E1: the shell profile a machine's sessions use (lab unless it says files, streams or users). */
 export const profileOf = (machine: Pick<TerminalMachine, 'profile'>): ShellProfile => PROFILES[machine.profile ?? 'lab'] ?? LAB_PROFILE;
 /** Each profile includes the ones before it: files (E1) < streams (E2) < users (E3) < processes (E4) < packages (E5) < services (E6). */
-const RANK: Record<ProfileId, number> = { lab: 0, files: 1, streams: 2, users: 3, processes: 4, packages: 5, services: 6, remote: 7, scripting: 8, scheduling: 9, sockets: 10, dns: 11, http: 12, tls: 13, nginx: 14, proxy: 15, firewall: 16, tunnels: 17, edge: 18, diagnostics: 19, containers: 20, images: 21, 'storage-net': 22, compose: 23, runtime: 24, git: 25, forge: 26 };
+const RANK: Record<ProfileId, number> = { lab: 0, files: 1, streams: 2, users: 3, processes: 4, packages: 5, services: 6, remote: 7, scripting: 8, scheduling: 9, sockets: 10, dns: 11, http: 12, tls: 13, nginx: 14, proxy: 15, firewall: 16, tunnels: 17, edge: 18, diagnostics: 19, containers: 20, images: 21, 'storage-net': 22, compose: 23, runtime: 24, git: 25, forge: 26, workflows: 27, actions: 28 };
 const rankOf = (machine: Pick<TerminalMachine, 'profile'>) => RANK[machine.profile ?? 'lab'] ?? 0;
 /** E10–E12: which of the server stages a machine's profile has. */
 const levelsOf = (machine: Pick<TerminalMachine, 'profile'>): ServerLevels => ({
   sockets: rankOf(machine) >= RANK.sockets, dns: rankOf(machine) >= RANK.dns, http: rankOf(machine) >= RANK.http, tls: rankOf(machine) >= RANK.tls, nginx: rankOf(machine) >= RANK.nginx,
   proxy: rankOf(machine) >= RANK.proxy, firewall: rankOf(machine) >= RANK.firewall, tunnels: rankOf(machine) >= RANK.tunnels,
   edge: rankOf(machine) >= RANK.edge, diagnostics: rankOf(machine) >= RANK.diagnostics, containers: rankOf(machine) >= RANK.containers, images: rankOf(machine) >= RANK.images, storageNet: rankOf(machine) >= RANK['storage-net'], compose: rankOf(machine) >= RANK.compose, runtime: rankOf(machine) >= RANK.runtime, git: rankOf(machine) >= RANK.git, forge: rankOf(machine) >= RANK.forge,
+  workflows: rankOf(machine) >= RANK.workflows, actions: rankOf(machine) >= RANK.actions,
 });
 
 /** E3: a users machine's database: the base and its user (defaultAccounts) with the machine's groups and users laid over it. */
@@ -591,7 +595,7 @@ export function describeCheck(check: TerminalCheck): string {
 }
 function describe(check: TerminalCheck): string {
   switch (check.kind) {
-    case 'listen': case 'dns': case 'http': case 'cert': case 'nginx': case 'reach': case 'firewall': case 'tunnel': case 'cache': case 'container': case 'image': case 'build': case 'volume': case 'network': case 'compose': case 'registry': case 'branch': case 'worktree': case 'tag': case 'pull-request': case 'protection': return describeServerCheck(check);
+    case 'listen': case 'dns': case 'http': case 'cert': case 'nginx': case 'reach': case 'firewall': case 'tunnel': case 'cache': case 'container': case 'image': case 'build': case 'volume': case 'network': case 'compose': case 'registry': case 'branch': case 'worktree': case 'tag': case 'pull-request': case 'protection': case 'workflow': case 'run': return describeServerCheck(check);
     case 'exists': return `${check.path} 應該存在${check.type === 'dir' ? '（目錄）' : check.type === 'file' ? '（檔案）' : ''}`;
     case 'absent': return `${check.path} 應該不存在`;
     case 'mode': return `${check.path} 的權限應該是 ${octal(check.mode)}`;
@@ -652,7 +656,7 @@ function failure(check: TerminalCheck, start0: FsState, end0: FsState, outputs: 
   const node = 'path' in check ? end.nodes.get(check.path) : undefined;
   const kindName = (n: FsNode) => n.kind === 'dir' ? '目錄' : n.kind === 'link' ? '符號連結' : '檔案';
   switch (check.kind) {
-    case 'listen': case 'dns': case 'http': case 'cert': case 'nginx': case 'reach': case 'firewall': case 'tunnel': case 'cache': case 'container': case 'image': case 'build': case 'volume': case 'network': case 'compose': case 'registry': case 'branch': case 'worktree': case 'tag': case 'pull-request': case 'protection': return serverFailure(check, end, h => hostState(end, h), dnsResolver);
+    case 'listen': case 'dns': case 'http': case 'cert': case 'nginx': case 'reach': case 'firewall': case 'tunnel': case 'cache': case 'container': case 'image': case 'build': case 'volume': case 'network': case 'compose': case 'registry': case 'branch': case 'worktree': case 'tag': case 'pull-request': case 'protection': case 'workflow': case 'run': return serverFailure(check, end, h => hostState(end, h), dnsResolver);
     case 'exists':
       if (!node) return '它還不存在';
       return check.type && node.kind !== check.type ? `它是${kindName(node)}` : null;
@@ -1141,7 +1145,7 @@ export function terminalContentProblems(content: TerminalLessonContent, given?: 
     if (!x.checks.length) fail(`${at}: needs at least one check`);
     for (const c of x.checks) {
       if (!(TERMINAL_CHECK_KINDS as readonly string[]).includes(c.kind)) fail(`${at}: unknown check ${c.kind}`);
-      if ('path' in c && !normalized(c.path)) fail(`${at}: check path ${c.path} is not absolute and normalized`);
+      if ('path' in c && c.kind !== 'workflow' && !normalized(c.path)) fail(`${at}: check path ${c.path} is not absolute and normalized`);
       if (c.kind === 'mode' && (!Number.isInteger(c.mode) || c.mode < 0 || c.mode > 0o777)) fail(`${at}: check mode must be 0..0777`);
       if (c.kind === 'owner' && (!NAME.test(c.owner) || (c.group !== undefined && !NAME.test(c.group)))) fail(`${at}: invalid owner or group in a check`);
       if (c.kind === 'link' && (typeof c.target !== 'string' || !c.target)) fail(`${at}: a link check needs a target`);
@@ -1159,7 +1163,7 @@ export function terminalContentProblems(content: TerminalLessonContent, given?: 
       if (c.kind === 'ssh' && (!ACCOUNT_NAME.test(c.user) || !['publickey', 'password'].includes(c.method) || typeof c.allowed !== 'boolean')) fail(`${at}: an ssh check needs a user, a method (publickey or password) and allowed`);
       if (c.kind === 'cron' && (machineRank < RANK.scheduling || (c.schedule !== undefined && 'error' in parseCron(c.schedule.trim().split(/\s+/))) || (c.user !== undefined && !ACCOUNT_NAME.test(c.user)))) fail(`${at}: a cron check needs a scheduling machine (engine stage E9) and a valid schedule`);
       if (c.kind === 'timer' && (machineRank < RANK.scheduling || !TIMER.test(c.unit) || (c.next !== undefined && parseTime(c.next) === undefined))) fail(`${at}: a timer check needs a scheduling machine (engine stage E9), a unit like backup.timer and a next time YYYY-MM-DD HH:MM:SS`);
-      if (c.kind === 'listen' || c.kind === 'dns' || c.kind === 'http' || c.kind === 'cert' || c.kind === 'nginx' || c.kind === 'cache' || c.kind === 'container' || c.kind === 'image' || c.kind === 'build' || c.kind === 'volume' || c.kind === 'network' || c.kind === 'compose' || c.kind === 'registry' || c.kind === 'branch' || c.kind === 'worktree' || c.kind === 'tag' || c.kind === 'pull-request' || c.kind === 'protection') { const p = serverCheckProblems(c, levelsOf(valid.get(x.machine) ?? {}), known); if (p) fail(`${at}: ${p}`); }
+      if (c.kind === 'listen' || c.kind === 'dns' || c.kind === 'http' || c.kind === 'cert' || c.kind === 'nginx' || c.kind === 'cache' || c.kind === 'container' || c.kind === 'image' || c.kind === 'build' || c.kind === 'volume' || c.kind === 'network' || c.kind === 'compose' || c.kind === 'registry' || c.kind === 'branch' || c.kind === 'worktree' || c.kind === 'tag' || c.kind === 'pull-request' || c.kind === 'protection' || c.kind === 'workflow' || c.kind === 'run') { const p = serverCheckProblems(c, levelsOf(valid.get(x.machine) ?? {}), known); if (p) fail(`${at}: ${p}`); }
       // Fix (E19 batch): an output check may require that the answer came from a command matching fromCommand (a regular expression).
       if (c.kind === 'output' && c.fromCommand !== undefined) { try { new RegExp(c.fromCommand); } catch { fail(`${at}: fromCommand is not a regular expression`); } }
       // E16–E17: reach, firewall and tunnel may also name the exercise's machine itself.

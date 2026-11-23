@@ -10,6 +10,9 @@
 |---|---|---|---|---|---|---|---|
 | CICD01 | DevOps 概念與文化<br>`devops-culture-and-practices` | 入門 | 45 分 | —（建議 SA02） | 4 份部署紀錄（D1，示意資料）：同一週八個變更的一次上線（1 次部署、前置時間中位數 3765 分、失敗率 100%、復原 240 分）與分開上線（8 次、58 分、13%、20 分）；A 團隊 84 天（5 次、每週 0.4 次、19140 分、40%、720 分）與 B 團隊 84 天（60 次、每週 5.0 次、65 分、5%、25 分） | 6 段、4 個探索器、6 個 devops 練習（一次與分開上線的比較表、哪一種恢復得快、A 團隊的部署頻率、A 團隊的穩定、B 團隊的四個指標、誰的變更等得比較久）、8 題 | **完整 v1.0.0** |
 | CICD02 | 團隊 Git 工作流程<br>`git-workflows-for-teams` | 入門 | 55 分 | CICD01 | 1 台（forge：tidepool 團隊在 github.example 上的 library 與 events 儲存庫、兩位審查者） | 7 段、5 段終端機紀錄、4 個終端機練習（分支到合併的 PR、把落後且衝突的 PR rebase 後再合併、讀出 main 的分支保護、以 gh api 設定分支保護）、8 題 | **完整 v1.0.0** |
+| CICD03 | 持續整合<br>`continuous-integration` | 入門 | 50 分 | CICD02 | 1 台（actions：Harborline 的 timetable 與 fares 儲存庫，CI 會跑 lint、build 與 test） | 6 段、5 段終端機紀錄、4 個終端機練習（找出讓 main 變紅的 commit、修好主分支、修好紅燈的 PR 再合併、要求 build 檢查）、7 題 | **完整 v1.0.0** |
+| CICD04 | GitHub Actions 入門<br>`github-actions-basics` | 中級 | 60 分 | CICD03、LNX13 | 1 台（actions：seabird 的 ferry-times 與 pier-tickets 儲存庫） | 7 段、5 段終端機紀錄、4 個終端機練習（第一個 CI workflow、最小權限、以 needs 與輸出串起 job、以路徑篩選略過文件變更）、7 題 | **完整 v1.0.0** |
+| CICD05 | 管線中的自動化測試<br>`automated-testing-in-pipelines` | 中級 | 55 分 | CICD04 | 1 台（actions：ferrylane 的 tickets 儲存庫，單元、整合、端對端與跨瀏覽器的測試工具） | 6 段、4 段終端機紀錄、4 個終端機練習（以 needs 分層讓單元測試先失敗、以 matrix 分片平行執行、找出不穩定的測試、只重新執行失敗的 job）、8 題 | **完整 v1.0.0** |
 
 （指標的數字由 `doraMetrics` 算出，依 CICD0 §5.3 的四捨五入與中位數規則；表中只為說明而列出，課程資料裡沒有寫這些數字。）
 
@@ -19,6 +22,7 @@
 |---|---|
 | DevOps 與交付的基本觀念 | CICD01 |
 | 團隊協作與 Git | CICD02 |
+| 持續整合與 GitHub Actions | CICD03–CICD05 |
 
 ## 探索器的已知簡化（課文已說明或避開）
 
@@ -35,6 +39,7 @@ CICD-0（登錄、D1、D2，沒有課）之後：
 
 - **CICD-1**（本批，2026-11-23）：CICD01，只用 D1，島嶼開放。CICD0 §4 原本把 CICD02 也排在 CICD-1；它需要終端機引擎階段 E25 `git` 與 E26 `forge`，所以和這兩個階段一起放到下一批。
 - **CICD-2**（2026-11-23）：CICD02，終端機引擎階段 E25 `git` 與 E26 `forge`（見 [CICD0_E25_GIT](CICD0_E25_GIT.md)、[CICD0_E26_FORGE](CICD0_E26_FORGE.md)）。
+- **CICD-3**（2026-11-24）：CICD03–CICD05，終端機引擎階段 E27 `workflows` 與 E28 `actions`（見 [CICD0_E27_WORKFLOWS](CICD0_E27_WORKFLOWS.md)、[CICD0_E28_ACTIONS](CICD0_E28_ACTIONS.md)）。模擬環境的差異：`gh run rerun --failed` 會重新執行整個 matrix job 的每一片（E29 修正為只重新執行失敗與被取消的那幾片；課程沒有依賴）。多行的 `run: |` 從 E23 的 YAML 子集起就支援，課程為了好輸入只寫一行的 `run:`。
 - 之後依 CICD0 §4：CICD03–05（E27 `workflows`、E28 `actions`）、CICD06–08（E29 `artifacts`）、CICD09–11（E30 `environments`、E31 `deploy-hosts`、D3，登錄 `monitoring-dashboard`）、CICD12–14（D4）、CICD15 綜合專題（單獨一批）。每一批先完成它需要的階段，再寫課；課程編號即位置，依序連續發布。
 
 課程狀態與 3D 地景分離：DevOps 與 CI/CD 島的 `mapState` 仍是 `'planned'`。
