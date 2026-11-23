@@ -63,7 +63,7 @@ export class Git {
   result(): FsState {
     const repos = this.repos.filter(r => this.hasGitDir(r.path));
     const objects = this.store.added.size ? this.store.all() : this.state.git?.objects ?? new Map();
-    return { ...this.state, nodes: this.nodes, git: { objects, repos, forge: this.forge, ...this.state.git?.labels ? { labels: this.state.git.labels } : {}, ...this.state.git?.account ? { account: this.state.git.account } : {} } };
+    return { ...this.state, nodes: this.nodes, git: { objects, repos, forge: this.forge, ...this.state.git?.labels ? { labels: this.state.git.labels } : {}, ...this.state.git?.account ? { account: this.state.git.account } : {}, ...this.state.git?.token ? { token: this.state.git.token } : {} } };
   }
 
   // ------------------------------------------------------------------------------------------- paths and the worktree

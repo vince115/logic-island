@@ -202,6 +202,12 @@ export function pushCommand(g: Git, args: string[]): number {
   if (has(o, 'tags')) for (const [k, id] of r.refs) if (k.startsWith('refs/tags/') && !updates.some(u => u.dst === k)) updates.push({ src: shortRef(k), dst: k, id, force: has(o, 'f') });
   const remote = remoteForge(g, r, remoteName);
   if (!remote) return 128;
+  // E29: on a runner the push uses the job's GITHUB_TOKEN, which needs contents: write.
+  const token = g.state.git?.token;
+  if (token && token.permissions.contents !== 'write') {
+    g.err(`remote: Permission to ${noGit(remote.url).replace(/^https:\/\/[^/]+\//, '')}.git denied to ${token.login}.`, `fatal: unable to access '${noGit(remote.url)}/': The requested URL returned error: 403`);
+    return 128;
+  }
   const f = remote.forge, lines: string[] = [], reasons = new Set<string>(), said: string[] = [];
   // E26 (forge profile, forge-state.ts): branch protection refuses an update, GitHub's hook says why (before git's To line).
   const declined = (branch: string, old: Sha | undefined, to: Sha | undefined, forced: boolean, shown: string) => {

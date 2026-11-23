@@ -1,7 +1,7 @@
 import { physicalPath, resolvePath, type FsNode, type FsState } from './fs';
 import { readTree, reachable, type Objects, type Sha } from './git';
 import type { GitRepo } from './git-state';
-import { RUNNER_PROFILE } from './shell';
+import { RUNNER_PROFILE, type ShellProfile } from './shell';
 import { runScript } from './script';
 import type { Annotation, CiState } from './actions-model';
 
@@ -51,12 +51,15 @@ export function checkout(state: FsState, objects: Objects, sha: Sha, o: { url: s
   const refs = new Map<string, Sha>(branch ? [[o.ref, sha], [`refs/remotes/origin/${branch}`, sha]] : o.ref.startsWith('refs/pull/') ? [[`refs/remotes/pull/${o.ref.slice(10)}`, sha]] : [[o.ref, sha]]);
   const repo: GitRepo = {
     path: o.workspace, head: branch ? o.ref : sha, refs, symrefs: new Map(), index: files, unmerged: new Map(), stash: [],
-    config: new Map([['remote.origin.url', o.url.replace(/\.git$/, '')], ['remote.origin.fetch', '+refs/heads/*:refs/remotes/origin/*']]),
+    // E29: checkout -B from origin's branch sets its upstream (git's autoSetupMerge), so a step's plain git push works.
+    config: new Map([['remote.origin.url', o.url.replace(/\.git$/, '')], ['remote.origin.fetch', '+refs/heads/*:refs/remotes/origin/*'],
+      ...branch ? [[`branch.${branch}.remote`, 'origin'], [`branch.${branch}.merge`, o.ref]] as [string, string][] : []]),
     known: reachable(objects, [sha]),
   };
   const target = branch ? `-B ${branch} refs/remotes/origin/${branch}` : o.ref.startsWith('refs/pull/') ? `refs/remotes/pull/${o.ref.slice(10)}` : o.ref;
   return {
-    state: { ...state, nodes, git: { objects, repos: [repo], forge: [] } },
+    // E29: an artifacts runner keeps its forge copy, account and GITHUB_TOKEN.
+    state: { ...state, nodes, git: { ...state.git, objects, repos: [repo], forge: state.git?.forge ?? [] } },
     lines: [`Syncing repository: ${o.url.replace(/^https:\/\/github\.example\//, '').replace(/\.git$/, '')}`, '##[group]Checking out the ref', `/usr/bin/git checkout --progress --force ${target}`, '##[endgroup]', '/usr/bin/git log -1 --format=%H', sha],
   };
 }
@@ -110,7 +113,7 @@ export function fileCommand(text: string): { values: [string, string][] } | { er
   return { values };
 }
 
-export interface ScriptStep { script: string; shell: string | undefined; env: Readonly<Record<string, string>>; cwd: string; n: number }
+export interface ScriptStep { script: string; shell: string | undefined; env: Readonly<Record<string, string>>; cwd: string; n: number; /** E29: the artifacts profile's runner shell (docker and gh). */ profile?: ShellProfile }
 export interface ScriptResult { state: FsState; text: string; status: number; files: Record<'output' | 'env' | 'path' | 'summary', string>; missing?: string }
 /** Runs a run: step's script on the runner with fresh file-command files; what it printed and what it wrote to them. */
 export function runStepScript(state: FsState, s: ScriptStep): ScriptResult {
@@ -123,7 +126,7 @@ export function runStepScript(state: FsState, s: ScriptStep): ScriptResult {
     return { state: { ...state, nodes }, text: '', status: 1, files: { output: '', env: '', path: '', summary: '' }, missing: cwd };
   }
   const env = { ...s.env, GITHUB_OUTPUT: paths.output, GITHUB_ENV: paths.env, GITHUB_PATH: paths.path, GITHUB_STEP_SUMMARY: paths.summary };
-  const r = runScript({ ...state, nodes, cwd }, s.script, RUNNER_PROFILE, { name: `${TEMP}/${String(s.n).padStart(4, '0')}.sh`, args: [], tty: false, stdin: null, env, options: sh.options });
+  const r = runScript({ ...state, nodes, cwd }, s.script, s.profile ?? RUNNER_PROFILE, { name: `${TEMP}/${String(s.n).padStart(4, '0')}.sh`, args: [], tty: false, stdin: null, env, options: sh.options });
   const read = (p: string) => { const n = r.state.nodes.get(p); return n?.kind === 'file' ? n.content ?? '' : ''; };
   return { state: { ...r.state, cwd: state.cwd }, text: r.events.map(e => e.data).join(''), status: r.status, files: { output: read(paths.output), env: read(paths.env), path: read(paths.path), summary: read(paths.summary) } };
 }

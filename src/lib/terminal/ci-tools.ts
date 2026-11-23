@@ -55,6 +55,19 @@ export function runTool(state: FsState, tool: CiTool, env: Readonly<Record<strin
     }
     next = { ...next, nodes };
   }
-  if (c.seconds > 0 && next.clock) next = advanceClock(next, c.seconds);
+  // E29: a tool with a cache folder is faster when the folder is already there (a restored cache), and fills it when it succeeds.
+  const folder = tool.cache !== undefined ? resolvePath({ cwd, home: next.home }, tool.cache) : undefined;
+  const cached = folder !== undefined && next.nodes.get(folder)?.kind === 'dir';
+  const seconds = cached && !flaky && 'cachedSeconds' in c && c.cachedSeconds !== undefined ? c.cachedSeconds : c.seconds;
+  if (folder !== undefined && !cached && c.exit === 0) next = fillCache(next, folder, `${name}\n`);
+  if (seconds > 0 && next.clock) next = advanceClock(next, seconds);
   return { state: next, events, status: c.exit };
+}
+
+/** E29: the folder a tool fills (with a file that says which tool filled it). */
+function fillCache(state: FsState, folder: string, content: string): FsState {
+  const nodes = new Map(state.nodes), parts = folder.split('/').filter(Boolean);
+  for (let k = 1; k <= parts.length; k++) { const d = `/${parts.slice(0, k).join('/')}`; if (!nodes.has(d)) nodes.set(d, { kind: 'dir', mode: 0o755, owner: state.user }); }
+  nodes.set(`${folder}/.lesson-cache`, { kind: 'file', mode: 0o644, owner: state.user, content });
+  return { ...state, nodes };
 }

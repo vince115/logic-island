@@ -9,6 +9,11 @@ import type { WorkflowJob, WorkflowStep } from './workflow-job';
 import { permissionLines, type TokenPermissions } from './workflow-perms';
 import { checkout, fileCommand, prepareRunner, runStepScript, shellOf, workflowCommands } from './runner';
 import type { Annotation, CiState, JobResult, LogLine, StepResult } from './actions-model';
+import { RUNNER_ARTIFACTS_PROFILE } from './shell';
+import { prepareArt, stepEffect, type ArtPlan } from './artifacts-job';
+import { maskText, masksOf, type ActionsEffect, type ArtifactEntry, type CacheEntry } from './artifacts-model';
+import { restoreCache, saveCache, type CacheStep } from './actions-cache';
+import { downloadArtifact, uploadArtifact } from './actions-artifact';
 
 /*
  * Engine stage E28 (docs/curriculum/CICD0_E28_ACTIONS.md §4): one job on a fresh runner — Set up job (with the
@@ -29,10 +34,14 @@ export interface JobPlan {
   defaults: Readonly<Record<string, string>>;
   permissions: TokenPermissions;
   base: FsState; ci: CiState; objects: Objects; repoUrl: string; workspace: string; attempt: number; sha: string; ref: string;
+  /** E29 (artifacts profile): secrets, variables, caches, artifacts, the forge copy and registries; the cache scope is ref. */
+  art?: ArtPlan;
 }
 
 const first = (run: string) => run.split('\n').find(l => l.trim())?.trim() ?? '';
 const SUPPORTED = /^actions\/(checkout|setup-node|setup-python)@v\d+$/;
+/** E29: the artifacts profile adds actions/cache, upload-artifact and download-artifact. */
+const SUPPORTED_ART = /^actions\/(checkout|setup-node|setup-python|cache|upload-artifact|download-artifact)@v\d+$/;
 /** The name GitHub gives a step. */
 function stepName(s: WorkflowStep, ctx: EvalContext): string {
   if (s.name !== undefined) { try { return interpolate(s.name, ctx, STEP); } catch { return s.name; } }
@@ -55,8 +64,11 @@ function workspaceFiles(state: FsState, workspace: string): Map<string, string> 
 export function executeJob(p: JobPlan): JobResult {
   const started = p.queuedAt + PICKUP;
   let state = prepareRunner(p.base, { now: started, workspace: p.workspace, ci: p.ci, attempt: p.attempt });
+  const art = p.art, saved: CacheEntry[] = [], effects: ActionsEffect[] = [];
+  let uploaded: ArtifactEntry[] = [];
+  if (art) state = prepareArt(state, art, p.permissions, p.objects);
   const at = (t: number) => { if (state.clock) state = { ...state, clock: { ...state.clock, now: t } }; };
-  const steps: StepResult[] = [], annotations: Annotation[] = [], masks: string[] = [], stepsCtx: Record<string, Val> = {};
+  const steps: StepResult[] = [], annotations: Annotation[] = [], masks: string[] = [...art?.masks ?? []], stepsCtx: Record<string, Val> = {};
   const extraEnv: Record<string, string> = {}, extraPath: string[] = [];
   const envNow: Record<string, string> = {};
   let failed = false, t = started;
@@ -68,7 +80,9 @@ export function executeJob(p: JobPlan): JobResult {
   });
   const add = (name: string, start: number, end: number, lines: string[], outcome: StepResult['outcome'], conclusion = outcome, endLines: string[] = []) => {
     const out = endLines.length > MAX_LINES ? [...endLines.slice(0, MAX_LINES), `（模擬環境：這個 step 的記錄超過 ${MAX_LINES} 行，其餘省略）`] : endLines;
-    const log: LogLine[] = [...lines.map(text => ({ t: start, text })), ...out.map(text => ({ t: end, text }))];
+    // E29: every secret (and ::add-mask:: value) is *** in every line of the log.
+    const mk = art ? (x: string) => maskText(masksOf(masks), x) : (x: string) => x;
+    const log: LogLine[] = [...lines.map(text => ({ t: start, text: mk(text) })), ...out.map(text => ({ t: end, text: mk(text) }))];
     steps.push({ number: steps.length + 1, name, startedAt: start, completedAt: end, outcome, conclusion, lines: log });
   };
 
@@ -90,7 +104,7 @@ export function executeJob(p: JobPlan): JobResult {
   const timeout = (() => { try { const n = Number(toStr(templateValue(p.job.timeoutMinutes, ctx()))); return n > 0 ? n : 360; } catch { return 360; } })();
   const deadline = started + timeout * 60;
   let timedOut = false;
-  const posts: string[] = [];
+  const posts: { name: string; cache?: CacheStep['save'] | null; key?: string }[] = [];
 
   for (const s of setupError ? [] : p.job.steps) {
     const n = steps.length + 1, base = ctx(), name = stepName(s, base);
@@ -99,7 +113,8 @@ export function executeJob(p: JobPlan): JobResult {
     catch (e) { add(name, t, t, [], 'failure', 'failure', [`##[error]${message(e)}`]); failed = true; continue; }
     if (!run) { add(name, t, t, [], 'skipped'); if (s.id) stepsCtx[s.id] = { outputs: {}, outcome: 'skipped', conclusion: 'skipped' }; continue; }
     const start = t, head: string[] = [], tail: string[] = [];
-    let ok = true, outputs: Record<string, string> = {};
+    let ok = true, outputs: Record<string, string> = {}, cacheHit: boolean | undefined;
+    const was = state;
     try {
       const sctx = ctx(/hashfiles/i.test(`${s.run ?? ''}${s.with.map(w => w[1]).join('')}${s.env.map(w => w[1]).join('')}`));
       const stepEnv = Object.fromEntries(s.env.map(([k, v]) => [k, evalText(v, sctx)]));
@@ -108,11 +123,19 @@ export function executeJob(p: JobPlan): JobResult {
         head.push(`##[group]Run ${s.uses}`, ...withs.length || /checkout/.test(s.uses) ? ['with:'] : [], ...withs.map(([k, v]) => `  ${k}: ${v}`));
         if (/^actions\/checkout@/.test(s.uses) && !withs.some(w => w[0] === 'token')) head.push(`  repository: ${p.contexts.github && (p.contexts.github as Obj).repository}`, '  token: ***');
         head.push('##[endgroup]');
-        const m = SUPPORTED.exec(s.uses);
-        if (!m) { tail.push(`##[error]模擬環境不支援 ${s.uses}（E28 支援 actions/checkout、actions/setup-node、actions/setup-python；cache 與 artifact 在 E29）`); ok = false; }
+        const m = (art ? SUPPORTED_ART : SUPPORTED).exec(s.uses);
+        if (!m) { tail.push(art ? `##[error]模擬環境不支援 ${s.uses}（E29 支援 actions/checkout、setup-node、setup-python、cache、upload-artifact、download-artifact）` : `##[error]模擬環境不支援 ${s.uses}（E28 支援 actions/checkout、actions/setup-node、actions/setup-python；cache 與 artifact 在 E29）`); ok = false; }
         else if (m[1] === 'checkout') {
           const r = checkout(state, p.objects, p.sha, { url: p.repoUrl, workspace: p.workspace, ref: p.ref });
-          state = r.state; tail.push(...r.lines); t += 1; posts.push(`Post ${name}`);
+          state = r.state; tail.push(...r.lines); t += 1; posts.push({ name: `Post ${name}` });
+        } else if (art && m[1] === 'cache') {
+          const r = restoreCache(state, withs, art, p.workspace, t);
+          state = r.state; tail.push(...r.lines); ok = r.ok; outputs = r.outputs; t += r.seconds; cacheHit = r.hit;
+          if (r.ok) posts.push({ name: `Post ${name}`, cache: r.save ?? null, key: withs.find(w => w[0] === 'key')?.[1]?.trim() });
+        } else if (art && (m[1] === 'upload-artifact' || m[1] === 'download-artifact')) {
+          const r = m[1] === 'upload-artifact' ? uploadArtifact(state, withs, art, p.workspace, { id: p.id, attempt: p.attempt }, t) : downloadArtifact(state, withs, art, p.workspace, t);
+          state = r.state; tail.push(...r.lines); ok = r.ok; outputs = r.outputs; t += r.seconds;
+          if (r.entry) { uploaded = [...uploaded.filter(a => a.id !== r.replaces), r.entry]; art.artifacts = [...art.artifacts.filter(a => a.id !== r.replaces), r.entry]; }
         } else {
           const lang = m[1] === 'setup-node' ? 'node' : 'Python', version = withs.find(w => /-version$/.test(w[0]))?.[1] ?? (lang === 'node' ? '20' : '3.12');
           tail.push(`Found in cache @ /opt/hostedtoolcache/${lang}/${version}/x64`); t += 1;
@@ -127,8 +150,10 @@ export function executeJob(p: JobPlan): JobResult {
           const dir = evalText(s.workingDirectory ?? p.job.defaults.workingDirectory ?? p.wf.defaults.workingDirectory ?? '.', sctx);
           const env = { ...p.defaults, ...envNow, ...extraEnv, ...stepEnv, PATH: [...extraPath, p.defaults.PATH].join(':') };
           at(t);
-          const r = runStepScript(state, { script, shell: s.shell ?? p.job.defaults.shell ?? p.wf.defaults.shell, env, cwd: dir, n });
+          const r = runStepScript(state, { script, shell: s.shell ?? p.job.defaults.shell ?? p.wf.defaults.shell, env, cwd: dir, n, ...art ? { profile: RUNNER_ARTIFACTS_PROFILE } : {} });
           state = r.state; t = Math.max(t, clockOf(state).now);
+          // E29: what the step pushed (refs with the GITHUB_TOKEN, images to a registry) reaches the world at its end.
+          if (art) { const e = stepEffect(was, state, art, t, p.objects); if (e) effects.push(e); }
           if (r.missing) { tail.push(`##[error]An error occurred trying to start process '/usr/bin/bash' with working directory '${r.missing}'. No such file or directory`); ok = false; }
           else {
             const w = workflowCommands(r.text, masks, n);
@@ -155,17 +180,29 @@ export function executeJob(p: JobPlan): JobResult {
       break;
     }
     add(name, start, t, head, outcome, conclusion, tail);
+    if (cacheHit !== undefined) steps[steps.length - 1] = { ...steps[steps.length - 1], cacheHit };
     if (s.id) stepsCtx[s.id] = { outputs, outcome, conclusion };
     if (conclusion === 'failure') failed = true;
   }
-  for (const name of posts.reverse()) add(name, t, t, ['Post job cleanup.'], 'success');
-  add('Complete job', t, t, ['Cleaning up orphan processes'], 'success');
-  const outputs: Record<string, string> = {};
+  for (const post of posts.reverse()) {
+    if (post.cache === undefined || !art) { add(post.name, t, t, ['Post job cleanup.'], 'success'); continue; }
+    // E29: actions/cache saves in its post step, only after a successful job (post-if: success()).
+    if (failed) { add(post.name, t, t, [], 'skipped'); continue; }
+    const r = saveCache(state, post.cache ?? undefined, post.key, art, p.workspace, art.scopes[0], art.runId, t);
+    if (r.entry) { saved.push(r.entry); art.caches = [...art.caches, r.entry]; }
+    add(post.name, t, t + r.seconds, ['Post job cleanup.'], 'success', 'success', r.lines);
+    t += r.seconds;
+  }
+  const outputs: Record<string, string> = {}, skipped: string[] = [];
   for (const [k, v] of p.job.outputs) { try { outputs[k] = evalText(v, ctx()); } catch { outputs[k] = ''; } }
+  // E29: GitHub does not pass a job output that holds a secret.
+  if (art) for (const k of Object.keys(outputs)) if (masksOf(masks).some(m => m !== '***' && outputs[k].includes(m))) { delete outputs[k]; skipped.push(`##[warning]Skip output '${k}' since it may contain secret.`); }
+  add('Complete job', t, t, [...skipped, 'Cleaning up orphan processes'], 'success');
   let continueOnError = false;
   try { continueOnError = evalBool(p.job.continueOnError, ctx()); } catch { continueOnError = false; }
   return {
     id: p.id, key: p.key, name: p.name, ...p.matrix ? { matrix: p.matrix } : {}, labels: p.labels, queuedAt: p.queuedAt, startedAt: started, completedAt: t,
     conclusion: failed || timedOut ? 'failure' : 'success', continueOnError, steps, outputs, annotations, runner: p.runnerName,
+    ...art ? { art: { caches: saved, artifacts: uploaded, effects } } : {},
   };
 }

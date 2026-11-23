@@ -1,3 +1,4 @@
+import type { RegistryCommit } from './artifacts-checks';
 import { LIMITS, parentOf, resolvePath, type FsState } from './fs';
 import { DEFAULT_NOW, parseTime } from './clock';
 import { commOf, tableOf } from './processes';
@@ -195,7 +196,8 @@ export type DockerCheck =
   /** E23: the Compose project's service has a container (absent: none) in this state, with this health, from this image. */
   | { kind: 'compose'; project: string; service: string; absent?: true; state?: 'created' | 'running' | 'exited'; health?: 'starting' | 'healthy' | 'unhealthy'; image?: string }
   /** E23: the registry's repository has the tag (absent: it does not), pointing to this digest, or to the content of this local image. */
-  | { kind: 'registry'; registry: string; repository: string; tag: string; absent?: true; digest?: string; image?: string };
+  /** E29: commit (artifacts profile) appends a branch's current commit to the tag (sha-<commit>), resolved in server-lesson.ts. */
+  | { kind: 'registry'; registry: string; repository: string; tag: string; absent?: true; digest?: string; image?: string; commit?: RegistryCommit };
 export interface DockerLevels { containers: boolean; images?: boolean; storageNet?: boolean; compose?: boolean; runtime?: boolean }
 
 const DOCKER_GID = 988;
@@ -463,7 +465,7 @@ function storageNetState(m: TerminalMachine, state: FsState, d0: DockerState): F
 }
 
 /** E23: a lesson token: obviously fake (it says lesson, fake, example or demo) and not shaped like a real provider's token. */
-const FAKE_TOKEN = (t: unknown) => typeof t === 'string' && /^[A-Za-z0-9._-]{8,80}$/.test(t) && /lesson|fake|example|demo/i.test(t)
+export const FAKE_TOKEN = (t: unknown) => typeof t === 'string' && /^[A-Za-z0-9._-]{8,80}$/.test(t) && /lesson|fake|example|demo/i.test(t)
   && !/^(ghp_|gho_|ghu_|ghs_|ghr_|github_pat_|glpat-|dckr_pat_|xox[abprs]-|AKIA|ASIA|sk-|AIza|ya29\.)/.test(t);
 /** E23: why a lesson health check is not one, or null. */
 function healthProblem(h: TerminalHealthcheck): string | null {

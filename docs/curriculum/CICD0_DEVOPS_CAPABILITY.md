@@ -57,7 +57,7 @@
 | CICD-0 | 無 | 登錄與對應（§2、§3）、本文件、**D1**、**D2**（已完成） |
 | CICD-1 | CICD01–02 | E25 `git`、E26 `forge` |
 | CICD-2 | CICD03–05 | E27 `workflows`（**已完成**，見 [CICD0_E27_WORKFLOWS](CICD0_E27_WORKFLOWS.md)） | workflow 檔案的模型（不執行）：YAML 子集加上欄位與結構化的錯誤（Compose 的訊息不變）、GitHub 風格的驗證訊息、push／pull_request／workflow_dispatch／schedule 觸發與 GitHub 的過濾樣式、`${{ }}` 運算式與函式（文字代換在 Bash 之前，script injection 是真的）、matrix 展開、GITHUB_TOKEN 權限的解析；`gh workflow list`／`view` | `workflow` |
-| CICD-3 | CICD06–08 | E29 `artifacts` |
+| CICD-3 | CICD06–08 | E29 `artifacts`（**已完成**，見 [CICD0_E29_ARTIFACTS](CICD0_E29_ARTIFACTS.md)） | `actions/cache@v4`（key、restore-keys、分支範圍）與依快取縮短的 CI 工具、`upload-artifact`／`download-artifact@v4` 與 `gh run download`、runner 上的 Docker（建置並以 `--password-stdin` 推送到課程的 Registry）、儲存庫與 environment 層級的 secret 與 variable（`gh secret`／`gh variable`，日誌遮蔽成 `***`）、GITHUB_TOKEN 對 `git push` 與 `gh` 的影響；E28 的 `rerun --failed` 改為逐片重新執行、workflow 檔案的 `|+`／`>+` | `secret`、`variable`；`run` 的 `cacheHit`、`artifact`；`registry` 的 `commit` |
 | CICD-4 | CICD09–11 | E30 `environments`、E31 `deploy-hosts`、D3（登錄 `monitoring-dashboard`） |
 | CICD-5 | CICD12–14 | D4 |
 | CICD-6 | CICD15 | 無（綜合專題單獨一批，和 DKR-6 相同） |

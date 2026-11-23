@@ -1,5 +1,6 @@
 import { readTree, walk, type Objects, type Sha } from './git';
 import { actionsChecks, type WorkflowRun } from './actions-model';
+import type { SiteArt } from './artifacts-model';
 
 /*
  * Engine stage E26 (docs/curriculum/CICD0_E26_FORGE.md): what the simulated forge github.example keeps for a repository
@@ -40,7 +41,8 @@ export interface Persona {
 }
 /** A status-check result rule: the first rule of a context that matches a commit gives its result. */
 export interface CheckRule { context: string; conclusion: Conclusion; commit?: Sha; when?: Match; description: string; seconds: number }
-export interface ForgeSite {
+/** E29 (artifacts profile, SiteArt): Actions secrets and variables, environments, caches and artifacts. */
+export interface ForgeSite extends SiteArt {
   id: number; description: string;
   /** The learner's permission on the repository. */
   permission: 'admin' | 'write' | 'read';

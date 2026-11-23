@@ -22,6 +22,10 @@ export type RunCheck = {
   attempt?: number;
   job?: string; step?: string;
   logIncludes?: string; logExcludes?: string;
+  /** E29 (artifacts profile): an actions/cache step (the step, else any in the job or run) matched its key exactly (true) or not (false). */
+  cacheHit?: boolean;
+  /** E29: the run has an artifact with this name. */
+  artifact?: string;
 };
 const silent = { out: () => {}, err: () => {}, user: 'root' };
 const normalized = (p: string) => p.startsWith('/') && resolvePath({ cwd: '/', home: '/' }, p) === p;
@@ -29,7 +33,7 @@ const bare = (u: string) => u.replace(/\/+$/, '').replace(/\.git$/, '');
 const base = (p: string) => p.slice(p.lastIndexOf('/') + 1);
 export const matchesWorkflow = (r: WorkflowRun, w: string) => r.path === w || base(r.path) === w || r.workflowName === w || r.workflowName.toLowerCase() === w.toLowerCase();
 
-function forgeOf(g: Git, repo: string): Forge | string {
+export function forgeOf(g: Git, repo: string): Forge | string {
   if (FORGE_URL.test(repo)) return g.forge.find(x => x.url === repo) ?? `github.example 上沒有 ${repo}`;
   const r = g.repos.find(x => x.path === repo && g.hasGitDir(x.path));
   if (!r) return `${repo} 不是 Git 儲存庫`;
@@ -41,7 +45,8 @@ export function describeRunCheck(c: RunCheck): string {
   const which = `${c.repo}${c.ref ? ` 的 ${c.ref}` : ''}${c.tip ? (c.ref ? ' 目前的 commit' : ' 預設分支目前的 commit') : ''} 最新的${c.event ? ` ${c.event}` : ''} ${c.workflow} run`;
   const what = c.step ? `job ${c.job} 的 step「${c.step}」` : c.job ? `job ${c.job}` : '';
   const parts = [c.status ? `狀態是 ${c.status}` : '', c.conclusion ? `${what ? `${what} 的` : ''}結論是 ${c.conclusion}` : what ? `有 ${what}` : '', c.attempt ? `至少執行了 ${c.attempt} 次（attempt）` : '',
-    c.logIncludes ? `日誌包含「${c.logIncludes}」` : '', c.logExcludes ? `日誌不包含「${c.logExcludes}」` : ''].filter(Boolean);
+    c.logIncludes ? `日誌包含「${c.logIncludes}」` : '', c.logExcludes ? `日誌不包含「${c.logExcludes}」` : '',
+    c.cacheHit !== undefined ? `cache ${c.cacheHit ? '命中了 key（cache-hit 是 true）' : '沒有命中 key'}` : '', c.artifact ? `有 artifact ${c.artifact}` : ''].filter(Boolean);
   return `${which} 應該${parts.length ? `：${parts.join('、')}` : '存在'}`;
 }
 
@@ -71,11 +76,18 @@ export function runFailure(c: RunCheck, end0: FsState): string | null {
     if (c.logIncludes !== undefined && !text.includes(c.logIncludes)) return `${name}的日誌沒有「${c.logIncludes}」`;
     if (c.logExcludes !== undefined && text.includes(c.logExcludes)) return `${name}的日誌有「${c.logExcludes}」`;
   }
+  // E29: the cache steps' results and the run's artifacts (as of now).
+  if (c.cacheHit !== undefined) {
+    const caches = (step ? [step] : (job ? [job] : a.jobs).flatMap(j => j.steps)).filter(s => s.cacheHit !== undefined && s.completedAt <= now);
+    if (!caches.length) return `${name}${job ? `的 job ${c.job} ` : ''}沒有完成的 actions/cache step`;
+    if (caches.some(s => s.cacheHit) !== c.cacheHit) return `${name}的 cache ${c.cacheHit ? '沒有命中 key（cache-hit 不是 true）' : '命中了 key'}`;
+  }
+  if (c.artifact !== undefined && !(f.site?.artifacts ?? []).some(x => x.runId === run.id && x.name === c.artifact && x.at <= now)) return `${name}沒有 artifact ${c.artifact}`;
   return null;
 }
 
 /** The problems of a check's data (it needs an actions machine). */
-export function runCheckProblems(c: RunCheck, actions: boolean): string | null {
+export function runCheckProblems(c: RunCheck, actions: boolean, artifacts = false): string | null {
   if (!actions || typeof c.repo !== 'string' || !(normalized(c.repo) || FORGE_URL.test(c.repo))) return 'a run check needs an actions machine (engine stage E28) and a repo (an absolute path or https://github.example/<owner>/<repo>.git)';
   if (typeof c.workflow !== 'string' || !c.workflow.trim()) return 'a run check needs a workflow (a file name like ci.yml, its path or its name)';
   if (c.event !== undefined && !(RUN_EVENTS as readonly string[]).includes(c.event)) return `a run check's event is one of ${RUN_EVENTS.join(', ')}`;
@@ -88,5 +100,8 @@ export function runCheckProblems(c: RunCheck, actions: boolean): string | null {
   if (c.job !== undefined && (typeof c.job !== 'string' || !c.job)) return 'a run check\'s job is a job name or id';
   if (c.step !== undefined && (c.job === undefined || typeof c.step !== 'string' || !c.step)) return 'a run check\'s step needs a job and is a step name';
   for (const t of [c.logIncludes, c.logExcludes]) if (t !== undefined && (typeof t !== 'string' || !t || t.length > 500)) return 'a run check\'s logIncludes and logExcludes are texts of 1..500 characters';
+  if ((c.cacheHit !== undefined || c.artifact !== undefined) && !artifacts) return 'a run check\'s cacheHit and artifact need an artifacts machine (engine stage E29)';
+  if (c.cacheHit !== undefined && typeof c.cacheHit !== 'boolean') return 'a run check\'s cacheHit must be true or false';
+  if (c.artifact !== undefined && (typeof c.artifact !== 'string' || !/^[^":<>|*?\r\n\\/]{1,100}$/.test(c.artifact))) return 'a run check\'s artifact is an artifact name';
   return null;
 }
