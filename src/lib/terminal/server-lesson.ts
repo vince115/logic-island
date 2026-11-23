@@ -13,6 +13,8 @@ import { describeNetCheck, expandNet, netCheckProblems, netFailure, netProblems,
 import { machineState } from './lesson';
 import { describeEdgeCheck, edgeCheckProblems, edgeFailure, edgeProblems, edgeState, expandEdge, type EdgeCheck } from './edge-lesson';
 import { describeDockerCheck, dockerCheckProblems, dockerFailure, dockerProblems, dockerState, expandDocker, type DockerCheck } from './docker-lesson';
+import { expandGit, gitProblems, gitState } from './git-lesson';
+import { describeGitCheck, gitCheckProblems, gitFailure, type GitCheck } from './git-checks';
 
 /*
  * Engine stages E10–E12 as lesson data (docs/curriculum/SRV0_SERVER_CAPABILITY.md §9). A machine of the sockets profile is
@@ -34,7 +36,7 @@ export interface TerminalZone { zone: string; text: string }
 export type TerminalListen = Listen;
 export type TerminalResponder = Responder;
 /** Which of the stages a machine's profile has. */
-export interface ServerLevels { sockets: boolean; dns: boolean; http: boolean; tls: boolean; nginx: boolean; proxy: boolean; firewall: boolean; tunnels: boolean; edge: boolean; diagnostics: boolean; containers: boolean; images: boolean; storageNet: boolean; compose?: boolean; runtime?: boolean }
+export interface ServerLevels { sockets: boolean; dns: boolean; http: boolean; tls: boolean; nginx: boolean; proxy: boolean; firewall: boolean; tunnels: boolean; edge: boolean; diagnostics: boolean; containers: boolean; images: boolean; storageNet: boolean; compose?: boolean; runtime?: boolean; git?: boolean }
 
 /** E10–E12 (lesson checks). */
 export type ServerCheck =
@@ -54,7 +56,9 @@ export type ServerCheck =
   /** E18: cache (edge-lesson.ts). */
   | EdgeCheck
   /** E20: container and image; E21: image's config and layers, build (docker-lesson.ts). */
-  | DockerCheck;
+  | DockerCheck
+  /** E25: branch, worktree and tag (git-checks.ts). */
+  | GitCheck;
 
 export const RESOLV_CONF = '# This is /run/systemd/resolve/stub-resolv.conf managed by man:systemd-resolved(8).\n# Do not edit.\n\nnameserver 127.0.0.53\noptions edns0 trust-ad\nsearch .\n';
 const NAMED_CONF = '// This is the primary configuration file for the BIND DNS server named.\n\ninclude "/etc/bind/named.conf.options";\ninclude "/etc/bind/named.conf.local";\n';
@@ -149,6 +153,8 @@ export function expandServer(m: TerminalMachine, lv: ServerLevels): TerminalMach
   expandEdge(m, lv, { file: add, dir });
   // E20: Docker CE (the docker group, the socket, docker.service and containerd.service).
   expandDocker(m, lv, { file: add, dir }, procs, programs, services, pidFrom, groups);
+  // E25: the repositories' worktrees and .git folders, ~/.gitconfig.
+  expandGit(m, !!lv.git, { file: add });
   files.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
   return { ...m, files, processes: procs, programs, services, ...users.length || groups.length ? { accounts: { ...m.accounts, users, groups } } : {} };
 }
@@ -172,7 +178,7 @@ export function serverState(m: TerminalMachine, state: FsState, lv: ServerLevels
     if (m.named !== undefined) next = { ...next, dns: { ...next.dns!, named: loadNamed(next).zones } };
   }
   if (lv.http) next = { ...next, http: { responders: (m.responders ?? []).map(r => ({ ...r, routes: r.routes.map(x => ({ ...x })) })) } };
-  return dockerState(m, edgeState(m, netState(m, webState(m, next, lv), lv), lv), lv);
+  return gitState(m, dockerState(m, edgeState(m, netState(m, webState(m, next, lv), lv), lv), lv), !!lv.git);
 }
 
 const LINE = (max: number) => (t: unknown) => typeof t === 'string' && t.length >= 1 && t.length <= max && !t.includes('\n');
@@ -181,7 +187,7 @@ const HEADER_NAME = /^[A-Za-z0-9!#$%&'*+.^_`|~-]{1,64}$/;
 
 /** E10–E12: the problems of a machine's (expanded) server data; `own` is whether listen addresses are checked against it. */
 export function serverProblems(m: TerminalMachine, lv: ServerLevels, names?: readonly string[]): string[] {
-  const problems: string[] = [...webProblems(m, lv), ...netProblems(m, lv, () => machineState(m)), ...edgeProblems(m, lv, names), ...dockerProblems(m, lv)], fail = (what: string) => problems.push(what);
+  const problems: string[] = [...webProblems(m, lv), ...netProblems(m, lv, () => machineState(m)), ...edgeProblems(m, lv, names), ...dockerProblems(m, lv), ...gitProblems(m, !!lv.git)], fail = (what: string) => problems.push(what);
   const listens = [...(m.processes ?? []).flatMap(p => p.listen ?? []), ...(m.programs ?? []).flatMap(p => p.listen ?? [])];
   if (!lv.sockets && (m.interfaces !== undefined || m.gateway !== undefined || m.connections !== undefined || m.resolved !== undefined || listens.length))
     fail('interfaces, gateway, connections, resolved and listen need the sockets profile (engine stage E10)');
@@ -292,6 +298,7 @@ export function serverCheckProblems(c: ServerCheck, lv: ServerLevels, known: (ho
     case 'cache': return edgeCheckProblems(c, lv, known);
     case 'container': case 'image': case 'build': case 'volume': case 'network': case 'compose': case 'registry': return dockerCheckProblems(c, lv);
     case 'cert': case 'nginx': return webCheckProblems(c, lv, known);
+    case 'branch': case 'worktree': case 'tag': return gitCheckProblems(c, !!lv.git);
     // E22: a reach check from a container is the daemon's (docker-lesson.ts).
     case 'reach': return 'container' in c ? dockerCheckProblems(c, lv) : netCheckProblems(c, lv, known);
     case 'firewall': case 'tunnel': return netCheckProblems(c, lv, known);
@@ -315,6 +322,7 @@ export function describeServerCheck(c: ServerCheck): string {
     case 'cache': return describeEdgeCheck(c);
     case 'container': case 'image': case 'build': case 'volume': case 'network': case 'compose': case 'registry': return describeDockerCheck(c);
     case 'cert': case 'nginx': return describeWebCheck(c);
+    case 'branch': case 'worktree': case 'tag': return describeGitCheck(c);
     case 'reach': return 'container' in c ? describeDockerCheck(c) : describeNetCheck(c);
     case 'firewall': case 'tunnel': return describeNetCheck(c);
   }
@@ -350,6 +358,7 @@ export function serverFailure(c: ServerCheck, end: FsState, hostState: (host: st
       return null;
     }
     case 'cert': case 'nginx': return webFailure(c, end, hostState);
+    case 'branch': case 'worktree': case 'tag': return gitFailure(c, end);
     case 'reach': return 'container' in c ? dockerFailure(c, end) : netFailure(c, end);
     case 'firewall': case 'tunnel': return netFailure(c, end);
     case 'cache': return edgeFailure(c, end, resolve, h => h === undefined ? end : end.firewall ? viewOfHost(end, h) : hostState(h));
