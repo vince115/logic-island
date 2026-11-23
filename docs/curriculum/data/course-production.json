@@ -572,7 +572,7 @@
         "MOB13"
       ],
       "commit": "TBD",
-      "tests": "驗證器、發布閘門、TypeScript、ESLint、Vitest 137 檔 4007 passed／9 skipped（含 Chromium：44 堂網頁課的每個範例、參考解答、起始內容與常見錯誤，各在一般與傳統捲軸的瀏覽器跑一遍；模擬的 Service Worker：第一次造訪、回訪與等待中的新版本、離線、瀏覽器會強制的規則；預覽面板的 DOM 測試）、Production build、E2E 桌機＋手機旗標關 533 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上每個練習各做一遍；MOB09 的 Service Worker 面板在真實課程頁上操作）、測驗 40 題逐題複核、洩漏掃描",
+      "tests": "驗證器、發布閘門、TypeScript、ESLint、Vitest 138 檔 4056 passed／9 skipped（併入 main 7d63b60 之後；含 Chromium：44 堂網頁課的每個範例、參考解答、起始內容與常見錯誤，各在一般與傳統捲軸的瀏覽器跑一遍；模擬的 Service Worker：第一次造訪、回訪與等待中的新版本、離線、瀏覽器會強制的規則；預覽面板的 DOM 測試）、Production build、E2E 桌機＋手機旗標關 532 passed／3 failed／297 skipped（兩個失敗為 main 既有回歸 #36，另一個是負載敏感的 D.3-5b，單獨重跑通過；課程頁上每個練習各做一遍；MOB09 的 Service Worker 面板在真實課程頁上操作）、測驗 40 題逐題複核、洩漏掃描",
       "notes": "MOB-3：行動應用島完成（13／13）。Service Worker 與離線（生命週期、Cache API、快取優先／網路優先／背景更新／只走網路、離線替代回應、版本化的快取與等待中的新版本）、行動效能與省電（長任務與讓路、防彈跳、只動 transform 與 opacity、頁面隱藏時暫停輪詢；只呈現順序與次數，不量時間）、行動無障礙（螢幕閱讀器的測試腳本、文字放大與 320px 的重排、方向鎖定、拖曳的替代操作）、行動裝置測試（裝置模式／模擬器／真機各能驗證什麼的規則表、遠端除錯、測試矩陣、可重現的錯誤回報）、綜合專題（五關把小島外送做成可安裝、可離線的 PWA，最後是真機驗收紀錄表）。引擎階段 W10：模擬的 Service Worker 與 Cache API（第四個檔案 sw.js、setup.offline／caches／worker、network 操作、worker 與 cache 檢查、預覽面板），瀏覽器會強制的規則同樣強制。批次 39 是同時進行的 DKR-2（#85）"
     }
   ]

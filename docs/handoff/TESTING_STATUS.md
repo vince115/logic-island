@@ -80,6 +80,8 @@ MOB-2 以 #84 合併（main `cc11e38`）：對正式站執行課程 E2E（MOB05�
 
 MOB-3 的結果（隔離副本，旗標關）：TypeScript 與 ESLint 通過（0 個錯誤；2 個既有檔案的未使用變數警告）；Vitest **137 檔、4007 passed／9 skipped**；Production build 通過；E2E 桌機＋手機 **533 passed／2 failed／297 skipped**（兩個失敗同上，#36）；洩漏掃描（`src`、`docs`、`tests`、`e2e`）clean。
 
+併入 main `7d63b60`（DKR-2，#85）之後重跑（隔離副本，旗標關）：TypeScript 通過；ESLint 0 個錯誤（4 個既有警告）；Vitest **138 檔、4056 passed／9 skipped**；Production build 通過；E2E 桌機＋手機 **532 passed／3 failed／297 skipped**：兩個是 #36，第三個是負載敏感的 D.3-5b（手機），單獨重跑通過；洩漏掃描（四個資料夾與 `origin/main..mob/3-capstone` 的歷史）clean。
+
 ## Private Vitest Runner（2026-11-22，分支 `trials/private-test-runner`）
 
 用法與選項：`docs/exam-system/34_T3J_PRIVATE_BANK_AND_CI_ACTIVATION.md` 第 2 節。**以下是本機隔離 checkout 的結果，不是 CI：公開 CI 沒有私有題庫，也不執行這個 Runner。**
