@@ -56,7 +56,7 @@
 |---|---|---|
 | CICD-0 | 無 | 登錄與對應（§2、§3）、本文件、**D1**、**D2**（已完成） |
 | CICD-1 | CICD01–02 | E25 `git`、E26 `forge` |
-| CICD-2 | CICD03–05 | E27 `workflows`、E28 `actions` |
+| CICD-2 | CICD03–05 | E27 `workflows`（**已完成**，見 [CICD0_E27_WORKFLOWS](CICD0_E27_WORKFLOWS.md)） | workflow 檔案的模型（不執行）：YAML 子集加上欄位與結構化的錯誤（Compose 的訊息不變）、GitHub 風格的驗證訊息、push／pull_request／workflow_dispatch／schedule 觸發與 GitHub 的過濾樣式、`${{ }}` 運算式與函式（文字代換在 Bash 之前，script injection 是真的）、matrix 展開、GITHUB_TOKEN 權限的解析；`gh workflow list`／`view` | `workflow` |
 | CICD-3 | CICD06–08 | E29 `artifacts` |
 | CICD-4 | CICD09–11 | E30 `environments`、E31 `deploy-hosts`、D3（登錄 `monitoring-dashboard`） |
 | CICD-5 | CICD12–14 | D4 |

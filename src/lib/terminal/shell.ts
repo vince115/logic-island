@@ -143,10 +143,12 @@ export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS
  * push and pull by digest). E24: runtime (docker inspect's runtime fields, exit codes, resource limits and OOM, restart policies,
  * signals and docker stop's grace period, docker stats, top, kill, update, wait and events, security options). E25: git (Git's
  * objects, refs, index and worktree, merges, rebases and the simulated forge github.example; git-cli.ts). E26: forge (gh, pull
- * requests, reviews, branch protection and repository settings on github.example; gh.ts, forge.ts).
+ * requests, reviews, branch protection and repository settings on github.example; gh.ts, forge.ts). E27: workflows (GitHub
+ * Actions workflow files: parsing, validation, triggers, expressions, token permissions, gh workflow list and view;
+ * workflow*.ts, expr*.ts).
  */
 export type ShellFeature = 'glob' | 'help-option' | 'multi-source' | 'ls-extra' | 'pipes' | 'accounts' | 'processes' | 'packages' | 'services' | 'remote' | 'scripting' | 'scheduling'
-  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers' | 'images' | 'storage-net' | 'compose' | 'runtime' | 'git' | 'forge';
+  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers' | 'images' | 'storage-net' | 'compose' | 'runtime' | 'git' | 'forge' | 'workflows';
 
 /** LNX-0: the commands a session may run (E1: and the features it switches on; none by default). */
 export interface ShellProfile { readonly id: string; readonly commands: readonly CommandName[]; readonly features?: readonly ShellFeature[] }
@@ -221,12 +223,14 @@ export const RUNTIME_PROFILE: ShellProfile = { id: 'runtime', commands: above(CO
 export const GIT_PROFILE: ShellProfile = { id: 'git', commands: above(RUNTIME_PROFILE, E25_COMMANDS), features: [...RUNTIME_PROFILE.features!, 'git'] };
 /** E26 (docs/curriculum/CICD0_E26_FORGE.md): the git profile plus gh — pull requests, reviews, branch protection and repository settings on github.example. */
 export const FORGE_PROFILE: ShellProfile = { id: 'forge', commands: above(GIT_PROFILE, E26_COMMANDS), features: [...GIT_PROFILE.features!, 'forge'] };
+/** E27 (docs/curriculum/CICD0_E27_WORKFLOWS.md): the forge profile plus GitHub Actions workflow files (validation, triggers, expressions, permissions) and gh workflow list and view; no new commands. */
+export const WORKFLOWS_PROFILE: ShellProfile = { id: 'workflows', commands: above(FORGE_PROFILE, []), features: [...FORGE_PROFILE.features!, 'workflows'] };
 /** The profiles a lesson machine may name (TerminalMachine.profile), from the narrowest. */
 export const PROFILES = {
   lab: LAB_PROFILE, files: FILES_PROFILE, streams: STREAMS_PROFILE, users: USERS_PROFILE, processes: PROCESSES_PROFILE, packages: PACKAGES_PROFILE, services: SERVICES_PROFILE,
   remote: REMOTE_PROFILE, scripting: SCRIPTING_PROFILE, scheduling: SCHEDULING_PROFILE, sockets: SOCKETS_PROFILE, dns: DNS_PROFILE, http: HTTP_PROFILE,
   tls: TLS_PROFILE, nginx: NGINX_PROFILE, proxy: PROXY_PROFILE, firewall: FIREWALL_PROFILE, tunnels: TUNNELS_PROFILE, edge: EDGE_PROFILE, diagnostics: DIAGNOSTICS_PROFILE,
-  containers: CONTAINERS_PROFILE, images: IMAGES_PROFILE, 'storage-net': STORAGE_NET_PROFILE, compose: COMPOSE_PROFILE, runtime: RUNTIME_PROFILE, git: GIT_PROFILE, forge: FORGE_PROFILE,
+  containers: CONTAINERS_PROFILE, images: IMAGES_PROFILE, 'storage-net': STORAGE_NET_PROFILE, compose: COMPOSE_PROFILE, runtime: RUNTIME_PROFILE, git: GIT_PROFILE, forge: FORGE_PROFILE, workflows: WORKFLOWS_PROFILE,
 } as const;
 export type ProfileId = keyof typeof PROFILES;
 
@@ -1669,7 +1673,8 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
     }
     case 'gh': {
       // E26 (gh.ts): pull requests, reviews, protection and settings of the forge repositories in state.git.
-      const r = gh(cur(), args, { out: print, err: fail, user: state.user, tty: ctx.tty });
+      // E27: the workflows profile adds gh workflow list and view.
+      const r = gh(cur(), args, { out: print, err: fail, user: state.user, tty: ctx.tty, ...features.has('workflows') ? { workflows: true } : {} });
       code = r.status;
       return done(r.state);
     }

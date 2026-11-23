@@ -51,6 +51,8 @@ export interface ForgeSite {
   next: number;
   personas: readonly Persona[];
   checks: readonly CheckRule[];
+  /** E27 (workflows profile): the default GITHUB_TOKEN permissions when declared (read: restricted, the default; write: permissive). */
+  workflowPermissions?: 'read' | 'write';
 }
 /** The gh account logged in to github.example. */
 export interface ForgeAccount { login: string; name: string; email: string }
