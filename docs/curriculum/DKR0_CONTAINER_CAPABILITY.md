@@ -1,6 +1,6 @@
 # DKR-0：Docker 容器島的課程能力與引擎階段 E20
 
-> 2026-11-23。目標：讓 Docker 容器島（`docker-containers`，前綴 DKR，15 堂）可以撰寫、驗證、發布。本島**不需要新的課程能力或活動**：和網路與伺服器島（[SRV0_SERVER_CAPABILITY](SRV0_SERVER_CAPABILITY.md)）一樣沿用 LNX-0 的 `terminal` 能力（[LNX0_TERMINAL_CAPABILITY](LNX0_TERMINAL_CAPABILITY.md)）與 CN-0 的 `network-protocol` 情境。本文件也是終端機引擎階段 **E20** `containers` 與 **E21** `images`（§11）的唯一說明處（E1–E9 在 LNX0，E10–E19 在 SRV0），以及之後 E22–E24 的規劃。之後的進度與下一批由 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 計算。
+> 2026-11-23。目標：讓 Docker 容器島（`docker-containers`，前綴 DKR，15 堂）可以撰寫、驗證、發布。本島**不需要新的課程能力或活動**：和網路與伺服器島（[SRV0_SERVER_CAPABILITY](SRV0_SERVER_CAPABILITY.md)）一樣沿用 LNX-0 的 `terminal` 能力（[LNX0_TERMINAL_CAPABILITY](LNX0_TERMINAL_CAPABILITY.md)）與 CN-0 的 `network-protocol` 情境。本文件也是終端機引擎階段 **E20** `containers`、**E21** `images`（§11）與 **E22** `storage-net`（§12）的唯一說明處（E1–E9 在 LNX0，E10–E19 在 SRV0），以及之後 E23–E24 的規劃。之後的進度與下一批由 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 計算。
 
 ## 1. 範圍
 
@@ -9,6 +9,7 @@
 | DKR-0（登錄） | `PREPARED_ISLAND_IDS = ['docker-containers']`、前綴 `DKR`、`UNITS['docker-containers'] = []`、`dockerFromBlueprint`；沒有課程、頁面、旗標、3D、GLB 或 `mapState` 的改動 |
 | E20 `containers` | Docker CE 27.5.1 的模擬：daemon 的 Image 與 Container、模擬的 Docker Hub（課程宣告哪些 Image 拉得到）、容器的生命週期與可寫層、日誌、`docker exec`、連接埠對應（主機上的 `docker-proxy`、`curl` 經由它連到容器的服務）、`docker` 群組與 socket 的權限；`docker` 指令（§5） |
 | E21 `images` | `docker build`（BuildKit，預設的建置器）：Dockerfile 的解析、在建置容器裡執行 RUN、由建置內容 COPY／ADD 與 `.dockerignore`、每一步的層與大小、建置快取（`CACHED` 與失效）、`docker history`、Image 設定在 `docker run` 時生效、標籤與 dangling Image、`docker image prune`、`image`／`build` 檢查（§11） |
+| E22 `storage-net` | Volume（具名、匿名、Image 的 VOLUME、copy-up）、bind mount（雙向即時）、tmpfs、唯讀掛載、以數字 UID 決定的擁有者與權限錯誤、備份用的 `tar`；`docker network`（bridge、host、none、自訂網路與內建 DNS、connect／disconnect）、容器之間連得到什麼、`--network host`／`none`、`docker inspect` 的 Mounts 與 Networks、`volume`／`network`／`reach` 檢查（§12） |
 
 不新增任何執行期套件；所有輸出由課程資料與機器的固定時鐘決定（§5.6）。
 
@@ -37,13 +38,13 @@
 
 ## 4. 批次與引擎階段
 
-課程編號即位置，依序連續發布；每一批先完成它需要的引擎階段（各自的 profile 與測試），再寫課。profile 延續**線性鏈**：… < edge < diagnostics < **containers**（E20）< **images**（E21）< E22 < E23 < E24。
+課程編號即位置，依序連續發布；每一批先完成它需要的引擎階段（各自的 profile 與測試），再寫課。profile 延續**線性鏈**：… < edge < diagnostics < **containers**（E20）< **images**（E21）< **storage-net**（E22）< E23 < E24。
 
 | 批次 | 課程 | 引擎階段 |
 |---|---|---|
 | DKR-1 | DKR01–DKR04 | **E20** `containers`（已完成，§5）：DKR01、DKR02 的架構情境旁用 `docker version`、`docker info`、`docker run hello-world` 看 client、daemon 與 Registry 的分工；DKR03 生命週期（created、running、exited、刪除與可寫層）；DKR04 常用指令（run、ps、logs、exec、-p） |
 | DKR-2 | DKR05–DKR06 | **E21** `images`（已完成，§11）Dockerfile 與建置：解析 Dockerfile（FROM、RUN、COPY、WORKDIR、ENV、CMD、ENTRYPOINT、USER、EXPOSE）、`.dockerignore`、`docker build`（BuildKit 的輸出）、每個指令一層、快取命中（`CACHED`）與失效、指令順序、`docker history`、Image 大小；RUN 只執行模擬環境認得的指令（套件安裝依 E5 的套件資料） |
-| DKR-3 | DKR07–DKR08 | **E22** Volume 與網路：`docker volume`、`-v`／`--mount`（具名 Volume、bind mount 對應主機的檔案、tmpfs）、UID 不同造成的權限錯誤、重建容器後資料保留；`docker network`（預設 bridge、自訂網路與內建 DNS 127.0.0.11、容器以名稱互連、`--network host`）、哪些埠需要 `-p` |
+| DKR-3 | DKR07–DKR08 | **E22** `storage-net`（已完成，§12）Volume 與網路：`docker volume`、`-v`／`--mount`（具名 Volume、bind mount 對應主機的檔案、tmpfs）、UID 不同造成的權限錯誤、重建容器後資料保留；`docker network`（預設 bridge、自訂網路與內建 DNS 127.0.0.11、容器以名稱互連、`--network host`）、哪些埠需要 `-p` |
 | DKR-4 | DKR09–DKR11 | **E23** Compose、多階段建置與 Registry：`compose.yaml`（services、ports、environment、volumes、depends_on 與 `condition: service_healthy`）、`docker compose up -d`／`ps`／`logs`／`down`；多階段建置（`COPY --from`、精簡基底、建置參數）；`docker tag`、`push`、以 digest 拉取、私有 Registry 的 `docker login`、不可變標籤與 `latest` 的風險（DKR11 的管線情境） |
 | DKR-5 | DKR12–DKR14 | **E24** 檢查與執行期限制：完整的 `docker inspect`、`HEALTHCHECK` 與 `(healthy)`／`(unhealthy)`、`--memory`／`--cpus`、記憶體不足的 `OOMKilled` 與 137、`--restart` 策略與重啟迴圈（`Restarting (1) …`）、SIGTERM 的處理與優雅關閉（`docker stop -t`）、`docker stats`、`top`、`kill`、`events`；DKR12（安全，`case-study-board`）用 E21 的 `USER`、E24 的 `--read-only` 與 `--cap-drop` |
 | DKR-6 | DKR15 | 綜合專題，單獨一批（用 E20–E24 已有的一切） |
@@ -149,7 +150,7 @@ machines: [{ ..., profile: 'containers',
 ## 8. 只在課文說明、或不支援的部分
 
 - **核心機制**：namespace、cgroup、overlay2 的分層、OCI 規格、containerd 與 runc 的分工、Hypervisor 與虛擬機——模擬環境只模擬 CLI 看得到的結果，DKR01、DKR02 以網路情境與課文說明。容器裡的程式不出現在主機的 `ps`（真實的主機看得到它們）。
-- **E21–E24 的功能**（§4）：Dockerfile 與 `docker build`、`history`（E21 已完成，§11；`docker commit` 在 `images` profile 說明不支援）；Volume、bind mount、`docker network`、容器之間以名稱連線；Compose、多階段建置、`tag`／`push`／`login`、以 digest 拉取；HEALTHCHECK、資源限制、OOMKilled、重新啟動策略、`stats`／`top`／`kill`／`events`／`pause`。輸入這些指令時說明是哪一個階段。
+- **E21–E24 的功能**（§4）：Dockerfile 與 `docker build`、`history`（E21 已完成，§11；`docker commit` 在 `images` profile 說明不支援）；Volume、bind mount、`docker network`、容器之間以名稱連線（E22 已完成，§12）；Compose、多階段建置、`tag`／`push`／`login`、以 digest 拉取；HEALTHCHECK、資源限制、OOMKilled、重新啟動策略、`stats`／`top`／`kill`／`events`／`pause`。輸入這些指令時說明是哪一個階段。
 - **其他**：`docker create`、`attach`、`cp`、`rename`、`system prune`、`save`／`load`、`context`、`buildx`；daemon 停止的情形（`systemctl stop docker` 不影響 `docker` 指令：`Cannot connect to the Docker daemon` 留到 E24）；互動式的終端機（`-it` 的 Shell、`docker logs -f` 的等待、前景伺服器的 Ctrl-C）；`docker exec -d`、`-u`；`docker ps -s`、`-n`、`-l` 與其他過濾條件；`--format` 的函式；`ls -l` 在容器裡的欄位依模擬環境的 `ls`；`ps` 只支援不加選項（BusyBox 的 `ps` 版面不同）；`/etc/resolv.conf`、IPv6 的 socket、`docker0`、iptables。
 - **日誌**：Image 的 `logs` 是課程寫好的固定文字（例如 nginx 的 `[notice]` 行裡的時間），不會隨啟動時間改變；`-t` 的時間戳記才是啟動的時間。
 - **大小**：`docker container prune` 的回收空間只算可寫層裡內容改變的檔案的位元組（真實的值另有 overlay 的中繼資料）。
@@ -201,7 +202,7 @@ machines: [{ ..., profile: 'containers',
 |---|---|
 | 建置內容 | `docker build [選項] 資料夾`：資料夾（相對於目前目錄）裡的每個檔案，扣掉 `.dockerignore` 排除的；Dockerfile 預設是 `資料夾/Dockerfile`，`-f` 相對於目前目錄。不讀標準輸入（`-`）與網址 |
 | Dockerfile 的解析 | 開頭的 parser directive（`# syntax=…`、`# escape=…`）忽略；`#` 開頭的行是註解（續行中的註解行也拿掉）；行尾 `\` 續行，**反斜線與換行直接拿掉**（所以 `apt-get update && \`＋下一行縮排變成 `&&     apt-get`，history 也是這樣）。指令不分大小寫；JSON 陣列是 exec 形式，否則是 shell 形式；`FROM`、`RUN`、`COPY`、`ADD` 前面的 `--旗標=值` 另外讀。變數代換（`$X`、`${X}`、`${X:-預設}`、`${X:+值}`、`\$`）用在 FROM（只有第一個 FROM 之前的 ARG）、COPY、ADD、WORKDIR、ENV、LABEL、EXPOSE、USER；RUN 的變數由建置容器的 Shell 展開（ARG 與 ENV 都是它的環境變數） |
-| 指令 | FROM（`AS 名稱`）、RUN、COPY（`--chown`、`--chmod`）、ADD（只有本機的一般檔案）、WORKDIR、ENV、ARG、EXPOSE（TCP）、CMD、ENTRYPOINT（exec 與 shell 形式）、USER、LABEL。VOLUME 說明是 E22，HEALTHCHECK、STOPSIGNAL 是 E24，`COPY --from` 是 E23，ONBUILD、SHELL、MAINTAINER、`RUN --mount` 說明不支援，here-document（`RUN <<EOF`）說明不支援 |
+| 指令 | FROM（`AS 名稱`）、RUN、COPY（`--chown`、`--chmod`）、ADD（只有本機的一般檔案）、WORKDIR、ENV、ARG、EXPOSE（TCP）、CMD、ENTRYPOINT（exec 與 shell 形式）、USER、LABEL。VOLUME 說明是 E22（`storage-net` profile 起可用，§12.3），HEALTHCHECK、STOPSIGNAL 是 E24，`COPY --from` 是 E23，ONBUILD、SHELL、MAINTAINER、`RUN --mount` 說明不支援，here-document（`RUN <<EOF`）說明不支援 |
 | 多階段 | 只建置目標階段（最後一個，或 `--target`）：BuildKit 略過用不到的階段，所以其他階段不出現在輸出；有兩個以上的 FROM 時步驟名稱帶階段名（`[app 2/3]`，沒有名稱時 `[stage-1 2/3]`） |
 | 基底 Image | FROM 先找本機的 Image（含建置出來的），再找模擬的 Docker Hub。只在 Docker Hub 的基底下載到**建置快取**，不會成為 `docker images` 裡的 Image（第一次的 FROM 步驟列出各層的下載與解開，之後只有 resolve）。`FROM scratch` 是空的檔案系統 |
 | 步驟 | FROM 與每個 RUN、COPY、ADD、WORKDIR 是一步（`[k/N]`）；ENV、ARG、LABEL、EXPOSE、CMD、ENTRYPOINT、USER 只改 Image 的設定，不是步驟，但寫進 history（0B） |
@@ -342,3 +343,118 @@ docker: {
 - **基底**：只在 Docker Hub 的基底建置後不出現在 `docker images`（docker driver 與傳統 Image 儲存區時的行為，依記憶）；`load metadata` 一律 0.5s。
 - **套件工具**：apt-get 沒有終端機時三行「Reading …」沒有 `Done`（依 Docker 建置紀錄的記憶）；pip 的 `Successfully installed` 的排序（模擬為依名稱）與相依的 `Collecting` 括號內的寫法（真實是 `(from flask==3.0.3->-r requirements.txt (line 1))` 這類較長的形式）；npm 10 的 `npm error` 前綴（npm 9 以前是 `npm ERR!`）與 `added … audited …` 的秒數。
 - **ENTRYPOINT 與 CMD 的 shell 形式**：shell 形式的 CMD 讓 `/bin/sh` 當 PID 1，它是否轉送 SIGTERM（dash 是否以 exec 執行最後一個指令）依版本而定；模擬環境不推論，`docker stop` 的結束碼由課程的程式宣告（預設 137）。
+
+## 12. 引擎階段 E22：`storage-net` profile（`src/lib/terminal/storage-net.ts`、`storage-net-cli.ts`、`tar.ts`、`docker.ts`、`docker-lesson.ts`）
+
+> 2026-11-23。給 DKR07（Volume 與資料保存）與 DKR08（容器網路）。依 Docker CE 27.5.1。E20、E21 的行為與所有已發布的課（DKR01–DKR06 與其他島）逐字不變（全部終端機課的範例、參考解答、典型錯誤與變體在改動前後逐一重播，輸出與檢查結果相同）：新的行為只在 `storage-net` profile 起出現。
+
+### 12.1 選用方式
+
+| 項目 | 內容 |
+|---|---|
+| `STORAGE_NET_PROFILE` | `images` 的一切加上 `tar`（`E22_COMMANDS`），feature `storage-net`。`images` 以下 `tar` 是 `command not found`（各 profile 的清單不變） |
+| profile 以下 | `docker volume …`、`docker network …`、`docker cp` 說明是引擎階段 E22（和 E20 起相同）；`docker run` 的 `-v`、`--volume`、`--mount`、`--tmpfs`、`--network`、`--net`、`--network-alias` 說明 E22（結束碼 125；原本是 `unknown shorthand flag: 'v' in -v` 這類訊息，已發布的課沒有用到，重播確認）；Dockerfile 的 VOLUME 仍是 E22 的建置錯誤 |
+| 說明頁與 help | `docker --help`、`man docker` 印 `STORAGE_NET_MANUAL`；`tar --help`、`man tar` 印 `STORAGE_MANUAL.tar`；`help` 的 docker 行加上 volume、network，多一行 tar；沒有參數的 `docker` 多列 `Management Commands:`（network、volume） |
+| 課程資料 | `docker.volumes`、`docker.networks`、容器的 `volumes`／`network`／`aliases`／`user`、Image 的 `volumes` 需要 `storage-net`（「`… need the storage-net profile (engine stage E22)`」） |
+| `docker cp` | `storage-net` 說明不支援（請用 bind mount、Volume 或 `docker exec 容器 cat`），不假裝 |
+
+### 12.2 模型
+
+| 項目 | 內容 |
+|---|---|
+| 具名 Volume | daemon 記錄名稱、建立時間、是否匿名；內容就是主機的資料夾 `/var/lib/docker/volumes/名稱/_data`（`/var/lib/docker/volumes` 與 `名稱` 是 root 的 `drwx-----x`，`_data` 預設 root 的 0755），所以 `docker rm` 之後資料還在、`sudo ls`／`sudo cat` 看得到，一般使用者因為 `/var/lib/docker`（0710）看不到。`-v 名稱:/路徑`、`--mount type=volume,source=…` 與 `docker volume create` 建立；多個容器可以掛同一個 Volume |
+| 匿名 Volume | `-v /路徑`、沒有 source 的 `--mount type=volume`、Image 的 VOLUME（沒有被其他掛載蓋住的路徑）。名稱是由容器 ID 與路徑算出的 64 個十六進位字。`docker rm` 留下它（dangling），`docker rm -v` 與 `--rm` 的容器結束時一起刪除；`docker volume prune` 預設只刪匿名的（Docker 23 起），`-a` 刪所有沒有容器使用的 |
+| copy-up | 掛上**空的** Volume（新建立的或原本就空的）時，先把 Image 在那個路徑的內容（含資料夾本身的擁有者與權限）複製進去，所以 `-v html:/usr/share/nginx/html` 一開始就有 nginx 的 index.html；bind mount 從不複製（掛空資料夾就是空的） |
+| bind mount | 主機的資料夾或單一檔案。`-v /絕對路徑:…`、`-v ./相對路徑:…`（Docker 23 起，相對於目前目錄；`$(pwd)` 由 Shell 展開）；沒有 `/` 或 `./` 開頭的是 Volume 名稱（常見錯誤：`-v data:/x` 建立了名為 data 的 Volume）。`-v` 的來源不存在時 Docker 以 root（0755）建立資料夾；`--mount type=bind` 的來源不存在是錯誤。雙方即時看到同一份檔案：主機改了，容器（與它的 nginx）下一個請求就看到；容器寫的，主機立刻看到 |
+| tmpfs | `--tmpfs /路徑` 或 `--mount type=tmpfs,target=…`：內容存在容器的紀錄裡（根目錄 1777），容器停止（`docker stop`、程式結束）就清空 |
+| 容器看到的檔案 | 每個指令都在「容器自己的檔案＋依深度疊上的各個掛載」上執行，之後把掛載底下改變的部分寫回來源（主機或 tmpfs）；掛載點底下原本 Image 的內容被蓋住、留在容器自己的層 |
+| 唯讀 | `:ro`、`--mount …,readonly`：寫入被拒絕，變更不寫回，印出 `touch: cannot touch '…': Read-only file system`、`sh: 1: cannot create …: Read-only file system`、`rm: cannot remove '…': …`、`mkdir: cannot create directory '…': …`、`cp: cannot create regular file '…': …`、`tar: …: Cannot open: …` 等（結束碼 1） |
+| 擁有者是數字 | 主機的 `/etc/passwd`（帳號資料）與 Image 的 `/etc/passwd`、`/etc/group` 以 UID／GID 對應：learner（1000）的檔案在 node Image 裡是 node 的，在沒有 1000 的 Image 裡顯示 `1000`；容器的 root 寫的檔案在主機上是 root 的；主機沒有的 UID 在主機上顯示數字（`sudo ls -l` 看到 `999`） |
+| 權限錯誤 | 容器的程式以 Image 的 USER（或 `-u`）執行，權限照 E1／E3 的規則以對應後的擁有者判斷：非 root 的 USER 寫不進主機上 root 擁有的 bind mount（`Permission denied`）。修法：主機上 `sudo chown 10001:10001 資料夾`（`storage-net` 起 chown 接受沒有帳號的數字，和 Linux 相同）或 `docker run -u` 合適的 UID。`-u 名稱`、`-u UID`、`-u UID:GID`；只有 UID 而 Image 沒有這個帳號時 GID 是 0（root），`id` 印 `uid=1000 gid=0(root) groups=0(root)` |
+| 內建網路 | bridge（172.17.0.0/16，閘道 172.17.0.1）、host、none |
+| 自訂網路 | `docker network create`：bridge 驅動程式，子網路依序 172.18.0.0/16、172.19.0.0/16…172.31.0.0/16，之後 192.168.0.0/20 起；閘道是第一個位址；`--subnet`、`--gateway` 可指定 |
+| 位址 | 執行中的容器在每個網路上有一個位址（各網路最小的空號，從 .2 起），停止就釋放。預設 bridge 的位址也是 E20 的 `ip`（`docker inspect` 的 `.NetworkSettings.IPAddress` 只有它；只在自訂網路上的容器是空字串）。docker-proxy 轉到容器在第一個網路的位址 |
+| `/etc/hosts`、`/etc/resolv.conf` | `/etc/hosts` 每個網路一行「位址 主機名稱」。在自訂網路上 `/etc/resolv.conf` 是 Docker 的內建 DNS（`nameserver 127.0.0.11`、`options ndots:0` 與說明註解）；只在預設 bridge 時是主機的名稱伺服器（主機只有 127.0.0.53 這類本機位址時是 8.8.8.8 與 8.8.4.4） |
+| 名稱解析 | 容器裡的 `getent`、`ping`、`curl`、`nc` 看到的網路：自己、以及和它有共同網路的執行中容器。共同網路是自訂網路時，內建 DNS 回答容器名稱、Container ID 前 12 個字、`--network-alias` 與 `名稱.網路`（各是一筆 A 記錄：`getent hosts db` 印 `172.18.0.2      db`）；**預設 bridge 不解析名稱**（`getent` 結束碼 2、`curl` 是 `(6)`），只有位址連得到 |
+| 連得到什麼 | 不同網路的容器互相連不到，用位址也一樣（逾時，`curl: (7) … after 127000 ms`）。容器的服務監聽的是**容器埠**（Image 的 HTTP 埠加上 EXPOSE；自訂指令的容器沒有服務），`-p` 是給主機與外界的：另一個容器連 `api:8081`（主機埠）是 `Connection refused`，要連 `api:3000`。`ping` 的反查名稱是 `db.app-net`，來回時間約 0.06 ms |
+| `--network host` | 容器使用主機的網路：服務直接是主機的 listener（`sudo ss -tlnp` 看到 `nginx`，不是 docker-proxy），`curl localhost:80` 連得到；`-p` 被忽略並印 `WARNING: Published ports are discarded when using host network mode`；`docker ps` 的 PORTS 是空的；主機名稱與 `/etc/hosts` 是主機的；埠已被占用時主程式結束（結束碼 1，日誌說明原因）；不能 connect 其他網路 |
+| `--network none` | 只有 lo：名稱查不到、位址連不到 |
+| 服務的檔案 | 回應者的路由有 `root` 時，容器的服務從**容器的檔案**（含掛載）讀取，資料夾回應其中的 index.html（nginx 的預設），所以 bind mount 的網頁改了 `curl` 立刻看到 |
+| 存取日誌的來源 | 經由 docker-proxy：預設 bridge 是 172.17.0.1（E20 不變），自訂網路是那個網路的閘道（172.18.0.1）；從另一個容器：那個容器的位址；`--network host`：127.0.0.1 |
+| 容器裡的 Shell | `storage-net` 起容器的指令另有 `chmod chown chgrp id whoami tar getent ping curl nc`（Image 沒有宣告 `commands` 時都有；有宣告的要列出來），由直譯器執行（`;`、`&&`、`for`、`$?`、變數），每個指令有自己的結束碼 |
+
+### 12.3 指令與格式（Docker CE 27.5.1）
+
+| 指令 | 行為與格式 |
+|---|---|
+| `docker volume create [名稱]` | 印出名稱；已存在照樣印出（不是錯誤）；沒有名稱時是 64 個十六進位字；`-d` 不是 local：`Error response from daemon: create x: error looking up volume plugin nfs: plugin "nfs" not found`；名稱不合法（至少兩個字，`[a-zA-Z0-9][a-zA-Z0-9_.-]`）：`… includes invalid characters for a local volume name, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed. If you intended to pass a host directory, use absolute path`；`--label`、`-o` 說明不支援 |
+| `docker volume ls [-q] [-f dangling=…\|name=…\|driver=…] [--format …]` | `DRIVER    VOLUME NAME`，依名稱排序；`--format` 的欄位 Name、Driver、Scope、Mountpoint、Labels |
+| `docker volume inspect [-f 格式] 名稱…` | `CreatedAt`（`2026-11-22T09:00:00Z`）、`Driver`、`Labels`（具名是 null，匿名是 `{"com.docker.volume.anonymous": ""}`）、`Mountpoint`、`Name`、`Options`（null）、`Scope`；找不到：先印找到的（可能是 `[]`）再 `Error response from daemon: get x: no such volume`（1） |
+| `docker volume rm [-f] 名稱…` | 印出名稱；有容器（任何狀態）使用：`Error response from daemon: remove pgdata: volume is in use - [<完整的容器 ID>, …]`；找不到：`… get x: no such volume`（`-f` 不印） |
+| `docker volume prune [-a] [-f]` | `WARNING! This will remove anonymous local volumes not used by at least one container.`（`-a`：`… all local volumes …`）與 `[y/N]`（沒有鍵盤時同 container prune 的說明）；`Deleted Volumes:`、名稱、空行、`Total reclaimed space: 3B`（刪除的檔案的位元組數） |
+| `docker network ls [-q] [--no-trunc] [-f name=…\|driver=…\|type=custom\|builtin] [--format …]` | `NETWORK ID     NAME      DRIVER    SCOPE`，依名稱排序；`--format` 的欄位 ID、Name、Driver、Scope、IPv6、Internal、CreatedAt |
+| `docker network create [-d bridge] [--subnet CIDR] [--gateway IP] 名稱` | 印出完整的 ID。已存在：`Error response from daemon: network with name x already exists`；子網路重疊：`… invalid pool request: Pool overlaps with other one on this address space`；`-d overlay`：`… This node is not a swarm manager. Use "docker swarm init" or "docker swarm join" to connect this node to swarm and try again.`；`-d host`：`… only one instance of "host" network is allowed`；其他驅動程式與 `--internal`、`--ipv6`、`--label` 說明不支援 |
+| `docker network inspect [-f 格式] 名稱…` | `Name`、`Id`、`Created`（九位小數的秒）、`Scope`、`Driver`、`EnableIPv6`、`IPAM`（Driver default、Options、Config 的 Subnet 與 Gateway）、`Internal`、`Attachable`、`Ingress`、`ConfigFrom`、`ConfigOnly`、`Containers`（執行中的容器：Name、EndpointID、MacAddress `02:42:` 加位址、IPv4Address `172.18.0.2/16`、IPv6Address）、`Options`（預設 bridge 有 `com.docker.network.bridge.*`）、`Labels`；找不到：`Error response from daemon: network x not found` |
+| `docker network connect [--alias A] 網路 容器`、`disconnect 網路 容器` | 沒有輸出；執行中的容器立刻有（或失去）位址，`/etc/hosts`、`/etc/resolv.conf` 跟著更新。已連上：`… endpoint with name web already exists in network app-net`；沒有連：`… container <ID> is not connected to network app-net`；host：`… container cannot be disconnected from host network or connected to host network`；none：`… container cannot be connected to multiple networks with one of the networks in private (none) mode`；預設 bridge 的別名：`… network-scoped alias is supported only for containers in user defined networks`；`--ip` 說明不支援 |
+| `docker network rm 名稱…`、`prune [-f]` | rm 印出名稱；內建的：`… bridge is a pre-defined network and cannot be removed`；有執行中的容器：`… error while removing network: network app-net has active endpoints (name:"db" id:"<12 字>")`；停止的容器不擋（之後啟動它是 `network app-net not found`）。prune：`WARNING! This will remove all custom networks not used by at least one container.`、`Deleted Networks:` 與名稱 |
+| `docker run` 的新選項 | `-v`／`--volume`、`--mount`、`--tmpfs`、`--network`／`--net`、`--network-alias`／`--net-alias`、`-u`／`--user`。錯誤（`docker: ….` 加 See 行，125）：`invalid volume specification: 'data:app': invalid mount config for type "volume": invalid mount path: 'app' mount path must be absolute`、`invalid mount config for type "bind": bind source path does not exist: /x`、`Duplicate mount point: /x`、`network x not found`；`--mount` 的格式錯誤是 CLI 的 `invalid argument "…" for "--mount" flag: target is required`（沒有 `docker:` 前綴） |
+| `docker exec -u 使用者` | 以那個使用者執行（找不到：`unable to find user x: no matching entries in passwd file`，126） |
+| `docker rm -v` | 一併刪除匿名 Volume |
+| `docker ps` | `--format` 多了 `{{.Mounts}}`（Volume 名稱或 bind mount 的來源，各截成 15 個字，`--no-trunc` 不截）與 `{{.Networks}}`（依名稱、逗號分隔）；`--filter volume=名稱或掛載點`、`network=名稱或 ID` |
+| `docker inspect` | 容器多了 `Mounts`（Type、Name、Source、Destination、Driver、Mode：`-v` 的 Volume 是 `z`、`:ro` 是 `ro`，`--mount` 是空的、RW、Propagation：bind 是 `rprivate`）、`HostConfig.Binds`（`-v` 給的具名與 bind 掛載）、`HostConfig.NetworkMode`、`Config.Volumes`、`NetworkSettings.Networks`（IPAMConfig、Links、Aliases、MacAddress、DriverOpts、NetworkID、EndpointID、Gateway、IPAddress、IPPrefixLen、IPv6Gateway、GlobalIPv6Address、GlobalIPv6PrefixLen、DNSNames：自訂網路是 名稱、短 ID、別名，預設 bridge 是 null）；Image 多了 `Config.Volumes`。`docker inspect 名稱` 也找網路與 Volume。`images` profile 以下的 JSON 逐字不變 |
+| Dockerfile 的 `VOLUME` | `VOLUME ["/data"]` 或 `VOLUME /data /logs`：只改設定（history 的 `VOLUME [/data]`，0B），每個容器在那裡得到匿名 Volume；不是絕對路徑說明不支援 |
+| `tar` | GNU tar 1.35：`c`／`t`／`x`、`z`、`v`、`f`、`-C`，舊式的 `tar czf`、`-czf` 與長選項（`--create`、`--list`、`--extract`、`--gzip`、`--file=`、`--directory=`）；讀取時自動辨認 gzip。`tar tvf` 的版面照 list.c（`drwxr-xr-x root/root         0 2026-11-22 10:00 ./`，擁有者與大小共用 19 字寬）；`x -v` 只印名稱。錯誤：`Cannot stat: No such file or directory`、`Cannot open: Permission denied`、`Removing leading `/' from member names`、`Cowardly refusing to create an empty archive`、`This does not look like a tar archive`、`Refusing to write archive contents to terminal (missing -f option?)`，以及 `Exiting with failure status due to previous errors`／`Error is not recoverable: exiting now`（2）。root 解開時保留封存檔的擁有者（系統沒有那個名稱時用數字），一般使用者解開的屬於自己 |
+
+### 12.4 `docker inspect -f` 的 Go template（`storage-net` 起）
+
+`{{.A.B}}`、`{{json .A}}`、`{{range .A}}…{{end}}`（陣列依序、map 依鍵排序，`.` 是元素）、`{{range $k, $v := .A}}…{{end}}`、`{{index .A "鍵"}}`、`{{(index .A "鍵").B}}`、`$變數`。依 CLI 以型別化的值執行 template 的結果：`{{.NetworkSettings.Networks}}` 印 `map[app-net:0xc0001a2b40 bridge:0xc000…]`（值是指標；模擬環境的位址由資料算出，真實的每次不同）、`{{.Mounts}}` 印 `[{volume pgdata /var/lib/docker/volumes/pgdata/_data /var/lib/postgresql/data local z true }]`；名稱有連字號的欄位（`.NetworkSettings.Networks.app-net`）是 `template parsing error: template: :1: bad character U+002D '-'`，要用 `index`。`images` profile 以下的 template 不變。
+
+### 12.5 課程資料與檢查
+
+```ts
+docker: {
+  images: [{ …E20／E21 的欄位, volumes?: ['/var/lib/postgresql/data'] }],
+  volumes?: [{ name: 'pgdata', created?, files?: [{ path: '/orders.csv', content, owner?: '999', mode? }] }],   // 路徑由 Volume 的根算起
+  networks?: [{ name: 'app-net', subnet?: '10.10.0.0/24', created? }],
+  containers: [{ …E20 的欄位, volumes?: ['pgdata:/var/lib/postgresql/data', '/home/learner/site:/usr/share/nginx/html:ro'],
+                 network?: 'app-net', aliases?: ['database'], user?: '1000:1000' }],
+}
+```
+
+| 規則 | 內容 |
+|---|---|
+| Volume | 名稱合法、不重複；最多 40 個檔案，路徑由 Volume 的根算起（`/…`），擁有者是使用者名稱或數字，權限 0–0777 |
+| 網路 | 名稱合法、不是 bridge／host／none、不重複；子網路是 /8–/30 的 IPv4 CIDR，不和其他網路重疊（沒寫時依序分配） |
+| 容器 | `volumes` 是 `-v` 的寫法；`network` 是內建或課程的網路；`aliases` 需要自訂網路；`user` 是名稱或 UID（可加 `:群組`）；host／none 的容器不能發布連接埠。容器依列出的順序建立：Volume 與 copy-up、在各網路的位址 |
+| Image | `volumes` 最多 8 個絕對路徑；`commands` 可以多列 E22 的指令 |
+
+| 檢查 | 意義 |
+|---|---|
+| `{ kind: 'volume', name, absent?, file?: '/orders.csv', content? }` | Volume 存在（`absent`：不存在）、裡面有這個檔案、內容包含這段文字 |
+| `{ kind: 'network', name, absent?, container?, driver?: 'bridge', subnet? }` | 網路存在（不存在）、這個容器連在上面（任何狀態）、驅動程式與子網路 |
+| `{ kind: 'reach', container, to, port, result: 'succeeded' \| 'refused' \| 'timeout' \| 'unresolved' }` | 從執行中的容器以名稱或位址連 `to` 的這個埠：成功、被拒絕、逾時（不同的網路）或名稱查不到（預設 bridge、none）。和 E16 的 `reach`（主機之間）同名，以 `container` 欄位區分 |
+
+### 12.6 測試
+
+| 檔案 | 內容 |
+|---|---|
+| `tests/terminal-e22.test.ts` | profile 與分界（`images` 以下 volume、network、`-v`、`--mount`、`--network` 說明 E22、tar 不是指令、資料欄位要 `storage-net`、VOLUME 仍是 E22）、說明頁與 help；Volume 的 ls／inspect／create／rm／使用中／prune（匿名與 `-a`）、docker rm 之後資料仍在與共用、主機上的路徑與權限、copy-up 與 bind mount 不複製、匿名 Volume 與 `rm -v`／`--rm`、bind mount 雙向即時（nginx 讀到新的網頁）與 `:ro` 的錯誤、`--mount` 的各種寫法與錯誤、`-v` 自動建立來源與名稱的陷阱、tmpfs、擁有者與權限錯誤（USER、chown、`-u`）、tar 的備份與還原與格式與錯誤、Dockerfile 的 VOLUME；網路的 ls／create／inspect／rm／prune 與錯誤、內建 DNS（getent、ping、curl、resolv.conf、存取日誌的來源）、預設 bridge 不解析、不同網路連不到、容器埠與發布埠、connect／disconnect 與 inspect 的 template（指標、range、index、連字號）、`--network host` 與 none、各網路的位址與 docker-proxy；`volume`／`network`／`reach` 檢查、資料驗證、合成課程通過 `terminalContentProblems`、不改動傳入的狀態 |
+| `tests/support/storage-net-fixture.ts` | 只供測試：vol-01（`storage-net` profile；nginx 由容器的檔案回應、postgres 有 VOLUME、team/api 在 3000 埠、team/app 以 UID 10001 執行、alpine、debian；`~/site`、root 擁有的 `~/data`、`~/app-data`；pgdata Volume、app-net 與其上執行中的 db）與兩個練習（重建資料庫容器、以名稱互連） |
+
+`tests/terminal-e1.test.ts` 的 `PROFILES` 期望值加上 `storage-net`。
+
+### 12.7 只在課文說明、或不模擬的部分
+
+- **核心與網路的實作**：iptables／nftables 的 NAT 與 DOCKER-ISOLATION 規則、veth pair、`docker0` 等 bridge 介面（`ip addr` 不顯示）、userland proxy 與 hairpin NAT 的細節、內建 DNS 轉送外部名稱（容器裡查外部名稱是找不到）、容器經由閘道連到主機自己的服務（不模擬）、IPv6。
+- **其他驅動程式**：overlay（Swarm）、macvlan、ipvlan、`--internal`；local 以外的 Volume 驅動程式（NFS、雲端儲存）與 `-o` 選項、`volume-nocopy`、bind propagation、SELinux 的 `z`／`Z`（接受但不影響行為）、tmpfs 的大小限制。
+- **其他**：`docker cp`、`--ip`、`--label`、`docker system df`、`--link`（舊的連結方式）。真實的 tar 與 gzip 位元組（封存檔的大小不是真實的大小）。
+- **BusyBox**：Alpine 的 `ping`、`tar`、`nc` 在真實環境是 BusyBox 的版面與訊息（例如 `ping` 的 `seq=0`），模擬環境用 iputils、GNU tar 與 OpenBSD nc 的格式；課程要逐字展示時請用 Debian 系的 Image。Alpine 預設沒有 `curl`（真實要另外安裝，課程可以在 `commands` 裡不列它）。
+
+### 12.8 沒有把握的地方（依記得的格式寫，並在此註明）
+
+- **錯誤訊息**：`volume rm`／`volume inspect` 找不到時的 `get x: no such volume`、`network rm` 有使用中端點時括號內的寫法（27.x 依記憶加上 `name:"…" id:"…"`）、`invalid volume specification` 的完整寫法、none 網路 connect 的訊息、`--mount` 不認得的 type 的文字，依記憶與 moby 原始碼的印象寫，沒有在 27.5.1 逐字核對。
+- **inspect 的欄位**：容器 `Mounts` 的 Mode（`-v` 的 Volume 是 `z`）、`HostConfig.Binds` 對匿名 Volume 的寫法、`DNSNames`（25 起，含短 ID）、MacAddress（模擬為 `02:42:` 加位址；較新的 Docker 可能是隨機的）、網路 inspect 的 `IPAM.Options` 與 `Options`、Volume 的 `Labels`（具名的 null 或 `{}`）依記憶。JSON 的欄位順序只是模擬的子集，和真實的完整輸出不同。
+- **resolv.conf**：Docker 25 起的註解（`# Based on host file: …`、`# ExtServers: …`、`# Overrides: []`、`# Option ndots from: internal`）依記憶；預設 bridge 時主機用 systemd-resolved 的情形，真實的 Docker 讀 `/run/systemd/resolve/resolv.conf` 的上游伺服器，模擬環境改用 8.8.8.8／8.8.4.4。
+- **`getent hosts` 與 `ping`**：內建 DNS 回答名稱時 getent 只印問的名稱、ping 的反查是 `名稱.網路`，依記憶；容器之間的來回時間（0.06 ms）是模型的數字。
+- **`-u UID` 沒有群組時 GID 是 0**、`--network host` 的容器主機名稱是主機的、埠被占用時容器結束（真實的 nginx 印 `bind() … failed (98: Address already in use)`；模擬環境的日誌是說明文字）。
+- **tar**：`tar tvf` 的寬度規則與 `x -v` 只印名稱依 GNU tar 1.35 的 list.c；GNU tar 的成員順序是讀目錄的順序（模擬環境依名稱排序）；時間用機器時鐘（檔案沒有修改時間時）。

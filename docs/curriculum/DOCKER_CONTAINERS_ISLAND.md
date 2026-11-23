@@ -30,6 +30,8 @@
 - `/var/run` 與 socket 的檔案類型：socket 顯示成一般檔案（`-rw-rw----`），課文已說明。
 - E21（`docker build`）：進度一律是 BuildKit 的 plain 格式（不模擬終端機的 TTY 畫面），時間是決定論的；RUN 沒有網路，apt、pip、npm 只用課程宣告的套件表；層的大小只算檔案內容；`transferring context` 每次報告全部用到的檔案（真實的 BuildKit 第二次只傳送改變的檔案）。其餘見 §11.9、§11.10。
 - 時鐘不會自己前進，所以 `--no-cache` 重新建置得到的 Image ID 和使用快取的建置相同（真實的 Docker 會是新的 ID）；DKR06 的範例避開了這一點。
+- E22（`storage-net`，DKR07 起，見 [DKR0_CONTAINER_CAPABILITY](DKR0_CONTAINER_CAPABILITY.md) §12）：Volume 的內容就是主機的 `/var/lib/docker/volumes/名稱/_data`；iptables／NAT、veth 與 `docker0` 等 bridge 介面、overlay 網路、local 以外的 Volume 驅動程式只在課文說明。容器之間只看得到共同網路上的容器（自訂網路解析名稱，預設 bridge 只有位址），容器經由閘道連到主機自己的服務、內建 DNS 轉送外部名稱都不模擬。Alpine 的 `ping`、`tar`、`nc` 用 iputils、GNU tar、OpenBSD nc 的版面（真實是 BusyBox），要逐字展示時請用 Debian 系的 Image；tar 封存檔的大小不是真實的大小。`--network host` 的容器埠被占用時，日誌是說明文字而不是 nginx 的 `bind() failed`。
+- E22 起 `docker run` 的 `-v`、`--mount`、`--tmpfs`、`--network` 在較低的 profile 說明是 E22（原本是 `unknown flag`；DKR01–DKR06 沒有用到，輸出不變）。
 
 ## 引擎修正後的課文更正
 
@@ -37,6 +39,6 @@
 
 ## 後續批次
 
-DKR-2（DKR05–06，E21 Dockerfile 建置、分層與快取；引擎階段已完成，見 DKR0 §11）、DKR-3（DKR07–08，E22 Volume 與網路）、DKR-4（DKR09–11，E23 Compose、多階段建置與 Registry）、DKR-5（DKR12–14，E24 inspect、健康檢查、資源限制與 OOM）、DKR-6（DKR15 綜合專題）。
+DKR-2（DKR05–06，E21 Dockerfile 建置、分層與快取；引擎階段已完成，見 DKR0 §11）、DKR-3（DKR07–08，E22 Volume 與網路；引擎階段已完成，見 DKR0 §12）、DKR-4（DKR09–11，E23 Compose、多階段建置與 Registry）、DKR-5（DKR12–14，E24 inspect、健康檢查、資源限制與 OOM）、DKR-6（DKR15 綜合專題）。
 
 課程狀態與 3D 地景分離：Docker 容器島的 `mapState` 仍是 `'planned'`。
