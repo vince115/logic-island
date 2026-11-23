@@ -37,7 +37,7 @@ export function runFrameJob(job: FrameJob): Promise<WebRun> {
       else if (data.kind === 'result') {
         done();
         resolve({ results: data.results, console: data.console, tree: data.tree, height: data.height, navigations: data.navigations,
-          submissions: data.submissions, title: data.title, standards: data.standards, requests: data.requests, storage: data.storage });
+          submissions: data.submissions, title: data.title, standards: data.standards, requests: data.requests, storage: data.storage, worker: data.worker, caches: data.caches });
       }
     }
     frame.setAttribute('sandbox', job.sandbox);

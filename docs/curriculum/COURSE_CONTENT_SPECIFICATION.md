@@ -95,6 +95,7 @@
 | MOB-1（見 [MOBILE_APPS_ISLAND](MOBILE_APPS_ISLAND.md)） | MOB01–04 | 行動情境與限制、Tab bar／Drawer／Bottom sheet、觸控目標與手勢、Pointer Events 與觸控事件（引擎階段 W9：指標步驟與模擬的指標捕捉、`box` 的至少／至多、對話框）；行動應用島開放 |
 | DKR-0（架構） | — | Docker 容器島登錄為預備島嶼，沿用 `terminal` 能力（`container-playground` 與 `case-study-board` 是終端機課）與 `network-protocol` 的情境（`architecture-diagram`、`pipeline-diagram`），由 `dockerFromBlueprint` 對應，不需要新的 capability 或活動；引擎階段 E20（`containers`：Image、Container 的生命週期、模擬的 Docker Hub、連接埠對應、`docker` 群組）先完成（[DKR0_CONTAINER_CAPABILITY](DKR0_CONTAINER_CAPABILITY.md)）；DKR-1（DKR01–DKR04）之後依 E21–E24 分批發布 |
 | MOB-2 | MOB05–08 | 行動表單與虛擬鍵盤、安全區域／方向／動態視窗高度、原生／跨平台／PWA 的選擇、Web App Manifest 與安裝（引擎：練習的預覽高度、`wait` 之後等一個畫格） |
+| MOB-3 | MOB09–13 | Service Worker 與離線、行動效能與省電、行動無障礙、行動裝置測試、綜合專題（引擎階段 W10：模擬的 Service Worker 與 Cache API）；行動應用島完成 |
 | 之後 | 依 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 自動選擇 | 先修已滿足、能力已備妥、解鎖其他島最多的島優先；缺少的共用能力先做最小可用版本 |
 
 進度記錄在 [COURSE_PRODUCTION_PROGRESS](COURSE_PRODUCTION_PROGRESS.md)。

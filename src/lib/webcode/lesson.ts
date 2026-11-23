@@ -11,13 +11,17 @@ import { guardInlineScripts, guardLoops } from './loop-guard';
  * the frame's document and judges the raw results the frame's harness (./harness.ts) posts back.
  */
 
-export const WEB_FILE_KINDS = ['html', 'css', 'js'] as const;
+export const WEB_FILE_KINDS = ['html', 'css', 'js', 'sw'] as const;
 export type WebFileKind = typeof WEB_FILE_KINDS[number];
-export const WEB_FILE_LABELS: Record<WebFileKind, string> = { html: 'HTML', css: 'CSS', js: 'JavaScript' };
+export const WEB_FILE_LABELS: Record<WebFileKind, string> = { html: 'HTML', css: 'CSS', js: 'JavaScript', sw: 'Service Worker' };
 /** The name each file goes by in a lesson (`<link href="style.css">`, `<script src="script.js">`). */
-export const WEB_FILE_NAMES: Record<WebFileKind, string> = { html: 'index.html', css: 'style.css', js: 'script.js' };
+export const WEB_FILE_NAMES: Record<WebFileKind, string> = { html: 'index.html', css: 'style.css', js: 'script.js', sw: 'sw.js' };
 /** A page: its HTML (a whole document or a body fragment), and optionally one style sheet and one script. */
-export interface WebFiles { html: string; css?: string; js?: string }
+/**
+ * W10 (MOB-3): `sw` is the page's service worker file, sw.js. It is not part of the document: the page registers it
+ * (`navigator.serviceWorker.register('sw.js')`) and the harness runs it as a pretend service worker.
+ */
+export interface WebFiles { html: string; css?: string; js?: string; sw?: string }
 export type WebFilesPart = Partial<WebFiles>;
 
 /**
@@ -27,7 +31,18 @@ export type WebFilesPart = Partial<WebFiles>;
  */
 export interface WebRoute { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; path: string; status?: number; body?: unknown; delay?: number; fail?: boolean; headers?: Record<string, string> }
 /** What exists around a page before it loads: its server's routes (W3), and what an earlier visit left in localStorage and the cookies (W4). */
-export interface WebSetup { api?: WebRoute[]; storage?: Record<string, string>; cookies?: Record<string, string> }
+export interface WebSetup {
+  api?: WebRoute[]; storage?: Record<string, string>; cookies?: Record<string, string>;
+  /** W10: the network is down from the start (every request fails), as on a visit without a connection. */
+  offline?: boolean;
+  /** W10: what the Cache API holds from an earlier visit: cache name → path → body (text, or a value sent as JSON). */
+  caches?: Record<string, Record<string, unknown>>;
+  /**
+   * W10: an earlier visit left a service worker in control of the page. `true`: this page's sw.js. `{ previous }`: an
+   * older version (that text) is the active one, so registering sw.js finds a new version.
+   */
+  worker?: true | { previous: string };
+}
 
 /** What happens to the page before the next check. A script-made event: see the harness for what it does and does not emulate. */
 export type WebAction =
@@ -43,6 +58,8 @@ export type WebAction =
   | { do: 'submit'; selector: string }
   /** Scrolls the page (`selector: ':page'`) or a scrolling element to a vertical offset in pixels. */
   | { do: 'scroll'; selector: string; top: number }
+  /** W10: takes the page's network away, or gives it back (every request fails while it is away). */
+  | { do: 'network'; online: boolean }
   /** Changes the check page's viewport (RWD-0): the same page is then laid out at another width (and height), so one answer is checked at several sizes. */
   | { do: 'resize'; width: number; height?: number }
   /** Presses Tab (W5): focus moves to the next element in tab order (Shift+Tab: the previous one), unless the page cancels the key. */
@@ -89,6 +106,10 @@ export type WebCheck = { label: string } & (
   | { check: 'submitted'; count?: number; data?: Record<string, string> }
   /** Requests the page made with fetch (W3): at least one to this method (GET by default) and path, or exactly `count`; `body` is the JSON the last one sent. */
   | { check: 'request'; path: string; method?: WebRoute['method']; count?: number; body?: unknown }
+  /** W10: the page's pretend service worker: none, installing, waiting (a new version beside the active one) or active; and whether one controls the page. */
+  | { check: 'worker'; state: 'none' | 'installing' | 'waiting' | 'active'; controlling?: boolean }
+  /** W10: a response for this path is in the Cache API (in the named cache, or in any), or in none. */
+  | { check: 'cache'; path: string; name?: string; match?: 'absent' }
   /** A localStorage (or sessionStorage) item (W4): present, equal to `value`, or absent. */
   | { check: 'storage'; key: string; value?: string; area?: 'local' | 'session'; match?: 'absent' }
   /** A cookie the page can read (W4): present, equal to `value`, or absent. */
@@ -188,7 +209,13 @@ export function webDocument(files: WebFiles, nonce: string, live = false, setup:
     scripted = !deferred;
   }
   if (scripted) last = '';
-  const first = `<meta data-li-harness http-equiv="Content-Security-Policy" content="${CSP}"><script data-li-harness>${harness}</script>${styled ? '' : style}`;
+  // W10: sw.js is not part of the document. The policy allows no eval, so its text travels as the body of a function
+  // that the harness runs as the pretend service worker (and the older version a setup names, likewise); each in a script
+  // of its own, so a mistake in one file is that file's error. They add no line: the page's own lines keep their numbers.
+  const workerTag = (which: string, source: string) => `<script data-li-harness data-file="sw.js">__liWorker('${which}', function (self, caches, fetch, clients, skipWaiting, addEventListener, Response, location, globalThis, window, document, localStorage, sessionStorage, parent, top, alert) { "use strict"; ${guardLoops(source).replace(/<\/script/gi, '<\\/script')}\n});</script>`;
+  const workers = (files.sw === undefined ? '' : workerTag('current', files.sw)) + (setup.worker && typeof setup.worker === 'object' && setup.worker.previous !== files.sw ? workerTag('previous', setup.worker.previous) : '')
+    + (files.sw === undefined ? '' : '<script data-li-harness>__liWorkersGiven(); document.currentScript.remove();</script>');
+  const first = `<meta data-li-harness http-equiv="Content-Security-Policy" content="${CSP}"><script data-li-harness>${harness}</script>${workers}${styled ? '' : style}`;
   let doc: string;
   if (!isDocument(html)) doc = `<!DOCTYPE html>\n<html lang="zh-Hant">\n<head>${first}</head>\n<body>\n${html}\n${last}</body>\n</html>`;
   else {
@@ -204,14 +231,16 @@ export function webDocument(files: WebFiles, nonce: string, live = false, setup:
   const at = doc.search(/<script(?: type="module")? data-file="script\.js">\n/);
   const scriptAt = at < 0 ? 0 : doc.slice(0, at).split('\n').length + 1;
   // The setup travels as JSON inside the harness script: `<` is escaped so no value can close the script element.
-  const json = JSON.stringify(setup).replace(/</g, '\\u003c').replace(/\u2028|\u2029/g, '');
+  // W10: sw.js is not in the document; its text goes to the harness with the setup (loops guarded like the page's script).
+  const withWorker = { ...setup, ...(files.sw === undefined ? {} : { sw: true }), ...(setup.worker && typeof setup.worker === 'object' ? { worker: setup.worker.previous === files.sw ? true : 'previous' } : {}) };
+  const json = JSON.stringify(withWorker).replace(/</g, '\\u003c').replace(/\u2028|\u2029/g, '');
   return doc.replace(HARNESS_SCRIPT_AT, String(scriptAt)).replace(HARNESS_SCRIPT_LINES, String(guarded.split('\n').length)).replace(HARNESS_SETUP, () => json);
 }
 
 /** The page an exercise shows: its fixed files with the edited ones on top. */
 export function mergeFiles(fixed: WebFilesPart | undefined, edited: WebFilesPart): WebFiles {
   const merged = { ...fixed, ...edited };
-  return { html: merged.html ?? '', ...(merged.css !== undefined ? { css: merged.css } : {}), ...(merged.js !== undefined ? { js: merged.js } : {}) };
+  return { html: merged.html ?? '', ...(merged.css !== undefined ? { css: merged.css } : {}), ...(merged.js !== undefined ? { js: merged.js } : {}), ...(merged.sw !== undefined ? { sw: merged.sw } : {}) };
 }
 /** The files of a page that exist, in display order. */
 export const fileKinds = (files: WebFilesPart): WebFileKind[] => WEB_FILE_KINDS.filter(k => files[k] !== undefined);
@@ -229,7 +258,13 @@ export interface WebReport {
   console: WebConsoleLine[]; tree: WebTreeRow[]; height: number; navigations: WebNavigation[]; submissions: WebSubmission[]; title: string; standards: boolean;
   /** W3: the requests the page made, with the status each was answered with (0 while waiting, -1 for a network error). W4: what the page has stored. */
   requests: WebRequest[]; storage: WebStored;
+  /** W10: the pretend service worker (state of the active one, whether a newer one waits or installs, whether one controls the page, whether the network is away) and what each cache holds. */
+  worker: WebWorkerState; caches: Record<string, string[]>;
+  /** W10, previews only: the caches with their bodies, handed to the page's next run. */
+  kept?: Record<string, Record<string, string>>;
 }
+/** `version`: which file the active worker runs, this page's sw.js (`current`) or the older one an earlier visit left (`previous`). */
+export interface WebWorkerState { active: string; waiting: boolean; installing: boolean; next: string; controlling: boolean; offline: boolean; version: string }
 /** A page loaded and its steps run: one raw result per step (actions included), and the page's final report. */
 export interface WebRun extends WebReport { results: WebRawResult[] }
 /** Loads a page at a viewport, runs the steps and resolves with what the frame reports (rejects on a timeout). */
@@ -257,10 +292,12 @@ export interface WebVerdict {
 }
 
 const quote = (s: string) => `「${s}」`;
+const WORKER_TEXT: Record<string, string> = { none: '沒有註冊', installing: '安裝中', waiting: '新版本已安裝、等待中', active: '已啟用' };
 const POINTER_TEXT = { down: '按下', move: '移動', up: '放開', cancel: '被系統取消（pointercancel）' } as const;
 const actionText = (a: WebAction) => a.do === 'click' ? `點擊 \`${a.selector}\`` : a.do === 'input' ? `在 \`${a.selector}\` 輸入${quote(a.value)}`
   : a.do === 'select' ? `在 \`${a.selector}\` 選擇${quote(a.value)}` : a.do === 'check' ? `${a.checked ? '勾選' : '取消勾選'} \`${a.selector}\``
   : a.do === 'scroll' ? `把${a.selector === ':page' ? '頁面' : ` \`${a.selector}\` `}往下捲到 ${a.top}px`
+  : a.do === 'network' ? (a.online ? '恢復網路連線' : '切斷網路連線（離線）')
   : a.do === 'resize' ? `把頁面的寬度改成 ${a.width}px${a.height ? `、高度 ${a.height}px` : ''}`
   : a.do === 'tab' ? `按下 ${a.shift ? 'Shift+Tab' : 'Tab'}`
   : a.do === 'pointer' ? `${a.pointerType === 'touch' ? '用手指' : a.pointerType === 'pen' ? '用觸控筆' : '用滑鼠'}在 \`${a.selector}\` ${POINTER_TEXT[a.type]}${a.x !== undefined || a.y !== undefined ? `（距離它的左上角 ${a.x ?? 0}、${a.y ?? 0}px）` : ''}`
@@ -290,6 +327,8 @@ function failure(step: WebCheck, raw: WebRawResult): string {
     case 'console': return raw.actual ? `主控台目前的輸出：${raw.actual.split('\n').map(quote).join('、')}。` : '主控台目前沒有任何輸出。';
     case 'submitted': return step.data && raw.actual !== '0' && raw.actual?.startsWith('{') ? `最後一次送出的資料是 ${raw.actual}。` : `表單目前送出了 ${raw.actual ?? 0} 次。`;
     case 'request': return raw.sent ? `最後一次 ${step.method ?? 'GET'} ${step.path} 送出的內容是 ${raw.actual || '（空白）'}。` : raw.actual ? `頁面目前送出的請求：${raw.actual}。` : '頁面還沒有送出任何請求。';
+    case 'worker': return `Service Worker 目前的狀態：${WORKER_TEXT[(raw.actual ?? 'none').split('+')[0]] ?? raw.actual}${(raw.actual ?? '').includes('+controlling') ? '，頁面由它控制' : '，頁面沒有被任何 Service Worker 控制'}。`;
+    case 'cache': return step.match === 'absent' ? `快取裡仍然有 ${step.path}（${raw.actual}）。` : raw.actual ? `快取目前的內容：${raw.actual}。` : '快取目前是空的（沒有任何快取）。';
     case 'storage': return step.match === 'absent' ? `${step.area === 'session' ? 'sessionStorage' : 'localStorage'} 仍然有 ${step.key}，值是${quote(raw.actual ?? '')}。` : raw.absent ? `${step.area === 'session' ? 'sessionStorage' : 'localStorage'} 裡沒有 ${step.key}。` : `${step.area === 'session' ? 'sessionStorage' : 'localStorage'} 的 ${step.key} 目前是${quote(raw.actual ?? '')}。`;
     case 'cookie': return step.match === 'absent' ? `Cookie ${step.name} 還在，值是${quote(raw.actual ?? '')}。` : raw.absent ? `沒有名為 ${step.name} 的 Cookie。` : `Cookie ${step.name} 目前是${quote(raw.actual ?? '')}。`;
     case 'navigated': return raw.actual ? `最後點擊的連結前往${quote(raw.actual)}。` : '還沒有點擊任何連結。';
@@ -343,8 +382,8 @@ export async function checkWebExercise(exercise: WebExercise, edited: WebFilesPa
 export const TIMEOUT_MESSAGE = '頁面沒有在時間內完成載入與檢查（可能有不會結束的迴圈）。';
 
 // ---- validation -------------------------------------------------------------------------------------------------
-const ACTIONS = ['click', 'input', 'select', 'check', 'key', 'submit', 'scroll', 'dispatch', 'pointer', 'tab', 'resize', 'wait'];
-const CHECKS = ['name', 'role', 'request', 'storage', 'cookie', 'count', 'text', 'attr', 'style', 'box', 'hit', 'value', 'label', 'headings', 'focus', 'console', 'submitted', 'navigated', 'doctype'];
+const ACTIONS = ['click', 'input', 'select', 'check', 'key', 'submit', 'scroll', 'dispatch', 'pointer', 'tab', 'resize', 'network', 'wait'];
+const CHECKS = ['worker', 'cache', 'name', 'role', 'request', 'storage', 'cookie', 'count', 'text', 'attr', 'style', 'box', 'hit', 'value', 'label', 'headings', 'focus', 'console', 'submitted', 'navigated', 'doctype'];
 
 function stepProblems(steps: WebStep[], where: string): string[] {
   const problems: string[] = [];
@@ -374,6 +413,7 @@ function stepProblems(steps: WebStep[], where: string): string[] {
       else if (s.do === 'scroll' && !(Number.isFinite(s.top) && s.top >= 0)) problems.push(`${at} scrolls to an offset of 0 or more`);
       else if (s.do === 'pointer' && (!['down', 'move', 'up', 'cancel'].includes(s.type) || [s.x, s.y].some(v => v !== undefined && !Number.isFinite(v)))) problems.push(`${at} presses, moves, lifts or cancels a pointer, at numbers`);
       else if (s.do === 'resize') { if (!(Number.isInteger(s.width) && s.width >= 240 && s.width <= 1600) || (s.height !== undefined && !(Number.isInteger(s.height) && s.height >= 200 && s.height <= 1200))) problems.push(`${at} resizes to a width of 240–1600 (and a height of 200–1200)`); }
+      else if (s.do === 'network') { if (typeof s.online !== 'boolean') problems.push(`${at} says whether the network is there`); }
       else if (s.do !== 'tab' && !s.selector?.trim()) problems.push(`${at} needs a selector`);
     }
   });
@@ -399,6 +439,13 @@ function setupProblems(setup: WebSetup | undefined, where: string): string[] {
     if (r.delay !== undefined && !(r.delay >= 0 && r.delay <= WEB_LIMITS.waitStep)) problems.push(`${where}: route ${r.path} has a delay outside 0–${WEB_LIMITS.waitStep} ms`);
   }
   for (const [k, v] of [...Object.entries(setup?.storage ?? {}), ...Object.entries(setup?.cookies ?? {})]) if (typeof v !== 'string') problems.push(`${where}: stored ${k} is not text`);
+  // W10: caches are name → path → body, and an older worker is its text.
+  for (const [name, entries] of Object.entries(setup?.caches ?? {})) {
+    if (!name.trim() || !entries || typeof entries !== 'object') problems.push(`${where}: cache ${name} needs its entries`);
+    else for (const path of Object.keys(entries)) if (!path.startsWith('/')) problems.push(`${where}: cached ${path} starts with /`);
+  }
+  if (setup?.worker !== undefined && setup.worker !== true && typeof setup.worker?.previous !== 'string') problems.push(`${where}: an earlier worker is true (this page's sw.js) or its previous text`);
+  if (setup?.worker && typeof setup.worker === 'object' && setup.worker.previous.length > WEB_LIMITS.file) problems.push(`${where}: the previous sw.js is longer than ${WEB_LIMITS.file} characters`);
   return problems;
 }
 const widthProblems = (widths: number[] | undefined, where: string) =>

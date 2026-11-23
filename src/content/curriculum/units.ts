@@ -89,12 +89,15 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
   'generative-ai': [
     { title: '生成模型與自回歸生成', summary: '判別式與生成式模型、學習資料分布再取樣、似然、自回歸、VAE、GAN、流模型與擴散模型的家族地圖；機率連鎖律、生成迴圈、greedy 與取樣、log 機率與下溢、teacher forcing 與 exposure bias、圖像與音訊的離散化', lessonIds: range('GEN', 1, 2) },
   ],
-  // MOB-1 (2026-11-23): the mobile apps island's first units; MOB-2 adds forms, screens, routes and installation.
+  // MOB-1 (2026-11-23): the mobile apps island's first units; MOB-2 adds forms, screens, routes and installation; MOB-3 the last three.
   'mobile-apps': [
     { title: '行動情境與導覽模式', summary: '使用情境、單手操作與可及範圍、螢幕尺寸與優先順序、網路與電量；分頁列、抽屜與底部面板的用途、做法與選擇', lessonIds: range('MOB', 1, 2) },
     { title: '觸控與指標', summary: '觸控目標尺寸、擴大點擊區域、touch-action 與手勢衝突、替代操作；Pointer Events、指標捕捉、可取消的拖曳與被動監聽器', lessonIds: range('MOB', 3, 4) },
     { title: '表單與螢幕', summary: 'type、inputmode 與 autocomplete、減少輸入量、虛擬鍵盤遮擋與欄位捲動；viewport-fit、安全區域與 env()、橫放時的版面、dvh 與 svh', lessonIds: range('MOB', 5, 6) },
     { title: '路線選擇與安裝', summary: '原生 App、跨平台框架與 PWA 的取捨、從需求出發的選擇、功能偵測；Web App Manifest、圖示與 maskable、安裝條件與顯示模式', lessonIds: range('MOB', 7, 8) },
+    { title: '離線與效能', summary: 'Service Worker 的生命週期、Cache API、依資源選擇快取策略、離線時的替代回應與新版本的更新流程；低階裝置、長任務與讓路、防彈跳、只動 transform 與 opacity、頁面隱藏時暫停輪詢', lessonIds: range('MOB', 9, 10) },
+    { title: '行動無障礙與裝置測試', summary: '用手機的螢幕閱讀器照腳本測試、文字放大與 320px 的重排、不鎖方向、拖曳的替代操作；裝置模式、模擬器與真機各能驗證什麼、遠端除錯、測試矩陣與可重現的錯誤回報', lessonIds: range('MOB', 11, 12) },
+    { title: '綜合專題', summary: '分五關把小島外送做成可安裝、可離線的 PWA：分頁列與操作列、觸控目標與結帳表單、Manifest、會離線且會更新的 Service Worker、無障礙名稱與狀態訊息和會停止的輪詢，最後在真機上驗收並記錄', lessonIds: range('MOB', 13, 13) },
   ],
   // RWD-1 (2026-11-23): the responsive design island's first units; RWD-2 adds the grid and query units, RWD-3 the last two.
   'responsive-design': [

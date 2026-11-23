@@ -17,7 +17,7 @@ afterEach(cleanup);
 const frameOf = (root: HTMLElement) => root.querySelector('iframe') as HTMLIFrameElement;
 const nonceOf = (frame: HTMLIFrameElement) => /var NONCE = '([^']+)'/.exec(frame.getAttribute('srcdoc') ?? '')![1];
 const report = (patch: Partial<WebReport> = {}): WebReport => ({ console: [], tree: [{ d: 0, t: 'html', i: '', c: [], a: [], x: '' }, { d: 1, t: 'body', i: '', c: [], a: [], x: '' }, { d: 2, t: 'p', i: '', c: ['note'], a: [], x: '注意' }],
-  height: 90, navigations: [], submissions: [], title: '', standards: true, requests: [], storage: { local: {}, session: {}, cookies: {} }, ...patch });
+  height: 90, navigations: [], submissions: [], title: '', standards: true, requests: [], storage: { local: {}, session: {}, cookies: {} }, worker: { active: '', waiting: false, installing: false, next: '', controlling: false, offline: false, version: '' }, caches: {}, ...patch });
 function post(frame: HTMLIFrameElement, data: object, source: unknown = frame.contentWindow) {
   act(() => { window.dispatchEvent(new MessageEvent('message', { data, source: source as MessageEventSource })); });
 }
@@ -84,6 +84,94 @@ describe('WebExampleView', () => {
     fireEvent.click(screen.getByRole('button', { name: '清除儲存的資料並重新載入' }));
     const third = await waitFor(() => { const f = frameOf(container); expect(f).not.toBe(second); return f; });
     expect(third.getAttribute('srcdoc')).toContain('"storage":{},"cookies":{}');
+  });
+  it('shows the pretend service worker and its caches, carries both into the next run as the next visit, and lets the learner cut the network or start over (W10)', async () => {
+    const sw = "self.addEventListener('install', e => e.waitUntil(caches.open('shell-v1').then(c => c.addAll(['/api/menu']))));";
+    const base = counterExample();
+    const example = { ...base, files: { ...base.files, sw }, setup: { api: [{ path: '/api/menu', body: ['茶'] }] } };
+    const { container } = render(<WebExampleView example={example}/>);
+    const first = await waitFor(() => { const f = frameOf(container); expect(f).toBeTruthy(); return f; });
+    // sw.js is shown as a file of its own and travels in the document as a function (the page's policy allows no eval).
+    expect([...container.querySelectorAll('figcaption')].map(f => f.textContent)).toContain('sw.js');
+    expect(first.getAttribute('srcdoc')).toContain("__liWorker('current', function (self, caches, fetch, clients, skipWaiting, addEventListener, Response, location, globalThis, window, document, localStorage, sessionStorage, parent, top, alert) {");
+    expect(first.getAttribute('srcdoc')).not.toContain('"worker":');
+    const panel = () => within(screen.getByRole('list', { name: '按鈕與事件：Service Worker 與快取' })).getAllByRole('listitem').map(li => li.textContent);
+    post(first, { li: nonceOf(first), kind: 'ready', ...report() });
+    expect(panel()).toEqual(['Service Worker：尚未註冊', '網路：連線中', '快取：還沒有任何快取']);
+    // A first visit: the worker is active, the page is not its yet.
+    post(first, { li: nonceOf(first), kind: 'update', ...report({ worker: { active: 'activated', waiting: false, installing: false, next: '', controlling: false, offline: false, version: 'current' },
+      caches: { 'shell-v1': ['/api/menu'], empty: [] }, kept: { 'shell-v1': { '/api/menu': '["茶"]' }, empty: {} } }) });
+    expect(panel()).toEqual(['Service Worker：已啟用；這個頁面還沒有被它控制', '網路：連線中', '快取 shell-v1：/api/menu', '快取 empty：空的']);
+    // Cutting the network is a message to the frame; the frame's next report says so.
+    const sent: unknown[] = [];
+    first.contentWindow!.postMessage = ((data: unknown) => { sent.push(data); }) as typeof window.postMessage;
+    const cut = screen.getByRole('button', { name: '切斷網路連線' });
+    expect(cut.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(cut);
+    expect(sent).toEqual([{ li: nonceOf(first), kind: 'network', online: false }]);
+    post(first, { li: nonceOf(first), kind: 'update', ...report({ worker: { active: 'activated', waiting: false, installing: false, next: '', controlling: false, offline: true, version: 'current' },
+      caches: { 'shell-v1': ['/api/menu'] }, kept: { 'shell-v1': { '/api/menu': '["茶"]' } } }) });
+    expect(panel()[1]).toBe('網路：離線（每個請求都會失敗）');
+    expect(screen.getByRole('button', { name: '恢復網路連線' }).getAttribute('aria-pressed')).toBe('true');
+    // Running again is the next visit: the same sw.js is in control from the start, with the caches it left.
+    fireEvent.click(screen.getByText('動手改這個範例'));
+    fireEvent.click(screen.getByRole('button', { name: '執行' }));
+    const second = await waitFor(() => { const f = frameOf(container); expect(f).not.toBe(first); return f; });
+    expect(second.getAttribute('srcdoc')).toContain('"caches":{"shell-v1":{"/api/menu":"[\\"茶\\"]"}},"worker":true');
+    post(second, { li: nonceOf(second), kind: 'ready', ...report({ worker: { active: 'activated', waiting: false, installing: false, next: '', controlling: true, offline: false, version: 'current' },
+      caches: { 'shell-v1': ['/api/menu'] }, kept: { 'shell-v1': { '/api/menu': '["茶"]' } } }) });
+    expect(panel()[0]).toBe('Service Worker：已啟用；這個頁面由它控制');
+    // An edited sw.js is a new version: the worker of the last visit is the older one, and the new one waits beside it.
+    fireEvent.change(screen.getByRole('textbox', { name: '按鈕與事件：Service Worker' }), { target: { value: sw + '\n// v2' } });
+    fireEvent.click(screen.getByRole('button', { name: '執行' }));
+    const third = await waitFor(() => { const f = frameOf(container); expect(f).not.toBe(second); return f; });
+    expect(third.getAttribute('srcdoc')).toContain("__liWorker('previous', function (");
+    expect(third.getAttribute('srcdoc')).toContain('"worker":"previous"');
+    post(third, { li: nonceOf(third), kind: 'update', ...report({ worker: { active: 'activated', waiting: true, installing: false, next: 'installed', controlling: true, offline: false, version: 'previous' },
+      caches: { 'shell-v1': ['/api/menu'] }, kept: { 'shell-v1': { '/api/menu': '["茶"]' } } }) });
+    expect(panel()[0]).toBe('Service Worker：已啟用；有新版本已安裝、等待中；這個頁面由它控制');
+    // Run again while the new version still waits: the older worker is still the active one, and the new one waits again.
+    fireEvent.click(screen.getByRole('button', { name: '執行' }));
+    const fourth = await waitFor(() => { const f = frameOf(container); expect(f).not.toBe(third); return f; });
+    expect(fourth.getAttribute('srcdoc')).toContain("__liWorker('previous', function (");
+    expect(fourth.getAttribute('srcdoc')).toContain('"worker":"previous"');
+    expect(/__liWorker\('previous', function \([^)]*\) \{ "use strict"; ([^\n]*)/.exec(fourth.getAttribute('srcdoc')!)![1]).toBe(sw);
+    // The new version took over in this run: from the next run on it is the worker of the earlier visit.
+    post(fourth, { li: nonceOf(fourth), kind: 'update', ...report({ worker: { active: 'activated', waiting: false, installing: false, next: '', controlling: true, offline: false, version: 'current' },
+      caches: { 'shell-v1': ['/api/menu'] }, kept: { 'shell-v1': { '/api/menu': '["茶"]' } } }) });
+    fireEvent.click(screen.getByRole('button', { name: '執行' }));
+    const fifth = await waitFor(() => { const f = frameOf(container); expect(f).not.toBe(fourth); return f; });
+    expect(fifth.getAttribute('srcdoc')).toContain('"worker":true');
+    expect(fifth.getAttribute('srcdoc')).not.toContain("__liWorker('previous'");
+    // Starting over: no worker and no caches, as on a first visit (this example's setup stages none).
+    post(fifth, { li: nonceOf(fifth), kind: 'ready', ...report({ worker: { active: 'activated', waiting: false, installing: false, next: '', controlling: true, offline: false, version: 'current' }, caches: { 'shell-v1': ['/api/menu'] }, kept: { 'shell-v1': { '/api/menu': '["茶"]' } } }) });
+    fireEvent.click(screen.getByRole('button', { name: '移除 Service Worker 與快取並重新載入' }));
+    const sixth = await waitFor(() => { const f = frameOf(container); expect(f).not.toBe(fifth); return f; });
+    expect(sixth.getAttribute('srcdoc')).not.toContain('"caches":');
+    expect(sixth.getAttribute('srcdoc')).not.toContain('"worker":');
+    expect(sixth.getAttribute('srcdoc')).not.toContain("__liWorker('previous'");
+  });
+  it('goes back to the visit the lesson staged when the example has one (W10)', async () => {
+    const sw = "self.addEventListener('fetch', () => {});";
+    const base = counterExample();
+    const example = { ...base, files: { ...base.files, sw }, setup: { worker: { previous: '// v1' }, caches: { 'shell-v1': { '/api/menu': ['舊'] } } } };
+    const { container } = render(<WebExampleView example={example}/>);
+    const first = await waitFor(() => { const f = frameOf(container); expect(f).toBeTruthy(); return f; });
+    expect(first.getAttribute('srcdoc')).toContain('"worker":"previous"');
+    // The new version took over and emptied the old cache; the next run would be a plain returning visit.
+    post(first, { li: nonceOf(first), kind: 'update', ...report({ worker: { active: 'activated', waiting: false, installing: false, next: '', controlling: true, offline: false, version: 'current' }, caches: { 'shell-v2': [] }, kept: { 'shell-v2': {} } }) });
+    fireEvent.click(screen.getByRole('button', { name: '回到一開始的狀態並重新載入' }));
+    const second = await waitFor(() => { const f = frameOf(container); expect(f).not.toBe(first); return f; });
+    expect(second.getAttribute('srcdoc')).toContain('"caches":{"shell-v1":{"/api/menu":["舊"]}}');
+    expect(second.getAttribute('srcdoc')).toContain('"worker":"previous"');
+    expect(second.getAttribute('srcdoc')).toContain("__liWorker('previous', function (");
+    // Run again while the new version waits: the staged older worker is still the one in control.
+    post(second, { li: nonceOf(second), kind: 'update', ...report({ worker: { active: 'activated', waiting: true, installing: false, next: 'installed', controlling: true, offline: false, version: 'previous' }, caches: { 'shell-v1': ['/api/menu'] }, kept: { 'shell-v1': { '/api/menu': '["舊"]' } } }) });
+    fireEvent.click(screen.getByText('動手改這個範例'));
+    fireEvent.click(screen.getByRole('button', { name: '執行' }));
+    const third = await waitFor(() => { const f = frameOf(container); expect(f).not.toBe(second); return f; });
+    expect(third.getAttribute('srcdoc')).toContain('"worker":"previous"');
+    expect(/__liWorker\('previous', function \([^)]*\) \{ "use strict"; ([^\n]*)/.exec(third.getAttribute('srcdoc')!)![1]).toBe('// v1');
   });
   it('offers the preview at the example\'s widths: the frame is that wide, drawn smaller when its column is narrower (RWD-0)', async () => {
     // Without widths there is nothing to choose.

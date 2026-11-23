@@ -196,6 +196,11 @@ import { MOB05 } from './content/MOB05';
 import { MOB06 } from './content/MOB06';
 import { MOB07 } from './content/MOB07';
 import { MOB08 } from './content/MOB08';
+import { MOB09 } from './content/MOB09';
+import { MOB10 } from './content/MOB10';
+import { MOB11 } from './content/MOB11';
+import { MOB12 } from './content/MOB12';
+import { MOB13 } from './content/MOB13';
 import { DB01 } from './content/DB01';
 import { DB02 } from './content/DB02';
 import { DB03 } from './content/DB03';
@@ -245,7 +250,8 @@ export const curriculum: Curriculum = {
     WEB08, WEB09, WEB10, WEB11, WEB12, WEB13, WEB14, WEB15,
     RWD01, RWD02, RWD03, RWD04, RWD05, RWD06, RWD07, RWD08,
     RWD09, RWD10, RWD11, RWD12,
-    MOB01, MOB02, MOB03, MOB04, MOB05, MOB06, MOB07, MOB08 },
+    MOB01, MOB02, MOB03, MOB04, MOB05, MOB06, MOB07, MOB08,
+    MOB09, MOB10, MOB11, MOB12, MOB13 },
 };
 
 export const getLessonBySlug = (slug: string) => lessons.find(l => l.slug === slug);

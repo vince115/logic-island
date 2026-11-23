@@ -489,6 +489,152 @@ describe('dialogs (MOB-0)', () => {
   });
 });
 
+describe('a pretend service worker (MOB-3: W10)', () => {
+  const html = '<button id="load" type="button">載入菜單</button><p id="out">尚未載入</p><button id="update" type="button" hidden>更新</button>';
+  const js = `navigator.serviceWorker.register('sw.js').then(reg => {
+  console.log('registered');
+  reg.addEventListener('updatefound', () => console.log('update found'));
+  const offer = () => { if (reg.waiting) { document.querySelector('#update').hidden = false; } };
+  offer();
+  reg.addEventListener('updatefound', () => reg.installing.addEventListener('statechange', offer));
+  document.querySelector('#update').addEventListener('click', () => reg.waiting.postMessage('SKIP_WAITING'));
+});
+navigator.serviceWorker.addEventListener('controllerchange', () => console.log('controller changed'));
+document.querySelector('#load').addEventListener('click', async () => {
+  const out = document.querySelector('#out');
+  try { const response = await fetch('/api/menu'); out.textContent = (await response.json()).join('、'); } catch (error) { out.textContent = '載入失敗'; }
+});`;
+  const worker = (version: string) => `const CACHE = 'shell-${version}';
+self.addEventListener('install', event => { event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(['/api/menu']))); });
+self.addEventListener('activate', event => {
+  event.waitUntil(caches.keys().then(names => Promise.all(names.filter(name => name !== CACHE).map(name => caches.delete(name)))).then(() => self.clients.claim()));
+});
+self.addEventListener('fetch', event => { event.respondWith(caches.match(event.request).then(hit => hit || fetch(event.request))); });
+self.addEventListener('message', event => { if (event.data === 'SKIP_WAITING') self.skipWaiting(); });`;
+  const api = [{ path: '/api/menu', body: ['滷肉飯', '青菜'] }];
+  const run = (files: WebFiles, steps: WebStep[], setup: WebSetup) => browser!.run({ files, steps, viewport: WEB_VIEWPORT, setup });
+  const all = (steps: WebStep[], r: WebRun) => expect(judge(steps, r.results).map(x => [x.label, x.ok, x.message])).toEqual(steps.filter(x => 'check' in x).map(x => [(x as { label: string }).label, true, '']));
+  inBrowser('a first visit installs and activates the worker; its cache then answers the page with the network away', async () => {
+    const steps: WebStep[] = [
+      { check: 'worker', state: 'installing', controlling: false, label: 'installing when the page has just loaded: its precache waits for the server' },
+      { do: 'wait', ms: 500 }, { check: 'worker', state: 'active', controlling: true, label: 'installed, activated, and it claimed the page' },
+      { check: 'cache', path: '/api/menu', name: 'shell-v1', label: 'the menu is in the cache' }, { check: 'request', path: '/api/menu', count: 1, label: 'fetched once, by the worker' },
+      { do: 'network', online: false }, { do: 'click', selector: '#load' }, { do: 'wait', ms: 300 },
+      { check: 'text', selector: '#out', text: '滷肉飯、青菜', label: 'answered from the cache while offline' }, { check: 'request', path: '/api/menu', count: 1, label: 'no second request reached the network' },
+    ];
+    const r = await run({ html, js, sw: worker('v1') }, steps, { api });
+    all(steps, r);
+    expect(r.console.map(l => l.text)).toEqual(['registered', 'update found', 'controller changed']);
+    expect(r.worker).toEqual({ active: 'activated', waiting: false, installing: false, next: '', controlling: true, offline: true, version: 'current' });
+    expect(r.caches).toEqual({ 'shell-v1': ['/api/menu'] });
+  });
+  inBrowser('a returning visit is controlled from the start; a new version waits until it is told to take over, then cleans the old cache', async () => {
+    const steps: WebStep[] = [
+      { check: 'worker', state: 'active', controlling: true, label: 'the old worker has the page' }, { do: 'wait', ms: 500 },
+      { check: 'worker', state: 'waiting', controlling: true, label: 'the new version installed and waits' }, { check: 'cache', path: '/api/menu', name: 'shell-v2', label: 'it filled its own cache' },
+      { check: 'cache', path: '/api/menu', name: 'shell-v1', label: 'the old cache is still there' }, { check: 'count', selector: '#update:not([hidden])', count: 1, label: 'the page offers the update' },
+      { do: 'click', selector: '#update' }, { do: 'wait', ms: 100 },
+      { check: 'worker', state: 'active', controlling: true, label: 'the new worker took over' }, { check: 'cache', path: '/api/menu', name: 'shell-v1', match: 'absent', label: 'and deleted the old cache' },
+    ];
+    const r = await run({ html, js, sw: worker('v2') }, steps, { api, worker: { previous: worker('v1') }, caches: { 'shell-v1': { '/api/menu': ['舊菜單'] } } });
+    all(steps, r);
+    expect(r.console.map(l => l.text)).toEqual(['registered', 'update found', 'controller changed']);
+    expect(r.worker).toMatchObject({ active: 'activated', waiting: false, controlling: true });
+    // The same file as the active worker's is not a new version: nothing installs.
+    const same = await run({ html, js, sw: worker('v1') }, [{ do: 'wait', ms: 500 }, { check: 'worker', state: 'waiting', label: 'x' }, { do: 'click', selector: '#load' }, { do: 'wait', ms: 200 }, { check: 'text', selector: '#out', text: '舊菜單', label: 'the cached answer' }],
+      { api, worker: true, caches: { 'shell-v1': { '/api/menu': ['舊菜單'] } } });
+    expect(same.results.filter((_, i) => i === 1 || i === 4).map(x => x.ok)).toEqual([false, true]);
+    expect(same.console.map(l => l.text)).toEqual(['registered']);
+  });
+  inBrowser('what a browser enforces holds here too: a body is read once, a cache keeps GET answers only, a request keeps its body, sw.js has no page', async () => {
+    const page = '<button id="load" type="button">載入菜單</button><p id="out">尚未載入</p><button id="order" type="button">下單</button>';
+    const script = `navigator.serviceWorker.register('sw.js').then(reg => console.log('installing at once: ' + (reg.installing ? reg.installing.state : 'none')));
+document.querySelector('#load').addEventListener('click', async () => {
+  const out = document.querySelector('#out');
+  let response;
+  try { response = await fetch('/api/menu'); } catch (error) { out.textContent = 'fetch ' + error.name; return; }
+  try { out.textContent = (await response.json()).join('、'); } catch (error) { out.textContent = 'read ' + error.name; }
+});
+document.querySelector('#order').addEventListener('click', async () => {
+  const response = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dish: '滷肉飯' }) });
+  console.log('order ' + response.status + ' ' + (await response.json()).id);
+});`;
+    const routes: WebSetup['api'] = [...api, { method: 'POST', path: '/api/orders', status: 201, body: { id: 7 } }];
+    const claim = "self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));\n";
+    const keep = (put: string) => `${claim}self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return;
+  event.respondWith(fetch(event.request).then(response => caches.open('data').then(cache => { cache.put(event.request, ${put}); return response; })));
+});`;
+    const load: WebStep[] = [{ do: 'wait', ms: 100 }, { check: 'worker', state: 'active', controlling: true, label: 'in control' }, { do: 'click', selector: '#load' }, { do: 'wait', ms: 300 }];
+    // Stored without clone(): the cache took the body, and a response whose body is used fails the page's fetch.
+    const usedSteps: WebStep[] = [...load, { check: 'text', selector: '#out', text: 'fetch TypeError', label: 'the body was already used' }, { check: 'cache', path: '/api/menu', name: 'data', label: 'the cache has it' }];
+    const used = await run({ html: page, js: script, sw: keep('response') }, usedSteps, { api: routes });
+    all(usedSteps, used);
+    expect(used.console.map(l => l.text)).toEqual(['installing at once: installing']);
+    const clonedSteps: WebStep[] = [...load, { check: 'text', selector: '#out', text: '滷肉飯、青菜', label: 'the page reads the original' }, { check: 'cache', path: '/api/menu', name: 'data', label: 'the cache has the copy' }];
+    all(clonedSteps, await run({ html: page, js: script, sw: keep('response.clone()') }, clonedSteps, { api: routes }));
+    // A POST handed on with fetch(event.request) keeps its body; a cache refuses to store its answer and never matches it.
+    const posts = `${claim}self.addEventListener('fetch', event => {
+  event.respondWith(fetch(event.request).then(async response => {
+    if (event.request.method !== 'POST') return response;
+    const cache = await caches.open('data'), hit = await cache.match(event.request);
+    try { await cache.put(event.request, response.clone()); console.log('stored'); } catch (error) { console.log('put ' + error.name + ', match ' + hit); }
+    return response;
+  }));
+});`;
+    const steps: WebStep[] = [{ do: 'wait', ms: 100 }, { do: 'click', selector: '#order' }, { do: 'wait', ms: 300 },
+      { check: 'request', method: 'POST', path: '/api/orders', body: { dish: '滷肉飯' }, label: 'the body went on to the server' }, { check: 'cache', path: '/api/orders', match: 'absent', label: 'nothing was stored' }];
+    const posted = await run({ html: page, js: script, sw: posts }, steps, { api: routes });
+    all(steps, posted);
+    expect(posted.console.map(l => l.text)).toEqual(['installing at once: installing', 'put TypeError, match undefined', 'order 201 7']);
+    // sw.js sees no page; only the active worker may claim; a made-up Response answers the page when the network is away.
+    const apart = `self.addEventListener('install', event => {
+  console.log('document ' + typeof document + ', window ' + typeof window + ', localStorage ' + typeof localStorage + ', alert ' + typeof alert + ', ' + (globalThis === self) + ' ' + location.href + ' ' + typeof globalThis.document);
+  event.waitUntil(self.clients.claim().catch(error => console.log('claim ' + error.name)));
+});
+${claim}self.addEventListener('fetch', event => {
+  event.respondWith(fetch(event.request).catch(() => new Response(JSON.stringify(['離線菜單']), { status: 200, headers: { 'Content-Type': 'application/json' } })));
+});`;
+    const offlineSteps: WebStep[] = [{ do: 'wait', ms: 100 }, { check: 'worker', state: 'active', controlling: true, label: 'in control' }, { do: 'network', online: false }, { do: 'click', selector: '#load' }, { do: 'wait', ms: 300 },
+      { check: 'text', selector: '#out', text: '離線菜單', label: 'the fallback made in sw.js' }];
+    const offline = await run({ html: page, js: script, sw: apart }, offlineSteps, { api: routes });
+    all(offlineSteps, offline);
+    expect(offline.console.map(l => l.text)).toEqual(['installing at once: installing', 'document undefined, window undefined, localStorage undefined, alert undefined, true https://library.example/sw.js undefined', 'claim InvalidStateError']);
+    // respondWith belongs to the listener's own turn, once: after an await it throws and the request goes to the network.
+    const late = `${claim}self.addEventListener('fetch', async event => { const hit = await caches.match(event.request); event.respondWith(hit || fetch(event.request)); });
+self.addEventListener('fetch', event => { if (event.request.url.endsWith('/twice')) { event.respondWith(new Response('"a"')); event.respondWith(new Response('"b"')); } });`;
+    const lateSteps: WebStep[] = [...load, { check: 'text', selector: '#out', text: '滷肉飯、青菜', label: 'answered by the network, not by the late respondWith' }];
+    const lateRun = await run({ html: page, js: script, sw: late }, lateSteps, { api: routes, caches: { old: { '/api/menu': ['舊菜單'] } } });
+    all(lateSteps, lateRun);
+    expect(lateRun.console.filter(l => l.kind === 'error').map(l => l.text.includes('InvalidStateError'))).toEqual([true]);
+    // Without a network sw.js cannot be fetched: a first registration fails; a visit that has a worker keeps it, and a
+    // changed file is not found.
+    const reg = "navigator.serviceWorker.register('sw.js').then(() => console.log('registered'), error => console.log('failed ' + error.name));";
+    const first = await run({ html: page, js: reg, sw: keep('response.clone()') }, [{ do: 'wait', ms: 300 }, { check: 'worker', state: 'none', controlling: false, label: 'nothing registered' }], { api: routes, offline: true });
+    expect([first.results[1].ok, first.console.map(l => l.text)]).toEqual([true, ['failed TypeError']]);
+    const back = await run({ html: page, js: reg, sw: keep('response.clone()') + '\n// v2' }, [{ do: 'wait', ms: 300 }, { check: 'worker', state: 'active', controlling: true, label: 'the old worker, no new version' }],
+      { api: routes, offline: true, worker: { previous: keep('response.clone()') } });
+    expect([back.results[1].ok, back.console.map(l => l.text), back.worker.version, back.worker.waiting]).toEqual([true, ['registered'], 'previous', false]);
+    // A staged older version whose text is this page's sw.js is the same file: no new version installs.
+    const same = await run({ html: page, js: reg, sw: keep('response.clone()') }, [{ do: 'wait', ms: 300 }, { check: 'worker', state: 'waiting', label: 'x' }], { api: routes, worker: { previous: keep('response.clone()') } });
+    expect([same.results[1].ok, same.worker.version, same.worker.waiting]).toEqual([false, 'current', false]);
+    // A body that was read cannot be cloned or read again.
+    const twice = await run({ html: page, js: "fetch('/api/menu').then(async r => { await r.json(); try { r.clone(); } catch (error) { console.log('clone ' + error.name); } try { await r.text(); } catch (error) { console.log('read ' + error.name + ' ' + r.bodyUsed); } });" },
+      [{ do: 'wait', ms: 200 }], { api: routes });
+    expect(twice.console.map(l => l.text)).toEqual(['clone TypeError', 'read TypeError true']);
+  });
+  inBrowser('without a worker the page is on its own: offline requests fail, a worker that fails to install never controls, a missing file cannot be registered', async () => {
+    const alone = await run({ html, js: js.replace("navigator.serviceWorker.register('sw.js')", "navigator.serviceWorker.register('missing.js')").replace('.then(reg => {', '.catch(error => { console.log(error.name); return new Promise(() => {}); }).then(reg => {') },
+      [{ do: 'click', selector: '#load' }, { do: 'wait', ms: 300 }, { check: 'text', selector: '#out', text: '載入失敗', label: 'offline' }, { check: 'worker', state: 'none', controlling: false, label: 'no worker' }], { api, offline: true });
+    expect(alone.results.filter((_, i) => i >= 2).map(x => x.ok)).toEqual([true, true]);
+    expect(alone.console.map(l => l.text)).toEqual(['TypeError']);
+    // addAll of an address the server does not have rejects: the install fails and the worker is discarded.
+    const broken = await run({ html, js, sw: worker('v1').replace("['/api/menu']", "['/api/menu', '/api/none']") }, [{ do: 'wait', ms: 500 }, { check: 'worker', state: 'none', controlling: false, label: 'discarded' }, { check: 'cache', path: '/api/menu', match: 'absent', label: 'nothing was cached' }], { api });
+    expect(broken.results.slice(1).map(x => x.ok)).toEqual([true, true]);
+    expect(broken.console.some(l => l.kind === 'error')).toBe(true);
+  });
+});
+
 describe('images that depend on the viewport (RWD-3: W8)', () => {
   // A data: address inside srcset has no spaces (a space ends a candidate).
   const svg = (w: number, h: number) => `data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='${w}'%20height='${h}'%3E%3Crect%20width='${w}'%20height='${h}'%20fill='%2390caf9'/%3E%3C/svg%3E`;
