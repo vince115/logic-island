@@ -69,7 +69,7 @@ MOB-2 的結果（隔離副本，旗標關）：TypeScript 與 ESLint 通過；V
 
 併入 main `e5da508`（DKR-1 之後）再跑完整一輪：TypeScript 與 ESLint 通過；Vitest **137 檔、3991 passed／9 skipped**；Production build 通過；E2E 桌機＋手機 **521 passed／2 failed／297 skipped**（兩個失敗同上，#36）；洩漏掃描 clean。
 
-MOB-2 以 #84 合併（main `cc11e38`）。
+MOB-2 以 #84 合併（main `cc11e38`）：對正式站執行課程 E2E（MOB05–MOB08 的每個練習與三座網頁島的目錄，桌機＋手機）**16 passed**。
 
 ### MOB-3（2026-11-23，`mob/3-capstone`）
 
