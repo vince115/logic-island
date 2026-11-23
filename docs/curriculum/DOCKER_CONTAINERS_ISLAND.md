@@ -12,12 +12,15 @@
 | DKR02 | Docker 架構：Client、Daemon 與 Registry<br>`docker-architecture` | 入門 | 45 分 | DKR01 | 2 台（containers）＋ 1 個網路情境（`docker run nginx` 從 Client 到核心） | 6 段、5 段終端機紀錄、2 個終端機練習（docker 群組與 socket 權限、拉取指定標籤）與 3 個網路練習、8 題 | **完整 v1.0.0** |
 | DKR03 | Image 與 Container 的生命週期<br>`images-and-containers` | 入門 | 50 分 | DKR02 | 3 台（containers） | 6 段、5 段終端機紀錄、4 個終端機練習（同一個 Image 的兩個容器、可寫層撐過 stop 與 start、清理容器與 Image、讀出結束碼）、7 題 | **完整 v1.0.0** |
 | DKR04 | Docker CLI 常用指令<br>`docker-cli-essentials` | 入門 | 55 分 | DKR03 | 2 台（containers） | 6 段、5 段終端機紀錄、5 個終端機練習（以連接埠對應發布 nginx、修正連接埠被占用、找出發布某個埠的容器、從日誌讀出狀態碼、用 exec 讀設定）、7 題 | **完整 v1.0.0** |
+| DKR05 | 撰寫 Dockerfile<br>`writing-dockerfiles` | 中級 | 55 分 | DKR04、LNX09 | 3 台（images：沒有 Dockerfile、壞掉的 Dockerfile、可用的專案） | 6 段、5 段終端機紀錄、5 個終端機練習（寫出 Dockerfile 並以 -p 執行、修好壞掉的 Dockerfile、用 .dockerignore 擋住 .env、改以非 root 執行、ENTRYPOINT 與 CMD 的組合）、7 題 | **完整 v1.0.0** |
+| DKR06 | Image 分層與建置快取<br>`image-layers-and-build-cache` | 中級 | 55 分 | DKR05 | 1 台（images：五個專案與數個基底 Image） | 6 段、5 段終端機紀錄、4 個終端機練習（調整指令順序讓安裝維持 CACHED、在同一個 RUN 清理縮小 Image、從 docker history 找出最大的層、修正讓快取每次失效的 .dockerignore）、7 題 | **完整 v1.0.0** |
 
 ## 單元
 
 | 單元 | 課程 |
 |---|---|
 | 容器與 Docker 入門 | DKR01–DKR04 |
+| Dockerfile 與建置快取 | DKR05–DKR06 |
 
 ## 模擬器的已知差異（課文已說明或避開）
 
@@ -26,6 +29,7 @@
 - `docker logs -t` 的時間是容器啟動時間；Image 的 digest 只由名稱與標籤決定。
 - `/var/run` 與 socket 的檔案類型：socket 顯示成一般檔案（`-rw-rw----`），課文已說明。
 - E21（`docker build`）：進度一律是 BuildKit 的 plain 格式（不模擬終端機的 TTY 畫面），時間是決定論的；RUN 沒有網路，apt、pip、npm 只用課程宣告的套件表；層的大小只算檔案內容；`transferring context` 每次報告全部用到的檔案（真實的 BuildKit 第二次只傳送改變的檔案）。其餘見 §11.9、§11.10。
+- 時鐘不會自己前進，所以 `--no-cache` 重新建置得到的 Image ID 和使用快取的建置相同（真實的 Docker 會是新的 ID）；DKR06 的範例避開了這一點。
 
 ## 引擎修正後的課文更正
 
