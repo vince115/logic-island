@@ -5,6 +5,7 @@ import { Check, RotateCcw, X } from 'lucide-react';
 import { baseName, childrenOf, groupOf, LIMITS, modeString, type FsState } from '@/lib/terminal/fs';
 import { prompt, run, type Line } from '@/lib/terminal/shell';
 import { activeState } from '@/lib/terminal/ssh';
+import { closesHeredoc, openHeredocs, type OpenHeredoc } from '@/lib/terminal/heredoc-input';
 import { checkTerminalExercise, machineState, profileOf, replay, TERMINAL_LIMITS, type TerminalExample, type TerminalExercise, type TerminalMachine, type TerminalVerdict } from '@/lib/terminal/lesson';
 import { shownText } from './pre-text';
 import { Rich } from './rich';
@@ -79,13 +80,16 @@ export function TerminalExerciseBox({ exercise, machines }: { exercise: Terminal
   const [cursor, setCursor] = useState<number | null>(null);
   const [verdict, setVerdict] = useState<TerminalVerdict>();
   const [announce, setAnnounce] = useState('');
+  // CICD-3: a here-document being typed (its lines so far and the delimiters still open); see heredoc-input.ts.
+  const [heredoc, setHeredoc] = useState<{ lines: string[]; open: OpenHeredoc[] } | null>(null);
+  const scripting = (profileOf(machine).features ?? []).includes('scripting');
   const nextId = useRef(1), screen = useRef<HTMLDivElement>(null), field = useRef<HTMLInputElement>(null);
   // The latest state and every command since the last reset, updated at once (two commands before a re-render both apply).
   const current = useRef(fs), executed = useRef<string[]>([]);
 
   useEffect(() => { const el = screen.current; if (el) el.scrollTop = el.scrollHeight; }, [log]);
 
-  function execute(command: string) {
+  function execute(command: string, echoed = false) {
     if (executed.current.length >= TERMINAL_LIMITS.session) {
       setLog(lines => [...lines, { id: nextId.current++, text: `這個練習最多執行 ${TERMINAL_LIMITS.session} 個指令，請按「重設」重新開始。`, kind: 'err' as const }].slice(-MAX_LOG));
       return;
@@ -95,10 +99,10 @@ export function TerminalExerciseBox({ exercise, machines }: { exercise: Terminal
     executed.current = [...executed.current, command];
     const echo: Entry = { id: nextId.current++, prompt: prompt(from), text: command, kind: 'cmd' };
     const printed = result.lines.map(l => ({ id: nextId.current++, text: l.text, kind: l.kind }));
-    setLog(lines => result.clear ? [] : [...lines, echo, ...printed].slice(-MAX_LOG));
+    setLog(lines => result.clear ? [] : [...lines, ...echoed ? [] : [echo], ...printed].slice(-MAX_LOG));
     current.current = result.state;
     setFs(result.state);
-    if (command.trim()) setHistory(h => [...h.filter(c => c !== command), command].slice(-MAX_HISTORY));
+    if (command.trim() && !command.includes('\n')) setHistory(h => [...h.filter(c => c !== command), command].slice(-MAX_HISTORY));
     setCursor(null);
     setVerdict(undefined);
     setAnnounce('');
@@ -106,11 +110,35 @@ export function TerminalExerciseBox({ exercise, machines }: { exercise: Terminal
 
   function submit(e: FormEvent) {
     e.preventDefault();
-    execute(input);
+    const line = input;
     setInput('');
+    if (heredoc) {
+      setLog(lines => [...lines, { id: nextId.current++, prompt: '>', text: line, kind: 'cmd' as const }].slice(-MAX_LOG));
+      const open = closesHeredoc(line, heredoc.open[0]) ? heredoc.open.slice(1) : heredoc.open, lines = [...heredoc.lines, line];
+      if (open.length) { setHeredoc({ lines, open }); return; }
+      setHeredoc(null);
+      const command = lines.join('\n');
+      execute(command, true);
+      return;
+    }
+    const open = scripting ? openHeredocs(line) : [];
+    if (open.length) {
+      setLog(lines => [...lines, { id: nextId.current++, prompt: prompt(current.current), text: line, kind: 'cmd' as const }].slice(-MAX_LOG));
+      setHeredoc({ lines: [line], open });
+      setAnnounce(`輸入 here-document 的內容，單獨一行的 ${open[0].delimiter} 結束；Esc 取消。`);
+      return;
+    }
+    execute(line);
+  }
+
+  function cancelHeredoc() {
+    setLog(lines => [...lines, { id: nextId.current++, text: '^C（已取消 here-document）', kind: 'err' as const }].slice(-MAX_LOG));
+    setHeredoc(null); setInput('');
   }
 
   function recall(e: KeyboardEvent<HTMLInputElement>) {
+    if (heredoc && (e.key === 'Escape' || (e.key === 'c' && e.ctrlKey))) { e.preventDefault(); cancelHeredoc(); return; }
+    if (heredoc) return;
     if ((e.key !== 'ArrowUp' && e.key !== 'ArrowDown') || !history.length) return;
     e.preventDefault();
     const at = e.key === 'ArrowUp' ? Math.max(0, (cursor ?? history.length) - 1) : (cursor ?? history.length) + 1;
@@ -126,6 +154,7 @@ export function TerminalExerciseBox({ exercise, machines }: { exercise: Terminal
   function reset() {
     current.current = machineState(machine);
     executed.current = [];
+    setHeredoc(null);
     setFs(current.current); setLog([{ id: nextId.current++, text: WELCOME, kind: 'out' }]); setCursor(null); setInput(''); setVerdict(undefined);
     setAnnounce('已重設：機器回到練習開始時的樣子，之前的指令不再計入檢查。');
     field.current?.focus();
@@ -140,10 +169,10 @@ export function TerminalExerciseBox({ exercise, machines }: { exercise: Terminal
         </div>)}
       </div>
       <form className={styles.inputRow} onSubmit={submit}>
-        <label htmlFor={`${id}-input`} className={styles.prompt}>{prompt(fs)}</label>
+        <label htmlFor={`${id}-input`} className={styles.prompt}>{heredoc ? '>' : prompt(fs)}</label>
         <input ref={field} id={`${id}-input`} value={input} onChange={e => setInput(e.target.value)} onKeyDown={recall}
           maxLength={LIMITS.input} autoComplete="off" autoCapitalize="off" autoCorrect="off" spellCheck={false} enterKeyHint="send"
-          aria-label={`指令（目前位置 ${where}）`} aria-describedby={`${id}-help`}/>
+          aria-label={heredoc ? `here-document 的下一行（單獨一行的 ${heredoc.open[0].delimiter} 結束，Esc 取消）` : `指令（目前位置 ${where}）`} aria-describedby={`${id}-help`}/>
         <button type="submit">執行</button>
       </form>
     </div>

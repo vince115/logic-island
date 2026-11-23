@@ -650,7 +650,21 @@
       ],
       "commit": "TBD",
       "tests": "TBD",
-      "notes": "CICD-2：終端機引擎階段 E25 git（真實的 blob、tree、commit 與 tag 物件、git 2.43 的常用指令、git 的 xdiff 三方合併）與 E26 forge（github.example 上的 Pull Request、審查者、分支保護與 GH006、merge／squash／rebase 的歷史、gh 與 gh api）；團隊 Git 工作流程一課"
+      "notes": "CICD-2：終端機引擎階段 E25 git（真實的 blob、tree、commit 與 tag 物件、git 2.43 的常用指令、git 的 xdiff 三方合併）與 E26 forge（github.example 上的 Pull Request、審查者、分支保護與 GH006、merge／squash／rebase 的歷史、gh 與 gh api）；團隊 Git 工作流程一課",
+      "pr": "#92",
+      "merged": "0b1267e"
+    },
+    {
+      "id": 47,
+      "date": "2026-11-24",
+      "lessons": [
+        "CICD03",
+        "CICD04",
+        "CICD05"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "CICD-3：終端機引擎階段 E27 workflows（workflow 檔案的模型、GitHub 風格的驗證訊息、觸發與篩選、運算式、GITHUB_TOKEN 權限）與 E28 actions（push、PR、dispatch 與排程產生的 run 在全新的模擬 runner 上執行、依工作區檔案決定結果的 CI 工具與不穩定的測試、PR 的狀態檢查、gh run）；持續整合、GitHub Actions 入門、管線中的自動化測試三課"
     }
   ]
 }
