@@ -62,7 +62,7 @@
 | CICD-3 | CICD06–08 | E29 `artifacts`（已完成） |
 | CICD-4 | CICD09–11 | E30 `environments`、E31 `deploy-hosts`、D3（登錄 `monitoring-dashboard`，**已完成**，§10.3） |
 | CICD-5 | CICD12–14 | D4（**已完成**，§10.4） |
-| CICD-6 | CICD15 | 無（綜合專題單獨一批，和 DKR-6 相同） |
+| CICD-6 | CICD15 | 無（綜合專題單獨一批，和 DKR-6 相同；已完成，全島 15／15） |
 
 - **CICD-1 的調整（2026-11-23）**：CICD-1 只發布 CICD01（D1）並開放島嶼；CICD02 需要 E25、E26，和這兩個階段一起移到下一批（[DEVOPS_CICD_ISLAND](DEVOPS_CICD_ISLAND.md)）。CICD01 發布後 `deployment-simulator` 在活動登錄中改為已實作。
 - D2 在 CICD-0 完成，所以 `deployment-simulator` 不會在只有部署紀錄面板時就被標成已實作（CICD01 只用 D1，但它發布時 D1、D2 都已存在）。

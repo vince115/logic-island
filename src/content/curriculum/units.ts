@@ -83,6 +83,7 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '建置、設定與機密', summary: '可重現建置、產出物與快取、在管線裡建置並推送 Image、版本號；設定與程式碼分離、環境變數與各環境的值、預設值與設定驗證；機密與一般設定、secret 的存放與遮蔽、script injection、最小權限、輪替與外洩應變', lessonIds: ['CICD06', 'CICD07', 'CICD08'] },
     { title: '部署與監控', summary: '持續交付與持續部署、從 staging 晉升到 production、人工核准、部署後的冒煙測試與部署紀錄；滾動、藍綠與金絲雀部署、流量切換與資料庫相容性；指標、四大黃金訊號、儀表板、告警門檻與告警疲勞', lessonIds: ['CICD09', 'CICD10', 'CICD11'] },
     { title: '日誌、回滾與事故', summary: '結構化日誌、集中收集、關聯 ID、遮蔽敏感資料與保留期限；以 digest 回滾、功能旗標、向前修復、相容的資料庫遷移與發布檢查清單；嚴重等級、事故指揮與對外溝通、時間線與不究責的事後檢討', lessonIds: ['CICD12', 'CICD13', 'CICD14'] },
+    { title: '綜合專題', summary: '分六關把咖啡店的點餐服務從 commit 帶到上線：PR 與必要檢查、只建置一次的 Image 與快取、各環境的設定與機密、以同一個 digest 晉升、金絲雀計畫與症狀告警、回滾演練與事故時間', lessonIds: ['CICD15'] },
   ],
   'network-servers': [
     { title: '位址、名稱與請求', summary: '公有與私有 IP、介面與路由、監聽埠與 socket、ss、lsof 與 nc；DNS 區域、A／CNAME／MX／TXT、TTL 與快取、dig；用 curl 讀懂 HTTP 請求、回應、狀態碼與重新導向', lessonIds: range('SRV', 1, 3) },

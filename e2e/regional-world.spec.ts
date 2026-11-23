@@ -108,12 +108,12 @@ test.describe('regional world: flag on', () => {
     await expect(page).toHaveURL(/\/world\/cs\?stress=glb$/);
   });
 
-  test('CICD-1: DevOps 與 CI/CD 島 is open (CICD-6: CICD01–CICD14): its subjects panel lists its written lessons, no planned outline link', async ({ page }) => {
+  test('CICD-1: DevOps 與 CI/CD 島 is complete (CICD-7: CICD01–CICD15): its subjects panel lists its written lessons, no planned outline link', async ({ page }) => {
     await openRegion(page, '/world/sys?island=devops-cicd');
     await expect(page.getByRole('region', { name: 'DevOps 與 CI/CD 島教材入口' }).getByRole('link', { name: '查看課程大綱' })).toHaveCount(0);
     const subjects = page.getByRole('complementary', { name: 'DevOps 與 CI/CD 島科目清單' });
-    await expect(subjects.getByText('DevOps 與 CI/CD 島：已完成 0／14 堂')).toBeVisible();
-    await expect(subjects.locator('a[href^="/curriculum/"]')).toHaveCount(14);
+    await expect(subjects.getByText('DevOps 與 CI/CD 島：已完成 0／15 堂')).toBeVisible();
+    await expect(subjects.locator('a[href^="/curriculum/"]')).toHaveCount(15);
   });
 
   /* P1-37: `?stress=glb` is a review tool. What the map holds once it has stopped changing (the GLB arrives late). */
