@@ -86,6 +86,7 @@
 | DKR-5 | DKR12–14 | 引擎階段 E24（`runtime`：inspect、結束碼、資源限制與 OOM、重新啟動策略、停止訊號與 PID 1、唯讀與能力）＋三課 |
 | DKR-6 | DKR15 | 綜合專題（challenge-stages 六關），全島完成 |
 | CICD-1（見 [DEVOPS_CICD_ISLAND](DEVOPS_CICD_ISLAND.md)） | CICD01 | 課程能力 CICD-0（`devops-explorer` 的 D1：部署紀錄與 DORA 指標）＋一課，島嶼開放；CICD02 需要終端機引擎階段 E25、E26，移到下一批 |
+| CICD-2 | CICD02 | 終端機引擎階段 E25（`git`）與 E26（`forge`：Pull Request、審查、分支保護與 `gh`）＋一課 |
 | SRV-0（架構） | — | 網路與伺服器島登錄為預備島嶼，沿用 `terminal` 與 `network-protocol` 能力（`serverFromBlueprint`）；引擎階段 E10–E12（`sockets`、`dns`、`http`）先完成（[SRV0_SERVER_CAPABILITY](SRV0_SERVER_CAPABILITY.md)）；SRV-1 至 SRV-5 依引擎階段 E10–E19 依序發布 |
 | LLM-0（架構） | — | 大型語言模型島與生成式 AI 島登錄為預備島嶼；新能力 `llm-explorer`：位元組層級 BPE（`token-explorer`）、錄好的玩具模型與 temperature／top-k／top-p／種子取樣（`sampling-explorer`）、手寫向量與 PCA（`embedding-space`），練習以數值比對（`llmFromBlueprint`，[LLM0_LANGUAGE_MODEL_CAPABILITY](LLM0_LANGUAGE_MODEL_CAPABILITY.md)）；LLM-1 為 LLM01–LLM03，GEN-1 為 GEN01 |
 | WEB-0（架構） | — | `web-code` 能力（沙盒框架裡的 HTML、CSS、JavaScript 頁面，以瀏覽器建立的結果檢查的練習，迴圈保護）、網頁基礎島登錄為預備島嶼（[WEB0_WEB_CODE_CAPABILITY](WEB0_WEB_CODE_CAPABILITY.md)）；WEB-1 至 WEB-5 依引擎階段 W1–W6 依序發布 |

@@ -42,6 +42,7 @@ import type { FirewallState } from './firewall';
 import type { EdgeState } from './cache';
 import type { LinkState } from './diag';
 import type { DockerState } from './docker';
+import type { GitState } from './git-state';
 
 export interface FsNode {
   /** E1: 'link' is a symbolic link (the lab never has one). */
@@ -170,6 +171,8 @@ export interface FsState {
   links?: LinkState;
   /** E20: the Docker daemon's images, containers and the simulated Docker Hub (only machines of the containers profile have one). */
   docker?: DockerState;
+  /** E25: Git's objects, the machine's repositories (their worktrees are its files) and the simulated forge's bare repositories. */
+  git?: GitState;
 }
 /** E13: what certbot keeps (the simulated CA's certificate lifetime in days, its order counter). */
 export interface TlsState { lifetime: number; orders: number }

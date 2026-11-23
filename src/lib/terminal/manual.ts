@@ -542,13 +542,45 @@ const FEATURE_MANUAL: [ShellFeature, CommandName, ManualEntry][] = [
   ['scripting', 'date', { usage: 'date [-u] [+格式]', summary: '顯示機器的時間（固定不動）', description: ['+%F 是 2026-11-22、+%H:%M 是時與分、+%s 是 1970 年起的秒數；有時區的機器顯示當地時間，-u 顯示 UTC，TZ=時區 date 換時區顯示。'], options: [['-u', '顯示 UTC']] }],
 ];
 
+/** E25: git (docs/curriculum/CICD0_E25_GIT.md). */
+export const GIT_MANUAL: Record<'git', ManualEntry> = {
+  git: {
+    usage: 'git [-C 路徑] init|clone|config|status|add|restore|rm|mv|commit|log|show|diff|branch|switch|checkout|merge|rebase|revert|reset|tag|describe|remote|fetch|push|pull [選項] [參數…]',
+    summary: '分散式版本控制（git 2.43 的子集，遠端是模擬的 github.example）',
+    description: [
+      '工作目錄裡的檔案是 worktree，git add 把它們放進 index（暫存區），git commit 把 index 存成一個 commit；每個 commit 有真正的 SHA-1 ID，和真實的 Git 算出來的一樣。',
+      '分支是指向 commit 的名稱，HEAD 是目前所在的分支；git switch 切換分支，git merge 合併（快轉、三方合併或衝突），git rebase 把分支的 commit 重新接到另一個分支上。',
+      '遠端：git clone、git fetch、git pull、git push 連到 https://github.example/擁有者/儲存庫.git（模擬環境的 HTTPS 憑證已經設定好）；git push 被拒絕時要先整合遠端的變更。',
+      '模擬環境沒有文字編輯器與分頁器：git commit 要用 -m 寫訊息；合併、還原的訊息直接採用 Git 準備好的內容。沒有顏色，git log 在終端機上顯示分支與標籤的名稱。',
+      '提交前要設定身分：git config --global user.name "名字" 與 git config --global user.email "信箱"（寫在 ~/.gitconfig）。',
+    ],
+    options: [['-C 路徑', '在那個資料夾執行'], ['--version', '顯示版本'], ['-m 訊息', 'commit、merge、tag -a：訊息'], ['-u', 'push：同時設定上游分支'], ['--staged', 'diff、restore：看或改 index']],
+  },
+};
+
+/** E26: gh (docs/curriculum/CICD0_E26_FORGE.md). */
+export const GH_MANUAL: Record<'gh', ManualEntry> = {
+  gh: {
+    usage: 'gh auth status | repo view [擁有者/儲存庫] | pr create|list|view|diff|checkout|review|merge|checks|close [選項] | api 端點 [-X 方法] [--input 檔案]',
+    summary: 'GitHub CLI（gh 2.65 的子集，主機是模擬的 github.example，已經登入）',
+    description: [
+      'gh 依目前儲存庫的 git remote（origin）找到 github.example 上的儲存庫；-R 擁有者/儲存庫 可以指定別的。',
+      'Pull Request：先 git push 分支，再 gh pr create --title 標題 --body 內容（或 --fill）；gh pr list、gh pr view 編號 看狀態與審查，gh pr diff 看變更，gh pr checks 看檢查結果。',
+      '審查與合併：gh pr review 編號 --approve | --request-changes -b 意見（不能核准自己的 PR）；gh pr merge 編號 --merge | --squash | --rebase [--delete-branch]。受保護的分支要先有足夠的核准與通過的檢查，也不能直接 git push。',
+      'gh api repos/{owner}/{repo}/branches/main/protection 讀分支保護（JSON）；管理員可以用 -X PUT --input 檔案.json 修改。',
+      '模擬環境沒有互動式的提問、瀏覽器與顏色：需要的資訊都用選項給。',
+    ],
+    options: [['-R 擁有者/儲存庫', '指定儲存庫'], ['--title、--body、--fill', 'pr create：標題與內容'], ['--approve、--request-changes、--comment', 'pr review：審查'], ['--merge、--squash、--rebase', 'pr merge：合併方式'], ['-d, --delete-branch', 'pr merge、pr close：刪除分支'], ['-X 方法、--input 檔案、-F 欄位=值', 'api：HTTP 方法與內容']],
+  },
+};
+
 /** The manual of a command in a profile with these features. */
 export function manualEntry(cmd: CommandName, features: Iterable<ShellFeature> = []): ManualEntry {
   const have = new Set(features);
   const special = FEATURE_MANUAL.find(([f, c]) => c === cmd && have.has(f));
   if (special) return special[2];
   return (MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd] ?? (STREAM_MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd] ?? (USER_MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd]
-    ?? (SYSTEM_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (LATER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (SERVER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (DIAG_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (STORAGE_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (CONTAINER_MANUAL as Record<string, ManualEntry>)[cmd];
+    ?? (SYSTEM_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (LATER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (SERVER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (DIAG_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (STORAGE_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (GIT_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (GH_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (CONTAINER_MANUAL as Record<string, ManualEntry>)[cmd];
 }
 
 const optionLines = (options: [string, string][], indent: string, width: number) => options.map(([flag, text]) => `${indent}${flag.padEnd(width)}${text}`);
