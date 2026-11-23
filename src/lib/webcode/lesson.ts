@@ -140,6 +140,8 @@ export interface WebExercise {
   setup?: WebSetup;
   /** RWD-0: widths (CSS px) the learner can switch the preview to; the first is shown at the start. */
   widths?: number[];
+  /** MOB-2: the preview's height, for a page that is as tall as its viewport (it would report almost no height of its own). */
+  height?: number;
 }
 
 export interface WebLessonContent { examples: WebExample[]; exercises: WebExercise[] }
@@ -428,6 +430,7 @@ export function webContentProblems(content: WebLessonContent): string[] {
     else if (editable.every(k => x.starter[k] === x.solution[k])) problems.push(`${at}: the solution is the starter`);
     if (!mergeFiles(x.fixed, x.solution ?? {}).html.trim()) problems.push(`${at}: the solved page has no HTML`);
     problems.push(...fileProblems(x.fixed ?? {}, at), ...fileProblems(x.starter ?? {}, at), ...fileProblems(x.solution ?? {}, at), ...stepProblems(x.steps, at), ...viewportProblems(x.viewport, at), ...setupProblems(x.setup, at), ...widthProblems(x.widths, at));
+    if (x.height !== undefined && !(x.height >= WEB_LIMITS.minHeight && x.height <= WEB_LIMITS.maxHeight)) problems.push(`${at} has a height outside ${WEB_LIMITS.minHeight}–${WEB_LIMITS.maxHeight}`);
     if (!x.mistakes?.length) problems.push(`${at} needs at least one typical mistake`);
     for (const [i, m] of (x.mistakes ?? []).entries()) {
       if (!m.why?.trim()) problems.push(`${at}: mistake ${i + 1} needs its explanation`);

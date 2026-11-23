@@ -223,7 +223,7 @@ export function WebExerciseBox({ exercise, tokens, run = runInFrame }: { exercis
       <button type="button" className={base.primaryButton} onClick={check} aria-disabled={busy || undefined}><Check size={14} aria-hidden/>{busy ? '檢查中…' : '檢查'}</button>
       <button type="button" onClick={reset}><RotateCcw size={14} aria-hidden/>重設</button>
     </div>
-    <LivePage files={shown} title={exercise.title} run={runs} setup={exercise.setup} widths={exercise.widths}/>
+    <LivePage files={shown} title={exercise.title} height={exercise.height} run={runs} setup={exercise.setup} widths={exercise.widths}/>
     <div className={styles.steps}>
       <h4 id={`${id}-steps`}>檢查的步驟</h4>
       <p className={styles.note}>「檢查」會把你目前的檔案載入一份全新的頁面（寬 {viewport.width}px、高 {viewport.height}px），依序做下面的事，只看結果，不看寫法。</p>

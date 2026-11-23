@@ -317,6 +317,14 @@ const SOURCE = String.raw`(function () {
       realSetTimeout(end, 150);
     }).then(tick);
   }
+  function framed() {
+    return new Promise(function (r) {
+      var over = false;
+      function end() { if (!over) { over = true; r(); } }
+      realFrame(function () { realSetTimeout(end, 0); });
+      realSetTimeout(end, 150);
+    });
+  }
   function settled() { return document.querySelector('picture, img[srcset], img[sizes]') ? rendered().then(loaded).then(rendered) : tick(); }
 
   // W5: what assistive technology is told about an element. A simplified reading of the accessible-name and role rules,
@@ -447,7 +455,9 @@ const SOURCE = String.raw`(function () {
   function act(s) {
     if (s.do === 'wait') {
       var ms = Math.max(0, Math.min(60000, Number(s.ms) || 0));
-      return (LIVE ? new Promise(function (r) { realSetTimeout(r, Math.min(ms, 1000)); }) : advance(ms)).then(function () { return { ok: true }; });
+      // MOB-2: the page's clock is the check's own, but its animation frames are the browser's. After the clock has moved,
+      // one real frame passes, so what the page left to requestAnimationFrame has run before the next check looks.
+      return (LIVE ? new Promise(function (r) { realSetTimeout(r, Math.min(ms, 1000)); }) : advance(ms).then(framed)).then(function () { return { ok: true }; });
     }
     if (s.do === 'resize') {
       // The frame cannot size itself: it asks the parent (RWD-0) and goes on once its own viewport has the size it asked

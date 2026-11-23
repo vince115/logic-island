@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { LAB_LANGUAGES, courses } from '../src/content/courses';
 import { curriculum } from '../src/content/curriculum';
 import { TOKEN_KINDS } from '../src/lib/highlight/kinds';
@@ -24,9 +24,22 @@ const programs: [string, HighlightLanguage, string][] = [
 describe('syntax highlighting', () => {
   // T.2F: one test per language (the same programs and assertions). As one test the 1904 programs took 2.5–3.8 s of the
   // 5 s limit and timed out once while other suites loaded the machine (docs/exam-system/22 §3.2).
+  // MOB-2: one test per 150 programs of a language. The C++ programs alone took 1.8 s on a quiet machine and passed
+  // the 5 s limit once on the shared runner (main, 1b0705c); the set grows with every lesson, a test's limit does not.
+  // The first call also loads the highlighter, which is not what any of these tests measures: it happens before them.
   const languages = [...new Set(programs.map(p => p[1]))];
-  it.each(languages)(`spells every line of the %s programs exactly`, language => {
-    for (const [name, , code] of programs.filter(p => p[1] === language)) {
+  const groups = languages.flatMap(language => {
+    const own = programs.filter(p => p[1] === language), out: [string, typeof programs][] = [];
+    for (let i = 0; i < own.length; i += 150) out.push([`${language} programs ${i + 1}–${Math.min(i + 150, own.length)}`, own.slice(i, i + 150)]);
+    return out;
+  });
+  beforeAll(() => { for (const language of languages) highlight('x', language); });
+  it('checks every program once, whatever the grouping', () => {
+    expect(groups.reduce((n, g) => n + g[1].length, 0)).toBe(programs.length);
+    expect(Math.max(...groups.map(g => g[1].length))).toBeLessThanOrEqual(150);
+  });
+  it.each(groups)('spells every line of the %s exactly', (_, group) => {
+    for (const [name, language, code] of group) {
       const lines = code.split('\n'), pieces = highlight(code, language);
       expect(pieces.length, name).toBe(lines.length);
       pieces.forEach((line, i) => expect(line.map(p => p[0]).join(''), `${name} line ${i + 1}`).toBe(lines[i]));
