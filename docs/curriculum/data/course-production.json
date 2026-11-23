@@ -614,7 +614,19 @@
       ],
       "commit": "TBD",
       "tests": "TBD",
-      "notes": "DKR-5：引擎階段 E24（runtime：完整的 docker inspect 與 Go template、課程宣告的主程式行為、--memory／--cpus 與 OOMKilled、docker stats／top／update／wait、重新啟動策略與退避、docker stop／kill 與停止訊號、sh -c 與 --init 的 PID 1、docker events、--read-only／--cap-drop／--security-opt／--privileged；E23 三個差異的修正；container 檢查的 restarting、oomKilled、restartCount、restartPolicy、memory、cpus、readOnly、user、capDrop、privileged、dockerSocket；E20 起 .sh 路徑的當機修正）；容器安全、容器除錯、健康檢查、資源限制與優雅關閉三課"
+      "notes": "DKR-5：引擎階段 E24（runtime：完整的 docker inspect 與 Go template、課程宣告的主程式行為、--memory／--cpus 與 OOMKilled、docker stats／top／update／wait、重新啟動策略與退避、docker stop／kill 與停止訊號、sh -c 與 --init 的 PID 1、docker events、--read-only／--cap-drop／--security-opt／--privileged；E23 三個差異的修正；container 檢查的 restarting、oomKilled、restartCount、restartPolicy、memory、cpus、readOnly、user、capDrop、privileged、dockerSocket；E20 起 .sh 路徑的當機修正）；容器安全、容器除錯、健康檢查、資源限制與優雅關閉三課",
+      "pr": "#89",
+      "merged": "0e67748"
+    },
+    {
+      "id": 44,
+      "date": "2026-11-23",
+      "lessons": [
+        "DKR15"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "DKR-6：Docker 容器島綜合專題（challenge-stages 六關，用 E20–E24 已有的一切），全島 15／15 完成；image 檢查可以用完整的 Image ID（sha256:…）確認舊 Image 的層真的刪掉了"
     }
   ]
 }

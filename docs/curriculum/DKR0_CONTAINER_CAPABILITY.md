@@ -49,7 +49,7 @@
 | DKR-3 | DKR07–DKR08 | **E22** `storage-net`（已完成，§12）Volume 與網路：`docker volume`、`-v`／`--mount`（具名 Volume、bind mount 對應主機的檔案、tmpfs）、UID 不同造成的權限錯誤、重建容器後資料保留；`docker network`（預設 bridge、自訂網路與內建 DNS 127.0.0.11、容器以名稱互連、`--network host`）、哪些埠需要 `-p` |
 | DKR-4 | DKR09–DKR11 | **E23** `compose`（已完成，§13）Compose、多階段建置與 Registry：`compose.yaml`（services、ports、environment、volumes、depends_on 與 `condition: service_healthy`）、`docker compose up -d`／`ps`／`logs`／`down`；多階段建置（`COPY --from`、精簡基底、建置參數）；`docker tag`、`push`、以 digest 拉取、私有 Registry 的 `docker login`、不可變標籤與 `latest` 的風險（DKR11 的管線情境） |
 | DKR-5 | DKR12–DKR14 | **E24** `runtime`（已完成，§14）檢查與執行期限制：完整的 `docker inspect`（State、RestartCount、HostConfig 的限制與策略、`--format` 的函式）、HEALTHCHECK（E23）、`--memory`／`--cpus`、記憶體不足的 `OOMKilled` 與 137、`--restart` 策略與重啟迴圈（`Restarting (1) …`、on-failure:N）、SIGTERM 的處理、PID 1 與優雅關閉（`docker stop -t`、Shell 與 exec 形式、`--init`、STOPSIGNAL）、`docker stats`、`top`、`kill`、`update`、`wait`、`events`、`logs --since`；DKR12（安全，`case-study-board`）用 E21 的 `USER`、`docker history` 與 inspect 讀出 Image 裡的秘密、E24 的 `--read-only`、`--tmpfs`、`--cap-drop`、`no-new-privileges`，弱點掃描只在課文（或課程提供的報告檔案） |
-| DKR-6 | DKR15 | 綜合專題，單獨一批（用 E20–E24 已有的一切） |
+| DKR-6 | DKR15 | 綜合專題，單獨一批（用 E20–E24 已有的一切；已完成，全島 15／15） |
 
 先修：DKR01 需要 LNX08；DKR 的同島先修都排在前面（`scripts/curriculum-queue.ts` 檢查）。
 
@@ -708,7 +708,7 @@ docker: {
 
 | 檢查 | 意義 |
 |---|---|
-| `{ kind: 'container', name, state?: '…' \| 'restarting', exitCode?, oomKilled?, restartCount?, restartPolicy?, memory?, cpus?, readOnly?, user?, capDrop?, privileged?, dockerSocket? }` | E20–E23 的欄位之外：狀態可以是 restarting（等待重新啟動；這時 `exited` 不通過）、最後一次執行是否被 OOM 結束（重新啟動後是 false）、**至少**重新啟動了幾次、重新啟動策略（`on-failure:3` 依名稱與次數比對）、記憶體上限（位元組，和 `HostConfig.Memory` 相同）、CPU（`--cpus` 的值）、根檔案系統唯讀、`Config.User`（`''` 是沒有指定）、拿掉的能力（每一個都要在 CapDrop 裡，ALL 包含全部）。這些欄位需要 runtime 機器，不能和 `absent` 一起。訊息例：`它只重新啟動了 1 次`、`它的重新啟動策略是 no`、`它沒有記憶體上限`、`它的狀態是 restarting`。DKR-5 加上 `privileged`（是否以 `--privileged` 執行）與 `dockerSocket`（是否以 bind mount 掛載來源以 docker.sock 結尾的檔案），訊息例：`它以 --privileged 執行（擁有所有能力與主機的裝置）`、`它掛載了 Docker 的 socket（可以控制 daemon，等於主機的 root）` |
+| `{ kind: 'container', name, state?: '…' \| 'restarting', exitCode?, oomKilled?, restartCount?, restartPolicy?, memory?, cpus?, readOnly?, user?, capDrop?, privileged?, dockerSocket? }` | E20–E23 的欄位之外：狀態可以是 restarting（等待重新啟動；這時 `exited` 不通過）、最後一次執行是否被 OOM 結束（重新啟動後是 false）、**至少**重新啟動了幾次、重新啟動策略（`on-failure:3` 依名稱與次數比對）、記憶體上限（位元組，和 `HostConfig.Memory` 相同）、CPU（`--cpus` 的值）、根檔案系統唯讀、`Config.User`（`''` 是沒有指定）、拿掉的能力（每一個都要在 CapDrop 裡，ALL 包含全部）。這些欄位需要 runtime 機器，不能和 `absent` 一起。訊息例：`它只重新啟動了 1 次`、`它的重新啟動策略是 no`、`它沒有記憶體上限`、`它的狀態是 restarting`。DKR-5 加上 `privileged`（是否以 `--privileged` 執行）與 `dockerSocket`（是否以 bind mount 掛載來源以 docker.sock 結尾的檔案），訊息例：`它以 --privileged 執行（擁有所有能力與主機的裝置）`、`它掛載了 Docker 的 socket（可以控制 daemon，等於主機的 root）`。DKR-6：`{ kind: 'image', name: 'sha256:' 加 64 個十六進位字, absent: true }` 以 Image ID 指名（和 `docker image inspect` 一樣，有沒有標籤都算），用來確認舊 Image 的層真的刪掉了，而不只是標籤（`docker rmi -f` 在容器使用中只會拿掉標籤）；只能和 absent 一起、只在 runtime 機器 |
 | `output`（既有） | 讀出 `docker inspect -f '{{.State.ExitCode}}'`、`{{.RestartCount}}` 等的答案，配合變體讓答案不能直接打出來 |
 
 另外（DKR-5，所有 profile）：Image 沒有 ENTRYPOINT 而 `docker run` 的指令是以 `.sh` 結尾的路徑、後面沒有其他參數時，E20 起會得到空的指令而讓模擬器當掉；現在把那個路徑本身當成指令（找不到就是一般的 127 錯誤）。改動前這條路徑只會當掉，所以已發布的輸出不受影響（`tests/terminal-e20-fixes.test.ts`）。

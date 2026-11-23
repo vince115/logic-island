@@ -22,6 +22,7 @@
 | DKR12 | 容器安全<br>`container-security` | 進階 | 50 分 | DKR10、LNX07 | 1 台（runtime：資安審查的主機，含案件資料夾、團隊的專案與以 --privileged 執行並掛載 socket 的容器） | 6 段、5 段終端機紀錄、2 個終端機練習（從 docker history 找出留在 RUN 歷史裡的 Token、以非 root、唯讀加 tmpfs、拿掉全部能力重新部署）、8 題 | **完整 v1.0.0** |
 | DKR13 | 容器除錯<br>`debugging-containers` | 中級 | 55 分 | DKR09、LNX11 | 2 台（runtime：多個故障容器的主機與夜間批次主機） | 6 段、5 段終端機紀錄、3 個終端機練習（補上缺少的環境變數修好 billing、從三個 137 找出被 OOM 結束的容器、提高上限修好 OOM 重啟迴圈）、8 題 | **完整 v1.0.0** |
 | DKR14 | 健康檢查、資源限制與優雅關閉<br>`health-checks-limits-and-shutdown` | 進階 | 55 分 | DKR13 | 3 台（runtime：訂單 API 的三種狀態） | 6 段、5 段終端機紀錄、3 個終端機練習（改成 exec 形式讓 docker stop 以 0 結束、以健康檢查、上限與重新啟動策略執行 API、依 stats 訂出不會 OOM 的記憶體上限）、8 題 | **完整 v1.0.0** |
+| DKR15 | Docker 容器島綜合專題：容器化並準備上線<br>`docker-containers-capstone` | 進階 | 90 分 | DKR11、DKR12、DKR14 | 6 台（runtime：開發機、團隊筆電、CI 主機與兩台正式環境主機） | challenge-stages 六關、7 段課文、5 段終端機紀錄、7 個終端機練習（多階段 Image、Compose 開發環境、找出並移除舊 Image 的金鑰、版本標籤與推送、以 digest 與正式環境設定上線、上線檢查清單與埋好的故障）、8 題 | **完整 v1.0.0** |
 
 ## 單元
 
@@ -32,6 +33,7 @@
 | 資料與網路 | DKR07–DKR08 |
 | Compose 與 Image 發布 | DKR09–DKR11 |
 | 安全、除錯與上線準備 | DKR12–DKR14 |
+| 綜合專題 | DKR15 |
 
 ## 模擬器的已知差異（課文已說明或避開）
 
@@ -52,8 +54,8 @@
 
 - 2026-11-23（E20 的修正，見 [DKR0_CONTAINER_CAPABILITY](DKR0_CONTAINER_CAPABILITY.md) §10）：DKR03 原本說 `docker rmi -f` 在有容器使用時只移除標籤。真實的 Docker 只有在執行中的容器使用時才只移除標籤；只有停止（或 created）的容器使用時，`-f` 照樣刪除 Image，留下指向不存在 Image 的容器。DKR03 的清理段落（表格與說明）、測驗 q4 的解說與「清理容器與 Image」練習的典型錯誤已更正；五段終端機紀錄的輸出不變。
 
-## 後續批次
+## 批次
 
-DKR-2（DKR05–06，E21 Dockerfile 建置、分層與快取；引擎階段已完成，見 DKR0 §11）、DKR-3（DKR07–08，E22 Volume 與網路；引擎階段已完成，見 DKR0 §12）、DKR-4（DKR09–11，E23 Compose、多階段建置與 Registry；引擎階段已完成，見 DKR0 §13）、DKR-5（DKR12–14，E24 inspect、資源限制與 OOM、重新啟動策略、訊號與優雅關閉、安全選項；引擎階段已完成，見 DKR0 §14）、DKR-6（DKR15 綜合專題）。
+DKR-1（DKR01–04，E20）、DKR-2（DKR05–06，E21）、DKR-3（DKR07–08，E22）、DKR-4（DKR09–11，E23）、DKR-5（DKR12–14，E24）、DKR-6（DKR15 綜合專題，用 E20–E24 已有的一切）：2026-11-23 全島 15／15 完成。引擎階段見 DKR0 §5、§11–§14；各階段的已知差異列在上面，留給之後的引擎修正（課程都沒有依賴它們）。
 
 課程狀態與 3D 地景分離：Docker 容器島的 `mapState` 仍是 `'planned'`。

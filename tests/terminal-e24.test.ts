@@ -482,6 +482,18 @@ describe('lesson data and checks', () => {
     expect(plain.results[2].message).toMatch(/它沒有以 --privileged 執行$/);
     expect(plain.results[3].message).toMatch(/它沒有掛載 Docker 的 socket$/);
   });
+  it('the image check (DKR-6): a full image ID names the image tagged or not, only as absent', () => {
+    const ex = (checks: TerminalExercise['checks']): TerminalExercise => ({ id: 'x', title: 'x', machine: 'rt-01', statement: 'x', checks, solution: [], mistakes: [], hints: [], explanation: 'x' });
+    const id = `sha256:${machineState(runtimeLab).docker!.images.find(i => i.repo === 'alpine' && i.tag === '3.21')!.id}`;
+    const checks: TerminalExercise['checks'] = [{ kind: 'image', name: 'alpine:3.21', absent: true }, { kind: 'image', name: id, absent: true }];
+    // rmi -f while a container uses it only untags: the tag is gone, the image (dangling) is not.
+    const untagged = checkTerminalExercise(ex(checks), [runtimeLab], ['docker run -d --name keep alpine:3.21 sleep infinity', 'docker rmi -f alpine:3.21', 'docker rm -f keep']);
+    expect(untagged.results.map(r => r.ok)).toEqual([true, false]);
+    expect(untagged.results[1].message).toMatch(/仍有這個 Image（已經沒有標籤，但它的層還在）$/);
+    expect(checkTerminalExercise(ex(checks), [runtimeLab], ['docker rmi alpine:3.21']).results.map(r => r.ok)).toEqual([true, true]);
+    const content = { machines: [runtimeLab], examples: [], exercises: [{ ...gracefulExercise, checks: [{ kind: 'image' as const, name: id }] }] };
+    expect(terminalContentProblems(content).join('\n')).toContain('an image ID (sha256: and 64 hex digits) in an image check needs absent and a runtime machine');
+  });
   it('a synthetic lesson passes terminalContentProblems; the E24 checks need a runtime machine', () => {
     const r = replay(runtimeLab, [BUILD_EXEC, 'docker run -d --name w -m 64m api:exec node worker.js', 'sleep 5', STATUS, 'docker inspect -f "{{.State.OOMKilled}}" w']);
     const content = { machines: [runtimeLab], examples: [{ id: 'oom', title: 'OOM', description: '記憶體不足。', machine: 'rt-01', steps: r.steps.map(s => ({ command: s.command, output: s.output })) }], exercises: [gracefulExercise] };

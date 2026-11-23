@@ -73,6 +73,7 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '資料與網路', summary: '可寫層與具名 Volume、copy-up、bind mount 與唯讀、tmpfs、--mount、匿名 Volume 與清理、以 tar 備份與還原、以 UID 判斷的權限；預設 bridge 與自訂網路、內建 DNS、網路隔離、容器埠與公開埠、network connect、host 與 none 網路', lessonIds: range('DKR', 7, 8) },
     { title: 'Compose 與 Image 發布', summary: 'compose.yaml 的服務、變數、Volume 與健康檢查、depends_on 的等待條件、docker compose 的日常操作；多階段建置、COPY --from、distroless 與 scratch、--target 與建置參數；Registry、tag 與 digest、login 與權限、push 與 pull、latest 的風險與不可變標籤', lessonIds: range('DKR', 9, 11) },
     { title: '安全、除錯與上線準備', summary: '以資安審查找出 root、特權、socket 與留在層裡的機密，USER、能力、唯讀與 tmpfs、最小基底與弱點掃描；以狀態、日誌、inspect 與 events 除錯，結束碼、重啟迴圈與 OOMKilled；健康檢查、CPU 與記憶體上限、重新啟動策略、SIGTERM 與 PID 1 的優雅關閉', lessonIds: range('DKR', 12, 14) },
+    { title: '綜合專題', summary: '分六關把三層式的應用從筆電帶到可以上線：多階段、非 root 的 Image，Compose 開發環境與健康檢查，找出並移除留在舊 Image 的金鑰，版本標籤與私有 Registry，以 digest 與正式環境的設定上線，依檢查清單驗收並修好手動部署造成的故障', lessonIds: ['DKR15'] },
   ],
   'network-servers': [
     { title: '位址、名稱與請求', summary: '公有與私有 IP、介面與路由、監聽埠與 socket、ss、lsof 與 nc；DNS 區域、A／CNAME／MX／TXT、TTL 與快取、dig；用 curl 讀懂 HTTP 請求、回應、狀態碼與重新導向', lessonIds: range('SRV', 1, 3) },
