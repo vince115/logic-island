@@ -202,7 +202,7 @@ export function parsePlan(kind: RolloutPlanTask['strategy'], answer: Record<stri
   return { strategy: { kind: 'canary', steps: steps.map(m => ({ weight: Number(m![1]), holdMinutes: Number(m![2]) })) }, messages };
 }
 
-const CONSTRAINT_TEXT: Record<Exclude<keyof PlanConstraints, 'completeBy' | 'outcome'>, [label: string, of: (r: RolloutResult) => number]> = {
+const CONSTRAINT_TEXT: Record<Exclude<keyof PlanConstraints, 'completeBy' | 'outcome' | 'gateFailed'>, [label: string, of: (r: RolloutResult) => number]> = {
   maxErrors: ['錯誤的請求', r => r.totals.errors],
   maxDropped: ['丟棄的請求', r => r.totals.dropped],
   maxAffected: ['受影響的請求（錯誤＋丟棄）', r => r.totals.affected],
@@ -215,6 +215,7 @@ export function constraintTexts(c: PlanConstraints): string[] {
     .flatMap(([k, [label]]) => c[k] === undefined ? [] : [`${label}最多 ${c[k]}`]);
   if (c.completeBy !== undefined) out.push(`在第 ${c.completeBy} 分鐘以前完成`);
   if (c.outcome) out.push(`結果是「${OUTCOME_TEXT[c.outcome].shown}」`);
+  if (c.gateFailed) out.push('由閘門在足夠的樣本上判定失敗而中止');
   return out;
 }
 export const outcomeText = (o: keyof typeof OUTCOME_TEXT) => OUTCOME_TEXT[o].shown;
@@ -228,6 +229,12 @@ export function planViolations(c: PlanConstraints, r: RolloutResult): string[] {
   if (c.completeBy !== undefined && !(r.outcome === 'completed' && r.completedAt! <= c.completeBy))
     out.push(r.outcome === 'completed' ? `第 ${r.completedAt} 分鐘才完成，晚於第 ${c.completeBy} 分鐘。` : `部署沒有完成（${OUTCOME_TEXT[r.outcome].shown}），要在第 ${c.completeBy} 分鐘前完成。`);
   if (c.outcome && r.outcome !== c.outcome) out.push(`結果是「${OUTCOME_TEXT[r.outcome].shown}」，題目要的是「${OUTCOME_TEXT[c.outcome].shown}」。`);
+  if (c.gateFailed) {
+    const last = r.gates.at(-1);
+    if (!last || last.verdict !== 'fail') out.push(last?.verdict === 'insufficient'
+      ? `第 ${last.step} 步只收到 ${last.requests} 個請求，樣本不足就中止了；要讓閘門在足夠的樣本上判定失敗。`
+      : '沒有任何閘門判定失敗。');
+  }
   return out;
 }
 export function simulatePlan(task: RolloutPlanTask, c: DevopsLessonContent, strategy: Strategy): RolloutResult {
@@ -338,8 +345,9 @@ export function devopsContentProblems(c: DevopsLessonContent): string[] {
           const bad = strategyProblems(p.reference, rollout.scenario.fleet.instances);
           if (bad.length) { fail(`the reference plan: ${bad.join('; ')}`); sound = false; }
         }
-        const limits = Object.entries(p.constraints).filter(([k]) => k !== 'outcome');
-        if (!limits.length && !p.constraints.outcome) fail('a plan needs at least one constraint');
+        const limits = Object.entries(p.constraints).filter(([k]) => k !== 'outcome' && k !== 'gateFailed');
+        if (!limits.length && !p.constraints.outcome && !p.constraints.gateFailed) fail('a plan needs at least one constraint');
+        if (p.constraints.gateFailed !== undefined && (p.constraints.gateFailed !== true || p.strategy !== 'canary')) fail('gateFailed is true, for a canary plan');
         for (const [k, v] of limits) if (!Number.isInteger(v) || (v as number) < 0) fail(`constraint ${k} is a whole number ≥ 0`);
         if (p.constraints.outcome && p.constraints.outcome !== 'completed' && p.constraints.outcome !== 'rolled-back') fail(`unknown outcome ${p.constraints.outcome}`);
         if (sound) {

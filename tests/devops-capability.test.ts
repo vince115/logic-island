@@ -10,7 +10,7 @@ import { labRegistry } from '@/content/world/labs';
 import planning from '@/content/world/planning-data.json';
 import { publishProblems } from '@/lib/curriculum/publish-gate';
 import { alertConstraintTexts, alertPlanAnswer, alertViolations, parseAlertPlan } from '@/lib/devops/dashboard-check';
-import { checkDevopsAnswer, devopsContentProblems, devopsQueryValue, matchesDevopsValue, parseDevopsNumber, parsePlan, referenceAnswer } from '@/lib/devops/check';
+import { checkDevopsAnswer, constraintTexts, devopsContentProblems, devopsQueryValue, matchesDevopsValue, parseDevopsNumber, parsePlan, referenceAnswer } from '@/lib/devops/check';
 import { conditionText, evaluateAlert, ruleValueText } from '@/lib/devops/alerts';
 import { dashboardProblems, evaluateOn, type Dashboard } from '@/lib/devops/dashboard';
 import { incidentTimes, severityOf } from '@/lib/devops/incident';
@@ -389,6 +389,16 @@ describe('devops exercises: answers computed from the data', () => {
       plan: { rollout: 'bad-canary', strategy: 'canary', constraints: { maxErrors: 20, outcome: 'rolled-back' }, reference: { kind: 'canary', steps: [{ weight: 10, holdMinutes: 2 }, { weight: 100, holdMinutes: 2 }] } } };
     expect(checkDevopsAnswer(canaryPlan, content, { steps: '10/2, 100/2' }).ok).toBe(true);
     expect(checkDevopsAnswer(canaryPlan, content, { steps: '50/2, 100/2' }).messages[0]).toMatch(/^錯誤的請求有 \d+，超過上限 20。$/);
+    // CICD-5: gateFailed — a step too small to judge also rolls back with few errors; with gateFailed it does not pass.
+    // (10% for 2 minutes is 200 requests, below the gate's minimum: it rolls back with 19 errors without judging; 25% is 500 and fails with 34.)
+    const judged: DevopsExercise = { ...canaryPlan, mistakes: [{ answer: { steps: '10/2, 100/2' }, why: 'w' }],
+      plan: { ...canaryPlan.plan, constraints: { maxErrors: 40, outcome: 'rolled-back', gateFailed: true }, reference: { kind: 'canary', steps: [{ weight: 25, holdMinutes: 2 }, { weight: 100, holdMinutes: 2 }] } } } as DevopsExercise;
+    expect(checkDevopsAnswer(judged, content, { steps: '25/2, 100/2' }).ok).toBe(true);
+    expect(checkDevopsAnswer(judged, content, { steps: '10/2, 100/2' }).messages).toEqual(['第 1 步只收到 200 個請求，樣本不足就中止了；要讓閘門在足夠的樣本上判定失敗。']);
+    expect(devopsContentProblems({ ...devopsContent(), exercises: [judged] })).toEqual([]);
+    expect(constraintTexts({ outcome: 'rolled-back', gateFailed: true })).toEqual(['結果是「回滾」', '由閘門在足夠的樣本上判定失敗而中止']);
+    expect(devopsContentProblems({ ...devopsContent(), exercises: [{ ...judged, plan: { ...(judged as Extract<DevopsExercise, { kind: 'rollout-plan' }>).plan, strategy: 'rolling', reference: { kind: 'rolling', maxSurge: 1, maxUnavailable: 0 } } } as DevopsExercise] }))
+      .toContain('exercise c: gateFailed is true, for a canary plan');
   });
   it('validates content: computable answers, sound choices, failing mistakes, a passing reference plan', () => {
     expect(devopsContentProblems(content)).toEqual([]);

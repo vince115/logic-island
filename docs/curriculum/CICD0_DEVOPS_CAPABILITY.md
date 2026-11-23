@@ -198,7 +198,7 @@ v2 改成 50‰ 的金絲雀：第 1 步觀察第 2–3 分鐘，500 個請求�
 | `field` | 一格文字（`value`） | 查詢的值必須是文字（版本 id、結果） |
 | `choice` | 選一個選項（`choice` = 序號） | 每個選項寫它代表的值；資料必須恰好讓一個選項正確 |
 | `table` | 多格（每個 `blank.id`） | 各格自己的查詢 |
-| `rollout-plan` | 策略參數（滾動：`maxSurge`、`maxUnavailable`；藍綠：`verifyMinutes`、`keepBlueMinutes`；金絲雀：`steps`，寫成 `10/5, 50/5, 100/5`） | 用學習者的參數重新模擬，逐項檢查條件（`maxErrors`、`maxDropped`、`maxAffected`、`maxPeakInstances`、`maxExtraInstanceMinutes`、`completeBy`、`outcome`，都含等號）；符合的設定都通過。`reference` 是其中一種設定，作為參考解答顯示，驗證器確認它通過 |
+| `rollout-plan` | 策略參數（滾動：`maxSurge`、`maxUnavailable`；藍綠：`verifyMinutes`、`keepBlueMinutes`；金絲雀：`steps`，寫成 `10/5, 50/5, 100/5`） | 用學習者的參數重新模擬，逐項檢查條件（`maxErrors`、`maxDropped`、`maxAffected`、`maxPeakInstances`、`maxExtraInstanceMinutes`、`completeBy`、`outcome`，都含等號；CICD-5 加上金絲雀專用的 `gateFailed`：回滾必須是閘門在足夠的樣本上判定失敗造成的，樣本不足而中止不算，否則「把第一步設得很小」也能以很少的錯誤通過）；符合的設定都通過。`reference` 是其中一種設定，作為參考解答顯示，驗證器確認它通過 |
 
 | 查詢 `task` | 值 |
 |---|---|

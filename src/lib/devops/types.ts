@@ -59,6 +59,8 @@ export interface DevopsBlank { id: string; label: string; query: DevopsQuery }
 export interface PlanConstraints {
   maxErrors?: number; maxDropped?: number; maxAffected?: number; maxPeakInstances?: number; maxExtraInstanceMinutes?: number;
   completeBy?: number; outcome?: 'completed' | 'rolled-back';
+  /** CICD-5: the rollout must end because a gate judged a sufficient sample and failed (not an insufficient one). */
+  gateFailed?: true;
 }
 /**
  * rollout-plan: the learner sets the strategy's parameters; the checker simulates the rollout with them and checks the
