@@ -690,6 +690,7 @@ const mobileApps: Outline[] = [
   mobileFromBlueprint('MOB10', '說明低階裝置與開發用電腦的差距，在開發者工具用 CPU 與網路節流重現並找出長任務，以讓路、延後、防彈跳、requestAnimationFrame 與先讀後寫減輕主執行緒的負擔，讓動畫只改 transform 與 opacity，並用 visibilitychange 讓輪詢在頁面隱藏時暫停、回來時恢復。', 55),
   mobileFromBlueprint('MOB11', '用手機內建的螢幕閱讀器照著測試腳本把頁面聽一遍並記錄問題，替圖示控制項補上名稱、把自製按鈕換回原生按鈕；讓卡片在文字放大與 320px 寬的視窗下不被裁切、不必左右捲動，拿掉禁止縮放與方向鎖定，再替拖曳排序加上上移、下移按鈕，並用狀態訊息說出結果。', 50),
   mobileFromBlueprint('MOB12', '分辨瀏覽器的裝置模式、模擬器與真機各自驗證得到的範圍，把「哪一種問題要去哪裡驗證」寫成規則表與 whereToVerify，用遠端除錯查看真機上頁面的主控台、樣式與請求，依自己網站的資料訂出每個維度的值都被涵蓋的裝置測試矩陣與冒煙測試，並寫出可以重現的錯誤回報。', 45),
+  mobileFromBlueprint('MOB13', '分五關把小島外送做成可安裝、可離線的 PWA：底部分頁列與避開手勢列的操作列、44px 的觸控目標與少打字的結帳表單、通過檢查器的 Manifest、預先快取外殼並以網路優先回答菜單且會清理舊快取的 Service Worker、有名稱的圖示按鈕與狀態訊息和送達就停的輪詢，最後照驗收紀錄表在真機上逐項驗證並記錄。', 110),
 ];
 
 /** A lesson's id is its place in its island's list; an outline built from the blueprint must sit where its id says. */

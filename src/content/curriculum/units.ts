@@ -95,6 +95,7 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '路線選擇與安裝', summary: '原生 App、跨平台框架與 PWA 的取捨、從需求出發的選擇、功能偵測；Web App Manifest、圖示與 maskable、安裝條件與顯示模式', lessonIds: range('MOB', 7, 8) },
     { title: '離線與效能', summary: 'Service Worker 的生命週期、Cache API、依資源選擇快取策略、離線時的替代回應與新版本的更新流程；低階裝置、長任務與讓路、防彈跳、只動 transform 與 opacity、頁面隱藏時暫停輪詢', lessonIds: range('MOB', 9, 10) },
     { title: '行動無障礙與裝置測試', summary: '用手機的螢幕閱讀器照腳本測試、文字放大與 320px 的重排、不鎖方向、拖曳的替代操作；裝置模式、模擬器與真機各能驗證什麼、遠端除錯、測試矩陣與可重現的錯誤回報', lessonIds: range('MOB', 11, 12) },
+    { title: '綜合專題', summary: '分五關把小島外送做成可安裝、可離線的 PWA：分頁列與操作列、觸控目標與結帳表單、Manifest、會離線且會更新的 Service Worker、無障礙名稱與狀態訊息和會停止的輪詢，最後在真機上驗收並記錄', lessonIds: range('MOB', 13, 13) },
   ],
   // RWD-1 (2026-11-23): the responsive design island's first units; RWD-2 adds the grid and query units, RWD-3 the last two.
   'responsive-design': [

@@ -13,19 +13,19 @@
 
 ## 總覽
 
-已發布 **213／520**（41.0%）；規劃中 307。
+已發布 **218／520**（41.9%）；規劃中 302。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
 | 程式與資訊群島 | 120 | 40 | 75.0% |
 | AI 人工智慧群島 | 25 | 135 | 15.6% |
 | 數位設計群島 | 0 | 56 | 0.0% |
-| 網頁與應用開發群島 | 35 | 20 | 63.6% |
+| 網頁與應用開發群島 | 40 | 15 | 72.7% |
 | 系統與雲端工程群島 | 33 | 56 | 37.1% |
 
 ## 下一批（自動選擇）
 
-**行動應用島（MOB）**：MOB09 Service Worker 與離線、MOB10 行動效能與省電、MOB11 行動無障礙：螢幕閱讀器與縮放、MOB12 行動裝置測試：模擬器與真機、MOB13 行動應用島綜合專題：一個可離線的 PWA。島嶼能力：可用；這幾堂解鎖其他島的 0 堂。
+**Docker 容器島（DKR）**：DKR05 撰寫 Dockerfile、DKR06 Image 分層與建置快取、DKR07 Volume 與資料保存、DKR08 容器網路、DKR09 Docker Compose 多容器應用。島嶼能力：已備妥（可開始撰寫）；這幾堂解鎖其他島的 23 堂。
 
 能力缺口中最優先的是 **機器學習島（ML）**：需要 python-code + data-explorer (fixed datasets, metrics computed in the browser)；先修已滿足、可依序撰寫的有 25 堂，前 5 堂解鎖其他島的 39 堂。
 
@@ -57,7 +57,7 @@
 | 網頁與應用開發群島 | 網頁基礎島（WEB） | 15／15 | web-code (HTML, CSS and JavaScript pages in a sandboxed frame beside the DOM the browser built; exercises checked by steps on that page, verified in Chromium) | 可用 | 全島完成 | — |
 | 網頁與應用開發群島 | 前端開發島（FE） | 0／15 | web-code + state-flow trace | 缺少 | FE01–FE15（15 堂） | 缺少課程能力 |
 | 網頁與應用開發群島 | 響應式設計島（RWD） | 12／12 | web-code with preview widths and the resize step (one answer checked at several viewport widths); the standalone labs stay as further practice | 可用 | 全島完成 | — |
-| 網頁與應用開發群島 | 行動應用島（MOB） | 8／13 | web-code at phone sizes: pointer steps with modelled capture, touch targets measured with at least and at most, dialogs; analysis lessons are cases a learner repairs on a page | 可用 | MOB09–MOB13（5 堂） | — |
+| 網頁與應用開發群島 | 行動應用島（MOB） | 13／13 | web-code at phone sizes: pointer steps with modelled capture, touch targets measured with at least and at most, dialogs; analysis lessons are cases a learner repairs on a page | 可用 | 全島完成 | — |
 | 系統與雲端工程群島 | Linux 系統島（LNX） | 15／15 | terminal (machines as data, transcripts replayed to their exact output, exercises checked by replaying the learner's commands in the simulated shell) | 可用 | 全島完成 | — |
 | 系統與雲端工程群島 | Docker 容器島（DKR） | 4／15 | terminal (engine stage E20 containers: images, the container lifecycle, a simulated Docker Hub, published ports, the docker group; then E21-E24) + network-protocol scenes; container-playground and case-study-board map to terminal-sim, architecture-diagram and pipeline-diagram to network-sequence | 已備妥（可開始撰寫） | DKR05–DKR15（11 堂） | — |
 | 系統與雲端工程群島 | 網路與伺服器島（SRV） | 14／14 | terminal (engine stages E10 sockets, E11 dns, E12 http, then E13-E19) + network-protocol scenes; request-path and architecture-diagram map to network-sequence | 可用 | 全島完成 | — |
@@ -92,7 +92,7 @@
 | 企業資訊系統 | 44／84 | 否 |
 | AI 研究 | 62／142 | 否 |
 | AI 應用工程 | 31／89 | 否 |
-| 前端工程 | 42／62 | 否 |
+| 前端工程 | 47／62 | 否 |
 | 產品設計 | 0／56 | 否 |
 | AI 架構 | 23／66 | 否 |
 | 全端部署 | 43／62 | 否 |
@@ -647,11 +647,11 @@
 | MOB06 | 安全區域、方向與動態視窗高度 | 已發布（閘門通過） | RWD07 | dom-explorer | — |
 | MOB07 | 原生、跨平台與 PWA 的選擇 | 已發布（閘門通過） | MOB01 | dom-explorer | — |
 | MOB08 | PWA 基礎：Manifest 與安裝 | 已發布（閘門通過） | MOB07、WEB11 | dom-explorer | — |
-| MOB09 | Service Worker 與離線 | 大綱 | MOB08 | protocol-sequence | — |
-| MOB10 | 行動效能與省電 | 大綱 | MOB06 | metric-explorer | — |
-| MOB11 | 行動無障礙：螢幕閱讀器與縮放 | 大綱 | MOB02 | a11y-checker | — |
-| MOB12 | 行動裝置測試：模擬器與真機 | 大綱 | MOB06 | case-study-board | — |
-| MOB13 | 行動應用島綜合專題：一個可離線的 PWA | 待先修 | MOB05、MOB09、MOB11 | challenge-stages | 先修 MOB09、MOB11 |
+| MOB09 | Service Worker 與離線 | 已發布（閘門通過） | MOB08 | dom-explorer | — |
+| MOB10 | 行動效能與省電 | 已發布（閘門通過） | MOB06 | dom-explorer | — |
+| MOB11 | 行動無障礙：螢幕閱讀器與縮放 | 已發布（閘門通過） | MOB02 | dom-explorer | — |
+| MOB12 | 行動裝置測試：模擬器與真機 | 已發布（閘門通過） | MOB06 | dom-explorer | — |
+| MOB13 | 行動應用島綜合專題：一個可離線的 PWA | 已發布（閘門通過） | MOB05、MOB09、MOB11 | challenge-stages | — |
 
 ### 系統與雲端工程群島 · Linux 系統島（LNX）
 

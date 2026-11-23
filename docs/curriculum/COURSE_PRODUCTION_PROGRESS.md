@@ -6,11 +6,11 @@
 
 | 項目 | 數量 |
 |---|---|
-| 已發布課程 | 213 |
-| 規劃中課程 | 307 |
+| 已發布課程 | 218 |
+| 規劃中課程 | 302 |
 | 課程總數 | 520 |
-| 整體覆蓋率 | 41.0% |
-| 最近一批（第 38 批）完成 | 4 堂（MOB05、MOB06、MOB07、MOB08） |
+| 整體覆蓋率 | 41.9% |
+| 最近一批（第 40 批）完成 | 5 堂（MOB09、MOB10、MOB11、MOB12、MOB13） |
 | 可完整學完的學習路線 | 2 條（APCS／資訊科學基礎、網路與系統）／12 條 |
 
 ## 批次
@@ -54,7 +54,8 @@
 | 35 | 2026-11-23 | RWD09、RWD10、RWD11、RWD12 | `TBD` | #81 | `1b0705c` | 驗證器、發布閘門、TypeScript、ESLint、Vitest 134 檔 3845 passed／9 skipped（含 Chromium：31 堂網頁課的每個範例、參考解答、起始內容與常見錯誤，各在一般與傳統捲軸的瀏覽器跑一遍；picture 與 sizes 在載入與 resize 之後的量測）、Production build、E2E 桌機＋手機旗標關 499 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上每個練習各做一遍，含圖片來源的量測與選單按鈕的鍵盤操作）、RWD10 的圖片練習在裝置像素比 1、1.5、2、3 下結果相同、測驗 32 題逐題複核、洩漏掃描 |
 | 36 | 2026-11-23 | MOB01、MOB02、MOB03、MOB04 | `TBD` | #82 | `896db3d` | 驗證器、發布閘門、TypeScript、ESLint、Vitest 134 檔 3860 passed／9 skipped（含 Chromium：35 堂網頁課的每個範例、參考解答、起始內容與常見錯誤，各在一般與傳統捲軸的瀏覽器跑一遍；指標步驟與模擬的指標捕捉、box 的至少／至多、按鍵的 code、對話框的 close 與 method=dialog）、Production build、E2E 桌機＋手機旗標關 511 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上每個練習各做一遍，含 MOB04 的指標練習；Mobile Navigation Simulator 的課程連結）、測驗 32 題逐題複核、洩漏掃描 |
 | 37 | 2026-11-23 | DKR01、DKR02、DKR03、DKR04 | `TBD` | — | 未合併 | TBD |
-| 38 | 2026-11-23 | MOB05、MOB06、MOB07、MOB08 | `TBD` | — | 未合併 | 驗證器、發布閘門、TypeScript、ESLint、Vitest 137 檔 3991 passed／9 skipped（併入 main `e5da508` 之後的完整一輪；含 Chromium：39 堂網頁課的每個範例、參考解答、起始內容與常見錯誤，各在一般與傳統捲軸的瀏覽器跑一遍；練習指定的預覽高度、wait 之後的畫格；highlight 測試改成每 150 支程式一組）、Production build、E2E 桌機＋手機旗標關 521 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上每個練習各做一遍）、測驗 32 題逐題複核、洩漏掃描 |
+| 38 | 2026-11-23 | MOB05、MOB06、MOB07、MOB08 | `TBD` | #84 | `cc11e38` | 驗證器、發布閘門、TypeScript、ESLint、Vitest 137 檔 3991 passed／9 skipped（併入 main `e5da508` 之後的完整一輪；含 Chromium：39 堂網頁課的每個範例、參考解答、起始內容與常見錯誤，各在一般與傳統捲軸的瀏覽器跑一遍；練習指定的預覽高度、wait 之後的畫格；highlight 測試改成每 150 支程式一組）、Production build、E2E 桌機＋手機旗標關 521 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上每個練習各做一遍）、測驗 32 題逐題複核、洩漏掃描 |
+| 40 | 2026-11-23 | MOB09、MOB10、MOB11、MOB12、MOB13 | `TBD` | — | 未合併 | 驗證器、發布閘門、TypeScript、ESLint、Vitest 137 檔 4007 passed／9 skipped（含 Chromium：44 堂網頁課的每個範例、參考解答、起始內容與常見錯誤，各在一般與傳統捲軸的瀏覽器跑一遍；模擬的 Service Worker：第一次造訪、回訪與等待中的新版本、離線、瀏覽器會強制的規則；預覽面板的 DOM 測試）、Production build、E2E 桌機＋手機旗標關 533 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上每個練習各做一遍；MOB09 的 Service Worker 面板在真實課程頁上操作）、測驗 40 題逐題複核、洩漏掃描 |
 
 ## 各區域與島嶼
 
@@ -82,7 +83,7 @@
 | 網頁與應用開發群島 | 網頁基礎島 | WEB | 15 | 0 | 100.0% |
 | 網頁與應用開發群島 | 前端開發島 | FE | 0 | 15 | 0.0% |
 | 網頁與應用開發群島 | 響應式設計島 | RWD | 12 | 0 | 100.0% |
-| 網頁與應用開發群島 | 行動應用島 | MOB | 8 | 5 | 61.5% |
+| 網頁與應用開發群島 | 行動應用島 | MOB | 13 | 0 | 100.0% |
 | 系統與雲端工程群島 | Linux 系統島 | LNX | 15 | 0 | 100.0% |
 | 系統與雲端工程群島 | Docker 容器島 | DKR | 4 | 11 | 26.7% |
 | 系統與雲端工程群島 | 網路與伺服器島 | SRV | 14 | 0 | 100.0% |
@@ -369,15 +370,15 @@
 | MOB02 | 行動 UI 模式：Tab bar、Drawer、Bottom sheet | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已發布 |
 | MOB03 | 觸控目標與手勢的實作 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已發布 |
 | MOB04 | Pointer Events 與觸控事件 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已發布 |
-| MOB05 | 行動表單與虛擬鍵盤 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已完成（待合併） |
-| MOB06 | 安全區域、方向與動態視窗高度 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已完成（待合併） |
-| MOB07 | 原生、跨平台與 PWA 的選擇 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已完成（待合併） |
-| MOB08 | PWA 基礎：Manifest 與安裝 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已完成（待合併） |
-| MOB09 | Service Worker 與離線 | 規劃中 | 大綱 | — | — | — | 規劃中 |
-| MOB10 | 行動效能與省電 | 規劃中 | 大綱 | — | — | — | 規劃中 |
-| MOB11 | 行動無障礙：螢幕閱讀器與縮放 | 規劃中 | 大綱 | — | — | — | 規劃中 |
-| MOB12 | 行動裝置測試：模擬器與真機 | 規劃中 | 大綱 | — | — | — | 規劃中 |
-| MOB13 | 行動應用島綜合專題：一個可離線的 PWA | 規劃中 | 大綱 | — | — | — | 規劃中 |
+| MOB05 | 行動表單與虛擬鍵盤 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已發布 |
+| MOB06 | 安全區域、方向與動態視窗高度 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已發布 |
+| MOB07 | 原生、跨平台與 PWA 的選擇 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已發布 |
+| MOB08 | PWA 基礎：Manifest 與安裝 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已發布 |
+| MOB09 | Service Worker 與離線 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已完成（待合併） |
+| MOB10 | 行動效能與省電 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已完成（待合併） |
+| MOB11 | 行動無障礙：螢幕閱讀器與縮放 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已完成（待合併） |
+| MOB12 | 行動裝置測試：模擬器與真機 | 完成 | 100% | 活動 dom-explorer | 通過 | `TBD` | 已完成（待合併） |
+| MOB13 | 行動應用島綜合專題：一個可離線的 PWA | 完成 | 100% | 活動 challenge-stages | 通過 | `TBD` | 已完成（待合併） |
 
 ### 系統與雲端工程群島 · Linux 系統島（LNX）
 
