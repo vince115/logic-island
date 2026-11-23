@@ -70,6 +70,7 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
   'docker-containers': [
     { title: '容器與 Docker 入門', summary: '容器與虛擬機、namespace 與 cgroup、共用核心；Docker client、daemon、containerd 與 runc、socket 與 docker 群組、Registry 與 Image 名稱；Image 與 Container 的生命週期、可寫層與日誌、結束碼與清理；docker run、ps、logs、exec、連接埠對應與常見錯誤', lessonIds: range('DKR', 1, 4) },
     { title: 'Dockerfile 與建置快取', summary: 'FROM 與基底 Image、RUN、COPY、WORKDIR、ENV、ARG、EXPOSE、USER、CMD 與 ENTRYPOINT 的 exec 與 shell 形式、.dockerignore；層與 docker history、快取鍵與失效、指令順序、Image 大小與清理', lessonIds: range('DKR', 5, 6) },
+    { title: '資料與網路', summary: '可寫層與具名 Volume、copy-up、bind mount 與唯讀、tmpfs、--mount、匿名 Volume 與清理、以 tar 備份與還原、以 UID 判斷的權限；預設 bridge 與自訂網路、內建 DNS、網路隔離、容器埠與公開埠、network connect、host 與 none 網路', lessonIds: range('DKR', 7, 8) },
   ],
   'network-servers': [
     { title: '位址、名稱與請求', summary: '公有與私有 IP、介面與路由、監聽埠與 socket、ss、lsof 與 nc；DNS 區域、A／CNAME／MX／TXT、TTL 與快取、dig；用 curl 讀懂 HTTP 請求、回應、狀態碼與重新導向', lessonIds: range('SRV', 1, 3) },

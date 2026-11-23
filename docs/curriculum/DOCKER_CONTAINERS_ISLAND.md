@@ -14,6 +14,8 @@
 | DKR04 | Docker CLI 常用指令<br>`docker-cli-essentials` | 入門 | 55 分 | DKR03 | 2 台（containers） | 6 段、5 段終端機紀錄、5 個終端機練習（以連接埠對應發布 nginx、修正連接埠被占用、找出發布某個埠的容器、從日誌讀出狀態碼、用 exec 讀設定）、7 題 | **完整 v1.0.0** |
 | DKR05 | 撰寫 Dockerfile<br>`writing-dockerfiles` | 中級 | 55 分 | DKR04、LNX09 | 3 台（images：沒有 Dockerfile、壞掉的 Dockerfile、可用的專案） | 6 段、5 段終端機紀錄、5 個終端機練習（寫出 Dockerfile 並以 -p 執行、修好壞掉的 Dockerfile、用 .dockerignore 擋住 .env、改以非 root 執行、ENTRYPOINT 與 CMD 的組合）、7 題 | **完整 v1.0.0** |
 | DKR06 | Image 分層與建置快取<br>`image-layers-and-build-cache` | 中級 | 55 分 | DKR05 | 1 台（images：五個專案與數個基底 Image） | 6 段、5 段終端機紀錄、4 個終端機練習（調整指令順序讓安裝維持 CACHED、在同一個 RUN 清理縮小 Image、從 docker history 找出最大的層、修正讓快取每次失效的 .dockerignore）、7 題 | **完整 v1.0.0** |
+| DKR07 | Volume 與資料保存<br>`volumes-and-persistent-data` | 中級 | 55 分 | DKR04、LNX07 | 1 台（storage-net：資料庫、網站與匯出工具的主機） | 6 段、5 段終端機紀錄、4 個終端機練習（升級資料庫並沿用 Volume、bind mount 的網頁即時上線、備份並還原 Volume、讓 UID 10001 寫得進主機資料夾）、8 題 | **完整 v1.0.0** |
+| DKR08 | 容器網路<br>`container-networking` | 中級 | 55 分 | DKR04 | 6 台（storage-net：同一台主機的六種網路狀態） | 6 段、5 段終端機紀錄、4 個終端機練習（把預設 bridge 上的服務移到自訂網路、修正以 localhost 連其他容器的設定、以前後端網路隔離資料庫、讀出容器的位址）、7 題 | **完整 v1.0.0** |
 
 ## 單元
 
@@ -21,6 +23,7 @@
 |---|---|
 | 容器與 Docker 入門 | DKR01–DKR04 |
 | Dockerfile 與建置快取 | DKR05–DKR06 |
+| 資料與網路 | DKR07–DKR08 |
 
 ## 模擬器的已知差異（課文已說明或避開）
 

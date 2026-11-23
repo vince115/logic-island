@@ -13,7 +13,7 @@
 
 ## 總覽
 
-已發布 **215／520**（41.3%）；規劃中 305。
+已發布 **217／520**（41.7%）；規劃中 303。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
@@ -21,7 +21,7 @@
 | AI 人工智慧群島 | 25 | 135 | 15.6% |
 | 數位設計群島 | 0 | 56 | 0.0% |
 | 網頁與應用開發群島 | 35 | 20 | 63.6% |
-| 系統與雲端工程群島 | 35 | 54 | 39.3% |
+| 系統與雲端工程群島 | 37 | 52 | 41.6% |
 
 ## 下一批（自動選擇）
 
@@ -59,7 +59,7 @@
 | 網頁與應用開發群島 | 響應式設計島（RWD） | 12／12 | web-code with preview widths and the resize step (one answer checked at several viewport widths); the standalone labs stay as further practice | 可用 | 全島完成 | — |
 | 網頁與應用開發群島 | 行動應用島（MOB） | 8／13 | web-code at phone sizes: pointer steps with modelled capture, touch targets measured with at least and at most, dialogs; analysis lessons are cases a learner repairs on a page | 可用 | MOB09–MOB13（5 堂） | — |
 | 系統與雲端工程群島 | Linux 系統島（LNX） | 15／15 | terminal (machines as data, transcripts replayed to their exact output, exercises checked by replaying the learner's commands in the simulated shell) | 可用 | 全島完成 | — |
-| 系統與雲端工程群島 | Docker 容器島（DKR） | 6／15 | terminal (engine stage E20 containers: images, the container lifecycle, a simulated Docker Hub, published ports, the docker group; then E21-E24) + network-protocol scenes; container-playground and case-study-board map to terminal-sim, architecture-diagram and pipeline-diagram to network-sequence | 已備妥（可開始撰寫） | DKR07–DKR15（9 堂） | — |
+| 系統與雲端工程群島 | Docker 容器島（DKR） | 8／15 | terminal (engine stage E20 containers: images, the container lifecycle, a simulated Docker Hub, published ports, the docker group; then E21-E24) + network-protocol scenes; container-playground and case-study-board map to terminal-sim, architecture-diagram and pipeline-diagram to network-sequence | 已備妥（可開始撰寫） | DKR09–DKR15（7 堂） | — |
 | 系統與雲端工程群島 | 網路與伺服器島（SRV） | 14／14 | terminal (engine stages E10 sockets, E11 dns, E12 http, then E13-E19) + network-protocol scenes; request-path and architecture-diagram map to network-sequence | 可用 | 全島完成 | — |
 | 系統與雲端工程群島 | 雲端基礎設施島（CLD） | 0／15 | architecture simulation | 缺少 | CLD01–CLD15（15 堂） | 缺少課程能力 |
 | 系統與雲端工程群島 | DevOps 與 CI/CD 島（CICD） | 0／15 | pipeline simulation | 缺少 | CICD01–CICD05（5 堂） | 缺少課程能力；CICD06 需要尚未發布的 DKR11 |
@@ -95,9 +95,9 @@
 | 前端工程 | 42／62 | 否 |
 | 產品設計 | 0／56 | 否 |
 | AI 架構 | 23／66 | 否 |
-| 全端部署 | 44／62 | 否 |
-| AI 基礎設施 | 31／60 | 否 |
-| 雲端與 DevOps 基礎 | 25／48 | 否 |
+| 全端部署 | 46／62 | 否 |
+| AI 基礎設施 | 33／60 | 否 |
+| 雲端與 DevOps 基礎 | 27／48 | 否 |
 
 ## 先修依賴檢查
 
@@ -683,9 +683,9 @@
 | DKR04 | Docker CLI 常用指令 | 已發布（閘門通過） | DKR03 | terminal-sim | — |
 | DKR05 | 撰寫 Dockerfile | 已發布（閘門通過） | DKR04、LNX09 | terminal-sim | — |
 | DKR06 | Image 分層與建置快取 | 已發布（閘門通過） | DKR05 | terminal-sim | — |
-| DKR07 | Volume 與資料保存 | 大綱 | DKR04、LNX07 | container-playground | — |
-| DKR08 | 容器網路 | 大綱 | DKR04 | container-playground | — |
-| DKR09 | Docker Compose 多容器應用 | 待先修 | DKR07、DKR08 | container-playground | 先修 DKR07、DKR08 |
+| DKR07 | Volume 與資料保存 | 已發布（閘門通過） | DKR04、LNX07 | terminal-sim | — |
+| DKR08 | 容器網路 | 已發布（閘門通過） | DKR04 | terminal-sim | — |
+| DKR09 | Docker Compose 多容器應用 | 大綱 | DKR07、DKR08 | container-playground | — |
 | DKR10 | 多階段建置 | 大綱 | DKR06 | container-playground | — |
 | DKR11 | Container Registry 與版本標籤 | 大綱 | DKR05 | pipeline-diagram | — |
 | DKR12 | 容器安全 | 待先修 | DKR10、LNX07 | case-study-board | 先修 DKR10 |
@@ -763,7 +763,7 @@
 | KUB05 | Service 與服務發現 | 待能力 | KUB04 | cluster-sim | 課程能力、先修 KUB04 |
 | KUB06 | ConfigMap 與 Secret | 待能力 | KUB04、CICD08 | cluster-sim | 課程能力、先修 KUB04、CICD08 |
 | KUB07 | Ingress 與 Gateway API | 待能力 | KUB05、SRV07 | request-path | 課程能力、先修 KUB05 |
-| KUB08 | Persistent Volume 與有狀態應用 | 待能力 | KUB04、DKR07 | cluster-sim | 課程能力、先修 KUB04、DKR07 |
+| KUB08 | Persistent Volume 與有狀態應用 | 待能力 | KUB04、DKR07 | cluster-sim | 課程能力、先修 KUB04 |
 | KUB09 | Helm 套件管理 | 待能力 | KUB06 | cluster-sim | 課程能力、先修 KUB06 |
 | KUB10 | 自動擴展 | 待能力 | KUB04 | cluster-sim | 課程能力、先修 KUB04 |
 | KUB11 | 滾動更新與回滾 | 待能力 | KUB04、CICD10 | cluster-sim | 課程能力、先修 KUB04、CICD10 |

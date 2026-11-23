@@ -557,7 +557,20 @@
       ],
       "commit": "TBD",
       "tests": "TBD",
-      "notes": "DKR-2：引擎階段 E21（images：docker build 與 Dockerfile 子集、BuildKit 的純文字輸出與錯誤格式、確定性的層與大小、以前一步、指令與複製檔案 checksum 為鍵的建置快取、.dockerignore、docker history、image inspect 與 prune、從這個 profile 起主機的 ps 列出容器行程）；撰寫 Dockerfile、Image 分層與建置快取兩課"
+      "notes": "DKR-2：引擎階段 E21（images：docker build 與 Dockerfile 子集、BuildKit 的純文字輸出與錯誤格式、確定性的層與大小、以前一步、指令與複製檔案 checksum 為鍵的建置快取、.dockerignore、docker history、image inspect 與 prune、從這個 profile 起主機的 ps 列出容器行程）；撰寫 Dockerfile、Image 分層與建置快取兩課",
+      "pr": "#85",
+      "merged": "7d63b60"
+    },
+    {
+      "id": 40,
+      "date": "2026-11-23",
+      "lessons": [
+        "DKR07",
+        "DKR08"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "DKR-3：引擎階段 E22（storage-net：具名 Volume 與 copy-up、匿名 Volume 與 Dockerfile 的 VOLUME、bind mount 與 :ro、--mount 與 tmpfs、以 UID 對應擁有者與權限、tar 備份與還原；docker network 與每個網路的位址、只在自訂網路上的內建 DNS、網路隔離、容器埠與公開埠、host 與 none 網路；volume、network 與容器內 reach 檢查）；Volume 與資料保存、容器網路兩課"
     }
   ]
 }
