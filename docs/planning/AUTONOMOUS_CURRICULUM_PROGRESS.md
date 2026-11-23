@@ -13,7 +13,7 @@
 
 ## 總覽
 
-已發布 **240／520**（46.2%）；規劃中 280。
+已發布 **243／520**（46.7%）；規劃中 277。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
@@ -21,11 +21,11 @@
 | AI 人工智慧群島 | 25 | 135 | 15.6% |
 | 數位設計群島 | 0 | 56 | 0.0% |
 | 網頁與應用開發群島 | 40 | 15 | 72.7% |
-| 系統與雲端工程群島 | 55 | 34 | 61.8% |
+| 系統與雲端工程群島 | 58 | 31 | 65.2% |
 
 ## 下一批（自動選擇）
 
-**DevOps 與 CI/CD 島（CICD）**：CICD12 集中式日誌、CICD13 回滾與發布安全、CICD14 事故應變與事後檢討、CICD15 DevOps 與 CI/CD 島綜合專題：從 commit 到上線。島嶼能力：已備妥（可開始撰寫）；這幾堂解鎖其他島的 3 堂。
+**DevOps 與 CI/CD 島（CICD）**：CICD15 DevOps 與 CI/CD 島綜合專題：從 commit 到上線。島嶼能力：已備妥（可開始撰寫）；這幾堂解鎖其他島的 0 堂。
 
 能力缺口中最優先的是 **機器學習島（ML）**：需要 python-code + data-explorer (fixed datasets, metrics computed in the browser)；先修已滿足、可依序撰寫的有 25 堂，前 5 堂解鎖其他島的 39 堂。
 
@@ -62,8 +62,8 @@
 | 系統與雲端工程群島 | Docker 容器島（DKR） | 15／15 | terminal (engine stage E20 containers: images, the container lifecycle, a simulated Docker Hub, published ports, the docker group; then E21-E24) + network-protocol scenes; container-playground and case-study-board map to terminal-sim, architecture-diagram and pipeline-diagram to network-sequence | 已備妥（可開始撰寫） | 全島完成 | — |
 | 系統與雲端工程群島 | 網路與伺服器島（SRV） | 14／14 | terminal (engine stages E10 sockets, E11 dns, E12 http, then E13-E19) + network-protocol scenes; request-path and architecture-diagram map to network-sequence | 可用 | 全島完成 | — |
 | 系統與雲端工程群島 | 雲端基礎設施島（CLD） | 0／15 | architecture simulation | 缺少 | CLD01–CLD15（15 堂） | 缺少課程能力 |
-| 系統與雲端工程群島 | DevOps 與 CI/CD 島（CICD） | 11／15 | devops-explorer (D1 deployment histories and DORA metrics, D2 the deployment-simulator: rollouts, gates, migrations, feature flags; then D3 dashboards, D4 logs) + terminal (engine stages E25 git, E26 forge, E27 workflows, E28 actions, E29 artifacts, E30 environments, E31 deploy-hosts); a per-lesson mapping (CICD_SHAPES) | 已備妥（可開始撰寫） | CICD12–CICD15（4 堂） | — |
-| 系統與雲端工程群島 | Kubernetes 與可靠性工程島（KUB） | 0／15 | cluster simulation | 缺少 | KUB01–KUB12（12 堂） | 缺少課程能力；KUB13 需要尚未發布的 CICD12 |
+| 系統與雲端工程群島 | DevOps 與 CI/CD 島（CICD） | 14／15 | devops-explorer (D1 deployment histories and DORA metrics, D2 the deployment-simulator: rollouts, gates, migrations, feature flags; then D3 dashboards, D4 logs) + terminal (engine stages E25 git, E26 forge, E27 workflows, E28 actions, E29 artifacts, E30 environments, E31 deploy-hosts); a per-lesson mapping (CICD_SHAPES) | 已備妥（可開始撰寫） | CICD15–CICD15（1 堂） | — |
+| 系統與雲端工程群島 | Kubernetes 與可靠性工程島（KUB） | 0／15 | cluster simulation | 缺少 | KUB01–KUB15（15 堂） | 缺少課程能力 |
 
 ## 能力缺口
 
@@ -80,7 +80,7 @@
 | 設計系統島（DSY） | design-token board | 12 | 0 | — |
 | 前端開發島（FE） | web-code + state-flow trace | 15 | 0 | — |
 | 雲端基礎設施島（CLD） | architecture simulation | 15 | 0 | — |
-| Kubernetes 與可靠性工程島（KUB） | cluster simulation | 12 | 0 | — |
+| Kubernetes 與可靠性工程島（KUB） | cluster simulation | 15 | 0 | — |
 
 ## 學習路線
 
@@ -96,7 +96,7 @@
 | 產品設計 | 0／56 | 否 |
 | AI 架構 | 23／66 | 否 |
 | 全端部署 | 55／62 | 否 |
-| AI 基礎設施 | 44／60 | 否 |
+| AI 基礎設施 | 45／60 | 否 |
 | 雲端與 DevOps 基礎 | 37／48 | 否 |
 
 ## 先修依賴檢查
@@ -747,10 +747,10 @@
 | CICD09 | 部署管線 | 已發布（閘門通過） | CICD06、CICD07 | terminal-sim | — |
 | CICD10 | 部署策略：滾動、藍綠與金絲雀 | 已發布（閘門通過） | CICD09 | deployment-simulator | — |
 | CICD11 | 監控與告警 | 已發布（閘門通過） | CICD09 | monitoring-dashboard | — |
-| CICD12 | 集中式日誌 | 大綱 | CICD11 | monitoring-dashboard | — |
-| CICD13 | 回滾與發布安全 | 大綱 | CICD10、CICD11 | pipeline-sim | — |
-| CICD14 | 事故應變與事後檢討 | 待先修 | CICD12、CICD13 | case-study-board | 先修 CICD12、CICD13 |
-| CICD15 | DevOps 與 CI/CD 島綜合專題：從 commit 到上線 | 待先修 | CICD05、CICD08、CICD14 | challenge-stages | 先修 CICD14 |
+| CICD12 | 集中式日誌 | 已發布（閘門通過） | CICD11 | monitoring-dashboard | — |
+| CICD13 | 回滾與發布安全 | 已發布（閘門通過） | CICD10、CICD11 | terminal-sim | — |
+| CICD14 | 事故應變與事後檢討 | 已發布（閘門通過） | CICD12、CICD13 | terminal-sim | — |
+| CICD15 | DevOps 與 CI/CD 島綜合專題：從 commit 到上線 | 大綱 | CICD05、CICD08、CICD14 | challenge-stages | — |
 
 ### 系統與雲端工程群島 · Kubernetes 與可靠性工程島（KUB）
 
@@ -768,6 +768,6 @@
 | KUB10 | 自動擴展 | 待能力 | KUB04 | cluster-sim | 課程能力、先修 KUB04 |
 | KUB11 | 滾動更新與回滾 | 待能力 | KUB04、CICD10 | cluster-sim | 課程能力、先修 KUB04 |
 | KUB12 | 叢集監控 | 待能力 | KUB05、CICD11 | monitoring-dashboard | 課程能力、先修 KUB05 |
-| KUB13 | 可觀測性：指標、日誌與追蹤 | 待能力 | KUB12、CICD12 | metric-explorer | 課程能力、先修 KUB12、CICD12 |
+| KUB13 | 可觀測性：指標、日誌與追蹤 | 待能力 | KUB12、CICD12 | metric-explorer | 課程能力、先修 KUB12 |
 | KUB14 | SLI、SLO 與 SLA | 待能力 | KUB13 | metric-explorer | 課程能力、先修 KUB13 |
-| KUB15 | Kubernetes 與可靠性工程島綜合專題：SRE 實務演練 | 待能力 | KUB07、KUB08、KUB09、KUB10、KUB11、KUB14、CICD14 | challenge-stages | 課程能力、先修 KUB07、KUB08、KUB09、KUB10、KUB11、KUB14、CICD14 |
+| KUB15 | Kubernetes 與可靠性工程島綜合專題：SRE 實務演練 | 待能力 | KUB07、KUB08、KUB09、KUB10、KUB11、KUB14、CICD14 | challenge-stages | 課程能力、先修 KUB07、KUB08、KUB09、KUB10、KUB11、KUB14 |

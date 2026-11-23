@@ -692,7 +692,21 @@
       ],
       "commit": "TBD",
       "tests": "TBD",
-      "notes": "CICD-5：終端機引擎階段 E30 environments（必要審核者、等待計時、部署分支規則、concurrency、部署紀錄）與 E31 deploy-hosts（以 ssh 連到有 Docker 的主機部署、冒煙測試與以 digest 回滾），devops-explorer 的 D3（四大黃金訊號的儀表板、告警規則、偵測延遲、誤報與告警疲勞、事故時間線；monitoring-dashboard 改為已實作）與 D2 部署計畫的 gateFailed；部署管線、部署策略、監控與告警三課"
+      "notes": "CICD-5：終端機引擎階段 E30 environments（必要審核者、等待計時、部署分支規則、concurrency、部署紀錄）與 E31 deploy-hosts（以 ssh 連到有 Docker 的主機部署、冒煙測試與以 digest 回滾），devops-explorer 的 D3（四大黃金訊號的儀表板、告警規則、偵測延遲、誤報與告警疲勞、事故時間線；monitoring-dashboard 改為已實作）與 D2 部署計畫的 gateFailed；部署管線、部署策略、監控與告警三課",
+      "pr": "#95",
+      "merged": "160e5e8"
+    },
+    {
+      "id": 50,
+      "date": "2026-11-24",
+      "lessons": [
+        "CICD12",
+        "CICD13",
+        "CICD14"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "CICD-6：devops-explorer 的 D4 集中式日誌（結構化與非結構化、篩選與分組、關聯 ID 追蹤、遮蔽規則與 redact 檢查、保留容量）；集中式日誌、回滾與發布安全、事故應變與事後檢討三課"
     }
   ]
 }

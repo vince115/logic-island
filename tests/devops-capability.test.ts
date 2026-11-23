@@ -137,7 +137,7 @@ describe('the devops-cicd island: prepared in CICD-0, published from CICD-1', ()
     for (const a of activities.filter(x => x.type === 'activity' && x.availability === 'planned')) expect(a.accessibility.textAlternative, a.id).toBe('必要：實作時提供與畫面等效的文字說明');
   });
   it('makes monitoring-dashboard implemented once a complete lesson uses it (CICD-5: CICD11 on D3)', () => {
-    expect(lessons.filter(l => l.activity === 'monitoring-dashboard').map(l => l.lessonId)).toEqual(['CICD11']);
+    expect(lessons.filter(l => l.activity === 'monitoring-dashboard').map(l => l.lessonId)).toEqual(['CICD11', 'CICD12']); // CICD-6: CICD12 on D4
     expect(getActivity('monitoring-dashboard')).toMatchObject({ availability: 'implemented', version: '1.0.0' });
     expect(getActivity('monitoring-dashboard')!.accessibility.textAlternative).not.toMatch(/^必要/);
     // The blueprint's six lessons on three islands name it (CICD11/12, OPS13/14/19, KUB12).

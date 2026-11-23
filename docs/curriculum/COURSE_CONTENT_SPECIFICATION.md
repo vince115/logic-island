@@ -90,6 +90,7 @@
 | CICD-3 | CICD03–05 | 終端機引擎階段 E27（`workflows`：workflow 模型、觸發、運算式與權限）與 E28（`actions`：run 在模擬的 runner 上執行、CI 工具、gh run）＋三課 |
 | CICD-4 | CICD06–08 | 終端機引擎階段 E29（`artifacts`：快取、產出物、runner 上的 Docker、secret 與 variable 與遮蔽、GITHUB_TOKEN 的影響）＋三課 |
 | CICD-5 | CICD09–11 | 終端機引擎階段 E30（`environments`：審核、等待計時、部署分支規則、concurrency 與部署紀錄）、E31（`deploy-hosts`：以 ssh 連到有 Docker 的主機部署與冒煙測試），devops-explorer 的 D3（儀表板與告警，`monitoring-dashboard`）＋三課 |
+| CICD-6 | CICD12–14 | devops-explorer 的 D4（集中式日誌：篩選、關聯 ID、遮蔽、保留容量）＋三課（日誌、回滾與發布安全、事故應變） |
 | SRV-0（架構） | — | 網路與伺服器島登錄為預備島嶼，沿用 `terminal` 與 `network-protocol` 能力（`serverFromBlueprint`）；引擎階段 E10–E12（`sockets`、`dns`、`http`）先完成（[SRV0_SERVER_CAPABILITY](SRV0_SERVER_CAPABILITY.md)）；SRV-1 至 SRV-5 依引擎階段 E10–E19 依序發布 |
 | LLM-0（架構） | — | 大型語言模型島與生成式 AI 島登錄為預備島嶼；新能力 `llm-explorer`：位元組層級 BPE（`token-explorer`）、錄好的玩具模型與 temperature／top-k／top-p／種子取樣（`sampling-explorer`）、手寫向量與 PCA（`embedding-space`），練習以數值比對（`llmFromBlueprint`，[LLM0_LANGUAGE_MODEL_CAPABILITY](LLM0_LANGUAGE_MODEL_CAPABILITY.md)）；LLM-1 為 LLM01–LLM03，GEN-1 為 GEN01 |
 | WEB-0（架構） | — | `web-code` 能力（沙盒框架裡的 HTML、CSS、JavaScript 頁面，以瀏覽器建立的結果檢查的練習，迴圈保護）、網頁基礎島登錄為預備島嶼（[WEB0_WEB_CODE_CAPABILITY](WEB0_WEB_CODE_CAPABILITY.md)）；WEB-1 至 WEB-5 依引擎階段 W1–W6 依序發布 |
