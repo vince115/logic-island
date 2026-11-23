@@ -17,6 +17,8 @@ import type { SqlValue } from '@/lib/sql/engine';
 import { terminalContentProblems, type TerminalLessonContent } from '@/lib/terminal/lesson';
 import { llmContentProblems, llmExplorers, type LlmLessonContent } from '@/lib/llm/lesson';
 import { webContentProblems, type WebLessonContent } from '@/lib/webcode/lesson';
+import { devopsContentProblems } from '@/lib/devops/check';
+import { devopsExplorers, type DevopsLessonContent } from '@/lib/devops/types';
 
 /*
  * Phase E curriculum: the shape of the 60 lessons and of a lesson's full content, and the checks every lesson must
@@ -72,18 +74,21 @@ export const ISLAND_IDS = ['foundations', 'structures', 'algorithms', 'programmi
 // and network-protocol scenes for its architecture and pipeline overviews (docs/curriculum/DKR0_CONTAINER_CAPABILITY.md).
 // DKR-1 (2026-11-23): the docker-containers island joins with DKR01–DKR04, between the Linux systems and network servers islands (the world's order).
 // RWD-1 (2026-11-23): the responsive design island joined ISLAND_IDS with RWD01–RWD04 (web-code, pages checked at several widths).
-export const PREPARED_ISLAND_IDS = [] as const;
+// CICD-0 (2026-11-23): the devops-cicd island, written with the new devops-explorer capability (deployment histories and
+// DORA metrics, the deployment-simulator) and the terminal capability (git, gh and workflows from engine stage E25),
+// docs/curriculum/CICD0_DEVOPS_CAPABILITY.md. CICD-1 moves it to ISLAND_IDS after network-servers.
+export const PREPARED_ISLAND_IDS = ['devops-cicd'] as const;
 export type IslandId = typeof ISLAND_IDS[number] | typeof PREPARED_ISLAND_IDS[number];
 /**
  * F = 基礎程式島, D = 資料結構島, A = 演算法島, then a two-digit position (F01..F20). Phase F.0: the number is two digits in
  * the type too (it was any string, so DB01 or AG01 type-checked as a D or A lesson); IDs of every island, planned ones
  * included, are AnyLessonId in src/content/world/lesson-id.ts and are always parsed with their whole prefix.
  */
-export type LessonPrefixWritten = 'F' | 'D' | 'A' | 'DB' | 'PL' | 'CN' | 'AIF' | 'LNX' | 'SRV' | 'LLM' | 'GEN' | 'WEB' | 'RWD' | 'MOB' | 'DKR';
+export type LessonPrefixWritten = 'F' | 'D' | 'A' | 'DB' | 'PL' | 'CN' | 'AIF' | 'LNX' | 'SRV' | 'LLM' | 'GEN' | 'WEB' | 'RWD' | 'MOB' | 'DKR' | 'CICD';
 export type LessonId = `${LessonPrefixWritten}${LessonNumber}`;
 /** 2026-11-20 (course production, batch 1): the programming-languages island (PL) joins with its first written lessons. */
 export const ISLAND_PREFIX: Record<IslandId, LessonPrefixWritten> = { foundations: 'F', structures: 'D', algorithms: 'A', databases: 'DB', 'programming-languages': 'PL', networks: 'CN', 'ai-foundations': 'AIF', 'linux-systems': 'LNX',
-  'network-servers': 'SRV', 'large-language-models': 'LLM', 'generative-ai': 'GEN', 'web-foundations': 'WEB', 'responsive-design': 'RWD', 'mobile-apps': 'MOB', 'docker-containers': 'DKR' };
+  'network-servers': 'SRV', 'large-language-models': 'LLM', 'generative-ai': 'GEN', 'web-foundations': 'WEB', 'responsive-design': 'RWD', 'mobile-apps': 'MOB', 'docker-containers': 'DKR', 'devops-cicd': 'CICD' };
 
 /**
  * Phase F.1a: a lesson taught in a query language instead of the four programming languages. A SQL lesson has no program
@@ -100,7 +105,7 @@ export type WebLanguage = typeof WEB_LANGUAGES[number];
  */
 export const LESSON_ACTIVITIES = ['sql-playground', 'erd-builder', 'normalization-steps', 'query-plan', 'transaction-timeline',
   'protocol-sequence', 'architecture-diagram', 'ds-comparison', 'challenge-stages', 'packet-journey', 'network-sequence', 'terminal-sim',
-  'token-explorer', 'sampling-explorer', 'embedding-space', 'dom-explorer'] as const;
+  'token-explorer', 'sampling-explorer', 'embedding-space', 'dom-explorer', 'deployment-simulator'] as const;
 export type LessonActivity = typeof LESSON_ACTIVITIES[number];
 
 /**
@@ -127,10 +132,14 @@ export type LessonActivity = typeof LESSON_ACTIVITIES[number];
  * capability python-code may be combined with (an LLM lesson may also implement BPE or cosine similarity in Python).
  * WEB-0 adds web-code: small web pages (HTML with optional CSS and JavaScript) shown in a sandboxed frame in the
  * learner's browser, with exercises checked by steps run on the page the browser built (`content.webCode`,
- * src/lib/webcode/lesson.ts).
+ * src/lib/webcode/lesson.ts). CICD-0 adds devops-explorer: authored deployment histories with their DORA metrics and a
+ * minute-by-minute rollout simulator (recreate, rolling, blue-green, canary with gates, migrations, feature flags), all
+ * integer arithmetic in the browser, with exercises whose answers are computed from the data (`content.devops`,
+ * src/lib/devops). It may be combined with terminal and visualization only.
  */
 export const LESSON_CAPABILITIES = ['program-code', 'sql', 'er-diagram', 'normalization', 'query-plan', 'transaction-timeline',
-  'driver-code', 'protocol-sequence', 'architecture-diagram', 'visualization', 'network-protocol', 'python-code', 'terminal', 'llm-explorer', 'web-code'] as const;
+  'driver-code', 'protocol-sequence', 'architecture-diagram', 'visualization', 'network-protocol', 'python-code', 'terminal', 'llm-explorer', 'web-code',
+  'devops-explorer'] as const;
 export type LessonCapability = typeof LESSON_CAPABILITIES[number];
 export const hasCapability = (lesson: Pick<LessonMeta, 'capabilities'>, capability: LessonCapability) => lesson.capabilities.includes(capability);
 /**
@@ -149,10 +158,15 @@ const CAPABILITY_ACTIVITY: Record<LessonActivity, LessonCapability> = { 'sql-pla
   // LLM-0: the three explorers of the language-model lessons.
   'token-explorer': 'llm-explorer', 'sampling-explorer': 'llm-explorer', 'embedding-space': 'llm-explorer',
   // WEB-0: a web lesson's pages run in a sandboxed frame, beside the DOM the browser built from them.
-  'dom-explorer': 'web-code' };
+  'dom-explorer': 'web-code',
+  // CICD-0: the devops-explorer's deployment histories and rollout simulator (D1, D2); monitoring-dashboard joins with D3.
+  'deployment-simulator': 'devops-explorer' };
 /** LLM-0: the activities of the llm-explorer capability, and the explorers of `content.llm` each one needs. */
 export const LLM_ACTIVITIES = ['token-explorer', 'sampling-explorer', 'embedding-space'] as const satisfies readonly LessonActivity[];
 const LLM_ACTIVITY_PART = { 'token-explorer': 'tokenizers', 'sampling-explorer': 'samplers', 'embedding-space': 'embeddings' } as const;
+/** CICD-0: the activities of the devops-explorer capability, and the capabilities it may be combined with. */
+export const DEVOPS_ACTIVITIES = ['deployment-simulator'] as const satisfies readonly LessonActivity[];
+const DEVOPS_COMPANIONS: readonly LessonCapability[] = ['devops-explorer', 'terminal', 'visualization'];
 /** The shared visualizations a database lesson may show (with the visualization capability). */
 export const DATABASE_VISUALIZATIONS = ['ds-comparison', 'challenge-stages'] as const;
 
@@ -512,6 +526,8 @@ export interface LessonContent {
   llm?: LlmLessonContent;
   /** WEB-0: web pages shown in sections by id (each with checks that hold in a browser) and exercises checked on the page the browser built. */
   webCode?: WebLessonContent;
+  /** CICD-0: deployment histories and rollouts (shown in sections by id) and exercises whose answers are computed from them. */
+  devops?: DevopsLessonContent;
 }
 
 export interface IslandMeta { id: IslandId; name: string; englishName: string; summary: string }
@@ -586,6 +602,11 @@ export function validateCurriculum({ islands, lessons, contents, visualizations,
     // LLM-0: python-code keeps standing alone, except that an LLM lesson may pair it with its explorers (llm-explorer).
     if (python && capabilities.some(c => c !== 'python-code' && c !== 'llm-explorer')) fail(at, 'python-code stands alone (llm-explorer is its only companion)');
     if (llm && !(LLM_ACTIVITIES as readonly string[]).includes(lesson.activity ?? '')) fail(at, `an llm-explorer lesson names one of ${LLM_ACTIVITIES.join(', ')} as its activity`);
+    // CICD-0: devops-explorer pairs with terminal and visualization only; without the terminal its activity is its own.
+    if (capabilities.includes('devops-explorer')) {
+      if (capabilities.some(c => !DEVOPS_COMPANIONS.includes(c))) fail(at, `devops-explorer is combined with ${DEVOPS_COMPANIONS.slice(1).join(' and ')} only`);
+      if (!capabilities.includes('terminal') && !(DEVOPS_ACTIVITIES as readonly string[]).includes(lesson.activity ?? '')) fail(at, `a devops-explorer lesson without the terminal names ${DEVOPS_ACTIVITIES.join(', ')} as its activity`);
+    }
     if (program && LANGUAGES.some(l => !lesson.supportedLanguages.includes(l))) fail(at, `supportedLanguages must include ${LANGUAGES.join(', ')}`);
     if (python && lesson.supportedLanguages.join() !== PYTHON_LANGUAGES.join()) fail(at, 'a python-code lesson offers Python only');
     if (!program && !python && lesson.supportedLanguages.length) fail(at, 'only a program-code or python-code lesson has program languages');
@@ -678,12 +699,13 @@ export function validateDatabaseContent(lesson: LessonMeta, content: LessonConte
     if (!sql.presets.length) fail('the playground needs preset queries');
     for (const p of sql.presets) if (!p.label.trim() || !p.sql.trim()) fail('a preset needs a label and SQL');
   }
-  const { driverCode, sequences, ops, network, terminal, llm, webCode } = content;
-  // LLM-0: an explorer counts as an example (its data is checked by llmContentProblems, in validateContent).
+  const { driverCode, sequences, ops, network, terminal, llm, webCode, devops } = content;
+  // LLM-0: an explorer counts as an example (its data is checked by llmContentProblems, in validateContent). CICD-0: so
+  // does a devops-explorer history or rollout (devopsContentProblems).
   const examples = [...sql?.examples ?? [], ...er?.diagrams ?? [], ...normalization?.examples ?? [],
     ...queryPlan?.trees ?? [], ...transactions?.timelines ?? [], ...transactions?.schedules ?? [],
     ...driverCode?.examples ?? [], ...sequences ?? [], ...ops?.replication ?? [], ...ops?.backups ?? [], ...network?.scenes ?? [], ...terminal?.examples ?? [],
-    ...llm ? llmExplorers(llm) : [], ...webCode?.examples ?? []];
+    ...llm ? llmExplorers(llm) : [], ...webCode?.examples ?? [], ...devops ? devopsExplorers(devops) : []];
   for (const scene of network?.scenes ?? []) for (const p of networkSceneProblems(scene)) fail(p);
   if (terminal) for (const p of replayedTerminalProblems(terminal)) fail(p);
   if (webCode) for (const p of webContentProblems(webCode)) fail(p);
@@ -727,7 +749,7 @@ export function validateDatabaseContent(lesson: LessonMeta, content: LessonConte
     if (!question.explanation.trim()) fail(`quiz ${question.id} has no explanation`);
   }
   const exercises = [...sql?.exercises ?? [], ...er?.exercises ?? [], ...normalization?.exercises ?? [], ...transactions?.exercises ?? [], ...ops?.exercises ?? [], ...network?.exercises ?? [], ...terminal?.exercises ?? [],
-    ...llm?.exercises ?? [], ...webCode?.exercises ?? []];
+    ...llm?.exercises ?? [], ...webCode?.exercises ?? [], ...devops?.exercises ?? []];
   // CN-0: each network exercise's answer comes from the scenes (or is computed), and each typical mistake is rejected.
   for (const exercise of network?.exercises ?? []) {
     try {
@@ -787,7 +809,7 @@ export function validateContent(lesson: LessonMeta, content: LessonContent, visu
   const parts: [LessonCapability, boolean][] = [['sql', !!content.sql], ['er-diagram', !!content.er], ['normalization', !!content.normalization],
     ['query-plan', !!content.queryPlan], ['transaction-timeline', !!content.transactions], ['driver-code', !!content.driverCode],
     ['protocol-sequence', !!content.sequences], ['architecture-diagram', !!content.ops], ['network-protocol', !!content.network], ['terminal', !!content.terminal],
-    ['llm-explorer', !!content.llm], ['web-code', !!content.webCode]];
+    ['llm-explorer', !!content.llm], ['web-code', !!content.webCode], ['devops-explorer', !!content.devops]];
   // A database lesson shows a shared visualization only with the visualization capability (program lessons always may).
   if (!hasProgramCode(lesson) && hasCapability(lesson, 'visualization') !== !!content.visualization)
     fail(content.visualization ? 'has a visualization without the visualization capability' : 'the visualization capability needs a visualization');
@@ -798,6 +820,11 @@ export function validateContent(lesson: LessonMeta, content: LessonContent, visu
     for (const p of llmContentProblems(content.llm)) fail(p);
     const part = lesson.activity && (LLM_ACTIVITIES as readonly string[]).includes(lesson.activity) ? LLM_ACTIVITY_PART[lesson.activity as typeof LLM_ACTIVITIES[number]] : undefined;
     if (part && !content.llm[part]?.length) fail(`the ${lesson.activity} activity needs at least one of content.llm.${part}`);
+  }
+  // CICD-0: the histories', rollouts' and exercises' data; the deployment-simulator activity shows at least one of them.
+  if (content.devops) {
+    for (const p of devopsContentProblems(content.devops)) fail(p);
+    if (lesson.activity === 'deployment-simulator' && !content.devops.histories?.length && !content.devops.rollouts?.length) fail('the deployment-simulator activity needs at least one of content.devops.histories or content.devops.rollouts');
   }
   if (!hasProgramCode(lesson)) return [...problems, ...validateDatabaseContent(lesson, content)];
   // AIF-0: a trace shows a language the lesson teaches (PL15's JavaScript trace is one of its languages).

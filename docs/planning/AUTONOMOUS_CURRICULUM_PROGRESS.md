@@ -25,7 +25,7 @@
 
 ## 下一批（自動選擇）
 
-目前沒有能力已備妥、先修已滿足的島嶼；先處理「能力缺口」的第一項。
+**DevOps 與 CI/CD 島（CICD）**：CICD01 DevOps 概念與文化、CICD02 團隊 Git 工作流程、CICD03 持續整合、CICD04 GitHub Actions 入門、CICD05 管線中的自動化測試。島嶼能力：已備妥（可開始撰寫）；這幾堂解鎖其他島的 7 堂。
 
 能力缺口中最優先的是 **機器學習島（ML）**：需要 python-code + data-explorer (fixed datasets, metrics computed in the browser)；先修已滿足、可依序撰寫的有 25 堂，前 5 堂解鎖其他島的 39 堂。
 
@@ -62,7 +62,7 @@
 | 系統與雲端工程群島 | Docker 容器島（DKR） | 15／15 | terminal (engine stage E20 containers: images, the container lifecycle, a simulated Docker Hub, published ports, the docker group; then E21-E24) + network-protocol scenes; container-playground and case-study-board map to terminal-sim, architecture-diagram and pipeline-diagram to network-sequence | 已備妥（可開始撰寫） | 全島完成 | — |
 | 系統與雲端工程群島 | 網路與伺服器島（SRV） | 14／14 | terminal (engine stages E10 sockets, E11 dns, E12 http, then E13-E19) + network-protocol scenes; request-path and architecture-diagram map to network-sequence | 可用 | 全島完成 | — |
 | 系統與雲端工程群島 | 雲端基礎設施島（CLD） | 0／15 | architecture simulation | 缺少 | CLD01–CLD15（15 堂） | 缺少課程能力 |
-| 系統與雲端工程群島 | DevOps 與 CI/CD 島（CICD） | 0／15 | pipeline simulation | 缺少 | CICD01–CICD15（15 堂） | 缺少課程能力 |
+| 系統與雲端工程群島 | DevOps 與 CI/CD 島（CICD） | 0／15 | devops-explorer (D1 deployment histories and DORA metrics, D2 the deployment-simulator: rollouts, gates, migrations, feature flags; then D3 dashboards, D4 logs) + terminal (engine stages E25 git, E26 forge, E27 workflows, E28 actions, E29 artifacts, E30 environments, E31 deploy-hosts); a per-lesson mapping (CICD_SHAPES) | 已備妥（可開始撰寫） | CICD01–CICD15（15 堂） | — |
 | 系統與雲端工程群島 | Kubernetes 與可靠性工程島（KUB） | 0／15 | cluster simulation | 缺少 | KUB01–KUB05（5 堂） | 缺少課程能力；KUB06 需要尚未發布的 CICD08 |
 
 ## 能力缺口
@@ -73,7 +73,6 @@
 |---|---|---|---|---|
 | 機器學習島（ML） | python-code + data-explorer (fixed datasets, metrics computed in the browser) | 25 | 39 | — |
 | 系統分析與設計島（SA） | model-diagram (UML, DFD, BPMN, state and sequence models, checked by structure) | 20 | 20 | — |
-| DevOps 與 CI/CD 島（CICD） | pipeline simulation | 15 | 7 | — |
 | 管理資訊系統島（MIS） | case-analysis (scenario data, decision tables, KPI calculations checked by value) | 20 | 0 | — |
 | UI 設計島（UI） | design-lab (color contrast exists as a standalone lab; visual hierarchy and grid) | 15 | 0 | — |
 | UX 研究島（UX） | case-analysis + model-diagram | 15 | 0 | — |
@@ -737,21 +736,21 @@
 
 | 課程 | 名稱 | 狀態 | 先修 | 藍圖活動 | 阻礙 |
 |---|---|---|---|---|---|
-| CICD01 | DevOps 概念與文化 | 待能力 | — | case-study-board | 課程能力 |
-| CICD02 | 團隊 Git 工作流程 | 待能力 | CICD01 | decision-simulation | 課程能力、先修 CICD01 |
-| CICD03 | 持續整合 | 待能力 | CICD02 | pipeline-sim | 課程能力、先修 CICD02 |
-| CICD04 | GitHub Actions 入門 | 待能力 | CICD03、LNX13 | pipeline-sim | 課程能力、先修 CICD03 |
-| CICD05 | 管線中的自動化測試 | 待能力 | CICD04 | pipeline-sim | 課程能力、先修 CICD04 |
-| CICD06 | 建置管線與產出物 | 待能力 | CICD04、DKR11 | pipeline-sim | 課程能力、先修 CICD04 |
-| CICD07 | 環境變數與設定管理 | 待能力 | CICD04 | pipeline-sim | 課程能力、先修 CICD04 |
-| CICD08 | 機密管理 | 待能力 | CICD07 | case-study-board | 課程能力、先修 CICD07 |
-| CICD09 | 部署管線 | 待能力 | CICD06、CICD07 | pipeline-sim | 課程能力、先修 CICD06、CICD07 |
-| CICD10 | 部署策略：滾動、藍綠與金絲雀 | 待能力 | CICD09 | deployment-simulator | 課程能力、先修 CICD09 |
-| CICD11 | 監控與告警 | 待能力 | CICD09 | monitoring-dashboard | 課程能力、先修 CICD09 |
-| CICD12 | 集中式日誌 | 待能力 | CICD11 | monitoring-dashboard | 課程能力、先修 CICD11 |
-| CICD13 | 回滾與發布安全 | 待能力 | CICD10、CICD11 | pipeline-sim | 課程能力、先修 CICD10、CICD11 |
-| CICD14 | 事故應變與事後檢討 | 待能力 | CICD12、CICD13 | case-study-board | 課程能力、先修 CICD12、CICD13 |
-| CICD15 | DevOps 與 CI/CD 島綜合專題：從 commit 到上線 | 待能力 | CICD05、CICD08、CICD14 | challenge-stages | 課程能力、先修 CICD05、CICD08、CICD14 |
+| CICD01 | DevOps 概念與文化 | 大綱 | — | case-study-board | — |
+| CICD02 | 團隊 Git 工作流程 | 待先修 | CICD01 | decision-simulation | 先修 CICD01 |
+| CICD03 | 持續整合 | 待先修 | CICD02 | pipeline-sim | 先修 CICD02 |
+| CICD04 | GitHub Actions 入門 | 待先修 | CICD03、LNX13 | pipeline-sim | 先修 CICD03 |
+| CICD05 | 管線中的自動化測試 | 待先修 | CICD04 | pipeline-sim | 先修 CICD04 |
+| CICD06 | 建置管線與產出物 | 待先修 | CICD04、DKR11 | pipeline-sim | 先修 CICD04 |
+| CICD07 | 環境變數與設定管理 | 待先修 | CICD04 | pipeline-sim | 先修 CICD04 |
+| CICD08 | 機密管理 | 待先修 | CICD07 | case-study-board | 先修 CICD07 |
+| CICD09 | 部署管線 | 待先修 | CICD06、CICD07 | pipeline-sim | 先修 CICD06、CICD07 |
+| CICD10 | 部署策略：滾動、藍綠與金絲雀 | 待先修 | CICD09 | deployment-simulator | 先修 CICD09 |
+| CICD11 | 監控與告警 | 待先修 | CICD09 | monitoring-dashboard | 先修 CICD09 |
+| CICD12 | 集中式日誌 | 待先修 | CICD11 | monitoring-dashboard | 先修 CICD11 |
+| CICD13 | 回滾與發布安全 | 待先修 | CICD10、CICD11 | pipeline-sim | 先修 CICD10、CICD11 |
+| CICD14 | 事故應變與事後檢討 | 待先修 | CICD12、CICD13 | case-study-board | 先修 CICD12、CICD13 |
+| CICD15 | DevOps 與 CI/CD 島綜合專題：從 commit 到上線 | 待先修 | CICD05、CICD08、CICD14 | challenge-stages | 先修 CICD05、CICD08、CICD14 |
 
 ### 系統與雲端工程群島 · Kubernetes 與可靠性工程島（KUB）
 

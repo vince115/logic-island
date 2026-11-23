@@ -75,6 +75,8 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '安全、除錯與上線準備', summary: '以資安審查找出 root、特權、socket 與留在層裡的機密，USER、能力、唯讀與 tmpfs、最小基底與弱點掃描；以狀態、日誌、inspect 與 events 除錯，結束碼、重啟迴圈與 OOMKilled；健康檢查、CPU 與記憶體上限、重新啟動策略、SIGTERM 與 PID 1 的優雅關閉', lessonIds: range('DKR', 12, 14) },
     { title: '綜合專題', summary: '分六關把三層式的應用從筆電帶到可以上線：多階段、非 root 的 Image，Compose 開發環境與健康檢查，找出並移除留在舊 Image 的金鑰，版本標籤與私有 Registry，以 digest 與正式環境的設定上線，依檢查清單驗收並修好手動部署造成的故障', lessonIds: ['DKR15'] },
   ],
+  // CICD-0 (2026-11-23): the devops-cicd island is prepared for authoring; its units come with its first lessons.
+  'devops-cicd': [],
   'network-servers': [
     { title: '位址、名稱與請求', summary: '公有與私有 IP、介面與路由、監聽埠與 socket、ss、lsof 與 nc；DNS 區域、A／CNAME／MX／TXT、TTL 與快取、dig；用 curl 讀懂 HTTP 請求、回應、狀態碼與重新導向', lessonIds: range('SRV', 1, 3) },
     { title: '憑證與網頁伺服器', summary: '憑證鏈、ACME 與 Let\'s Encrypt、certbot 自動更新、HSTS 與到期監控；網頁伺服器與應用伺服器、並行模型、逾時與 502／504；nginx 的 server 與 location、nginx -t 與 reload、存取與錯誤日誌', lessonIds: range('SRV', 4, 6) },

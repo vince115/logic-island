@@ -427,6 +427,48 @@ export function llmFromBlueprint(lessonId: string, summary: string, minutes: num
     capabilities: withPython ? ['python-code', 'llm-explorer'] : ['llm-explorer'], blueprintId: lessonId };
 }
 /**
+ * CICD-0 (2026-11-23): a lesson of the devops-cicd island written from its blueprint outline (slug, title, objectives,
+ * concepts, difficulty, prerequisites), docs/curriculum/CICD0_DEVOPS_CAPABILITY.md §2. Unlike the other islands, the
+ * shape is chosen per lesson, because the blueprint's case-study-board needs different tools at CICD01 (DORA metrics from
+ * a deployment history), CICD08 (secrets in the terminal) and CICD14 (a mitigation drill with the incident's numbers).
+ * `stages` are the devops-explorer stages (D1–D4) and terminal engine stages (E25–E31) the lesson needs: a lesson can be
+ * mapped before they are built, but it cannot publish until its content exists. `optional` capabilities are added with
+ * `withOptional` (CICD10's terminal example, E15 nginx upstream weights in front of two E20 containers). An activity not
+ * registered yet (monitoring-dashboard, registered with D3 in CICD-4) cannot be built: the builder says so. The blueprint
+ * names pipeline-sim, case-study-board and decision-simulation stay planned names; none of them is a lesson activity.
+ */
+type CicdShape = { blueprint: string; activity: string; capabilities: LessonCapability[]; optional?: LessonCapability[]; visualization: VisualizationType; stages: readonly string[] };
+const pipeline = (stages: string[]): CicdShape => ({ blueprint: 'pipeline-sim', activity: 'terminal-sim', capabilities: ['terminal'], visualization: 'none', stages });
+export const CICD_SHAPES: Readonly<Record<string, CicdShape>> = {
+  CICD01: { blueprint: 'case-study-board', activity: 'deployment-simulator', capabilities: ['devops-explorer'], visualization: 'none', stages: ['D1'] },
+  CICD02: { blueprint: 'decision-simulation', activity: 'terminal-sim', capabilities: ['terminal'], visualization: 'none', stages: ['E25', 'E26'] },
+  CICD03: pipeline(['E25', 'E26', 'E27', 'E28']),
+  CICD04: pipeline(['E25', 'E26', 'E27', 'E28']),
+  CICD05: pipeline(['E25', 'E26', 'E27', 'E28']),
+  CICD06: pipeline(['E25', 'E26', 'E27', 'E28', 'E29']),
+  CICD07: pipeline(['E25', 'E26', 'E27', 'E28', 'E29']),
+  CICD08: { blueprint: 'case-study-board', activity: 'terminal-sim', capabilities: ['terminal'], visualization: 'none', stages: ['E25', 'E26', 'E27', 'E28', 'E29'] },
+  CICD09: pipeline(['E25', 'E26', 'E27', 'E28', 'E29', 'E30', 'E31']),
+  CICD10: { blueprint: 'deployment-simulator', activity: 'deployment-simulator', capabilities: ['devops-explorer'], optional: ['terminal'], visualization: 'none', stages: ['D2'] },
+  CICD11: { blueprint: 'monitoring-dashboard', activity: 'monitoring-dashboard', capabilities: ['devops-explorer'], visualization: 'none', stages: ['D3'] },
+  CICD12: { blueprint: 'monitoring-dashboard', activity: 'monitoring-dashboard', capabilities: ['devops-explorer', 'terminal'], visualization: 'none', stages: ['D3', 'D4'] },
+  CICD13: { blueprint: 'pipeline-sim', activity: 'terminal-sim', capabilities: ['terminal', 'devops-explorer'], visualization: 'none', stages: ['E25', 'E26', 'E27', 'E28', 'E29', 'E30', 'D2'] },
+  CICD14: { blueprint: 'case-study-board', activity: 'terminal-sim', capabilities: ['terminal', 'devops-explorer'], visualization: 'none', stages: ['E31', 'D3'] },
+  CICD15: { blueprint: 'challenge-stages', activity: 'challenge-stages', capabilities: ['terminal', 'devops-explorer', 'visualization'], visualization: 'challenge-stages', stages: ['E25', 'E26', 'E27', 'E28', 'E29', 'E30', 'E31', 'D2', 'D3'] },
+};
+export function cicdFromBlueprint(lessonId: string, summary: string, minutes: number, withOptional = false): Outline {
+  const b = planning.plannedLessons.find(l => l.lessonId === lessonId);
+  if (!b || b.islandId !== 'devops-cicd') throw new Error(`${lessonId} is not a DevOps and CI/CD lesson of the blueprint`);
+  const s = CICD_SHAPES[lessonId];
+  if (!s || s.blueprint !== b.activity) throw new Error(`${lessonId}: no devops-cicd lesson shape for the blueprint activity ${b.activity}`);
+  if (!(LESSON_ACTIVITIES as readonly string[]).includes(s.activity)) throw new Error(`${lessonId}: the ${s.activity} activity is not registered yet (it is built with ${s.stages.join(', ')})`);
+  if (withOptional && !s.optional) throw new Error(`${lessonId} has no optional capability`);
+  return { slug: b.slug, title: b.title, summary, objectives: b.learningObjectives, concepts: b.concepts, difficulty: b.difficulty as Difficulty,
+    minutes, prerequisites: b.prerequisites as LessonId[], recommended: b.recommended as AnyLessonId[], apcs: ['none'], visualization: s.visualization,
+    status: 'complete', version: '1.0.0', activity: s.activity as LessonActivity,
+    capabilities: withOptional ? [...s.capabilities, ...s.optional!] : [...s.capabilities], blueprintId: lessonId };
+}
+/**
  * WEB-0 (2026-11-23): a web foundations lesson written from its blueprint outline (slug, title, objectives, concepts,
  * difficulty, prerequisites). Its body is the web-code capability: pages in a sandboxed frame beside the DOM the browser
  * built, and exercises checked on that page. dom-explorer is that activity. The island's other blueprint activities
