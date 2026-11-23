@@ -20,7 +20,9 @@ import { validateTerminalLessonsFirst } from './support/terminal-replays';
  * CICD-0 (docs/curriculum/CICD0_DEVOPS_CAPABILITY.md): the devops-cicd island prepared for authoring, the per-lesson
  * mapping (cicdFromBlueprint, CICD_SHAPES), and the devops-explorer capability's stages D1 (deployment histories and DORA
  * metrics) and D2 (the deployment-simulator). Every number below is worked out by hand in the comments of
- * tests/support/devops-fixture.ts or here.
+ * tests/support/devops-fixture.ts or here. CICD-1 publishes the island (CICD01) after network-servers; it dropped the
+ * test that a synthetic CICD10 was refused while the island was prepared: no island is prepared any more, so it cannot be
+ * built; network-capability.test.ts keeps the refusal of a lesson outside the curriculum islands.
  */
 const metaOf = (lessonId: string, outline: ReturnType<typeof cicdFromBlueprint>): LessonMeta => ({
   lessonId: lessonId as LessonMeta['lessonId'], islandId: 'devops-cicd', slug: outline.slug, title: outline.title, summary: outline.summary,
@@ -74,25 +76,32 @@ describe('cicdFromBlueprint (CICD_SHAPES)', () => {
   });
 });
 
-describe('the devops-cicd island: prepared in CICD-0', () => {
-  it('is registered for authoring, not published: no unit, no page, all 15 lessons planned', () => {
-    expect(PREPARED_ISLAND_IDS).toEqual(['devops-cicd']);
-    expect(ISLAND_IDS).not.toContain('devops-cicd');
+describe('the devops-cicd island: prepared in CICD-0, published from CICD-1', () => {
+  it('is a curriculum island after network-servers with its first lessons written in id order and in its unit; the rest stay planned outlines without a page', () => {
+    expect(PREPARED_ISLAND_IDS).toEqual([]);
+    expect(ISLAND_IDS).toContain('devops-cicd');
+    // The world's order in the systems region: LNX, DKR, SRV, CLD (still planned), CICD, KUB.
+    expect(ISLAND_IDS.indexOf('devops-cicd')).toBe(ISLAND_IDS.indexOf('network-servers') + 1);
     expect(ISLAND_PREFIX['devops-cicd']).toBe('CICD');
-    expect(UNITS['devops-cicd']).toEqual([]);
-    expect(lessons.filter(l => l.islandId === 'devops-cicd')).toEqual([]);
+    const written = lessons.filter(l => l.islandId === 'devops-cicd');
+    expect(written.map(l => l.lessonId)).toEqual(written.map((_, i) => `CICD${String(i + 1).padStart(2, '0')}`));
+    expect(written.length).toBeGreaterThanOrEqual(1);
+    // CICD-1: one unit, CICD01.
+    expect(UNITS['devops-cicd'][0]).toMatchObject({ title: 'DevOps 與交付的基本觀念', lessonIds: ['CICD01'] });
+    expect(UNITS['devops-cicd'].flatMap(u => u.lessonIds)).toEqual(written.map(l => l.lessonId));
+    // Every written lesson has its page; CICD01 is the devops-explorer's deployment histories (D1), with no terminal.
+    for (const l of written) expect(getLessonBySlug(l.slug)?.lessonId, l.slug).toBe(l.lessonId);
+    expect([written[0].capabilities, written[0].activity, !!curriculum.contents.CICD01?.devops, !!curriculum.contents.CICD01?.terminal]).toEqual([['devops-explorer'], 'deployment-simulator', true, false]);
     const outline = lessonsOfIsland('devops-cicd');
     expect(outline.map(l => l.lessonId)).toEqual(Array.from({ length: 15 }, (_, i) => `CICD${String(i + 1).padStart(2, '0')}`));
-    for (const l of outline) {
+    expect(outline.slice(0, written.length).every(l => l.lessonStatus === 'complete' && l.href === `/curriculum/${l.slug}`)).toBe(true);
+    for (const l of outline.slice(written.length)) {
       expect(l.lessonStatus, l.lessonId).toBe('planned');
       expect(l.href, l.lessonId).toBeUndefined();
       expect(getLessonBySlug(l.slug), l.slug).toBeUndefined();
     }
-    expect(getIsland('devops-cicd')).toMatchObject({ status: 'planned' });
-  });
-  it('refuses a CICD lesson in the curriculum until the island joins ISLAND_IDS', () => {
-    const problems = validateCurriculum({ ...curriculum, lessons: [...lessons, meta], contents: { ...curriculum.contents, CICD10: devopsLesson() } });
-    expect(problems).toContain('CICD10: devops-cicd is prepared for authoring, not a curriculum island yet: move it to ISLAND_IDS with its first written lesson');
+    // Its lessons open on their own; its 3D landscape stays the planned one (IslandConfig.mapState, set by hand).
+    expect(getIsland('devops-cicd')).toMatchObject({ status: written.length < 15 ? 'available' : 'complete', mapState: 'planned' });
   });
   it('registers devops-explorer and deployment-simulator only; the other blueprint names stay planned', () => {
     expect(LESSON_CAPABILITIES).toContain('devops-explorer');
@@ -101,12 +110,16 @@ describe('the devops-cicd island: prepared in CICD-0', () => {
     for (const a of ['monitoring-dashboard', 'pipeline-sim', 'case-study-board', 'decision-simulation']) expect(LESSON_ACTIVITIES, a).not.toContain(a);
     expect(labRegistry.find(l => l.id === 'cicd-pipeline')).toMatchObject({ status: 'planned', activities: ['pipeline-sim'] });
   });
-  it('keeps deployment-simulator planned in the activity registry until a complete lesson uses it', () => {
-    expect(getActivity('deployment-simulator')).toMatchObject({ availability: 'planned', version: '0.1.0',
-      subjects: ['systems-analysis', 'deep-learning', 'ai-engineering', 'cloud-infrastructure', 'devops-cicd'],
-      accessibility: { keyboard: true, textAlternative: '必要：實作時提供與畫面等效的文字說明' } });
-    // Every other activity with a described text equivalent is implemented, so gating the description changed nothing.
+  it('kept deployment-simulator planned in the activity registry until a complete lesson used it: CICD01 (CICD-1) makes it implemented', () => {
+    expect(lessons.some(l => l.activity === 'deployment-simulator' && l.lessonStatus === 'complete')).toBe(true);
+    expect(getActivity('deployment-simulator')).toMatchObject({ availability: 'implemented', version: '1.0.0',
+      subjects: ['systems-analysis', 'deep-learning', 'ai-engineering', 'cloud-infrastructure', 'devops-cicd'] });
+    // Implemented, it carries its own description of the text equivalent (IMPLEMENTED_TEXT) instead of the requirement.
+    expect(getActivity('deployment-simulator')!.accessibility).toEqual({ keyboard: true,
+      textAlternative: '每張圖都有等效的表格：部署紀錄逐筆列出（變更數、前置時間、是否失敗、偵測與復原時間），DORA 指標與其算式以文字寫出；部署模擬逐分鐘列出各版本的執行個體、承接的請求、錯誤與丟棄，閘門的判定與總計以表格呈現，目前這一分鐘的說明以 aria-live 宣告' });
+    // Every activity with a described text equivalent is implemented, and every planned one carries the requirement.
     for (const a of activities.filter(x => x.type === 'activity' && x.accessibility.textAlternative !== '必要：實作時提供與畫面等效的文字說明')) expect(a.availability, a.id).toBe('implemented');
+    for (const a of activities.filter(x => x.type === 'activity' && x.availability === 'planned')) expect(a.accessibility.textAlternative, a.id).toBe('必要：實作時提供與畫面等效的文字說明');
   });
   it('leaves the curriculum valid', () => {
     expect(validateCurriculum(curriculum)).toEqual([]);

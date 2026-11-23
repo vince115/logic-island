@@ -54,7 +54,7 @@ export const PYTHON_LANGUAGES = ['Python'] as const satisfies readonly Language[
 // LLM-1 (2026-11-22): the large-language-models island joins with LLM01–LLM03 (prepared in LLM-0), after AI foundations in the AI region.
 // RWD-1 (2026-11-23): the responsive design island joins with RWD01–RWD04, after web foundations in the web region.
 // MOB-1 (2026-11-23): the mobile apps island joins with MOB01–MOB04, after responsive design in the web region.
-export const ISLAND_IDS = ['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'large-language-models', 'generative-ai', 'web-foundations', 'responsive-design', 'mobile-apps', 'linux-systems', 'docker-containers', 'network-servers'] as const;
+export const ISLAND_IDS = ['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'large-language-models', 'generative-ai', 'web-foundations', 'responsive-design', 'mobile-apps', 'linux-systems', 'docker-containers', 'network-servers', 'devops-cicd'] as const;
 /**
  * CN-0 (2026-11-21): islands registered for authoring before their first lesson is written. Their prefix and lesson
  * capability are known (so their lessons can be written and validated), but they are not curriculum islands yet: no
@@ -77,7 +77,9 @@ export const ISLAND_IDS = ['foundations', 'structures', 'algorithms', 'programmi
 // CICD-0 (2026-11-23): the devops-cicd island, written with the new devops-explorer capability (deployment histories and
 // DORA metrics, the deployment-simulator) and the terminal capability (git, gh and workflows from engine stage E25),
 // docs/curriculum/CICD0_DEVOPS_CAPABILITY.md. CICD-1 moves it to ISLAND_IDS after network-servers.
-export const PREPARED_ISLAND_IDS = ['devops-cicd'] as const;
+// CICD-1 (2026-11-23): the devops-cicd island joins with CICD01, after network-servers (the world's order: the cloud
+// infrastructure island between them is still planned).
+export const PREPARED_ISLAND_IDS = [] as const;
 export type IslandId = typeof ISLAND_IDS[number] | typeof PREPARED_ISLAND_IDS[number];
 /**
  * F = 基礎程式島, D = 資料結構島, A = 演算法島, then a two-digit position (F01..F20). Phase F.0: the number is two digits in

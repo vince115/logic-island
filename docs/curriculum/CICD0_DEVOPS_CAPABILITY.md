@@ -62,6 +62,7 @@
 | CICD-5 | CICD12–14 | D4 |
 | CICD-6 | CICD15 | 無（綜合專題單獨一批，和 DKR-6 相同） |
 
+- **CICD-1 的調整（2026-11-23）**：CICD-1 只發布 CICD01（D1）並開放島嶼；CICD02 需要 E25、E26，和這兩個階段一起移到下一批（[DEVOPS_CICD_ISLAND](DEVOPS_CICD_ISLAND.md)）。CICD01 發布後 `deployment-simulator` 在活動登錄中改為已實作。
 - D2 在 CICD-0 完成，所以 `deployment-simulator` 不會在只有部署紀錄面板時就被標成已實作（CICD01 只用 D1，但它發布時 D1、D2 都已存在）。
 - CICD10、CICD13 沿用 D2；CICD14 沿用 D3。
 - 先修：LNX13（CICD04）與 DKR11（CICD06）已發布。CICD07 教環境別的設定，用 E29 的環境層級變數與 E24 的 `needsEnv` 提早失敗，不需要 E30。

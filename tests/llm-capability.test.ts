@@ -391,8 +391,8 @@ describe('the large-language-models island: prepared in LLM-0, written in batche
 describe('the generative-ai island: prepared in LLM-0, published from GEN-1', () => {
   it('is a curriculum island after large-language-models with its first lessons written in id order and in its units; the rest stay planned outlines without a page', () => {
     // GEN-1 moved generative-ai (prepared in LLM-0) to ISLAND_IDS; DKR-0 then prepared docker-containers and DKR-1 published it;
-    // CICD-0 prepared devops-cicd, now the only prepared island (generative-ai is not among them).
-    expect(PREPARED_ISLAND_IDS).toEqual(['devops-cicd']);
+    // CICD-0 prepared devops-cicd and CICD-1 published it, so no island is prepared.
+    expect(PREPARED_ISLAND_IDS).toEqual([]);
     expect(ISLAND_IDS).toContain('generative-ai');
     expect(ISLAND_IDS.indexOf('generative-ai')).toBe(ISLAND_IDS.indexOf('large-language-models') + 1);
     expect(ISLAND_PREFIX['generative-ai']).toBe('GEN');

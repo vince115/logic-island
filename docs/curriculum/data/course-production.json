@@ -626,7 +626,19 @@
       ],
       "commit": "TBD",
       "tests": "TBD",
-      "notes": "DKR-6：Docker 容器島綜合專題（challenge-stages 六關，用 E20–E24 已有的一切），全島 15／15 完成；image 檢查可以用完整的 Image ID（sha256:…）確認舊 Image 的層真的刪掉了"
+      "notes": "DKR-6：Docker 容器島綜合專題（challenge-stages 六關，用 E20–E24 已有的一切），全島 15／15 完成；image 檢查可以用完整的 Image ID（sha256:…）確認舊 Image 的層真的刪掉了",
+      "pr": "#90",
+      "merged": "c57ad6f"
+    },
+    {
+      "id": 45,
+      "date": "2026-11-23",
+      "lessons": [
+        "CICD01"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "CICD-1：DevOps 與 CI/CD 島開放（devops-explorer 能力，D1 部署紀錄與 DORA 指標；deployment-simulator 活動因第一堂完整課而改為已實作）；DevOps 概念與文化一課（一次上線與分開上線、兩個團隊同一季的四個 DORA 指標，示意資料）"
     }
   ]
 }

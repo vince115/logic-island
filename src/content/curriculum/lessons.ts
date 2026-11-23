@@ -706,6 +706,11 @@ const dockerContainers: Outline[] = [
   dockerFromBlueprint('DKR15', '把三層式的拾光書屋從筆電上手打的 docker run 帶到可以上線：以兩個階段建置 distroless、nonroot、exec 形式的 API Image 並試跑優雅關閉，修好 Compose 開發環境的具名 Volume、pg_isready 健康檢查與 service_healthy，從 docker history 找出經由 ARG 與 ENV 包進舊 Image 的付款金鑰、撤銷後刪除舊 Image 並改以唯讀掛載的檔案提供，以 SemVer 與 commit 標籤從 --password-stdin 登入推送到私有 Registry、不推送 latest，以 deploy 帳號拉取並以 digest、--read-only 加 tmpfs、--cap-drop ALL、no-new-privileges、記憶體與 CPU 上限、unless-stopped 與只綁 127.0.0.1 上線，最後照上線檢查清單以 ps、logs、inspect、events、stats 與 curl 驗收第二台主機，找出手動部署造成的 OOM 重啟迴圈並以審查過的部署指令稿從根本修好。', 90),
 ];
 
+/** CICD-1 (2026-11-23): the devops-cicd island's first lesson, on the devops-explorer capability (CICD0_DEVOPS_CAPABILITY.md). */
+const devopsCicd: Outline[] = [
+  cicdFromBlueprint('CICD01', '從開發與維運的隔閡說明 DevOps 要解決的問題與共同責任、自動化的做法，用同一週八個變更的一次上線與分開上線比較小批量與快速回饋如何縮短前置時間、縮小故障範圍並加快復原，再以兩個團隊同一季的部署紀錄算出 deployment frequency、change lead time、change fail rate 與 failed deployment recovery time 四個 DORA 指標，並說明指標該怎麼讀、為什麼不能拿來排名。', 45),
+];
+
 /** RWD-1 (2026-11-23): the responsive design island's first lessons, on the web-code capability with the resize step and preview widths (WEB0_WEB_CODE_CAPABILITY.md, RESPONSIVE_DESIGN_ISLAND.md); RWD-2 adds RWD05–RWD08, RWD-3 RWD09–RWD12 (the capstone): the island is complete. */
 const responsiveDesign: Outline[] = [
   responsiveFromBlueprint('RWD01', '從寫死 960px 的頁面在窄視窗得橫向捲動出發，說明響應式設計如何以同一份 HTML 依寬度調整版面，用 max-width 加 margin: 0 auto、圖片的 max-width: 100% 與一條 min-width 媒體查詢寫出行動優先的頁面，並以內容優先決定原始碼順序與斷點、以漸進增強確保頁面始終可用。', 45),
@@ -755,7 +760,7 @@ function idAt(islandId: (typeof ISLAND_IDS)[number], index: number, blueprintId?
 /** F, D and A are taught in the program languages: every lesson there declares program-code. */
 const program = (list: Omit<Outline, 'capabilities'>[]): Outline[] => list.map(o => ({ ...o, capabilities: ['program-code'] }));
 const outlines: Record<(typeof ISLAND_IDS)[number], Outline[]> = {
-  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages, networks, 'ai-foundations': aiFoundations, 'large-language-models': largeLanguageModels, 'generative-ai': generativeAi, 'web-foundations': webFoundations, 'responsive-design': responsiveDesign, 'mobile-apps': mobileApps, 'linux-systems': linuxSystems, 'docker-containers': dockerContainers, 'network-servers': networkServers };
+  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages, networks, 'ai-foundations': aiFoundations, 'large-language-models': largeLanguageModels, 'generative-ai': generativeAi, 'web-foundations': webFoundations, 'responsive-design': responsiveDesign, 'mobile-apps': mobileApps, 'linux-systems': linuxSystems, 'docker-containers': dockerContainers, 'network-servers': networkServers, 'devops-cicd': devopsCicd };
 
 /** Every lesson the blueprint outlines, written or not (validateCurriculum's recommended-lesson check). */
 export const outlinedLessonIds: readonly string[] = planning.plannedLessons.map(l => l.lessonId);
