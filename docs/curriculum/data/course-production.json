@@ -706,7 +706,19 @@
       ],
       "commit": "TBD",
       "tests": "TBD",
-      "notes": "CICD-6：devops-explorer 的 D4 集中式日誌（結構化與非結構化、篩選與分組、關聯 ID 追蹤、遮蔽規則與 redact 檢查、保留容量）；集中式日誌、回滾與發布安全、事故應變與事後檢討三課"
+      "notes": "CICD-6：devops-explorer 的 D4 集中式日誌（結構化與非結構化、篩選與分組、關聯 ID 追蹤、遮蔽規則與 redact 檢查、保留容量）；集中式日誌、回滾與發布安全、事故應變與事後檢討三課",
+      "pr": "#96",
+      "merged": "eff4366"
+    },
+    {
+      "id": 51,
+      "date": "2026-11-24",
+      "lessons": [
+        "CICD15"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "CICD-7：DevOps 與 CI/CD 島綜合專題（challenge-stages 六關，用 E25–E31 與 devops-explorer D1–D4 已有的一切），全島 15／15 完成"
     }
   ]
 }

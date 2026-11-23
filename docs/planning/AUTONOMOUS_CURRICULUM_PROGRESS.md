@@ -13,7 +13,7 @@
 
 ## 總覽
 
-已發布 **243／520**（46.7%）；規劃中 277。
+已發布 **244／520**（46.9%）；規劃中 276。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
@@ -21,11 +21,11 @@
 | AI 人工智慧群島 | 25 | 135 | 15.6% |
 | 數位設計群島 | 0 | 56 | 0.0% |
 | 網頁與應用開發群島 | 40 | 15 | 72.7% |
-| 系統與雲端工程群島 | 58 | 31 | 65.2% |
+| 系統與雲端工程群島 | 59 | 30 | 66.3% |
 
 ## 下一批（自動選擇）
 
-**DevOps 與 CI/CD 島（CICD）**：CICD15 DevOps 與 CI/CD 島綜合專題：從 commit 到上線。島嶼能力：已備妥（可開始撰寫）；這幾堂解鎖其他島的 0 堂。
+目前沒有能力已備妥、先修已滿足的島嶼；先處理「能力缺口」的第一項。
 
 能力缺口中最優先的是 **機器學習島（ML）**：需要 python-code + data-explorer (fixed datasets, metrics computed in the browser)；先修已滿足、可依序撰寫的有 25 堂，前 5 堂解鎖其他島的 39 堂。
 
@@ -62,7 +62,7 @@
 | 系統與雲端工程群島 | Docker 容器島（DKR） | 15／15 | terminal (engine stage E20 containers: images, the container lifecycle, a simulated Docker Hub, published ports, the docker group; then E21-E24) + network-protocol scenes; container-playground and case-study-board map to terminal-sim, architecture-diagram and pipeline-diagram to network-sequence | 已備妥（可開始撰寫） | 全島完成 | — |
 | 系統與雲端工程群島 | 網路與伺服器島（SRV） | 14／14 | terminal (engine stages E10 sockets, E11 dns, E12 http, then E13-E19) + network-protocol scenes; request-path and architecture-diagram map to network-sequence | 可用 | 全島完成 | — |
 | 系統與雲端工程群島 | 雲端基礎設施島（CLD） | 0／15 | architecture simulation | 缺少 | CLD01–CLD15（15 堂） | 缺少課程能力 |
-| 系統與雲端工程群島 | DevOps 與 CI/CD 島（CICD） | 14／15 | devops-explorer (D1 deployment histories and DORA metrics, D2 the deployment-simulator: rollouts, gates, migrations, feature flags; then D3 dashboards, D4 logs) + terminal (engine stages E25 git, E26 forge, E27 workflows, E28 actions, E29 artifacts, E30 environments, E31 deploy-hosts); a per-lesson mapping (CICD_SHAPES) | 已備妥（可開始撰寫） | CICD15–CICD15（1 堂） | — |
+| 系統與雲端工程群島 | DevOps 與 CI/CD 島（CICD） | 15／15 | devops-explorer (D1 deployment histories and DORA metrics, D2 the deployment-simulator: rollouts, gates, migrations, feature flags; then D3 dashboards, D4 logs) + terminal (engine stages E25 git, E26 forge, E27 workflows, E28 actions, E29 artifacts, E30 environments, E31 deploy-hosts); a per-lesson mapping (CICD_SHAPES) | 已備妥（可開始撰寫） | 全島完成 | — |
 | 系統與雲端工程群島 | Kubernetes 與可靠性工程島（KUB） | 0／15 | cluster simulation | 缺少 | KUB01–KUB15（15 堂） | 缺少課程能力 |
 
 ## 能力缺口
@@ -750,7 +750,7 @@
 | CICD12 | 集中式日誌 | 已發布（閘門通過） | CICD11 | monitoring-dashboard | — |
 | CICD13 | 回滾與發布安全 | 已發布（閘門通過） | CICD10、CICD11 | terminal-sim | — |
 | CICD14 | 事故應變與事後檢討 | 已發布（閘門通過） | CICD12、CICD13 | terminal-sim | — |
-| CICD15 | DevOps 與 CI/CD 島綜合專題：從 commit 到上線 | 大綱 | CICD05、CICD08、CICD14 | challenge-stages | — |
+| CICD15 | DevOps 與 CI/CD 島綜合專題：從 commit 到上線 | 已發布（閘門通過） | CICD05、CICD08、CICD14 | challenge-stages | — |
 
 ### 系統與雲端工程群島 · Kubernetes 與可靠性工程島（KUB）
 
