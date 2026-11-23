@@ -708,8 +708,10 @@ docker: {
 
 | 檢查 | 意義 |
 |---|---|
-| `{ kind: 'container', name, state?: '…' \| 'restarting', exitCode?, oomKilled?, restartCount?, restartPolicy?, memory?, cpus?, readOnly?, user?, capDrop? }` | E20–E23 的欄位之外：狀態可以是 restarting（等待重新啟動；這時 `exited` 不通過）、最後一次執行是否被 OOM 結束（重新啟動後是 false）、**至少**重新啟動了幾次、重新啟動策略（`on-failure:3` 依名稱與次數比對）、記憶體上限（位元組，和 `HostConfig.Memory` 相同）、CPU（`--cpus` 的值）、根檔案系統唯讀、`Config.User`（`''` 是沒有指定）、拿掉的能力（每一個都要在 CapDrop 裡，ALL 包含全部）。這些欄位需要 runtime 機器，不能和 `absent` 一起。訊息例：`它只重新啟動了 1 次`、`它的重新啟動策略是 no`、`它沒有記憶體上限`、`它的狀態是 restarting` |
+| `{ kind: 'container', name, state?: '…' \| 'restarting', exitCode?, oomKilled?, restartCount?, restartPolicy?, memory?, cpus?, readOnly?, user?, capDrop?, privileged?, dockerSocket? }` | E20–E23 的欄位之外：狀態可以是 restarting（等待重新啟動；這時 `exited` 不通過）、最後一次執行是否被 OOM 結束（重新啟動後是 false）、**至少**重新啟動了幾次、重新啟動策略（`on-failure:3` 依名稱與次數比對）、記憶體上限（位元組，和 `HostConfig.Memory` 相同）、CPU（`--cpus` 的值）、根檔案系統唯讀、`Config.User`（`''` 是沒有指定）、拿掉的能力（每一個都要在 CapDrop 裡，ALL 包含全部）。這些欄位需要 runtime 機器，不能和 `absent` 一起。訊息例：`它只重新啟動了 1 次`、`它的重新啟動策略是 no`、`它沒有記憶體上限`、`它的狀態是 restarting`。DKR-5 加上 `privileged`（是否以 `--privileged` 執行）與 `dockerSocket`（是否以 bind mount 掛載來源以 docker.sock 結尾的檔案），訊息例：`它以 --privileged 執行（擁有所有能力與主機的裝置）`、`它掛載了 Docker 的 socket（可以控制 daemon，等於主機的 root）` |
 | `output`（既有） | 讀出 `docker inspect -f '{{.State.ExitCode}}'`、`{{.RestartCount}}` 等的答案，配合變體讓答案不能直接打出來 |
+
+另外（DKR-5，所有 profile）：Image 沒有 ENTRYPOINT 而 `docker run` 的指令是以 `.sh` 結尾的路徑、後面沒有其他參數時，E20 起會得到空的指令而讓模擬器當掉；現在把那個路徑本身當成指令（找不到就是一般的 127 錯誤）。改動前這條路徑只會當掉，所以已發布的輸出不受影響（`tests/terminal-e20-fixes.test.ts`）。
 
 ### 14.7 測試
 

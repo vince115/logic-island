@@ -469,6 +469,19 @@ describe('lesson data and checks', () => {
     expect(checkTerminalExercise(gracefulExercise, [runtimeLab], gracefulExercise.solution).ok).toBe(true);
     for (const m of gracefulExercise.mistakes) expect(checkTerminalExercise(gracefulExercise, [runtimeLab], m.commands).ok, m.why).toBe(false);
   });
+  it('the container check (DKR-5): privileged and dockerSocket', () => {
+    const ex = (checks: TerminalExercise['checks']): TerminalExercise => ({ id: 'x', title: 'x', machine: 'rt-01', statement: 'x', checks, solution: [], mistakes: [], hints: [], explanation: 'x' });
+    const checks: TerminalExercise['checks'] = [{ kind: 'container', name: 'p', privileged: false }, { kind: 'container', name: 'p', dockerSocket: false },
+      { kind: 'container', name: 'p', privileged: true }, { kind: 'container', name: 'p', dockerSocket: true }];
+    const risky = checkTerminalExercise(ex(checks), [runtimeLab], ['docker run -d --name p --privileged -v /run/docker.sock:/var/run/docker.sock alpine:3.21 sleep infinity']);
+    expect(risky.results.map(r => r.ok)).toEqual([false, false, true, true]);
+    expect(risky.results[0].message).toMatch(/它以 --privileged 執行（擁有所有能力與主機的裝置）$/);
+    expect(risky.results[1].message).toMatch(/它掛載了 Docker 的 socket（可以控制 daemon，等於主機的 root）$/);
+    const plain = checkTerminalExercise(ex(checks), [runtimeLab], ['docker run -d --name p alpine:3.21 sleep infinity']);
+    expect(plain.results.map(r => r.ok)).toEqual([true, true, false, false]);
+    expect(plain.results[2].message).toMatch(/它沒有以 --privileged 執行$/);
+    expect(plain.results[3].message).toMatch(/它沒有掛載 Docker 的 socket$/);
+  });
   it('a synthetic lesson passes terminalContentProblems; the E24 checks need a runtime machine', () => {
     const r = replay(runtimeLab, [BUILD_EXEC, 'docker run -d --name w -m 64m api:exec node worker.js', 'sleep 5', STATUS, 'docker inspect -f "{{.State.OOMKilled}}" w']);
     const content = { machines: [runtimeLab], examples: [{ id: 'oom', title: 'OOM', description: '記憶體不足。', machine: 'rt-01', steps: r.steps.map(s => ({ command: s.command, output: s.output })) }], exercises: [gracefulExercise] };
@@ -476,7 +489,7 @@ describe('lesson data and checks', () => {
     const broken = { ...content, exercises: [{ ...gracefulExercise, checks: [{ kind: 'container' as const, name: 'api', restartPolicy: 'sometimes' }, { kind: 'container' as const, name: 'api', absent: true as const, oomKilled: true }] }] };
     expect(terminalContentProblems(broken).join('\n')).toContain('a container check needs oomKilled true or false');
     const low = { ...content, machines: [{ ...composeLab, id: 'rt-01' }], examples: [] };
-    expect(terminalContentProblems(low).join('\n')).toContain('state restarting, oomKilled, restartCount, restartPolicy, memory, cpus, readOnly, user and capDrop of a container check need a runtime machine (engine stage E24)');
+    expect(terminalContentProblems(low).join('\n')).toContain('state restarting, oomKilled, restartCount, restartPolicy, memory, cpus, readOnly, user, capDrop, privileged and dockerSocket of a container check need a runtime machine (engine stage E24)');
   });
   it('commands never change the state they were given', () => {
     const start = machineState(runtimeLab), nodes = JSON.stringify([...start.nodes]), docker = JSON.stringify(start.docker, (k, v) => v instanceof Map ? [...v] : v);

@@ -664,7 +664,8 @@ export function mainCommand(c: DockerContainer): string {
   return first.slice(first.lastIndexOf('/') + 1);
 }
 /** The command after an entrypoint script (official images' entrypoints exec "$@"). */
-export const effective = (c: DockerContainer) => c.path.endsWith('.sh') ? c.args : [c.path, ...c.args];
+// Fix (DKR-5): a .sh path with no command after it is the command itself (it used to give an empty argv and crash runIn).
+export const effective = (c: DockerContainer) => c.path.endsWith('.sh') && c.args.length ? c.args : [c.path, ...c.args];
 
 // ----------------------------------------------------------------------------------------------------- lifecycle
 

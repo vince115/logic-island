@@ -60,8 +60,17 @@ export interface ActivityMeta {
  * Flexbox Playground they were outlined with stays in the registry as the responsive design island's practice lab.
  */
 const LAB_ACTIVITIES = new Set(labRegistry.filter(l => l.kind === 'tool' && l.status === 'implemented').flatMap(l => l.activities));
-const subjectsOf = (activity: string) => [...new Set([...catalogLessons.filter(l => l.activity === activity).map(l => l.islandId),
-  ...(LAB_ACTIVITIES.has(activity) ? planning.plannedLessons.filter(l => l.activity === activity).map(l => l.islandId) : [])])];
+/**
+ * DKR-5 (2026-11-23): a planned tool lab's activity stays in the list after every lesson outlined with it is written with
+ * another activity, and keeps the islands of those outlines. DKR03–DKR14 were outlined with container-playground and
+ * written as terminal-sim lessons; the planned Docker Container Playground lab keeps its activity, still planned.
+ */
+const PLANNED_LAB_ACTIVITIES = new Set(labRegistry.filter(l => l.kind === 'tool' && l.status !== 'implemented').flatMap(l => l.activities));
+const subjectsOf = (activity: string) => {
+  const fromCatalog = [...new Set([...catalogLessons.filter(l => l.activity === activity).map(l => l.islandId),
+    ...(LAB_ACTIVITIES.has(activity) ? planning.plannedLessons.filter(l => l.activity === activity).map(l => l.islandId) : [])])];
+  return fromCatalog.length || !PLANNED_LAB_ACTIVITIES.has(activity) ? fromCatalog : [...new Set(planning.plannedLessons.filter(l => l.activity === activity).map(l => l.islandId))];
+};
 
 // ---- implemented: the 20 visualizations and the 6 labs ---------------------------------------------------------
 const TRACE_TEXT = '每一步的說明，以及以文字寫出的每個標記';
@@ -153,7 +162,7 @@ const IMPLEMENTED_TEXT: Record<string, string> = {
   'network-sequence': '訊息時序以文字列出（第幾步、從哪個節點到哪個節點、名稱、是否遺失），每一步的標頭欄位以清單呈現；目前這一步的說明以 aria-live 宣告',
 };
 const existing = new Set(visualizationEntries.map(v => v.id));
-const plannedEntries: ActivityMeta[] = [...new Set([...catalogLessons.map(l => l.activity), ...LAB_ACTIVITIES])]
+const plannedEntries: ActivityMeta[] = [...new Set([...catalogLessons.map(l => l.activity), ...LAB_ACTIVITIES, ...PLANNED_LAB_ACTIVITIES])]
   .filter(id => !existing.has(id) && id !== 'none').sort()
   .map(id => {
     const [tier, inputs] = PLANNED[id] ?? PLANNED_DEFAULT;

@@ -170,10 +170,11 @@ export type DockerCheck =
    * E20: the container exists (absent: it does not) in this state, from this image, with this port published (HOST:CONTAINER),
    * exit code and environment variable (K=V). E23: and this health. E24: restarting as a state; its last run OOM-killed (or
    * not), restarted at least restartCount times, this restart policy (on-failure:3), memory limit (bytes), CPUs, a
-   * read-only root file system, this user (Config.User), and these capabilities dropped.
+   * read-only root file system, this user (Config.User), and these capabilities dropped. DKR-5: privileged or not, and
+   * whether the Docker socket (a bind mount whose source ends in docker.sock) is mounted.
    */
   | { kind: 'container'; name: string; absent?: true; state?: 'created' | 'running' | 'exited' | 'restarting'; image?: string; port?: string; exitCode?: number; env?: string; health?: 'starting' | 'healthy' | 'unhealthy';
-      oomKilled?: boolean; restartCount?: number; restartPolicy?: string; memory?: number; cpus?: number; readOnly?: boolean; user?: string; capDrop?: string[] }
+      oomKilled?: boolean; restartCount?: number; restartPolicy?: string; memory?: number; cpus?: number; readOnly?: boolean; user?: string; capDrop?: string[]; privileged?: boolean; dockerSocket?: boolean }
   /**
    * E20: the image is local (absent: it is not). E21: its config has this label (K=V), environment variable (K=V), CMD,
    * ENTRYPOINT (exec form, exactly), USER, exposed TCP port and working directory, and this many layers (RootFS).
@@ -760,13 +761,14 @@ export function dockerCheckProblems(c: DockerCheck, lv: DockerLevels): string | 
   }
   if (c.health !== undefined && !lv.compose) return 'health of a container check needs a compose machine (engine stage E23)';
   // E24: the runtime's fields of a container check.
-  const e24 = [c.oomKilled, c.restartCount, c.restartPolicy, c.memory, c.cpus, c.readOnly, c.user, c.capDrop].some(x => x !== undefined) || c.state === 'restarting';
+  const e24 = [c.oomKilled, c.restartCount, c.restartPolicy, c.memory, c.cpus, c.readOnly, c.user, c.capDrop, c.privileged, c.dockerSocket].some(x => x !== undefined) || c.state === 'restarting';
   if (e24) {
-    if (!lv.runtime) return 'state restarting, oomKilled, restartCount, restartPolicy, memory, cpus, readOnly, user and capDrop of a container check need a runtime machine (engine stage E24)';
+    if (!lv.runtime) return 'state restarting, oomKilled, restartCount, restartPolicy, memory, cpus, readOnly, user, capDrop, privileged and dockerSocket of a container check need a runtime machine (engine stage E24)';
     if (c.absent || (c.oomKilled !== undefined && typeof c.oomKilled !== 'boolean') || (c.restartCount !== undefined && !whole(c.restartCount, 0, 10000)) || (c.restartPolicy !== undefined && (typeof c.restartPolicy !== 'string' || restartProblem(c.restartPolicy) !== null))
       || (c.memory !== undefined && !whole(c.memory, 0, 2 ** 40)) || (c.cpus !== undefined && !(typeof c.cpus === 'number' && c.cpus >= 0 && c.cpus <= 64)) || (c.readOnly !== undefined && typeof c.readOnly !== 'boolean')
-      || (c.user !== undefined && typeof c.user !== 'string') || (c.capDrop !== undefined && (!Array.isArray(c.capDrop) || c.capDrop.some(x => typeof x !== 'string' || !normalizeCap(x)))))
-      return 'a container check needs oomKilled true or false, a restartCount 0..10000, a restart policy (on-failure:3), a memory limit in bytes, cpus 0..64, readOnly true or false, a user, capabilities to drop, and nothing else with absent';
+      || (c.user !== undefined && typeof c.user !== 'string') || (c.capDrop !== undefined && (!Array.isArray(c.capDrop) || c.capDrop.some(x => typeof x !== 'string' || !normalizeCap(x))))
+      || (c.privileged !== undefined && typeof c.privileged !== 'boolean') || (c.dockerSocket !== undefined && typeof c.dockerSocket !== 'boolean'))
+      return 'a container check needs oomKilled true or false, a restartCount 0..10000, a restart policy (on-failure:3), a memory limit in bytes, cpus 0..64, readOnly true or false, a user, capabilities to drop, privileged and dockerSocket true or false, and nothing else with absent';
   }
   if (!NAME.test(c.name ?? '') || (c.state !== undefined && !['created', 'running', 'exited', 'restarting'].includes(c.state)) || (c.image !== undefined && !parseRef(c.image)) || (c.health !== undefined && !['starting', 'healthy', 'unhealthy'].includes(c.health))
     || (c.port !== undefined && !PORT.test(c.port)) || (c.exitCode !== undefined && !whole(c.exitCode, 0, 255)) || (c.env !== undefined && !ENV.test(c.env))
@@ -810,7 +812,8 @@ export function describeDockerCheck(c: DockerCheck): string {
     // E24
     c.oomKilled !== undefined ? `OOMKilled 是 ${c.oomKilled}` : '', c.restartCount !== undefined ? `至少重新啟動了 ${c.restartCount} 次` : '', c.restartPolicy ? `重新啟動策略是 ${c.restartPolicy}` : '',
     c.memory !== undefined ? `記憶體上限是 ${c.memory} 位元組` : '', c.cpus !== undefined ? `CPU 上限是 ${c.cpus}` : '', c.readOnly !== undefined ? (c.readOnly ? '根檔案系統是唯讀的' : '根檔案系統可以寫入') : '',
-    c.user !== undefined ? (c.user ? `以 ${c.user} 執行` : '沒有指定使用者（以 Image 的 USER 或 root 執行）') : '', c.capDrop?.length ? `拿掉了 ${c.capDrop.map(x => normalizeCap(x) ?? x).join('、')} 能力` : ''].filter(Boolean);
+    c.user !== undefined ? (c.user ? `以 ${c.user} 執行` : '沒有指定使用者（以 Image 的 USER 或 root 執行）') : '', c.capDrop?.length ? `拿掉了 ${c.capDrop.map(x => normalizeCap(x) ?? x).join('、')} 能力` : '',
+    c.privileged !== undefined ? (c.privileged ? '以 --privileged 執行' : '沒有 --privileged') : '', c.dockerSocket !== undefined ? (c.dockerSocket ? '掛載了 Docker 的 socket' : '沒有掛載 Docker 的 socket') : ''].filter(Boolean);
   return `應該有名為 ${c.name} 的容器${parts.length ? `（${parts.join('，')}）` : ''}`;
 }
 /** E21: the build check: build the context, change the file, build again, and read which steps were CACHED. */
@@ -938,6 +941,12 @@ export function dockerFailure(c: DockerCheck, end0: FsState): string | null {
   if (c.readOnly !== undefined && !!x.readOnly !== c.readOnly) return x.readOnly ? '它的根檔案系統是唯讀的' : '它的根檔案系統可以寫入（沒有 --read-only）';
   if (c.user !== undefined && (x.user ?? '') !== c.user) return x.user ? `它以 ${x.user} 執行` : '它沒有指定使用者（以 root 執行）';
   for (const cap of c.capDrop ?? []) { const n = normalizeCap(cap)!; if (!(x.capDrop ?? []).includes(n) && !(x.capDrop ?? []).includes('ALL')) return x.capDrop?.length ? `它拿掉的能力是 ${x.capDrop.join('、')}` : '它沒有拿掉任何能力（沒有 --cap-drop）'; }
+  // DKR-5: privileged mode and the Docker socket (whoever reaches the socket controls the daemon, so the host).
+  if (c.privileged !== undefined && !!x.privileged !== c.privileged) return x.privileged ? '它以 --privileged 執行（擁有所有能力與主機的裝置）' : '它沒有以 --privileged 執行';
+  if (c.dockerSocket !== undefined) {
+    const sock = (x.mounts ?? []).some(m => m.type === 'bind' && /(^|\/)docker\.sock$/.test(m.source));
+    if (sock !== c.dockerSocket) return sock ? '它掛載了 Docker 的 socket（可以控制 daemon，等於主機的 root）' : '它沒有掛載 Docker 的 socket';
+  }
   return null;
 }
 /** E23: compose and registry, on the daemon after the commands. */
