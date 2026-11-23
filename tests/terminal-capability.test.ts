@@ -95,6 +95,8 @@ describe('isolation from the other capabilities', () => {
     expect(validateCurriculum(curriculum)).toEqual([]);
     // LNX-1: only the Linux systems island's lessons use the terminal capability.
     for (const l of lessons) {
+      // CICD-2: in the DevOps and CI/CD island each lesson's shape comes from CICD_SHAPES (asserted in curriculum.test.ts).
+      if (l.islandId === 'devops-cicd') continue;
       // SRV-1: the network and servers island uses the terminal capability too. DKR-1: so does the Docker containers island.
       const linux = l.islandId === 'linux-systems' || l.islandId === 'network-servers' || l.islandId === 'docker-containers';
       expect(l.capabilities.includes('terminal'), l.lessonId).toBe(linux);

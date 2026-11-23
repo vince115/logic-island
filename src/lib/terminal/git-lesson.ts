@@ -142,7 +142,9 @@ export function gitState(m: TerminalMachine, state: FsState, git: boolean): FsSt
     const commit = store.commit(at), time = t.time !== undefined ? parseTime(t.time) ?? commit.author.time : commit.author.time;
     return store.put({ type: 'tag', object: at, objectType: 'commit', tag: t.name, tagger: { ...t.tagger ?? { name: commit.author.name, email: commit.author.email }, time, tz: tzAt(time) }, message: t.message.endsWith('\n') ? t.message : `${t.message}\n` });
   };
-  const known = (tips: Iterable<Sha>) => { const k = new Set<Sha>(); for (const id of tips) { if (store.get(id)?.type === 'tag') k.add(id); } for (const id of reachable(store, [...tips].map(id => { const o = store.get(id); return o?.type === 'tag' ? o.object : id; }))) k.add(id); return k; };
+  // Fix (CICD-2): the tips are read twice (tags, then reachability), so take them as an array first; an iterator was
+  // exhausted by the first loop and declared repositories knew none of their commits.
+  const known = (tips0: Iterable<Sha>) => { const tips = [...tips0], k = new Set<Sha>(); for (const id of tips) { if (store.get(id)?.type === 'tag') k.add(id); } for (const id of reachable(store, [...tips].map(id => { const o = store.get(id); return o?.type === 'tag' ? o.object : id; }))) k.add(id); return k; };
   const forge: ForgeRepo[] = (m.git.remotes ?? []).map(f => {
     const refs = new Map<string, Sha>([...Object.entries(f.branches).map(([b, l]) => [`refs/heads/${b}`, ids.get(l)!] as [string, Sha]), ...(f.tags ?? []).map(t => [`refs/tags/${t.name}`, tagRef(t)] as [string, Sha])]);
     return { url: f.url, head: `refs/heads/${f.head ?? defaultBranch(f.branches) ?? 'main'}`, refs, known: known(refs.values()) };

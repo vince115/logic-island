@@ -101,7 +101,7 @@ export const gitContent: TerminalLessonContent = {
     steps: [
       { command: 'cd shop', output: '' },
       { command: 'git status', output: "On branch main\nYour branch is up to date with 'origin/main'.\n\nnothing to commit, working tree clean" },
-      { command: 'git fetch', output: 'From https://github.example/island/shop\n   73207f3..c314c03  main       -> origin/main\n * [new branch]      feature    -> origin/feature\n * [new tag]         v0.1       -> v0.1' },
+      { command: 'git fetch', output: 'From https://github.example/island/shop\n   73207f3..c314c03  main       -> origin/main\n * [new branch]      feature    -> origin/feature' },
       { command: 'git status -sb', output: '## main...origin/main [behind 1]' },
     ],
   }],

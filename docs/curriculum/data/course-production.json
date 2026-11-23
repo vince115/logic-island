@@ -638,7 +638,19 @@
       ],
       "commit": "TBD",
       "tests": "TBD",
-      "notes": "CICD-1：DevOps 與 CI/CD 島開放（devops-explorer 能力，D1 部署紀錄與 DORA 指標；deployment-simulator 活動因第一堂完整課而改為已實作）；DevOps 概念與文化一課（一次上線與分開上線、兩個團隊同一季的四個 DORA 指標，示意資料）"
+      "notes": "CICD-1：DevOps 與 CI/CD 島開放（devops-explorer 能力，D1 部署紀錄與 DORA 指標；deployment-simulator 活動因第一堂完整課而改為已實作）；DevOps 概念與文化一課（一次上線與分開上線、兩個團隊同一季的四個 DORA 指標，示意資料）",
+      "pr": "#91",
+      "merged": "833e5cf"
+    },
+    {
+      "id": 46,
+      "date": "2026-11-23",
+      "lessons": [
+        "CICD02"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "CICD-2：終端機引擎階段 E25 git（真實的 blob、tree、commit 與 tag 物件、git 2.43 的常用指令、git 的 xdiff 三方合併）與 E26 forge（github.example 上的 Pull Request、審查者、分支保護與 GH006、merge／squash／rebase 的歷史、gh 與 gh api）；團隊 Git 工作流程一課"
     }
   ]
 }

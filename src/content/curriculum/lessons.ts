@@ -706,9 +706,10 @@ const dockerContainers: Outline[] = [
   dockerFromBlueprint('DKR15', '把三層式的拾光書屋從筆電上手打的 docker run 帶到可以上線：以兩個階段建置 distroless、nonroot、exec 形式的 API Image 並試跑優雅關閉，修好 Compose 開發環境的具名 Volume、pg_isready 健康檢查與 service_healthy，從 docker history 找出經由 ARG 與 ENV 包進舊 Image 的付款金鑰、撤銷後刪除舊 Image 並改以唯讀掛載的檔案提供，以 SemVer 與 commit 標籤從 --password-stdin 登入推送到私有 Registry、不推送 latest，以 deploy 帳號拉取並以 digest、--read-only 加 tmpfs、--cap-drop ALL、no-new-privileges、記憶體與 CPU 上限、unless-stopped 與只綁 127.0.0.1 上線，最後照上線檢查清單以 ps、logs、inspect、events、stats 與 curl 驗收第二台主機，找出手動部署造成的 OOM 重啟迴圈並以審查過的部署指令稿從根本修好。', 90),
 ];
 
-/** CICD-1 (2026-11-23): the devops-cicd island's first lesson, on the devops-explorer capability (CICD0_DEVOPS_CAPABILITY.md). */
+/** CICD-1 (2026-11-23): the devops-cicd island's first lesson, on the devops-explorer capability (CICD0_DEVOPS_CAPABILITY.md); CICD-2 adds CICD02 on the terminal with engine stages E25 git and E26 forge. */
 const devopsCicd: Outline[] = [
   cicdFromBlueprint('CICD01', '從開發與維運的隔閡說明 DevOps 要解決的問題與共同責任、自動化的做法，用同一週八個變更的一次上線與分開上線比較小批量與快速回饋如何縮短前置時間、縮小故障範圍並加快復原，再以兩個團隊同一季的部署紀錄算出 deployment frequency、change lead time、change fail rate 與 failed deployment recovery time 四個 DORA 指標，並說明指標該怎麼讀、為什麼不能拿來排名。', 45),
+  cicdFromBlueprint('CICD02', '在一個小型圖書館團隊的模擬 GitHub 上實際開分支、推送、開 Pull Request、等同事審查再合併，說明分支保護的規則並用 gh api 讀取與設定，比較 Trunk-based development 與 Git Flow 的取捨，再以 merge 與 rebase 的歷史形狀、主機上的三種合併方式與衝突的解決，在落後且衝突的分支、凌亂的 PR 與共用分支三個情境中選擇並執行合適的做法。', 55),
 ];
 
 /** RWD-1 (2026-11-23): the responsive design island's first lessons, on the web-code capability with the resize step and preview widths (WEB0_WEB_CODE_CAPABILITY.md, RESPONSIVE_DESIGN_ISLAND.md); RWD-2 adds RWD05–RWD08, RWD-3 RWD09–RWD12 (the capstone): the island is complete. */

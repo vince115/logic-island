@@ -497,3 +497,13 @@ describe('log --graph with two merges (graph.c, compared with real Git)', () => 
     expect(s.last.out).toEqual(["* a57c5d9 g", "*   f5f3544 m2", "|\\  ", "| * 49c1258 e", "* |   2ea06f4 m1", "|\\ \\  ", "| |/  ", "|/|   ", "| * 1357368 c", "| * 225c840 b", "* | 419929f d", "|/  ", "* 7837853 a"]);
   });
 });
+
+describe('fix (CICD-2): a declared repository knows its own commits', () => {
+  it('rewriting a branch that matches the remote and pushing is non-fast-forward, not fetch first', () => {
+    const synced: TerminalMachine = { ...gitLab, git: { ...gitLab.git!, repos: [{ path: '/home/learner/shop', origin: SHOP, branches: { main: 'c3' }, tracking: { main: 'c3' } }] } };
+    const r = session(synced, GIT_PROFILE, 'cd shop', 'git commit --amend -m "Rewrite the last commit"', 'git push');
+    const out = r.last.all.join('\n');
+    expect(out).toContain('(non-fast-forward)');
+    expect(out).not.toContain('(fetch first)');
+  });
+});
