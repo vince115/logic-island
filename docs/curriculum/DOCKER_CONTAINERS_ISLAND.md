@@ -19,12 +19,13 @@
 |---|---|
 | 容器與 Docker 入門 | DKR01–DKR04 |
 
-## 模擬器的已知差異（課文已說明或避開，列為引擎階段 E21 的修正）
+## 模擬器的已知差異（課文已說明或避開）
 
-- 主機的 `ps` 不列出容器裡的行程（真實主機會以主機的 PID 列出）。
-- alpine 裡的 `ps` 用 procps 的格式而不是 BusyBox。
+- 主機的 `ps` 不列出容器裡的行程（真實主機會以主機的 PID 列出）：**E21 起修正，只在 `images` profile 以上**（DKR05 起的課；主機的 `ps` 有 `containerd-shim-runc-v2` 與容器的主程式，見 [DKR0_CONTAINER_CAPABILITY](DKR0_CONTAINER_CAPABILITY.md) §11.6）。`containers` profile（DKR01–DKR04）維持原樣，因為打開它會改變 DKR02（`pgrep -a containerd`）與 DKR04（docker-proxy 的 PID）的範例輸出；DKR01 的說明框（模擬環境的主機 ps 看不到容器的行程）對它的 profile 仍然正確，未修改。
+- alpine 裡的 `ps` 用 procps 的格式而不是 BusyBox（維持原樣）。
 - `docker logs -t` 的時間是容器啟動時間；Image 的 digest 只由名稱與標籤決定。
 - `/var/run` 與 socket 的檔案類型：socket 顯示成一般檔案（`-rw-rw----`），課文已說明。
+- E21（`docker build`）：進度一律是 BuildKit 的 plain 格式（不模擬終端機的 TTY 畫面），時間是決定論的；RUN 沒有網路，apt、pip、npm 只用課程宣告的套件表；層的大小只算檔案內容；`transferring context` 每次報告全部用到的檔案（真實的 BuildKit 第二次只傳送改變的檔案）。其餘見 §11.9、§11.10。
 
 ## 引擎修正後的課文更正
 
@@ -32,6 +33,6 @@
 
 ## 後續批次
 
-DKR-2（DKR05–06，E21 Dockerfile 建置、分層與快取）、DKR-3（DKR07–08，E22 Volume 與網路）、DKR-4（DKR09–11，E23 Compose、多階段建置與 Registry）、DKR-5（DKR12–14，E24 inspect、健康檢查、資源限制與 OOM）、DKR-6（DKR15 綜合專題）。
+DKR-2（DKR05–06，E21 Dockerfile 建置、分層與快取；引擎階段已完成，見 DKR0 §11）、DKR-3（DKR07–08，E22 Volume 與網路）、DKR-4（DKR09–11，E23 Compose、多階段建置與 Registry）、DKR-5（DKR12–14，E24 inspect、健康檢查、資源限制與 OOM）、DKR-6（DKR15 綜合專題）。
 
 課程狀態與 3D 地景分離：Docker 容器島的 `mapState` 仍是 `'planned'`。

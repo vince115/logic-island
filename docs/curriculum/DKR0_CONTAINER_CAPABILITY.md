@@ -1,6 +1,6 @@
 # DKR-0：Docker 容器島的課程能力與引擎階段 E20
 
-> 2026-11-23。目標：讓 Docker 容器島（`docker-containers`，前綴 DKR，15 堂）可以撰寫、驗證、發布。本島**不需要新的課程能力或活動**：和網路與伺服器島（[SRV0_SERVER_CAPABILITY](SRV0_SERVER_CAPABILITY.md)）一樣沿用 LNX-0 的 `terminal` 能力（[LNX0_TERMINAL_CAPABILITY](LNX0_TERMINAL_CAPABILITY.md)）與 CN-0 的 `network-protocol` 情境。本文件也是終端機引擎階段 **E20** `containers` 的唯一說明處（E1–E9 在 LNX0，E10–E19 在 SRV0），以及之後 E21–E24 的規劃。之後的進度與下一批由 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 計算。
+> 2026-11-23。目標：讓 Docker 容器島（`docker-containers`，前綴 DKR，15 堂）可以撰寫、驗證、發布。本島**不需要新的課程能力或活動**：和網路與伺服器島（[SRV0_SERVER_CAPABILITY](SRV0_SERVER_CAPABILITY.md)）一樣沿用 LNX-0 的 `terminal` 能力（[LNX0_TERMINAL_CAPABILITY](LNX0_TERMINAL_CAPABILITY.md)）與 CN-0 的 `network-protocol` 情境。本文件也是終端機引擎階段 **E20** `containers` 與 **E21** `images`（§11）的唯一說明處（E1–E9 在 LNX0，E10–E19 在 SRV0），以及之後 E22–E24 的規劃。之後的進度與下一批由 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 計算。
 
 ## 1. 範圍
 
@@ -8,6 +8,7 @@
 |---|---|
 | DKR-0（登錄） | `PREPARED_ISLAND_IDS = ['docker-containers']`、前綴 `DKR`、`UNITS['docker-containers'] = []`、`dockerFromBlueprint`；沒有課程、頁面、旗標、3D、GLB 或 `mapState` 的改動 |
 | E20 `containers` | Docker CE 27.5.1 的模擬：daemon 的 Image 與 Container、模擬的 Docker Hub（課程宣告哪些 Image 拉得到）、容器的生命週期與可寫層、日誌、`docker exec`、連接埠對應（主機上的 `docker-proxy`、`curl` 經由它連到容器的服務）、`docker` 群組與 socket 的權限；`docker` 指令（§5） |
+| E21 `images` | `docker build`（BuildKit，預設的建置器）：Dockerfile 的解析、在建置容器裡執行 RUN、由建置內容 COPY／ADD 與 `.dockerignore`、每一步的層與大小、建置快取（`CACHED` 與失效）、`docker history`、Image 設定在 `docker run` 時生效、標籤與 dangling Image、`docker image prune`、`image`／`build` 檢查（§11） |
 
 不新增任何執行期套件；所有輸出由課程資料與機器的固定時鐘決定（§5.6）。
 
@@ -36,12 +37,12 @@
 
 ## 4. 批次與引擎階段
 
-課程編號即位置，依序連續發布；每一批先完成它需要的引擎階段（各自的 profile 與測試），再寫課。profile 延續**線性鏈**：… < edge < diagnostics < **containers**（E20）< E21 < E22 < E23 < E24。
+課程編號即位置，依序連續發布；每一批先完成它需要的引擎階段（各自的 profile 與測試），再寫課。profile 延續**線性鏈**：… < edge < diagnostics < **containers**（E20）< **images**（E21）< E22 < E23 < E24。
 
 | 批次 | 課程 | 引擎階段 |
 |---|---|---|
 | DKR-1 | DKR01–DKR04 | **E20** `containers`（已完成，§5）：DKR01、DKR02 的架構情境旁用 `docker version`、`docker info`、`docker run hello-world` 看 client、daemon 與 Registry 的分工；DKR03 生命週期（created、running、exited、刪除與可寫層）；DKR04 常用指令（run、ps、logs、exec、-p） |
-| DKR-2 | DKR05–DKR06 | **E21** Dockerfile 與建置：解析 Dockerfile（FROM、RUN、COPY、WORKDIR、ENV、CMD、ENTRYPOINT、USER、EXPOSE）、`.dockerignore`、`docker build`（BuildKit 的輸出）、每個指令一層、快取命中（`CACHED`）與失效、指令順序、`docker history`、Image 大小；RUN 只執行模擬環境認得的指令（套件安裝依 E5 的套件資料） |
+| DKR-2 | DKR05–DKR06 | **E21** `images`（已完成，§11）Dockerfile 與建置：解析 Dockerfile（FROM、RUN、COPY、WORKDIR、ENV、CMD、ENTRYPOINT、USER、EXPOSE）、`.dockerignore`、`docker build`（BuildKit 的輸出）、每個指令一層、快取命中（`CACHED`）與失效、指令順序、`docker history`、Image 大小；RUN 只執行模擬環境認得的指令（套件安裝依 E5 的套件資料） |
 | DKR-3 | DKR07–DKR08 | **E22** Volume 與網路：`docker volume`、`-v`／`--mount`（具名 Volume、bind mount 對應主機的檔案、tmpfs）、UID 不同造成的權限錯誤、重建容器後資料保留；`docker network`（預設 bridge、自訂網路與內建 DNS 127.0.0.11、容器以名稱互連、`--network host`）、哪些埠需要 `-p` |
 | DKR-4 | DKR09–DKR11 | **E23** Compose、多階段建置與 Registry：`compose.yaml`（services、ports、environment、volumes、depends_on 與 `condition: service_healthy`）、`docker compose up -d`／`ps`／`logs`／`down`；多階段建置（`COPY --from`、精簡基底、建置參數）；`docker tag`、`push`、以 digest 拉取、私有 Registry 的 `docker login`、不可變標籤與 `latest` 的風險（DKR11 的管線情境） |
 | DKR-5 | DKR12–DKR14 | **E24** 檢查與執行期限制：完整的 `docker inspect`、`HEALTHCHECK` 與 `(healthy)`／`(unhealthy)`、`--memory`／`--cpus`、記憶體不足的 `OOMKilled` 與 137、`--restart` 策略與重啟迴圈（`Restarting (1) …`）、SIGTERM 的處理與優雅關閉（`docker stop -t`）、`docker stats`、`top`、`kill`、`events`；DKR12（安全，`case-study-board`）用 E21 的 `USER`、E24 的 `--read-only` 與 `--cap-drop` |
@@ -90,7 +91,7 @@
 | `docker container prune [-f]` | `WARNING! This will remove all stopped containers.`、`Are you sure you want to continue? [y/N] `；沒有鍵盤時說明（請加 `-f` 或 `echo y \|`），管線的答案不會顯示，所以下一行接在提示後面；`Deleted Containers:`、每個完整 ID、空行、`Total reclaimed space: 5B` |
 | `docker port 容器 [埠[/協定]]` | `80/tcp -> 0.0.0.0:8080` 與 `80/tcp -> [::]:8080`；指定埠時只印位址；沒有：`Error: No public port '81/tcp' published for web` |
 | `docker inspect [-f 格式] 名稱…` | 先找容器，再找 Image。`-f` 支援 `{{.欄位.欄位}}`、`{{json .欄位}}` 與字面文字；模擬的欄位：`.Id`、`.Created`（RFC 3339，整秒）、`.Path`、`.Args`、`.State`（Status、Running、Paused、Restarting、OOMKilled、Dead、ExitCode、Error、StartedAt、FinishedAt；沒有過的時間是 `0001-01-01T00:00:00Z`）、`.Image`、`.Name`（`/web`）、`.RestartCount`、`.HostConfig.PortBindings`、`.HostConfig.AutoRemove`、`.Config`（Hostname、Env、Cmd、Image、WorkingDir、Entrypoint、ExposedPorts、Tty、OpenStdin）、`.NetworkSettings`（IPAddress、Gateway、Ports）；Image 是 Id、RepoTags、RepoDigests、Created、Size、Os、Architecture、Config。值照 Go 的 text/template 印（`[nginx -g daemon off;]`、`true`）。沒有 `-f` 時印出模擬的欄位的 JSON 並說明真實的輸出有更多欄位；模擬環境沒有的欄位（例如 `.State.Health`、`.State.Pid`）說明不支援（結束碼 1），不印假的值。找不到：`Error: No such object: x` |
-| 其他 | `docker` 沒有參數印縮短的 Usage 與支援的指令；不存在的指令 `docker: 'x' is not a docker command.`、`See 'docker --help'`；真實存在但屬於之後階段的指令（build、history、volume、network、compose、push、tag、login、stats、top、kill…）說明是哪一個引擎階段（E21–E24） |
+| 其他 | `docker` 沒有參數印縮短的 Usage 與支援的指令；不存在的指令 `docker: 'x' is not a docker command.`、`See 'docker --help'`；真實存在但屬於之後階段的指令（build、history、volume、network、compose、push、tag、login、stats、top、kill…）說明是哪一個引擎階段（E21–E24）。`images` profile 起 build、history、`docker image build|history|prune`、`docker buildx build` 可用（§11）；`containers` profile 仍說明是 E21 |
 
 ### 5.4 `--format`
 
@@ -148,7 +149,7 @@ machines: [{ ..., profile: 'containers',
 ## 8. 只在課文說明、或不支援的部分
 
 - **核心機制**：namespace、cgroup、overlay2 的分層、OCI 規格、containerd 與 runc 的分工、Hypervisor 與虛擬機——模擬環境只模擬 CLI 看得到的結果，DKR01、DKR02 以網路情境與課文說明。容器裡的程式不出現在主機的 `ps`（真實的主機看得到它們）。
-- **E21–E24 的功能**（§4）：Dockerfile 與 `docker build`、`history`、`commit`；Volume、bind mount、`docker network`、容器之間以名稱連線；Compose、多階段建置、`tag`／`push`／`login`、以 digest 拉取；HEALTHCHECK、資源限制、OOMKilled、重新啟動策略、`stats`／`top`／`kill`／`events`／`pause`。輸入這些指令時說明是哪一個階段。
+- **E21–E24 的功能**（§4）：Dockerfile 與 `docker build`、`history`（E21 已完成，§11；`docker commit` 在 `images` profile 說明不支援）；Volume、bind mount、`docker network`、容器之間以名稱連線；Compose、多階段建置、`tag`／`push`／`login`、以 digest 拉取；HEALTHCHECK、資源限制、OOMKilled、重新啟動策略、`stats`／`top`／`kill`／`events`／`pause`。輸入這些指令時說明是哪一個階段。
 - **其他**：`docker create`、`attach`、`cp`、`rename`、`system prune`、`save`／`load`、`context`、`buildx`；daemon 停止的情形（`systemctl stop docker` 不影響 `docker` 指令：`Cannot connect to the Docker daemon` 留到 E24）；互動式的終端機（`-it` 的 Shell、`docker logs -f` 的等待、前景伺服器的 Ctrl-C）；`docker exec -d`、`-u`；`docker ps -s`、`-n`、`-l` 與其他過濾條件；`--format` 的函式；`ls -l` 在容器裡的欄位依模擬環境的 `ls`；`ps` 只支援不加選項（BusyBox 的 `ps` 版面不同）；`/etc/resolv.conf`、IPv6 的 socket、`docker0`、iptables。
 - **日誌**：Image 的 `logs` 是課程寫好的固定文字（例如 nginx 的 `[notice]` 行裡的時間），不會隨啟動時間改變；`-t` 的時間戳記才是啟動的時間。
 - **大小**：`docker container prune` 的回收空間只算可寫層裡內容改變的檔案的位元組（真實的值另有 overlay 的中繼資料）。
@@ -180,3 +181,164 @@ machines: [{ ..., profile: 'containers',
 | — | Alpine 的 `ls` 錯誤 | BusyBox 的格式：`ls: /nope: No such file or directory`（GNU 是 `ls: cannot access '/nope': …`） |
 
 **沒有修**：Alpine 的 `ps` 仍是 procps 的版面（BusyBox 是 `PID   USER     TIME  COMMAND`；要改既有測試與 `ps` 的模擬，不是小修）；主機的 `ps` 不列出容器的行程；`docker logs -t` 的時間；digest 只由名稱與標籤決定。`docker rmi -f` 遇到只有停止的容器使用時的行為已依真實的 Docker 修正（第 6 項），DKR03 的課文、測驗 q4 的解說與清理練習的典型錯誤一併更正（範例輸出不變）。
+
+## 11. 引擎階段 E21：`images` profile（`src/lib/terminal/build.ts`、`docker.ts`、`docker-lesson.ts`）
+
+> 2026-11-23。給 DKR05（撰寫 Dockerfile）與 DKR06（Image 分層與建置快取）。依 Docker CE 27.5.1 與它預設的建置器 BuildKit（`docker build` 是 `docker buildx build` 的別名，driver 是 `docker`，Image 存在 overlay2 的傳統 Image 儲存區）。E20 的行為與所有已發布的課（DKR01–DKR04 與其他島）逐字不變：新的行為只在 `images` profile 起出現。
+
+### 11.1 選用方式
+
+| 項目 | 內容 |
+|---|---|
+| `IMAGES_PROFILE` | `containers` 的一切，**沒有新的指令**（`docker` 已在 E20），feature `images`。`docker` 收到 `images: true` 時才有 `docker build`、`docker history`、`docker image build|history|prune`、`docker buildx build`、`docker builder build`；`containers` profile 這些仍是「模擬環境在引擎階段 E21（Dockerfile、建置、分層與快取） 才支援」（`docker image prune` 仍是 `'image prune' is not a docker command.`） |
+| 說明頁與 help | `docker --help`、`man docker` 印 `IMAGES_MANUAL`（多了 build、history、image prune）；`help` 的 docker 行多了 `build|history`；沒有參數的 `docker` 多列 build 與 history |
+| 課程資料 | `TerminalImage` 的 `user`、`labels`、`packages`、`history` 與機器的 `docker.programs` 需要 `images`（「`… need the images profile (engine stage E21)`」） |
+| `docker commit` | `images` profile 說明不支援（請寫成 Dockerfile 再建置），不假裝 |
+
+### 11.2 建置的模型
+
+| 項目 | 內容 |
+|---|---|
+| 建置內容 | `docker build [選項] 資料夾`：資料夾（相對於目前目錄）裡的每個檔案，扣掉 `.dockerignore` 排除的；Dockerfile 預設是 `資料夾/Dockerfile`，`-f` 相對於目前目錄。不讀標準輸入（`-`）與網址 |
+| Dockerfile 的解析 | 開頭的 parser directive（`# syntax=…`、`# escape=…`）忽略；`#` 開頭的行是註解（續行中的註解行也拿掉）；行尾 `\` 續行，**反斜線與換行直接拿掉**（所以 `apt-get update && \`＋下一行縮排變成 `&&     apt-get`，history 也是這樣）。指令不分大小寫；JSON 陣列是 exec 形式，否則是 shell 形式；`FROM`、`RUN`、`COPY`、`ADD` 前面的 `--旗標=值` 另外讀。變數代換（`$X`、`${X}`、`${X:-預設}`、`${X:+值}`、`\$`）用在 FROM（只有第一個 FROM 之前的 ARG）、COPY、ADD、WORKDIR、ENV、LABEL、EXPOSE、USER；RUN 的變數由建置容器的 Shell 展開（ARG 與 ENV 都是它的環境變數） |
+| 指令 | FROM（`AS 名稱`）、RUN、COPY（`--chown`、`--chmod`）、ADD（只有本機的一般檔案）、WORKDIR、ENV、ARG、EXPOSE（TCP）、CMD、ENTRYPOINT（exec 與 shell 形式）、USER、LABEL。VOLUME 說明是 E22，HEALTHCHECK、STOPSIGNAL 是 E24，`COPY --from` 是 E23，ONBUILD、SHELL、MAINTAINER、`RUN --mount` 說明不支援，here-document（`RUN <<EOF`）說明不支援 |
+| 多階段 | 只建置目標階段（最後一個，或 `--target`）：BuildKit 略過用不到的階段，所以其他階段不出現在輸出；有兩個以上的 FROM 時步驟名稱帶階段名（`[app 2/3]`，沒有名稱時 `[stage-1 2/3]`） |
+| 基底 Image | FROM 先找本機的 Image（含建置出來的），再找模擬的 Docker Hub。只在 Docker Hub 的基底下載到**建置快取**，不會成為 `docker images` 裡的 Image（第一次的 FROM 步驟列出各層的下載與解開，之後只有 resolve）。`FROM scratch` 是空的檔案系統 |
+| 步驟 | FROM 與每個 RUN、COPY、ADD、WORKDIR 是一步（`[k/N]`）；ENV、ARG、LABEL、EXPOSE、CMD、ENTRYPOINT、USER 只改 Image 的設定，不是步驟，但寫進 history（0B） |
+| RUN | 在**建置容器**（基底的檔案系統）裡以 `/bin/sh -c`（shell 形式）或直接（exec 形式）執行，身分是當時的 USER（預設 root）。Image 沒有 `sh` 時 shell 形式失敗（`exec: "/bin/sh": stat /bin/sh: no such file or directory`）；USER 不在 Image 的 `/etc/passwd` 時失敗（`unable to find user X: no matching entries in passwd file`）。可用的指令見 §11.5 |
+| 層 | 每一步之後比較檔案系統：有新增、改變或刪除的檔案就是一層（diff ID 由這些變化的內容算出，相同的變化得到相同的 diff ID），沒有變化是空的層（history 的 SIZE 0B，不在 `RootFS.Layers`）。**大小**是新增或改變的檔案的位元組數；套件的檔案以課程宣告的大小計（§11.5），目錄、權限與刪除算 0。層在 daemon 裡以 chain ID 保存（下面的層不同就是不同的層），`docker rmi` 與 `docker image prune` 只刪除沒有其他本機 Image 使用的層 |
+| Image | 設定是基底的設定加上 Dockerfile 的變更（ENTRYPOINT 會清掉基底的 CMD，同一個階段先寫的 CMD 保留）；大小是各層大小的和；ID 由設定（含各層 diff ID 與 history）算出，所以只命中快取的重建得到同一個 ID 與 CREATED。沒有 `-t` 的 Image 是 `<none> <none>`；`-t` 可以給好幾個（同一個 ID 的幾列）；標籤移到新 Image 後舊的沒有標籤就成為 dangling。建置出來的 Image 沒有 repository digest（沒有 push 過） |
+| 失敗 | 不產生 Image、標籤不動，但已經成功的步驟與下載的基底留在建置快取（再建置時是 `CACHED`） |
+
+### 11.3 輸出的格式（決定：BuildKit 的 plain 格式）
+
+`docker build` 的進度一律是 **plain 格式**（`--progress=plain`，也是標準錯誤不是終端機時 `auto` 的樣子），寫到**標準錯誤**；`-q`（或 `--progress=quiet`）只在標準輸出印 `sha256:<Image ID>`。終端機上真實的 `tty` 格式（`[+] Building 3.2s (9/9) FINISHED` 與會收合的列）不模擬，`--progress=tty|auto` 也印 plain。
+
+```
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 161B done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/python:3.12-slim
+#2 DONE 0.5s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 2B done
+#3 DONE 0.0s
+
+#4 [1/4] FROM docker.io/library/python:3.12-slim@sha256:<digest>
+#4 resolve docker.io/library/python:3.12-slim@sha256:<digest> done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 1.59kB done
+#5 DONE 0.0s
+
+#6 [2/4] WORKDIR /app
+#6 CACHED
+
+#7 [3/4] COPY . .
+#7 DONE 0.0s
+
+#8 [4/4] RUN pip install --no-cache-dir -r requirements.txt
+#8 0.355 Collecting flask==3.0.3 (from -r requirements.txt (line 1))
+…
+#8 DONE 3.0s
+
+#9 exporting to image
+#9 exporting layers 0.3s done
+#9 writing image sha256:<Image ID> done
+#9 naming to docker.io/library/app:1.0 done
+#9 DONE 0.3s
+```
+
+| 項目 | 內容 |
+|---|---|
+| 編號與空行 | `#0` 一行與空行，之後每個步驟一段（`#N 名稱`、內容、`#N DONE 0.1s` 或 `#N CACHED` 或 `#N ERROR: …`），段與段之間空一行；最後一段（exporting）之後不空行 |
+| 大小 | `transferring dockerfile`／`context` 用 Go 的 `HumanSize`（四位有效數字：`161B`、`1.59kB`）。沒有 `.dockerignore` 時是 `2B`；有的時候是它的位元組數。建置內容的大小是 COPY／ADD 用到的檔案（`.dockerignore` 排除之後）的位元組數 |
+| 時間 | 決定論：`DONE` 與 RUN 每一行前的秒數（三位小數，遞增）由步驟的種類與輸出的行數算出（每個 apt 套件 0.6 秒、pip 0.4 秒、npm 0.3 秒、apt-get update 1.2 秒），不是真實的耗時；時鐘不前進 |
+| 失敗 | 步驟段以 `#N ERROR: <原因>` 結束；接著 `------`、` > [k/N] 指令:`、最後 10 行輸出（帶秒數）、`------`；Dockerfile 的片段（`Dockerfile:行`、`--------------------`、前後各約兩行、`>>>` 標出指令、`--------------------`，依 BuildKit 的 `Source.Print`）；最後 `ERROR: failed to solve: <原因>`，結束碼 1。例：RUN 的 `process "/bin/sh -c …" did not complete successfully: exit code: 100`；COPY 找不到檔案 `failed to compute cache key: failed to calculate checksum of ref <id>::<id>: "/x": not found`；基底不存在 `failed to resolve source metadata for docker.io/library/python:3.13: docker.io/library/python:3.13: not found`；語法 `dockerfile parse error on line 3: unknown instruction: RUNN` |
+| 參數錯誤 | 沒有資料夾：`ERROR: "docker buildx build" requires exactly 1 argument.`、`See 'docker buildx build --help'.`、Usage；`-t App`：`ERROR: invalid tag "App": repository name must be lowercase`；資料夾不存在：`ERROR: unable to prepare context: path "x" not found`；沒有 Dockerfile：`ERROR: failed to solve: failed to read dockerfile: open Dockerfile: no such file or directory`；權限：`ERROR: permission denied while trying to connect to the Docker daemon socket …` |
+| 建置檢查的警告 | 建置成功後（BuildKit 的 build checks）：` N warning(s) found (use docker --debug to expand):` 與 ` - JSONArgsRecommended: JSON arguments recommended for CMD to prevent unintended behavior related to OS signals (line 7)`（CMD、ENTRYPOINT 的 shell 形式）、` - LegacyKeyValueFormat: "ENV key=value" should be used instead of legacy "ENV key value" format (line 5)`（ENV、LABEL 的舊格式）。其他檢查不模擬 |
+| `docker history [--no-trunc] [-q] [-H|--human=false] [--format …] IMAGE` | `IMAGE   CREATED   CREATED BY   SIZE   COMMENT`，由新到舊；**只有最上面一列有 Image ID，其他都是 `<missing>`**（BuildKit 不產生中間 Image）；CREATED BY 截成 45 個字（第 45 個是 `…`），`--no-trunc` 印全部與完整的 `sha256:` ID；SIZE 是 Go 的三位有效數字；COMMENT 是 `buildkit.dockerfile.v0`。CREATED BY 依 BuildKit：`RUN /bin/sh -c <指令> # buildkit`（有 ARG 時 `RUN |1 MODE=prod /bin/sh -c …`）、`COPY . . # buildkit`、`WORKDIR /app`、`ENV A=1`、`ARG MODE=prod`、`EXPOSE map[5000/tcp:{}]`、`CMD ["python" "app.py"]`、`USER app`、`LABEL k=v`。`--human=false` 的 SIZE 是位元組、CREATED 是 RFC 3339；`--format` 的欄位 `.ID .CreatedSince .CreatedAt .CreatedBy .Size .Comment` |
+| 課程 Image 的 history | 課程可以宣告 `history`（由舊到新；有大小或 `layer: true` 的列是層，層的大小加起來必須等於 Image 的大小，層數等於 `layers`）；沒有宣告時是每層一列（第一列 `ADD rootfs.tar.xz / # buildkit`，其餘寫明「（模擬：課程沒有宣告第 k 層的指令）」，大小平分）加上設定的列（ENV、WORKDIR、EXPOSE、ENTRYPOINT、CMD） |
+| `docker image inspect` | 只找 Image（找不到是 `Error response from daemon: No such image: x:latest`）。`images` profile 起 Image 多了 `RootFS`（`{{.RootFS.Layers}}` 是各層的 `sha256:` diff ID，基底的在前）、`Config.User`、`Config.Labels`（沒有是 null）、所有標籤的 `RepoTags`，建置的 Image 的 `RepoDigests` 是 `[]`；容器的 `Config` 多了 `User` 與 `Labels`。`containers` profile 的 JSON 逐字不變 |
+| `docker images`、`docker info` | 建置的 Image 列出它的標籤（同一個 ID 可以有幾列）、大小、CREATED；dangling 是 `<none>   <none>`。`docker info` 的 Images 以 ID 計 |
+| `docker rmi`、`docker image prune` | 有好幾個標籤時以名稱刪除只印 `Untagged: app:1.0`；以 ID 刪除不加 `-f` 是 `conflict: unable to delete <ID> (must be forced) - image is referenced in multiple repositories`。最後一個標籤：`Untagged:`（建置的 Image 沒有 digest 那一行）、`Deleted: sha256:<Image ID>` 與沒有其他 Image 使用的層。`docker image prune [-a] [-f]`：`WARNING! This will remove all dangling images.`（`-a`：`… all images without at least one container associated to them.`）與 `[y/N]` 的問題（和 container prune 一樣沒有鍵盤時說明）、`Deleted Images:`、`untagged:`／`deleted: sha256:…` 各行、空行、`Total reclaimed space: 2.612MB`（刪除的層的大小）；有容器（任何狀態）使用的 Image 不刪 |
+
+### 11.4 快取的規則
+
+- 每一步的快取鍵是**前一步的鍵**加上**這一步的定義**；FROM 的鍵是基底 Image 的 ID。鍵在 daemon 的建置快取裡有，就是 `CACHED`（檔案系統與層直接取用，history 保留當時的時間）；沒有就執行，並記下來。一步失效，它的鍵改變，之後每一步的鍵都跟著改變，所以全部重新執行。
+- 定義：RUN 是指令（exec 或 shell 形式的原文）、當時的環境變數（ENV 與已宣告的 ARG 的值）、WORKDIR 與 USER；COPY／ADD 是旗標、每個複製的檔案的**內容的 checksum**、權限與目的地（不含修改時間）；WORKDIR 是路徑。
+- 所以：改了 `app.py`，`COPY . .` 失效，之後的 `RUN pip install` 重新執行；先 `COPY requirements.txt .` 再 `RUN pip install`、最後 `COPY . .`，改 `app.py` 只讓最後一步重新執行（經典的指令順序）。改了 `--build-arg` 或 ENV 的值，使用它們之後的 RUN 失效；它們之前的 COPY 仍是 CACHED。ENV、LABEL、CMD 等設定只影響 history 與 Image 設定，不影響 COPY 的鍵（BuildKit 的行為；舊的建置器不同，課文可以說明）。
+- `--no-cache` 每一步都執行（並更新快取）。建置失敗時，成功的步驟與下載的基底仍留在快取。快取只在 daemon 的狀態裡，沒有 `docker builder prune`。
+- `.dockerignore`：每行一個樣式（`#` 註解），相對於建置內容的根（開頭的 `/` 與結尾的 `/` 不影響）；`*`、`?`、`[…]` 不跨過 `/`，`**` 代表任意層的資料夾；樣式符合路徑本身或它上層的任何資料夾就排除，`!` 重新納入，**最後一個符合的樣式決定**（Go 的 `patternmatcher`）。所以 `node_modules` 只排除根的那一個，`**/node_modules` 排除每一層的。排除的檔案不在建置內容（transfer 變小）、COPY 不到（明確指名時是 `not found`），也不會進入 Image。
+
+### 11.5 RUN 能做的事
+
+| 指令 | 內容 |
+|---|---|
+| Shell | `;`、`&&`、`||` 的串列（`sh` 的優先順序，沒有 `set -e`）、`exit N`、`cd`、`export`、`set`（忽略）、`true`、`false`、`sh -c`／`bash -c`；`$X`、`${X}`、`${X:-預設}` 由 RUN 的環境展開（單引號內不展開）；`$(…)` 與反引號說明不支援。找不到的指令：Debian／Ubuntu 的 dash 是 `/bin/sh: 1: x: not found`，Alpine 的 BusyBox 是 `/bin/sh: x: not found`（127） |
+| 檔案指令 | `pwd ls cd mkdir touch cat cp mv rm echo head tail grep wc hostname uname chmod chown chgrp ln id whoami sort cut tr tee uniq`，用模擬環境的 Shell（管線、重新導向、萬用字元）在建置容器的檔案上執行，權限依當時的 USER 與 Image 的 `/etc/passwd`、`/etc/group`（Image 沒有這兩個檔案時是 Debian 的系統帳號：root、daemon、bin、sys、www-data、nobody 65534） |
+| `apt-get`、`apt` | Debian 與 Ubuntu 的 Image：E5 的套件引擎在 Image 的套件表（`packages.apt`）上執行，以 root、沒有終端機。套件清單一開始是空的：沒有先 `apt-get update` 就是 `E: Unable to locate package curl`（100）；沒有 `-y` 而要裝額外的相依套件時 `Do you want to continue? [Y/n] Abort.`（1）；非 root 是 lock 的錯誤（100）。`apt-get update` 列出各套件庫的 `Get:N <網址> <suite> InRelease` 與 `Reading package lists...`，並在 `/var/lib/apt/lists/` 寫一個大小為 `packages.aptLists`（預設 18MB）的檔案——所以 `rm -rf /var/lib/apt/lists/*` 寫在**同一個** RUN 才會讓 Image 變小，另寫一個 RUN 只會多一層 0B。安裝的輸出依 E5（`Reading package lists...` 等三行沒有 `Done`、套件區段、`Selecting…`、`Preparing to unpack…`、`Unpacking…`、`Setting up…`），每個套件的第一個檔案（預設 `/usr/bin/<名稱>`）以套件宣告的大小計。**縮短**：`Need to get`、`After this operation`、`Get:`（下載各套件）、`Fetched`、`debconf: …`、`(Reading database …` 不印 |
+| `pip`、`pip3`、`python -m pip` | Image 宣告了 `packages.pip` 時才有。`pip install [-r 檔案] [名稱[==版本]…] [--no-cache-dir]`：依表與相依關係（相依在前）：`Collecting flask==3.0.3 (from -r requirements.txt (line 1))`、相依的 `Collecting werkzeug>=3.0.0 (from flask==3.0.3)`、`Installing collected packages: …`、`Successfully installed …`（依名稱排序）；找不到版本：`ERROR: Could not find a version that satisfies the requirement x (from versions: …)`、`ERROR: No matching distribution found for x`（1）。寫進 `/usr/local/lib/python<PYTHON_VERSION 的主次版本>/site-packages/<名稱>/`，以套件大小計；沒有 `--no-cache-dir` 時另在 `~/.cache/pip/` 留下約三分之一大小的快取檔（模型的數字）。**縮短**：`Downloading …`、以 root 執行的 WARNING、新版 pip 的 notice 不印 |
+| `npm` | Image 宣告了 `packages.npm` 時才有。`npm install [名稱…] [--omit=dev]`、`npm ci`（沒有 `package-lock.json` 是 `npm error code EUSAGE` 與說明）：讀 `package.json` 的 dependencies（與 devDependencies），依表與相依關係寫進 `<目錄>/node_modules/<名稱>/`，印 `added N packages, and audited N+1 packages in 1s`、空行、`found 0 vulnerabilities`；沒有 package.json 是 `npm error code ENOENT` 等（254）；不在表裡：`npm error code E404`、`npm error 404 Not Found - GET https://registry.npmjs.org/x - Not found`。lock 檔的內容不檢查 |
+| 帳號 | Debian／Ubuntu：`useradd [-r] [-m] [-u UID] [-g 群組] [-s Shell] [-d 家目錄] 名稱`、`groupadd [-r] [-g GID] 名稱`；Alpine：`addgroup -S 名稱`、`adduser -S [-G 群組] [-D] [-H] 名稱`；寫 `/etc/passwd` 與 `/etc/group`（沒有時先寫入系統帳號）。已存在：`useradd: user 'app' already exists`（9） |
+
+### 11.6 執行期的 Image 設定與程式
+
+- `docker run` 時 Env、Cmd、Entrypoint、WorkingDir、ExposedPorts（`docker ps` 的 `5000/tcp`、`--filter expose=`）、User、Labels 都來自建置的設定（E20 已有前五項的路徑）；USER 讓容器的程式（含 `docker exec`）以那個使用者執行，HOME 是它在 Image 的 `/etc/passwd` 裡的家目錄（沒有時 `/`）。USER 不在 Image 的 `/etc/passwd`（數字除外）：`docker: Error response from daemon: unable to find user ghost: no matching entries in passwd file.`（125）。沒有 CMD 也沒有 ENTRYPOINT（例如 FROM scratch）：`docker: Error response from daemon: no command specified.` 加 See 行（125）。
+- **主程式**：ENTRYPOINT 與 CMD 和基底相同的 Image 行為和基底一樣（例如 `FROM nginx` 只 COPY 網頁，容器照樣是 nginx 的服務）。其他的執行它的指令：先找課程宣告的**程式**（`docker.programs`：`command` 逐字相同，shell 形式的 `/bin/sh -c '…'` 也比對裡面的字），它需要的檔案（`needs`，相對於工作目錄）都在才印 `logs` 並持續執行（`service`，可以有 `http` 回應者，`-p` 連得到）或印 `output` 並以 `exit` 結束；缺檔案時印 `missing.output`（標準錯誤）並以 `missing.exit` 結束（例如沒有安裝 flask 的 `ModuleNotFoundError`）。不是程式的指令照 E20 由模擬環境的 Shell 執行（`echo`、`cat` 等）或是 OCI 的「executable file not found」。`docker stop` 之後的結束碼是程式的 `stopExit`（預設 137：PID 1 沒有處理 SIGTERM，10 秒後被 SIGKILL）。
+- **主機的 `ps`**（E20 已知差異的修正，只在 `images` profile 起）：執行中的容器在主機的行程表裡有 `containerd-shim-runc-v2 -namespace moby -id <ID> -address /run/containerd/containerd.sock`（父行程 1）與它的子行程——容器的主程式（`ENTRYPOINT`＋`CMD`，官方 Image 的 entrypoint 指令稿交棒之後的指令），用主機的 PID；使用者是 root 或容器使用者的 UID（主機的 `/etc/passwd` 沒有它）。容器停止就消失。**`containers` profile 不變**：在那裡打開會改變 DKR02（`pgrep -a containerd` 也會列出 shim）與 DKR04（第二個容器的 docker-proxy PID 由 903 變成 907）的範例輸出，所以 DKR01–DKR04 的課文說明（主機的 ps 看不到容器的行程）對它們的 profile 仍然正確。
+
+### 11.7 課程資料與檢查
+
+```ts
+docker: {
+  images: [{ name: 'python:3.12-slim', …E20 的欄位,
+             user?: 'app', labels?: { k: 'v' },
+             packages?: { apt?: [{ name, version, size, depends?, files? }], pip?: [...], npm?: [...], aptLists?: 19300000 },
+             history?: [{ createdBy: 'ADD rootfs.tar.xz / # buildkit', size: 74800000 }, { createdBy: 'CMD ["python3"]' }] }],
+  programs?: [{ command: ['python', 'app.py'], needs?: ['app.py', '/usr/local/lib/python3.12/site-packages/flask/__init__.py'],
+                missing?: { output, exit? }, service?, logs?, output?, exit?, stopExit?, http?: { port: 5000, responder: 'flask-app' } }],
+}
+```
+
+| 規則 | 內容 |
+|---|---|
+| Image 的 E21 欄位 | 需要 `images`；`user` 是名稱或 UID（可加 `:群組`）；labels 是一行的值；套件有名稱、版本、大小 0–2^32，`depends` 是同一張表的套件（pip 可寫版本條件），檔案是絕對路徑；`history` 1–40 列，層的大小加起來等於 `size`，`layers` 若寫了要等於層的列數 |
+| 程式 | 需要 `images`；最多 12 個；`command` 1–20 個一行的字；`service` 與 `output` 二選一；結束碼 0–255；`http` 的回應者是這台機器的 |
+
+| 檢查 | 意義 |
+|---|---|
+| `{ kind: 'image', name, absent?, label?: 'k=v', env?: 'K=V', cmd?: [...], entrypoint?: [...], user?, port?: 5000, workdir?, layers?: 7 }` | E20 的本機有（沒有）這個 Image；E21 另外比對設定的標籤、環境變數、CMD、ENTRYPOINT（exec 形式逐字）、USER（`''` 是沒有設定）、EXPOSE 的 TCP 埠、WORKDIR 與層數（`RootFS.Layers`）。這些欄位需要 `images`，不能和 `absent` 一起 |
+| `{ kind: 'build', context, file?, change, cached?: [...], rebuilt?: [...] }` | 在指令之後的機器的**副本**上建置 `context`（絕對路徑，`file` 是另一個 Dockerfile），再把建置內容裡的 `change` 檔案加一個換行、再建置一次：`cached` 列出的步驟（以開頭比對，例如 `'RUN pip install'`）必須是 `CACHED`，`rebuilt` 列出的必須重新執行。建置失敗、找不到步驟都不通過（訊息寫出原因）。用來檢查「調整指令順序讓快取命中」，學習者不能只靠再建置一次而通過 |
+
+### 11.8 測試
+
+| 檔案 | 內容 |
+|---|---|
+| `tests/terminal-e21.test.ts` | profile（指令同 containers、多一個 feature；`containers` 以下 build、history、image build、buildx build 說明 E21，資料欄位要 `images`）、說明頁與 help 與 commit；Dockerfile 的解析、變數代換、`.dockerignore` 的樣式；完整的 plain 輸出、`-q`、全部 CACHED 的重建（同一個 ID 與 CREATED）、兩種指令順序的快取、requirements 改變與 `--no-cache`、build arg、`.dockerignore` 的 transfer 與 Image 內容、COPY 的各種來源與 `--chown`／`--chmod`、ADD；apt-get（沒有 update 的錯誤版面、update 與 install 的輸出、清單在同一層與分開的大小）、pip（快取與找不到版本）、npm（ci 沒有 lock 與 install）、只在 Docker Hub 的基底、USER 與權限、useradd、Alpine 的 adduser、Shell 的串列與 exit；參數、標籤、資料夾、Dockerfile、語法、COPY 找不到、基底不存在、scratch、之後階段的指令、權限、多階段與 `--target`、建置檢查的警告；history 的欄位與截斷與 `--no-trunc`／`-q`／`--human=false`／`--format`、課程宣告與預設的 history、RootFS.Layers、Image 設定；執行建置的 Image（程式經由 `-p`、日誌、環境、工作目錄、EXPOSE、stop 的 137）、缺檔案的程式、沒有指令、不存在的 USER、ENTRYPOINT 與 CMD、FROM nginx；主機的 ps（`images` 有、`containers` 沒有）；標籤移動與 dangling、幾個標籤、rmi、image prune 與回收的大小、`docker info` 的 Images；資料驗證、`image` 與 `build` 檢查、合成課程通過 `terminalContentProblems`、不改動傳入的狀態 |
+| `tests/support/build-fixture.ts` | 只供測試：build-01（`images` profile；python:3.12-slim 已拉取、有宣告的 history 與 apt、pip 表，node:20-slim 只在 Docker Hub、有 npm 表與 node 使用者；`~/app` 是 Flask 應用與先 COPY 原始碼的 Dockerfile；`python app.py` 的程式）與快取順序的練習 |
+
+`tests/terminal-e1.test.ts` 的 `PROFILES` 期望值加上 `images`。所有已發布的課的 `terminalContentProblems` 仍是 `[]`（逐一重播比對，E21 前後輸出相同）。
+
+### 11.9 只在課文說明、或不模擬的部分
+
+- **真實的層與儲存**：layer 的 tar 檔、壓縮、overlay2 的 snapshotter、whiteout 檔案、`/var/lib/docker` 的內容、真實的 digest；大小只是內容的位元組數（不含 tar 的標頭與中繼資料），diff ID 與 Image ID 是模型算出的 SHA-256。
+- **網路**：RUN 期間沒有網路（apt、pip、npm 都只用課程的套件表，不下載）；`ADD <網址>`、git 的建置內容、壓縮檔的自動解開不模擬；`--pull`、`--platform`、`--secret`、`--ssh`、`--network`、`--output`、`--push`、`--load`、`--cache-from` 說明不支援。
+- **輸出**：TTY 的進度畫面；真實的耗時；BuildKit 的增量傳送（真實的第二次建置只傳送改變的檔案，`transferring context` 變小；模擬環境每次報告用到的檔案的總大小）；並行的步驟（真實的步驟可能交錯出現在輸出裡，模擬環境依序）。
+- **其他**：`docker builder prune`、`docker buildx` 的其他子指令、`docker commit`、`docker save`／`load`、heredoc、`RUN --mount`、`SHELL`、`ONBUILD`；BuildKit 的其他 build checks；`docker image prune --filter`；nginx 在主機 `ps` 的行程標題（真實是 `nginx: master process …` 與 worker 行程）。
+
+### 11.10 沒有把握的地方（依記得的格式寫，並在此註明）
+
+- **plain 進度的細節**：`#0 building with "default" instance using docker driver`、`transferring context: 2B`（沒有 `.dockerignore`）、FROM 步驟的 `resolve … done` 與第一次下載的 `sha256:… X / X 0.4s done`、`extracting …` 行，以及完全命中快取時 FROM 是 `DONE 0.0s`（真實的也可能顯示 `CACHED`）——依記得的 Docker 24–27 輸出，沒有在 27.5.1 逐字核對。步驟的順序（`load metadata` 在 `.dockerignore` 之前、`load build context` 在 FROM 之後）在真實環境可能因並行而不同。
+- **錯誤訊息**：`"docker buildx build" requires exactly 1 argument.`（`docker build` 是別名時的寫法）、旗標錯誤的結束碼（模擬為 1）、`-f` 指到不存在的檔案時的訊息（也可能是 `unable to prepare context: unable to evaluate symlinks in Dockerfile path: …`）、`no build stage in current context`、scratch 沒有 `/bin/sh` 時的訊息、`unable to find user` 在 RUN 與 `docker run` 的寫法、`COPY` 的 checksum 錯誤中 ref 的格式（模擬為 UUID 樣式加 25 個字元，由資料算出）。Dockerfile 片段前後各幾行依記得的 `Source.Print` 演算法。未知指令在較新的 frontend 可能附上 `(did you mean …?)`，模擬環境不印。
+- **build checks**：JSONArgsRecommended 與 LegacyKeyValueFormat 的訊息與摘要格式依 Docker 文件與記憶；它們是否也以 `#1 WARN: …` 出現在步驟段裡沒有核對（模擬環境只印最後的摘要）。
+- **history**：`docker history` 對建置的 Image 只有最上面一列有 ID（BuildKit 與傳統 Image 儲存區）；CREATED BY 的格式（`# buildkit` 尾巴、`|1 MODE=prod` 前綴、`EXPOSE map[…]`、`CMD ["a" "b"]`）依記憶中官方 Image 的 history。WORKDIR 建立的資料夾在 BuildKit 是否算一層（模擬環境：建立了新的資料夾就是一層，大小 0B），以及 USER 之後 WORKDIR 建立的資料夾的擁有者（模擬為 root）沒有核對。
+- **快取**：只命中快取的重建得到同一個 Image ID 與 CREATED（依記得的 BuildKit 行為：Image 的時間取自 history）；ENV、ARG 對 COPY 的鍵沒有影響（BuildKit 的 LLB），舊的建置器（`DOCKER_BUILDKIT=0`）不同。
+- **基底**：只在 Docker Hub 的基底建置後不出現在 `docker images`（docker driver 與傳統 Image 儲存區時的行為，依記憶）；`load metadata` 一律 0.5s。
+- **套件工具**：apt-get 沒有終端機時三行「Reading …」沒有 `Done`（依 Docker 建置紀錄的記憶）；pip 的 `Successfully installed` 的排序（模擬為依名稱）與相依的 `Collecting` 括號內的寫法（真實是 `(from flask==3.0.3->-r requirements.txt (line 1))` 這類較長的形式）；npm 10 的 `npm error` 前綴（npm 9 以前是 `npm ERR!`）與 `added … audited …` 的秒數。
+- **ENTRYPOINT 與 CMD 的 shell 形式**：shell 形式的 CMD 讓 `/bin/sh` 當 PID 1，它是否轉送 SIGTERM（dash 是否以 exec 執行最後一個指令）依版本而定；模擬環境不推論，`docker stop` 的結束碼由課程的程式宣告（預設 137）。
