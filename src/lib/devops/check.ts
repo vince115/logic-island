@@ -1,5 +1,6 @@
 import { dashboardProblems } from './dashboard';
 import { ALERT_FIELDS, alertPlanAnswer, alertPlanProblems, checkAlertPlan, dashboardQueryValue } from './dashboard-check';
+import { checkRedact, logsExplorerProblems, logsQueryValue, REDACT_FIELD, redactAnswer, redactTaskProblems } from './logs-check';
 import { doraMetrics, historyProblems, type DoraMetrics } from './history';
 import { rolloutProblems, simulateRollout, strategyIssues, strategyProblems, strategyText, type InstanceAmount, type RolloutResult, type RolloutScenario, type Strategy } from './rollout';
 import { DORA_METRICS, DORA_RANKED, devopsExplorers, ROLLOUT_METRICS, ROLLOUT_RANKED, type DevopsBlank, type DevopsExercise, type DevopsLessonContent, type DevopsQuery, type DoraMetric, type PlanConstraints, type RolloutPlanTask } from './types';
@@ -9,13 +10,15 @@ import { DORA_METRICS, DORA_RANKED, devopsExplorers, ROLLOUT_METRICS, ROLLOUT_RA
  * lesson's explorers; its answer is computed here from the data (history.ts, rollout.ts), never written in the lesson,
  * and the learner's answer is compared with it: numbers exactly (at the decimals the value has), words without regard
  * to case and spaces, with their Chinese aliases. A rollout-plan exercise simulates the learner's own parameters and
- * checks the constraints. D3's dashboard queries and alert-rule task are in dashboard-check.ts, dispatched from here.
+ * checks the constraints. D3's dashboard queries and alert-rule task are in dashboard-check.ts, D4's log queries and
+ * redact task in logs-check.ts, dispatched from here.
  * devopsContentProblems is what validateContent runs on `content.devops`.
  */
 
 export type DevopsValue =
   | { type: 'number'; value: number; decimals: number; unit: string }
-  | { type: 'text'; value: string; shown: string; aliases: string[] };
+  /** `list`: an ordered list (D4's services of a trace); typed as words separated by commas, spaces or arrows. */
+  | { type: 'text'; value: string; shown: string; aliases: string[]; list?: string[] };
 
 const num = (value: number, unit: string, decimals = 0): DevopsValue => ({ type: 'number', value, decimals, unit });
 const OUTCOME_TEXT = { completed: { shown: '完成', aliases: ['完成', '部署完成', '成功'] }, 'rolled-back': { shown: '回滾', aliases: ['回滾', '已回滾', 'rollback', 'rolled back'] },
@@ -129,11 +132,12 @@ export function devopsQueryValue(q: DevopsQuery, c: DevopsLessonContent): Devops
       return { type: 'text', value: scored[0].id, shown: scored[0].id, aliases: [scored[0].id] };
     }
     case 'series': case 'alert': case 'incident': return dashboardQueryValue(q, c);
+    case 'logs': case 'correlate': case 'retention': case 'log-format': return logsQueryValue(q, c);
   }
 }
 
 // ---- checking -----------------------------------------------------------------------------------------------------
-const UNIT = /(執行個體分鐘|分鐘|小時|次／週|次\/週|次|個|步|天|分|毫秒|ms|%|‰)$/i;
+const UNIT = /(執行個體分鐘|分鐘|小時|次／週|次\/週|次|個|步|天|分|毫秒|ms|%|‰|秒|筆|位元組|bytes|MB|GB)$/i;
 /** A number as the learner may type it: full-width digits, thousands commas, a unit after it (分鐘, %, ‰…). */
 export function parseDevopsNumber(text: string): number | undefined {
   const t = text.normalize('NFKC').replace(/\s+/g, '').replace(/[,，]/g, '').replace(UNIT, '');
@@ -142,13 +146,17 @@ export function parseDevopsNumber(text: string): number | undefined {
 const normWord = (s: string) => s.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
 /** Whether a typed answer is the value: a number exactly at the value's decimals, a word or one of its aliases. */
 export function matchesDevopsValue(value: DevopsValue, text: string): boolean {
-  if (value.type === 'text') return [value.value, ...value.aliases].some(a => normWord(a) === normWord(text));
+  if (value.type === 'text') {
+    if ([value.value, ...value.aliases].some(a => normWord(a) === normWord(text))) return true;
+    const typed = normWord(text).replace(/->|→|>/g, ' ').split(/[\s,，、]+/).filter(Boolean);
+    return !!value.list && typed.length === value.list.length && value.list.every((x, i) => normWord(x) === typed[i]);
+  }
   const x = parseDevopsNumber(text);
   if (x === undefined) return false;
   const scale = 10 ** value.decimals, scaled = x * scale;
   return Math.abs(scaled - Math.round(scaled)) < 1e-9 && Math.round(scaled) === Math.round(value.value * scale);
 }
-export const formatDevopsValue = (v: DevopsValue) => v.type === 'text' ? v.shown : `${v.value.toFixed(v.decimals)}${v.unit === '%' || v.unit === '‰' ? v.unit : ` ${v.unit}`}`;
+export const formatDevopsValue = (v: DevopsValue) => v.type === 'text' ? v.shown : `${v.value.toFixed(v.decimals)}${v.unit === '%' || v.unit === '‰' || !v.unit ? v.unit : ` ${v.unit}`}`;
 
 export const blanksOf = (e: DevopsExercise): DevopsBlank[] => e.kind === 'table' ? e.blanks : e.kind === 'number' || e.kind === 'field' ? [e.blank] : [];
 /** The fields a learner sets in a rollout-plan exercise, by strategy, with their labels. */
@@ -159,7 +167,8 @@ export const PLAN_FIELDS: Record<RolloutPlanTask['strategy'], Record<string, str
 };
 /** The keys of a learner's answer: `value` (number, field), `choice` (an option's index), each blank's id, or the plan's fields. */
 export const answerKeys = (e: DevopsExercise): string[] => e.kind === 'table' ? e.blanks.map(b => b.id) : e.kind === 'choice' ? ['choice']
-  : e.kind === 'rollout-plan' ? Object.keys(PLAN_FIELDS[e.plan.strategy]) : e.kind === 'alert-rule' ? Object.keys(ALERT_FIELDS) : ['value'];
+  : e.kind === 'rollout-plan' ? Object.keys(PLAN_FIELDS[e.plan.strategy]) : e.kind === 'alert-rule' ? Object.keys(ALERT_FIELDS)
+  : e.kind === 'redact' ? Object.keys(REDACT_FIELD) : ['value'];
 
 /** A plan's parameters as the learner types them. */
 export function planAnswer(st: Strategy): Record<string, string> {
@@ -254,6 +263,7 @@ function checkPlan(task: RolloutPlanTask, c: DevopsLessonContent, answer: Record
 export function checkDevopsAnswer(e: DevopsExercise, c: DevopsLessonContent, answer: Record<string, string>): { ok: boolean; messages: string[] } {
   if (e.kind === 'rollout-plan') return checkPlan(e.plan, c, answer);
   if (e.kind === 'alert-rule') return checkAlertPlan(e.plan, c, answer);
+  if (e.kind === 'redact') return checkRedact(e.redact, c, answer);
   const messages: string[] = [];
   if (e.kind === 'choice') {
     const chosen = answer.choice?.trim();
@@ -280,6 +290,7 @@ export function referenceAnswer(e: DevopsExercise, c: DevopsLessonContent): Reco
   if (e.kind === 'choice') return { choice: String(correctOption(e, c)) };
   if (e.kind === 'rollout-plan') return planAnswer(e.plan.reference);
   if (e.kind === 'alert-rule') return alertPlanAnswer(e.plan.reference);
+  if (e.kind === 'redact') return redactAnswer(e.redact.reference);
   const shown = (b: DevopsBlank) => { const v = devopsQueryValue(b.query, c); return v.type === 'text' ? v.shown : v.value.toFixed(v.decimals); };
   return e.kind === 'table' ? Object.fromEntries(e.blanks.map(b => [b.id, shown(b)])) : { value: shown(e.blank) };
 }
@@ -295,7 +306,7 @@ export function devopsContentProblems(c: DevopsLessonContent): string[] {
   const ids = new Set<string>();
   const unique = (id: string) => { if (ids.has(id)) problems.push(`duplicate id ${id}`); ids.add(id); };
   const explorers = devopsExplorers(c);
-  if (!explorers.length) problems.push('a devops-explorer lesson needs at least one explorer (a history, a rollout or a dashboard)');
+  if (!explorers.length) problems.push('a devops-explorer lesson needs at least one explorer (a history, a rollout, a dashboard or logs)');
   for (const x of explorers) {
     unique(x.id);
     if (!x.title?.trim() || !x.description?.trim()) problems.push(`explorer ${x.id} needs a title and a description`);
@@ -303,6 +314,7 @@ export function devopsContentProblems(c: DevopsLessonContent): string[] {
   for (const h of c.histories ?? []) problems.push(...historyProblems(h.history).map(p => `history ${h.id}: ${p}`));
   for (const r of c.rollouts ?? []) problems.push(...rolloutProblems(r.scenario).map(p => `rollout ${r.id}: ${p}`));
   for (const d of c.dashboards ?? []) problems.push(...dashboardProblems(d.dashboard).map(p => `dashboard ${d.id}: ${p}`));
+  for (const l of c.logs ?? []) problems.push(...logsExplorerProblems(l).map(p => `logs ${l.id}: ${p}`));
   if (problems.length) return problems;
 
   for (const e of c.exercises) {
@@ -359,6 +371,12 @@ export function devopsContentProblems(c: DevopsLessonContent): string[] {
     if (e.kind === 'alert-rule') {
       try {
         const bad = alertPlanProblems(e.plan, c);
+        if (bad.length) { for (const b of bad) fail(b); sound = false; }
+      } catch (err) { fail((err as Error).message); sound = false; }
+    }
+    if (e.kind === 'redact') {
+      try {
+        const bad = redactTaskProblems(e.redact, c);
         if (bad.length) { for (const b of bad) fail(b); sound = false; }
       } catch (err) { fail((err as Error).message); sound = false; }
     }

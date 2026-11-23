@@ -19,6 +19,9 @@
 | CICD09 | 部署管線<br>`deployment-pipelines` | 中級 | 60 分 | CICD06、CICD07 | 2 台（deploy-hosts：借書服務的儲存庫、staging-01 與 prod-01 兩台 Docker 主機、production 的審核者） | 6 段、4 段終端機紀錄、3 個終端機練習（以同一個 digest 從 staging 晉升到 production、冒煙測試擋下壞掉的發布後修好再上線、從部署紀錄查出 production 的 commit）、8 題 | **完整 v1.0.0** |
 | CICD10 | 部署策略：滾動、藍綠與金絲雀<br>`deployment-strategies` | 進階 | 55 分 | CICD09 | devops-explorer（D2）：渡輪訂票服務的 8 個部署模擬 | 6 段、9 個練習（丟棄的請求、額外的執行個體分鐘、金絲雀中止、資料庫相容性、滾動與金絲雀的部署計畫）、7 題 | **完整 v1.0.0** |
 | CICD11 | 監控與告警<br>`monitoring-and-alerting` | 中級 | 50 分 | CICD09 | devops-explorer（D3）：外送訂單服務三小時的四大黃金訊號儀表板與告警規則 | 6 段、7 個練習（分類黃金訊號、等待中與觸發、視窗平均、通知與誤報、寫出符合條件的告警規則）、7 題 | **完整 v1.0.0** |
+| CICD12 | 集中式日誌<br>`centralized-logging` | 中級 | 50 分 | CICD11 | devops-explorer（D4）：茶葉店結帳三個服務的日誌；1 台（scripting：以 ssh 登入的日誌主機） | 6 段、3 個日誌探索器、5 段終端機紀錄、7 個練習（篩選與分組、追蹤關聯 ID、遮蔽規則、保留容量、以 grep 追蹤與計數、讓指令稿帶上關聯 ID）、8 題 | **完整 v1.0.0** |
+| CICD13 | 回滾與發布安全<br>`rollback-and-release-safety` | 進階 | 60 分 | CICD10、CICD11 | 1 台（deploy-hosts：球場預約服務的管線與兩台主機）＋devops-explorer（D2）的 5 個部署模擬 | 6 段、4 段終端機紀錄、3 個終端機練習與 3 個探索器練習（找出上一個 digest、以 rollback workflow 回滾、保留遷移的向前修復、旗標與回滾、資料庫相容性、快速部署計畫）、8 題 | **完整 v1.0.0** |
+| CICD14 | 事故應變與事後檢討<br>`incident-response` | 進階 | 55 分 | CICD12、CICD13 | 1 台（deploy-hosts：單車共享的事故演練、正式主機與狀態頁）＋devops-explorer（D3）的 2 個儀表板與事故時間線 | 6 段、5 段終端機紀錄、5 個練習（以 Deploy 回滾止血並更新狀態頁、從日誌找出受影響的站點、提交事故紀錄、事故時間、嚴重等級）、8 題 | **完整 v1.0.0** |
 
 （指標的數字由 `doraMetrics` 算出，依 CICD0 §5.3 的四捨五入與中位數規則；表中只為說明而列出，課程資料裡沒有寫這些數字。）
 
@@ -31,6 +34,7 @@
 | 持續整合與 GitHub Actions | CICD03–CICD05 |
 | 建置、設定與機密 | CICD06–CICD08 |
 | 部署與監控 | CICD09–CICD11 |
+| 日誌、回滾與事故 | CICD12–CICD14 |
 
 ## 探索器的已知簡化（課文已說明或避開）
 
@@ -50,6 +54,7 @@ CICD-0（登錄、D1、D2，沒有課）之後：
 - **CICD-3**（2026-11-24）：CICD03–CICD05，終端機引擎階段 E27 `workflows` 與 E28 `actions`（見 [CICD0_E27_WORKFLOWS](CICD0_E27_WORKFLOWS.md)、[CICD0_E28_ACTIONS](CICD0_E28_ACTIONS.md)）。模擬環境的差異：`gh run rerun --failed` 會重新執行整個 matrix job 的每一片（E29 修正為只重新執行失敗與被取消的那幾片；課程沒有依賴）。多行的 `run: |` 從 E23 的 YAML 子集起就支援，課程為了好輸入只寫一行的 `run:`。
 - **CICD-4**（2026-11-24）：CICD06–CICD08，終端機引擎階段 E29 `artifacts`（見 [CICD0_E29_ARTIFACTS](CICD0_E29_ARTIFACTS.md)）。模擬環境的差異（課程沒有依賴）：Dockerfile 的 `FROM 名稱@sha256:…` 在模擬環境被當成不合法的參照（`docker pull` 以 digest 可以）；沒有 `git log -S`、`base64`、`${VAR:0:N}`、`env`／`printenv`。
 - **CICD-5**（2026-11-24）：CICD09（E30 `environments`、E31 `deploy-hosts`，見 [CICD0_E30_ENVIRONMENTS](CICD0_E30_ENVIRONMENTS.md)、[CICD0_E31_DEPLOY_HOSTS](CICD0_E31_DEPLOY_HOSTS.md)）、CICD10（D2）、CICD11（D3，`monitoring-dashboard` 改為已實作）。模擬環境的差異：在 runner 上建置的 Image 的 digest 依建置時間而定，練習以部署紀錄、日誌與 http 檢查代替；冒煙測試的失敗以容器啟動後立即結束模擬；D2 的閘門指標在探索器只能開關；部署計畫可以要求金絲雀由閘門在足夠的樣本上判定失敗（`gateFailed`）。
+- **CICD-6**（2026-11-24）：CICD12（D4）、CICD13（E30–E31、D2）、CICD14（E31、D3）。模擬環境的差異：課程資料不能預先宣告 run 與部署紀錄，所以 CICD13、CICD14 的練習先以幾個指令重現「早上的發布」或事故演練（課文說明）；回滾後最新部署紀錄的 sha 是執行 workflow 的 commit，不是重新部署的版本（與 GitHub 相同，課文說明）；沒有 `basename`、`git revert -n`、`grep -m`、`docker images --format` 與 `{{index …}}`。
 - 之後依 CICD0 §4：CICD03–05（E27 `workflows`、E28 `actions`）、CICD06–08（E29 `artifacts`）、CICD09–11（E30 `environments`、E31 `deploy-hosts`、D3，登錄 `monitoring-dashboard`）、CICD12–14（D4）、CICD15 綜合專題（單獨一批）。每一批先完成它需要的階段，再寫課；課程編號即位置，依序連續發布。
 
 課程狀態與 3D 地景分離：DevOps 與 CI/CD 島的 `mapState` 仍是 `'planned'`。

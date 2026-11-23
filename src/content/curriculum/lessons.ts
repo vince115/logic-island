@@ -434,8 +434,9 @@ export function llmFromBlueprint(lessonId: string, summary: string, minutes: num
  * `stages` are the devops-explorer stages (D1–D4) and terminal engine stages (E25–E31) the lesson needs: a lesson can be
  * mapped before they are built, but it cannot publish until its content exists. `optional` capabilities are added with
  * `withOptional` (CICD10's terminal example, E15 nginx upstream weights in front of two E20 containers). An activity not
- * registered yet cannot be built, nor can a lesson whose devops-explorer stages are not all built (DEVOPS_STAGES_BUILT:
- * CICD12 waits for D4, the logs): the builder says so. monitoring-dashboard is registered with D3 (CICD-4). The blueprint
+ * registered yet cannot be built, nor can a lesson whose devops-explorer stages are not all built (DEVOPS_STAGES_BUILT;
+ * CICD12 waited for D4, the logs, which CICD-5 built): the builder says so. monitoring-dashboard is registered with D3
+ * (CICD-4); D4's logs are part of it. The blueprint
  * names pipeline-sim, case-study-board and decision-simulation stay planned names; none of them is a lesson activity.
  */
 type CicdShape = { blueprint: string; activity: string; capabilities: LessonCapability[]; optional?: LessonCapability[]; visualization: VisualizationType; stages: readonly string[] };
@@ -457,8 +458,8 @@ export const CICD_SHAPES: Readonly<Record<string, CicdShape>> = {
   CICD14: { blueprint: 'case-study-board', activity: 'terminal-sim', capabilities: ['terminal', 'devops-explorer'], visualization: 'none', stages: ['E31', 'D3'] },
   CICD15: { blueprint: 'challenge-stages', activity: 'challenge-stages', capabilities: ['terminal', 'devops-explorer', 'visualization'], visualization: 'challenge-stages', stages: ['E25', 'E26', 'E27', 'E28', 'E29', 'E30', 'E31', 'D2', 'D3'] },
 };
-/** The devops-explorer stages that exist (docs/curriculum/CICD0_DEVOPS_CAPABILITY.md §4); D4 (logs) is planned. */
-export const DEVOPS_STAGES_BUILT: readonly string[] = ['D1', 'D2', 'D3'];
+/** The devops-explorer stages that exist (docs/curriculum/CICD0_DEVOPS_CAPABILITY.md §4): all four. */
+export const DEVOPS_STAGES_BUILT: readonly string[] = ['D1', 'D2', 'D3', 'D4'];
 export function cicdFromBlueprint(lessonId: string, summary: string, minutes: number, withOptional = false): Outline {
   const b = planning.plannedLessons.find(l => l.lessonId === lessonId);
   if (!b || b.islandId !== 'devops-cicd') throw new Error(`${lessonId} is not a DevOps and CI/CD lesson of the blueprint`);
@@ -711,7 +712,7 @@ const dockerContainers: Outline[] = [
   dockerFromBlueprint('DKR15', '把三層式的拾光書屋從筆電上手打的 docker run 帶到可以上線：以兩個階段建置 distroless、nonroot、exec 形式的 API Image 並試跑優雅關閉，修好 Compose 開發環境的具名 Volume、pg_isready 健康檢查與 service_healthy，從 docker history 找出經由 ARG 與 ENV 包進舊 Image 的付款金鑰、撤銷後刪除舊 Image 並改以唯讀掛載的檔案提供，以 SemVer 與 commit 標籤從 --password-stdin 登入推送到私有 Registry、不推送 latest，以 deploy 帳號拉取並以 digest、--read-only 加 tmpfs、--cap-drop ALL、no-new-privileges、記憶體與 CPU 上限、unless-stopped 與只綁 127.0.0.1 上線，最後照上線檢查清單以 ps、logs、inspect、events、stats 與 curl 驗收第二台主機，找出手動部署造成的 OOM 重啟迴圈並以審查過的部署指令稿從根本修好。', 90),
 ];
 
-/** CICD-1 (2026-11-23): the devops-cicd island's first lesson, on the devops-explorer capability (CICD0_DEVOPS_CAPABILITY.md); CICD-2 adds CICD02 on the terminal with engine stages E25 git and E26 forge, CICD-3 CICD03–CICD05 on E27 workflows and E28 actions, CICD-4 CICD06–CICD08 on E29 artifacts, CICD-5 CICD09 on E30 environments and E31 deploy hosts, CICD10 on the devops-explorer's rollouts (D2) and CICD11 on its dashboards (D3). */
+/** CICD-1 (2026-11-23): the devops-cicd island's first lesson, on the devops-explorer capability (CICD0_DEVOPS_CAPABILITY.md); CICD-2 adds CICD02 on the terminal with engine stages E25 git and E26 forge, CICD-3 CICD03–CICD05 on E27 workflows and E28 actions, CICD-4 CICD06–CICD08 on E29 artifacts, CICD-5 CICD09 on E30 environments and E31 deploy hosts, CICD10 on the devops-explorer's rollouts (D2) and CICD11 on its dashboards (D3); CICD-6 CICD12 (D4 logs and the terminal), CICD13 (E30–E31 and D2) and CICD14 (E31 and D3). */
 const devopsCicd: Outline[] = [
   cicdFromBlueprint('CICD01', '從開發與維運的隔閡說明 DevOps 要解決的問題與共同責任、自動化的做法，用同一週八個變更的一次上線與分開上線比較小批量與快速回饋如何縮短前置時間、縮小故障範圍並加快復原，再以兩個團隊同一季的部署紀錄算出 deployment frequency、change lead time、change fail rate 與 failed deployment recovery time 四個 DORA 指標，並說明指標該怎麼讀、為什麼不能拿來排名。', 45),
   cicdFromBlueprint('CICD02', '在一個小型圖書館團隊的模擬 GitHub 上實際開分支、推送、開 Pull Request、等同事審查再合併，說明分支保護的規則並用 gh api 讀取與設定，比較 Trunk-based development 與 Git Flow 的取捨，再以 merge 與 rebase 的歷史形狀、主機上的三種合併方式與衝突的解決，在落後且衝突的分支、凌亂的 PR 與共用分支三個情境中選擇並執行合適的做法。', 55),
@@ -724,6 +725,9 @@ const devopsCicd: Outline[] = [
   cicdFromBlueprint('CICD09', '用一個虛構圖書館的借書服務與兩台 Docker 主機區分持續交付與持續部署，設計從 staging 晉升到 production 的管線：build 只建置一次並輸出 digest，staging 以同一個 digest 部署並做冒煙測試，production 以 needs 接在後面、經環境的必要審核者、禁止自我審核與部署分支規則把關後才拿到部署金鑰，再以 concurrency 避免兩個部署重疊；用 curl 的冒煙測試擋下一個容器一啟動就結束的發布，最後從部署紀錄查出 production 上跑的是哪個 commit。', 60),
   cicdFromBlueprint('CICD10', '在一個虛構的渡輪訂票服務上逐分鐘模擬 v1 換成 v2：比較重建的停機、滾動更新的 maxSurge 與 maxUnavailable 對容量與丟棄請求的影響、藍綠部署的兩倍資源與立即回滾、金絲雀發布的流量比例、觀察時間與錯誤率閘門如何在少數使用者受影響時中止並切回舊版本，說明流量切換是各種策略的共同點，再以擴充、部署、收縮的順序維持資料庫相容性，並用功能旗標把部署與發布分開。', 55),
   cicdFromBlueprint('CICD11', '以外送訂單服務的值班團隊為例，說明指標是有單位、經過聚合的時間序列（計數、比例與 p95 百分位數），用三小時的儀表板讀延遲、流量、錯誤與飽和度四大黃金訊號並說明每個面板回答的問題，再以靜態告警門檻、持續時間（等待中）、視窗平均與嚴重度設定告警規則，算出偵測延遲、通知、誤報與漏掉的事故，說明對使用者症狀告警、附處理手冊的有行動意義告警與告警疲勞的危險，最後寫出一條在 2 分鐘內偵測每個事故且沒有誤報的規則。', 50),
+  cicdFromBlueprint('CICD12', '以一家虛構茶葉店的結帳事故為例，把閘道、訂單與付款三個服務的日誌改成 JSON Lines 結構化日誌並由收集器集中，用服務、等級、欄位條件與時間篩選、分組計數，在一千多筆中找出 status 5xx 與最慢的請求，以閘道產生並一路傳遞的關聯 ID 串起跨服務的請求、找出第一個出錯的服務並分辨紀錄時間差與 duration_ms，再以 ssh 登入日誌主機，用 grep、cut、sort、uniq 與 wc 查同樣的 JSON 行，讓退款指令稿帶上關聯 ID，最後以欄位與樣式規則遮蔽外洩的電子郵件、卡號與權杖並避免過度遮蔽，依每天筆數、平均大小與天數估算熱儲存與封存的保留容量。', 50),
+  cicdFromBlueprint('CICD13', '以一個虛構運動中心的球場預約服務重現一次壞掉的發布：2.4.0 的冒煙測試只看 /healthz 而讓空場地列表的 500 上了 production，依影響、相容性與修正的把握判斷先回滾再向前修復，從部署紀錄與 run 的日誌找出上一個 digest，以檢查輸入、經同一個環境審核、冒煙測試涵蓋關鍵路徑的 rollback workflow 把它部署回去，並看懂部署紀錄的 sha 不等於線上的程式；在部署模擬器比較關掉功能旗標與回滾的錯誤數、回滾時刪除欄位與破壞性改名的後果，以擴充優先的遷移讓回滾可行，再以撤銷程式、保留遷移的 commit 向前修復，最後整理以 digest 晉升、遷移先擴充、旗標預設關閉、冒煙與告警、演練過的回滾計畫與核准分工的發布檢查清單。', 60),
+  cicdFromBlueprint('CICD14', '以虛構社區單車共享一次設定變更造成的發布事故為案例，依受影響的使用者比例與影響時間的矩陣判定嚴重等級並及早宣告事故，說明事故指揮、溝通與操作的分工與單一頻道，先止血再找原因（回滾到上一個正常版本的 digest，而不是重新啟動或在壓力下往前修），寫出影響、處理與下次更新時間的狀態更新，從儀表板的事故時間線算出偵測、確認、止血與恢復時間，並在事故演練中以 ssh 查證主機上的容器、日誌與部署紀錄、經由 Deploy 回滾、更新狀態頁，最後寫一份聚焦系統與條件、每個行動項目都有負責人與期限的不究責事後檢討。', 55),
 ];
 
 /** RWD-1 (2026-11-23): the responsive design island's first lessons, on the web-code capability with the resize step and preview widths (WEB0_WEB_CODE_CAPABILITY.md, RESPONSIVE_DESIGN_ISLAND.md); RWD-2 adds RWD05–RWD08, RWD-3 RWD09–RWD12 (the capstone): the island is complete. */

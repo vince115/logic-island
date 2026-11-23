@@ -2,13 +2,15 @@ import type { AlertCondition } from './alerts';
 import type { Dashboard } from './dashboard';
 import type { DeploymentHistory } from './history';
 import type { IncidentMetric } from './incident';
+import type { LogFilter } from './log-query';
+import type { LogSet } from './logs';
 import type { Gate, RolloutScenario, Strategy } from './rollout';
 
 /*
  * CICD-0 (docs/curriculum/CICD0_DEVOPS_CAPABILITY.md): the shape of `content.devops`, the devops-explorer capability's
  * part of a lesson. Explorers are shown in the lesson's sections by id, like any example; exercises name what they ask
  * (a query on the lesson's explorers) and never write the answer: src/lib/devops/check.ts computes it from the data.
- * D1 (histories), D2 (rollouts) and D3 (dashboards) are built; D4 (logs) is planned and adds its own part.
+ * D1 (histories), D2 (rollouts), D3 (dashboards) and D4 (logs) are built.
  */
 
 /** D1: a service's deployment history, with its DORA metrics computed in the browser. 示意資料. */
@@ -17,6 +19,11 @@ export interface HistoryExplorer { id: string; title: string; description: strin
 export interface RolloutExplorer { id: string; title: string; description: string; scenario: RolloutScenario }
 /** D3 (monitoring-dashboard): per-minute series, incidents and alert rules evaluated minute by minute. 示意資料. */
 export interface DashboardExplorer { id: string; title: string; description: string; dashboard: Dashboard }
+/**
+ * D4 (monitoring-dashboard): centralized logs with filters, group counts, a correlation trace and a masking editor.
+ * `masking` are the rules the editor starts with; `checks` (optional) are values the editor reports as still seen or lost.
+ */
+export interface LogsExplorer { id: string; title: string; description: string; logs: LogSet; masking?: string[]; checks?: { mustHide: string[]; mustKeep: string[] } }
 
 export const DORA_METRICS = ['deployments', 'deploy-days', 'per-week', 'changes', 'lead-time-median', 'failed', 'change-fail-rate', 'recovery-median', 'detect-median'] as const;
 export type DoraMetric = typeof DORA_METRICS[number];
@@ -30,6 +37,12 @@ export const SERIES_METRICS = ['value-at', 'max', 'min', 'max-at', 'signal'] as 
 export type SeriesMetric = typeof SERIES_METRICS[number];
 export const ALERT_METRICS = ['first-firing', 'first-resolved', 'notifications', 'false-alerts', 'missed', 'detected', 'detection-delay', 'firing-minutes', 'state-at', 'value-at'] as const;
 export type AlertMetric = typeof ALERT_METRICS[number];
+export const LOG_METRICS = ['count', 'first-ts', 'last-ts', 'max', 'max-by', 'top', 'distinct'] as const;
+export type LogMetric = typeof LOG_METRICS[number];
+export const CORRELATE_METRICS = ['services', 'elapsed', 'records', 'first-error-service', 'last-service'] as const;
+export type CorrelateMetric = typeof CORRELATE_METRICS[number];
+export const RETENTION_METRICS = ['avg-bytes', 'bytes-per-day', 'total-bytes', 'total-mb', 'total-gb'] as const;
+export type RetentionMetric = typeof RETENTION_METRICS[number];
 export const ROLLOUT_RANKED = ['errors', 'dropped', 'affected', 'peak-instances', 'extra-instance-minutes', 'completed-at'] as const satisfies readonly RolloutMetric[];
 
 /** Where an answer comes from: a question about the lesson's explorers, computed by check.ts. */
@@ -52,7 +65,19 @@ export type DevopsQuery =
    */
   | { task: 'alert'; dashboard: string; rule: string | AlertCondition; metric: AlertMetric; incident?: string; minute?: number }
   /** D3: an incident's times from its recorded events, or its severity from the dashboard's matrix. */
-  | { task: 'incident'; dashboard: string; incident: string; metric: IncidentMetric };
+  | { task: 'incident'; dashboard: string; incident: string; metric: IncidentMetric }
+  /**
+   * D4: a number or word from the records that meet `filter`: how many, the first or last time, the largest value of
+   * `field` (max), the `report` field (default the correlation field) of the record with the largest `field` (max-by),
+   * the most frequent value of `group` (service, level, host or a field; top), the number of distinct values of `field`.
+   */
+  | { task: 'logs'; logs: string; metric: LogMetric; filter?: LogFilter; field?: string; report?: string; group?: string }
+  /** D4: a request followed by its correlation id: the services in order, the seconds from first to last record… */
+  | { task: 'correlate'; logs: string; id: string; metric: CorrelateMetric }
+  /** D4: retention sizing; perDay and avgBytes come from the query, or else from the log set (perDay, its records' average). */
+  | { task: 'retention'; logs?: string; perDay?: number; avgBytes?: number; days: number; metric: RetentionMetric }
+  /** D4: whether a raw line is structured (JSON or key=value) or unstructured text, or how many fields it has. */
+  | { task: 'log-format'; logs: string; line: string; metric: 'format' | 'fields' };
 
 export interface DevopsBlank { id: string; label: string; query: DevopsQuery }
 /** What a rollout plan must achieve (each limit inclusive); completeBy also needs the rollout to complete. */
@@ -76,6 +101,12 @@ export interface AlertConstraints { detectWithin?: number; maxMissed?: number; m
  */
 export interface AlertPlanTask { dashboard: string; constraints: AlertConstraints; reference: AlertCondition }
 
+/**
+ * redact: the learner writes masking rules (src/lib/devops/redact.ts); after masking no value of mustHide may be seen
+ * and every occurrence of each value of mustKeep must remain. `reference` is one set of rules that does.
+ */
+export interface RedactTask { logs: string; mustHide: string[]; mustKeep: string[]; reference: string[] }
+
 export type DevopsExercise = {
   id: string; title: string; statement: string; hints: string[]; explanation: string;
   /** Typical wrong answers, in the shape of the learner's (see answerKeys); each must fail the check. */
@@ -88,12 +119,14 @@ export type DevopsExercise = {
   | { kind: 'table'; blanks: DevopsBlank[] }
   | { kind: 'rollout-plan'; plan: RolloutPlanTask }
   | { kind: 'alert-rule'; plan: AlertPlanTask }
+  | { kind: 'redact'; redact: RedactTask }
 );
 
 export interface DevopsLessonContent {
   histories?: HistoryExplorer[];
   rollouts?: RolloutExplorer[];
   dashboards?: DashboardExplorer[];
+  logs?: LogsExplorer[];
   exercises: DevopsExercise[];
 }
-export const devopsExplorers = (c: DevopsLessonContent) => [...c.histories ?? [], ...c.rollouts ?? [], ...c.dashboards ?? []];
+export const devopsExplorers = (c: DevopsLessonContent) => [...c.histories ?? [], ...c.rollouts ?? [], ...c.dashboards ?? [], ...c.logs ?? []];

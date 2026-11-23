@@ -2,10 +2,12 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { DeploymentHistoryView, DevopsExerciseBox, RolloutSimulatorView } from '@/components/curriculum/devops-explorer';
-import { DevopsExerciseView, devopsExamples } from '@/components/curriculum/devops-lesson';
+import { DEVOPS_EXERCISE_NOTICE, DEVOPS_LOGS_NOTICE, devopsExerciseNotice, DevopsExerciseView, devopsExamples } from '@/components/curriculum/devops-lesson';
 import { devopsContent, devopsLesson, exercises, histories, rollouts } from './support/devops-fixture';
 import { MonitoringDashboardView } from '@/components/curriculum/dashboard-view';
 import { dashboardContent, dashboardExercises, dashboardLesson, dashboards } from './support/dashboard-fixture';
+import { LogViewer } from '@/components/curriculum/log-viewer';
+import { logExercises, logExplorers, logsContent, logsLesson } from './support/logs-fixture';
 
 /*
  * CICD-0: the devops-explorer components. The history view states the four DORA metrics with their arithmetic, draws the
@@ -273,5 +275,136 @@ describe('the alert-rule exercise (D3)', () => {
     const sev = render(<DevopsExerciseView exercise={ex('x-incident')} content={content}/>);
     expect(sev.container.textContent).toContain('嚴重等級：SEV2');
     expect(devopsExamples(dashboardLesson()).map(([id]) => id)).toEqual(['tiny', 'api', 'api-slow']);
+  });
+});
+
+describe('LogViewer (D4)', () => {
+  const logs = (id: string) => logExplorers().find(x => x.id === id)!;
+  const resultsTable = () => screen.getByRole('table', { name: '符合篩選的紀錄（依時間，每頁 20 筆）' });
+  const rowNumbers = () => within(resultsTable()).getAllByRole('rowheader').map(h => h.textContent);
+  it('lists the records a page at a time, says the data is illustrative, and pages with buttons', () => {
+    const { container } = render(<LogViewer explorer={logs('shop')}/>);
+    expect(container.textContent).toContain('示意資料');
+    expect(container.textContent).toContain('409 筆紀錄，從 0:02 到 14:57（時間是從開始算起的分:秒）；服務：catalog、gateway、orders、payments；等級：除錯 0、資訊 403、警告 1、錯誤 5。');
+    expect(container.textContent).toContain('其中 400 筆是以固定種子產生的一般流量。');
+    expect(live(container)).toContain('符合的紀錄 409 筆（共 409 筆）；第 1／21 頁，第 1–20 筆。');
+    expect(rowNumbers()).toHaveLength(20);
+    fireEvent.click(screen.getByRole('button', { name: '最後一頁' }));
+    expect(live(container)).toContain('第 21／21 頁，第 401–409 筆。');
+    expect(rowNumbers()).toEqual(['401', '402', '403', '404', '405', '406', '407', '408', '409']);
+    expect((screen.getByRole('button', { name: '下一頁' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: '上一頁' }));
+    expect(rowNumbers()[0]).toBe('381');
+  });
+  it('filters by level, service, a field and a time range, and counts the groups', () => {
+    const { container } = render(<LogViewer explorer={logs('small')}/>);
+    fireEvent.change(screen.getByLabelText('最低等級'), { target: { value: 'warn' } });
+    expect(rowNumbers()).toEqual(['4', '5', '6']);
+    expect(within(resultsTable()).getByRole('rowheader', { name: '4' }).parentElement!.textContent).toContain('0:03paymentspay-1錯誤（error）charge failed');
+    fireEvent.change(screen.getByLabelText('最低等級'), { target: { value: '' } });
+    fireEvent.change(screen.getByLabelText('服務'), { target: { value: 'gateway' } });
+    expect(rowNumbers()).toEqual(['1', '3', '6', '7', '9']);
+    fireEvent.change(screen.getByLabelText('欄位'), { target: { value: 'status' } });
+    fireEvent.change(screen.getByLabelText('比較'), { target: { value: '>=' } });
+    fireEvent.change(screen.getByLabelText('值'), { target: { value: '500' } });
+    expect(rowNumbers()).toEqual(['6']);
+    fireEvent.click(screen.getByRole('button', { name: /清除篩選/ }));
+    fireEvent.change(screen.getByLabelText('從（秒或 分:秒）'), { target: { value: '0:02' } });
+    fireEvent.change(screen.getByLabelText('到（不含）'), { target: { value: '6' } });
+    expect(live(container)).toContain('符合的紀錄 4 筆（共 9 筆）');
+    const groups = () => screen.getByRole('table', { name: /^符合篩選的紀錄依/ });
+    expect(within(groups()).getAllByRole('row').slice(1).map(r => r.textContent)).toEqual(['gateway250%', 'orders125%', 'payments125%']);
+    fireEvent.change(screen.getByLabelText('分組依據'), { target: { value: 'status' } });
+    expect(within(groups()).getAllByRole('row').slice(1).map(r => r.textContent)).toEqual(['502250%', '200125%', '（沒有這個欄位）125%']);
+  });
+  it('flags a filter it cannot read and lists no records', () => {
+    render(<LogViewer explorer={logs('small')}/>);
+    fireEvent.change(screen.getByLabelText('欄位'), { target: { value: 'status' } });
+    fireEvent.change(screen.getByLabelText('比較'), { target: { value: '>' } });
+    fireEvent.change(screen.getByLabelText('值'), { target: { value: 'abc' } });
+    fireEvent.change(screen.getByLabelText('從（秒或 分:秒）'), { target: { value: '1:99' } });
+    expect(screen.getByRole('alert').textContent).toBe('「>」只能和整數比較。「從」要寫成秒數或「分:秒」（例如 12:05）。');
+    expect(screen.getByLabelText('值').getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByLabelText('值').getAttribute('aria-describedby')).toBe(screen.getByRole('alert').id);
+    expect(screen.queryByRole('table', { name: /符合篩選的紀錄/ })).toBeNull();
+  });
+  it('follows a request by its correlation id with the seconds between records', () => {
+    const { container } = render(<LogViewer explorer={logs('small')}/>);
+    const select = screen.getByLabelText('request_id（關聯 ID）') as HTMLSelectElement;
+    expect([...select.options].map(o => o.value)).toEqual(['r-1', 'r-4']);
+    expect(live(container)).toContain('request_id = r-1：5 筆紀錄，經過的服務依序是 gateway → orders → payments → orders → gateway；從第一筆到最後一筆 5 秒；第一個錯誤在 payments（0:03）。');
+    const trace = screen.getByRole('table', { name: 'request_id = r-1 的紀錄（依時間；Δ 是和前一筆相差的秒數）' });
+    expect(within(trace).getAllByRole('row').slice(1).map(r => [...r.children].slice(1, 5).map(c => c.textContent).join(' '))).toEqual([
+      '0:00 — 0 gateway', '0:01 +1 1 orders', '0:03 +2 3 payments', '0:04 +1 4 orders', '0:05 +1 5 gateway']);
+    fireEvent.change(select, { target: { value: 'r-4' } });
+    expect(live(container)).toContain('request_id = r-4：2 筆紀錄，經過的服務依序是 auth → gateway；從第一筆到最後一筆 1 秒；沒有錯誤。');
+  });
+  it('masks with the editor\'s rules, shows the redacted lines and what is still seen or lost, and flags bad rules', () => {
+    const { container } = render(<LogViewer explorer={logs('small')}/>);
+    const rules = screen.getByLabelText(/^遮蔽規則/) as HTMLTextAreaElement;
+    expect(rules.value).toBe('field password');
+    const checks = () => [...screen.getByLabelText('遮蔽的結果').querySelectorAll('li')].map(li => `${li.textContent}${li.hasAttribute('data-bad') ? ' ✗' : ''}`);
+    expect(checks()).toEqual(['必須隱藏「amy@example.com」：仍看得到（第 4 筆紀錄的 message） ✗', '必須隱藏「4111 1111 1111 1111」：仍看得到（第 4 筆紀錄的 message） ✗',
+      '必須隱藏「tok_9f8e7d6c5b4a」：仍看得到（第 4 筆紀錄的 authorization） ✗', '必須隱藏「hunter2」：已隱藏', '必須保留「r-1」：仍保留', '必須保留「A-1001」：仍保留', '必須保留「/checkout」：仍保留', '必須保留「u-7」：仍保留']);
+    fireEvent.change(rules, { target: { value: 'pattern email\npattern card\npattern token\nfield password' } });
+    expect(live(container)).toContain('4 條規則改動了 5 個值（訊息、欄位或原始行）。');
+    expect(checks().filter(x => x.endsWith('✗'))).toEqual([]);
+    const lines = screen.getByLabelText('遮蔽後的日誌').textContent!;
+    expect(lines).toContain('"message":"charge failed for *** card ***"');
+    expect(lines).toContain('2026-11-24 10:00:03 ERROR payment failed for ***');
+    expect(lines).not.toContain('hunter2');
+    fireEvent.change(rules, { target: { value: 'pattern digits' } });
+    expect(checks()).toContain('必須保留「A-1001」：被遮掉了（剩 0／4 次） ✗');
+    fireEvent.change(rules, { target: { value: 'pattern phone' } });
+    expect(screen.getByRole('alert').textContent).toBe('第 1 行：沒有「phone」這個樣式，可以用 email、card、token、ipv4、digits。');
+    expect(rules.getAttribute('aria-invalid')).toBe('true');
+    expect(rules.getAttribute('aria-describedby')).toBe(screen.getByRole('alert').id);
+    expect(screen.queryByLabelText('遮蔽的結果')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /恢復課程的規則/ }));
+    expect(rules.value).toBe('field password');
+  });
+  it('shows the raw lines with their parsed format on demand', () => {
+    render(<LogViewer explorer={logs('small')}/>);
+    expect(screen.getByRole('table', { name: '程式直接印出的日誌行' }).querySelectorAll('tbody tr')).toHaveLength(4);
+    expect(screen.getByText('解析的結果（每一行是不是結構化的）').parentElement!.textContent).toContain('l3：結構化（key=value），4 個欄位');
+  });
+});
+
+describe('the D4 exercises', () => {
+  const content = logsContent();
+  const ex = (id: string) => logExercises().find(e => e.id === id)!;
+  it('checks masking rules in the redact exercise and says what they did', () => {
+    const { container } = render(<DevopsExerciseBox exercise={ex('l-redact')} content={content}/>);
+    expect(container.textContent).toContain('必須隱藏：「amy@example.com」、「4111 1111 1111 1111」、「tok_9f8e7d6c5b4a」、「hunter2」；必須保留：「r-1」、「A-1001」、「/checkout」、「u-7」。');
+    const rules = screen.getByLabelText(/^遮蔽規則/);
+    fireEvent.change(rules, { target: { value: 'pattern email\npattern card\npattern token' } });
+    fireEvent.click(screen.getByRole('button', { name: /檢查答案/ }));
+    expect(live(container)).toContain('遮蔽後，第 8 筆紀錄的 password仍看得到必須隱藏的「hunter2」。');
+    expect(live(container)).toContain('你的規則改動了 4 個值（訊息、欄位或原始行）。');
+    fireEvent.change(rules, { target: { value: 'pattern email\npattern card\npattern token\nfield password' } });
+    fireEvent.click(screen.getByRole('button', { name: /檢查答案/ }));
+    expect(screen.getByText(/正確/)).toBeTruthy();
+  });
+  it('checks a correlate table and shows computed reference answers and the log viewers by id', () => {
+    const box = render(<DevopsExerciseBox exercise={ex('l-trace')} content={content}/>);
+    expect(box.container.textContent).toContain('日誌的時間寫成「分:秒」或秒數');
+    expect(box.container.textContent).not.toContain('時間一律換算成分鐘');
+    fireEvent.change(screen.getByLabelText('依序經過的服務'), { target: { value: 'gateway, orders, payments, orders, gateway' } });
+    fireEvent.change(screen.getByLabelText('從第一筆到最後一筆（秒）'), { target: { value: '5 秒' } });
+    fireEvent.change(screen.getByLabelText('第一個出錯的服務'), { target: { value: 'payments' } });
+    fireEvent.click(screen.getByRole('button', { name: /檢查答案/ }));
+    expect(screen.getByText(/正確/)).toBeTruthy();
+    cleanup();
+    const view = render(<DevopsExerciseView exercise={ex('l-trace')} content={content}/>);
+    expect(view.container.textContent).toContain('依序經過的服務：gateway → orders → payments → orders → gateway');
+    cleanup();
+    const red = render(<DevopsExerciseView exercise={ex('l-redact')} content={content}/>);
+    expect(red.container.querySelector('pre')!.textContent).toBe('pattern email\npattern card\npattern token\nfield password');
+    expect(red.container.textContent).toContain('改動了 5 個值；必須隱藏的 4 個值都看不到，必須保留的 4 個值都還在。');
+    expect(devopsExamples(logsLesson()).map(([id]) => id)).toEqual(['small', 'shop', 'masking']);
+    // A lesson with logs gets the logs notice; the others (CICD01) keep the earlier notice word for word.
+    expect(devopsExerciseNotice(content)).toBe(DEVOPS_LOGS_NOTICE);
+    expect(devopsExerciseNotice(devopsContent())).toBe(DEVOPS_EXERCISE_NOTICE);
+    expect(DEVOPS_EXERCISE_NOTICE).toContain('時間一律以分鐘計');
   });
 });

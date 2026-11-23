@@ -138,7 +138,8 @@ export type LessonActivity = typeof LESSON_ACTIVITIES[number];
  * minute-by-minute rollout simulator (recreate, rolling, blue-green, canary with gates, migrations, feature flags), all
  * integer arithmetic in the browser, with exercises whose answers are computed from the data (`content.devops`,
  * src/lib/devops). D3 adds monitoring dashboards (per-minute series, incidents, alert rules evaluated minute by minute)
- * for the monitoring-dashboard activity. It may be combined with terminal and visualization only.
+ * for the monitoring-dashboard activity, D4 centralized logs (filters, group counts, correlation ids, masking, retention)
+ * as part of it. It may be combined with terminal and visualization only.
  */
 export const LESSON_CAPABILITIES = ['program-code', 'sql', 'er-diagram', 'normalization', 'query-plan', 'transaction-timeline',
   'driver-code', 'protocol-sequence', 'architecture-diagram', 'visualization', 'network-protocol', 'python-code', 'terminal', 'llm-explorer', 'web-code',
@@ -824,12 +825,12 @@ export function validateContent(lesson: LessonMeta, content: LessonContent, visu
     const part = lesson.activity && (LLM_ACTIVITIES as readonly string[]).includes(lesson.activity) ? LLM_ACTIVITY_PART[lesson.activity as typeof LLM_ACTIVITIES[number]] : undefined;
     if (part && !content.llm[part]?.length) fail(`the ${lesson.activity} activity needs at least one of content.llm.${part}`);
   }
-  // CICD-0: the histories', rollouts', dashboards' and exercises' data; the deployment-simulator activity shows a history or
-  // a rollout, the monitoring-dashboard activity (D3) a dashboard.
+  // CICD-0: the histories', rollouts', dashboards', logs' and exercises' data; the deployment-simulator activity shows a
+  // history or a rollout, the monitoring-dashboard activity a dashboard (D3) or logs (D4).
   if (content.devops) {
     for (const p of devopsContentProblems(content.devops)) fail(p);
     if (lesson.activity === 'deployment-simulator' && !content.devops.histories?.length && !content.devops.rollouts?.length) fail('the deployment-simulator activity needs at least one of content.devops.histories or content.devops.rollouts');
-    if (lesson.activity === 'monitoring-dashboard' && !content.devops.dashboards?.length) fail('the monitoring-dashboard activity needs at least one of content.devops.dashboards');
+    if (lesson.activity === 'monitoring-dashboard' && !content.devops.dashboards?.length && !content.devops.logs?.length) fail('the monitoring-dashboard activity needs at least one of content.devops.dashboards or content.devops.logs');
   }
   if (!hasProgramCode(lesson)) return [...problems, ...validateDatabaseContent(lesson, content)];
   // AIF-0: a trace shows a language the lesson teaches (PL15's JavaScript trace is one of its languages).

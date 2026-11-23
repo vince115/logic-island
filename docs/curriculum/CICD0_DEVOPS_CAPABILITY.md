@@ -1,6 +1,6 @@
 # CICD-0：DevOps 與 CI/CD 島的 `devops-explorer` 課程能力
 
-> 2026-11-23。目標：讓 DevOps 與 CI/CD 島（`devops-cicd`，前綴 CICD，15 堂）可以撰寫、驗證、發布。本階段**不寫任何課程內容**，只把島嶼登錄為預備島嶼、建立逐課的活動對應，並建好新能力 `devops-explorer` 的 **D1**（部署紀錄與 DORA 指標）與 **D2**（部署模擬，`deployment-simulator` 活動）。本文件是終端機引擎階段 **E25–E31** 與 `devops-explorer` 階段 **D1–D4** 的唯一說明處：D1、D2 在此完整規定（§5–§9），**D3**（監控儀表板與告警規則，`monitoring-dashboard` 活動，CICD-4）在 §10.3，其餘是規劃中的階段與範圍（§10）。之後的進度與下一批由 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 計算。
+> 2026-11-23。目標：讓 DevOps 與 CI/CD 島（`devops-cicd`，前綴 CICD，15 堂）可以撰寫、驗證、發布。本階段**不寫任何課程內容**，只把島嶼登錄為預備島嶼、建立逐課的活動對應，並建好新能力 `devops-explorer` 的 **D1**（部署紀錄與 DORA 指標）與 **D2**（部署模擬，`deployment-simulator` 活動）。本文件是終端機引擎階段 **E25–E31** 與 `devops-explorer` 階段 **D1–D4** 的唯一說明處：D1、D2 在此完整規定（§5–§9），**D3**（監控儀表板與告警規則，`monitoring-dashboard` 活動，CICD-4）在 §10.3，**D4**（集中式日誌，同一個活動，CICD-5）在 §10.4，其餘是規劃中的階段與範圍（§10）。之後的進度與下一批由 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 計算。
 
 ## 1. 範圍
 
@@ -11,6 +11,7 @@
 | D1 `history`（已完成，§5） | 課程撰寫的部署紀錄（每次部署的變更提交時間、上線時間、是否造成故障、偵測與恢復時間），算出四個 DORA 指標；時間軸圖與等效表格 |
 | D2 `rollout`（已完成，§6） | 部署模擬：一組相同的執行個體從舊版本換到新版本，逐分鐘模擬重建、滾動更新、藍綠部署、金絲雀發布（含閘門與中止）、資料庫的擴充與收縮、功能旗標；三張圖與逐分鐘的表格 |
 | D3 `dashboards`（已完成，§10.3） | 監控儀表板（`monitoring-dashboard`）：每分鐘的時間序列（標註黃金訊號，可由種子產生器產生）、事故期間、告警規則逐分鐘評估（未觸發、等待中、觸發中、已恢復）、偵測延遲、漏掉的事故、誤報與通知數；事故時間線與嚴重等級矩陣 |
+| D4 `logs`（已完成，§10.4） | 集中式日誌（`monitoring-dashboard` 的一部分）：結構化紀錄（時間、服務、主機、等級、訊息、欄位，可由種子產生器補上一般流量）與原始行；以控制項篩選（服務、最低等級、欄位條件、時間範圍）、分組計數、以關聯 ID 追蹤跨服務的請求、遮蔽規則（欄位名稱或固定的樣式）與 `redact` 檢查、保留容量的整數計算 |
 | 練習（§7） | `number`、`field`、`choice`、`table` 四種填答形式，查詢 `dora`、`dora-best`、`rollout`、`rollout-best`；以及 `rollout-plan`（學習者設定策略參數，模擬後檢查條件）。答案一律由模擬器算出，**不寫在課程資料裡** |
 
 不新增任何執行期套件；沒有亂數，所有數字是整數運算，伺服器的畫面與瀏覽器一致。D1、D2 是**自創的教學模型**，不宣稱符合任何調度系統、負載平衡器、雲端或監控產品的語意；用到 maxSurge／maxUnavailable 這兩個詞時，只有「百分比怎麼取整」照 Kubernetes 的做法（§6.4），讓之後 KUB 島的 `cluster-sim` 不會互相矛盾。
@@ -35,7 +36,7 @@
 | CICD15 | challenge-stages | `challenge-stages` | terminal、devops-explorer、visualization | E25–E31、D2、D3 | 和 DKR15 相同的形狀 |
 
 - 每一列都可以**先對應**，即使它需要的階段還沒建好；但課程內容（`content.terminal` 的新 profile、`content.devops` 的儀表板）不存在時課無法發布。
-- **CICD11、CICD12** 對應到 `monitoring-dashboard`，這個活動在 D3（CICD-4）登錄（§10.3）；登錄之前 `cicdFromBlueprint` 拋出「the monitoring-dashboard activity is not registered yet (it is built with D3)」。D3 之後 CICD11 可以建立；CICD12 另外需要 D4，`DEVOPS_STAGES_BUILT`（`['D1', 'D2', 'D3']`）沒有 D4，所以仍拋出「CICD12: the devops-explorer stage D4 is not built yet (the monitoring-dashboard activity needs D3 and D4)」。
+- **CICD11、CICD12** 對應到 `monitoring-dashboard`，這個活動在 D3（CICD-4）登錄（§10.3）；登錄之前 `cicdFromBlueprint` 拋出「the monitoring-dashboard activity is not registered yet (it is built with D3)」。D3 之後 CICD11 可以建立；CICD12 另外需要 D4，D3 時 `DEVOPS_STAGES_BUILT` 還沒有 D4，所以拋出「CICD12: the devops-explorer stage D4 is not built yet (the monitoring-dashboard activity needs D3 and D4)」。**D4（CICD-5）之後** `DEVOPS_STAGES_BUILT = ['D1', 'D2', 'D3', 'D4']`，CICD12 可以建立：活動 `monitoring-dashboard`、能力照對應是 `devops-explorer` 與 `terminal`（終端機的部分由寫課的人用既有的 E2、E7 指令對 JSON Lines 檔案撰寫）。
 - `pipeline-sim`、`case-study-board`、`decision-simulation` 只是藍圖的名稱，**不加入** `LESSON_ACTIVITIES`（登錄它們會被當成已實作的活動）。`/learn` 上規劃中的 `cicd-pipeline` 實驗室（活動 `pipeline-sim`）保持規劃中。
 - 其他島的 `deployment-simulator` 課（SA18、DL24、OPS03／06／07／08、CLD03／10／11）與 `monitoring-dashboard` 課（OPS13／14／19、KUB12）之後會沿用同一個模型，所以模型保持通用（版本、執行個體、流量），不為本島過度設計。
 - `cicdFromBlueprint` 對其他島的課回報「not a DevOps and CI/CD lesson」；標題、目標、概念、難度、先修取自藍圖。
@@ -60,7 +61,7 @@
 | CICD-2 | CICD03–05 | E27 `workflows`、E28 `actions`（已完成） |
 | CICD-3 | CICD06–08 | E29 `artifacts`（已完成） |
 | CICD-4 | CICD09–11 | E30 `environments`、E31 `deploy-hosts`、D3（登錄 `monitoring-dashboard`，**已完成**，§10.3） |
-| CICD-5 | CICD12–14 | D4 |
+| CICD-5 | CICD12–14 | D4（**已完成**，§10.4） |
 | CICD-6 | CICD15 | 無（綜合專題單獨一批，和 DKR-6 相同） |
 
 - **CICD-1 的調整（2026-11-23）**：CICD-1 只發布 CICD01（D1）並開放島嶼；CICD02 需要 E25、E26，和這兩個階段一起移到下一批（[DEVOPS_CICD_ISLAND](DEVOPS_CICD_ISLAND.md)）。CICD01 發布後 `deployment-simulator` 在活動登錄中改為已實作。
@@ -245,7 +246,7 @@ Profile 延續 `runtime` 之後的線性鏈（RANK 25–31）。每個階段只�
 | 階段 | 範圍 | 練習 |
 |---|---|---|
 | D3 `dashboards`（`monitoring-dashboard`，CICD-4 登錄；**已完成**，見 §10.3） | 每分鐘的時間序列，標註黃金訊號；事故區間；告警規則（指標、運算子、門檻、可選的視窗平均或最大值、`for` 分鐘、嚴重度）；逐分鐘評估 pending、firing、resolved（語意類似常見的告警系統但保持中立）；結果：偵測延遲、漏掉的事故、誤報、通知數（告警疲勞）；事故時間線（CICD14）：依序的事件、偵測與恢復時間、依課程給的矩陣判定嚴重等級；約 180 點的序列用重用 `src/lib/llm/prng.ts` 的種子產生器 | `alert-eval`、`alert-rule`（例如「每個事故 5 分鐘內偵測、最多 1 次誤報」）、`incident` |
-| D4 `logs`（`monitoring-dashboard`） | 紀錄（時間、服務、主機、等級、訊息、欄位，可選原始行）；欄位與等級篩選（只用欄位／值的控制項，不發明查詢語言）；以關聯 ID 串起跨服務的請求；分組計數；遮蔽規則（欄位名稱或樣式）；保留容量（量 × 天數） | `correlate`、`redact`（mustHide、mustKeep）、`retention` |
+| D4 `logs`（`monitoring-dashboard`；**已完成**，見 §10.4） | 紀錄（時間、服務、主機、等級、訊息、欄位，可選原始行）；欄位與等級篩選（只用欄位／值的控制項，不發明查詢語言）；以關聯 ID 串起跨服務的請求；分組計數；遮蔽規則（欄位名稱或樣式）；保留容量（量 × 天數） | `correlate`、`redact`（mustHide、mustKeep）、`retention` |
 
 ### 10.3 D3：監控儀表板與告警規則（`monitoring-dashboard`，**已完成**）
 
@@ -310,7 +311,7 @@ interface SeverityMatrix { rows: { label; minUsersPercent }[]; columns: { label;
 - **alert-eval** 就是 `number`／`field`／`table`／`choice` 題配上 `alert` 查詢（例如第一次觸發在第幾分鐘、發了幾次通知、某分鐘是什麼狀態）；**黃金訊號的分類**用 `choice` 或 `table` 配上 `series` 的 `signal`；**事故時間線**用 `table` 配上 `incident` 查詢。不需要新的填答形式。
 - 新的填答形式 **`alert-rule`**（規劃題）：學習者設定指標、比較、門檻、視窗計算（不用、平均、最大值、最小值）、視窗長度、持續時間（欄位 `series`、`op`、`threshold`、`agg`、`window`、`for`），檢查器用這條規則在儀表板上逐分鐘評估，逐項檢查條件：`detectWithin`（每個事故都要偵測到，且延遲 ≤ N）、`maxMissed`、`maxFalseAlerts`、`maxNotifications`（都含等號）。符合條件的規則都通過；`reference` 是其中一條，驗證器確認它通過。訊息寫出違反了什麼，例如「誤報有 1 次，超過上限 0。」、「事故「資料庫連線耗盡」第 130 分鐘開始，第 140 分鐘才觸發，延遲 10 分鐘，超過 3 分鐘。」。
 - 驗證（`dashboardProblems`、`alertPlanProblems`，由 `devopsContentProblems` 呼叫）：服務名稱、`minutes` 1–360；序列的 id 不重複（和事故、規則共用 id 空間）、名稱與單位不空白、訊號合法、恰好有 values 或 shape 之一、values 的長度與範圍、種子、基準、雜訊、每個變化的時間在儀表板內且 delta ≠ 0；事故在儀表板內、依時間不重疊、usersPercent 0–100、事件的順序；矩陣的列與欄遞減到 0、等級的形狀；規則的序列存在、比較合法、門檻是 ≥ 0 的整數、視窗 1–min(60, minutes) 分鐘、`for` 0–60、嚴重度合法；`alert-rule` 的參考規則合法、至少一個條件且都是 ≥ 0 的整數、偵測類的條件需要事故、參考規則符合全部條件；參考答案通過、常見錯誤不通過（同 §9）。
-- `validateContent`：活動是 `monitoring-dashboard` 時至少要有一個儀表板（「the monitoring-dashboard activity needs at least one of content.devops.dashboards」）。
+- `validateContent`：活動是 `monitoring-dashboard` 時至少要有一個儀表板（D4 之後改為儀表板或日誌，「the monitoring-dashboard activity needs at least one of content.devops.dashboards or content.devops.logs」，§10.4.7）。
 
 #### 10.3.5 UI（`dashboard-view.tsx`）
 
@@ -334,7 +335,97 @@ interface SeverityMatrix { rows: { label; minUsersPercent }[]; columns: { label;
 - **誤報與漏掉的定義**：以「觸發期間是否和事故期間重疊」判定；真實的值班團隊會依事後檢討人工判定（例如事故結束後才觸發的告警），本模型把這種情況同時算成漏掉與誤報，課文要說明。
 - **恢復時間**：本模型用影響期間（end − start）；DORA 的失敗部署復原時間（§5）與常見的 MTTR 有不同的起點與終點定義，課文要點明是哪一個。
 - **嚴重等級**：矩陣與 SEV 名稱由課程提供，沒有通用標準。
-- **D4 未建**：CICD12 需要 D3 與 D4，`cicdFromBlueprint('CICD12')` 仍拒絕（「CICD12: the devops-explorer stage D4 is not built yet (the monitoring-dashboard activity needs D3 and D4)」）。
+- **D4**：D3 建好時 D4 還沒建，`cicdFromBlueprint('CICD12')` 拒絕；D4 已在 CICD-5 建好（§10.4），CICD12 可以建立。
+
+### 10.4 D4：集中式日誌（`monitoring-dashboard` 的一部分，**已完成**）
+
+`src/lib/devops/logs.ts`（資料、產生器、驗證）、`log-query.ts`（篩選、分組、關聯、保留容量、行的格式）、`redact.ts`（遮蔽規則）、`logs-check.ts`（查詢與 `redact` 題）；元件 `log-viewer.tsx`（加上 `log-filters.tsx`、`log-tables.tsx`、`log-masking.tsx`）。和 D1–D3 一樣是**自創的教學模型**：沒有查詢語言，只有控制項與固定的運算；不宣稱符合任何日誌產品、收集器或格式標準，文字也不提任何產品。模型只有「紀錄、欄位、服務、關聯 ID」，OPS、KUB 的課之後可以沿用。
+
+#### 10.4.1 資料（`content.devops.logs`）
+
+```ts
+interface LogsExplorer { id; title; description; logs: LogSet; masking?: string[]; checks?: { mustHide: string[]; mustKeep: string[] } }
+interface LogSet {
+  correlationField?: string;            // 關聯 ID 的欄位，預設 request_id
+  records: LogRecordInput[];            // 課程寫的紀錄，至少一筆
+  traffic?: LogTraffic;                 // 以種子產生的一般流量
+  raw?: { id; text }[];                 // 程式直接印出的原始行（純文字、JSON 或 key=value）
+  perDay?: number;                      // 正式環境每天的筆數（保留容量用）
+}
+interface LogRecordInput { ts: number | string /* 整數秒或 "分:秒" */; service; host; level: 'debug' | 'info' | 'warn' | 'error'; message; fields?: Record<string, string | number> }
+interface LogTraffic { seed; count /* 1–3000 */; from; to /* 秒 [from, to) */; services: string[]; hosts? /* 每個服務 1–9，預設 2 */; paths: string[]; users? /* 預設 500 */; durationMs: { min; max }; idPrefix? /* 預設 "req-" */ }
+```
+
+- 時間是從日誌開始算起的**整數秒**（最多 7 天），可以寫成 `605` 或 `"10:05"`；畫面寫成「分:秒」，一小時以上寫成「時:分:秒」。等級的順序是 debug < info < warn < error。欄位名稱是英數字、`_`、`.`，不能是 ts、service、host、level、message；值是字串或安全整數。
+- **產生器**（決定性，`mulberry32(seed)`，`src/lib/llm/prng.ts`）：第 k 筆（k = 0…count − 1）依序抽六個數 u：時間 = from + ⌊u × (to − from)⌋、服務 = services[⌊u × S⌋]、主機 = `服務-${⌊u × hosts⌋ + 1}`、路徑 = paths[⌊u × P⌋]、user_id = `u-${1000 + ⌊u × users⌋}`、duration_ms = min + ⌊u × (max − min + 1)⌋；等級 info、訊息 `GET 路徑 200`，欄位 request_id（`req-0001` 起，至少四位數）、user_id、path、status 200、duration_ms。所以產生的紀錄都是正常流量，事故的紀錄由課程寫出。
+- 全部紀錄依時間排序；同一秒時課程寫的在前，各自保持原來的順序；每筆得到 1 起算的序號 `n`。最多 5,000 筆。
+- 一筆紀錄的 **JSON 行**依序是 ts、service、host、level、message，再接欄位（宣告的順序）。
+
+#### 10.4.2 篩選、分組與關聯（`log-query.ts`）
+
+- **篩選**（全部可選，同時成立才符合）：服務（等於）、最低等級（這個等級以上）、欄位條件 `{ name, op, value }`、時間範圍 [from, to)。`=`、`!=` 比較值的文字（200 等於 "200"）；`>`、`>=`、`<`、`<=` 兩邊都要是數字。**沒有這個欄位的紀錄不符合任何條件，連 `!=` 也不符合**。
+- **分組計數**：依服務、等級、主機或某個欄位的值計數，筆數多的在前，同數依值的文字順序；沒有這個欄位的紀錄另外計為「沒有這個欄位」。
+- **關聯**：帶某個關聯 ID 的紀錄依時間排列（同一秒保持日誌的順序），每筆有 Δ（和前一筆相差的秒數，第一筆是 0）與距第一筆的秒數；**經過的服務**依序列出，同一個服務只在中間換過別的服務後才再列一次（gateway → orders → payments → orders → gateway）；**經過時間** = 最後一筆 − 第一筆；第一個 error 等級的紀錄是**第一個出錯的服務**。
+- **原始行的格式**：能解析成 JSON 物件，或由兩段以上、每一段都是 `key=value`（值可加雙引號）組成的行是**結構化**的，欄位數是鍵的個數；其他都是**非結構化**（只能用文字搜尋）。
+
+#### 10.4.3 遮蔽（`redact.ts`）
+
+- 規則一行一條：`field 欄位名稱`（整個欄位的值換成 `***`）、`pattern 樣式名稱`（訊息、欄位值與原始行裡每個符合的片段換成 `***`）；也接受 `field:名稱`，空行與 `#` 開頭的行略過；依序套用，最多 20 條。時間、服務、主機、等級不遮蔽。
+- 樣式是**固定的**（學習者不寫正規表示式）：`email`（電子郵件地址）、`card`（13–19 位數字，可夾空格或連字號，前後不能再接數字或連字號）、`token`（`Bearer` 之後的字串，或 `sk_`、`tok_` 開頭、8 個字元以上的字串）、`ipv4`、`digits`（任何連續 4 位以上的數字，**刻意太寬**，用來示範過度遮蔽）。
+- 看不懂的行、不存在的樣式、不能遮蔽的欄位名稱、沒有任何紀錄有的欄位、重複的規則都是錯誤，逐行說明。
+- **`redact` 檢查**：套用規則後，`mustHide` 的每個值在任何訊息、欄位值或原始行都**不能再出現**（回報第一個仍看得到的位置）；`mustKeep` 的每個值，**每一次出現都要保留**（遮蔽後出現的次數少於原本就是過度遮蔽）。`field user_email` 遮不到訊息裡的電子郵件；`pattern digits` 會連訂單編號 A-1001 一起遮掉。
+
+#### 10.4.4 保留容量（整數運算）
+
+- 平均每筆大小 = 全部紀錄的 JSON 行（每行加換行 1 位元組）的 UTF-8 位元組總和 ÷ 筆數，**四捨五入**到整數位元組（§5.3 的 roundHalfUp；UTF-8 依碼位計算，瀏覽器與 Node 相同）。
+- 每天的位元組 = 每天筆數 × 平均大小；總計 = 每天的位元組 × 天數。MB、GB 用十進位（10⁶、10⁹ 位元組）：MB 四捨五入到整數，GB 四捨五入到小數點後一位（以十分之一 GB 的整數保存）。例：2,000,000 筆 × 250 位元組 × 30 天 = 15,000,000,000 位元組 = 15,000 MB = 15.0 GB；1,500,000 位元組是 2 MB（1.5 進位）、150,000,000 位元組是 0.2 GB。
+- 範圍：每天 1–100,000,000 筆、平均 1–100,000 位元組、1–3,650 天，總計不超過 4 × 10¹⁵（整數運算仍精確）。
+
+#### 10.4.5 練習
+
+| 查詢 `task` | 值 |
+|---|---|
+| `logs`（`filter` 可選；`metric`：`count`、`first-ts`、`last-ts`、`max`（要 `field`）、`max-by`（要 `field`，回報 `report` 欄位，預設是關聯 ID 欄位；最大值必須唯一）、`top`（要 `group`：service、level、host 或欄位；最多的值必須唯一）、`distinct`（要 `field`）） | 筆數、數字，或文字（時間寫成「分:秒」，也接受秒數，例如 `10:08`、`608`、`608 秒`） |
+| `correlate`（`id`；`metric`：`services`、`elapsed`、`records`、`first-error-service`、`last-service`） | 服務的**有序清單**（用逗號、空白、`→` 或 `->` 分開都可以，順序與個數都要對）、秒、筆數或服務名稱 |
+| `retention`（`days`；`perDay`、`avgBytes` 可寫在查詢裡，否則取日誌的 `perDay` 與平均大小；`metric`：`avg-bytes`、`bytes-per-day`、`total-bytes`、`total-mb`、`total-gb`） | 位元組、MB 或 GB（一位小數） |
+| `log-format`（`line`：原始行的 id；`metric`：`format`、`fields`） | 結構化／非結構化（也接受 structured、unstructured、raw、純文字），或欄位數 |
+
+- 日誌查詢、`correlate`、`retention` 與結構化的分類都是既有的 `number`／`field`／`table`／`choice` 題，配上這些查詢；篩選寫錯（沒有的服務或欄位、範圍顛倒、比較文字與數字）時驗證拒絕。
+- 新的填答形式 **`redact`**：`{ logs, mustHide, mustKeep, reference }`，學習者寫規則（答案的欄位 `rules`），檢查器套用規則後檢查 §10.4.3 的兩個條件；符合的規則都通過，`reference` 是其中一組。訊息例如「遮蔽後，第 8 筆紀錄的 password仍看得到必須隱藏的「hunter2」。」、「「A-1001」被遮掉了（原本出現 4 次，剩 0 次）：它是查問題需要的值，必須保留。」。
+
+#### 10.4.6 UI（`log-viewer.tsx`）
+
+- 開頭的事實：筆數、時間範圍、服務、各等級的筆數、其中有多少是產生的一般流量；標示「示意資料」。
+- **篩選**：服務、最低等級、欄位、比較、值、時間的「從」與「到（不含）」都是有標籤的表單控制項（沒選欄位時比較與值停用）；讀不懂時值與時間欄位 `aria-invalid`，以 `aria-describedby` 指向 `role="alert"` 的錯誤清單，不列結果；「清除篩選」。
+- **結果**：符合的紀錄依時間列成表格，**固定每頁 20 筆**（伺服器與瀏覽器的分頁相同，不需要虛擬捲動），第一頁、上一頁、下一頁、最後一頁按鈕，`aria-live` 說明「符合幾筆、第幾頁、第幾到第幾筆」；等級以文字（「錯誤（error）」）加顏色標示。
+- **分組計數**：分組依據的選單（服務、等級、主機、各欄位），表格列出值、筆數、比例（整數 %，四捨五入），最多 30 組並註明總組數。
+- **關聯**：選單列出出現在兩筆以上紀錄的關聯 ID，`aria-live` 說明經過的服務、經過時間與第一個錯誤，表格列出每筆的時間、Δ、距第一筆、服務、主機、等級、訊息。
+- **原始行**：表格列出原始行；「解析的結果」放在 `<details>` 裡（避免直接透露分類題的答案）。
+- **遮蔽**：規則的文字框（`aria-invalid`、`role="alert"` 的逐行錯誤）、可用樣式的清單、「恢復課程的規則」；結果寫出規則改動了幾個值，課程有 `checks` 時逐項列出「必須隱藏……已隱藏／仍看得到（位置）」與「必須保留……仍保留／被遮掉了」；遮蔽後的 JSON Lines（課程寫的紀錄與原始行）放在可以鍵盤捲動的區塊。
+- 練習：`redact` 題用相同的規則文字框，寫出必須隱藏與保留的值，檢查後寫出規則改動了幾個值；參考解答列出參考規則。用到 D4 查詢的填答題，說明改為「日誌的時間寫成「分:秒」或秒數」；有日誌的課，練習上方的說明改用 `DEVOPS_LOGS_NOTICE`（`devopsExerciseNotice`），沒有日誌的課（已發布的 CICD01）逐字沿用原本的說明與提示。
+- 文字全是繁體中文；顏色只用主題的 token（`--cur-bad`，以及 D4 新增、有深色值的 `--cur-warn`；D3 等待中的顏色也改用 `--cur-warn`，不再寫死色碼）。在 390 px 寬時控制項變成單欄，表格與 JSON Lines 在自己的框裡捲動，頁面沒有水平捲動（暫時頁面在瀏覽器中以 390 × 844 量過 `scrollWidth` = 390，量完即刪除）。
+
+#### 10.4.7 驗證與登錄
+
+- `logsExplorerProblems`、`logSetProblems`（由 `devopsContentProblems` 呼叫，訊息加上「logs 探索器 id」）：關聯欄位是合法的欄位名稱；至少一筆課程寫的紀錄；時間、等級、服務、主機、訊息、欄位名稱與值；產生器的種子、筆數、範圍、服務、路徑、主機數、使用者數、時間長度；有產生器時關聯欄位必須是 request_id，且課程寫的 request_id 不能看起來像產生的（`req-` 加數字）；總筆數；原始行的 id 不重複；`perDay` 的範圍；探索器的 `masking` 規則看得懂；`checks` 的值都在日誌裡、不能同時在兩個清單。
+- `redactTaskProblems`：日誌存在；mustHide 至少一個；每個值都出現在日誌裡、不能同時在兩個清單；參考規則看得懂而且通過。參考答案通過、常見錯誤不通過（同 §9）。
+- `validateContent`：活動是 `monitoring-dashboard` 時至少要有一個儀表板**或日誌**（「the monitoring-dashboard activity needs at least one of content.devops.dashboards or content.devops.logs」）；`devopsContentProblems` 沒有探索器時的訊息改為「(a history, a rollout, a dashboard or logs)」。
+- `DEVOPS_STAGES_BUILT = ['D1', 'D2', 'D3', 'D4']`，`cicdFromBlueprint('CICD12')` 可以建立（§2）。`monitoring-dashboard` 在活動登錄中仍是規劃中，直到第一堂用它的完整課發布（既有規則）；`IMPLEMENTED_TEXT['monitoring-dashboard']` 加上日誌的文字說明（規劃中時不採用）。
+
+#### 10.4.8 只在課文說明的部分
+
+- 真實的日誌收集器、傳送代理與儲存（索引、分片、查詢語言、全文檢索）、日誌輪替、取樣、壓縮比、副本與冷熱分層；日誌、指標與分散式追蹤（span、trace context 標頭）的分工。
+- 時間同步與時區、毫秒以下的時間精度、同一秒內真正的先後順序。
+- 部分遮蔽（例如卡號只留後四碼）、雜湊化或代號化、在收集端或儲存端遮蔽的取捨、法規與個資的保存規定。
+- CICD12 的終端機部分：在 ssh 主機上以既有的 E2、E7 指令（`grep`、`wc` 等）處理 JSON Lines 檔案，由寫課的人撰寫。
+
+#### 10.4.9 沒有把握的地方
+
+- **時間精度**：本模型以整數秒排序，同一秒內依日誌的順序；真實系統的時鐘不同步、毫秒精度與到達順序都可能讓追蹤的順序和這裡不同，課文要說明「依時間排列」的前提。
+- **經過時間**：以第一筆到最後一筆紀錄的時間差當作請求的總延遲，是示意的算法；真實的延遲應看閘道記錄的 duration 或追蹤系統的 span，兩者在題目中都有（`elapsed` 與 `max` duration_ms），課文要分清楚。
+- **樣式的涵蓋範圍**：固定的 email、card、token、ipv4 樣式只涵蓋常見的寫法（例如沒有國際化的電子郵件地址、沒有 Luhn 檢查、只認 `Bearer`、`sk_`、`tok_` 的權杖），不能當成完整的偵測；課文要說明遮蔽是縱深防禦的一層，最好的做法是一開始就不要記下敏感資料。
+- **過度遮蔽的判定**：以 mustKeep 的「出現次數」判定，值的一部分被遮掉也算；這是本課程為了能檢查而固定的規則。
+- **保留容量**：只計算未壓縮的 JSON 行；實際的儲存量受壓縮、索引與副本影響很大，題目的數字是量級的估計。
 
 ## 11. 測試
 
@@ -345,6 +436,9 @@ interface SeverityMatrix { rows: { label; minUsersPercent }[]; columns: { label;
 | `tests/devops-capability.test.ts`（D3） | 產生器的手算值（step、ramp、spike、負的 ramp、取 0）、雜訊和 `draws(seed)` 逐點相同且可重現、換種子就不同；序列與儀表板的驗證錯誤；`tiny` 三條規則逐分鐘的狀態、觸發期間、通知、誤報、延遲；平均的精確比較（15 ÷ 3 = 5）與一位小數；最大值、最小值視窗、到最後仍觸發；事故後才觸發（漏掉且誤報）；`api` 的告警疲勞與偵測延遲；事故時間與嚴重等級；`series`、`alert`、`incident` 每種查詢與錯誤；每道 D3 練習的參考答案通過、常見錯誤不通過；`alert-rule` 的評估、訊息與欄位解析；驗證錯誤；合成的 CICD11 通過 `validateContent` 與發布閘門，活動與內容的綁定；CICD11 可以建立、CICD12 因 D4 被拒絕；`monitoring-dashboard` 在活動登錄中仍是規劃中 |
 | `tests/devops-explorer-dom.test.tsx`（D3） | 四張折線圖與每列 10 分鐘的等效表格、事故的底色、門檻只畫在規則的序列；選規則與改欄位重新評估（總計、偵測表、觸發期間表、視窗線）；不合法的門檻 `aria-invalid` 與警示；步進器的方向鍵與 Home／End 及每分鐘的說明；狀態變化表；事故時間線與矩陣；`alert-rule` 練習的檢查與結果、黃金訊號表、算出的參考解答 |
 | `tests/support/dashboard-fixture.ts` | 只供測試：`tiny`（12 分鐘逐點寫出）與 `api`（180 分鐘、四個黃金訊號、兩次事故與一次尖峰，全部由產生器產生）、七道 D3 練習與一堂合成的 CICD11 課 |
+| `tests/devops-capability.test.ts`（D4） | 紀錄依時間排序與編號、`分:秒`；產生器和 `draws(seed)` 逐筆相同（每筆六次抽樣）、可重現、換種子就不同、同一秒課程寫的在前；UTF-8 位元組和 Node 的 `Buffer.byteLength` 相同、JSON 行；日誌的驗證錯誤；`small` 的篩選（等級、服務、欄位、時間範圍、沒有欄位的紀錄）、分組、關聯（Δ、經過的服務、經過時間、第一個錯誤）、原始行的格式；遮蔽規則的解析與錯誤、欄位與樣式的遮蔽（卡號、IP、權杖）、洩漏與過度遮蔽；保留容量的手算值與四捨五入；`logs`、`correlate`、`retention`、`log-format` 每種查詢與錯誤（含有序清單與時間的比對）；每道 D4 練習的參考答案通過、常見錯誤不通過；`redact` 題的訊息；驗證錯誤；CICD12 可以建立；CICD12 大綱的日誌課（只有 devops-explorer）通過 `validateContent` 與發布閘門，完整形狀需要終端機內容 |
+| `tests/devops-explorer-dom.test.tsx`（D4） | 日誌檢視器的事實、分頁（第一頁到最後一頁、按鈕停用）、篩選（等級、服務、欄位、時間）與分組表、不合法篩選的 `aria-invalid` 與警示、關聯選單與 Δ 表、遮蔽編輯器（課程的規則、遮蔽後的 JSON Lines、必須隱藏與保留的結果、過度遮蔽、不合法規則的警示、恢復）、原始行的解析結果；`redact` 練習的檢查與結果、`correlate` 表的檢查、算出的參考解答、日誌以 id 顯示 |
+| `tests/support/logs-fixture.ts` | 只供測試：`small`（九筆手寫紀錄、四行原始行，含電子郵件、卡號、權杖與密碼）、`shop`（400 筆產生的流量與兩次付款逾時）、三個日誌探索器、七道 D4 練習與一份 CICD12 大綱的日誌課內容 |
 | `tests/support/devops-fixture.ts` | 只供測試：兩個團隊的部署紀錄、四個部署情境（結帳服務、有問題的金絲雀、結構變更、功能旗標）、八道練習與一堂合成的 CICD10 課（沒有真實的課程檔案） |
 
 ## 12. 只在課文說明的部分
@@ -355,7 +449,7 @@ interface SeverityMatrix { rows: { label; minUsersPercent }[]; columns: { label;
 - Vault 與雲端的 secret 儲存、改寫 git 歷史來清除 secret。
 - 服務網格與負載平衡器產品、真實的監控與日誌系統、值班呼叫與狀態頁。
 - `gh --jq`／`--template`、終端機動畫。
-- D3 沒有模擬的部分見 §10.3.6。
+- D3 沒有模擬的部分見 §10.3.6；D4 見 §10.4.8。
 - D2 沒有模擬：流量隨時間變化（rpm 固定）、自動擴展、影子部署、多於兩個版本同時存在、請求重試、工作階段黏著、延遲隨負載變化（p95 是宣告的數字）、資料回填的耗時（expand 視為立即可用）。
 
 ## 13. 沒有把握的地方
@@ -365,6 +459,7 @@ interface SeverityMatrix { rows: { label; minUsersPercent }[]; columns: { label;
 - **maxSurge／maxUnavailable**：百分比的取整與「兩者都是 0 時 unavailable 改為 1」依 Kubernetes 的 deployment 控制器（`ResolveFenceposts`）的行為撰寫，沒有逐字核對最新版本的原始碼；控制迴圈的時間與先縮後擴的順序是本模型自己的規則，不是 Kubernetes 的。
 - **E25–E31 的輸出格式**：gh、runner 日誌、GitHub 的 YAML 與驗證訊息、`hashFiles` 與快取的文字都無法離線核對；這些階段建置時要逐項列在本節，教學上最關鍵的（結束碼的註記、`***`、403 與保護規則的錯誤）優先。git 的合併與 rebase 衝突處理簡化為一段。
 - **D3**：pending／for 的邊界、誤報與漏掉的判定、恢復時間的定義、嚴重等級沒有通用標準，見 §10.3.7。
+- **D4**：整數秒的時間精度、以紀錄時間差當作延遲、固定樣式的涵蓋範圍、過度遮蔽以出現次數判定、保留容量不含壓縮，見 §10.4.9。
 
 ## 14. 改動的既有規則與測試
 
@@ -372,6 +467,7 @@ interface SeverityMatrix { rows: { label; minUsersPercent }[]; columns: { label;
 - `activities.ts`：`IMPLEMENTED_TEXT` 的說明只在活動已實作時採用（§3）；其他活動的登錄內容不變。
 - `lessons.ts`：`cicdFromBlueprint` 與 `CICD_SHAPES`；其他島的對應與錯誤不變。D3 加上 `DEVOPS_STAGES_BUILT`：課需要的 devops-explorer 階段（D1–D4）沒有全部建好時拒絕建立（CICD12 等 D4）。
 - D3（§10.3）：`schema.ts` 登錄 `monitoring-dashboard`，`validateCurriculum` 的訊息改為「names deployment-simulator or monitoring-dashboard as its activity」，`devopsContentProblems` 沒有探索器時的訊息改為「(a history, a rollout or a dashboard)」，`tests/devops-capability.test.ts` 對應的斷言同步更新（同樣嚴格）；`activities.ts` 加上 `monitoring-dashboard` 的 `IMPLEMENTED_TEXT`（規劃中時不採用）。
+- D4（§10.4）：`lessons.ts` 的 `DEVOPS_STAGES_BUILT` 加上 D4（CICD12 可以建立），`tests/devops-capability.test.ts` 原本斷言 CICD12 被拒絕，改為斷言它的形狀（同樣嚴格）；`schema.ts` 的 `monitoring-dashboard` 改為需要儀表板或日誌、`devopsContentProblems` 沒有探索器時的訊息改為「(a history, a rollout, a dashboard or logs)」，對應的斷言同步更新；`check.ts` 的數字可以帶「秒、筆、位元組、MB、GB」單位、文字值可以是有序清單、沒有單位時不加空白；`curriculum.module.css` 加上 `--cur-warn`（淺色與深色），D3 等待中的顏色改用它；`activities.ts` 的 `monitoring-dashboard` 說明加上日誌（規劃中時不採用）。
 - `database-lesson.tsx`：加入 devops 的探索器、練習與說明；其他課的頁面不變。
 - `tests/llm-capability.test.ts`：預備島嶼的斷言由 `[]` 改為 `['devops-cicd']`。
 - `docs/curriculum/data/island-capabilities.json`：`devops-cicd` 改為 `prepared`，`AUTONOMOUS_CURRICULUM_PROGRESS.md` 依它以 `scripts/curriculum-queue.ts` 重新產生；`COURSE_CONTENT_SPECIFICATION.md` 加上 DevOps 的範例形式與 CICD-0 的列。`COURSE_INVENTORY.md` 只記發布的批次，沒有改動（沒有課發布）。
