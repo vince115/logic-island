@@ -66,6 +66,8 @@ import { docker } from './docker';
  * ~/.ssh/config (tunnels.ts).
  * Engine stage E20 (docs/curriculum/DKR0_CONTAINER_CAPABILITY.md): CONTAINERS_PROFILE adds containers — a Docker Engine with
  * images, containers, a simulated Docker Hub and published ports (docker.ts).
+ * Engine stage E21 (DKR0_CONTAINER_CAPABILITY.md §11): IMAGES_PROFILE adds images — docker build with BuildKit (Dockerfiles,
+ * layers, the build cache, .dockerignore), docker history and the image config at run time (build.ts).
  */
 
 export interface Line { text: string; kind: 'out' | 'err' }
@@ -127,9 +129,10 @@ export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS
  * E14: nginx. E15: proxy (nginx's reverse proxy and upstreams). E16: firewall (ufw, nft; connections from other hosts). E17: tunnels
  * (ssh -L/-R/-J and ~/.ssh/config). E18: edge (HTTP caching: nginx's proxy_cache, validators, a CDN edge, time that passes with
  * sleep, curl -w timings). E19: diagnostics (ping, traceroute, mtr, tcpdump -r and a sed subset). E20: containers (docker).
+ * E21: images (docker build, layers and the build cache, docker history).
  */
 export type ShellFeature = 'glob' | 'help-option' | 'multi-source' | 'ls-extra' | 'pipes' | 'accounts' | 'processes' | 'packages' | 'services' | 'remote' | 'scripting' | 'scheduling'
-  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers';
+  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers' | 'images';
 
 /** LNX-0: the commands a session may run (E1: and the features it switches on; none by default). */
 export interface ShellProfile { readonly id: string; readonly commands: readonly CommandName[]; readonly features?: readonly ShellFeature[] }
@@ -192,12 +195,14 @@ export const EDGE_PROFILE: ShellProfile = { id: 'edge', commands: above(TUNNELS_
 export const DIAGNOSTICS_PROFILE: ShellProfile = { id: 'diagnostics', commands: above(EDGE_PROFILE, E19_COMMANDS), features: [...EDGE_PROFILE.features!, 'diagnostics'] };
 /** E20: the diagnostics profile plus the Docker CLI: images, containers, a simulated Docker Hub and published ports. */
 export const CONTAINERS_PROFILE: ShellProfile = { id: 'containers', commands: above(DIAGNOSTICS_PROFILE, E20_COMMANDS), features: [...DIAGNOSTICS_PROFILE.features!, 'containers'] };
+/** E21: the containers profile plus docker build (Dockerfiles, layers, the build cache), docker history and image configs; no new commands. */
+export const IMAGES_PROFILE: ShellProfile = { id: 'images', commands: above(CONTAINERS_PROFILE, []), features: [...CONTAINERS_PROFILE.features!, 'images'] };
 /** The profiles a lesson machine may name (TerminalMachine.profile), from the narrowest. */
 export const PROFILES = {
   lab: LAB_PROFILE, files: FILES_PROFILE, streams: STREAMS_PROFILE, users: USERS_PROFILE, processes: PROCESSES_PROFILE, packages: PACKAGES_PROFILE, services: SERVICES_PROFILE,
   remote: REMOTE_PROFILE, scripting: SCRIPTING_PROFILE, scheduling: SCHEDULING_PROFILE, sockets: SOCKETS_PROFILE, dns: DNS_PROFILE, http: HTTP_PROFILE,
   tls: TLS_PROFILE, nginx: NGINX_PROFILE, proxy: PROXY_PROFILE, firewall: FIREWALL_PROFILE, tunnels: TUNNELS_PROFILE, edge: EDGE_PROFILE, diagnostics: DIAGNOSTICS_PROFILE,
-  containers: CONTAINERS_PROFILE,
+  containers: CONTAINERS_PROFILE, images: IMAGES_PROFILE,
 } as const;
 export type ProfileId = keyof typeof PROFILES;
 
@@ -301,6 +306,7 @@ const HELP: [CommandName | null, string][] = [
 ];
 /** The lines that change when a profile has the feature (the lab keeps its own lines). */
 const HELP_FEATURE: [ShellFeature, CommandName, string][] = [
+  ['images', 'docker', '  docker build|history|run|ps|images|pull|logs|exec|stop|start|rm|rmi|port|inspect …  建置與管理 Image 與 Container（需要 docker 群組或 sudo）'],
   ['ls-extra', 'ls', '  ls [-l] [-a] [-h] [-d] [路徑…]  列出目錄內容；-l 詳細資料，-a 隱藏項目，-h 易讀的大小，-d 目錄本身'],
   ['multi-source', 'cp', '  cp [-r] 來源… 目的地      複製；複製目錄要加 -r；多個來源時目的地必須是目錄'],
   ['multi-source', 'mv', '  mv 來源… 目的地          移動或改名；多個來源時目的地必須是目錄'],
@@ -1612,7 +1618,8 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
     }
     case 'docker': {
       // E20 (docker.ts): the daemon's images and containers; the socket decides who may use it (root or the docker group).
-      const r = docker(cur(), args, { out: write, err: fail, user: state.user, tty: ctx.tty, stdin: ctx.stdin });
+      // E21: the images profile adds docker build and docker history.
+      const r = docker(cur(), args, { out: write, err: fail, user: state.user, tty: ctx.tty, stdin: ctx.stdin, ...features.has('images') ? { images: true } : {} });
       code = r.status;
       return done(r.state);
     }

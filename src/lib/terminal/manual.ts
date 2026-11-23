@@ -440,8 +440,20 @@ export const CONTAINER_MANUAL: Record<'docker', ManualEntry> = {
   },
 };
 
+/** E21: the Docker CLI of the images profile (DKR0_CONTAINER_CAPABILITY.md §11): docker build and docker history too. */
+export const IMAGES_MANUAL: ManualEntry = {
+  ...CONTAINER_MANUAL.docker,
+  usage: `docker build [-t 名稱:標籤] [-f Dockerfile] [--build-arg 變數=值] [--no-cache] [--target 階段] [-q] 資料夾 | history [--no-trunc] IMAGE | image prune [-a] [-f] | ${CONTAINER_MANUAL.docker.usage}`,
+  description: [...CONTAINER_MANUAL.docker.description.slice(0, -1),
+    'docker build 依資料夾裡的 Dockerfile 一步一步建置 Image（BuildKit 的 plain 輸出）：RUN、COPY、ADD、WORKDIR 各是一個步驟，改變檔案的步驟產生一層；步驟和它之前的一切都沒變時是 CACHED，一個步驟變了，它和之後的步驟都重新執行。.dockerignore 排除不送進建置內容的檔案。',
+    'docker history 由新到舊列出 Image 的每一層與設定（CREATED BY、SIZE）；docker image inspect -f \'{{.RootFS.Layers}}\' 列出各層的 ID。',
+    '模擬環境沒有鍵盤：互動式的 Shell（-it）會立刻結束，請用 docker exec 容器 指令；Volume、網路、Compose 與多階段建置的 COPY --from 在之後的引擎階段。'],
+  options: [...CONTAINER_MANUAL.docker.options, ['-t', 'build：Image 的名稱與標籤（可以給好幾個）'], ['--no-cache', 'build：不使用建置快取']],
+};
+
 /** The pages a feature changes: cat reads standard input and echo has -n with pipes; chmod has -R with accounts. */
 const FEATURE_MANUAL: [ShellFeature, CommandName, ManualEntry][] = [
+  ['images', 'docker', IMAGES_MANUAL],
   ['edge', 'sleep', { usage: 'sleep 秒數[smhd]', summary: '等待一段時間', description: ['從 edge 階段起，sleep 讓模擬的時鐘前進（課程裡每一台機器一起）：快取會過期、Age 會增加、date 與日誌的時間跟著改變。sleep 300 & 仍然只是一個背景工作，不會讓時間前進。'], options: [] }],
   ['edge', 'date', { usage: 'date [-u] [+格式]', summary: '顯示機器的時間', description: ['+%F 是 2026-11-22、+%H:%M 是時與分、+%s 是 1970 年起的秒數；有時區的機器顯示當地時間，-u 顯示 UTC。從 edge 階段起 sleep 會讓時鐘前進。'], options: [['-u', '顯示 UTC']] }],
   ['edge', 'curl', {

@@ -69,6 +69,7 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
   // DKR-1 (2026-11-23): DKR01–DKR04 on engine stage E20; the later lessons need E21–E24.
   'docker-containers': [
     { title: '容器與 Docker 入門', summary: '容器與虛擬機、namespace 與 cgroup、共用核心；Docker client、daemon、containerd 與 runc、socket 與 docker 群組、Registry 與 Image 名稱；Image 與 Container 的生命週期、可寫層與日誌、結束碼與清理；docker run、ps、logs、exec、連接埠對應與常見錯誤', lessonIds: range('DKR', 1, 4) },
+    { title: 'Dockerfile 與建置快取', summary: 'FROM 與基底 Image、RUN、COPY、WORKDIR、ENV、ARG、EXPOSE、USER、CMD 與 ENTRYPOINT 的 exec 與 shell 形式、.dockerignore；層與 docker history、快取鍵與失效、指令順序、Image 大小與清理', lessonIds: range('DKR', 5, 6) },
   ],
   'network-servers': [
     { title: '位址、名稱與請求', summary: '公有與私有 IP、介面與路由、監聽埠與 socket、ss、lsof 與 nc；DNS 區域、A／CNAME／MX／TXT、TTL 與快取、dig；用 curl 讀懂 HTTP 請求、回應、狀態碼與重新導向', lessonIds: range('SRV', 1, 3) },

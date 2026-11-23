@@ -309,8 +309,8 @@ test.describe('regional world: flag on', () => {
     // DKR-1: Docker 容器島 is open, so it has a subjects panel with its written lessons instead of a planned island's outline link.
     await expect(page.getByRole('region', { name: 'Docker 容器島教材入口' }).getByRole('link', { name: '查看課程大綱' })).toHaveCount(0);
     const subjects = page.getByRole('complementary', { name: 'Docker 容器島科目清單' });
-    await expect(subjects.getByText('Docker 容器島：已完成 0／4 堂')).toBeVisible();
-    await expect(subjects.locator('a[href^="/curriculum/"]')).toHaveCount(4);
+    await expect(subjects.getByText('Docker 容器島：已完成 0／6 堂')).toBeVisible();
+    await expect(subjects.locator('a[href^="/curriculum/"]')).toHaveCount(6);
   });
 
   // Without WebGL the renderer logs its failure, so this one runs without the console guard (as on the home page).
