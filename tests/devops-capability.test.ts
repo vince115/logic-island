@@ -22,6 +22,11 @@ import type { DevopsExercise, DevopsLessonContent } from '@/lib/devops/types';
 import { badCanary, checkout, devopsContent, devopsLesson, exercises, flagged, schemaChange, teamA, teamB } from './support/devops-fixture';
 import { api, dashboardContent, dashboardExercises, dashboardLesson, tiny } from './support/dashboard-fixture';
 import { validateTerminalLessonsFirst } from './support/terminal-replays';
+import { generateTraffic, logRecords, logSetProblems, parseTs, tsText, utf8Bytes, jsonLine, type LogSet } from '@/lib/devops/logs';
+import { averageBytes, filterRecords, groupCounts, lineFormat, meetsField, retention, sharedIds, traceOf } from '@/lib/devops/log-query';
+import { parseMaskRules, redactMessages, redactOutcome, redactRecord } from '@/lib/devops/redact';
+import { logsExplorerProblems } from '@/lib/devops/logs-check';
+import { logExercises, logExplorers, logsContent, logsLesson, shop, small } from './support/logs-fixture';
 
 /*
  * CICD-0 (docs/curriculum/CICD0_DEVOPS_CAPABILITY.md): the devops-cicd island prepared for authoring, the per-lesson
@@ -61,12 +66,12 @@ describe('cicdFromBlueprint (CICD_SHAPES)', () => {
     expect(shape('CICD14')).toEqual(['terminal-sim', ['terminal', 'devops-explorer'], 'none']);
     expect(shape('CICD15')).toEqual(['challenge-stages', ['terminal', 'devops-explorer', 'visualization'], 'challenge-stages']);
     // CICD11 and CICD12 are mapped to monitoring-dashboard, registered with D3 (CICD-4): CICD11 can be built; CICD12 also
-    // needs D4 (logs), which is not built, so it is still refused.
+    // needs D4 (logs), built in CICD-5, so it can be built too, with the terminal as mapped.
     expect(CICD_SHAPES.CICD11).toMatchObject({ activity: 'monitoring-dashboard', capabilities: ['devops-explorer'], stages: ['D3'] });
     expect(CICD_SHAPES.CICD12).toMatchObject({ activity: 'monitoring-dashboard', capabilities: ['devops-explorer', 'terminal'], stages: ['D3', 'D4'] });
     expect(shape('CICD11')).toEqual(['monitoring-dashboard', ['devops-explorer'], 'none']);
-    expect(DEVOPS_STAGES_BUILT).toEqual(['D1', 'D2', 'D3']);
-    expect(() => cicdFromBlueprint('CICD12', 's', 50)).toThrow(/^CICD12: the devops-explorer stage D4 is not built yet \(the monitoring-dashboard activity needs D3 and D4\)$/);
+    expect(DEVOPS_STAGES_BUILT).toEqual(['D1', 'D2', 'D3', 'D4']);
+    expect(shape('CICD12')).toEqual(['monitoring-dashboard', ['devops-explorer', 'terminal'], 'none']);
     // The stages each lesson waits for.
     expect(Object.fromEntries(Object.entries(CICD_SHAPES).map(([id, s]) => [id, s.stages.join(' ')]))).toEqual({
       CICD01: 'D1', CICD02: 'E25 E26', CICD03: 'E25 E26 E27 E28', CICD04: 'E25 E26 E27 E28', CICD05: 'E25 E26 E27 E28',
@@ -403,7 +408,7 @@ describe('devops exercises: answers computed from the data', () => {
   it('validates content: computable answers, sound choices, failing mistakes, a passing reference plan', () => {
     expect(devopsContentProblems(content)).toEqual([]);
     const withExercise = (e: DevopsExercise): DevopsLessonContent => ({ ...devopsContent(), exercises: [e] });
-    expect(devopsContentProblems({ exercises: [] })).toEqual(['a devops-explorer lesson needs at least one explorer (a history, a rollout or a dashboard)']);
+    expect(devopsContentProblems({ exercises: [] })).toEqual(['a devops-explorer lesson needs at least one explorer (a history, a rollout, a dashboard or logs)']);
     expect(devopsContentProblems(withExercise({ ...ex('x-per-week'), mistakes: [{ answer: { value: '2.5' }, why: '其實是對的' }] })))
       .toEqual(['exercise x-per-week: the typical mistake "其實是對的" passes the check']);
     expect(devopsContentProblems(withExercise({ ...ex('x-per-week'), mistakes: [{ answer: { lead: '1' }, why: '錯的欄位' }] })))
@@ -658,10 +663,254 @@ describe('a synthetic CICD11 lesson (monitoring-dashboard)', () => {
     const noDashboard = dashboardLesson();
     noDashboard.devops = { ...devopsContent(), exercises: [] };
     noDashboard.sections = devopsLesson().sections;
-    expect(validateContent(m11, noDashboard, curriculum.visualizations)).toContain('CICD11: the monitoring-dashboard activity needs at least one of content.devops.dashboards');
+    expect(validateContent(m11, noDashboard, curriculum.visualizations)).toContain('CICD11: the monitoring-dashboard activity needs at least one of content.devops.dashboards or content.devops.logs');
     expect(validateContent(meta, { ...devopsLesson(), devops: { ...dashboardContent() }, sections: dashboardLesson().sections }, curriculum.visualizations))
       .toContain('CICD10: the deployment-simulator activity needs at least one of content.devops.histories or content.devops.rollouts');
     const hidden = dashboardLesson(); hidden.sections[2].blocks.pop();
     expect(validateContent(m11, hidden, curriculum.visualizations)).toContain('CICD11: example api-slow is never shown');
+  });
+});
+
+// ---- D4 ------------------------------------------------------------------------------------------------------------
+describe('D4: log records and the seeded traffic generator', () => {
+  it('orders the written records by time (m:ss or seconds) and numbers them', () => {
+    const r = logRecords(small());
+    expect(r.map(x => `${x.n} ${tsText(x.ts)} ${x.service} ${x.level} ${x.fields.request_id}`)).toEqual([
+      '1 0:00 gateway info r-1', '2 0:01 orders info r-1', '3 0:02 gateway info r-2', '4 0:03 payments error r-1', '5 0:04 orders warn r-1',
+      '6 0:05 gateway error r-1', '7 0:06 gateway info r-3', '8 0:08 auth debug r-4', '9 0:09 gateway info r-4']);
+    expect([parseTs('10:05'), parseTs(605), parseTs('605'), parseTs('1:5'), parseTs('1:60'), parseTs(-1), parseTs(1.5)]).toEqual([605, 605, 605, undefined, undefined, undefined, undefined]);
+    expect([tsText(0), tsText(65), tsText(608), tsText(3725)]).toEqual(['0:00', '1:05', '10:08', '1:02:05']);
+  });
+  it('generates traffic from the seed, six draws a record, deterministically', () => {
+    const t = shop().traffic!, u = draws(2026, 6 * 400), g = generateTraffic(t);
+    const by = (k: number, i: number, n: number) => Math.floor(u[6 * k + i] * n);
+    g.forEach((r, k) => {
+      expect(r.ts, `ts ${k}`).toBe(by(k, 0, 900));
+      expect(r.service).toBe(t.services[by(k, 1, 3)]);
+      expect(r.host).toBe(`${r.service}-${by(k, 2, 2) + 1}`);
+      expect(r.fields).toEqual({ request_id: `req-${String(k + 1).padStart(4, '0')}`, user_id: `u-${1000 + by(k, 4, 200)}`, path: t.paths[by(k, 3, 4)], status: 200, duration_ms: 20 + by(k, 5, 381) });
+      expect(r.message).toBe(`GET ${r.fields.path} 200`);
+    });
+    expect(generateTraffic(t)).toEqual(g);
+    expect(generateTraffic({ ...t, seed: 2027 }).map(r => r.ts)).not.toEqual(g.map(r => r.ts));
+    const all = logRecords(shop());
+    expect(all).toHaveLength(409);
+    expect(all.every((r, i) => i === 0 || all[i - 1].ts <= r.ts)).toBe(true);
+    // At the same second, written records come before generated ones.
+    const tied = logRecords({ records: [{ ts: 600, service: 'w', host: 'w-1', level: 'info', message: 'written' }], traffic: { ...t, count: 3, from: 600, to: 601 } });
+    expect(tied.map(r => [r.n, r.ts, r.generated])).toEqual([[1, 600, false], [2, 600, true], [3, 600, true], [4, 600, true]]);
+  });
+  it('counts UTF-8 bytes by code point, as Node does, and writes a record as one JSON line', () => {
+    for (const x of ['a', 'é', '付款', '😀', '付款失敗，請稍後再試']) expect(utf8Bytes(x), x).toBe(Buffer.byteLength(x, 'utf8'));
+    expect(jsonLine(logRecords(small())[2])).toBe('{"ts":2,"service":"gateway","host":"gw-2","level":"info","message":"GET /products 200","request_id":"r-2","user_id":"u-8","path":"/products","status":200,"duration_ms":40}');
+  });
+  it('rejects inconsistent log sets', () => {
+    const base = small();
+    const rec = (patch: object): LogSet => ({ ...base, records: [{ ...base.records[0], ...patch }] });
+    expect(logSetProblems(base)).toEqual([]);
+    expect(logSetProblems(shop())).toEqual([]);
+    expect(logSetProblems({ records: [] })).toEqual(['needs at least one written record']);
+    expect(logSetProblems(rec({ ts: '1:75' }))).toEqual([`record 1: ts is whole seconds or "m:ss" within 604800 seconds`]);
+    expect(logSetProblems(rec({ level: 'fatal' }))).toEqual(['record 1: level is one of debug, info, warn, error']);
+    expect(logSetProblems(rec({ fields: { message: 'x', 'bad name': 1, big: 2 ** 60 } }))).toEqual([
+      'record 1: message is not a field name (letters, digits, _ and ., not ts, service, host, level, message)',
+      'record 1: bad name is not a field name (letters, digits, _ and ., not ts, service, host, level, message)', 'record 1: field big is a string or a whole number']);
+    expect(logSetProblems({ ...base, raw: [{ id: 'l1', text: 'x' }, { id: 'l1', text: 'y' }] })).toEqual(['duplicate raw line l1']);
+    const t = shop().traffic!;
+    expect(logSetProblems({ ...shop(), traffic: { ...t, count: 0, to: 0, hosts: 10 } })).toEqual(['traffic: count is 1…3000', 'traffic: 0 ≤ from < to ≤ 604800', 'traffic: hosts is 1…9']);
+    expect(logSetProblems({ ...shop(), correlationField: 'trace_id' })).toEqual(['traffic: generated records carry request_id, so the correlation field must be request_id']);
+    expect(logSetProblems({ ...shop(), records: [{ ...shop().records[0], fields: { request_id: 'req-0042' } }] }))
+      .toEqual(['traffic: the written request id req-0042 looks like a generated one (req-0001…); use another prefix']);
+    expect(logSetProblems({ ...base, perDay: 0 })).toEqual(['perDay is 1…100000000']);
+  });
+});
+
+describe('D4: filters, group counts and correlation ids (small, worked out in tests/support/logs-fixture.ts)', () => {
+  const r = logRecords(small());
+  const ns = (f: Parameters<typeof filterRecords>[1]) => filterRecords(r, f).map(x => x.n);
+  it('filters by service, lowest level, field conditions and a time range [from, to)', () => {
+    expect(ns({})).toHaveLength(9);
+    expect(ns({ minLevel: 'warn' })).toEqual([4, 5, 6]);
+    expect(ns({ minLevel: 'debug' })).toHaveLength(9);
+    expect(ns({ service: 'gateway' })).toEqual([1, 3, 6, 7, 9]);
+    expect(ns({ fields: [{ name: 'status', op: '>=', value: 500 }] })).toEqual([4, 6]);
+    expect(ns({ fields: [{ name: 'status', value: '200' }] })).toEqual([1, 3, 7, 9]);
+    expect(ns({ fields: [{ name: 'path', value: '/products' }] })).toEqual([3, 7]);
+    expect(ns({ from: 2, to: 6 })).toEqual([3, 4, 5, 6]);
+    expect(ns({ service: 'gateway', minLevel: 'error', fields: [{ name: 'duration_ms', op: '>', value: 1000 }] })).toEqual([6]);
+    // A record without the field never meets a condition on it, not even !=; > needs numbers on both sides.
+    expect(ns({ fields: [{ name: 'status', op: '!=', value: 200 }] })).toEqual([4, 6]);
+    expect(meetsField(r[0], { name: 'path', op: '>', value: 1 })).toBe(false);
+    expect(meetsField(r[0], { name: 'status', op: '>', value: '100' })).toBe(false);
+  });
+  it('counts groups, most first, then by value, with the records that lack the field apart', () => {
+    expect(groupCounts(r, 'service')).toEqual({ groups: [{ key: 'gateway', count: 5 }, { key: 'orders', count: 2 }, { key: 'auth', count: 1 }, { key: 'payments', count: 1 }], missing: 0 });
+    expect(groupCounts(r, 'status')).toEqual({ groups: [{ key: '200', count: 4 }, { key: '502', count: 2 }], missing: 3 });
+    expect(groupCounts(r, 'level').groups.map(g => `${g.key} ${g.count}`)).toEqual(['info 5', 'error 2', 'debug 1', 'warn 1']);
+    expect(groupCounts(filterRecords(r, { minLevel: 'warn' }), 'host').groups).toEqual([{ key: 'gw-1', count: 1 }, { key: 'ord-1', count: 1 }, { key: 'pay-1', count: 1 }]);
+  });
+  it('follows a request across services by its correlation id, with the seconds between records', () => {
+    const t = traceOf(r, 'request_id', 'r-1')!;
+    expect(t.steps.map(s => [s.record.n, s.record.service, s.delta, s.since])).toEqual([[1, 'gateway', 0, 0], [2, 'orders', 1, 1], [4, 'payments', 2, 3], [5, 'orders', 1, 4], [6, 'gateway', 1, 5]]);
+    expect([t.services, t.elapsed, t.firstError?.service]).toEqual([['gateway', 'orders', 'payments', 'orders', 'gateway'], 5, 'payments']);
+    expect(traceOf(r, 'request_id', 'r-4')).toMatchObject({ services: ['auth', 'gateway'], elapsed: 1, firstError: undefined });
+    expect(traceOf(r, 'request_id', 'nope')).toBeUndefined();
+    expect(sharedIds(r, 'request_id')).toEqual(['r-1', 'r-4']);
+    const s = traceOf(logRecords(shop()), 'request_id', 'chk-501')!;
+    expect([s.services.join(' '), s.elapsed, s.firstError?.ts]).toEqual(['gateway orders payments orders gateway', 8, 608]);
+    // The same second keeps the log's order: orders' error before the gateway's.
+    expect(s.steps.slice(-2).map(x => [x.record.service, x.delta])).toEqual([['orders', 1], ['gateway', 0]]);
+  });
+  it('tells structured lines (JSON objects, key=value pairs) from unstructured text', () => {
+    expect(small().raw!.map(l => lineFormat(l.text))).toEqual([
+      { format: 'unstructured', kind: 'text', fields: 0 }, { format: 'structured', kind: 'json', fields: 4 },
+      { format: 'structured', kind: 'logfmt', fields: 4 }, { format: 'unstructured', kind: 'text', fields: 0 }]);
+    expect(['a=1', '[1, 2]', '{"broken"', 'GET /x status=200'].map(t => lineFormat(t).format)).toEqual(['unstructured', 'unstructured', 'unstructured', 'unstructured']);
+  });
+});
+
+describe('D4: masking and retention', () => {
+  const r = logRecords(small()), raw = small().raw!, fields = ['request_id', 'user_id', 'path', 'status', 'duration_ms', 'order_id', 'user_email', 'authorization', 'password'];
+  const rules = (text: string) => parseMaskRules(text, fields);
+  const { mustHide, mustKeep } = logExplorers()[0].checks!;
+  it('reads rules line by line and says what is wrong with each', () => {
+    expect(rules('pattern email\nfield:password\n\n# comment\nPattern CARD')).toEqual({ rules: [{ kind: 'pattern', name: 'email' }, { kind: 'field', name: 'password' }, { kind: 'pattern', name: 'card' }], issues: [] });
+    expect(rules('mask email\npattern phone\nfield message\nfield secret\npattern email\npattern email').issues).toEqual([
+      '第 1 行「mask email」看不懂：要寫成「field 欄位名稱」或「pattern 樣式名稱」。', '第 2 行：沒有「phone」這個樣式，可以用 email、card、token、ipv4、digits。',
+      '第 3 行：「message」不是可以遮蔽的欄位名稱（時間、服務、主機、等級與訊息不遮蔽）。', '第 4 行：沒有任何紀錄有「secret」這個欄位。', '第 6 行：和前面的規則重複。']);
+  });
+  it('masks whole fields and pattern matches in messages, field values and raw lines', () => {
+    const { rules: ref } = rules('pattern email\npattern card\npattern token\nfield password');
+    const pay = redactRecord(r[3], ref);
+    expect([pay.message, pay.fields.user_email, pay.fields.authorization, pay.fields.status]).toEqual(['charge failed for *** card ***', '***', '***', 502]);
+    expect(redactRecord(r[7], ref).fields.password).toBe('***');
+    const card = rules('pattern card').rules;
+    expect(['4111-1111-1111-1111', '4111111111111111', '2026-11-24 10:00', 'id 12345678901234567890'].map(t => redactRecord({ ...r[0], message: t }, card).message))
+      .toEqual(['***', '***', '2026-11-24 10:00', 'id 12345678901234567890']);
+    expect(redactRecord({ ...r[0], message: 'from 10.0.3.7 with Bearer abc.def-123= and sk_live1234567' }, rules('pattern ipv4\npattern token').rules).message).toBe('from *** with *** and ***');
+    expect(redactOutcome(r, raw, ref, mustHide, mustKeep)).toEqual({ masked: 5, leaks: [], lost: [] });
+  });
+  it('fails a leak (mustHide still seen) and over-masking (a mustKeep occurrence lost)', () => {
+    const fieldsOnly = redactOutcome(r, raw, rules('field user_email\nfield authorization\nfield password').rules, mustHide, mustKeep);
+    expect(redactMessages(fieldsOnly)).toEqual(['遮蔽後，第 4 筆紀錄的 message仍看得到必須隱藏的「amy@example.com」。', '遮蔽後，第 4 筆紀錄的 message仍看得到必須隱藏的「4111 1111 1111 1111」。']);
+    const wide = redactOutcome(r, raw, rules('pattern digits\npattern email\npattern token\nfield password').rules, mustHide, mustKeep);
+    expect(wide.leaks).toEqual([]);
+    expect(wide.lost).toEqual([{ value: 'A-1001', before: 4, after: 0 }]);
+    expect(redactMessages(wide)).toEqual(['「A-1001」被遮掉了（原本出現 4 次，剩 0 次）：它是查問題需要的值，必須保留。']);
+    expect(redactOutcome(r, raw, rules('pattern email\npattern card\npattern token\nfield password\nfield request_id').rules, mustHide, mustKeep).lost).toEqual([{ value: 'r-1', before: 7, after: 2 }]);
+  });
+  it('sizes retention with integer math, rounding MB and GB tenths half up', () => {
+    expect(retention(2_000_000, 250, 30)).toEqual({ perDay: 2_000_000, avgBytes: 250, days: 30, bytesPerDay: 500_000_000, total: 15_000_000_000, totalMb: 15_000, totalGbTenths: 150 });
+    expect(retention(1_234_567, 321, 14)).toMatchObject({ bytesPerDay: 396_296_007, total: 5_548_144_098, totalMb: 5_548, totalGbTenths: 55 });
+    expect(retention(1500, 1000, 1)).toMatchObject({ totalMb: 2, totalGbTenths: 0 });
+    expect(retention(150_000, 1000, 1)).toMatchObject({ totalMb: 150, totalGbTenths: 2 });
+    const bytes = r.reduce((sum, x) => sum + Buffer.byteLength(jsonLine(x), 'utf8') + 1, 0);
+    expect(averageBytes(r)).toBe(Math.floor((2 * bytes + 9) / 18));
+  });
+});
+
+describe('D4 exercises: log queries, correlate, retention, structured lines and redact', () => {
+  const c = logsContent();
+  const lx = (id: string) => logExercises().find(e => e.id === id)!;
+  const q = (query: Parameters<typeof devopsQueryValue>[0]) => devopsQueryValue(query, c);
+  it('computes the logs, correlate, retention and log-format queries', () => {
+    expect(q({ task: 'logs', logs: 'small', metric: 'count', filter: { minLevel: 'warn' } })).toEqual({ type: 'number', value: 3, decimals: 0, unit: '筆' });
+    expect(q({ task: 'logs', logs: 'shop', metric: 'count', filter: { minLevel: 'error' } })).toMatchObject({ value: 5 });
+    const first = q({ task: 'logs', logs: 'shop', metric: 'first-ts', filter: { minLevel: 'error' } });
+    expect(['10:08', '608', '608 秒', '608秒', '0:10:08', '10:03'].map(t => matchesDevopsValue(first, t))).toEqual([true, true, true, true, true, false]);
+    expect(q({ task: 'logs', logs: 'small', metric: 'last-ts', filter: { service: 'payments' } })).toMatchObject({ value: '0:03' });
+    expect(q({ task: 'logs', logs: 'small', metric: 'max', field: 'duration_ms' })).toEqual({ type: 'number', value: 5000, decimals: 0, unit: 'ms' });
+    expect(q({ task: 'logs', logs: 'small', metric: 'max-by', field: 'duration_ms', filter: { fields: [{ name: 'path', value: '/products' }] } })).toMatchObject({ value: 'r-2' });
+    expect(q({ task: 'logs', logs: 'small', metric: 'max-by', field: 'duration_ms', report: 'user_id' })).toMatchObject({ value: 'u-7' });
+    expect(q({ task: 'logs', logs: 'shop', metric: 'max-by', field: 'duration_ms' })).toMatchObject({ value: 'chk-501' });
+    expect(q({ task: 'logs', logs: 'small', metric: 'top', group: 'user_id' })).toMatchObject({ value: 'u-7' });
+    expect(matchesDevopsValue(q({ task: 'logs', logs: 'small', metric: 'top', group: 'level' }), '資訊')).toBe(true);
+    expect(q({ task: 'logs', logs: 'small', metric: 'distinct', field: 'user_id' })).toMatchObject({ value: 3 });
+    const path = q({ task: 'correlate', logs: 'small', id: 'r-1', metric: 'services' });
+    expect(['gateway → orders → payments → orders → gateway', 'gateway, orders, payments, orders, gateway', 'Gateway -> orders -> payments -> orders -> gateway', 'gateway、orders、payments、orders、gateway',
+      'gateway orders payments', 'gateway → orders → payments → gateway'].map(t => matchesDevopsValue(path, t))).toEqual([true, true, true, true, false, false]);
+    expect(q({ task: 'correlate', logs: 'small', id: 'r-1', metric: 'elapsed' })).toMatchObject({ value: 5, unit: '秒' });
+    expect(q({ task: 'correlate', logs: 'small', id: 'r-1', metric: 'records' })).toMatchObject({ value: 5 });
+    expect(q({ task: 'correlate', logs: 'shop', id: 'chk-502', metric: 'first-error-service' })).toMatchObject({ value: 'payments' });
+    expect(q({ task: 'correlate', logs: 'small', id: 'r-4', metric: 'last-service' })).toMatchObject({ value: 'gateway' });
+    expect(q({ task: 'retention', perDay: 2_000_000, avgBytes: 250, days: 30, metric: 'total-gb' })).toEqual({ type: 'number', value: 15, decimals: 1, unit: 'GB' });
+    expect(q({ task: 'retention', logs: 'small', avgBytes: 250, days: 7, metric: 'total-mb' })).toMatchObject({ value: 3500, unit: 'MB' });
+    expect(q({ task: 'retention', logs: 'small', days: 1, metric: 'avg-bytes' })).toMatchObject({ value: averageBytes(logRecords(small())) });
+    expect(q({ task: 'log-format', logs: 'small', line: 'l2', metric: 'fields' })).toMatchObject({ value: 4 });
+    const fmt = q({ task: 'log-format', logs: 'small', line: 'l4', metric: 'format' });
+    expect(['unstructured', '非結構化', '純文字', 'raw', '結構化'].map(t => matchesDevopsValue(fmt, t))).toEqual([true, true, true, true, false]);
+    expect(matchesDevopsValue(q({ task: 'retention', perDay: 1, avgBytes: 1, days: 1, metric: 'total-bytes' }), '1 位元組')).toBe(true);
+  });
+  it('throws when a query names something the logs do not have', () => {
+    const bad: [Parameters<typeof devopsQueryValue>[0], RegExp][] = [
+      [{ task: 'logs', logs: 'nope', metric: 'count' }, /no logs nope/],
+      [{ task: 'logs', logs: 'small', metric: 'count', filter: { fields: [{ name: 'secret', value: 'x' }] } }, /no record has the field secret/],
+      [{ task: 'logs', logs: 'small', metric: 'count', filter: { service: 'billing' } }, /no record of service billing/],
+      [{ task: 'logs', logs: 'small', metric: 'count', filter: { from: 5, to: 5 } }, /from < to/],
+      [{ task: 'logs', logs: 'small', metric: 'count', filter: { fields: [{ name: 'status', op: '>', value: '500' }] } }, /compares numbers/],
+      [{ task: 'logs', logs: 'small', metric: 'first-ts', filter: { minLevel: 'error', service: 'auth' } }, /no record matches/],
+      [{ task: 'logs', logs: 'small', metric: 'max' }, /max needs field/],
+      [{ task: 'logs', logs: 'small', metric: 'max', field: 'path' }, /no matching record has a number in path/],
+      [{ task: 'logs', logs: 'small', metric: 'max-by', field: 'status' }, /2 records share the largest status \(502\)/],
+      [{ task: 'logs', logs: 'small', metric: 'top', group: 'service', filter: { minLevel: 'error' } }, /gateway and payments tie on the count/],
+      [{ task: 'correlate', logs: 'small', id: 'r-9', metric: 'services' }, /no record has request_id r-9/],
+      [{ task: 'correlate', logs: 'small', id: 'r-4', metric: 'first-error-service' }, /r-4 has no error record/],
+      [{ task: 'retention', days: 30, metric: 'total-mb' }, /needs perDay and avgBytes/],
+      [{ task: 'retention', perDay: 100_000_000, avgBytes: 100_000, days: 3650, metric: 'total-mb' }, /too large/],
+      [{ task: 'retention', perDay: 1, avgBytes: 1, days: 0, metric: 'total-mb' }, /days 1…3650/],
+      [{ task: 'log-format', logs: 'small', line: 'l9', metric: 'format' }, /no raw line l9/],
+    ];
+    for (const [query, re] of bad) expect(() => q(query), JSON.stringify(query)).toThrow(re);
+  });
+  it('accepts every reference answer and rejects every typical mistake', () => {
+    expect(devopsContentProblems(c)).toEqual([]);
+    for (const e of logExercises()) {
+      expect(checkDevopsAnswer(e, c, referenceAnswer(e, c)).ok, e.id).toBe(true);
+      for (const m of e.mistakes) expect(checkDevopsAnswer(e, c, m.answer).ok, `${e.id}: ${m.why}`).toBe(false);
+    }
+    expect(referenceAnswer(lx('l-trace'), c)).toEqual({ path: 'gateway → orders → payments → orders → gateway', secs: '5', first: 'payments' });
+    expect(referenceAnswer(lx('l-retention'), c)).toEqual({ day: '450000000', gb: '13.5' });
+    expect(referenceAnswer(lx('l-first'), c)).toEqual({ value: '10:08' });
+    expect(referenceAnswer(lx('l-redact'), c)).toEqual({ rules: 'pattern email\npattern card\npattern token\nfield password' });
+    expect(checkDevopsAnswer(lx('l-retention'), c, { day: '450,000,000 位元組', gb: '13.5 GB' }).ok).toBe(true);
+  });
+  it('checks the learner\'s masking rules against mustHide and mustKeep', () => {
+    const e = lx('l-redact');
+    const check = (rules: string) => checkDevopsAnswer(e, c, { rules });
+    expect(check('pattern email\npattern card\nfield authorization\nfield password')).toEqual({ ok: true, messages: [] });
+    expect(check('')).toEqual({ ok: false, messages: ['還沒有寫任何遮蔽規則。'] });
+    expect(check('pattern emails')).toEqual({ ok: false, messages: ['第 1 行：沒有「emails」這個樣式，可以用 email、card、token、ipv4、digits。'] });
+    expect(check('pattern email\npattern card\npattern token').messages).toEqual(['遮蔽後，第 8 筆紀錄的 password仍看得到必須隱藏的「hunter2」。']);
+  });
+  it('validates logs explorers and redact tasks', () => {
+    const e = lx('l-redact') as Extract<DevopsExercise, { kind: 'redact' }>;
+    const withTask = (patch: Partial<typeof e.redact>): DevopsLessonContent => ({ ...c, exercises: [{ ...e, redact: { ...e.redact, ...patch } }] });
+    expect(devopsContentProblems(withTask({ mustHide: ['hunter3'] }))).toEqual(['exercise l-redact: the value hunter3 is not in the log']);
+    expect(devopsContentProblems(withTask({ mustKeep: ['hunter2'] }))).toEqual(['exercise l-redact: hunter2 is on both mustHide and mustKeep']);
+    expect(devopsContentProblems(withTask({ mustHide: [] }))).toEqual(['exercise l-redact: a redact task needs at least one mustHide value']);
+    expect(devopsContentProblems(withTask({ reference: ['pattern email'] }))).toEqual(['exercise l-redact: the reference rules fail: 遮蔽後，第 4 筆紀錄的 message仍看得到必須隱藏的「4111 1111 1111 1111」。 '
+      + '遮蔽後，第 4 筆紀錄的 authorization仍看得到必須隱藏的「tok_9f8e7d6c5b4a」。 遮蔽後，第 8 筆紀錄的 password仍看得到必須隱藏的「hunter2」。']);
+    expect(devopsContentProblems(withTask({ reference: ['pattern mail'] }))).toEqual(['exercise l-redact: the reference rules: 第 1 行：沒有「mail」這個樣式，可以用 email、card、token、ipv4、digits。']);
+    expect(devopsContentProblems(withTask({ logs: 'nope' }))).toEqual(['exercise l-redact: no logs nope']);
+    const x = logExplorers()[0];
+    expect(logsExplorerProblems({ ...x, masking: ['field secret'], checks: { mustHide: ['zzz'], mustKeep: [] } })).toEqual(['the masking rules: 第 1 行：沒有任何紀錄有「secret」這個欄位。', 'the value zzz is not in the log']);
+    expect(devopsContentProblems({ ...c, logs: [{ ...x, logs: { ...x.logs, records: [] } }, logExplorers()[1]] })).toEqual(['logs small: needs at least one written record']);
+  });
+});
+
+describe('a synthetic monitoring-dashboard lesson with logs (D4)', () => {
+  // CICD12 is built (D4) as monitoring-dashboard with devops-explorer and terminal; its terminal part is the lesson
+  // writer's, so this checks the devops-explorer part alone, with the CICD12 outline and devops-explorer only.
+  const m12 = { ...metaOf('CICD12', cicdFromBlueprint('CICD12', '用結構化日誌與關聯 ID 找出事故的源頭（測試用大綱）。', 50)), capabilities: ['devops-explorer'] } as LessonMeta;
+  it('validates and passes the publish gate with logs only: the activity needs a dashboard or logs', () => {
+    expect(m12).toMatchObject({ activity: 'monitoring-dashboard', concepts: ['結構化日誌', '日誌收集', '關聯 ID', '保留期限', '敏感資料遮蔽'] });
+    expect(validateContent(m12, logsLesson(), curriculum.visualizations)).toEqual([]);
+    expect(publishProblems(m12, logsLesson())).toEqual([]);
+    const hidden = logsLesson(); hidden.sections[2].blocks.pop();
+    expect(validateContent(m12, hidden, curriculum.visualizations)).toContain('CICD12: example masking is never shown');
+    const none = logsLesson(); none.devops = { ...dashboardContent(), dashboards: [], exercises: [] };
+    expect(validateContent(m12, none, curriculum.visualizations)).toContain('CICD12: the monitoring-dashboard activity needs at least one of content.devops.dashboards or content.devops.logs');
+    // The full shape, with the terminal, needs terminal content too.
+    expect(validateContent(metaOf('CICD12', cicdFromBlueprint('CICD12', 's', 50)), logsLesson(), curriculum.visualizations)).toContain('CICD12: the terminal capability needs its content');
   });
 });
