@@ -39,7 +39,7 @@ webCode: {
     steps: WebStep[],                  // 操作與檢查，依序在一份全新的頁面上執行
     mistakes: [{ files, why }],        // 常見錯誤：必須有一項檢查不通過
     variants?: [{ title, fixed, steps }],  // 換一份固定檔案再檢查一次（只顯示通過與否）
-    viewport?, widths? }],            // widths：預覽可切換的寬度（RWD-0）
+    viewport?, widths?, height? }],   // widths：預覽可切換的寬度（RWD-0）；height：預覽的高度（MOB-2，給「和視窗一樣高」的頁面）
 }
 ```
 
@@ -61,7 +61,7 @@ webCode: {
 | `resize` | 把檢查頁面的視窗改成另一個寬度（240–1600，可同時指定高度 200–1200）（RWD-0）：同一份頁面在新的寬度重新排版，媒體查詢、百分比、`vw`、flex 換行、grid 的 `auto-fit` 與容器查詢都會跟著變，頁面自己的指令稿也看得到新的 `innerWidth` 與 `resize` 事件 |
 | `pointer` | 一支指標在元素上按下、移動、放開或被取消（`type: 'down' \| 'move' \| 'up' \| 'cancel'`，W9，MOB-1）：送出真正的 `PointerEvent`（`pointerId` 1、`isPrimary`、按著時 `buttons` 1），位置是元素的中心或距離左上角 `x`、`y`，`pointerType` 是 `mouse`（預設）、`touch` 或 `pen`。指標捕捉依規格模擬：按著時 `setPointerCapture` 之後的 `move`／`up`／`cancel` 都送到捕捉的元素，並觸發 `gotpointercapture`／`lostpointercapture`；手指或觸控筆已離開時呼叫會丟出 `NotFoundError`，滑鼠沒按著時呼叫沒有效果。不模擬瀏覽器接著做的事：沒有 `click`、相容用的滑鼠事件、捲動、`touch-action` 的效果，只有一支指標 |
 | `dispatch` | 在元素上觸發任何型別的事件（`mouseover`、`dblclick`、自訂事件；會冒泡，本來就不冒泡的 `mouseenter`、`focus` 等除外）（WEB-3） |
-| `wait` | 讓頁面的計時器執行這麼久（每步最多 10000 ms，全部最多 60000 ms）。檢查用的是虛擬時鐘（W2，WEB-3）：不會真的等待，計時器依時間先後、同時間依設定的先後執行，Promise 的回呼在計時器之間照常執行；第一步之前，延遲 0 的計時器已經執行過。預覽裡的計時器是真的。`Date.now()` 不是虛擬的 |
+| `wait` | 讓頁面的計時器執行這麼久（每步最多 10000 ms，全部最多 60000 ms）；時鐘推進之後再等一個真的畫格，頁面交給 `requestAnimationFrame` 的工作會在下一項檢查之前完成（MOB-2）。檢查用的是虛擬時鐘（W2，WEB-3）：不會真的等待，計時器依時間先後、同時間依設定的先後執行，Promise 的回呼在計時器之間照常執行；第一步之前，延遲 0 的計時器已經執行過。預覽裡的計時器是真的。`Date.now()` 不是虛擬的 |
 
 | 檢查 `check` | 看什麼 |
 |---|---|

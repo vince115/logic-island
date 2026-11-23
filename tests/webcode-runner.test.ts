@@ -456,6 +456,14 @@ knob.addEventListener('lostpointercapture', () => console.log('released ' + knob
   });
 });
 
+describe('animation frames (MOB-2)', () => {
+  inBrowser('what a page leaves to requestAnimationFrame has run after a wait step', async () => {
+    const r = await page({ html: '<button id="go" type="button">go</button><p id="out">before</p>', js: "document.querySelector('#go').addEventListener('click', () => { setTimeout(() => requestAnimationFrame(() => { document.querySelector('#out').textContent = 'after'; }), 200); });" },
+      [{ do: 'click', selector: '#go' }, { do: 'wait', ms: 100 }, { check: 'text', selector: '#out', text: 'before', label: 'not yet' }, { do: 'wait', ms: 100 }, { check: 'text', selector: '#out', text: 'after', label: 'the frame ran' }]);
+    expect(r.results.filter((_, i) => i === 2 || i === 4).map(x => x.ok)).toEqual([true, true]);
+  });
+});
+
 describe('keys (MOB-0)', () => {
   inBrowser('a key press carries the key and its code', async () => {
     const r = await page({ html: '<input id="q"><p id="out"></p>', js: "document.querySelector('#q').addEventListener('keydown', e => { document.querySelector('#out').textContent += e.key + '/' + e.code + ' '; });" },

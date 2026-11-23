@@ -98,7 +98,7 @@
     "mobile-apps": {
       "capability": "web-code at phone sizes: pointer steps with modelled capture, touch targets measured with at least and at most, dialogs; analysis lessons are cases a learner repairs on a page",
       "status": "ready",
-      "note": "MOB-1 published MOB01–MOB04 and added engine stage W9; later lessons publish in id order. MOB09 (service workers) and MOB13 need a service worker and cache simulation that is not built yet (MOBILE_APPS_ISLAND.md, WEB0_WEB_CODE_CAPABILITY.md)"
+      "note": "MOB-2 published MOB05–MOB08; MOB-1 published MOB01–MOB04 and added engine stage W9; later lessons publish in id order. MOB09 (service workers) and MOB13 need a service worker and cache simulation that is not built yet (MOBILE_APPS_ISLAND.md, WEB0_WEB_CODE_CAPABILITY.md)"
     },
     "linux-systems": {
       "capability": "terminal (machines as data, transcripts replayed to their exact output, exercises checked by replaying the learner's commands in the simulated shell)",

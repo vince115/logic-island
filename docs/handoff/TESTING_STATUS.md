@@ -58,6 +58,17 @@ RWD-3 的結果（隔離副本，旗標關）：TypeScript 與 ESLint 通過；V
 
 MOB-1 的結果（隔離副本，旗標關）：TypeScript 與 ESLint 通過；Vitest **134 檔、3860 passed／9 skipped**；Production build 通過；E2E 桌機＋手機 **511 passed／2 failed／297 skipped**（兩個失敗同上，#36）。
 
+MOB-1 合併後（main `896db3d`）：對正式站執行課程 E2E（MOB01–MOB04 的每個練習、MOB04 的指標步驟、行動應用島與其他兩座網頁島的目錄，桌機＋手機）**18 passed**。
+
+### MOB-2（2026-11-23，`mob/2-batch-2`）
+
+- 沒有新的引擎階段；兩處小的擴充：練習可以指定預覽高度（`height`，MOB06 的安全區域與方向需要較高的預覽），`wait` 推進時鐘之後再等一個真的畫格（`tests/webcode-runner.test.ts`），頁面交給 `requestAnimationFrame` 的工作會在下一項檢查之前完成。
+- `tests/highlight.test.ts`：main 在 `1b0705c` 的 CI 有一次失敗，是「C++ 程式逐行拼回原文」這一個測試在共用 runner 上超過 5 秒（本機約 1.8 秒，PR 自己的 CI 與之後的執行都通過）。程式的數量隨課程增加，單一測試的時限不會：改成每 150 支程式一個測試（同樣的程式與斷言，另有一個測試確認每支程式剛好被檢查一次），高亮器的載入移到測試之前。最大的一組在本機約 0.9 秒；沒有調高任何時限。
+
+MOB-2 的結果（隔離副本，旗標關）：TypeScript 與 ESLint 通過；Vitest **134 檔、3869 passed／9 skipped**（highlight 分組之前的完整一輪；分組後該檔 27 個測試單獨重跑通過）；Production build 通過；E2E 桌機＋手機 **519 passed／2 failed／297 skipped**（兩個失敗同上，#36）；洩漏掃描（`src`、`docs`、`tests`、`e2e`）clean。
+
+併入 main `e5da508`（DKR-1 之後）再跑完整一輪：TypeScript 與 ESLint 通過；Vitest **137 檔、3991 passed／9 skipped**；Production build 通過；E2E 桌機＋手機 **521 passed／2 failed／297 skipped**（兩個失敗同上，#36）；洩漏掃描 clean。
+
 ## Private Vitest Runner（2026-11-22，分支 `trials/private-test-runner`）
 
 用法與選項：`docs/exam-system/34_T3J_PRIVATE_BANK_AND_CI_ACTIVATION.md` 第 2 節。**以下是本機隔離 checkout 的結果，不是 CI：公開 CI 沒有私有題庫，也不執行這個 Runner。**
