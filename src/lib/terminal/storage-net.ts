@@ -311,8 +311,10 @@ export const anonymousName = (id: string, target: string) => hex(`volume/${id}/$
 
 const LATENCY = 0.03;
 /** The ports a running container's main process listens on: its HTTP service (with its responder) and the image's EXPOSE. */
-export function serviceListeners(d: DockerState, c: DockerContainer): { port: number; http?: { port: number; responder: Responder; accessLog?: 'nginx' } }[] {
+export function serviceListeners(d: DockerState, c: DockerContainer, now?: Seconds): { port: number; http?: { port: number; responder: Responder; accessLog?: 'nginx' } }[] {
   if (c.status !== 'running') return [];
+  // E23: a service the lesson says takes `ready` seconds to start refuses connections until then (seen from containers).
+  if (now !== undefined && c.readyAt !== undefined && now < c.readyAt) return [];
   const img = d.images.find(i => i.id === c.image);
   const own = !c.custom && !img?.ownMain;
   if (!c.http && !(own && img?.service)) return [];
@@ -326,9 +328,9 @@ const procOf = (c: DockerContainer, listen: Listen[], now: Seconds): Proc => ({
   start: c.started ?? now, time: 0, nice: 0, ...listen?.length ? { listen } : {},
 });
 /** A container's listeners and their responders (a request to another container goes straight to it: direct). */
-function served(d: DockerState, c: DockerContainer, tag: string, direct: boolean): { listen: Listen[]; responders: Responder[] } {
+function served(d: DockerState, c: DockerContainer, tag: string, direct: boolean, now?: Seconds): { listen: Listen[]; responders: Responder[] } {
   const listen: Listen[] = [], responders: Responder[] = [];
-  for (const l of serviceListeners(d, c)) {
+  for (const l of serviceListeners(d, c, now)) {
     const id = `docker-${short(c.id)}-${tag}${l.port}`;
     if (l.http) responders.push({ ...l.http.responder, id, ...direct ? { container: c.id, direct: true } : {} });
     listen.push({ port: l.port, fd: 3 + listen.length, ...l.http ? { http: id } : {} });
@@ -348,7 +350,7 @@ export function networkView(host: FsState, d: DockerState, c: DockerContainer): 
   if (mode === 'host') return { ...host.sockets ? { sockets: host.sockets } : {}, ...host.processes ? { processes: host.processes } : {}, ...host.http ? { http: host.http } : {}, ...host.net ? { net: host.net } : {}, ...host.links ? { links: host.links } : {} };
   const mine = mode === 'none' ? [] : attachments(d, c).filter(x => x.a.ip && x.net.driver === 'bridge');
   const iface = (ip: string, net: DockerNetwork, i: number): Iface => ({ name: `eth${i}`, address: ip, prefix: prefixOf(net.subnet), mac: macOf(ip) });
-  const own = served(d, c, 'c', false);
+  const own = served(d, c, 'c', false, now);
   const peers: RemoteHost[] = [], paths: { hops: { address: string; name?: string; rtt: number }[] }[] = [];
   // Docker's DNS answers each name with an A record (getent hosts prints the name asked), so every name is an entry of its own.
   const named = (names: readonly string[], address: string, state: FsState): RemoteHost[] => names.map(host => ({ host, address, aliases: [], passwords: [], state }));
@@ -358,7 +360,7 @@ export function networkView(host: FsState, d: DockerState, c: DockerContainer): 
     if (o.id === c.id || o.status !== 'running' || modeOf(o) !== 'bridge') continue;
     const shared = mine.map(x => ({ x, ip: o.networks?.[x.name]?.ip ?? (x.name === 'bridge' ? o.ip : undefined) })).filter((s): s is { x: typeof mine[number]; ip: string } => !!s.ip);
     if (!shared.length) continue;
-    const dns = shared.filter(s => !s.x.net.builtin), svc = served(d, o, 'c', true);
+    const dns = shared.filter(s => !s.x.net.builtin), svc = served(d, o, 'c', true, now);
     const state: FsState = {
       nodes: host.nodes, cwd: '/', user: 'root', home: '/root', host: o.name, ...host.accounts ? { accounts: host.accounts } : {}, docker: d,
       sockets: { interfaces: shared.map((s, i) => iface(s.ip, s.x.net, i)), connections: [] }, processes: [procOf(o, svc.listen, now)], http: { responders: svc.responders }, links: { latency: LATENCY },

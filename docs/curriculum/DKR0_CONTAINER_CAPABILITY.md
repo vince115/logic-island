@@ -1,6 +1,6 @@
 # DKR-0：Docker 容器島的課程能力與引擎階段 E20
 
-> 2026-11-23。目標：讓 Docker 容器島（`docker-containers`，前綴 DKR，15 堂）可以撰寫、驗證、發布。本島**不需要新的課程能力或活動**：和網路與伺服器島（[SRV0_SERVER_CAPABILITY](SRV0_SERVER_CAPABILITY.md)）一樣沿用 LNX-0 的 `terminal` 能力（[LNX0_TERMINAL_CAPABILITY](LNX0_TERMINAL_CAPABILITY.md)）與 CN-0 的 `network-protocol` 情境。本文件也是終端機引擎階段 **E20** `containers`、**E21** `images`（§11）與 **E22** `storage-net`（§12）的唯一說明處（E1–E9 在 LNX0，E10–E19 在 SRV0），以及之後 E23–E24 的規劃。之後的進度與下一批由 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 計算。
+> 2026-11-23。目標：讓 Docker 容器島（`docker-containers`，前綴 DKR，15 堂）可以撰寫、驗證、發布。本島**不需要新的課程能力或活動**：和網路與伺服器島（[SRV0_SERVER_CAPABILITY](SRV0_SERVER_CAPABILITY.md)）一樣沿用 LNX-0 的 `terminal` 能力（[LNX0_TERMINAL_CAPABILITY](LNX0_TERMINAL_CAPABILITY.md)）與 CN-0 的 `network-protocol` 情境。本文件也是終端機引擎階段 **E20** `containers`、**E21** `images`（§11）、**E22** `storage-net`（§12）與 **E23** `compose`（§13）的唯一說明處（E1–E9 在 LNX0，E10–E19 在 SRV0），以及之後 E24 的規劃。之後的進度與下一批由 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 計算。
 
 ## 1. 範圍
 
@@ -9,6 +9,7 @@
 | DKR-0（登錄） | `PREPARED_ISLAND_IDS = ['docker-containers']`、前綴 `DKR`、`UNITS['docker-containers'] = []`、`dockerFromBlueprint`；沒有課程、頁面、旗標、3D、GLB 或 `mapState` 的改動 |
 | E20 `containers` | Docker CE 27.5.1 的模擬：daemon 的 Image 與 Container、模擬的 Docker Hub（課程宣告哪些 Image 拉得到）、容器的生命週期與可寫層、日誌、`docker exec`、連接埠對應（主機上的 `docker-proxy`、`curl` 經由它連到容器的服務）、`docker` 群組與 socket 的權限；`docker` 指令（§5） |
 | E21 `images` | `docker build`（BuildKit，預設的建置器）：Dockerfile 的解析、在建置容器裡執行 RUN、由建置內容 COPY／ADD 與 `.dockerignore`、每一步的層與大小、建置快取（`CACHED` 與失效）、`docker history`、Image 設定在 `docker run` 時生效、標籤與 dangling Image、`docker image prune`、`image`／`build` 檢查（§11） |
+| E23 `compose` | Docker Compose v2（`docker compose`：YAML 子集、變數代換、驗證、`config`、`up`／`down`／`ps`／`logs`／`exec`／`build`／`pull`／`start`／`stop`／`restart`／`ls`、depends_on 與健康檢查的等待）、健康檢查（Compose、Dockerfile 的 HEALTHCHECK、`--health-*`；`(healthy)` 與 `.State.Health`）、多階段建置（`COPY --from`、`FROM` 階段、`--target`、scratch、distroless、課程宣告的建置工具）、Registry（`docker tag`、`login`／`logout`、`push`、以 digest 拉取、denied／unauthorized／不可變標籤）、`compose`／`registry` 檢查與 `image` 的 digest（§13） |
 | E22 `storage-net` | Volume（具名、匿名、Image 的 VOLUME、copy-up）、bind mount（雙向即時）、tmpfs、唯讀掛載、以數字 UID 決定的擁有者與權限錯誤、備份用的 `tar`；`docker network`（bridge、host、none、自訂網路與內建 DNS、connect／disconnect）、容器之間連得到什麼、`--network host`／`none`、`docker inspect` 的 Mounts 與 Networks、`volume`／`network`／`reach` 檢查（§12） |
 
 不新增任何執行期套件；所有輸出由課程資料與機器的固定時鐘決定（§5.6）。
@@ -38,14 +39,14 @@
 
 ## 4. 批次與引擎階段
 
-課程編號即位置，依序連續發布；每一批先完成它需要的引擎階段（各自的 profile 與測試），再寫課。profile 延續**線性鏈**：… < edge < diagnostics < **containers**（E20）< **images**（E21）< **storage-net**（E22）< E23 < E24。
+課程編號即位置，依序連續發布；每一批先完成它需要的引擎階段（各自的 profile 與測試），再寫課。profile 延續**線性鏈**：… < edge < diagnostics < **containers**（E20）< **images**（E21）< **storage-net**（E22）< **compose**（E23）< E24。
 
 | 批次 | 課程 | 引擎階段 |
 |---|---|---|
 | DKR-1 | DKR01–DKR04 | **E20** `containers`（已完成，§5）：DKR01、DKR02 的架構情境旁用 `docker version`、`docker info`、`docker run hello-world` 看 client、daemon 與 Registry 的分工；DKR03 生命週期（created、running、exited、刪除與可寫層）；DKR04 常用指令（run、ps、logs、exec、-p） |
 | DKR-2 | DKR05–DKR06 | **E21** `images`（已完成，§11）Dockerfile 與建置：解析 Dockerfile（FROM、RUN、COPY、WORKDIR、ENV、CMD、ENTRYPOINT、USER、EXPOSE）、`.dockerignore`、`docker build`（BuildKit 的輸出）、每個指令一層、快取命中（`CACHED`）與失效、指令順序、`docker history`、Image 大小；RUN 只執行模擬環境認得的指令（套件安裝依 E5 的套件資料） |
 | DKR-3 | DKR07–DKR08 | **E22** `storage-net`（已完成，§12）Volume 與網路：`docker volume`、`-v`／`--mount`（具名 Volume、bind mount 對應主機的檔案、tmpfs）、UID 不同造成的權限錯誤、重建容器後資料保留；`docker network`（預設 bridge、自訂網路與內建 DNS 127.0.0.11、容器以名稱互連、`--network host`）、哪些埠需要 `-p` |
-| DKR-4 | DKR09–DKR11 | **E23** Compose、多階段建置與 Registry：`compose.yaml`（services、ports、environment、volumes、depends_on 與 `condition: service_healthy`）、`docker compose up -d`／`ps`／`logs`／`down`；多階段建置（`COPY --from`、精簡基底、建置參數）；`docker tag`、`push`、以 digest 拉取、私有 Registry 的 `docker login`、不可變標籤與 `latest` 的風險（DKR11 的管線情境） |
+| DKR-4 | DKR09–DKR11 | **E23** `compose`（已完成，§13）Compose、多階段建置與 Registry：`compose.yaml`（services、ports、environment、volumes、depends_on 與 `condition: service_healthy`）、`docker compose up -d`／`ps`／`logs`／`down`；多階段建置（`COPY --from`、精簡基底、建置參數）；`docker tag`、`push`、以 digest 拉取、私有 Registry 的 `docker login`、不可變標籤與 `latest` 的風險（DKR11 的管線情境） |
 | DKR-5 | DKR12–DKR14 | **E24** 檢查與執行期限制：完整的 `docker inspect`、`HEALTHCHECK` 與 `(healthy)`／`(unhealthy)`、`--memory`／`--cpus`、記憶體不足的 `OOMKilled` 與 137、`--restart` 策略與重啟迴圈（`Restarting (1) …`）、SIGTERM 的處理與優雅關閉（`docker stop -t`）、`docker stats`、`top`、`kill`、`events`；DKR12（安全，`case-study-board`）用 E21 的 `USER`、E24 的 `--read-only` 與 `--cap-drop` |
 | DKR-6 | DKR15 | 綜合專題，單獨一批（用 E20–E24 已有的一切） |
 
@@ -150,7 +151,7 @@ machines: [{ ..., profile: 'containers',
 ## 8. 只在課文說明、或不支援的部分
 
 - **核心機制**：namespace、cgroup、overlay2 的分層、OCI 規格、containerd 與 runc 的分工、Hypervisor 與虛擬機——模擬環境只模擬 CLI 看得到的結果，DKR01、DKR02 以網路情境與課文說明。容器裡的程式不出現在主機的 `ps`（真實的主機看得到它們）。
-- **E21–E24 的功能**（§4）：Dockerfile 與 `docker build`、`history`（E21 已完成，§11；`docker commit` 在 `images` profile 說明不支援）；Volume、bind mount、`docker network`、容器之間以名稱連線（E22 已完成，§12）；Compose、多階段建置、`tag`／`push`／`login`、以 digest 拉取；HEALTHCHECK、資源限制、OOMKilled、重新啟動策略、`stats`／`top`／`kill`／`events`／`pause`。輸入這些指令時說明是哪一個階段。
+- **E21–E24 的功能**（§4）：Dockerfile 與 `docker build`、`history`（E21 已完成，§11；`docker commit` 在 `images` profile 說明不支援）；Volume、bind mount、`docker network`、容器之間以名稱連線（E22 已完成，§12）；Compose、多階段建置、`tag`／`push`／`login`、以 digest 拉取、HEALTHCHECK 與健康狀態（E23 已完成，§13）；資源限制、OOMKilled、重新啟動策略、`stats`／`top`／`kill`／`events`／`pause`（E24）。在較低的 profile 輸入這些指令時說明是哪一個階段。
 - **其他**：`docker create`、`attach`、`cp`、`rename`、`system prune`、`save`／`load`、`context`、`buildx`；daemon 停止的情形（`systemctl stop docker` 不影響 `docker` 指令：`Cannot connect to the Docker daemon` 留到 E24）；互動式的終端機（`-it` 的 Shell、`docker logs -f` 的等待、前景伺服器的 Ctrl-C）；`docker exec -d`、`-u`；`docker ps -s`、`-n`、`-l` 與其他過濾條件；`--format` 的函式；`ls -l` 在容器裡的欄位依模擬環境的 `ls`；`ps` 只支援不加選項（BusyBox 的 `ps` 版面不同）；`/etc/resolv.conf`、IPv6 的 socket、`docker0`、iptables。
 - **日誌**：Image 的 `logs` 是課程寫好的固定文字（例如 nginx 的 `[notice]` 行裡的時間），不會隨啟動時間改變；`-t` 的時間戳記才是啟動的時間。
 - **大小**：`docker container prune` 的回收空間只算可寫層裡內容改變的檔案的位元組（真實的值另有 overlay 的中繼資料）。
@@ -458,3 +459,163 @@ docker: {
 - **`getent hosts` 與 `ping`**：內建 DNS 回答名稱時 getent 只印問的名稱、ping 的反查是 `名稱.網路`，依記憶；容器之間的來回時間（0.06 ms）是模型的數字。
 - **`-u UID` 沒有群組時 GID 是 0**、`--network host` 的容器主機名稱是主機的、埠被占用時容器結束（真實的 nginx 印 `bind() … failed (98: Address already in use)`；模擬環境的日誌是說明文字）。
 - **tar**：`tar tvf` 的寬度規則與 `x -v` 只印名稱依 GNU tar 1.35 的 list.c；GNU tar 的成員順序是讀目錄的順序（模擬環境依名稱排序）；時間用機器時鐘（檔案沒有修改時間時）。
+
+## 13. 引擎階段 E23：`compose` profile（`src/lib/terminal/compose.ts`、`yaml.ts`、`health.ts`、`registry.ts`、`build.ts`、`docker.ts`、`docker-lesson.ts`）
+
+> 2026-11-23。給 DKR09（Docker Compose 多容器應用）、DKR10（多階段建置）與 DKR11（Container Registry 與版本標籤）。依 Docker CE 27.5.1 與它附帶的 Compose v2 外掛（`docker compose`，v2.32.4）。E20–E22 的行為與所有已發布的課（DKR01–DKR08 與其他島）逐字不變：全部終端機課的範例、參考解答、典型錯誤與變體（含檢查的訊息）在改動前後逐一重播，輸出相同；新的行為只在 `compose` profile 起出現。
+
+### 13.1 選用方式
+
+| 項目 | 內容 |
+|---|---|
+| `COMPOSE_PROFILE` | `storage-net` 的一切，**沒有新的指令**（`docker` 已在 E20），feature `compose`。`docker` 收到 `compose: true` 時才有 `docker compose`、`tag`、`push`、`login`、`logout`、`docker image tag|push`、以 digest 拉取與執行、`docker run --health-*`、Dockerfile 的 HEALTHCHECK 與 `COPY --from`／`FROM 階段` |
+| profile 以下 | `docker compose`、`push`、`tag`、`login`、`logout` 仍是「模擬環境在引擎階段 E23（Compose、多階段建置與 Registry） 才支援」；`docker pull x@sha256:…` 仍說明 E23；`COPY --from` 仍是 E23 的建置錯誤，HEALTHCHECK 仍是 E24 的建置錯誤；`docker run --health-cmd` 仍是 `unknown flag`（和改動前相同） |
+| 說明頁與 help | `docker --help`、`man docker` 印 `COMPOSE_MANUAL`；`help` 的 docker 行加上 compose、tag、push、login、logout；沒有參數的 `docker` 多列 push、login、logout、tag 與 Management Commands 的 compose |
+| 課程資料 | Image 的 `healthcheck`、`ready`、`tags`，程式的 `ready`，`docker.registries` 與 `docker.tools` 需要 `compose`（「`… need the compose profile (engine stage E23)`」） |
+| `docker search` | `compose` profile 說明不支援（課程的 Registry 不提供搜尋） |
+
+### 13.2 compose.yaml 的 YAML 子集（`yaml.ts`）
+
+不新增套件，自己寫的最小解析器。支援：以縮排（只能是空白）表示的區塊 mapping 與序列（序列可以和它的鍵同一層縮排）、`- 鍵: 值` 開始的 mapping 項目、純量（plain、`'單引號'`（`''` 跳脫）、`"雙引號"`（`\n \t \" \\ \uXXXX` 等跳脫））、一行之內的 flow 集合（`[a, "b"]`、`{k: v}`，可以巢狀）、註解（行首或空白之後的 `#`，引號內不算）、`|`／`|-`／`|+`／`>`／`>-`／`>+` 區塊純量、開頭的 `---`、null（空值、`~`、`null`）。純量一律以文字保存，由 Compose 的欄位決定型別（數字、布林）。
+
+不支援而明確說明（`yaml: line N: 模擬環境的 YAML 子集不支援…`）：錨點與別名（`&`、`*`）、合併鍵（`<<`）、標記（`!!str`）、跨行的純量、複雜的鍵（`?`）、多個文件、同一行的巢狀序列（`- - x`）。
+
+錯誤用 yaml.v3 的格式：縮排不對 `yaml: line 4: did not find expected key`、少了冒號 `yaml: line 1: could not find expected ':'`、重複的鍵 `yaml: line 2: mapping key "a" already defined at line 1`、Tab 縮排 `yaml: line 2: found character that cannot start any token`、`key: 值` 之後更深的 `k: v` 是 `mapping values are not allowed in this context`。
+
+輸出（`docker compose config`）由 `emitYaml` 寫：兩格縮排，序列縮在鍵的下面（`      - mode: ingress`），字串在讀回來會變成別的型別（`"8080"`、`"true"`）或含特殊字元時加雙引號（yaml.v3 的做法），空 mapping 是 `{}`。
+
+### 13.3 Compose 的模型與指令（`compose.ts`）
+
+| 項目 | 內容 |
+|---|---|
+| 檔案 | 目前資料夾往上找 `compose.yaml`、`compose.yml`、`docker-compose.yaml`、`docker-compose.yml`，或 `-f 檔案`（`--project-directory`、`--env-file`）。找不到：`no configuration file provided: not found`；`-f` 不存在：`open /…: no such file or directory` |
+| 變數代換 | 所有的值（不含鍵）：`${VAR}`、`$VAR`、`${VAR:-預設}`、`${VAR-預設}`、`${VAR:+值}`、`${VAR+值}`、`${VAR:?訊息}`、`${VAR?訊息}`、`$$` 是 `$`。變數取自 Shell **匯出**的變數（`export`，優先）與專案資料夾的 `.env`（或 `--env-file`）。沒有設定：`WARN[0000] The "TAG" variable is not set. Defaulting to a blank string.`（每個變數一次）；`:?`：`error while interpolating services.web.image: required variable TAG is missing a value: 訊息` |
+| 驗證 | 頂層只能是 version、name、services、networks、volumes、`x-*`（configs、secrets、include 說明不支援）；打錯的鍵是 `validating /…/compose.yaml: services.web additional properties 'imgae' not allowed`；Compose 規格裡有、模擬環境沒有模擬的服務鍵（deploy、logging、profiles、tmpfs、expose…）說明不支援，不假裝；型別錯誤 `… services.web.ports must be a list`。`version` 印 `WARN[0000] …: the attribute \`version\` is obsolete, it will be ignored, please remove it to avoid potential confusion` |
+| 服務 | `image`、`build`（字串或 context、dockerfile、args（mapping 或清單）、target）、`ports`（`"8080:80"`、`"127.0.0.1:8080:80"`、`/udp`、長格式 target／published／host_ip／protocol；只寫容器埠或範圍說明不支援）、`environment`（mapping 或 `K=V` 清單；只有 `K` 時取 Shell 的值）、`env_file`（字串、清單或 `{path, required}`；`environment` 優先）、`volumes`（`名稱:/路徑[:ro]`、`./相對`／`/絕對`／`~/` 的 bind、`/路徑` 的匿名 Volume、長格式 type／source／target／read_only）、`networks`（清單或 mapping 加 `aliases`）、`depends_on`（清單，或 mapping 加 `condition`：service_started、service_healthy、service_completed_successfully，`required`、`restart`）、`healthcheck`（test 字串或清單、interval、timeout、retries、start_period、start_interval、`disable: true`）、`restart`（no、always、unless-stopped、on-failure[:N]；只記錄，重新啟動的行為是 E24）、`command`、`entrypoint`（字串依 sh 的規則切成字）、`user`、`working_dir`、`container_name`、`labels`。頂層 `volumes`、`networks`（name、external、driver: local／bridge） |
+| 專案錯誤 | `service "web" depends on undefined service "dbb": invalid compose project`、`service "web" refers to undefined volume data: invalid compose project`、`service "web" refers to undefined network back: invalid compose project`、`service "web" has neither an image nor a build context specified: invalid compose project`、`dependency cycle detected: a -> b -> a`、condition 錯誤 `… must be one of the following: "service_started", "service_healthy", "service_completed_successfully"` |
+| 專案名稱 | `-p` ＞ `COMPOSE_PROJECT_NAME`（匯出的變數）＞ 頂層 `name` ＞ 資料夾名稱（轉小寫、只留 `[a-z0-9_-]`、開頭必須是字母或數字：`My.App` → `myapp`）。`-p`／`name` 不合法：`invalid project name "Demo": must consist only of lowercase alphanumeric characters, hyphens, and underscores as well as start with a letter or number` |
+| 命名 | 容器 `專案-服務-1`（`container_name` 優先），預設網路 `專案_default`、自訂網路 `專案_鍵`，Volume `專案_鍵`（`name` 或 `external` 時是那個名稱）；建置的 Image 是 `專案-服務:latest`（有 `image` 時用它） |
+| 容器 | 和 `docker create` 一樣：環境變數、連接埠、掛載（Compose 用 API 的 mount，所以 inspect 的 Mode 是空的）、使用者、工作目錄；在每個網路上的別名是容器名稱與服務名稱（同一網路的其他容器以服務名稱連到它，E22 的內建 DNS）；標籤 `com.docker.compose.project`、`.service`、`.container-number`、`.config-hash`、`.depends_on`、`.image`、`.oneoff`、`.project.config_files`、`.project.working_dir`、`.version`（2.32.4）；健康檢查是服務的（沒寫的欄位用 Image 的 HEALTHCHECK），沒有時用 Image 的 |
+| 時間 | `up` 等相依服務健康（或結束）時，**機器的時鐘前進**到每一次健康檢查的時間（和真實的 `docker compose up` 一樣會停在那裡等）；其他指令不讓時間前進 |
+
+#### 進度的格式（決定：Compose 的 plain 輸出）
+
+Compose v2 的進度寫到**標準錯誤**；模擬環境一律印 **plain 格式**（標準輸出不是終端機時 Compose 的樣子）：每個事件一行，開頭一個空白、識別與狀態之間兩個空白（`fmt.Fprintln` 加上空的 Text 欄位）：
+
+```
+ Network shop_default  Creating
+ Network shop_default  Created
+ Volume "shop_pgdata"  Creating
+ Volume "shop_pgdata"  Created
+ Container shop-db-1  Creating
+ Container shop-db-1  Created
+ Container shop-db-1  Starting
+ Container shop-db-1  Started
+ Container shop-db-1  Waiting
+ Container shop-db-1  Healthy
+```
+
+終端機上真實的 TTY 畫面（`[+] Running 4/4` 與 ` ✔ Container shop-db-1  Healthy   5.6s` 這種會重畫的列）不模擬；課文可以說明 TTY 上看到的是同樣的事件，最後停在 ✔ 的那一列。`--progress quiet` 不印事件。
+
+| 指令 | 行為與格式 |
+|---|---|
+| `docker compose up [-d] [--build] [--no-build] [--no-deps] [--force-recreate] [--no-recreate] [--no-start] [--wait] [--remove-orphans] [服務…]` | 依序：Image（沒有 Image 或 `--build` 的 build 服務先建置：BuildKit 的 plain 進度與 ` Service app  Built`；只有 image 的服務沒有就拉取：` cache  Pulling`、` cache  Pulled`，失敗是 ` cache  Error` 與 daemon 的錯誤）、網路與 Volume（Creating／Created；external 不存在：`network x declared as external, but could not be found`、`external volume "x" not found`）、容器（依 depends_on 的順序，相同時依名稱：沒有的 Creating／Created；設定或 Image 改了 Recreate／Recreated；沒變而執行中 Running）、啟動（每個服務先等它的相依條件：service_healthy 印 ` Container x  Waiting` 再 `Healthy`，service_completed_successfully 是 `Waiting` 再 `Exited`；然後 Starting／Started）。失敗：` Container x  Error` 與 `dependency failed to start: container x is unhealthy`、`… has no healthcheck configured`、`… exited (1)`、`service "migrate" didn't complete successfully: exit 3`（結束碼 1）；容器名稱被別人占用是 daemon 的 Conflict 錯誤；連接埠被占用是 E20 的錯誤。孤兒容器：`WARN[0000] Found orphan containers ([…]) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up.`。不加 `-d`：之後印 `Attaching to app-1, cache-1, db-1`、各容器的日誌（`db-1     | …`，名稱補到一樣寬再加 ` | `）、結束的容器 `x exited with code N`，還在執行時說明模擬環境沒有 Ctrl-C、服務留在背景 |
+| `docker compose down [-v] [--remove-orphans]` | 容器依相依的相反順序 Stopping／Stopped，再 Removing／Removed；`-v` 刪除宣告的 Volume（` Volume shop_pgdata  Removing`、`Removed`）與容器的匿名 Volume；最後網路 Removing／Removed。什麼都沒有：`WARN[0000] Warning: No resource found to remove for project "shop".`。`--rmi` 說明不支援 |
+| `docker compose ps [-a] [-q] [--services] [--status 狀態] [--format …] [服務…]` | `NAME   IMAGE   COMMAND   SERVICE   CREATED   STATUS   PORTS`，依名稱排序；COMMAND、STATUS（含健康狀態）、PORTS 和 `docker ps` 相同；`--format` 的欄位 Name、Image、Command、Service、RunningFor、CreatedAt、Status、Ports、State、Health、ExitCode、ID、Project |
+| `docker compose logs [-t] [--tail N] [--no-log-prefix] [-f] [服務…]` | 依時間排序（同時的依容器名稱），`db-1  | ` 前綴；`-t` 是 `2026-11-22T10:00:00.000000000Z`；`-f` 不等待（說明） |
+| `docker compose exec [-T] [-u 使用者] [-w 目錄] [-e K=V] 服務 指令…` | 在 `專案-服務-1` 裡執行（就是 `docker exec`，預設配置 TTY：`TERM=xterm`），結束碼是指令的；沒有在執行或沒有這個服務：`service "db" is not running` |
+| `docker compose build [服務…]`、`pull [服務…]` | build：每個有 build 的服務建置並 ` Service app  Built`；pull：依檔案的順序 ` db  Pulling`／` db  Pulled`，只有 build 的服務 ` app  Skipped - No image to be pulled` |
+| `docker compose start|stop|restart [服務…]` | stop 依相反順序 Stopping／Stopped；start 依相依順序（等待條件）Starting／Started；restart 是 ` Container x  Restarting`、` Container x  Started`。沒有容器：`no containers to start` |
+| `docker compose config [--services] [--volumes] [--images] [-q]` | 正規化的 YAML（§13.2）：`name`、services（依名稱）、networks、volumes。build 的 context 是絕對路徑；depends_on 寫出 condition 與 `required: true`；environment 合併 env_file 並依鍵排序（`env_file` 本身不印）；ports 與 volumes 是長格式（`published` 是字串、bind 有 `create_host_path: true`、volume 有 `volume: {}`）；networks 是 `default: null`；時間是 Go 的寫法（`5s`、`1m30s`）。`--services` 依名稱排序。**不需要** daemon 的權限 |
+| `docker compose ls [-a]`、`version`、沒有子指令 | ls：`NAME   STATUS   CONFIG FILES`（`running(2)`）；`Docker Compose version v2.32.4`；縮短的 Usage。其他子指令（run、rm、create、kill、port…）說明不支援，不存在的是 `unknown docker command: "compose x"` |
+| 權限 | config 以外的子指令和 `docker ps` 一樣需要 docker 群組或 sudo |
+
+### 13.4 健康檢查（`health.ts`）
+
+| 項目 | 內容 |
+|---|---|
+| 來源 | Compose 的 `healthcheck`、Dockerfile 的 `HEALTHCHECK [--interval=…] [--timeout=…] [--start-period=…] [--start-interval=…] [--retries=N] CMD …`（或 `NONE`）、`docker run --health-cmd …`（`--health-interval`、`--health-timeout`、`--health-retries`、`--health-start-period`、`--health-start-interval`、`--no-healthcheck`；沒寫的欄位沿用 Image 的）、課程宣告的 Image `healthcheck` |
+| 執行 | 執行中的容器在固定的時間點探測：第一次在啟動後一個 interval（有 start_period 時是一個 start_interval），之後每個 interval（start_period 內、還沒健康過時是 start_interval）。預設 interval 30s、timeout 30s、retries 3、start_period 0、start_interval 5s。`CMD` 直接執行那些字，`CMD-SHELL` 是 `/bin/sh -c`（Image 要有 sh）；**探測的執行檔必須是 Image 宣告的 `commands`**（`curl`、`pg_isready`），沒有時是 OCI 的「executable file not found」（ExitCode -1）或 `sh: 1: curl: not found`（127）。結尾的 `|| exit 1` 由模擬環境處理（失敗時的結束碼）。探測連到其他網路而逾時的，是 `Health check exceeded timeout (30s)`（ExitCode -1） |
+| 狀態 | 一開始 `starting`；結束碼 0 是 `healthy`（連續失敗歸零）；失敗加一（start_period 內、還沒健康過時不算），連續 `retries` 次是 `unhealthy`；保留最後 5 次（Start、End、ExitCode、Output）。容器停止就不再探測，再啟動時重新 starting |
+| 決定論 | 時間只隨 `sleep`（edge 起）與 `docker compose up` 的等待前進；兩個 docker 指令之間到期的探測，在下一個 docker 指令（或檢查）時依各自的時間補做，用當時容器的檔案。服務的 `ready`（課程宣告的 Image 或程式：啟動後幾秒才接受連線）讓在那之前的探測失敗（從容器裡看：自己與其他容器的服務在 ready 之前拒絕連線） |
+| 輸出 | `docker ps`、`docker compose ps` 的 STATUS：`Up 5 seconds (healthy)`、`Up 1 second (unhealthy)`、`Up Less than a second (health: starting)`（moby 的 State.String）；`docker inspect` 的 `State.Health`（Status、FailingStreak、Log）與 `Config.Healthcheck`（Test 與以奈秒表示的時間，沒設定的不列）；沒有健康檢查的容器沒有 `State.Health`：`{{.State.Health.Status}}` 是 Go 的 `template: :1:2: executing "" at <.State.Health.Status>: nil pointer evaluating interface {}.Status` |
+| history | `HEALTHCHECK &{["CMD-SHELL" "curl -f http://localhost/ || exit 1"] "5s" "3s" "0s" "0s" '\x03'}`（BuildKit 以 `%q` 印出設定：沒寫的時間是 `"0s"`，retries 是 rune） |
+| `pg_isready` | Image 列出它才有（`compose` profile 的 `commands` 可以列 `pg_isready`）。`pg_isready [-h 主機] [-p 埠] [-U 使用者] [-d 資料庫] [-q]`：本機（socket）看容器自己的服務是否在那個埠接受連線，`-h` 經由容器的網路連過去；`/var/run/postgresql:5432 - accepting connections`（0）或 `… - no response`（2），`-h db` 是 `db:5432 - …` |
+
+### 13.5 多階段建置（`build.ts`）
+
+| 項目 | 內容 |
+|---|---|
+| 要建置的階段 | 目標（最後一個，或 `--target`）與它需要的階段：`FROM 先前的階段`、`COPY --from=階段名稱或編號`（只能是前面的階段）；其他階段 BuildKit 略過，不出現在輸出。`ARG` 寫在第一個 FROM 之前，用在 FROM 與 `--from` 的名稱（`--build-arg` 可以改它） |
+| 輸出的順序 | 依序（真實的 BuildKit 並行，輸出可能交錯）：需要的基底各一次 `load metadata`、`load .dockerignore`、各階段的 `[名稱 1/N] FROM …`（以階段為基底的不另外列；`COPY --from=Image` 的 Image 是沒有編號的 `FROM docker.io/…@sha256:…`，和某個階段的基底相同時不重複）、`load build context`、依 Dockerfile 的順序各階段的步驟（`[build 5/5] RUN …`、`[stage-1 2/2] COPY --from=build /out/api /api`）、`exporting to image`（只有最後一個階段） |
+| COPY --from | 來源是那個階段（或 Image）的**絕對路徑**（相對路徑從 `/` 算），可以用萬用字元與資料夾；檔案保留內容、權限與「重量」（套件與建置工具寫的檔案的宣告大小），擁有者是 root（或 `--chown`）。快取鍵是來源階段的最後一個鍵加上複製的檔案的 checksum。找不到：和建置內容相同的 `failed to compute cache key: failed to calculate checksum of ref …: "/missing": not found`；`ADD --from` 說明請用 COPY |
+| 最後的 Image | 只有最後一個階段的層（基底的層加上它自己的步驟）：`golang:1.23`（823MB）的建置階段加 8.4MB 的執行檔是 831MB，`distroless`（2MB）的最後階段只有 10.4MB；`docker history` 只列最後階段的列 |
+| `FROM scratch` 與 distroless | scratch 是空的檔案系統（§11）；沒有 CMD 與 ENTRYPOINT 時 `docker run` 是 `no command specified`。distroless 是課程宣告的 Image（`commands: []`、可以沒有 cmd）：沒有 Shell，`docker exec 容器 sh` 是 `OCI runtime exec failed: exec failed: unable to start container process: exec: "sh": executable file not found in $PATH: unknown`（127），shell 形式的 RUN 與 CMD-SHELL 健康檢查失敗 |
+| 建置工具 | `docker.tools`：RUN 的某個指令（`go build -o /out/api ./cmd/api`，逐字比對）需要的檔案（相對於 WORKDIR）、印出的文字、寫出的檔案與它們的大小、秒數。執行檔要是基底 Image 的 `commands`（`golang` 列出 `go`）。寫出的檔案內容由工作資料夾下的原始碼算出，所以改了原始碼就是新的檔案、新的層、新的 Image 與 digest；缺檔案時印說明（或課程的 `missing`）並以結束碼 1 失敗 |
+| HEALTHCHECK | §13.4；設定只改 Image（history 一列 0B） |
+
+### 13.6 Registry（`registry.ts`）
+
+| 項目 | 內容 |
+|---|---|
+| 模型 | E20 的模擬 Docker Hub 不變；課程另外宣告私有 Registry（`docker.registries`）：位址（`registry.example.com:5000`、`ghcr.example`：有點或埠，不能是 Docker Hub）、使用者與 **明顯是假的課程 Token**（8–80 個 `[A-Za-z0-9._-]`、含 lesson／fake／example／demo，不能像 ghp_、glpat-、dckr_pat_、AKIA、sk- 這類真實的格式）、能不能推送（`push`，預設可以）與可以用的儲存庫（`repos`：`team/api` 或 `team/*`）、`immutable`（不可變標籤）、`public`（不登入也能拉）。名稱以這個位址開頭的課程 Image 是那個 Registry 的（`tags` 是同一個 manifest 的其他標籤；`pulled` 的也在本機）。課程沒有宣告的位址是 DNS 查不到的主機（課程宣告的 Registry 在課程的網路上連得到） |
+| digest | 推送的是 Docker image manifest（schema 2）：config（digest 就是 Image ID）與各層（大小、`sha256(blob/diff ID)`），以三格縮排寫成 JSON；它的 SHA-256 是 digest、位元組數是 `size`。相同的內容在任何名稱下都是同一個 digest；重新建置（內容或建置時間不同）是新的 digest。Docker Hub 的 Image 仍用 E20 的 digest |
+| `docker tag 來源 目標` | 沒有輸出；目標原本指向別的 Image 時標籤移走（那個 Image 沒有其他標籤就成為 dangling）。錯誤：`Error response from daemon: No such image: x:1`、`Error parsing reference: "App" is not a valid repository/tag: invalid reference format: repository name (library/App) must be lowercase`、`refusing to create a tag with a digest reference`、`"docker tag" requires exactly 2 arguments.` |
+| `docker login [-u 使用者] [-p 密碼 \| --password-stdin] 位址` | 成功：標準錯誤 `WARNING! Your password will be stored unencrypted in /home/learner/.docker/config.json.`、`Configure a credential helper to remove this warning. See`、`https://docs.docker.com/go/credential-store/`、空行；標準輸出 `Login Succeeded`；寫入 `~/.docker/config.json`（目錄 0700、檔案 0600，Tab 縮排的 JSON，`auths.位址.auth` 是 `使用者:Token` 的 base64，保留檔案裡的其他鍵）。`-p` 先印 `WARNING! Using --password via the CLI is insecure. Use --password-stdin.`。錯誤：`Error response from daemon: Get "https://位址/v2/": unauthorized: incorrect username or password`、沒有密碼 `Error: Cannot perform an interactive login from a non TTY device`（模擬環境沒有鍵盤）、`Error: Must provide --username with --password-stdin`、`Error: --password and --password-stdin are mutually exclusive`、位址查不到 `Error response from daemon: Get "https://x:5000/v2/": dial tcp: lookup x on 127.0.0.53:53: no such host`；不寫位址（Docker Hub）說明模擬環境的 Docker Hub 不需要登入 |
+| `docker logout [位址]` | `Removing login credentials for 位址`；沒有登入：`Not logged in to 位址`（都是結束碼 0） |
+| `docker push 名稱[:標籤]` | 沒寫標籤：`Using default tag: latest`。`The push refers to repository [registry.example.com:5000/team/api]`、每一層（最上面的先）`354d479d92a0: Pushed`／`Layer already exists`（這個儲存庫已有）／`Mounted from team/api`（同一個 Registry 的其他儲存庫有）、`1.0: digest: sha256:… size: 949`。錯誤：本機沒有 `An image does not exist locally with the tag: 名稱`；Docker Hub（名稱沒有 Registry 位址）各層 `Preparing` 後 `denied: requested access to the resource is denied`；沒有登入（或 Token 不對）`unauthorized: authentication required`；使用者不能推送或不能用這個儲存庫 `denied: requested access to the resource is denied`；不可變標籤已指向別的 digest：各層照樣上傳，最後 `tag invalid: The image tag '1.0' already exists in the 'team/api' repository and cannot be overwritten because the repository is immutable.`（相同的 digest 可以再推）；位址查不到；`cannot push a digest reference`。成功後本機的 Image 多了這個 RepoDigest；可變的 Registry 上標籤移到新的 digest，舊的 digest 仍可以用 digest 拉取 |
+| `docker pull`（私有 Registry） | `1.0: Pulling from team/api`（路徑不含位址）、各層 `Pull complete`／`Already exists`（本機已有那一層）、`Digest: sha256:…`、`Status: Downloaded newer image for …`／`Status: Image is up to date for …`、最後一行完整的名稱。標籤移到拉下來的 Image（舊的 Image 沒有其他標籤就成為 dangling：`latest` 的風險）。沒有登入且不是 public：`Error response from daemon: Head "https://位址/v2/team/api/manifests/1.0": unauthorized: authentication required`；不能用的儲存庫：`pull access denied for …`；沒有這個標籤或 digest：`manifest for …:9 not found: manifest unknown: manifest unknown` |
+| 以 digest | `docker pull 名稱@sha256:…`（Docker Hub 與私有 Registry）：第一行是 `sha256:…: Pulling from team/api`；本機已有同一個 Image 時 `Image is up to date`；拉下來的是沒有標籤的 Image：`docker images` 的 TAG 是 `<none>`（不是 dangling），`docker images --digests` 有 DIGEST。`docker run 名稱@sha256:…`、`docker inspect`、`docker rmi`、`docker tag` 與 Compose 的 `image:` 都可以用 digest 指名；`docker ps` 的 IMAGE 照打的名稱 |
+| 其他輸出 | `docker images --digests` 的 DIGEST：Docker Hub 的，或推送／拉取過的那個儲存庫的 digest，否則 `<none>`；`docker image inspect` 的 RepoDigests 列出全部；`docker rmi` 移除最後一個標籤時每個 RepoDigest 印一行 `Untagged: 名稱@sha256:…` |
+
+### 13.7 課程資料與檢查
+
+```ts
+docker: {
+  images: [{ …E20–E22 的欄位, healthcheck?: { test: ['CMD-SHELL', 'pg_isready -U postgres'], interval?: '5s', timeout?, retries?, startPeriod?, startInterval? },
+             ready?: 4, commands?: [...E22, 'pg_isready', '建置工具的執行檔'], cmd: []（distroless 可以沒有指令）,
+             name: 'registry.example.com:5000/team/web:1.0', tags?: ['latest'] }],
+  programs?: [{ …E21 的欄位, ready?: 2 }],
+  registries?: [{ host: 'registry.example.com:5000', users?: [{ name: 'ci', token: 'lesson-token-ci-0001', push?: true, repos?: ['team/*'] }], immutable?: false, public?: false }],
+  tools?: [{ command: ['go', 'build', '-o', '/out/api', './cmd/api'], needs?: ['go.mod'], writes: [{ path: '/out/api', size: 8_400_000, mode? }], output?, exit?, seconds?, missing? }],
+}
+```
+
+Compose 的檔案、Dockerfile、Token 檔（例如 `~/ci-token.txt`，模式 0600）都是機器的一般檔案。課程宣告的執行中容器有 Image 的 HEALTHCHECK 時，從它的 `started` 起探測。
+
+| 規則 | 內容 |
+|---|---|
+| Image | `healthcheck.test` 是 `["CMD", 執行檔, …]`、`["CMD-SHELL", "一行"]` 或 `["NONE"]`，時間是 Go 的寫法，retries 0–100；`ready` 0–3600 秒；`tags` 只給宣告的 Registry 的 Image；`commands` 可以列 `pg_isready` 與建置工具的執行檔；`compose` 起 cmd 與 entrypoint 可以都沒有 |
+| Registry | 最多 4 個，位址合法且不重複；每個最多 8 個使用者，名稱 `[a-z0-9._-]`，Token 必須是明顯是假的課程 Token（§13.6）；`repos` 是儲存庫路徑或 `命名空間/*` |
+| 建置工具 | `command` 1–20 個一行的字；`writes` 最多 8 個檔案（路徑不含 `..`、大小 0–2^40）；結束碼 0–255、秒數 0–600 |
+
+| 檢查 | 意義 |
+|---|---|
+| `{ kind: 'compose', project, service, absent?, state?, health?: 'starting' \| 'healthy' \| 'unhealthy', image? }` | 專案的這個服務有容器（`absent`：沒有）、狀態、健康狀態、由哪個 Image 建立（依 Compose 的標籤找容器） |
+| `{ kind: 'registry', registry, repository, tag, absent?, digest?, image? }` | Registry 的儲存庫有這個標籤（沒有）、指向這個 digest，或指向本機 `image` 的內容（manifest 的 digest 相同：學習者推送了自己建置的 Image） |
+| `image` 的 `digest`、`maxSize` | 本機的 Image 有這個 RepoDigest（Docker Hub 的或 Registry 的）、大小不超過這麼多位元組（多階段建置變小了）；`name` 也可以寫 `名稱@sha256:…`（以 digest 拉取的 Image） |
+| `container` 的 `health` | 容器的健康狀態（需要 `compose`） |
+
+### 13.8 測試
+
+| 檔案 | 內容 |
+|---|---|
+| `tests/terminal-e23.test.ts` | profile（指令同 storage-net、多一個 feature）與分界（`storage-net` 以下 compose、push、login、tag、logout、以 digest 拉取、COPY --from、HEALTHCHECK、`--health-cmd` 的訊息不變，資料欄位要 `compose`）、說明頁與 help；YAML 子集（各種寫法、錯誤、不支援的寫法）、Go 的時間；config（正規化、`.env` 與 Shell 的變數、警告、`:?`、各種驗證錯誤、專案名稱）；up（完整的事件順序、等待健康時鐘前進、ps、curl、logs、再一次 up 的 Running、Recreate、`--build`）、服務名稱的 DNS、Volume 與網路的名稱、別名與標籤、不加 -d 的 attach、logs、ps、stop／start／restart、exec 的錯誤與結束碼、ls、down 與 `-v`、pull、build、權限；不健康的相依、沒有健康檢查、service_completed_successfully（成功與失敗）、docker ps 與 inspect 的健康狀態、pg_isready（本機與 `-h`、沒有這個執行檔）、`--health-*`、HEALTHCHECK（history、inspect、`--no-healthcheck`）；多階段建置（需要的階段、輸出、快取、大小、history、distroless、`--target`、ARG、FROM 階段、COPY --from Image、scratch、錯誤、建置工具缺檔案）；login／logout 與 config.json、login 的錯誤、push（unauthorized、Pushed、Layer already exists、Mounted from、denied、Docker Hub、沒有這個 Image、digest 參照）、重建後的新 digest 與不可變標籤、拉取（標籤、預設 latest、digest、unauthorized、manifest unknown、`--digests`、rmi 的 Untagged、以 digest 執行）、Docker Hub 的 digest、tag 的錯誤；`compose`／`registry`／`image` digest／`container` health 檢查、兩個練習的參考解答與典型錯誤、資料驗證（Token、工具、健康檢查）、合成課程通過 `terminalContentProblems`、不改動傳入的狀態 |
+| `tests/support/compose-fixture.ts` | 只供測試：cmp-01（`compose` profile；`~/shop` 的 Compose 專案：postgres（pg_isready、ready 4 秒）、Docker Hub 上的 redis、以 Dockerfile 建置的 app；`~/api` 的 Go 多階段 Dockerfile 與單一階段的 Dockerfile.single；golang、distroless、python、alpine；`registry.example.com:5000`（ci 只能推 team/*、reader 只能拉；team/web:1.0 與 latest）與不可變的 `ghcr.example`；Token 檔）與兩個練習（一個指令啟動整個應用、推送到私有 Registry） |
+
+`tests/terminal-e1.test.ts` 的 `PROFILES` 期望值加上 `compose`。所有已發布的課的 `terminalContentProblems` 仍是 `[]`（逐一重播比對，E23 前後輸出相同）。
+
+### 13.9 只在課文說明、或不模擬的部分
+
+- **Compose**：TTY 的進度畫面（`[+] Running`、✔ 與秒數）、`--scale` 與一個服務多個容器、profiles、`extends`、`include`、configs、secrets、deploy、`docker compose run`／`rm`／`create`／`kill`／`port`／`cp`／`watch`、`restart` 策略的實際重新啟動（E24）、`--abort-on-container-exit`、日誌的顏色、`logs -f` 的等待、Compose 檔案的合併（多個 `-f`）。
+- **健康檢查**：探測的實際耗時與 timeout（只有連不到的情形視為逾時）、`docker events` 的 health_status 事件、不健康時的自動重新啟動（E24）、從主機經 docker-proxy 的連線不受 `ready` 影響（服務在 ready 之前從主機連得到）。
+- **建置**：真實的編譯器（課程宣告建置工具的結果）、BuildKit 的並行與 `--platform`、`RUN --mount=type=cache`、`COPY --link`、bake。
+- **Registry**：manifest list（多平台的 index）、真實的 Docker Hub 帳號與推送、Token 的有效期與 scope、憑證輔助程式（credential helper）、HTTPS 與 `insecure-registries`、`docker search`、`docker manifest`、cosign 等簽章、Registry 的垃圾回收。課程的 Token 只是課程資料，不是秘密，也不能像真實的 Token。
+
+### 13.10 沒有把握的地方（依記得的格式寫，並在此註明）
+
+- **Compose 的 plain 輸出**：一行 ` 識別  狀態`（開頭一個空白、中間兩個空白）依 compose 的 `plainWriter`（`fmt.Fprintln(prefix, ID, Text, StatusText)`，Text 是空的）推得；Volume 建立時名稱加引號（`Volume "shop_pgdata"`）、移除時不加，build 的 ` Service app  Built`、pull 的 ` db  Pulling`／`Pulled` 與 `Skipped - No image to be pulled`、拉取時不列各層、事件的先後（先全部建立、再依序啟動）都依記憶與 v2.2x 的原始碼印象，沒有在 2.32.4 逐字核對。任務說明舉的例子是 TTY 的 ✔ 列；模擬環境依「非 TTY 的 plain 形式」只印事件本身，不加 ✔。
+- **Compose 的錯誤與警告**：`validating …: services.web additional properties 'imgae' not allowed`（compose-go v2 的 jsonschema 訊息；舊版是 `Additional property imgae is not allowed`）、型別錯誤的 `must be a list` 寫法、`WARN[0000]` 前綴（logrus 在非終端機時可能是 `time="…" level=warning msg="…"`）、`dependency failed to start: …`、`service "x" didn't complete successfully: exit 3`、`no containers to start`、`Attaching to app-1, …` 與日誌前綴的寬度、`docker compose ls` 的狀態寫法、`config` 的欄位順序與 env_file 不列出、`--services` 依名稱排序。
+- **健康檢查**：第一次探測的時間（interval 或 start_interval）、start_interval 的預設 5s 只在 start_period 內使用、探測執行檔找不到時 ExitCode 是 -1、`Health check exceeded timeout` 的寫法、HEALTHCHECK 的 history 寫法（BuildKit 的 `%q`）、沒有健康檢查時 template 錯誤的欄位位置（`:1:2:`，沿用 §10 `docker info --format` 的算法）。
+- **pg_isready**：主機無法解析時真實的 pg_isready 也是 `no response`（2）；啟動中的 `rejecting connections`（1）不模擬（ready 之前一律是 no response）。
+- **Registry**：`docker login` 警告裡的網址（Docker 24 起的 `https://docs.docker.com/go/credential-store/`）、錯誤的帳號密碼與私有 Registry 未登入時的 `unauthorized: authentication required`（registry:2 是 `no basic auth credentials`，各家 Registry 不同）、不可變標籤的訊息（依 Amazon ECR）、`Mounted from`、`An image does not exist locally with the tag:`（較新的 daemon 可能寫 `tag does not exist: …`）、`docker push -q` 只印名稱、manifest 的 `size`（模擬的 JSON 的位元組數，真實的層大小是壓縮後的）、拉取時的層 ID（模擬環境顯示 diff ID 的前 12 個字，真實的是壓縮後 blob 的 digest）、從 Docker Hub 拉下的 Image 推到私有 Registry 時 digest 改變（模擬環境依 Image ID 算，真實的多平台 index 與單一平台 manifest 不同）。

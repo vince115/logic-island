@@ -34,7 +34,7 @@ export interface TerminalZone { zone: string; text: string }
 export type TerminalListen = Listen;
 export type TerminalResponder = Responder;
 /** Which of the stages a machine's profile has. */
-export interface ServerLevels { sockets: boolean; dns: boolean; http: boolean; tls: boolean; nginx: boolean; proxy: boolean; firewall: boolean; tunnels: boolean; edge: boolean; diagnostics: boolean; containers: boolean; images: boolean; storageNet: boolean }
+export interface ServerLevels { sockets: boolean; dns: boolean; http: boolean; tls: boolean; nginx: boolean; proxy: boolean; firewall: boolean; tunnels: boolean; edge: boolean; diagnostics: boolean; containers: boolean; images: boolean; storageNet: boolean; compose?: boolean }
 
 /** E10–E12 (lesson checks). */
 export type ServerCheck =
@@ -290,7 +290,7 @@ export function serverCheckProblems(c: ServerCheck, lv: ServerLevels, known: (ho
         return 'headers and requestHeaders of an http check need an edge machine (engine stage E18) and [name, value] pairs';
       return null;
     case 'cache': return edgeCheckProblems(c, lv, known);
-    case 'container': case 'image': case 'build': case 'volume': case 'network': return dockerCheckProblems(c, lv);
+    case 'container': case 'image': case 'build': case 'volume': case 'network': case 'compose': case 'registry': return dockerCheckProblems(c, lv);
     case 'cert': case 'nginx': return webCheckProblems(c, lv, known);
     // E22: a reach check from a container is the daemon's (docker-lesson.ts).
     case 'reach': return 'container' in c ? dockerCheckProblems(c, lv) : netCheckProblems(c, lv, known);
@@ -313,7 +313,7 @@ export function describeServerCheck(c: ServerCheck): string {
       return `${on(c.host)}GET ${c.url}${sent.length ? `（帶著 ${sent.join('、')}）` : ''} 應該回應${[...parts, ...more].join('、') || '成功'}`;
     }
     case 'cache': return describeEdgeCheck(c);
-    case 'container': case 'image': case 'build': case 'volume': case 'network': return describeDockerCheck(c);
+    case 'container': case 'image': case 'build': case 'volume': case 'network': case 'compose': case 'registry': return describeDockerCheck(c);
     case 'cert': case 'nginx': return describeWebCheck(c);
     case 'reach': return 'container' in c ? describeDockerCheck(c) : describeNetCheck(c);
     case 'firewall': case 'tunnel': return describeNetCheck(c);
@@ -353,6 +353,6 @@ export function serverFailure(c: ServerCheck, end: FsState, hostState: (host: st
     case 'reach': return 'container' in c ? dockerFailure(c, end) : netFailure(c, end);
     case 'firewall': case 'tunnel': return netFailure(c, end);
     case 'cache': return edgeFailure(c, end, resolve, h => h === undefined ? end : end.firewall ? viewOfHost(end, h) : hostState(h));
-    case 'container': case 'image': case 'build': case 'volume': case 'network': return dockerFailure(c, end);
+    case 'container': case 'image': case 'build': case 'volume': case 'network': case 'compose': case 'registry': return dockerFailure(c, end);
   }
 }

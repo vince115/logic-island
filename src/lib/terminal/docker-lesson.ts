@@ -2,9 +2,12 @@ import { LIMITS, parentOf, resolvePath, type FsState } from './fs';
 import { DEFAULT_NOW, parseTime } from './clock';
 import { commOf, tableOf } from './processes';
 import {
-  buildFor, containerEnv, DEFAULT_OS_RELEASE, digestOf, E22_IMAGE_COMMANDS, findContainer, IMAGE_COMMANDS, imageIdOf, imageNodes, parseRef, settleDocker, statusText, syncDocker,
-  type DockerContainer, type DockerImage, type DockerProgram, type DockerState, type HistoryRow, type LogSeed, type PortBinding,
+  buildFor, byDigest, containerEnv, DEFAULT_OS_RELEASE, digestOf, E22_IMAGE_COMMANDS, findContainer, IMAGE_COMMANDS, imageIdOf, imageNodes, parseRef, settleDocker, statusText, syncDocker,
+  type BuildTool, type DockerContainer, type DockerImage, type DockerProgram, type DockerState, type HistoryRow, type LogSeed, type PortBinding,
 } from './docker';
+import { activeTest, parseDuration, startHealth, type HealthConfig } from './health';
+import { digestRefOf, hostOf, manifestOf, type DockerRegistry } from './registry';
+import { composeContainer } from './compose';
 import { rootfsOf, type BuildPackage } from './build';
 import {
   assignAddresses, builtinNetworks, ensureVolumeDir, hostsText, imageVolumes, isVolumeName, mountedNodes, NETWORK_NAME, networkView, nextSubnet, overlaps, parseVolumeFlag, prepareMounts,
@@ -67,7 +70,21 @@ export interface TerminalImage {
   history?: { createdBy: string; size?: number; layer?: boolean }[];
   /** E22: its VOLUME paths (each container gets an anonymous volume there). */
   volumes?: string[];
+  /**
+   * E23: its HEALTHCHECK (test: ["CMD", …], ["CMD-SHELL", "line"] or ["NONE"]; durations like 5s, 1m30s), how many seconds
+   * its service needs after the start before it accepts connections, and more tags of a private registry's image (the
+   * same manifest; the image's name says which registry: registry.example.com:5000/team/api:1.0).
+   */
+  healthcheck?: TerminalHealthcheck;
+  ready?: number;
+  tags?: string[];
 }
+/** E23: a health check as lesson data. */
+export interface TerminalHealthcheck { test: string[]; interval?: string; timeout?: string; retries?: number; startPeriod?: string; startInterval?: string }
+/** E23: a private registry of the lesson (images named with its host are served by it). Tokens must be obviously fake lesson tokens. */
+export interface TerminalRegistry { host: string; users?: { name: string; token: string; push?: boolean; repos?: string[] }[]; immutable?: boolean; public?: boolean }
+/** E23: a build tool a RUN step may use (its exact words), what it needs and the files it writes (size: what each weighs). */
+export interface TerminalBuildTool { command: string[]; needs?: string[]; missing?: { output: string; exit?: number }; writes: { path: string; size: number; mode?: number }[]; output?: string; exit?: number; seconds?: number }
 /** E21: what a program does when a container runs it (matched by its exact words, after an entrypoint script hands over). */
 export interface TerminalProgram {
   command: string[];
@@ -83,6 +100,8 @@ export interface TerminalProgram {
   stopExit?: number;
   /** It answers HTTP on this container port with this responder of the machine. */
   http?: { port: number; responder: string; accessLog?: 'nginx' };
+  /** E23: seconds after the start before its service accepts connections. */
+  ready?: number;
 }
 /** E20: a container that exists at the start. */
 export interface TerminalContainer {
@@ -114,16 +133,19 @@ export interface TerminalContainer {
 export interface TerminalVolume { name: string; created?: string; files?: { path: string; content: string; owner?: string; mode?: number }[] }
 /** E22: a user-defined bridge network (default subnet: the next free 172.18.0.0/16, 172.19.0.0/16…). */
 export interface TerminalNetwork { name: string; subnet?: string; created?: string }
-export interface TerminalDocker { images?: TerminalImage[]; containers?: TerminalContainer[]; /** E21 */ programs?: TerminalProgram[]; /** E22 */ volumes?: TerminalVolume[]; networks?: TerminalNetwork[] }
+export interface TerminalDocker {
+  images?: TerminalImage[]; containers?: TerminalContainer[]; /** E21 */ programs?: TerminalProgram[]; /** E22 */ volumes?: TerminalVolume[]; networks?: TerminalNetwork[];
+  /** E23 */ registries?: TerminalRegistry[]; tools?: TerminalBuildTool[];
+}
 
 export type DockerCheck =
-  /** E20: the container exists (absent: it does not) in this state, from this image, with this port published (HOST:CONTAINER), exit code and environment variable (K=V). */
-  | { kind: 'container'; name: string; absent?: true; state?: 'created' | 'running' | 'exited'; image?: string; port?: string; exitCode?: number; env?: string }
+  /** E20: the container exists (absent: it does not) in this state, from this image, with this port published (HOST:CONTAINER), exit code and environment variable (K=V). E23: and this health. */
+  | { kind: 'container'; name: string; absent?: true; state?: 'created' | 'running' | 'exited'; image?: string; port?: string; exitCode?: number; env?: string; health?: 'starting' | 'healthy' | 'unhealthy' }
   /**
    * E20: the image is local (absent: it is not). E21: its config has this label (K=V), environment variable (K=V), CMD,
    * ENTRYPOINT (exec form, exactly), USER, exposed TCP port and working directory, and this many layers (RootFS).
    */
-  | { kind: 'image'; name: string; absent?: true; label?: string; env?: string; cmd?: string[]; entrypoint?: string[]; user?: string; port?: number; workdir?: string; layers?: number }
+  | { kind: 'image'; name: string; absent?: true; label?: string; env?: string; cmd?: string[]; entrypoint?: string[]; user?: string; port?: number; workdir?: string; layers?: number; /** E23: a repository digest (sha256:…) it has; the name may also be NAME@sha256:… */ digest?: string; /** E23: at most this many bytes */ maxSize?: number }
   /**
    * E21: building the context (with its Dockerfile, or `file`), then again after a change to the file `change` (a path in
    * the context), keeps the steps `cached` CACHED and runs the steps `rebuilt` again (each names a step by its beginning,
@@ -135,8 +157,12 @@ export type DockerCheck =
   /** E22: the network exists (absent: it does not), with this container attached, of this driver and subnet. */
   | { kind: 'network'; name: string; absent?: true; container?: string; driver?: 'bridge'; subnet?: string }
   /** E22: from the running container, a connection to `to` (a name its DNS should know, or an address) on port: succeeded, refused, timeout, or the name does not resolve. */
-  | { kind: 'reach'; container: string; to: string; port: number; result: 'succeeded' | 'refused' | 'timeout' | 'unresolved' };
-export interface DockerLevels { containers: boolean; images?: boolean; storageNet?: boolean }
+  | { kind: 'reach'; container: string; to: string; port: number; result: 'succeeded' | 'refused' | 'timeout' | 'unresolved' }
+  /** E23: the Compose project's service has a container (absent: none) in this state, with this health, from this image. */
+  | { kind: 'compose'; project: string; service: string; absent?: true; state?: 'created' | 'running' | 'exited'; health?: 'starting' | 'healthy' | 'unhealthy'; image?: string }
+  /** E23: the registry's repository has the tag (absent: it does not), pointing to this digest, or to the content of this local image. */
+  | { kind: 'registry'; registry: string; repository: string; tag: string; absent?: true; digest?: string; image?: string };
+export interface DockerLevels { containers: boolean; images?: boolean; storageNet?: boolean; compose?: boolean }
 
 const DOCKER_GID = 988;
 const DOCKERD = '/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock';
@@ -178,8 +204,15 @@ export function expandDocker(m: TerminalMachine, lv: DockerLevels, add: { file(f
   if (!procs.some(p => commOf(p.command) === 'dockerd')) procs.push({ pid: pidFrom(900), user: 'root', command: DOCKERD, stat: 'Ssl', rss: 81920, vsz: 2412544, unit: 'docker.service', hup: 'reload' });
 }
 
+/** E23: a lesson health check as the daemon's (durations in seconds; 0 is not set). */
+export function healthOf(h: TerminalHealthcheck): HealthConfig {
+  const d = (x: string | undefined) => x === undefined ? 0 : parseDuration(x) ?? 0;
+  return { test: [...h.test], interval: d(h.interval), timeout: d(h.timeout), retries: h.retries ?? 0, startPeriod: d(h.startPeriod), startInterval: d(h.startInterval) };
+}
+/** E23: the executables an image may list on the compose profile: E22's, pg_isready, and the lesson's build tools. */
+const composeCommands = (m: TerminalMachine) => [...E22_IMAGE_COMMANDS, 'pg_isready', ...(m.docker?.tools ?? []).map(t => (t.command?.[0] ?? '').slice((t.command?.[0] ?? '').lastIndexOf('/') + 1)).filter(Boolean)];
 /** A lesson image as the daemon's image. */
-function imageOf(i: TerminalImage, m: TerminalMachine, e22 = false): DockerImage | undefined {
+function imageOf(i: TerminalImage, m: TerminalMachine, e22 = false, e23 = false): DockerImage | undefined {
   const ref = parseRef(i.name), created = parseTime(i.created);
   if (!ref || created === undefined) return undefined;
   const responder = i.http ? (m.responders ?? []).find(r => r.id === i.http!.responder) : undefined;
@@ -195,6 +228,8 @@ function imageOf(i: TerminalImage, m: TerminalMachine, e22 = false): DockerImage
     ...i.history ? { history: i.history.map((h): HistoryRow => ({ created, createdBy: h.createdBy, size: h.size ?? 0, empty: !isLayer(h), comment: 'buildkit.dockerfile.v0' })) } : {},
     // E22: the image's VOLUME paths.
     ...e22 && i.volumes?.length ? { volumes: [...i.volumes] } : {},
+    // E23: HEALTHCHECK and how long its service takes to start.
+    ...e23 && i.healthcheck ? { healthcheck: healthOf(i.healthcheck) } : {}, ...e23 && i.ready ? { ready: i.ready } : {},
   };
 }
 const isLayer = (h: { size?: number; layer?: boolean }) => h.layer ?? (h.size ?? 0) > 0;
@@ -205,6 +240,7 @@ function programOf(p: TerminalProgram, m: TerminalMachine): DockerProgram {
     command: [...p.command], needs: [...p.needs ?? []], ...p.missing ? { missing: { output: p.missing.output, exit: p.missing.exit ?? 1 } } : {}, service: !!p.service, logs: [...p.logs ?? []],
     ...p.output !== undefined ? { output: p.output } : {}, exit: p.exit ?? 0, ...p.stopExit !== undefined ? { stopExit: p.stopExit } : {},
     ...p.http && responder ? { http: { port: p.http.port, responder: { ...responder, routes: responder.routes.map(r => ({ ...r })) }, ...p.http.accessLog ? { accessLog: p.http.accessLog } : {} } } : {},
+    ...p.ready ? { ready: p.ready } : {},
   };
 }
 const portOf = (text: string): PortBinding | undefined => {
@@ -216,7 +252,11 @@ const seeds = (list: readonly LogSeed[], t: number) => list.map(s => typeof s ==
 /** E20: the daemon's state of a machine (on the state machineState built), with docker-proxy for the running containers' ports. */
 export function dockerState(m: TerminalMachine, state: FsState, lv: DockerLevels): FsState {
   if (!lv.containers || m.docker === undefined) return state;
-  const images = (m.docker.images ?? []).map(i => imageOf(i, m, !!lv.storageNet)).filter((i): i is DockerImage => !!i);
+  // E23: an image named with a private registry's host is that registry's (local only when pulled).
+  const hosts = new Set(lv.compose ? (m.docker.registries ?? []).map(r => r.host) : []);
+  const inRegistry = (i: TerminalImage) => { const r = parseRef(i.name); const h = r ? hostOf(r.repo) : undefined; return !!h && hosts.has(h); };
+  const all = (m.docker.images ?? []).map(i => ({ t: i, img: imageOf(i, m, !!lv.storageNet, !!lv.compose) })).filter((x): x is { t: TerminalImage; img: DockerImage } => !!x.img);
+  const images = all.map(x => inRegistry(x.t) ? { ...x.img, pullable: false } : x.img).filter(i => i.pullable || i.local);
   const host = m.host ?? 'logic-island';
   const containers: DockerContainer[] = [];
   let ip = 2;
@@ -246,9 +286,41 @@ export function dockerState(m: TerminalMachine, state: FsState, lv: DockerLevels
   }
   const daemonPid = tableOf(state).find(p => p.command === DOCKERD)?.pid;
   const programs = lv.images ? (m.docker.programs ?? []).map(p => programOf(p, m)) : [];
-  const docker: DockerState = { images, containers, seq: containers.length, ...daemonPid !== undefined ? { daemonPid } : {}, ...programs.length ? { programs } : {}, ...lv.images ? { hostProcesses: true as const } : {} };
+  let docker: DockerState = { images, containers, seq: containers.length, ...daemonPid !== undefined ? { daemonPid } : {}, ...programs.length ? { programs } : {}, ...lv.images ? { hostProcesses: true as const } : {} };
+  if (lv.compose) docker = composeState(m, docker, all.filter(x => inRegistry(x.t)));
   if (lv.storageNet) return syncDocker(storageNetState(m, state, docker));
   return syncDocker({ ...state, docker });
+}
+
+/**
+ * E23: the compose profile's daemon: health checks on, the lesson's registries (each image named with a registry's host is
+ * a manifest there under its tag and its other tags; a pulled one is also local, with that repository digest) and build tools.
+ */
+function composeState(m: TerminalMachine, d0: DockerState, held: { t: TerminalImage; img: DockerImage }[]): DockerState {
+  const repoDigests: Record<string, string[]> = {};
+  const registries: DockerRegistry[] = (m.docker!.registries ?? []).map(r => {
+    const reg: { tags: Record<string, Record<string, string>>; digests: Record<string, string[]>; manifests: DockerRegistry['manifests']; blobs: Record<string, string[]> } = { tags: {}, digests: {}, manifests: {}, blobs: {} };
+    const manifests: Record<string, DockerRegistry['manifests'][string]> = {};
+    for (const { t, img } of held) {
+      if (hostOf(img.repo) !== r.host) continue;
+      const path = img.repo.slice(r.host.length + 1), mf = manifestOf(img);
+      for (const tag of [img.tag, ...t.tags ?? []]) (reg.tags[path] ??= {})[tag] = mf.digest;
+      reg.digests[path] = [...new Set([...reg.digests[path] ?? [], mf.digest])];
+      reg.blobs[path] = [...new Set([...reg.blobs[path] ?? [], ...mf.layers.map(l => l.diffId)])];
+      manifests[mf.digest] = { digest: mf.digest, size: mf.size, image: { ...img, repo: '', tag: '', local: false, pullable: false }, layers: mf.layers };
+      if (img.local) repoDigests[img.id] = [...new Set([...repoDigests[img.id] ?? [], `${img.repo}@sha256:${mf.digest}`])];
+    }
+    return { host: r.host, users: (r.users ?? []).map(u => ({ name: u.name, token: u.token, push: u.push ?? true, ...u.repos ? { repos: [...u.repos] } : {} })), immutable: !!r.immutable, public: !!r.public, ...reg, manifests };
+  });
+  const tools: BuildTool[] = (m.docker!.tools ?? []).map(t => ({ command: [...t.command], needs: [...t.needs ?? []], ...t.missing ? { missing: { output: t.missing.output, exit: t.missing.exit ?? 1 } } : {}, writes: t.writes.map(w => ({ ...w })),
+    ...t.output !== undefined ? { output: t.output } : {}, exit: t.exit ?? 0, ...t.seconds !== undefined ? { seconds: t.seconds } : {} }));
+  // A container running at the start has its image's health check, started then (its probes run from that time).
+  const containers = d0.containers.map(c => {
+    const img = d0.images.find(i => i.id === c.image), hc = img?.healthcheck;
+    if (!img || c.custom) return c;
+    return { ...c, ...hc && activeTest(hc) ? { healthcheck: hc, ...c.status === 'running' ? { health: startHealth(hc, c.started ?? 0) } : {} } : {}, ...c.status === 'running' && img.ready ? { readyAt: (c.started ?? 0) + img.ready } : {} };
+  });
+  return { ...d0, containers, compose: true, ...registries.length ? { registries } : {}, ...Object.keys(repoDigests).length ? { repoDigests } : {}, ...tools.length ? { tools } : {} };
 }
 
 /**
@@ -295,6 +367,17 @@ function storageNetState(m: TerminalMachine, state: FsState, d0: DockerState): F
   return { ...host, docker: d };
 }
 
+/** E23: a lesson token: obviously fake (it says lesson, fake, example or demo) and not shaped like a real provider's token. */
+const FAKE_TOKEN = (t: unknown) => typeof t === 'string' && /^[A-Za-z0-9._-]{8,80}$/.test(t) && /lesson|fake|example|demo/i.test(t)
+  && !/^(ghp_|gho_|ghu_|ghs_|ghr_|github_pat_|glpat-|dckr_pat_|xox[abprs]-|AKIA|ASIA|sk-|AIza|ya29\.)/.test(t);
+/** E23: why a lesson health check is not one, or null. */
+function healthProblem(h: TerminalHealthcheck): string | null {
+  if (!h || !Array.isArray(h.test) || !h.test.length || h.test.length > 20 || h.test.some(w => typeof w !== 'string' || w.includes('\n')) || !['CMD', 'CMD-SHELL', 'NONE'].includes(h.test[0]) || (h.test[0] === 'CMD-SHELL' && h.test.length !== 2) || (h.test[0] === 'CMD' && h.test.length < 2))
+    return 'healthcheck.test is ["CMD", executable, …], ["CMD-SHELL", "line"] or ["NONE"]';
+  for (const k of ['interval', 'timeout', 'startPeriod', 'startInterval'] as const) if (h[k] !== undefined && (typeof h[k] !== 'string' || parseDuration(h[k]!) === null)) return `healthcheck.${k} is a duration such as 5s or 1m30s`;
+  if (h.retries !== undefined && !whole(h.retries, 0, 100)) return 'healthcheck.retries is 0..100';
+  return null;
+}
 /** E20: the problems of a machine's Docker data. */
 export function dockerProblems(m: TerminalMachine, lv: DockerLevels): string[] {
   const problems: string[] = [], fail = (what: string) => problems.push(what);
@@ -315,7 +398,8 @@ export function dockerProblems(m: TerminalMachine, lv: DockerLevels): string[] {
     const t = parseTime(i.created);
     if (t === undefined || t > now) fail(`${at}: created must be a time YYYY-MM-DD HH:MM:SS not after now`);
     const argv = [...i.entrypoint ?? [], ...i.cmd ?? []];
-    if (!Array.isArray(i.cmd) || !argv.length || argv.length > 20 || argv.some(a => !line(200)(a))) fail(`${at}: cmd (with entrypoint) needs 1..20 one-line words`);
+    // E23: an image without CMD and ENTRYPOINT (FROM scratch, distroless) is allowed on the compose profile.
+    if (!Array.isArray(i.cmd) || (!argv.length && !lv.compose) || argv.length > 20 || argv.some(a => !line(200)(a))) fail(`${at}: cmd (with entrypoint) needs 1..20 one-line words`);
     if ((i.env ?? []).some(e => !ENV.test(e) || e.length > 300)) fail(`${at}: each env entry is NAME=value`);
     if (i.workdir !== undefined && !normalized(i.workdir)) fail(`${at}: workdir must be an absolute, normalized path`);
     if ((i.expose ?? []).some(p => !whole(p, 1, 65535))) fail(`${at}: exposed ports are 1..65535`);
@@ -325,7 +409,7 @@ export function dockerProblems(m: TerminalMachine, lv: DockerLevels): string[] {
     if (i.output !== undefined && (typeof i.output !== 'string' || i.output.length > LIMITS.fileLength)) fail(`${at}: output at most ${LIMITS.fileLength} characters`);
     if (i.service && i.output !== undefined) fail(`${at}: a service keeps running; output is for an image that prints and exits`);
     if ((i.exit !== undefined && !whole(i.exit, 0, 255)) || (i.stopExit !== undefined && !whole(i.stopExit, 0, 255))) fail(`${at}: exit and stopExit are 0..255`);
-    const allowed = lv.storageNet ? E22_IMAGE_COMMANDS : IMAGE_COMMANDS;
+    const allowed = lv.compose ? composeCommands(m) : lv.storageNet ? E22_IMAGE_COMMANDS : IMAGE_COMMANDS;
     if (i.commands !== undefined && (!Array.isArray(i.commands) || i.commands.some(c => !allowed.includes(c)))) fail(`${at}: commands are among ${allowed.join(' ')}`);
     // E22: VOLUME paths.
     if (i.volumes !== undefined) {
@@ -336,6 +420,16 @@ export function dockerProblems(m: TerminalMachine, lv: DockerLevels): string[] {
     if (i.osRelease !== undefined && (typeof i.osRelease !== 'string' || i.osRelease.length > 1000)) fail(`${at}: osRelease at most 1000 characters`);
     if (i.layers !== undefined && !whole(i.layers, 1, 20)) fail(`${at}: layers are 1..20`);
     if (i.registry === false && !i.pulled) fail(`${at}: an image Docker Hub does not have must be pulled (local)`);
+    // E23: HEALTHCHECK, ready, and the other tags of a private registry's image.
+    if (i.healthcheck !== undefined || i.ready !== undefined || i.tags !== undefined) {
+      if (!lv.compose) fail(`${at}: healthcheck, ready and tags need the compose profile (engine stage E23)`);
+      else {
+        if (i.healthcheck !== undefined) { const p = healthProblem(i.healthcheck); if (p) fail(`${at}: ${p}`); }
+        if (i.ready !== undefined && !whole(i.ready, 0, 3600)) fail(`${at}: ready is 0..3600 seconds`);
+        const host = ref ? hostOf(ref.repo) : undefined;
+        if (i.tags !== undefined && (!host || !(d.registries ?? []).some(r => r.host === host) || !Array.isArray(i.tags) || i.tags.some(t => !/^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$/.test(t) || t === ref!.tag))) fail(`${at}: tags are other tags of an image of a registry the lesson declares`);
+      }
+    }
     // E21: the config's USER and labels, package tables and history.
     if (i.user !== undefined || i.labels !== undefined || i.packages !== undefined || i.history !== undefined) {
       if (!lv.images) { fail(`${at}: user, labels, packages and history need the images profile (engine stage E21)`); continue; }
@@ -374,6 +468,36 @@ export function dockerProblems(m: TerminalMachine, lv: DockerLevels): string[] {
       if (p.http !== undefined && (!whole(p.http.port, 1, 65535) || !responders.has(p.http.responder) || (p.http.accessLog !== undefined && p.http.accessLog !== 'nginx'))) fail(`${at}: http needs a port 1..65535, a responder of the machine and accessLog nginx or nothing`);
     }
   }
+  // E23: the private registries (fake lesson tokens only) and the build tools.
+  if (d.registries !== undefined || d.tools !== undefined) {
+    if (!lv.compose) fail('registries and tools need the compose profile (engine stage E23)');
+    else {
+      const hosts = new Set<string>();
+      if (!Array.isArray(d.registries ?? []) || (d.registries ?? []).length > 4) fail('at most 4 registries');
+      for (const r of d.registries ?? []) {
+        const at = `registry ${r.host}`;
+        if (typeof r.host !== 'string' || !/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*(?::\d{1,5})?$/.test(r.host) || !(r.host.includes('.') || r.host.includes(':') || r.host.startsWith('localhost')) || /^(docker\.io|index\.docker\.io|registry-1\.docker\.io)$/.test(r.host) || hosts.has(r.host)) fail(`${at}: a host name with a dot or a port (not Docker Hub), listed once`);
+        hosts.add(r.host);
+        const users = r.users ?? [];
+        if (!Array.isArray(users) || users.length > 8) fail(`${at}: at most 8 users`);
+        for (const u of users) {
+          if (!/^[a-z0-9][a-z0-9._-]{0,63}$/.test(u.name ?? '')) fail(`${at}: user ${u.name}: a name of [a-z0-9._-]`);
+          if (!FAKE_TOKEN(u.token)) fail(`${at}: user ${u.name}: the token must be an obviously fake lesson token (8..80 of [A-Za-z0-9._-], containing lesson, fake, example or demo, and not shaped like a real provider's token)`);
+          if ((u.repos ?? []).some(x => !/^[a-z0-9]+(?:[._-][a-z0-9]+)*(?:\/[a-z0-9]+(?:[._-][a-z0-9]+)*)*(?:\/\*)?$/.test(x))) fail(`${at}: user ${u.name}: repos are repository paths (team/api) or namespaces (team/*)`);
+        }
+      }
+      for (const t of d.tools ?? []) {
+        const at = `tool ${(Array.isArray(t.command) && t.command.join(' ')) || '?'}`;
+        if (!Array.isArray(t.command) || !t.command.length || t.command.length > 20 || t.command.some(a => !line(200)(a))) fail(`${at}: command needs 1..20 one-line words`);
+        if (!Array.isArray(t.writes) || t.writes.length > 8 || t.writes.some(w => typeof w.path !== 'string' || !w.path || w.path.includes('..') || !whole(w.size, 0, 2 ** 40) || (w.mode !== undefined && !whole(w.mode, 0, 0o777)))) fail(`${at}: writes are at most 8 files (a path, a size 0..2^40, a mode)`);
+        if ((t.needs ?? []).some(n => typeof n !== 'string' || !n || n.includes('..'))) fail(`${at}: needs are paths`);
+        if ((t.exit !== undefined && !whole(t.exit, 0, 255)) || (t.missing?.exit !== undefined && !whole(t.missing.exit, 0, 255)) || (t.seconds !== undefined && !(typeof t.seconds === 'number' && t.seconds >= 0 && t.seconds <= 600))) fail(`${at}: exit codes are 0..255 and seconds 0..600`);
+        if ((t.output !== undefined && typeof t.output !== 'string') || (t.output ?? '').length > LIMITS.fileLength) fail(`${at}: output at most ${LIMITS.fileLength} characters`);
+      }
+    }
+  }
+  if ((d.programs ?? []).some(p => p.ready !== undefined) && !lv.compose) fail('a program\'s ready needs the compose profile (engine stage E23)');
+  else if ((d.programs ?? []).some(p => p.ready !== undefined && !whole(p.ready, 0, 3600))) fail('a program\'s ready is 0..3600 seconds');
   // E22: volumes and networks of the daemon, and each container's mounts, network and user.
   const e22 = [d.volumes, d.networks, ...containers.flatMap(c => [c.volumes, c.network, c.aliases, c.user])].some(x => x !== undefined);
   if (e22 && !lv.storageNet) fail('volumes, networks and the containers\' volumes, network, aliases and user need the storage-net profile (engine stage E22)');
@@ -454,6 +578,20 @@ export function dockerCheckProblems(c: DockerCheck, lv: DockerLevels): string | 
       return 'a reach check from a container needs a container name, a name or address, a port 1..65535 and a result succeeded, refused, timeout or unresolved';
     return null;
   }
+  // E23: compose (a project's service) and registry (a tag of a registry's repository).
+  if (c.kind === 'compose' || c.kind === 'registry') {
+    if (!lv.compose) return `a ${c.kind} check needs a compose machine (engine stage E23)`;
+    if (c.kind === 'compose') {
+      if (!/^[a-z0-9][a-z0-9_-]*$/.test(c.project ?? '') || !/^[a-zA-Z0-9._-]+$/.test(c.service ?? '') || (c.state !== undefined && !['created', 'running', 'exited'].includes(c.state))
+        || (c.health !== undefined && !['starting', 'healthy', 'unhealthy'].includes(c.health)) || (c.image !== undefined && !parseRef(c.image)) || (c.absent && (c.state ?? c.health ?? c.image) !== undefined))
+        return 'a compose check needs a project name, a service, a state among created running exited, a health among starting healthy unhealthy, an image reference, and nothing else with absent';
+      return null;
+    }
+    if (typeof c.registry !== 'string' || !hostOf(`${c.registry}/x`) || !/^[a-z0-9]+(?:[._-][a-z0-9]+)*(?:\/[a-z0-9]+(?:[._-][a-z0-9]+)*)*$/.test(c.repository ?? '') || !/^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$/.test(c.tag ?? '')
+      || (c.digest !== undefined && !/^sha256:[0-9a-f]{64}$/.test(c.digest)) || (c.image !== undefined && !parseRef(c.image)) || (c.absent && (c.digest ?? c.image) !== undefined))
+      return 'a registry check needs a registry host, a repository path, a tag, a digest sha256:…, a local image reference, and nothing else with absent';
+    return null;
+  }
   if (c.kind === 'build') {
     if (!lv.images) return 'a build check needs an images machine (engine stage E21)';
     if (!normalized(c.context) || (c.file !== undefined && !normalized(c.file)) || typeof c.change !== 'string' || !c.change || c.change.startsWith('/') || c.change.includes('..')
@@ -462,7 +600,10 @@ export function dockerCheckProblems(c: DockerCheck, lv: DockerLevels): string | 
     return null;
   }
   if (c.kind === 'image') {
-    if (!parseRef(c.name ?? '')) return 'an image check needs an image reference (REPOSITORY[:TAG])';
+    if (!parseRef(c.name ?? '') && !(lv.compose && digestRefOf(c.name ?? ''))) return 'an image check needs an image reference (REPOSITORY[:TAG])';
+    // E23: a repository digest and a size limit.
+    if ((c.digest !== undefined || c.maxSize !== undefined || (c.name ?? '').includes('@')) && !lv.compose) return 'digest, maxSize and NAME@sha256:… of an image check need a compose machine (engine stage E23)';
+    if ((c.digest !== undefined && !/^sha256:[0-9a-f]{64}$/.test(c.digest)) || (c.maxSize !== undefined && !whole(c.maxSize, 0, 2 ** 40)) || (c.absent && (c.digest ?? c.maxSize) !== undefined)) return 'an image check needs a digest sha256:…, a maxSize in bytes, and nothing else with absent';
     const more = [c.label, c.env, c.cmd, c.entrypoint, c.user, c.port, c.workdir, c.layers].some(x => x !== undefined);
     if (more && !lv.images) return 'label, env, cmd, entrypoint, user, port, workdir and layers of an image check need an images machine (engine stage E21)';
     if (more && (c.absent || (c.label !== undefined && !/^[^=\s]+=[^\n]*$/.test(c.label)) || (c.env !== undefined && !ENV.test(c.env)) || (c.cmd !== undefined && (!Array.isArray(c.cmd) || c.cmd.some(w => typeof w !== 'string')))
@@ -471,13 +612,26 @@ export function dockerCheckProblems(c: DockerCheck, lv: DockerLevels): string | 
       return 'an image check needs a label K=V, an env NAME=value, cmd and entrypoint as lists of words, a port 1..65535, an absolute workdir, a layer count, and nothing else with absent';
     return null;
   }
-  if (!NAME.test(c.name ?? '') || (c.state !== undefined && !['created', 'running', 'exited'].includes(c.state)) || (c.image !== undefined && !parseRef(c.image))
+  if (c.health !== undefined && !lv.compose) return 'health of a container check needs a compose machine (engine stage E23)';
+  if (!NAME.test(c.name ?? '') || (c.state !== undefined && !['created', 'running', 'exited'].includes(c.state)) || (c.image !== undefined && !parseRef(c.image)) || (c.health !== undefined && !['starting', 'healthy', 'unhealthy'].includes(c.health))
     || (c.port !== undefined && !PORT.test(c.port)) || (c.exitCode !== undefined && !whole(c.exitCode, 0, 255)) || (c.env !== undefined && !ENV.test(c.env))
-    || (c.absent && (c.state ?? c.image ?? c.port ?? c.exitCode ?? c.env) !== undefined))
+    || (c.absent && (c.state ?? c.image ?? c.port ?? c.exitCode ?? c.env ?? c.health) !== undefined))
     return 'a container check needs a container name, a state among created running exited, an image reference, a port HOST:CONTAINER, an exit code 0..255, an env NAME=value, and nothing else with absent';
   return null;
 }
+const HEALTH_WORDS = { starting: 'health: starting', healthy: 'healthy', unhealthy: 'unhealthy' } as const;
 export function describeDockerCheck(c: DockerCheck): string {
+  if (c.kind === 'compose') {
+    if (c.absent) return `Compose 專案 ${c.project} 的服務 ${c.service} 應該沒有容器`;
+    const parts = [c.state ? `狀態是 ${c.state}` : '', c.health ? `健康狀態是 ${HEALTH_WORDS[c.health]}` : '', c.image ? `由 ${c.image} 建立` : ''].filter(Boolean);
+    return `Compose 專案 ${c.project} 的服務 ${c.service} 應該有容器${parts.length ? `（${parts.join('，')}）` : ''}`;
+  }
+  if (c.kind === 'registry') {
+    const at = `${c.registry}/${c.repository}:${c.tag}`;
+    if (c.absent) return `Registry 上應該沒有 ${at}`;
+    const parts = [c.digest ? `digest 是 ${c.digest}` : '', c.image ? `內容和本機的 ${c.image} 相同` : ''].filter(Boolean);
+    return `Registry 上應該有 ${at}${parts.length ? `（${parts.join('，')}）` : ''}`;
+  }
   if (c.kind === 'volume') return c.absent ? `應該沒有名為 ${c.name} 的 Volume` : `應該有名為 ${c.name} 的 Volume${c.file ? `，裡面有 ${c.file}${c.content !== undefined ? `（內容包含「${c.content}」）` : ''}` : ''}`;
   if (c.kind === 'network') {
     if (c.absent) return `應該沒有名為 ${c.name} 的網路`;
@@ -492,11 +646,12 @@ export function describeDockerCheck(c: DockerCheck): string {
   if (c.kind === 'image') {
     if (c.absent) return `本機應該沒有 Image ${c.name}`;
     const parts = [c.label ? `標籤 ${c.label}` : '', c.env ? `環境變數 ${c.env}` : '', c.cmd ? `CMD ${JSON.stringify(c.cmd)}` : '', c.entrypoint ? `ENTRYPOINT ${JSON.stringify(c.entrypoint)}` : '',
-      c.user ? `USER ${c.user}` : '', c.port !== undefined ? `EXPOSE ${c.port}` : '', c.workdir ? `WORKDIR ${c.workdir}` : '', c.layers !== undefined ? `${c.layers} 層` : ''].filter(Boolean);
+      c.user ? `USER ${c.user}` : '', c.port !== undefined ? `EXPOSE ${c.port}` : '', c.workdir ? `WORKDIR ${c.workdir}` : '', c.layers !== undefined ? `${c.layers} 層` : '',
+      c.digest ? `repository digest 是 ${c.digest}` : '', c.maxSize !== undefined ? `不超過 ${c.maxSize} 位元組` : ''].filter(Boolean);
     return `本機應該有 Image ${c.name}${parts.length ? `（${parts.join('，')}）` : ''}`;
   }
   if (c.absent) return `應該沒有名為 ${c.name} 的容器`;
-  const parts = [c.state ? `狀態是 ${c.state}` : '', c.image ? `由 ${c.image} 建立` : '', c.port ? `公開連接埠 ${c.port}` : '', c.exitCode !== undefined ? `結束碼是 ${c.exitCode}` : '', c.env ? `環境變數有 ${c.env}` : ''].filter(Boolean);
+  const parts = [c.state ? `狀態是 ${c.state}` : '', c.image ? `由 ${c.image} 建立` : '', c.port ? `公開連接埠 ${c.port}` : '', c.exitCode !== undefined ? `結束碼是 ${c.exitCode}` : '', c.env ? `環境變數有 ${c.env}` : '', c.health ? `健康狀態是 ${HEALTH_WORDS[c.health]}` : ''].filter(Boolean);
   return `應該有名為 ${c.name} 的容器${parts.length ? `（${parts.join('，')}）` : ''}`;
 }
 /** E21: the build check: build the context, change the file, build again, and read which steps were CACHED. */
@@ -563,12 +718,14 @@ function storageNetFailure(c: Extract<DockerCheck, { kind: 'volume' | 'network' 
 export function dockerFailure(c: DockerCheck, end0: FsState): string | null {
   const end = settleDocker(end0), d = end.docker;
   if (!d) return '這台機器沒有安裝 Docker';
-  const problem = dockerCheckProblems(c, { containers: true, images: true, storageNet: true });
+  const problem = dockerCheckProblems(c, { containers: true, images: true, storageNet: true, compose: true });
   if (problem) return problem;
   if (c.kind === 'build') return buildFailure(c, end);
   if (c.kind === 'volume' || c.kind === 'network' || c.kind === 'reach') return storageNetFailure(c, end);
+  if (c.kind === 'compose' || c.kind === 'registry') return composeFailure(c, d);
   if (c.kind === 'image') {
-    const ref = parseRef(c.name)!, img = d.images.find(i => i.local && !i.dangling && i.repo === ref.repo && i.tag === ref.tag);
+    const ref = parseRef(c.name), dr = ref ? undefined : digestRefOf(c.name);
+    const img = dr ? byDigest(d, dr) : d.images.find(i => i.local && !i.dangling && i.repo === ref!.repo && i.tag === ref!.tag);
     if (c.absent) return img ? `仍有 Image ${c.name}` : null;
     if (!img) return `本機沒有 ${c.name}（先 docker pull 或 docker build -t ${c.name}）`;
     // E21: the config and the layers.
@@ -583,6 +740,12 @@ export function dockerFailure(c: DockerCheck, end0: FsState): string | null {
     if (c.port !== undefined && !img.expose.includes(c.port)) return img.expose.length ? `它 EXPOSE 的連接埠是 ${img.expose.join('、')}` : '它沒有 EXPOSE 任何連接埠';
     if (c.workdir && img.workdir !== c.workdir) return `它的 WORKDIR 是 ${img.workdir}`;
     if (c.layers !== undefined && rootfsOf(img).length !== c.layers) return `它有 ${rootfsOf(img).length} 層`;
+    // E23: its repository digests (Docker Hub's and the registries') and its size.
+    if (c.digest) {
+      const all = [...img.pullable && !img.built ? [`${img.repo}@sha256:${img.digest}`] : [], ...d.repoDigests?.[img.id] ?? []];
+      if (!all.some(x => x.endsWith(`@${c.digest}`))) return all.length ? `它的 repository digest 是 ${all.map(x => x.slice(x.indexOf('@') + 1)).join('、')}` : '它沒有 repository digest（沒有從 Registry 拉取或推送過）';
+    }
+    if (c.maxSize !== undefined && img.size > c.maxSize) return `它有 ${img.size} 位元組`;
     return null;
   }
   const x = d.containers.find(k => k.name === c.name) ?? findContainer(d, c.name);
@@ -599,5 +762,39 @@ export function dockerFailure(c: DockerCheck, end0: FsState): string | null {
   }
   if (c.exitCode !== undefined && (x.status !== 'exited' || x.exitCode !== c.exitCode)) return x.status === 'exited' ? `它的結束碼是 ${x.exitCode}` : '它還沒有結束';
   if (c.env && !containerEnv(x, d.images.find(i => i.id === x.image)).includes(c.env)) return `它沒有環境變數 ${c.env}`;
+  if (c.health) {
+    if (!x.healthcheck) return '它沒有健康檢查';
+    if (x.status !== 'running') return '它沒有在執行';
+    if (x.health?.status !== c.health) return `它的健康狀態是 ${HEALTH_WORDS[x.health?.status ?? 'starting']}`;
+  }
+  return null;
+}
+/** E23: compose and registry, on the daemon after the commands. */
+function composeFailure(c: Extract<DockerCheck, { kind: 'compose' | 'registry' }>, d: DockerState): string | null {
+  if (!d.compose) return '這台機器的 profile 沒有 Compose 與 Registry（引擎階段 E23）';
+  if (c.kind === 'compose') {
+    const x = composeContainer(d, c.project, c.service);
+    if (c.absent) return x ? `仍有容器 ${x.name}` : null;
+    if (!x) return `專案 ${c.project} 沒有服務 ${c.service} 的容器`;
+    if (c.state && x.status !== c.state) return `${x.name} 的狀態是 ${x.status}`;
+    if (c.health) {
+      if (!x.healthcheck) return `${x.name} 沒有健康檢查`;
+      if (x.status !== 'running') return `${x.name} 沒有在執行`;
+      if (x.health?.status !== c.health) return `${x.name} 的健康狀態是 ${HEALTH_WORDS[x.health?.status ?? 'starting']}`;
+    }
+    if (c.image) { const want = parseRef(c.image)!, img = d.images.find(i => i.local && !i.dangling && i.repo === want.repo && i.tag === want.tag); if (!img || img.id !== x.image) return `${x.name} 是由 ${x.ref} 建立的`; }
+    return null;
+  }
+  const reg = (d.registries ?? []).find(r => r.host === c.registry);
+  if (!reg) return `課程沒有 ${c.registry} 這個 Registry`;
+  const digest = reg.tags[c.repository]?.[c.tag];
+  if (c.absent) return digest ? `${c.registry}/${c.repository}:${c.tag} 仍在` : null;
+  if (!digest) return `${c.registry}/${c.repository} 沒有標籤 ${c.tag}`;
+  if (c.digest && `sha256:${digest}` !== c.digest) return `它指向 sha256:${digest}`;
+  if (c.image) {
+    const want = parseRef(c.image)!, img = d.images.find(i => i.local && !i.dangling && i.repo === want.repo && i.tag === want.tag);
+    if (!img) return `本機沒有 ${c.image}`;
+    if (manifestOf(img).digest !== digest) return `它指向 sha256:${digest}，不是本機 ${c.image} 的內容（sha256:${manifestOf(img).digest}）`;
+  }
   return null;
 }
