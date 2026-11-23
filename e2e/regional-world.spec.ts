@@ -37,8 +37,8 @@ test.describe('regional world: flag on', () => {
     const guide = page.getByRole('navigation', { name: '世界導覽' });
     await expect(guide.getByRole('link', { name: /程式與資訊群島.*8 座學科島 · 6 座已開放 · 2 座規劃中/ })).toHaveAttribute('href', '/world/cs');
     await expect(guide.getByRole('link', { name: /AI 人工智慧群島.*7 座學科島 · 3 座已開放 · 4 座規劃中/ })).toHaveAttribute('href', '/world/ai');
-    // LNX-1, SRV-1 and DKR-1 opened three of the systems region's six islands.
-    await expect(guide.getByRole('link', { name: /系統與雲端工程群島.*6 座學科島 · 3 座已開放 · 3 座規劃中/ })).toHaveAttribute('href', '/world/sys');
+    // LNX-1, SRV-1, DKR-1 and CICD-1 opened four of the systems region's six islands.
+    await expect(guide.getByRole('link', { name: /系統與雲端工程群島.*6 座學科島 · 4 座已開放 · 2 座規劃中/ })).toHaveAttribute('href', '/world/sys');
     await expect(guide).toContainText('規劃中中央挑戰島');
     await expect(page.locator('a[href*="challenge"]')).toHaveCount(0);
     if (phone()) await page.getByRole('button', { name: '進入程式與資訊群島', exact: true }).tap(); else await page.getByRole('button', { name: '進入程式與資訊群島', exact: true }).click();
@@ -106,6 +106,14 @@ test.describe('regional world: flag on', () => {
     await expect(page).toHaveURL(/\/world\/cs\?stress=glb&island=databases$/);
     await page.getByRole('button', { name: '返回全景' }).click();
     await expect(page).toHaveURL(/\/world\/cs\?stress=glb$/);
+  });
+
+  test('CICD-1: DevOps 與 CI/CD 島 is open with CICD01: its subjects panel lists its one written lesson, no planned outline link', async ({ page }) => {
+    await openRegion(page, '/world/sys?island=devops-cicd');
+    await expect(page.getByRole('region', { name: 'DevOps 與 CI/CD 島教材入口' }).getByRole('link', { name: '查看課程大綱' })).toHaveCount(0);
+    const subjects = page.getByRole('complementary', { name: 'DevOps 與 CI/CD 島科目清單' });
+    await expect(subjects.getByText('DevOps 與 CI/CD 島：已完成 0／1 堂')).toBeVisible();
+    await expect(subjects.locator('a[href^="/curriculum/"]')).toHaveCount(1);
   });
 
   /* P1-37: `?stress=glb` is a review tool. What the map holds once it has stopped changing (the GLB arrives late). */

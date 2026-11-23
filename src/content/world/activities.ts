@@ -160,7 +160,12 @@ const IMPLEMENTED_TEXT: Record<string, string> = {
   // CN-0: network scenes (src/components/curriculum/network-protocol.tsx).
   'packet-journey': '每則訊息以文字列出（第幾步、從哪個節點到哪個節點、名稱、是否遺失），各層標頭是由外到內的欄位清單，節點的表格是真正的表格；目前這一步的說明以 aria-live 宣告',
   'network-sequence': '訊息時序以文字列出（第幾步、從哪個節點到哪個節點、名稱、是否遺失），每一步的標頭欄位以清單呈現；目前這一步的說明以 aria-live 宣告',
+  // CICD-0: the devops-explorer's deployment histories (D1) and rollout simulator (D2), src/components/curriculum/devops-explorer.tsx.
+  // Shown once a complete lesson uses the activity (until then it is planned and carries the requirement, like every planned one).
+  'deployment-simulator': '每張圖都有等效的表格：部署紀錄逐筆列出（變更數、前置時間、是否失敗、偵測與復原時間），DORA 指標與其算式以文字寫出；部署模擬逐分鐘列出各版本的執行個體、承接的請求、錯誤與丟棄，閘門的判定與總計以表格呈現，目前這一分鐘的說明以 aria-live 宣告',
 };
+/** The requirement a planned activity carries instead of a description of its text equivalent. */
+const REQUIRED_TEXT = '必要：實作時提供與畫面等效的文字說明';
 const existing = new Set(visualizationEntries.map(v => v.id));
 const plannedEntries: ActivityMeta[] = [...new Set([...catalogLessons.map(l => l.activity), ...LAB_ACTIVITIES, ...PLANNED_LAB_ACTIVITIES])]
   .filter(id => !existing.has(id) && id !== 'none').sort()
@@ -174,7 +179,8 @@ const plannedEntries: ActivityMeta[] = [...new Set([...catalogLessons.map(l => l
     const implemented = standalone || catalogLessons.some(l => l.activity === id && l.lessonStatus === 'complete');
     return { id, type: 'activity', subjects: standalone ? [LAB_ISLAND_ID, ...subjectsOf(id)] : subjectsOf(id), tier, runtime: TIER_RUNTIME[tier],
       availability: implemented ? 'implemented' : 'planned', inputs, version: implemented ? '1.0.0' : '0.1.0',
-      accessibility: { keyboard: true, textAlternative: IMPLEMENTED_TEXT[id] ?? '必要：實作時提供與畫面等效的文字說明' }, ...lab ? { lab: lab.id } : {} };
+      // CICD-0: an activity's text equivalent is described once it is implemented; a planned one carries the requirement.
+      accessibility: { keyboard: true, textAlternative: (implemented && IMPLEMENTED_TEXT[id]) || REQUIRED_TEXT }, ...lab ? { lab: lab.id } : {} };
   });
 
 export const activities: ActivityMeta[] = [...visualizationEntries, ...labEntries, ...plannedEntries];

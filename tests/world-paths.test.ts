@@ -141,8 +141,9 @@ describe('activity registry (F.0)', () => {
     // P7: terminal-sim likewise, by /learn/linux-terminal (R7: flexbox-playground by its own page).
     // R8.1: grid-playground by /learn/css-grid-playground.
     // LLM-1: the llm-explorer activities (token-explorer, sampling-explorer, embedding-space) by LLM01–LLM03.
+    // CICD-1: the devops-explorer's deployment-simulator by CICD01 (its deployment histories, D1).
     const standalone = new Set(['color-contrast', 'flexbox-playground', 'grid-playground', 'responsive-sim', 'mobile-nav-sim', 'terminal-sim']);
-    expect(of('activity').filter(a => a.availability === 'implemented').map(a => a.id)).toEqual(['architecture-diagram', 'color-contrast', 'dom-explorer', 'embedding-space', 'erd-builder', 'flexbox-playground', 'grid-playground', 'mobile-nav-sim', 'network-sequence', 'normalization-steps', 'packet-journey', 'protocol-sequence', 'query-plan', 'responsive-sim', 'sampling-explorer', 'sql-playground', 'terminal-sim', 'token-explorer', 'transaction-timeline'].filter(id => standalone.has(id) || used.has(id as 'sql-playground')));
+    expect(of('activity').filter(a => a.availability === 'implemented').map(a => a.id)).toEqual(['architecture-diagram', 'color-contrast', 'deployment-simulator', 'dom-explorer', 'embedding-space', 'erd-builder', 'flexbox-playground', 'grid-playground', 'mobile-nav-sim', 'network-sequence', 'normalization-steps', 'packet-journey', 'protocol-sequence', 'query-plan', 'responsive-sim', 'sampling-explorer', 'sql-playground', 'terminal-sim', 'token-explorer', 'transaction-timeline'].filter(id => standalone.has(id) || used.has(id as 'sql-playground')));
     expect(getActivity('color-contrast')).toMatchObject({ lab: 'color-contrast', version: '1.0.0', subjects: ['labs', 'ui-design'] });
     // RWD-1: RWD03 and RWD04, the lessons the blueprint outlined with the Flexbox Playground, are written as web-code
     // lessons (dom-explorer). The lab's activity stays in the registry, still offered on the responsive design island.
@@ -152,7 +153,7 @@ describe('activity registry (F.0)', () => {
     expect(getActivity('terminal-sim')).toMatchObject({ lab: 'linux-terminal', version: '1.0.0', availability: 'implemented' });
     // DKR-1: the Docker island's container-playground lessons (DKR03, DKR04) are terminal-sim lessons too.
     expect(getActivity('terminal-sim')!.subjects).toEqual(['labs', 'linux-systems', 'docker-containers', 'network-servers']);
-    for (const id of ['token-explorer', 'sampling-explorer', 'embedding-space']) expect(used.has(id as 'token-explorer'), id).toBe(true);
+    for (const id of ['token-explorer', 'sampling-explorer', 'embedding-space', 'deployment-simulator']) expect(used.has(id as 'token-explorer'), id).toBe(true);
     expect(getActivity('token-explorer')).toMatchObject({ availability: 'implemented', version: '1.0.0', subjects: ['large-language-models'] });
     expect(getActivity('sampling-explorer')).toMatchObject({ availability: 'implemented', version: '1.0.0', subjects: ['large-language-models', 'generative-ai'] });
     expect(getActivity('embedding-space')).toMatchObject({ availability: 'implemented', version: '1.0.0', subjects: ['large-language-models', 'generative-ai'] });

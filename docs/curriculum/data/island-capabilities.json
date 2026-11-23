@@ -120,8 +120,9 @@
       "status": "missing"
     },
     "devops-cicd": {
-      "capability": "pipeline simulation",
-      "status": "missing"
+      "capability": "devops-explorer (D1 deployment histories and DORA metrics, D2 the deployment-simulator: rollouts, gates, migrations, feature flags; then D3 dashboards, D4 logs) + terminal (engine stages E25 git, E26 forge, E27 workflows, E28 actions, E29 artifacts, E30 environments, E31 deploy-hosts); a per-lesson mapping (CICD_SHAPES)",
+      "status": "prepared",
+      "note": "CICD-0 prepared the island with the new devops-explorer capability (cicdFromBlueprint) and built D1 and D2 for CICD01 and CICD10; CICD-1 published CICD01 on D1 (the island opens); CICD02 needs E25-E26 and moves to the next batch, CICD-2 (CICD03-CICD05) E27-E28, CICD-3 (CICD06-CICD08) E29, CICD-4 (CICD09-CICD11) E30, E31 and D3 (registers monitoring-dashboard), CICD-5 (CICD12-CICD14) D4, CICD-6 is the capstone (CICD0_DEVOPS_CAPABILITY.md)"
     },
     "kubernetes-reliability": {
       "capability": "cluster simulation",
