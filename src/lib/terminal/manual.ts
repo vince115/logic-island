@@ -474,8 +474,21 @@ export const STORAGE_NET_MANUAL: ManualEntry = {
   options: [...IMAGES_MANUAL.options, ['-v', 'run：掛載 Volume 或主機的資料夾（來源:路徑[:ro]）'], ['--network', 'run：連到這個網路（bridge、host、none 或自訂的網路）']],
 };
 
+/** E23: the Docker CLI of the compose profile (DKR0_CONTAINER_CAPABILITY.md §13): Compose, health checks, multi-stage builds and registries too. */
+export const COMPOSE_MANUAL: ManualEntry = {
+  ...STORAGE_NET_MANUAL,
+  usage: `docker compose [-f 檔案] [-p 專案] up [-d] [--build] | down [-v] | ps [-a] | logs [服務] [--tail N] | exec 服務 指令 | build | config | start | stop | restart | pull … | tag 來源 目標 | login [-u 使用者 --password-stdin] 位址 | logout [位址] | push 名稱:標籤 | pull 名稱@sha256:… | run [--health-cmd 指令] [--health-interval 時間] … | ${STORAGE_NET_MANUAL.usage}`,
+  description: [...STORAGE_NET_MANUAL.description.slice(0, -1),
+    'docker compose 讀目前資料夾的 compose.yaml（或 -f）：services 的 image 或 build、ports、environment、env_file、volumes、networks、depends_on、healthcheck、restart、command、user；${變數} 與 ${變數:-預設} 取自 Shell 匯出的變數與 .env。容器叫 專案-服務-1，預設網路 專案_default 上以服務名稱互連，Volume 叫 專案_名稱。docker compose config 印出正規化的設定（打錯的鍵是驗證錯誤）。',
+    'depends_on 的 condition: service_healthy 會等相依的服務健康檢查通過才啟動（時間會前進）。健康檢查在容器裡執行指令（curl -f、pg_isready 要是 Image 有的執行檔）：docker ps 的 STATUS 是 Up … (healthy)、(unhealthy) 或 (health: starting)，docker inspect -f \'{{.State.Health.Status}}\'。',
+    '多階段建置：FROM … AS 名稱、COPY --from=階段（或 Image）、--target；最後的 Image 只有最後一個階段的層。docker tag 給 Image 另一個名稱，docker login 位址 -u 使用者 --password-stdin 登入私有 Registry（憑證以明文存在 ~/.docker/config.json），docker push 推送各層與 digest，docker pull 名稱@sha256:… 以 digest 拉取確切的版本。',
+    '模擬環境沒有鍵盤：互動式的 Shell（-it）會立刻結束，請用 docker exec 容器 指令；docker compose up 不加 -d 時印出日誌後留在背景。'],
+  options: [...STORAGE_NET_MANUAL.options, ['compose', 'Compose：up -d、down、ps、logs、exec、config'], ['--password-stdin', 'login：從標準輸入讀取密碼或 Token']],
+};
+
 /** The pages a feature changes: cat reads standard input and echo has -n with pipes; chmod has -R with accounts. */
 const FEATURE_MANUAL: [ShellFeature, CommandName, ManualEntry][] = [
+  ['compose', 'docker', COMPOSE_MANUAL],
   ['storage-net', 'docker', STORAGE_NET_MANUAL],
   ['images', 'docker', IMAGES_MANUAL],
   ['edge', 'sleep', { usage: 'sleep 秒數[smhd]', summary: '等待一段時間', description: ['從 edge 階段起，sleep 讓模擬的時鐘前進（課程裡每一台機器一起）：快取會過期、Age 會增加、date 與日誌的時間跟著改變。sleep 300 & 仍然只是一個背景工作，不會讓時間前進。'], options: [] }],

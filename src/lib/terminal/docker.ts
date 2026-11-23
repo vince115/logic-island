@@ -2,7 +2,7 @@ import { can, DEFAULT_SYSTEM, groupsOf, parentOf, type FsNode, type FsState, typ
 import { fields, isoText, MONTHS, type Seconds } from './clock';
 import { clockOf, nextPid, tableOf, type Proc } from './processes';
 import { sha256 } from './ssh';
-import { listenersOf } from './sockets';
+import { listenersOf, reach } from './sockets';
 import type { Request, Responder, Response } from './http';
 import { commandNames, runInput, tokenize, type CommandName, type ShellProfile } from './shell';
 import { scriptCommandNames } from './script';
@@ -10,9 +10,12 @@ import { accountsOf as imageAccounts, build, chainOf, historyOf, imageFs, layerS
 import type { PackageDb } from './packages';
 import {
   assignAddresses, attachments, findNetwork, hostServed, hostsText, imageVolumes, modeOf, mountedNodes, mountsJson, networkJson, networksJson, networkView, parseMountFlag, parseVolumeFlag, peerLogs,
-  prepareMounts, primaryIp, readOnlyError, releaseAddresses, removeVolumeDir, resolvText, serviceListeners, unmount, volumeJson, type DockerMount, type DockerNetwork, type DockerVolume, type NetAttach,
+  prepareMounts, primaryIp, readOnlyError, releaseAddresses, removeVolumeDir, resolvText, serviceListeners, unmount, volumeJson, containerLookup, type DockerMount, type DockerNetwork, type DockerVolume, type NetAttach,
 } from './storage-net';
 import { goTemplate, networkCli, POINTERS, STRUCTS, volumeCli, type E22Cli } from './storage-net-cli';
+import { advanceHealth, activeTest, healthConfigJson, healthJson, healthSuffix, parseDuration, startHealth, type HealthConfig, type HealthState } from './health';
+import { composeCommand } from './compose';
+import { digestRefOf, loginCommand, logoutCommand, pullAny, pushCommand, tagCommand, type DigestRef, type DockerRegistry, type RegistryCli } from './registry';
 
 /*
  * Engine stage E20 (docs/curriculum/DKR0_CONTAINER_CAPABILITY.md §5): containers. A machine of the containers profile may
@@ -100,6 +103,11 @@ export interface DockerImage {
   scratch?: true;
   /** E22: the image's VOLUME paths (each container gets an anonymous volume there unless something else is mounted). */
   volumes?: string[];
+  /** E23: its HEALTHCHECK, and how many seconds its service needs after the start before it accepts connections. */
+  healthcheck?: HealthConfig;
+  ready?: number;
+  /** E23: pulled by digest (name@sha256:…): it has a repository but no tag (docker images shows TAG <none>). */
+  digestOnly?: true;
 }
 /** E21: a row of docker history (CREATED BY as BuildKit records it; empty: a config change, no layer). */
 export interface HistoryRow { created: Seconds; createdBy: string; size: number; empty: boolean; comment: string }
@@ -116,6 +124,8 @@ export interface DockerProgram {
   /** Its exit status after docker stop (default 137: as PID 1 it has no SIGTERM handler, so it is killed after 10 s). */
   stopExit?: number;
   http?: { port: number; responder: Responder; accessLog?: 'nginx' };
+  /** E23: seconds after the start before its service accepts connections. */
+  ready?: number;
 }
 export interface PortBinding { hostIp: string; host: number; container: number; proto: 'tcp' | 'udp' }
 export type ContainerStatus = 'created' | 'running' | 'exited';
@@ -161,6 +171,12 @@ export interface DockerContainer {
   tmpfs?: Readonly<Record<string, ReadonlyMap<string, FsNode>>>;
   networks?: Readonly<Record<string, NetAttach>>;
   hostname?: string;
+  /** E23: its health check (the image's, Compose's or --health-*), its health while it runs, when its service is ready, its labels (Compose's) and restart policy. */
+  healthcheck?: HealthConfig;
+  health?: HealthState;
+  readyAt?: Seconds;
+  labels?: Readonly<Record<string, string>>;
+  restart?: string;
 }
 export interface DockerState {
   images: readonly DockerImage[];
@@ -179,6 +195,23 @@ export interface DockerState {
   storageNet?: true;
   volumes?: readonly DockerVolume[];
   networks?: readonly DockerNetwork[];
+  /** E23 (the compose profile): health checks, Compose, multi-stage builds, the lesson's private registries and the repository digests of local images (image ID → NAME@sha256:…). */
+  compose?: true;
+  registries?: readonly DockerRegistry[];
+  repoDigests?: Readonly<Record<string, readonly string[]>>;
+  /** E23: what a RUN step's build tools do (go build, npm run build): the files they write in the build container. */
+  tools?: readonly BuildTool[];
+}
+/** E23: a build tool a lesson declares: a RUN command (its exact words) and the files it writes (relative to WORKDIR or absolute). */
+export interface BuildTool {
+  command: string[];
+  needs: string[];
+  missing?: { output: string; exit: number };
+  writes: { path: string; size: number; mode?: number }[];
+  output?: string;
+  exit: number;
+  /** Seconds the step takes (the plain progress' DONE time). */
+  seconds?: number;
 }
 
 /**
@@ -198,10 +231,10 @@ const CONTAINER_E22_PROFILE: ShellProfile = { id: 'container', commands: [...CON
 /** Whether the image is Alpine (BusyBox's uname -o prints Linux, not GNU/Linux). */
 const isAlpine = (img: DockerImage | undefined) => !!img && /^ID="?alpine"?$/m.test(img.osRelease);
 
-const hex = (text: string) => [...sha256(new TextEncoder().encode(text))].map(b => b.toString(16).padStart(2, '0')).join('');
+export const hex = (text: string) => [...sha256(new TextEncoder().encode(text))].map(b => b.toString(16).padStart(2, '0')).join('');
 export const imageIdOf = (repo: string, tag: string, created: Seconds) => hex(`image/${repo}:${tag}/${created}`);
 export const digestOf = (repo: string, tag: string) => hex(`digest/${repo}:${tag}`);
-const short = (id: string) => id.slice(0, 12);
+export const short = (id: string) => id.slice(0, 12);
 
 // ----------------------------------------------------------------------------------------------------- formatting
 
@@ -245,18 +278,18 @@ function bytesSize(bytes: number): string {
   return `${goG(size, 4)}${units[i]}`;
 }
 /** text/tabwriter with docker's settings (min width 10, padding 3); the last column is not padded. */
-function tabwrite(rows: readonly (readonly string[])[]): string[] {
+export function tabwrite(rows: readonly (readonly string[])[]): string[] {
   const width = (s: string) => [...s].length;
   const cols = Math.max(0, ...rows.map(r => r.length));
   const widths = Array.from({ length: cols - 1 }, (_, i) => Math.max(10, ...rows.map(r => width(r[i] ?? '') + 3)));
   return rows.map(r => r.map((cell, i) => i < r.length - 1 ? cell + ' '.repeat(widths[i] - width(cell)) : cell).join(''));
 }
 /** docker/cli's Ellipsis: at most `max` characters, the last one … when cut. */
-const ellipsis = (s: string, max: number) => [...s].length <= max ? s : `${[...s].slice(0, max - 1).join('')}…`;
+export const ellipsis = (s: string, max: number) => [...s].length <= max ? s : `${[...s].slice(0, max - 1).join('')}…`;
 /** Go's strconv.Quote for the commands docker ps shows. */
-const goQuote = (s: string) => `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\t/g, '\\t')}"`;
+export const goQuote = (s: string) => `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\t/g, '\\t')}"`;
 /** RFC 3339 with Go's trimmed nanoseconds (whole seconds: 2026-11-22T10:00:00Z). */
-const rfc3339 = (t: Seconds | undefined) => t === undefined ? '0001-01-01T00:00:00Z' : `${isoText(t).replace(' ', 'T')}Z`;
+export const rfc3339 = (t: Seconds | undefined) => t === undefined ? '0001-01-01T00:00:00Z' : `${isoText(t).replace(' ', 'T')}Z`;
 
 /** docker/cli's DisplayablePorts: published ports grouped by address (ranges merged), mappings to another port after them. */
 export function displayPorts(c: DockerContainer, img: DockerImage | undefined): string {
@@ -305,15 +338,17 @@ export function parseRef(text: string): ImageRef | null {
   if (!repo || parts.some((p, i) => !(COMPONENT.test(p) || (i === 0 && parts.length > 1 && /^[a-z0-9.-]+(:\d+)?$/.test(p))))) return null;
   return TAG.test(tag) ? { repo, tag } : null;
 }
-const refText = (r: ImageRef) => `${r.repo}:${r.tag}`;
+export const refText = (r: ImageRef) => `${r.repo}:${r.tag}`;
 /** Where docker pull says it pulls from (library/nginx) and the fully qualified name it prints last (docker.io/library/nginx:latest). */
-const remoteName = (repo: string) => repo.includes('/') ? repo : `library/${repo}`;
-const qualified = (r: ImageRef) => /^[^/]*[.:]/.test(r.repo) && r.repo.includes('/') ? refText(r) : `docker.io/${remoteName(r.repo)}:${r.tag}`;
+export const remoteName = (repo: string) => repo.includes('/') ? repo : `library/${repo}`;
+export const qualified = (r: ImageRef) => /^[^/]*[.:]/.test(r.repo) && r.repo.includes('/') ? refText(r) : `docker.io/${remoteName(r.repo)}:${r.tag}`;
 
 export const dockerOf = (state: FsState): DockerState | undefined => state.docker;
-const localImage = (d: DockerState, r: ImageRef) => d.images.find(i => i.local && !i.dangling && i.repo === r.repo && i.tag === r.tag);
+export const localImage = (d: DockerState, r: ImageRef) => d.images.find(i => i.local && !i.dangling && i.repo === r.repo && i.tag === r.tag);
 /** An image named by reference or by (a prefix of at least 4 hex digits of) its ID. */
-function findLocal(d: DockerState, text: string): DockerImage | undefined {
+export function findLocal(d: DockerState, text: string): DockerImage | undefined {
+  // E23: NAME@sha256:… names the local image with that repository digest.
+  if (d.compose && text.includes('@')) { const r = digestRefOf(text); return r ? byDigest(d, r) : undefined; }
   const r = parseRef(text);
   const byRef = r ? localImage(d, r) : undefined;
   if (byRef) return byRef;
@@ -321,6 +356,20 @@ function findLocal(d: DockerState, text: string): DockerImage | undefined {
   return /^[0-9a-f]{4,64}$/.test(id) ? d.images.find(i => i.local && i.id.startsWith(id)) : undefined;
 }
 export const imageById = (d: DockerState, id: string) => d.images.find(i => i.id === id);
+/** E23: the DIGEST column of docker images: the repository's digest of this image (Docker Hub's, or a registry's after push or pull). */
+export function repoDigestOf(d: DockerState, i: DockerImage): string {
+  if (i.dangling) return '<none>';
+  if (i.pullable && !i.built) return `sha256:${i.digest}`;
+  const hit = (d.repoDigests?.[i.id] ?? []).find(x => x.slice(0, x.indexOf('@')) === i.repo);
+  return hit ? hit.slice(hit.indexOf('@') + 1) : '<none>';
+}
+/** E23: the local image whose repository digest (Docker Hub's, or a private registry's) is this one. */
+export function byDigest(d: DockerState, r: DigestRef): DockerImage | undefined {
+  const hub = d.images.find(i => i.local && i.pullable && !i.built && i.repo === r.repo && i.digest === r.digest && !i.dangling);
+  if (hub) return hub;
+  const id = Object.entries(d.repoDigests ?? {}).find(([, list]) => list.includes(`${r.repo}@sha256:${r.digest}`))?.[0];
+  return id ? d.images.find(i => i.local && i.id === id && (i.repo === r.repo || i.digestOnly)) ?? d.images.find(i => i.local && i.id === id) : undefined;
+}
 /** A container by its name (a leading / allowed) or a unique prefix of its ID. */
 export function findContainer(d: DockerState, text: string): DockerContainer | undefined {
   const name = text.replace(/^\//, '');
@@ -362,7 +411,7 @@ const withNetFiles = (host: FsState, d: DockerState, c: DockerContainer): Docker
 /** E22: a container that stops loses its addresses and what its tmpfs mounts held (E20's containers are unchanged). */
 const stopped = (c: DockerContainer): DockerContainer => { if (!c.networks && !c.tmpfs) return c; const { tmpfs: _t, ...rest } = releaseAddresses(c); void _t; return rest; };
 /** E22: a removed container's anonymous volumes go with it (docker rm -v, and --rm). */
-function dropAnonymous(state: FsState, d: DockerState, c: DockerContainer): { state: FsState; d: DockerState } {
+export function dropAnonymous(state: FsState, d: DockerState, c: DockerContainer): { state: FsState; d: DockerState } {
   const gone = (c.mounts ?? []).filter(m => m.anonymous && m.type === 'volume' && !d.containers.some(o => o.id !== c.id && (o.mounts ?? []).some(x => x.source === m.source))).map(m => m.source);
   if (!gone.length) return { state, d };
   const nodes = new Map(state.nodes);
@@ -384,7 +433,7 @@ function layerSize(c: DockerContainer, img: DockerImage | undefined): number {
 // ----------------------------------------------------------------------------------------------------- running a command in a container
 
 /** What a command in the container does: prints, exits with a status, or keeps running (until a time, or for ever). */
-type Outcome = {
+export type Outcome = {
   lines: { stream: 1 | 2; text: string }[]; status: number; nodes: ReadonlyMap<string, FsNode>; running?: true; until?: Seconds;
   /** E22: the host's files after the command (what it wrote through its volumes and bind mounts), its tmpfs, and other containers' new access lines. */
   hostNodes?: ReadonlyMap<string, FsNode>; tmpfs?: Record<string, ReadonlyMap<string, FsNode>>; logs?: Record<string, LogLine[]>;
@@ -419,14 +468,15 @@ export function configEnv(c: Pick<DockerContainer, 'env'>, img: DockerImage | un
  * notFound: what a missing executable is reported as by the caller (OCI's error). main: argv is the container's main
  * process (docker run IMAGE ps shows ps as PID 1 and nothing else); system: the host's uname fields (the kernel is shared).
  */
-type RunOptions = { tty: boolean; env: string[]; now: Seconds; workdir?: string; system?: Partial<SystemInfo>; main?: boolean; /** E22: the host (its files and daemon): mounts and networks. */ host?: FsState };
-function runIn(c: DockerContainer, img: DockerImage | undefined, argv: readonly string[], o: RunOptions): Outcome | { notFound: string } {
+export type RunOptions = { tty: boolean; env: string[]; now: Seconds; workdir?: string; system?: Partial<SystemInfo>; main?: boolean; /** E22: the host (its files and daemon): mounts and networks. */ host?: FsState };
+export function runIn(c: DockerContainer, img: DockerImage | undefined, argv: readonly string[], o: RunOptions): Outcome | { notFound: string } {
   const has = (cmd: string) => (img?.commands ?? IMAGE_COMMANDS).includes(cmd);
   const [cmd, ...rest] = argv;
   const name = cmd.includes('/') ? cmd.slice(cmd.lastIndexOf('/') + 1) : cmd;
   if (!has(name)) return { notFound: cmd };
   const done = (lines: Outcome['lines'], status = 0): Outcome => ({ lines, status, nodes: c.nodes });
   switch (name) {
+    case 'pg_isready': if (o.host?.docker?.compose) return pgIsReady(c, rest, o); break;
     case 'true': return done([]);
     case 'false': return done([], 1);
     case 'env': return done(containerEnv({ ...c, env: [...c.env, ...o.env], tty: o.tty }, img).map(text => ({ stream: 1 as const, text })));
@@ -472,6 +522,40 @@ function runIn(c: DockerContainer, img: DockerImage | undefined, argv: readonly 
   }
   return shellLine(c, [name, ...rest].map(quoteArg).join(' '), { ...o, system: systemOf(img, o.system), busybox: isAlpine(img) });
 }
+/**
+ * E23: PostgreSQL's pg_isready (an image must list it): accepting connections when the server answers on the port (the
+ * container's own service through the local socket, or -h HOST over the container's network), otherwise no response (2).
+ */
+function pgIsReady(c: DockerContainer, args: readonly string[], o: RunOptions): Outcome {
+  let host: string | undefined, port = 5432, quiet = false;
+  const done = (lines: Outcome['lines'], status: number): Outcome => ({ lines, status, nodes: c.nodes });
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    const long = /^--(host|port|username|dbname|timeout)=(.*)$/.exec(a);
+    if (a === '-h' || a === '--host') host = args[++i];
+    else if (a === '-p' || a === '--port') port = Number(args[++i]);
+    else if (long?.[1] === 'host') host = long[2];
+    else if (long?.[1] === 'port') port = Number(long[2]);
+    else if (/^-h./.test(a)) host = a.slice(2);
+    else if (/^-p./.test(a)) port = Number(a.slice(2));
+    else if (a === '-q' || a === '--quiet') quiet = true;
+    else if (['-U', '--username', '-d', '--dbname', '-t', '--timeout'].includes(a)) i++;
+    else if (long || /^-[Udt]./.test(a)) continue;
+    else return done([{ stream: 2, text: `pg_isready: invalid option -- '${a.replace(/^-+/, '')}'` }, { stream: 2, text: 'Try "pg_isready --help" for more information.' }], 3);
+  }
+  if (!Number.isInteger(port) || port < 1 || port > 65535) return done([{ stream: 2, text: `pg_isready: invalid port number: "${port}"` }], 3);
+  const local = host === undefined || host.startsWith('/') || host === 'localhost' || host === '127.0.0.1';
+  const where = `${host === undefined ? '/var/run/postgresql' : host}:${port}`;
+  const view0 = o.host!, d = view0.docker!;
+  let ok: boolean;
+  if (local) ok = serviceListeners(d, c, o.now).some(l => l.port === port);
+  else {
+    const view: FsState = { ...view0, nodes: c.nodes, host: c.hostname ?? short(c.id), ...networkView(view0, d, c) };
+    const address = containerLookup(view, host!);
+    ok = !!address && reach(view, address, port).result === 'ok';
+  }
+  return done(quiet ? [] : [{ stream: 1, text: `${where} - ${ok ? 'accepting connections' : 'no response'}` }], ok ? 0 : 2);
+}
 /** The uname fields in the container: the host's kernel (BusyBox's uname -o on Alpine prints Linux). */
 const systemOf = (img: DockerImage | undefined, host: Partial<SystemInfo> | undefined): Partial<SystemInfo> => ({ ...host, ...isAlpine(img) ? { os: 'Linux' } : {} });
 /** A line of the simulation's shell on the container's files (no tty: ls prints one name per line, as in docker exec without -t). */
@@ -516,20 +600,20 @@ function groupsIn(nodes: ReadonlyMap<string, FsNode>, user: string): string[] {
   return out.length ? out : [user];
 }
 /** The name ps shows for the container's main process (an entrypoint script hands over to the command, as official images do). */
-function mainCommand(c: DockerContainer): string {
+export function mainCommand(c: DockerContainer): string {
   const argv = c.path.endsWith('.sh') && c.args.length ? c.args : [c.path, ...c.args];
   const first = argv[0] ?? 'sh';
   return first.slice(first.lastIndexOf('/') + 1);
 }
 /** The command after an entrypoint script (official images' entrypoints exec "$@"). */
-const effective = (c: DockerContainer) => c.path.endsWith('.sh') ? c.args : [c.path, ...c.args];
+export const effective = (c: DockerContainer) => c.path.endsWith('.sh') ? c.args : [c.path, ...c.args];
 
 // ----------------------------------------------------------------------------------------------------- lifecycle
 
 const RANDOM_LEFT = ['admiring', 'brave', 'clever', 'eager', 'focused', 'gifted', 'happy', 'jolly', 'keen', 'nifty', 'quirky', 'sharp', 'vibrant', 'zealous', 'serene', 'upbeat'];
 const RANDOM_RIGHT = ['turing', 'hopper', 'lovelace', 'knuth', 'ritchie', 'thompson', 'torvalds', 'wozniak', 'curie', 'noether', 'hamilton', 'babbage', 'shannon', 'dijkstra', 'liskov', 'mccarthy'];
 /** A generated name (adjective_scientist, as moby's namesgenerator), fixed by the container's ID. */
-function generatedName(d: DockerState, id: string): string {
+export function generatedName(d: DockerState, id: string): string {
   const b = sha256(new TextEncoder().encode(`name/${id}`));
   for (let i = 0; i < 256; i++) {
     const name = `${RANDOM_LEFT[(b[0] + i) % RANDOM_LEFT.length]}_${RANDOM_RIGHT[(b[1] + i * 7) % RANDOM_RIGHT.length]}`;
@@ -538,7 +622,7 @@ function generatedName(d: DockerState, id: string): string {
   return `container_${short(id)}`;
 }
 const freeIp = (d: DockerState) => { for (let n = 2; n < 255; n++) { const ip = `172.17.0.${n}`; if (!d.containers.some(c => c.status === 'running' && c.ip === ip)) return ip; } return '172.17.0.254'; };
-const seedLines = (seeds: readonly LogSeed[], t: Seconds): LogLine[] => seeds.map(s => typeof s === 'string' ? { t, stream: 1 as const, text: s } : { t, stream: s.stream ?? 1, text: s.text });
+export const seedLines = (seeds: readonly LogSeed[], t: Seconds): LogLine[] => seeds.map(s => typeof s === 'string' ? { t, stream: 1 as const, text: s } : { t, stream: s.stream ?? 1, text: s.text });
 const outputLines = (text: string | undefined, t: Seconds): LogLine[] => text === undefined || text === '' ? [] : text.replace(/\n$/, '').split('\n').map(line => ({ t, stream: 1 as const, text: line }));
 const proxyName = 'docker-proxy';
 const isProxy = (p: Proc) => p.command.startsWith('/usr/bin/docker-proxy ');
@@ -605,9 +689,10 @@ export function syncDocker(state: FsState): FsState {
 }
 
 /** Containers whose sleep has ended by now exit (0); --rm ones are removed. Then the host's proxies follow. */
-export function settleDocker(state: FsState): FsState {
-  const d = state.docker;
-  if (!d) return state;
+export function settleDocker(state0: FsState): FsState {
+  if (!state0.docker) return state0;
+  // E23: the health probes that were due by now (before a container that ended its sleep is seen as exited).
+  const state = state0.docker.compose ? advanceHealth(state0) : state0, d = state.docker!;
   const now = clockOf(state).now;
   if (!d.containers.some(c => c.status === 'running' && c.endsAt !== undefined && c.endsAt <= now)) return state;
   const containers = d.containers.flatMap(c => {
@@ -620,9 +705,23 @@ export function settleDocker(state: FsState): FsState {
   return syncDocker(next);
 }
 
-type Started = { c: DockerContainer; lines: Outcome['lines']; hostNodes?: ReadonlyMap<string, FsNode>; logs?: Record<string, LogLine[]> } | { error: string; status: number; c: DockerContainer };
-/** Starts a created or exited container: its bindings, its address, then its command (a server keeps running). */
-function start(state: FsState, d: DockerState, c0: DockerContainer, now: Seconds): Started {
+export type Started = { c: DockerContainer; lines: Outcome['lines']; hostNodes?: ReadonlyMap<string, FsNode>; logs?: Record<string, LogLine[]> } | { error: string; status: number; c: DockerContainer };
+/**
+ * Starts a created or exited container: its bindings, its address, then its command (a server keeps running). E23: a
+ * running container with a health check starts as health: starting, and its service is ready after the image's (or the
+ * program's) `ready` seconds.
+ */
+export function start(state: FsState, d: DockerState, c0: DockerContainer, now: Seconds): Started {
+  const s = startProcess(state, d, c0, now);
+  if (!d.compose || 'error' in s) return s;
+  const { health: _h, readyAt: _r, ...c } = s.c;
+  void _h; void _r;
+  if (c.status !== 'running') return { ...s, c };
+  const img = imageById(d, c.image), prog = img && !(!c.custom && !img.ownMain) ? programFor(d, effective(c)) : undefined;
+  const ready = prog ? prog.ready : !c.custom && !img?.ownMain ? img?.ready : undefined;
+  return { ...s, c: { ...c, ...activeTest(c.healthcheck) ? { health: startHealth(c.healthcheck, now) } : {}, ...ready ? { readyAt: now + ready } : {} } };
+}
+function startProcess(state: FsState, d: DockerState, c0: DockerContainer, now: Seconds): Started {
   const img = imageById(d, c0.image);
   const { http: _old, stopExit: _stop, ...rest0 } = c0;
   void _old; void _stop;
@@ -686,7 +785,7 @@ function programFor(d: DockerState, argv: readonly string[]): DockerProgram | un
   return same(argv);
 }
 /** docker stop: SIGTERM; a server exits 0 (or its stopExit), a process that ignores SIGTERM as PID 1 is killed after 10 s (137). */
-function stop(c: DockerContainer, img: DockerImage | undefined, now: Seconds): DockerContainer {
+export function stop(c: DockerContainer, img: DockerImage | undefined, now: Seconds): DockerContainer {
   const isServer = !!img?.service && !c.custom && !img.ownMain;
   // E21: a declared program's exit status after docker stop is the lesson's (default 137: PID 1 without a SIGTERM handler).
   return stopped({ ...c, status: 'exited', exitCode: c.stopExit ?? (isServer ? img?.stopExit ?? 0 : img?.stopExit ?? 137), finished: now, ip: undefined, endsAt: undefined });
@@ -700,6 +799,8 @@ export interface DockerIo {
   images?: boolean;
   /** E22 (the storage-net profile): docker volume, docker network, -v, --mount, --tmpfs, --network and -u. */
   storageNet?: boolean;
+  /** E23 (the compose profile): docker compose, health checks, multi-stage builds, docker tag, login, logout, push and pull by digest. */
+  compose?: boolean;
 }
 export type DockerResult = { state: FsState; status: number };
 
@@ -713,7 +814,11 @@ const USAGE: Record<string, [string, string]> = {
   prune: ['[OPTIONS]', 'Remove all stopped containers'], version: ['[OPTIONS]', 'Show the Docker version information'], info: ['[OPTIONS]', 'Display system-wide information'],
   build: ['[OPTIONS] PATH | URL | -', 'Start a build'], history: ['[OPTIONS] IMAGE', 'Show the history of an image'], iprune: ['[OPTIONS]', 'Remove unused images'],
   volume: ['COMMAND', 'Manage volumes'], network: ['COMMAND', 'Manage networks'],
+  tag: ['SOURCE_IMAGE[:TAG] TARGET_IMAGE[:TAG]', 'Create a tag TARGET_IMAGE that refers to SOURCE_IMAGE'], push: ['[OPTIONS] NAME[:TAG]', 'Upload an image to a registry'],
+  login: ['[OPTIONS] [SERVER]', 'Log in to a registry'], logout: ['[SERVER]', 'Log out from a registry'], compose: ['[OPTIONS] COMMAND', 'Docker Compose'],
 };
+/** E23: what the compose profile adds (below it these say engine stage E23). */
+const E23_COMMANDS = ['compose', 'tag', 'push', 'login', 'logout'];
 /** E21: what the images profile adds (below it these say engine stage E21). */
 const E21_MANAGED: Record<string, Record<string, string>> = { image: { build: 'build', history: 'history', prune: 'iprune' }, buildx: { build: 'build' }, builder: { build: 'build' } };
 /** Real docker commands the simulation leaves to a later engine stage. */
@@ -749,12 +854,12 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
   const result = (status: number) => ({ state, status });
   if (!args.length) {
     ['', 'Usage:  docker [OPTIONS] COMMAND', '', 'A self-sufficient runtime for containers', '', 'Common Commands:'].forEach(out);
-    for (const c of ['run', 'exec', 'ps', 'images', 'pull', ...io.images ? ['build'] : [], 'version', 'info']) out(`  ${c.padEnd(12)}${c === 'build' ? 'Build an image from a Dockerfile' : USAGE[c][1]}`);
+    for (const c of ['run', 'exec', 'ps', 'images', 'pull', ...io.images ? ['build'] : [], ...io.compose ? ['push', 'login', 'logout'] : [], 'version', 'info']) out(`  ${c.padEnd(12)}${c === 'build' ? 'Build an image from a Dockerfile' : USAGE[c][1]}`);
     out(''); out('Commands:');
-    for (const c of ['history', 'inspect', 'logs', 'port', 'restart', 'rm', 'rmi', 'start', 'stop'].filter(c => c !== 'history' || io.images)) out(`  ${c.padEnd(12)}${USAGE[c][1]}`);
-    // E22: the management commands volume and network.
-    if (io.storageNet) { out(''); out('Management Commands:'); for (const c of ['network', 'volume']) out(`  ${c.padEnd(12)}${USAGE[c][1]}`); }
-    out(''); out(io.storageNet ? '（模擬環境只支援上面這些指令，以及 docker container ls|prune、docker image ls|pull|rm|build|history|prune、docker volume create|ls|inspect|rm|prune 與 docker network create|ls|inspect|connect|disconnect|rm|prune）' : io.images ? '（模擬環境只支援上面這些指令，以及 docker container ls|prune 與 docker image ls|pull|rm|build|history|prune）' : '（模擬環境只支援上面這些指令，以及 docker container ls|prune 與 docker image ls|pull|rm）');
+    for (const c of ['history', 'inspect', 'logs', 'port', 'restart', 'rm', 'rmi', 'start', 'stop', ...io.compose ? ['tag'] : []].filter(c => c !== 'history' || io.images)) out(`  ${c.padEnd(12)}${USAGE[c][1]}`);
+    // E22: the management commands volume and network (E23: and compose).
+    if (io.storageNet) { out(''); out('Management Commands:'); for (const c of [...io.compose ? ['compose'] : [], 'network', 'volume']) out(`  ${c.padEnd(12)}${USAGE[c][1]}`); }
+    out(''); out(io.compose ? '（模擬環境只支援上面這些指令，以及 docker container ls|prune、docker image ls|pull|push|tag|rm|build|history|prune、docker volume create|ls|inspect|rm|prune、docker network create|ls|inspect|connect|disconnect|rm|prune 與 docker compose up|down|ps|logs|exec|build|config|start|stop|restart|pull|ls）' : io.storageNet ? '（模擬環境只支援上面這些指令，以及 docker container ls|prune、docker image ls|pull|rm|build|history|prune、docker volume create|ls|inspect|rm|prune 與 docker network create|ls|inspect|connect|disconnect|rm|prune）' : io.images ? '（模擬環境只支援上面這些指令，以及 docker container ls|prune 與 docker image ls|pull|rm|build|history|prune）' : '（模擬環境只支援上面這些指令，以及 docker container ls|prune 與 docker image ls|pull|rm）');
     return result(0);
   }
   if (args[0] === '--version' || args[0] === '-v') { out(`Docker version ${DOCKER_VERSION}, build ${DOCKER_BUILD}`); return result(0); }
@@ -762,7 +867,7 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
   let path = 'docker', sub = args[0], rest = args.slice(1);
   const MANAGED: Record<string, Record<string, string>> = {
     container: { ls: 'ps', list: 'ps', ps: 'ps', run: 'run', exec: 'exec', logs: 'logs', start: 'start', stop: 'stop', restart: 'restart', rm: 'rm', remove: 'rm', prune: 'prune', port: 'port', inspect: 'inspect' },
-    image: { ls: 'images', list: 'images', pull: 'pull', rm: 'rmi', remove: 'rmi', inspect: 'inspect', ...io.images ? E21_MANAGED.image : {} },
+    image: { ls: 'images', list: 'images', pull: 'pull', rm: 'rmi', remove: 'rmi', inspect: 'inspect', ...io.images ? E21_MANAGED.image : {}, ...io.compose ? { tag: 'tag', push: 'push' } : {} },
     ...io.images ? { buildx: E21_MANAGED.buildx, builder: E21_MANAGED.builder } : {},
   };
   if (MANAGED[sub]) {
@@ -778,8 +883,9 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
   else path = `docker ${sub}`;
   if (io.images && sub === 'commit') { err('docker commit：模擬環境不支援（請寫成 Dockerfile，用 docker build 建置）'); return result(1); }
   if (io.storageNet && sub === 'cp') { err('docker cp：模擬環境不支援（請用 bind mount 或 Volume 在主機與容器之間交換檔案，或用 docker exec 容器 cat 檔案）'); return result(1); }
-  const e22Command = io.storageNet && (sub === 'volume' || sub === 'network');
-  if (LATER[sub] && !(io.images && (sub === 'build' || sub === 'history')) && !e22Command) { err(`docker ${sub}：模擬環境在引擎階段 ${LATER[sub]} 才支援`); return result(1); }
+  const e22Command = io.storageNet && (sub === 'volume' || sub === 'network'), e23Command = io.compose && E23_COMMANDS.includes(sub);
+  if (io.compose && sub === 'search') { err('docker search：模擬環境不支援（課程的 Registry 不提供搜尋；請直接寫出 Image 的名稱）'); return result(1); }
+  if (LATER[sub] && !(io.images && (sub === 'build' || sub === 'history')) && !e22Command && !e23Command) { err(`docker ${sub}：模擬環境在引擎階段 ${LATER[sub]} 才支援`); return result(1); }
   if (!USAGE[sub]) { err(`docker: '${sub}' is not a docker command.`); err("See 'docker --help'"); return result(1); }
   const usageError = (line: string) => { err(line); err(`See '${path} --help'.`); err(''); err(`Usage:  ${path} ${USAGE[sub][0]}`); err(''); err(USAGE[sub][1]); return result(1); };
   const needArgs = (min: number, exact = false) => usageError(`"${path}" requires ${exact ? 'exactly' : 'at least'} ${min} argument${min === 1 ? '' : 's'}.`);
@@ -819,6 +925,8 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
       ` Total Memory: ${bytesSize(Number(f.MemTotal))}`, ` Name: ${f.Name}`, ` Docker Root Dir: ${f.DockerRootDir}`].forEach(out);
     return result(0);
   }
+  // E23: docker compose (compose.ts) asks the daemon only for what needs it (config does not).
+  if (sub === 'compose') { const r = composeCommand({ state, args: rest, io: { ...io, out, raw: io.out, err }, allowed: socketAllowed(state, io.user), denied: denied('ps') }); state = r.state; return result(r.status); }
   if (!socketAllowed(state, io.user)) {
     if (sub === 'build') { err(`ERROR: ${denied('build')}`); return result(1); }
     err(sub === 'run' ? `docker: ${denied('run')}.` : denied(sub)); if (sub === 'run') err("See 'docker run --help'."); return result(sub === 'run' ? 125 : 1);
@@ -862,11 +970,13 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
       const wanted = want === undefined ? undefined : parseRef(want), tagged = !!want && want.lastIndexOf(':') > want.lastIndexOf('/');
       if (want !== undefined && !wanted) { err('invalid reference format'); return result(1); }
       // Untagged (dangling) images are listed too, as <none> <none>, unless a repository is named.
-      const list = d0.images.filter(i => i.local && (!wanted || (!i.dangling && i.repo === wanted.repo && (!tagged || i.tag === wanted.tag))) && (onlyDangling === undefined || !!i.dangling === onlyDangling))
+      const list = d0.images.filter(i => i.local && (!wanted || (!i.dangling && i.repo === wanted.repo && (!tagged || i.tag === wanted.tag))) && (onlyDangling === undefined || !!i.dangling === onlyDangling)
+        // E23: an image pulled by digest is listed under its repository with TAG <none>, unless a tag of that repository names it.
+        && !(i.digestOnly && d0.images.some(o => o !== i && o.local && !o.digestOnly && !o.dangling && o.id === i.id && o.repo === i.repo)))
         .sort((a, b) => b.created - a.created || (a.repo < b.repo ? -1 : a.repo > b.repo ? 1 : 0) || (a.tag < b.tag ? -1 : 1));
       if (quiet) { list.forEach(i => out(short(i.id))); return result(0); }
       const fieldsOf = (i: DockerImage): Record<string, string> => ({
-        Repository: i.dangling ? '<none>' : i.repo, Tag: i.dangling ? '<none>' : i.tag, Digest: i.dangling || !i.pullable ? '<none>' : `sha256:${i.digest}`, ID: short(i.id),
+        Repository: i.dangling ? '<none>' : i.repo, Tag: i.dangling || i.digestOnly ? '<none>' : i.tag, Digest: io.compose ? repoDigestOf(d0, i) : i.dangling || !i.pullable ? '<none>' : `sha256:${i.digest}`, ID: short(i.id),
         CreatedSince: `${humanDuration(now - i.created)} ago`, CreatedAt: `${isoText(i.created)} +0000 UTC`, Size: humanSize(i.size, 3),
       });
       const headers = { Repository: 'REPOSITORY', Tag: 'TAG', Digest: 'DIGEST', ID: 'IMAGE ID', CreatedSince: 'CREATED', CreatedAt: 'CREATED AT', Size: 'SIZE' };
@@ -922,7 +1032,7 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
       const fieldsOf = (c: DockerContainer): Record<string, string> => {
         const img = imageById(d0, c.image), cmd = [c.path, ...c.args].join(' ');
         return {
-          ID: noTrunc ? c.id : short(c.id), Image: img?.local && (parseRef(c.ref) ? localImage(d0, parseRef(c.ref)!)?.id === c.image : false) ? c.ref : short(c.image),
+          ID: noTrunc ? c.id : short(c.id), Image: img?.local && (parseRef(c.ref) ? localImage(d0, parseRef(c.ref)!)?.id === c.image : io.compose && c.ref.includes('@') ? findLocal(d0, c.ref)?.id === c.image : false) ? c.ref : short(c.image),
           Command: goQuote(noTrunc ? cmd : ellipsis(cmd, 20)), RunningFor: `${humanDuration(now - c.created)} ago`, CreatedAt: `${isoText(c.created)} +0000 UTC`,
           Status: statusText(c, now), Ports: displayPorts(c, img), Names: c.name, State: c.status,
           // E22: the volumes' names (a bind mount's source), at most 15 characters each unless --no-trunc, and the networks.
@@ -940,6 +1050,15 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
       const bad = words.find(a => a.startsWith('-'));
       if (bad) return flagError(bad);
       if (words.length !== 1) return needArgs(1, true);
+      // E23: by digest (NAME@sha256:…) and from the lesson's private registries (their logins).
+      if (io.compose) {
+        const p = pullAny(state, d0, words[0], io.user, now);
+        if ('error' in p) { err(p.error); return result(1); }
+        if (!quiet) p.lines.forEach(out);
+        out(p.name);
+        save(p.d);
+        return result(0);
+      }
       if (words[0].includes('@')) { err('docker pull：模擬環境以標籤拉取 Image；以 digest 鎖定版本在引擎階段 E23（Registry）才支援'); return result(1); }
       const ref = parseRef(words[0]);
       if (!ref) { err('invalid reference format'); return result(1); }
@@ -952,6 +1071,13 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
     }
     case 'run': return runCommand();
     case 'build': return buildCommand();
+    case 'tag': case 'push': case 'login': case 'logout': {
+      // E23 (registry.ts): docker tag, docker login and logout (~/.docker/config.json), docker push to the lesson's registries.
+      const x: RegistryCli = { state, args: rest, now, stdin: io.stdin, out, raw: io.out, err, user: io.user, path };
+      const r = sub === 'tag' ? tagCommand(x) : sub === 'push' ? pushCommand(x) : sub === 'login' ? loginCommand(x) : logoutCommand(x);
+      state = syncDocker(r.state);
+      return result(r.status);
+    }
     case 'volume': return volumeCommand();
     case 'network': return networkCommand();
     case 'history': {
@@ -1151,7 +1277,7 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
           continue;
         }
         // E21: an image with several tags (a build's -t twice, or a tag moved): by name only that tag goes; by ID, -f is needed.
-        const tags = d.images.filter(i => i.local && !i.dangling && i.id === img.id);
+        const tags = d.images.filter(i => i.local && !i.dangling && !i.digestOnly && i.id === img.id);
         if (tags.length > 1) {
           const byId = !parseRef(n) || !localImage(d, parseRef(n)!);
           if (byId && !force) { err(`Error response from daemon: conflict: unable to delete ${short(img.id)} (must be forced) - image is referenced in multiple repositories`); status = 1; continue; }
@@ -1162,9 +1288,12 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
           err(`Error response from daemon: conflict: unable to remove repository reference "${n}" (must force) - container ${short(user.id)} is using its referenced image ${short(img.id)}`);
           status = 1; continue;
         }
-        out(`Untagged: ${refText(img)}`);
-        // A built image was never pushed: it has no repository digest.
-        if (!img.built) out(`Untagged: ${img.repo}@sha256:${img.digest}`);
+        if (!img.digestOnly) out(`Untagged: ${refText(img)}`);
+        // A built image was never pushed: it has no repository digest. E23: every repository digest goes with the last tag (pushed or pulled from a registry).
+        if (d.compose) {
+          [...img.pullable && !img.built ? [`${img.repo}@sha256:${img.digest}`] : [], ...d.repoDigests?.[img.id] ?? []].forEach(x => out(`Untagged: ${x}`));
+          d = { ...d, repoDigests: Object.fromEntries(Object.entries(d.repoDigests ?? {}).filter(([k]) => k !== img.id)) };
+        } else if (!img.built) out(`Untagged: ${img.repo}@sha256:${img.digest}`);
         // Fix (E20): with the last tag removed, moby's imageDeleteHelper runs quietly with -f's mask: only a running container
         // (a hard conflict) keeps the image, untagged (dangling: <none> <none>); stopped or created containers (a soft conflict,
         // ignored by -f) do not, so the image is deleted and those containers are left pointing at a missing image.
@@ -1235,8 +1364,15 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
         const net = generic ? findNetwork(d0, n) : undefined, vol = generic && !net ? (d0.volumes ?? []).find(v => v.name === n) : undefined;
         if (net || vol) { objects.push(net ? networkJson(d0, net) : volumeJson(vol!)); continue; }
         if (!c && !img) { err(io.images && path === 'docker image inspect' ? `Error response from daemon: No such image: ${parseRef(n) ? refText(parseRef(n)!) : n}` : `Error: No such object: ${n}`); status = 1; continue; }
-        objects.push(c ? (io.storageNet ? inspectContainer22(d0, c) : inspectContainer(c, imageById(d0, c.image), !!io.images))
-          : io.storageNet ? inspectImage22(img!, d0.images.filter(i => i.local && !i.dangling && i.id === img!.id).map(refText)) : inspectImage(img!, !!io.images, d0.images.filter(i => i.local && !i.dangling && i.id === img!.id).map(refText)));
+        const tags = d0.images.filter(i => i.local && !i.dangling && !i.digestOnly && i.id === img?.id).map(refText);
+        objects.push(c ? (io.compose ? inspectContainer23(d0, c) : io.storageNet ? inspectContainer22(d0, c) : inspectContainer(c, imageById(d0, c.image), !!io.images))
+          : io.compose ? inspectImage23(d0, img!, tags) : io.storageNet ? inspectImage22(img!, tags) : inspectImage(img!, !!io.images, tags));
+      }
+      // E23: a container without a health check has no State.Health; Go's template stops at the nil value.
+      if (io.compose && format !== undefined) {
+        const m = /\.State\.Health\.([A-Za-z_]\w*)/.exec(format);
+        const bare = objects.find(o => { const st = o.State as Record<string, unknown> | undefined; return !!st && 'Health' in st && st.Health === undefined; });
+        if (m && bare) { err(`template: :1:${m.index}: executing "" at <.State.Health.${m[1]}>: nil pointer evaluating interface {}.${m[1]}`); return result(1); }
       }
       // E22: Go's templates with range and index, and the typed values' printing (pointers, structs).
       if (io.storageNet && format !== undefined) {
@@ -1291,7 +1427,7 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
     }
     if (operands.length !== 1) return usage(`"docker buildx build" requires exactly 1 argument.`);
     if (operands[0] === '-' || /^(https?|git):\/\//.test(operands[0]) || operands[0].startsWith('git@')) { err('docker build：模擬環境只支援本機資料夾的建置內容（例如 docker build -t app .）'); return result(1); }
-    const r = build(state, d0, { tags, ...file !== undefined ? { file } : {}, context: operands[0], args: buildArgs, noCache, ...target !== undefined ? { target } : {}, quiet, ...io.storageNet ? { storageNet: true } : {} }, { out, err }, hooksOf(d0));
+    const r = build(state, d0, { tags, ...file !== undefined ? { file } : {}, context: operands[0], args: buildArgs, noCache, ...target !== undefined ? { target } : {}, quiet, ...io.storageNet ? { storageNet: true } : {}, ...io.compose ? { compose: true } : {} }, { out, err }, hooksOf(d0));
     // The build cache stays after a failed build too (what was downloaded and the steps that succeeded).
     save(r.state.docker!);
     return result(r.status);
@@ -1304,6 +1440,9 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
     // E22: -v, --mount, --tmpfs, --network (and its aliases) and -u.
     const vols: string[] = [], mountSpecs: string[] = [], tmpfsList: string[] = [], aliases: string[] = [];
     let network: string | undefined, user: string | undefined;
+    // E23: --health-cmd and the other --health-* flags, --no-healthcheck.
+    const health: Partial<HealthConfig> = {};
+    let noHealth = false;
     let i = 0;
     const value = (a: string, flag: string): string | undefined => a.length > flag.length ? a.slice(flag.length).replace(/^=/, '') : rest[++i];
     for (; i < rest.length && rest[i].startsWith('-') && rest[i] !== '-'; i++) {
@@ -1327,6 +1466,17 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
       else if (io.storageNet && (a === '--network-alias' || a.startsWith('--network-alias='))) aliases.push(value(a, '--network-alias') ?? '');
       else if (io.storageNet && (a === '--net-alias' || a.startsWith('--net-alias='))) aliases.push(value(a, '--net-alias') ?? '');
       else if (io.storageNet && (a === '--user' || a.startsWith('--user='))) user = value(a, '--user');
+      else if (io.compose && a === '--no-healthcheck') noHealth = true;
+      else if (io.compose && /^--health-(cmd|interval|timeout|retries|start-period|start-interval)(=|$)/.test(a)) {
+        const flag = a.split('=')[0], v = value(a, flag) ?? '';
+        if (flag === '--health-cmd') health.test = ['CMD-SHELL', v];
+        else if (flag === '--health-retries') { if (!/^\d+$/.test(v)) { err(`invalid argument "${v}" for "${flag}" flag: strconv.ParseInt: parsing "${v}": invalid syntax`); err("See 'docker run --help'."); return result(125); } health.retries = Number(v); }
+        else {
+          const sec = parseDuration(v);
+          if (sec === null) { err(`invalid argument "${v}" for "${flag}" flag: time: invalid duration "${v}"`); err("See 'docker run --help'."); return result(125); }
+          health[({ '--health-interval': 'interval', '--health-timeout': 'timeout', '--health-start-period': 'startPeriod', '--health-start-interval': 'startInterval' } as const)[flag as '--health-interval']] = sec;
+        }
+      }
       else if (/^-[a-zA-Z]/.test(a) && !a.startsWith('--')) {
         // Short flags may be combined (-dit) and a value may follow its letter (-p8080:80) or come next (-p 8080:80).
         for (let k = 1; k < a.length; k++) {
@@ -1351,18 +1501,21 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
     const words = rest.slice(i);
     if (!words.length) return needArgs(1);
     if (name !== undefined && !/^\/?[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(name)) { err(`docker: Error response from daemon: Invalid container name (${name}), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed.`); err("See 'docker run --help'."); return result(125); }
-    const ref = parseRef(words[0]);
-    if (!ref) { err('docker: invalid reference format.'); err("See 'docker run --help'."); return result(125); }
+    // E23: an image may be named by digest (NAME@sha256:…).
+    const atDigest = !!io.compose && words[0].includes('@');
+    const ref = atDigest ? null : parseRef(words[0]);
+    if (atDigest ? !digestRefOf(words[0]) : !ref) { err('docker: invalid reference format.'); err("See 'docker run --help'."); return result(125); }
     let d = d0;
-    let img = localImage(d, ref);
+    let img = atDigest ? findLocal(d, words[0]) : localImage(d, ref!);
     if (!img) {
       // The image is pulled first (its progress goes to standard error, so standard output keeps only the container ID).
-      err(`Unable to find image '${refText(ref)}' locally`);
-      const p = pull(d, ref, refText(ref), now);
+      const shown = atDigest ? words[0] : refText(ref!);
+      err(`Unable to find image '${shown}' locally`);
+      const p = io.compose ? pullAny(state, d, shown, io.user, now) : pull(d, ref!, refText(ref!), now);
       if ('error' in p) { err(`docker: ${p.error.replace(/\.$/, '')}.`); err("See 'docker run --help'."); return result(125); }
       p.lines.forEach(l => err(l));
       d = p.d;
-      img = localImage(d, ref)!;
+      img = (atDigest ? findLocal(d, words[0]) : localImage(d, ref!))!;
     }
     const given = name?.replace(/^\//, '');
     const other = given !== undefined ? d.containers.find(c => c.name === given) : undefined;
@@ -1403,6 +1556,12 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
       id, name: given ?? generatedName(d, id), ref: words[0], image: img.id, path: path0 ?? '', args: args0, cmd, custom: words.length > 1, created: now, status: 'created', exitCode: 0, ports,
       env: env.map(e => e.includes('=') ? e : `${e}=`), workdir: workdir ?? img.workdir, rm, tty, interactive, logs: [], nodes: imageNodes(img, id), execs: 0, ...img.user ? { user: img.user } : {}, ...e22,
     };
+    // E23: the image's HEALTHCHECK with the --health-* flags over it (--no-healthcheck: none).
+    if (io.compose && !noHealth) {
+      const base: HealthConfig = img.healthcheck ?? { test: [], interval: 0, timeout: 0, retries: 0, startPeriod: 0, startInterval: 0 };
+      const hc = { ...base, ...health };
+      if (activeTest(hc)) c = { ...c, healthcheck: hc };
+    }
     if (io.storageNet) {
       // E22: --network host keeps the host's /etc/hosts and name; volumes are created (and filled from the image) and mount points made.
       if (c.hostname) { const nodes = new Map(c.nodes); nodes.set('/etc/hostname', { kind: 'file', mode: 0o644, owner: 'root', content: `${c.hostname}\n` }); nodes.set('/etc/hosts', { kind: 'file', mode: 0o644, owner: 'root', content: state.nodes.get('/etc/hosts')?.content ?? '' }); c = { ...c, nodes }; }
@@ -1448,10 +1607,10 @@ export function docker(state0: FsState, args: readonly string[], io: DockerIo): 
 }
 
 /** E22: other containers' logs after a command reached their services. */
-const withLogs = (d: DockerState, logs: Record<string, LogLine[]>): DockerState => ({ ...d, containers: d.containers.map(c => logs[c.id] ? { ...c, logs: logs[c.id] } : c) });
+export const withLogs = (d: DockerState, logs: Record<string, LogLine[]>): DockerState => ({ ...d, containers: d.containers.map(c => logs[c.id] ? { ...c, logs: logs[c.id] } : c) });
 
 /** E21: what the build engine asks the daemon: local images, what Docker Hub serves, references and Go's sizes. */
-function hooksOf(d: DockerState): BuildHooks {
+export function hooksOf(d: DockerState): BuildHooks {
   const remote = (r: ImageRef) => d.images.find(i => i.pullable && i.repo === r.repo && i.tag === r.tag) ?? (d.images.some(i => i.pullable && i.repo === r.repo) ? 'unknown-tag' as const : undefined);
   return { local: x => localImage(d, x), remote, parseRef, qualified, humanSize };
 }
@@ -1459,7 +1618,7 @@ function hooksOf(d: DockerState): BuildHooks {
 export function buildFor(state0: FsState, o: { context: string; file?: string }): BuildResult & { error?: string } {
   const state = settleDocker(state0);
   let error: string | undefined;
-  const r = build(state, state.docker!, { tags: [], ...o.file ? { file: o.file } : {}, context: o.context, args: {}, noCache: false, quiet: true, ...state.docker?.storageNet ? { storageNet: true } : {} },
+  const r = build(state, state.docker!, { tags: [], ...o.file ? { file: o.file } : {}, context: o.context, args: {}, noCache: false, quiet: true, ...state.docker?.storageNet ? { storageNet: true } : {}, ...state.docker?.compose ? { compose: true } : {} },
     { out: () => undefined, err: l => { if (l.startsWith('ERROR: ')) error = l.slice(7).replace(/^failed to solve: /, ''); } }, hooksOf(state.docker!));
   return { ...r, ...error ? { error } : {} };
 }
@@ -1479,7 +1638,7 @@ function portRange(value: string): { start: number; end: number; proto: string }
 }
 
 /** -p [IP:]HOST:CONTAINER[/PROTO] (a single container port publishes to a host port the simulation does not choose: refused). */
-function parsePublish(text: string): PortBinding | { error: string } {
+export function parsePublish(text: string): PortBinding | { error: string } {
   const m = /^(?:(\d+\.\d+\.\d+\.\d+):)?(\d+):(\d+)(?:\/(tcp|udp))?$/.exec(text);
   if (!m) {
     if (/^\d+(\/(tcp|udp))?$/.test(text)) return { error: 'docker run -p：模擬環境需要指定主機的連接埠（例如 -p 8080:80），不會隨機選一個' };
@@ -1529,23 +1688,24 @@ function infoTemplate(format: string, f: Record<string, string>): { text?: strin
  * Deletes a local image: its ID and the layers no other local image has (E20's images: one per pulled layer; a built image
  * shares its base's and its cached steps' layers). Docker Hub's images stay pullable; a built image is gone.
  */
-function deleteImage(d: DockerState, img: DockerImage): { d: DockerState; deleted: string[]; freed: number } {
+export function deleteImage(d: DockerState, img: DockerImage): { d: DockerState; deleted: string[]; freed: number } {
   const others = d.images.filter(i => i !== img && i.local && i.id !== img.id);
   const kept = new Set(others.flatMap(chainOf)), sizes = layerSizesOf(img);
   const layers = chainOf(img).map((id, k) => ({ id, size: sizes[k] ?? 0 })).filter(l => !kept.has(l.id));
-  const images = d.images.flatMap(i => i !== img ? [i] : i.pullable ? [{ ...i, local: false, dangling: undefined }] : []);
+  // E23: an entry pulled by digest goes with the image.
+  const images = d.images.flatMap(i => i !== img ? (i.digestOnly && i.id === img.id ? [] : [i]) : i.pullable ? [{ ...i, local: false, dangling: undefined }] : []);
   return { d: { ...d, images }, deleted: [img.id, ...layers.map(l => l.id)], freed: layers.reduce((n, l) => n + l.size, 0) };
 }
 
 /** docker ps's STATUS: Created, Up …, Exited (N) … ago (moby's State.String). */
 export function statusText(c: DockerContainer, now: Seconds): string {
-  if (c.status === 'running') return `Up ${humanDuration(now - (c.started ?? c.created))}`;
+  if (c.status === 'running') return `Up ${humanDuration(now - (c.started ?? c.created))}${healthSuffix(c)}`;
   if (c.status === 'created' || c.started === undefined) return 'Created';
   return `Exited (${c.exitCode}) ${humanDuration(now - (c.finished ?? now))} ago`;
 }
 
 /** docker pull: the layers as a terminal shows them when they are done, the digest and the status. */
-function pull(d: DockerState, ref: ImageRef, typed: string, now: Seconds): { d: DockerState; lines: string[] } | { error: string } {
+export function pull(d: DockerState, ref: ImageRef, typed: string, now: Seconds): { d: DockerState; lines: string[] } | { error: string } {
   void now;
   const remote = d.images.find(i => i.pullable && i.repo === ref.repo && i.tag === ref.tag);
   if (!remote) {
@@ -1624,6 +1784,22 @@ function inspectContainer22(d: DockerState, c: DockerContainer): Record<string, 
     Config: { ...base.Config, Hostname: c.hostname ?? short(c.id), Volumes: img?.volumes?.length ? Object.fromEntries(img.volumes.map(v => [v, {}])) : null },
     NetworkSettings: { ...base.NetworkSettings, Networks: networks },
   };
+}
+/** E23: a container on the compose profile: State.Health (absent without a health check), Config.Healthcheck, Compose's labels and the restart policy. */
+function inspectContainer23(d: DockerState, c: DockerContainer): Record<string, unknown> {
+  const base = inspectContainer22(d, c) as { State: Record<string, unknown>; Config: Record<string, unknown>; HostConfig: Record<string, unknown> };
+  const img = imageById(d, c.image), labels = { ...img?.labels ?? {}, ...c.labels ?? {} };
+  return {
+    ...base, State: { ...base.State, Health: c.health ? healthJson(c.health) : undefined },
+    HostConfig: { ...base.HostConfig, RestartPolicy: { Name: c.restart ?? 'no', MaximumRetryCount: 0 } },
+    Config: { ...base.Config, Labels: Object.keys(labels).length ? labels : null, ...c.healthcheck ? { Healthcheck: healthConfigJson(c.healthcheck) } : {} },
+  };
+}
+/** E23: an image's repository digests (Docker Hub's, and a registry's after push or pull) and its HEALTHCHECK. */
+function inspectImage23(d: DockerState, i: DockerImage, tags: string[]): Record<string, unknown> {
+  const base = inspectImage22(i, tags) as { Config: Record<string, unknown> };
+  const hub = d.images.filter(x => x.local && x.id === i.id && x.pullable && !x.built && !x.dangling).map(x => `${x.repo}@sha256:${x.digest}`);
+  return { ...base, RepoDigests: [...new Set([...hub, ...d.repoDigests?.[i.id] ?? []])], Config: { ...base.Config, ...i.healthcheck ? { Healthcheck: healthConfigJson(i.healthcheck) } : {} } };
 }
 function inspectImage22(i: DockerImage, tags: string[]): Record<string, unknown> {
   const base = inspectImage(i, true, tags) as { Config: Record<string, unknown> };

@@ -586,7 +586,21 @@
       ],
       "commit": "TBD",
       "tests": "TBD",
-      "notes": "DKR-3：引擎階段 E22（storage-net：具名 Volume 與 copy-up、匿名 Volume 與 Dockerfile 的 VOLUME、bind mount 與 :ro、--mount 與 tmpfs、以 UID 對應擁有者與權限、tar 備份與還原；docker network 與每個網路的位址、只在自訂網路上的內建 DNS、網路隔離、容器埠與公開埠、host 與 none 網路；volume、network 與容器內 reach 檢查）；Volume 與資料保存、容器網路兩課"
+      "notes": "DKR-3：引擎階段 E22（storage-net：具名 Volume 與 copy-up、匿名 Volume 與 Dockerfile 的 VOLUME、bind mount 與 :ro、--mount 與 tmpfs、以 UID 對應擁有者與權限、tar 備份與還原；docker network 與每個網路的位址、只在自訂網路上的內建 DNS、網路隔離、容器埠與公開埠、host 與 none 網路；volume、network 與容器內 reach 檢查）；Volume 與資料保存、容器網路兩課",
+      "pr": "#87",
+      "merged": "7df8a9f"
+    },
+    {
+      "id": 42,
+      "date": "2026-11-23",
+      "lessons": [
+        "DKR09",
+        "DKR10",
+        "DKR11"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "DKR-4：引擎階段 E23（compose：docker compose 的 YAML 子集、config、up／ps／logs／exec／stop／start／restart／down、depends_on 的等待條件、Compose 與 Dockerfile 的健康檢查、pg_isready；多階段建置、COPY --from、scratch 與 distroless、--target、ARG；課程宣告的私有 Registry、tag、login、push、以 digest pull 與執行、不可變標籤；compose、registry、image digest／maxSize 與 container health 檢查）；Docker Compose 多容器應用、多階段建置、Container Registry 與版本標籤三課"
     }
   ]
 }

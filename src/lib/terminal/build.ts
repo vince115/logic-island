@@ -4,7 +4,8 @@ import { sha256 } from './ssh';
 import { apt, type PackageDb, type PackageDef } from './packages';
 import { runInput, type CommandName, type ShellProfile } from './shell';
 import { matchName } from './glob';
-import type { DockerImage, DockerState, HistoryRow, ImageRef } from './docker';
+import type { BuildTool, DockerImage, DockerState, HistoryRow, ImageRef } from './docker';
+import { healthHistory, parseHealthcheckInstruction, type HealthConfig } from './health';
 import type { Seconds } from './clock';
 
 /*
@@ -165,6 +166,8 @@ interface Stage {
   labels: Record<string, string>;
   /** E22: VOLUME paths. */
   volumes: string[];
+  /** E23: HEALTHCHECK. */
+  healthcheck?: HealthConfig;
   history: HistoryRow[];
   rootfs: string[];
   chain: string[];
@@ -297,7 +300,7 @@ function expandVars(text: string, env: ReadonlyMap<string, string>): string {
 }
 const words = (text: string) => (text.match(/"(?:[^"\\]|\\.)*"|'[^']*'|\S+/g) ?? []).map(w => w.startsWith('"') ? w.slice(1, -1).replace(/\\(.)/g, '$1') : w.startsWith("'") ? w.slice(1, -1) : w);
 
-export interface RunEnv { stage: Stage; img: DockerImage | null; env: Map<string, string>; user: string; packages: ImagePackages; available: readonly string[]; alpine: boolean }
+export interface RunEnv { stage: Stage; img: DockerImage | null; env: Map<string, string>; user: string; packages: ImagePackages; available: readonly string[]; alpine: boolean; /** E23: the lesson's build tools. */ tools?: readonly BuildTool[] }
 
 /** Runs a RUN instruction's command line in the build container: its output (merged), its exit status, the changed stage. */
 function runLine(r: RunEnv, argv: string[] | null, line: string, io: RunIo): number {
@@ -325,6 +328,9 @@ function runPart(r: RunEnv, w: string[], text: string, cwd: () => string, setCwd
   const [cmd0, ...args] = w;
   const cmd = cmd0.slice(cmd0.lastIndexOf('/') + 1);
   const s = r.stage;
+  // E23: a build tool the lesson declares (go build, npm run build), matched by its exact words.
+  const tool = r.tools?.find(t => t.command.length === w.length && t.command.every((x, i) => x === w[i]));
+  if (tool) return r.available.includes(cmd) ? toolRun(r, tool, cwd(), io) : notFound(cmd0);
   switch (cmd) {
     case 'set': return 0;
     case 'true': return 0;
@@ -363,6 +369,27 @@ function runPart(r: RunEnv, w: string[], text: string, cwd: () => string, setCwd
   return res.lines.some(l => l.kind === 'err') ? 1 : 0;
 }
 
+/**
+ * E23: a declared build tool: what it needs (relative to the working folder), what it prints, and the files it writes —
+ * each weighs its declared size, and its content follows the sources under the working folder (so a change there makes a
+ * new artifact, a new layer and a new image).
+ */
+function toolRun(r: RunEnv, t: BuildTool, cwd: string, io: RunIo): number {
+  const s = r.stage, at = (p: string) => resolvePath({ cwd, home: '/root' }, p);
+  const missing = t.needs.find(p => !s.nodes.has(at(p)));
+  if (missing !== undefined) { io.log.push(...(t.missing?.output ?? `（模擬環境：${t.command.join(' ')} 需要的 ${missing} 不存在）`).replace(/\n$/, '').split('\n')); io.seconds += 0.3; return t.missing?.exit ?? 1; }
+  if (t.output) io.log.push(...t.output.replace(/\n$/, '').split('\n'));
+  io.seconds += t.seconds ?? 1;
+  if (t.exit !== 0) return t.exit;
+  const sources = [...s.nodes].filter(([p, n]) => n.kind === 'file' && isInside(p, cwd)).map(([p, n]) => `${p}\t${n.content ?? ''}`).sort().join('\n');
+  for (const f of t.writes) {
+    const path = at(f.path), content = `（模擬：${t.command.join(' ')} 產生的檔案 ${hex(`${path}\n${sources}`).slice(0, 16)}）\n`;
+    mkdirs(s.nodes, parentOf(path), r.user === 'root' ? 'root' : r.user);
+    s.nodes.set(path, { kind: 'file', mode: f.mode ?? 0o755, owner: r.user === 'root' ? 'root' : r.user, content });
+    s.weights.set(path, { content, size: f.size });
+  }
+  return 0;
+}
 /** apt-get (and apt) on the build container: E5's engine on the image's package table, as root, without a terminal. */
 function aptRun(r: RunEnv, cmd: string, args: string[], io: RunIo): number {
   const s = r.stage, who = userOf(s.nodes, r.user)?.name ?? r.user;
@@ -599,6 +626,8 @@ export interface BuildOptions {
   quiet: boolean;
   /** E22 (the storage-net profile): VOLUME is supported. */
   storageNet?: boolean;
+  /** E23 (the compose profile): multi-stage builds (COPY --from, FROM a stage), HEALTHCHECK and the lesson's build tools. */
+  compose?: boolean;
 }
 export interface BuildStep { label: string; cached: boolean }
 export interface BuildResult { state: FsState; status: number; steps: BuildStep[]; id?: string }
@@ -679,31 +708,73 @@ export function build(state: FsState, d: DockerState, o: BuildOptions, io: Io, h
     at = stages.findIndex(s => s.name === o.target!.toLowerCase());
     if (at < 0) return fail(`failed to solve: target stage "${o.target}" could not be found`);
   }
-  const stage = stages[at];
+  // E23 (the compose profile): and the stages it needs — FROM an earlier stage, COPY --from=an earlier stage (by name or
+  // number) — in the Dockerfile's order. Below the profile only the target stage, as before.
+  const stageIndex = (name: string, before: number) => {
+    const j = stages.findIndex(s => s.name === name.toLowerCase());
+    const k = j >= 0 ? j : /^\d+$/.test(name) ? Number(name) : -1;
+    return k >= 0 && k < before ? k : undefined;
+  };
+  const fromWord = (i: number) => substitute(stages[i].from.args.split(/\s+/)[0], globalArgs);
+  const fromStage = (i: number) => o.compose ? stageIndex(fromWord(i), i) : undefined;
+  const copyFrom = (ins: Instruction) => ins.flags.from === undefined ? undefined : substitute(ins.flags.from, globalArgs);
+  const needed = new Set<number>();
+  const need = (i: number) => {
+    if (needed.has(i)) return;
+    needed.add(i);
+    const f = fromStage(i);
+    if (f !== undefined) need(f);
+    if (o.compose) for (const ins of stages[i].body) { const v = copyFrom(ins), j = v === undefined ? undefined : stageIndex(v, i); if (j !== undefined) need(j); }
+  };
+  need(at);
+  const order = [...needed].sort((a, b) => a - b);
   const LATER: Record<string, string> = { VOLUME: 'E22（Volume 與網路）', HEALTHCHECK: 'E24（健康檢查、資源限制與重新啟動）', STOPSIGNAL: 'E24（健康檢查、資源限制與重新啟動）', ONBUILD: '之後的階段', SHELL: '之後的階段', MAINTAINER: '之後的階段（請用 LABEL）' };
-  for (const ins of stage.body) {
-    if ((ins.keyword === 'COPY' || ins.keyword === 'ADD') && ins.flags.from !== undefined) return fail(`failed to solve: ${ins.keyword} --from（多階段建置）：模擬環境在引擎階段 E23 才支援`, src(ins.line, ins.end));
+  for (const i of order) for (const ins of stages[i].body) {
+    if (!o.compose && (ins.keyword === 'COPY' || ins.keyword === 'ADD') && ins.flags.from !== undefined) return fail(`failed to solve: ${ins.keyword} --from（多階段建置）：模擬環境在引擎階段 E23 才支援`, src(ins.line, ins.end));
+    if (o.compose && ins.keyword === 'ADD' && ins.flags.from !== undefined) return fail('failed to solve: 模擬環境的多階段建置請用 COPY --from（ADD 不支援 --from）', src(ins.line, ins.end));
     if (ins.keyword === 'RUN' && Object.keys(ins.flags).length) return fail(`failed to solve: 模擬環境不支援 RUN --${Object.keys(ins.flags)[0]}`, src(ins.line, ins.end));
-    if ((ins.keyword === 'COPY' || ins.keyword === 'ADD') && Object.keys(ins.flags).some(f => f !== 'chown' && f !== 'chmod')) return fail(`failed to solve: 模擬環境的 ${ins.keyword} 只支援 --chown 與 --chmod`, src(ins.line, ins.end));
-    if (LATER[ins.keyword] && !(o.storageNet && ins.keyword === 'VOLUME')) return fail(`failed to solve: ${ins.keyword}：模擬環境在引擎階段 ${LATER[ins.keyword]} 才支援`, src(ins.line, ins.end));
+    if ((ins.keyword === 'COPY' || ins.keyword === 'ADD') && Object.keys(ins.flags).some(f => f !== 'chown' && f !== 'chmod' && !(o.compose && f === 'from')))
+      return fail(`failed to solve: 模擬環境的 ${ins.keyword} 只支援 --chown${o.compose && ins.keyword === 'COPY' ? '、--chmod 與 --from' : ' 與 --chmod'}`, src(ins.line, ins.end));
+    if (LATER[ins.keyword] && !(o.storageNet && ins.keyword === 'VOLUME') && !(o.compose && ins.keyword === 'HEALTHCHECK')) return fail(`failed to solve: ${ins.keyword}：模擬環境在引擎階段 ${LATER[ins.keyword]} 才支援`, src(ins.line, ins.end));
   }
-  // The base image (ARG substitution on the FROM line): local first, else what Docker Hub serves.
-  const fromText = substitute(stage.from.args.split(/\s+/)[0], globalArgs);
-  const scratch = fromText === 'scratch';
-  const baseRef = scratch ? null : hooks.parseRef(fromText);
-  if (!scratch && !baseRef) return fail(`failed to solve: failed to parse stage name "${fromText}": invalid reference format`, src(stage.from.line, stage.from.end));
-  let base: DockerImage | null = null;
+  // The base images (ARG substitution on the FROM line): local first, else what Docker Hub serves; each is resolved once.
   const nameOf = (r: ImageRef) => hooks.qualified(r);
-  if (baseRef) {
-    base = hooks.local(baseRef) ?? null;
-    const remote = base ? undefined : hooks.remote(baseRef);
-    if (!base && (remote === undefined || remote === 'unknown-tag')) {
-      const why = remote === 'unknown-tag' ? `${nameOf(baseRef)}: not found` : 'pull access denied, repository does not exist or may require authorization: server message: insufficient_scope: authorization failed';
-      block(`[internal] load metadata for ${nameOf(baseRef)}`, [], `ERROR: ${why}`);
-      return fail(`failed to solve: ${fromText}: failed to resolve source metadata for ${nameOf(baseRef)}: ${why}`, src(stage.from.line, stage.from.end), { name: `[internal] load metadata for ${nameOf(baseRef)}`, lines: [] });
+  const resolved = new Map<string, DockerImage>();
+  const resolve = (text: string, ins: Instruction): DockerImage | BuildResult => {
+    const ref = hooks.parseRef(text);
+    if (!ref) return fail(`failed to solve: failed to parse stage name "${text}": invalid reference format`, src(ins.line, ins.end));
+    const known = resolved.get(nameOf(ref));
+    if (known) return known;
+    const local = hooks.local(ref) ?? null;
+    const remote = local ? undefined : hooks.remote(ref);
+    if (!local && (remote === undefined || remote === 'unknown-tag')) {
+      const why = remote === 'unknown-tag' ? `${nameOf(ref)}: not found` : 'pull access denied, repository does not exist or may require authorization: server message: insufficient_scope: authorization failed';
+      block(`[internal] load metadata for ${nameOf(ref)}`, [], `ERROR: ${why}`);
+      return fail(`failed to solve: ${text}: failed to resolve source metadata for ${nameOf(ref)}: ${why}`, src(ins.line, ins.end), { name: `[internal] load metadata for ${nameOf(ref)}`, lines: [] });
     }
-    base ??= remote as DockerImage;
-    block(`[internal] load metadata for ${nameOf(baseRef)}`, [], 'DONE 0.5s');
+    const img = local ?? remote as DockerImage;
+    block(`[internal] load metadata for ${nameOf(ref)}`, [], 'DONE 0.5s');
+    resolved.set(nameOf(ref), img);
+    return img;
+  };
+  const isResult = (x: DockerImage | BuildResult): x is BuildResult => 'status' in x && 'steps' in x;
+  const bases = new Map<number, DockerImage | null>();
+  for (const i of order) {
+    if (fromStage(i) !== undefined) continue;
+    const text = fromWord(i);
+    if (text === 'scratch') { bases.set(i, null); continue; }
+    const r = resolve(text, stages[i].from);
+    if (isResult(r)) return r;
+    bases.set(i, r);
+  }
+  // E23: COPY --from=IMAGE (an image, not a stage) reads that image's files.
+  const copyImages = new Map<string, DockerImage>();
+  for (const i of order) for (const ins of stages[i].body) {
+    const v = copyFrom(ins);
+    if (v === undefined || stageIndex(v, i) !== undefined || copyImages.has(v)) continue;
+    const r = resolve(v, ins);
+    if (isResult(r)) return r;
+    copyImages.set(v, r);
   }
   // .dockerignore, then the context: every file under the folder that .dockerignore does not exclude.
   const ignoreNode = state.nodes.get(`${ctx === '/' ? '' : ctx}/.dockerignore`), patterns = ignoreNode?.kind === 'file' ? ignorePatterns(ignoreNode.content ?? '') : [];
@@ -715,215 +786,255 @@ export function build(state: FsState, d: DockerState, o: BuildOptions, io: Io, h
     if (!ignoredBy(patterns, rel)) context.set(rel, node);
   }
   // FROM, then RUN, COPY, ADD and WORKDIR are the steps ([k/N]); the other instructions change only the config.
-  const total = stage.body.filter(i => ['RUN', 'COPY', 'ADD', 'WORKDIR'].includes(i.keyword)).length + 1, prefix = stages.length > 1 ? `${stage.name ?? `stage-${at}`} ` : '';
-  const s: Stage = {
-    nodes: base ? imageFs(base) : new Map<string, FsNode>([['/', { kind: 'dir', mode: 0o755, owner: 'root' }]]), weights: new Map(base?.weights ?? []), ...base?.apt ? { apt: base.apt } : {},
-    env: [...base?.env ?? []], workdir: base?.workdir ?? '/', user: base?.user ?? '', cmd: [...base?.cmd ?? []], entrypoint: [...base?.entrypoint ?? []], expose: [...base?.expose ?? []],
-    labels: { ...base?.labels ?? {} }, volumes: [...base?.volumes ?? []], history: base ? historyOf(base).map(r => ({ ...r })) : [], rootfs: base ? rootfsOf(base) : [], chain: base ? chainOf(base) : [], layerSizes: base ? layerSizesOf(base) : [], base,
-  };
-  const inherited = s.history.length;
-  const fromKey = base ? `from/${base.id}` : 'from/scratch';
-  if (base) {
-    const ref = nameOf({ repo: base.repo, tag: base.tag }), name = base.built ? ref : `${ref}@sha256:${base.digest}`;
-    const known = base.local || !!cache[fromKey], body = [`resolve ${name} done`];
+  const totalOf = (i: number) => stages[i].body.filter(x => ['RUN', 'COPY', 'ADD', 'WORKDIR'].includes(x.keyword)).length + 1;
+  const prefixOf = (i: number) => stages.length > 1 ? `${stages[i].name ?? `stage-${i}`} ` : '';
+  const fromKeyOf = (img: DockerImage | null) => img ? `from/${img.id}` : 'from/scratch';
+  const downloaded = (img: DockerImage, label: string) => {
+    const ref = nameOf({ repo: img.repo, tag: img.tag }), name = img.built ? ref : `${ref}@sha256:${img.digest}`;
+    const known = img.local || !!cache[fromKeyOf(img)], body = [`resolve ${name} done`];
     // A base that is neither local nor in the build cache is downloaded into the build cache (it does not become a local image).
-    if (!known) rootfsOf(base).forEach((id, k) => { const size = hooks.humanSize(layerSizesOf(base!)[k] ?? 0); body.push(`sha256:${id} ${size} / ${size} 0.4s done`, `extracting sha256:${id} 0.2s done`); });
-    block(`[${prefix}1/${total}] FROM ${name}`, body, `DONE ${known ? '0.0s' : secs(0.6 * rootfsOf(base).length)}`);
-    cache[fromKey] = { nodes: new Map(), weights: new Map(), created: now, size: 0 };
-  } else block(`[${prefix}1/${total}] FROM scratch`, [], 'DONE 0.0s');
-  steps.push({ label: `FROM ${fromText}`, cached: false });
-  // The context transfer: the files the COPY and ADD steps name.
-  const copies = stage.body.filter(i => i.keyword === 'COPY' || i.keyword === 'ADD');
+    if (!known) rootfsOf(img).forEach((id, k) => { const size = hooks.humanSize(layerSizesOf(img)[k] ?? 0); body.push(`sha256:${id} ${size} / ${size} 0.4s done`, `extracting sha256:${id} 0.2s done`); });
+    block(label.replace('%s', name), body, `DONE ${known ? '0.0s' : secs(0.6 * rootfsOf(img).length)}`);
+    cache[fromKeyOf(img)] = { nodes: new Map(), weights: new Map(), created: now, size: 0 };
+  };
+  for (const i of order) {
+    if (!bases.has(i)) continue;
+    const base = bases.get(i)!;
+    if (base) downloaded(base, `[${prefixOf(i)}1/${totalOf(i)}] FROM %s`);
+    else block(`[${prefixOf(i)}1/${totalOf(i)}] FROM scratch`, [], 'DONE 0.0s');
+    steps.push({ label: `FROM ${fromWord(i)}`, cached: false });
+  }
+  // An image a stage is based on was resolved and shown already (BuildKit has one vertex for it).
+  for (const img of copyImages.values()) if (![...bases.values()].some(b => b?.id === img.id)) downloaded(img, 'FROM %s');
+  // The context transfer: the files the COPY and ADD steps name (not the ones that copy from a stage or an image).
+  const copies = order.flatMap(i => stages[i].body.filter(x => (x.keyword === 'COPY' || x.keyword === 'ADD') && x.flags.from === undefined));
   if (copies.length) {
     const needs = new Set<string>();
     for (const ins of copies) for (const sp of (ins.json ?? ins.args.split(/\s+/).filter(Boolean)).slice(0, -1))
       for (const [rel, node] of context) if (node.kind === 'file' && copyMatch(sp, rel) !== undefined) needs.add(rel);
     block('[internal] load build context', [`transferring context: ${hooks.humanSize([...needs].reduce((t, r) => t + bytes(context.get(r)!.content ?? ''), 0))} done`], 'DONE 0.0s');
   }
-  // The stage's variables: its ARGs (a --build-arg wins over the default) and ENV.
-  const args = new Map<string, string>(), declared: string[] = [];
-  const envMap = () => new Map(s.env.map(e => [e.slice(0, e.indexOf('=')), e.slice(e.indexOf('=') + 1)] as [string, string]));
-  const vars = () => new Map([...args, ...envMap()]);
   const warnings: string[] = [];
-  let key = fromKey, k = 1, newLayers = 0, cmdSet = false;
-  const meta = (createdBy: string) => s.history.push({ created: -1, createdBy, size: 0, empty: true, comment: 'buildkit.dockerfile.v0' });
-  for (const ins of stage.body) {
-    const sub = (t: string) => substitute(t, vars());
-    switch (ins.keyword) {
-      case 'ARG': {
-        const p = pairs(ins.args);
-        for (const [name, v] of p?.pairs ?? []) {
-          const value = o.args[name] ?? (p!.legacy ? globalArgs.get(name) ?? '' : sub(v));
-          args.set(name, value);
-          if (!declared.includes(name)) declared.push(name);
-          meta(`ARG ${name}=${value}`);
+  const built = new Map<number, { s: Stage; key: string; newLayers: number; created: Seconds; root: DockerImage | null; scratch: boolean }>();
+  for (const i of order) {
+    const stage = stages[i], prefix = prefixOf(i), total = totalOf(i), parent = fromStage(i);
+    const up = parent !== undefined ? built.get(parent)! : undefined, base = up ? up.root : bases.get(i) ?? null;
+    // A stage FROM another stage goes on from that stage's file system, config and layers.
+    const s: Stage = up ? cloneStage(up.s) : {
+      nodes: base ? imageFs(base) : new Map<string, FsNode>([['/', { kind: 'dir', mode: 0o755, owner: 'root' }]]), weights: new Map(base?.weights ?? []), ...base?.apt ? { apt: base.apt } : {},
+      env: [...base?.env ?? []], workdir: base?.workdir ?? '/', user: base?.user ?? '', cmd: [...base?.cmd ?? []], entrypoint: [...base?.entrypoint ?? []], expose: [...base?.expose ?? []],
+      labels: { ...base?.labels ?? {} }, volumes: [...base?.volumes ?? []], history: base ? historyOf(base).map(r => ({ ...r })) : [], rootfs: base ? rootfsOf(base) : [], chain: base ? chainOf(base) : [], layerSizes: base ? layerSizesOf(base) : [], base,
+      ...base?.healthcheck ? { healthcheck: base.healthcheck } : {},
+    };
+    const inherited = s.history.length;
+    // The stage's variables: its ARGs (a --build-arg wins over the default) and ENV.
+    const args = new Map<string, string>(), declared: string[] = [];
+    const envMap = () => new Map(s.env.map(e => [e.slice(0, e.indexOf('=')), e.slice(e.indexOf('=') + 1)] as [string, string]));
+    const vars = () => new Map([...args, ...envMap()]);
+    let key = up ? up.key : fromKeyOf(base), k = 1, newLayers = up ? up.newLayers : 0, cmdSet = false;
+    const meta = (createdBy: string) => s.history.push({ created: -1, createdBy, size: 0, empty: true, comment: 'buildkit.dockerfile.v0' });
+    for (const ins of stage.body) {
+      const sub = (t: string) => substitute(t, vars());
+      switch (ins.keyword) {
+        case 'ARG': {
+          const p = pairs(ins.args);
+          for (const [name, v] of p?.pairs ?? []) {
+            const value = o.args[name] ?? (p!.legacy ? globalArgs.get(name) ?? '' : sub(v));
+            args.set(name, value);
+            if (!declared.includes(name)) declared.push(name);
+            meta(`ARG ${name}=${value}`);
+          }
+          continue;
         }
-        continue;
-      }
-      case 'ENV': case 'LABEL': {
-        const p = pairs(ins.args);
-        if (!p || !p.pairs.length || p.pairs.some(([name]) => !name)) return fail(`failed to solve: dockerfile parse error on line ${ins.line}: ${ins.keyword} names can not be blank`, src(ins.line, ins.end));
-        if (p.legacy) warnings.push(`LegacyKeyValueFormat: "${ins.keyword} key=value" should be used instead of legacy "${ins.keyword} key value" format (line ${ins.line})`);
-        const set: string[] = [];
-        for (const [name, v] of p.pairs) {
-          const value = sub(v);
-          if (ins.keyword === 'ENV') s.env = [...s.env.filter(e => e.slice(0, e.indexOf('=')) !== name), `${name}=${value}`];
-          else s.labels[name] = value;
-          set.push(`${name}=${value}`);
+        case 'ENV': case 'LABEL': {
+          const p = pairs(ins.args);
+          if (!p || !p.pairs.length || p.pairs.some(([name]) => !name)) return fail(`failed to solve: dockerfile parse error on line ${ins.line}: ${ins.keyword} names can not be blank`, src(ins.line, ins.end));
+          if (p.legacy) warnings.push(`LegacyKeyValueFormat: "${ins.keyword} key=value" should be used instead of legacy "${ins.keyword} key value" format (line ${ins.line})`);
+          const set: string[] = [];
+          for (const [name, v] of p.pairs) {
+            const value = sub(v);
+            if (ins.keyword === 'ENV') s.env = [...s.env.filter(e => e.slice(0, e.indexOf('=')) !== name), `${name}=${value}`];
+            else s.labels[name] = value;
+            set.push(`${name}=${value}`);
+          }
+          meta(`${ins.keyword} ${set.join(' ')}`);
+          continue;
         }
-        meta(`${ins.keyword} ${set.join(' ')}`);
-        continue;
-      }
-      case 'EXPOSE': {
-        const ports: number[] = [];
-        for (const w of sub(ins.args).split(/\s+/).filter(Boolean)) {
-          const m = /^(\d+)(?:\/(tcp|udp))?$/i.exec(w);
-          if (!m || Number(m[1]) < 1 || Number(m[1]) > 65535) return fail(`failed to solve: invalid containerPort: ${w}`, src(ins.line, ins.end));
-          if (m[2]?.toLowerCase() === 'udp') return fail('failed to solve: 模擬環境的 EXPOSE 只支援 TCP 的連接埠', src(ins.line, ins.end));
-          ports.push(Number(m[1]));
+        case 'EXPOSE': {
+          const ports: number[] = [];
+          for (const w of sub(ins.args).split(/\s+/).filter(Boolean)) {
+            const m = /^(\d+)(?:\/(tcp|udp))?$/i.exec(w);
+            if (!m || Number(m[1]) < 1 || Number(m[1]) > 65535) return fail(`failed to solve: invalid containerPort: ${w}`, src(ins.line, ins.end));
+            if (m[2]?.toLowerCase() === 'udp') return fail('failed to solve: 模擬環境的 EXPOSE 只支援 TCP 的連接埠', src(ins.line, ins.end));
+            ports.push(Number(m[1]));
+          }
+          s.expose = [...new Set([...s.expose, ...ports])];
+          meta(`EXPOSE map[${[...new Set(ports)].map(p => `${p}/tcp`).sort().map(p => `${p}:{}`).join(' ')}]`);
+          continue;
         }
-        s.expose = [...new Set([...s.expose, ...ports])];
-        meta(`EXPOSE map[${[...new Set(ports)].map(p => `${p}/tcp`).sort().map(p => `${p}:{}`).join(' ')}]`);
+        case 'CMD': case 'ENTRYPOINT': {
+          const list = ins.json ?? ['/bin/sh', '-c', ins.args];
+          if (!ins.json) warnings.push(`JSONArgsRecommended: JSON arguments recommended for ${ins.keyword} to prevent unintended behavior related to OS signals (line ${ins.line})`);
+          // ENTRYPOINT resets a CMD the base image set (one set earlier in this stage stays).
+          if (ins.keyword === 'CMD') { s.cmd = list; cmdSet = true; }
+          else { s.entrypoint = list; if (!cmdSet) s.cmd = []; }
+          meta(`${ins.keyword} ${goList(list)}`);
+          continue;
+        }
+        case 'VOLUME': {
+          // E22: VOLUME ["/data"] or VOLUME /data /logs: config only (each container gets an anonymous volume there).
+          const paths = (ins.json ?? sub(ins.args).split(/\s+/).filter(Boolean)).map(p => sub(p));
+          if (!paths.length) return fail(`failed to solve: dockerfile parse error on line ${ins.line}: VOLUME requires at least one argument`, src(ins.line, ins.end));
+          if (paths.some(p => !p.startsWith('/'))) return fail(`failed to solve: 模擬環境的 VOLUME 需要絕對路徑（${paths.find(p => !p.startsWith('/'))}）`, src(ins.line, ins.end));
+          s.volumes = [...new Set([...s.volumes, ...paths])];
+          meta(`VOLUME [${paths.join(' ')}]`);
+          continue;
+        }
+        case 'HEALTHCHECK': {
+          // E23: config only (its test runs in each container while it runs).
+          const h = parseHealthcheckInstruction(ins.args);
+          if ('error' in h) return fail(`failed to solve: dockerfile parse error on line ${ins.line}: ${h.error}`, src(ins.line, ins.end));
+          s.healthcheck = h;
+          meta(healthHistory(h));
+          continue;
+        }
+        case 'USER': {
+          const u = sub(ins.args.trim());
+          if (!u || /\s/.test(u)) return fail(`failed to solve: dockerfile parse error on line ${ins.line}: USER requires exactly one argument`, src(ins.line, ins.end));
+          s.user = u;
+          meta(`USER ${u}`);
+          continue;
+        }
+      }
+      // A filesystem step: its definition and cache key, then CACHED or run.
+      k++;
+      const flagText = Object.entries(ins.flags).map(([f, v]) => `--${f}=${v} `).join('');
+      const label = `[${prefix}${k}/${total}] ${ins.keyword} ${flagText}${ins.args}`.replace(/\s+$/, '');
+      const stepLabel = label.replace(/^\[[^\]]*\] /, '');
+      const runEnv = vars();
+      let def: string, createdBy: string;
+      const plan: { from: string; to: string }[] = [];
+      // E23: COPY --from reads another stage's (or an image's) files, by absolute paths; everything else reads the context.
+      const fromText = copyFrom(ins), fromAt = fromText === undefined ? undefined : stageIndex(fromText, i);
+      let source: ReadonlyMap<string, FsNode> = context, sourceWeights: ReadonlyMap<string, Weight> = new Map(), sourceKey = '';
+      if (fromText !== undefined) {
+        const of = fromAt !== undefined ? built.get(fromAt)! : undefined, img = of ? undefined : copyImages.get(fromText)!;
+        const nodes = of ? of.s.nodes : imageFs(img!), weights = of ? of.s.weights : img!.weights ?? new Map<string, Weight>();
+        const rel = new Map<string, FsNode>(), relWeights = new Map<string, Weight>();
+        for (const [p, node] of nodes) if (p !== '/') { rel.set(p.slice(1), node); const w = weights.get(p); if (w) relWeights.set(p.slice(1), w); }
+        source = rel; sourceWeights = relWeights; sourceKey = of ? `stage/${of.key}` : `image/${img!.id}`;
+      }
+      if (ins.keyword === 'WORKDIR') {
+        const dir = resolvePath({ cwd: s.workdir, home: '/' }, sub(ins.args.trim()));
+        def = `workdir\n${dir}`;
+        createdBy = `WORKDIR ${dir}`;
+        s.workdir = dir;
+      } else if (ins.keyword === 'RUN') {
+        // Build args reach RUN as environment variables (and its history line: |N NAME=value …).
+        const argPrefix = declared.length ? `|${declared.length} ${declared.map(a => `${a}=${args.get(a) ?? ''}`).join(' ')} ` : '';
+        def = `run\n${JSON.stringify(ins.json ?? ins.args)}\n${[...runEnv].map(([a, b]) => `${a}=${b}`).join('\n')}\n${s.workdir}\n${s.user}`;
+        createdBy = ins.json ? `RUN ${argPrefix}${ins.json.join(' ')} # buildkit` : `RUN ${argPrefix}/bin/sh -c ${ins.args} # buildkit`;
+      } else {
+        // COPY and ADD: sources are context paths (globs; a folder copies its contents), the destination is relative to WORKDIR.
+        const list = (ins.json ?? ins.args.split(/\s+/).filter(Boolean)).map(sub);
+        if (list.length < 2) return fail(`failed to solve: dockerfile parse error on line ${ins.line}: ${ins.keyword} requires at least two arguments, but only one was provided. Destination could not be determined`, src(ins.line, ins.end));
+        const dest = list.at(-1)!, sources = list.slice(0, -1);
+        if (ins.keyword === 'ADD' && sources.some(x => /^(https?|git):\/\//.test(x) || /\.(tar|tar\.gz|tgz|tar\.xz|txz|tar\.bz2)$/.test(x)))
+          return fail('failed to solve: ADD：模擬環境只支援複製本機的一般檔案（網址的下載與壓縮檔的自動解開不模擬；請用 COPY）', src(ins.line, ins.end));
+        const destAbs = resolvePath({ cwd: s.workdir, home: '/' }, dest), into = (tail: string) => `${destAbs === '/' ? '' : destAbs}/${tail}`;
+        // Several sources need a destination that ends with / (the Dockerfile's rule); one file goes into an existing folder too.
+        const slash = dest.endsWith('/') || dest === '.', destDir = slash || s.nodes.get(destAbs)?.kind === 'dir';
+        if (sources.length > 1 && !slash) return fail(`failed to solve: When using ${ins.keyword} with more than one source file, the destination must be a directory and end with a /`, src(ins.line, ins.end));
+        let files = 0;
+        for (const sp0 of sources) {
+          const sp = fromText !== undefined ? sp0.replace(/^\/+/, '') || '.' : sp0;
+          const hits = [...source.keys()].filter(rel => copyMatch(sp, rel) !== undefined).sort();
+          if (!hits.length) {
+            const why = `failed to calculate checksum of ref ${refId(`${state.host}/${ctx}/${ins.line}/${sp0}`)}: "/${sp0.replace(/^\.?\/+/, '').replace(/\/+$/, '')}": not found`;
+            block(label, [], `ERROR: ${why}`);
+            steps.push({ label: stepLabel, cached: false });
+            return fail(`failed to solve: failed to compute cache key: ${why}`, src(ins.line, ins.end), { name: label, lines: [] });
+          }
+          for (const rel of hits) {
+            const tail = copyMatch(sp, rel)!, node = source.get(rel)!;
+            if (tail === '' && node.kind === 'dir') { plan.push({ from: rel, to: destAbs }); continue; }
+            if (tail !== '') { plan.push({ from: rel, to: into(tail) }); continue; }
+            files++;
+            plan.push({ from: rel, to: destDir ? into(rel.slice(rel.lastIndexOf('/') + 1)) : destAbs });
+          }
+        }
+        if (files > 1 && !slash) return fail(`failed to solve: When using ${ins.keyword} with more than one source file, the destination must be a directory and end with a /`, src(ins.line, ins.end));
+        const sums = plan.map(p => { const node = source.get(p.from)!, w = sourceWeights.get(p.from); return `${p.from}\t${p.to}\t${node.kind}\t${node.mode.toString(8)}\t${node.kind === 'file' ? hex(node.content ?? '') : node.target ?? ''}${w && w.content === node.content ? `\t${w.size}` : ''}`; });
+        def = `${ins.keyword.toLowerCase()}\n${JSON.stringify(ins.flags)}\n${sourceKey ? `${sourceKey}\n` : ''}${sums.join('\n')}`;
+        createdBy = `${ins.keyword} ${flagText}${ins.args} # buildkit`;
+      }
+      const nextKey = hex(`${key}\n${def}`);
+      const hit = o.noCache ? undefined : cache[nextKey];
+      key = nextKey;
+      if (hit) {
+        s.nodes = new Map(hit.nodes); s.weights = new Map(hit.weights); if (hit.apt) s.apt = hit.apt;
+        block(label, [], 'CACHED');
+        steps.push({ label: stepLabel, cached: true });
+        if (hit.diffId) { s.chain.push(chained(s.chain, hit.diffId)); s.rootfs.push(hit.diffId); s.layerSizes.push(hit.size); }
+        s.history.push({ created: hit.created, createdBy, size: hit.size, empty: !hit.diffId, comment: 'buildkit.dockerfile.v0' });
         continue;
       }
-      case 'CMD': case 'ENTRYPOINT': {
-        const list = ins.json ?? ['/bin/sh', '-c', ins.args];
-        if (!ins.json) warnings.push(`JSONArgsRecommended: JSON arguments recommended for ${ins.keyword} to prevent unintended behavior related to OS signals (line ${ins.line})`);
-        // ENTRYPOINT resets a CMD the base image set (one set earlier in this stage stays).
-        if (ins.keyword === 'CMD') { s.cmd = list; cmdSet = true; }
-        else { s.entrypoint = list; if (!cmdSet) s.cmd = []; }
-        meta(`${ins.keyword} ${goList(list)}`);
-        continue;
-      }
-      case 'VOLUME': {
-        // E22: VOLUME ["/data"] or VOLUME /data /logs: config only (each container gets an anonymous volume there).
-        const paths = (ins.json ?? sub(ins.args).split(/\s+/).filter(Boolean)).map(p => sub(p));
-        if (!paths.length) return fail(`failed to solve: dockerfile parse error on line ${ins.line}: VOLUME requires at least one argument`, src(ins.line, ins.end));
-        if (paths.some(p => !p.startsWith('/'))) return fail(`failed to solve: 模擬環境的 VOLUME 需要絕對路徑（${paths.find(p => !p.startsWith('/'))}）`, src(ins.line, ins.end));
-        s.volumes = [...new Set([...s.volumes, ...paths])];
-        meta(`VOLUME [${paths.join(' ')}]`);
-        continue;
-      }
-      case 'USER': {
-        const u = sub(ins.args.trim());
-        if (!u || /\s/.test(u)) return fail(`failed to solve: dockerfile parse error on line ${ins.line}: USER requires exactly one argument`, src(ins.line, ins.end));
-        s.user = u;
-        meta(`USER ${u}`);
-        continue;
-      }
-    }
-    // A filesystem step: its definition and cache key, then CACHED or run.
-    k++;
-    const flagText = Object.entries(ins.flags).map(([f, v]) => `--${f}=${v} `).join('');
-    const label = `[${prefix}${k}/${total}] ${ins.keyword} ${flagText}${ins.args}`.replace(/\s+$/, '');
-    const stepLabel = label.replace(/^\[[^\]]*\] /, '');
-    const runEnv = vars();
-    let def: string, createdBy: string;
-    const plan: { from: string; to: string }[] = [];
-    if (ins.keyword === 'WORKDIR') {
-      const dir = resolvePath({ cwd: s.workdir, home: '/' }, sub(ins.args.trim()));
-      def = `workdir\n${dir}`;
-      createdBy = `WORKDIR ${dir}`;
-      s.workdir = dir;
-    } else if (ins.keyword === 'RUN') {
-      // Build args reach RUN as environment variables (and its history line: |N NAME=value …).
-      const argPrefix = declared.length ? `|${declared.length} ${declared.map(a => `${a}=${args.get(a) ?? ''}`).join(' ')} ` : '';
-      def = `run\n${JSON.stringify(ins.json ?? ins.args)}\n${[...runEnv].map(([a, b]) => `${a}=${b}`).join('\n')}\n${s.workdir}\n${s.user}`;
-      createdBy = ins.json ? `RUN ${argPrefix}${ins.json.join(' ')} # buildkit` : `RUN ${argPrefix}/bin/sh -c ${ins.args} # buildkit`;
-    } else {
-      // COPY and ADD: sources are context paths (globs; a folder copies its contents), the destination is relative to WORKDIR.
-      const list = (ins.json ?? ins.args.split(/\s+/).filter(Boolean)).map(sub);
-      if (list.length < 2) return fail(`failed to solve: dockerfile parse error on line ${ins.line}: ${ins.keyword} requires at least two arguments, but only one was provided. Destination could not be determined`, src(ins.line, ins.end));
-      const dest = list.at(-1)!, sources = list.slice(0, -1);
-      if (ins.keyword === 'ADD' && sources.some(x => /^(https?|git):\/\//.test(x) || /\.(tar|tar\.gz|tgz|tar\.xz|txz|tar\.bz2)$/.test(x)))
-        return fail('failed to solve: ADD：模擬環境只支援複製本機的一般檔案（網址的下載與壓縮檔的自動解開不模擬；請用 COPY）', src(ins.line, ins.end));
-      const destAbs = resolvePath({ cwd: s.workdir, home: '/' }, dest), into = (tail: string) => `${destAbs === '/' ? '' : destAbs}/${tail}`;
-      // Several sources need a destination that ends with / (the Dockerfile's rule); one file goes into an existing folder too.
-      const slash = dest.endsWith('/') || dest === '.', destDir = slash || s.nodes.get(destAbs)?.kind === 'dir';
-      if (sources.length > 1 && !slash) return fail(`failed to solve: When using ${ins.keyword} with more than one source file, the destination must be a directory and end with a /`, src(ins.line, ins.end));
-      let files = 0;
-      for (const sp of sources) {
-        const hits = [...context.keys()].filter(rel => copyMatch(sp, rel) !== undefined).sort();
-        if (!hits.length) {
-          const why = `failed to calculate checksum of ref ${refId(`${state.host}/${ctx}/${ins.line}/${sp}`)}: "/${sp.replace(/^\.?\/+/, '').replace(/\/+$/, '')}": not found`;
+      const before = s.nodes, run: RunIo = { log: [], seconds: 0 };
+      s.nodes = new Map(s.nodes);
+      let body: string[] = [];
+      if (ins.keyword === 'WORKDIR') mkdirs(s.nodes, s.workdir);
+      else if (ins.keyword !== 'RUN') {
+        const owner = ins.flags.chown ? ins.flags.chown.split(':') : undefined;
+        if (owner && !/^\d+$/.test(owner[0]) && !accountsOf(s.nodes).users.some(u => u.name === owner[0])) {
+          const why = `unable to convert uid/gid chown string to host mapping: can't find uid for user ${owner[0]}: no such user: ${owner[0]}`;
           block(label, [], `ERROR: ${why}`);
           steps.push({ label: stepLabel, cached: false });
-          return fail(`failed to solve: failed to compute cache key: ${why}`, src(ins.line, ins.end), { name: label, lines: [] });
+          return fail(`failed to solve: ${why}`, src(ins.line, ins.end), { name: label, lines: [] });
         }
-        for (const rel of hits) {
-          const tail = copyMatch(sp, rel)!, node = context.get(rel)!;
-          if (tail === '' && node.kind === 'dir') { plan.push({ from: rel, to: destAbs }); continue; }
-          if (tail !== '') { plan.push({ from: rel, to: into(tail) }); continue; }
-          files++;
-          plan.push({ from: rel, to: destDir ? into(rel.slice(rel.lastIndexOf('/') + 1)) : destAbs });
+        const mode = ins.flags.chmod ? parseInt(ins.flags.chmod, 8) : undefined;
+        const own = owner ? { owner: owner[0], ...owner[1] && owner[1] !== owner[0] ? { group: owner[1] } : {} } : { owner: 'root' };
+        for (const p of plan) {
+          const node = source.get(p.from)!;
+          mkdirs(s.nodes, parentOf(p.to));
+          s.nodes.set(p.to, node.kind === 'dir' ? { kind: 'dir', mode: mode ?? node.mode, ...own } : node.kind === 'link' ? { kind: 'link', mode: 0o777, ...own, target: node.target ?? '' }
+            : { kind: 'file', mode: mode ?? node.mode, ...own, content: node.content ?? '' });
+          // E23: a file of another stage keeps what it weighs (a built binary, a package's payload).
+          const w = sourceWeights.get(p.from);
+          if (w && node.kind === 'file' && w.content === node.content) s.weights.set(p.to, w);
         }
+      } else {
+        // RUN in a build container on the stage's files: the shell form is /bin/sh -c, so the image needs a shell.
+        const process = ins.json ? ins.json.join(' ') : `/bin/sh -c ${ins.args}`;
+        const own = base?.commands ?? [], hasSh = own.includes('sh'), distro = distroOf(base?.osRelease ?? '');
+        const available = hasSh ? [...new Set([...own, ...RUN_FILE_COMMANDS, ...SPECIAL, ...['debian', 'ubuntu'].includes(distro) ? ['apt-get'] : []])] : own;
+        const stop = (why: string, lines: readonly string[]) => { block(label, lines, `ERROR: ${why}`); steps.push({ label: stepLabel, cached: false }); return fail(`failed to solve: ${why}`, src(ins.line, ins.end), { name: label, lines }); };
+        if (!ins.json && !hasSh) return stop(`process "${process}" did not complete successfully: runc run failed: unable to start container process: error during container init: exec: "/bin/sh": stat /bin/sh: no such file or directory: unknown`, []);
+        const user = s.user || 'root';
+        if (!userOf(s.nodes, user)) return stop(`process "${process}" did not complete successfully: unable to find user ${user}: no matching entries in passwd file`, []);
+        const r: RunEnv = { stage: s, img: base, env: runEnv, user, packages: base?.packages ?? {}, available, alpine: isAlpine(base?.osRelease ?? ''), ...o.compose && d.tools?.length ? { tools: d.tools } : {} };
+        const status = runLine(r, ins.json ?? null, ins.args, run);
+        const span = Math.max(0.1, run.seconds);
+        body = run.log.map((l, i) => `${stamp(0.1 + (span * (i + 1)) / (run.log.length + 1))} ${l}`);
+        if (status !== 0) return stop(`process "${process}" did not complete successfully: exit code: ${status}`, body);
+        run.seconds = span + 0.2;
       }
-      if (files > 1 && !slash) return fail(`failed to solve: When using ${ins.keyword} with more than one source file, the destination must be a directory and end with a /`, src(ins.line, ins.end));
-      const sums = plan.map(p => { const node = context.get(p.from)!; return `${p.from}\t${p.to}\t${node.kind}\t${node.mode.toString(8)}\t${node.kind === 'file' ? hex(node.content ?? '') : node.target ?? ''}`; });
-      def = `${ins.keyword.toLowerCase()}\n${JSON.stringify(ins.flags)}\n${sums.join('\n')}`;
-      createdBy = `${ins.keyword} ${flagText}${ins.args} # buildkit`;
+      block(label, body, `DONE ${secs(run.seconds)}`);
+      steps.push({ label: stepLabel, cached: false });
+      // The step's layer (none when it changed nothing) and its entry in the build cache.
+      const diff = diffOf(before, s.nodes, s.weights);
+      if (diff.id) { s.chain.push(chained(s.chain, diff.id)); s.rootfs.push(diff.id); s.layerSizes.push(diff.size); newLayers++; }
+      s.history.push({ created: now, createdBy, size: diff.size, empty: !diff.id, comment: 'buildkit.dockerfile.v0' });
+      cache[nextKey] = { nodes: new Map(s.nodes), weights: new Map(s.weights), ...s.apt ? { apt: s.apt } : {}, created: now, size: diff.size, ...diff.id ? { diffId: diff.id } : {} };
     }
-    const nextKey = hex(`${key}\n${def}`);
-    const hit = o.noCache ? undefined : cache[nextKey];
-    key = nextKey;
-    if (hit) {
-      s.nodes = new Map(hit.nodes); s.weights = new Map(hit.weights); if (hit.apt) s.apt = hit.apt;
-      block(label, [], 'CACHED');
-      steps.push({ label: stepLabel, cached: true });
-      if (hit.diffId) { s.chain.push(chained(s.chain, hit.diffId)); s.rootfs.push(hit.diffId); s.layerSizes.push(hit.size); }
-      s.history.push({ created: hit.created, createdBy, size: hit.size, empty: !hit.diffId, comment: 'buildkit.dockerfile.v0' });
-      continue;
-    }
-    const before = s.nodes, run: RunIo = { log: [], seconds: 0 };
-    s.nodes = new Map(s.nodes);
-    let body: string[] = [];
-    if (ins.keyword === 'WORKDIR') mkdirs(s.nodes, s.workdir);
-    else if (ins.keyword !== 'RUN') {
-      const owner = ins.flags.chown ? ins.flags.chown.split(':') : undefined;
-      if (owner && !/^\d+$/.test(owner[0]) && !accountsOf(s.nodes).users.some(u => u.name === owner[0])) {
-        const why = `unable to convert uid/gid chown string to host mapping: can't find uid for user ${owner[0]}: no such user: ${owner[0]}`;
-        block(label, [], `ERROR: ${why}`);
-        steps.push({ label: stepLabel, cached: false });
-        return fail(`failed to solve: ${why}`, src(ins.line, ins.end), { name: label, lines: [] });
-      }
-      const mode = ins.flags.chmod ? parseInt(ins.flags.chmod, 8) : undefined;
-      const own = owner ? { owner: owner[0], ...owner[1] && owner[1] !== owner[0] ? { group: owner[1] } : {} } : { owner: 'root' };
-      for (const p of plan) {
-        const node = context.get(p.from)!;
-        mkdirs(s.nodes, parentOf(p.to));
-        s.nodes.set(p.to, node.kind === 'dir' ? { kind: 'dir', mode: mode ?? node.mode, ...own } : node.kind === 'link' ? { kind: 'link', mode: 0o777, ...own, target: node.target ?? '' }
-          : { kind: 'file', mode: mode ?? node.mode, ...own, content: node.content ?? '' });
-      }
-    } else {
-      // RUN in a build container on the stage's files: the shell form is /bin/sh -c, so the image needs a shell.
-      const process = ins.json ? ins.json.join(' ') : `/bin/sh -c ${ins.args}`;
-      const own = base?.commands ?? [], hasSh = own.includes('sh'), distro = distroOf(base?.osRelease ?? '');
-      const available = hasSh ? [...new Set([...own, ...RUN_FILE_COMMANDS, ...SPECIAL, ...['debian', 'ubuntu'].includes(distro) ? ['apt-get'] : []])] : own;
-      const stop = (why: string, lines: readonly string[]) => { block(label, lines, `ERROR: ${why}`); steps.push({ label: stepLabel, cached: false }); return fail(`failed to solve: ${why}`, src(ins.line, ins.end), { name: label, lines }); };
-      if (!ins.json && !hasSh) return stop(`process "${process}" did not complete successfully: runc run failed: unable to start container process: error during container init: exec: "/bin/sh": stat /bin/sh: no such file or directory: unknown`, []);
-      const user = s.user || 'root';
-      if (!userOf(s.nodes, user)) return stop(`process "${process}" did not complete successfully: unable to find user ${user}: no matching entries in passwd file`, []);
-      const r: RunEnv = { stage: s, img: base, env: runEnv, user, packages: base?.packages ?? {}, available, alpine: isAlpine(base?.osRelease ?? '') };
-      const status = runLine(r, ins.json ?? null, ins.args, run);
-      const span = Math.max(0.1, run.seconds);
-      body = run.log.map((l, i) => `${stamp(0.1 + (span * (i + 1)) / (run.log.length + 1))} ${l}`);
-      if (status !== 0) return stop(`process "${process}" did not complete successfully: exit code: ${status}`, body);
-      run.seconds = span + 0.2;
-    }
-    block(label, body, `DONE ${secs(run.seconds)}`);
-    steps.push({ label: stepLabel, cached: false });
-    // The step's layer (none when it changed nothing) and its entry in the build cache.
-    const diff = diffOf(before, s.nodes, s.weights);
-    if (diff.id) { s.chain.push(chained(s.chain, diff.id)); s.rootfs.push(diff.id); s.layerSizes.push(diff.size); newLayers++; }
-    s.history.push({ created: now, createdBy, size: diff.size, empty: !diff.id, comment: 'buildkit.dockerfile.v0' });
-    cache[nextKey] = { nodes: new Map(s.nodes), weights: new Map(s.weights), ...s.apt ? { apt: s.apt } : {}, created: now, size: diff.size, ...diff.id ? { diffId: diff.id } : {} };
+    // Config rows take the time of the step before them (the first step's when none): a build that only hits the cache
+    // makes the same config, so the same image ID and CREATED time.
+    const own = s.history.slice(inherited);
+    for (let r = 0; r < own.length; r++) if (own[r].created < 0) own[r].created = own.slice(0, r).reverse().find(x => x.created >= 0)?.created ?? own.find(x => x.created >= 0)?.created ?? now;
+    const created = own.length ? Math.max(...own.map(r => r.created)) : up ? up.created : base?.created ?? now;
+    built.set(i, { s, key, newLayers, created, root: base, scratch: up ? up.scratch : !base });
   }
-  // Config rows take the time of the step before them (the first step's when none): a build that only hits the cache
-  // makes the same config, so the same image ID and CREATED time.
-  const own = s.history.slice(inherited);
-  for (let i = 0; i < own.length; i++) if (own[i].created < 0) own[i].created = own.slice(0, i).reverse().find(r => r.created >= 0)?.created ?? own.find(r => r.created >= 0)?.created ?? now;
-  const created = own.length ? Math.max(...own.map(r => r.created)) : base?.created ?? now;
-  const config = { env: s.env, cmd: s.cmd, entrypoint: s.entrypoint, workdir: s.workdir, expose: s.expose, user: s.user, labels: s.labels, rootfs: s.rootfs, history: s.history.map(r => [r.created, r.createdBy, r.size, r.empty]), created, ...s.volumes.length ? { volumes: s.volumes } : {} };
+  const final = built.get(at)!, s = final.s, base = final.root, scratch = final.scratch, created = final.created, newLayers = final.newLayers;
+  const config = { env: s.env, cmd: s.cmd, entrypoint: s.entrypoint, workdir: s.workdir, expose: s.expose, user: s.user, labels: s.labels, rootfs: s.rootfs, history: s.history.map(r => [r.created, r.createdBy, r.size, r.empty]), created, ...s.volumes.length ? { volumes: s.volumes } : {}, ...s.healthcheck ? { healthcheck: s.healthcheck } : {} };
   const id = hex(`image-config/${JSON.stringify(config)}`);
   const kk = n++;
   show(`#${kk} exporting to image`);
@@ -941,7 +1052,7 @@ export function build(state: FsState, d: DockerState, o: BuildOptions, io: Io, h
     exit: same ? base?.exit ?? 0 : 0, ...same && base?.stopExit !== undefined ? { stopExit: base.stopExit } : {}, commands: [...base?.commands ?? []], files: [], osRelease: base?.osRelease ?? '',
     layers: s.rootfs.length, local: true, pullable: false, built: true, nodes: s.nodes, weights: s.weights, history: s.history, rootfs: s.rootfs, chain: s.chain, user: s.user, labels: s.labels,
     ...base?.packages ? { packages: base.packages } : {}, ...s.apt ? { apt: s.apt } : {}, ...!same || base?.ownMain ? { ownMain: true } : {}, ...scratch ? { scratch: true } : {},
-    ...s.volumes.length ? { volumes: s.volumes } : {},
+    ...s.volumes.length ? { volumes: s.volumes } : {}, ...s.healthcheck ? { healthcheck: s.healthcheck } : {}, ...same && base?.ready ? { ready: base.ready } : {},
   };
   // The tags move to the new image; an image left without a tag is dangling (<none> <none>).
   let images = [...d.images];
@@ -954,6 +1065,11 @@ export function build(state: FsState, d: DockerState, o: BuildOptions, io: Io, h
   }
   if (!o.tags.length && !images.some(i => i.local && i.id === id)) images.push({ ...img, dangling: true });
   return { state: { ...state, docker: { ...d, images, buildCache: cache } }, status: 0, steps, id };
+}
+/** E23: a copy of a built stage (a later stage goes on FROM it). */
+function cloneStage(s: Stage): Stage {
+  return { ...s, nodes: new Map(s.nodes), weights: new Map(s.weights), env: [...s.env], cmd: [...s.cmd], entrypoint: [...s.entrypoint], expose: [...s.expose], labels: { ...s.labels }, volumes: [...s.volumes],
+    history: s.history.map(r => ({ ...r })), rootfs: [...s.rootfs], chain: [...s.chain], layerSizes: [...s.layerSizes] };
 }
 type Source = { text: string; name: string; from: number; to: number };
 /** The part of a context path a COPY source names (its path under a folder source, '' for the source itself), or undefined. */
