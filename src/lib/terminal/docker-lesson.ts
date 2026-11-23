@@ -748,6 +748,8 @@ export function dockerCheckProblems(c: DockerCheck, lv: DockerLevels): string | 
   }
   if (c.kind === 'image') {
     if (!parseRef(c.name ?? '') && !(lv.compose && digestRefOf(c.name ?? ''))) return 'an image check needs an image reference (REPOSITORY[:TAG])';
+    // DKR-6: a full image ID names the image tagged or not; only as absent, on a runtime machine.
+    if (/^sha256:[0-9a-f]{64}$/.test(c.name ?? '') && (!c.absent || !lv.runtime)) return 'an image ID (sha256: and 64 hex digits) in an image check needs absent and a runtime machine';
     // E23: a repository digest and a size limit.
     if ((c.digest !== undefined || c.maxSize !== undefined || (c.name ?? '').includes('@')) && !lv.compose) return 'digest, maxSize and NAME@sha256:… of an image check need a compose machine (engine stage E23)';
     if ((c.digest !== undefined && !/^sha256:[0-9a-f]{64}$/.test(c.digest)) || (c.maxSize !== undefined && !whole(c.maxSize, 0, 2 ** 40)) || (c.absent && (c.digest ?? c.maxSize) !== undefined)) return 'an image check needs a digest sha256:…, a maxSize in bytes, and nothing else with absent';
@@ -801,7 +803,7 @@ export function describeDockerCheck(c: DockerCheck): string {
     return `建置 ${c.context}${c.file ? `（${c.file}）` : ''}，改了 ${c.change} 之後再建置一次時，${parts.join('，')}`;
   }
   if (c.kind === 'image') {
-    if (c.absent) return `本機應該沒有 Image ${c.name}`;
+    if (c.absent) return /^sha256:[0-9a-f]{64}$/.test(c.name) ? `本機應該沒有 ID 為 ${c.name.slice(7, 19)} 的 Image（包括已經沒有標籤的）` : `本機應該沒有 Image ${c.name}`;
     const parts = [c.label ? `標籤 ${c.label}` : '', c.env ? `環境變數 ${c.env}` : '', c.cmd ? `CMD ${JSON.stringify(c.cmd)}` : '', c.entrypoint ? `ENTRYPOINT ${JSON.stringify(c.entrypoint)}` : '',
       c.user ? `USER ${c.user}` : '', c.port !== undefined ? `EXPOSE ${c.port}` : '', c.workdir ? `WORKDIR ${c.workdir}` : '', c.layers !== undefined ? `${c.layers} 層` : '',
       c.digest ? `repository digest 是 ${c.digest}` : '', c.maxSize !== undefined ? `不超過 ${c.maxSize} 位元組` : ''].filter(Boolean);
@@ -877,6 +879,7 @@ function storageNetFailure(c: Extract<DockerCheck, { kind: 'volume' | 'network' 
 }
 
 /** E20: the check on the state after the commands (the daemon as it is now: containers whose sleep ended have exited). */
+const IMAGE_ID = /^sha256:[0-9a-f]{64}$/;
 export function dockerFailure(c: DockerCheck, end0: FsState): string | null {
   const end = settleDocker(end0), d = end.docker;
   if (!d) return '這台機器沒有安裝 Docker';
@@ -886,9 +889,12 @@ export function dockerFailure(c: DockerCheck, end0: FsState): string | null {
   if (c.kind === 'volume' || c.kind === 'network' || c.kind === 'reach') return storageNetFailure(c, end);
   if (c.kind === 'compose' || c.kind === 'registry') return composeFailure(c, d);
   if (c.kind === 'image') {
-    const ref = parseRef(c.name), dr = ref ? undefined : digestRefOf(c.name);
-    const img = dr ? byDigest(d, dr) : d.images.find(i => i.local && !i.dangling && i.repo === ref!.repo && i.tag === ref!.tag);
-    if (c.absent) return img ? `仍有 Image ${c.name}` : null;
+    // DKR-6: a full image ID (sha256: and 64 hex digits) names the image itself, tagged or not (dangling), as docker image
+    // inspect resolves it: absent then means its layers are really gone, not only its tag.
+    const byId = IMAGE_ID.test(c.name) ? d.images.find(i => i.local && `sha256:${i.id}` === c.name) : undefined;
+    const ref = byId ? undefined : parseRef(c.name), dr = byId || ref ? undefined : digestRefOf(c.name);
+    const img = byId ?? (dr ? byDigest(d, dr) : d.images.find(i => i.local && !i.dangling && i.repo === ref!.repo && i.tag === ref!.tag));
+    if (c.absent) return img ? (byId ? `仍有這個 Image（${byId.dangling ? '已經沒有標籤，但它的層還在' : `${byId.repo}:${byId.tag}`}）` : `仍有 Image ${c.name}`) : null;
     if (!img) return `本機沒有 ${c.name}（先 docker pull 或 docker build -t ${c.name}）`;
     // E21: the config and the layers.
     if (c.label) {
