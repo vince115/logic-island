@@ -54,7 +54,7 @@
 | 35 | 2026-11-23 | RWD09、RWD10、RWD11、RWD12 | `TBD` | #81 | `1b0705c` | 驗證器、發布閘門、TypeScript、ESLint、Vitest 134 檔 3845 passed／9 skipped（含 Chromium：31 堂網頁課的每個範例、參考解答、起始內容與常見錯誤，各在一般與傳統捲軸的瀏覽器跑一遍；picture 與 sizes 在載入與 resize 之後的量測）、Production build、E2E 桌機＋手機旗標關 499 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上每個練習各做一遍，含圖片來源的量測與選單按鈕的鍵盤操作）、RWD10 的圖片練習在裝置像素比 1、1.5、2、3 下結果相同、測驗 32 題逐題複核、洩漏掃描 |
 | 36 | 2026-11-23 | MOB01、MOB02、MOB03、MOB04 | `TBD` | #82 | `896db3d` | 驗證器、發布閘門、TypeScript、ESLint、Vitest 134 檔 3860 passed／9 skipped（含 Chromium：35 堂網頁課的每個範例、參考解答、起始內容與常見錯誤，各在一般與傳統捲軸的瀏覽器跑一遍；指標步驟與模擬的指標捕捉、box 的至少／至多、按鍵的 code、對話框的 close 與 method=dialog）、Production build、E2E 桌機＋手機旗標關 511 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上每個練習各做一遍，含 MOB04 的指標練習；Mobile Navigation Simulator 的課程連結）、測驗 32 題逐題複核、洩漏掃描 |
 | 37 | 2026-11-23 | DKR01、DKR02、DKR03、DKR04 | `TBD` | — | 未合併 | TBD |
-| 38 | 2026-11-23 | MOB05、MOB06、MOB07、MOB08 | `TBD` | — | 未合併 | 驗證器、發布閘門、TypeScript、ESLint、Vitest 134 檔 3869 passed／9 skipped（含 Chromium：39 堂網頁課的每個範例、參考解答、起始內容與常見錯誤，各在一般與傳統捲軸的瀏覽器跑一遍；練習指定的預覽高度、wait 之後的畫格；之後 highlight 測試改成每 150 支程式一組，9 → 27 個測試，該檔單獨重跑通過）、Production build、E2E 桌機＋手機旗標關 519 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上每個練習各做一遍）、測驗 32 題逐題複核、洩漏掃描 |
+| 38 | 2026-11-23 | MOB05、MOB06、MOB07、MOB08 | `TBD` | — | 未合併 | 驗證器、發布閘門、TypeScript、ESLint、Vitest 137 檔 3991 passed／9 skipped（併入 main `e5da508` 之後的完整一輪；含 Chromium：39 堂網頁課的每個範例、參考解答、起始內容與常見錯誤，各在一般與傳統捲軸的瀏覽器跑一遍；練習指定的預覽高度、wait 之後的畫格；highlight 測試改成每 150 支程式一組）、Production build、E2E 桌機＋手機旗標關 521 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上每個練習各做一遍）、測驗 32 題逐題複核、洩漏掃描 |
 
 ## 各區域與島嶼
 
