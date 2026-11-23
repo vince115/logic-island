@@ -9,6 +9,7 @@ import { podStatus } from './kube-status';
 import { probeStep, probeTimes, syncProbes } from './kube-probes';
 import { finishDelete } from './kube-stop';
 import type { ProbeType } from './kube-probe-spec';
+import { controllerTimes, deadAt, lostStatus, runControllers, watched } from './kube-controllers';
 import { createdOf, kindOf, obj, sameJ, str, uidOf, type JObj, type KubeState } from './kube-model';
 
 /*
@@ -30,15 +31,20 @@ export function settleKube(state: FsState): FsState {
   for (let n = 0; n < SETTLE_STEPS; n++) {
     const next = nextStep(k, now, state.docker);
     if (!next) break;
+    // E34: a step that changes what the controllers watch makes them run at its time.
+    const seen = k.workloads && !next.ctl ? watched(k) : '';
     k = next.run(k);
+    if (k.workloads && !next.ctl && watched(k) !== seen) k = runControllers(state.docker, k, next.t);
   }
   return { ...state, kube: writeStatuses({ ...k, settled: now }) };
 }
 
-type Step = { t: Seconds; run: (k: KubeState) => KubeState };
+type Step = { t: Seconds; run: (k: KubeState) => KubeState; ctl?: true };
 function nextStep(k: KubeState, now: Seconds, d: DockerState | undefined): Step | null {
   let best: Step | null = null;
-  const consider = (t: Seconds, run: Step['run']) => { if (t <= now && (!best || t < best.t)) best = { t, run }; };
+  const consider = (t: Seconds, run: Step['run'], ctl?: true) => { if (t <= now && (!best || t < best.t)) best = { t, run, ...ctl ? { ctl } : {} }; };
+  // E34: the controllers' own times (before the pods' steps at the same time); a failed node's kubelet takes no more steps.
+  if (k.workloads) for (const t of controllerTimes(k)) consider(t, kk => runControllers(d, kk, t), true);
   for (const pod of k.objects) {
     if (kindOf(pod) !== 'Pod') continue;
     const id = uidOf(pod), sim = k.pods[id];
@@ -48,13 +54,14 @@ function nextStep(k: KubeState, now: Seconds, d: DockerState | undefined): Step 
       if (at !== undefined) consider(at, kk => bind(kk, id, at));
       continue;
     }
+    const dead = k.workloads ? deadAt(k, sim.node) : undefined, alive = (t: Seconds) => dead === undefined || t < dead;
     const refs: Ref[] = [...sim.init.map((_, i) => ({ init: true, i })), ...sim.main.map((_, i) => ({ init: false, i }))];
     for (const r of refs) {
       const c = (r.init ? sim.init : sim.main)[r.i];
-      if (c.next !== undefined) { const t = c.next; consider(t, kk => step(kk, id, r, t, d)); }
+      if (c.next !== undefined && alive(c.next)) { const t = c.next; consider(t, kk => step(kk, id, r, t, d)); }
     }
     // E33: the probe workers of the running containers (after the containers' own steps at the same time).
-    sim.main.forEach((c, i) => { for (const [type, t] of probeTimes(c)) consider(t, kk => probe(kk, id, i, type, t, d, now)); });
+    sim.main.forEach((c, i) => { for (const [type, t] of probeTimes(c)) if (alive(t)) consider(t, kk => probe(kk, id, i, type, t, d, now)); });
   }
   return best;
 }
@@ -100,7 +107,7 @@ function writeStatuses(k0: KubeState): KubeState {
   for (const pod of k0.objects) {
     if (kindOf(pod) !== 'Pod') continue;
     const id = uidOf(pod), tried = k.unscheduled[id];
-    const status = podStatus(k, pod, k.pods[id], tried?.message ? tried : undefined);
+    const base = podStatus(k, pod, k.pods[id], tried?.message ? tried : undefined), status = k.workloads ? lostStatus(k, pod, base) : base;
     if (!sameJ(pod.status, status)) k = put(k, { ...k.objects.find(o => uidOf(o) === id)!, status } as JObj);
   }
   return k;

@@ -1,4 +1,5 @@
 import { put } from './kube-api';
+import { resourceName } from './kube-output';
 import { parseTaint } from './kube-system';
 import { validLabelName } from './kube-manifest';
 import { pick, targets } from './kubectl-get';
@@ -30,7 +31,7 @@ export function metaCommand(x: Kx): KubeResult {
       const done = x.verb === 'taint' ? taint(k, nameOf(o), changes, x.flags.bools.has('overwrite')) : relabel(k, o, changes, x.verb === 'annotate', x.flags.bools.has('overwrite'));
       if ('error' in done) { errors.push(done.error); continue; }
       done.notes.forEach(n => x.io.out(n));
-      x.io.out(`${kindOf(o).toLowerCase()}/${nameOf(o)} ${done.word}`);
+      x.io.out(`${resourceName(o)} ${done.word}`);
       k = kindOf(o) === 'Node' ? changed(done.k, x.now) : done.k;
     }
   }

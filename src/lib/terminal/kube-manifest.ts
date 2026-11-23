@@ -43,6 +43,17 @@ export const SCHEMAS: Record<string, F> = {
   Namespace: NAMESPACE,
 };
 const SCHEMAS_E33: Record<string, F> = { Pod: { go: 'Pod', fields: { apiVersion: 'str', kind: 'str', metadata: META, spec: podSpec(CONTAINER_E33), status: 'any' } }, Namespace: NAMESPACE };
+/** E34: Deployment and ReplicaSet (apps/v1), their pod template decoded as E33's pods are. */
+const SELECTOR: F = { go: 'LabelSelector', fields: { matchLabels: 'smap', matchExpressions: { list: { go: 'LabelSelectorRequirement', fields: { key: 'str', operator: 'str', values: { list: 'str' } } } } } };
+const TEMPLATE: F = { go: 'PodTemplateSpec', fields: { metadata: META, spec: podSpec(CONTAINER_E33) } };
+const STRATEGY: F = { go: 'DeploymentStrategy', fields: { type: 'str', rollingUpdate: { go: 'RollingUpdateDeployment', fields: { maxSurge: 'intstr', maxUnavailable: 'intstr' } } } };
+const SCHEMAS_E34: Record<string, F> = { ...SCHEMAS_E33,
+  Deployment: { go: 'Deployment', fields: { apiVersion: 'str', kind: 'str', metadata: META, status: 'any', spec: { go: 'DeploymentSpec', fields: {
+    replicas: 'int', selector: SELECTOR, template: TEMPLATE, strategy: STRATEGY, minReadySeconds: 'int', revisionHistoryLimit: 'int', paused: 'bool', progressDeadlineSeconds: 'int' } } } },
+  ReplicaSet: { go: 'ReplicaSet', fields: { apiVersion: 'str', kind: 'str', metadata: META, status: 'any', spec: { go: 'ReplicaSetSpec', fields: { replicas: 'int', minReadySeconds: 'int', selector: SELECTOR, template: TEMPLATE } } } },
+};
+/** Whether the profile's API server serves the kind (E34: Deployment and ReplicaSet on the workloads profile). */
+export const served = (kind: string, workloads: boolean) => !!(workloads ? SCHEMAS_E34 : SCHEMAS)[kind];
 /** The kinds E32 creates and the stage that simulates the others (a known kind of a later stage is not an unknown kind). */
 export const KIND_STAGE: Record<string, string> = {
   Deployment: 'E34', ReplicaSet: 'E34', Service: 'E35', Endpoints: 'E35', ConfigMap: 'E36', Secret: 'E36', Ingress: 'E37', IngressClass: 'E37',
@@ -85,7 +96,7 @@ export function readManifests(text: string, file: string): Manifest[] | { error:
 }
 
 /** Strict decoding: the unknown fields (all of them) or the first type error, as the API server reports it. */
-export function decodeProblem(doc: JObj, probes = false): string | null {
+export function decodeProblem(doc: JObj, probes = false, workloads = false): string | null {
   const kind = str(doc.kind)!, unknown: string[] = [];
   let typeError: string | null = null;
   const walk = (v: J, f: F, path: string, go: string, dotted: string) => {
@@ -108,7 +119,7 @@ export function decodeProblem(doc: JObj, probes = false): string | null {
       walk(x, sub, `${path ? `${path}.` : ''}${k}`, f.go, dotted ? `${dotted}.${k}` : k);
     }
   };
-  walk(doc, (probes ? SCHEMAS_E33 : SCHEMAS)[kind], '', kind, '');
+  walk(doc, (workloads ? SCHEMAS_E34 : probes ? SCHEMAS_E33 : SCHEMAS)[kind], '', kind, '');
   if (unknown.length) return `strict decoding error: ${unknown.map(u => `unknown field "${u}"`).join(', ')}`;
   return typeError;
 }

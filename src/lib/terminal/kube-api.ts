@@ -49,19 +49,24 @@ const TOKEN_MOUNT = '/var/run/secrets/kubernetes.io/serviceaccount';
 const DEFAULT_TOLERATIONS: J[] = ['not-ready', 'unreachable'].map(x => ({ effect: 'NoExecute', key: `node.kubernetes.io/${x}`, operator: 'Exists', tolerationSeconds: 300 }));
 /** imagePullPolicy's default: Always for :latest (or no tag), IfNotPresent otherwise. */
 export const pullPolicyOf = (image: string) => image.includes('@') ? 'IfNotPresent' : (parseRef(image)?.tag ?? 'latest') === 'latest' ? 'Always' : 'IfNotPresent';
+/** A container's defaults (a Pod's, and E34: a pod template's). */
+export function defaultContainer(c0: J): JObj {
+  const c = { ...obj(c0) }, image = str(c.image) ?? '';
+  c.imagePullPolicy ??= pullPolicyOf(image);
+  c.resources ??= {};
+  c.terminationMessagePath ??= '/dev/termination-log';
+  c.terminationMessagePolicy ??= 'File';
+  if (c.ports) c.ports = arr(c.ports).map(p => ({ protocol: 'TCP', ...obj(p) }));
+  defaultProbes(c);
+  return c;
+}
 /** The API server's defaults of a Pod (idempotent: an updated spec is defaulted again). */
 export function defaultPod(o: JObj): JObj {
   const spec = { ...obj(o.spec) }, id = str(meta(o).uid) ?? nameOf(o);
   const volumes = arr(spec.volumes), own = volumes.map(v => str(obj(v).name) ?? '').find(n => n.startsWith('kube-api-access-'));
   const access = own ?? `kube-api-access-${suffix(`api/${id}`)}`;
   const container = (c0: J): J => {
-    const c = { ...obj(c0) }, image = str(c.image) ?? '';
-    c.imagePullPolicy ??= pullPolicyOf(image);
-    c.resources ??= {};
-    c.terminationMessagePath ??= '/dev/termination-log';
-    c.terminationMessagePolicy ??= 'File';
-    if (c.ports) c.ports = arr(c.ports).map(p => ({ protocol: 'TCP', ...obj(p) }));
-    defaultProbes(c);
+    const c = defaultContainer(c0);
     const mounts = arr(c.volumeMounts);
     if (!mounts.some(m => str(obj(m).mountPath) === TOKEN_MOUNT)) c.volumeMounts = [...mounts, { mountPath: TOKEN_MOUNT, name: access, readOnly: true }];
     return c;

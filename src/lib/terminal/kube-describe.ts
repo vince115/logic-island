@@ -16,10 +16,10 @@ import {
  * per block of consecutive lines as they do in kubectl. Events of the object come last (Age: "3m (x4 over 5m)").
  */
 
-const multi = (head: string, values: string[], level = '') => values.length ? [`${level}${head}\t${values[0]}`, ...values.slice(1).map(v => `${level}\t${v}`)] : [`${level}${head}\t<none>`];
+export const multi = (head: string, values: string[], level = '') => values.length ? [`${level}${head}\t${values[0]}`, ...values.slice(1).map(v => `${level}\t${v}`)] : [`${level}${head}\t<none>`];
 /** A map's entries, one per line (describe skips the last-applied-configuration annotation, as kubectl does). */
-const mapLines = (m: J | undefined, sep: string) => Object.keys(obj(m)).filter(k => k !== 'kubectl.kubernetes.io/last-applied-configuration').sort().map(k => `${k}${sep}${String(obj(m)[k])}`);
-const when = (s: J | undefined) => { const t = parseStamp(str(s)); return t === undefined ? '' : rfc1123(t); };
+export const mapLines = (m: J | undefined, sep: string) => Object.keys(obj(m)).filter(k => k !== 'kubectl.kubernetes.io/last-applied-configuration').sort().map(k => `${k}${sep}${String(obj(m)[k])}`);
+export const when = (s: J | undefined) => { const t = parseStamp(str(s)); return t === undefined ? '' : rfc1123(t); };
 
 /** The Events section of an object (by uid), oldest first. */
 export function eventLines(k: KubeState, id: string, now: Seconds): string[] {
@@ -36,7 +36,7 @@ function stateLines(st0: J | undefined, head: string): string[] {
   if (kind === 'waiting') return [`    ${head}:\tWaiting`, ...str(v.reason) ? [`      Reason:\t${str(v.reason)}`] : []];
   return [`    ${head}:\tTerminated`, `      Reason:\t${str(v.reason) ?? ''}`, ...str(v.message) ? [`      Message:\t${str(v.message)}`] : [], `      Exit Code:\t${String(v.exitCode ?? 0)}`, `      Started:\t${when(v.startedAt)}`, `      Finished:\t${when(v.finishedAt)}`];
 }
-function containerLines(c0: J, cs0: J | undefined): string[] {
+export function containerLines(c0: J, cs0: J | undefined): string[] {
   const c = obj(c0), cs = obj(cs0), r = obj(c.resources), ports = arr(c.ports).map(obj), lines = [`  ${str(c.name)}:`];
   if (str(cs.containerID)) lines.push(`    Container ID:\t${str(cs.containerID)}`);
   lines.push(`    Image:\t${str(c.image) ?? ''}`, ...str(cs.imageID) ? [`    Image ID:\t${str(cs.imageID)}`] : []);
@@ -75,6 +75,9 @@ function describePod(k: KubeState, o: JObj, now: Seconds): string[] {
     ...multi('Labels:', mapLines(m.labels, '=')), ...multi('Annotations:', mapLines(m.annotations, ': ')), ...statusLines(o, now)];
   const ip = str(status.podIP);
   lines.push(`IP:\t${ip ?? ''}`, ...ip ? ['IPs:', `  IP:\t${ip}`] : ['IPs:\t<none>']);
+  // E34: the controller that owns the pod (ReplicaSet/web-7c5ddbdf54, DaemonSet/kube-proxy, Node/cp-01).
+  const owner = k.workloads ? arr(m.ownerReferences).map(obj).find(r => r.controller === true) : undefined;
+  if (owner) lines.push(`Controlled By:\t${str(owner.kind)}/${str(owner.name)}`);
   if (arr(spec.initContainers).length) lines.push('Init Containers:', ...arr(spec.initContainers).flatMap(c => containerLines(c, inits.get(str(obj(c).name) ?? ''))));
   lines.push('Containers:', ...arr(spec.containers).flatMap(c => containerLines(c, main.get(str(obj(c).name) ?? ''))));
   const conds = arr(status.conditions).map(obj);

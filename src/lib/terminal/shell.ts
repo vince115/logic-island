@@ -158,10 +158,12 @@ export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS
  * environments*.ts, gh-environments.ts). E31: deploy-hosts (remote machines with a Docker daemon, reachable with ssh from the learner's
  * machine and from runners; run effects on those hosts; deploy-*.ts). E32: cluster (kubectl and a simulated Kubernetes
  * cluster: nodes, the API store, the scheduler and the kubelet's pod lifecycle; kube-*.ts, kubectl*.ts). E33: probes (liveness,
- * readiness and startup probes, preStop hooks and graceful termination of pods; kube-probe*.ts, kube-health.ts, kube-stop.ts).
+ * readiness and startup probes, preStop hooks and graceful termination of pods; kube-probe*.ts, kube-health.ts, kube-stop.ts). E34:
+ * workloads (ReplicaSet and Deployment controllers, rollouts, cordon and drain, node failures; kube-replicaset.ts,
+ * kube-deployment.ts, kube-controllers.ts, kubectl-workload.ts, kubectl-rollout.ts, kubectl-node.ts).
  */
 export type ShellFeature = 'glob' | 'help-option' | 'multi-source' | 'ls-extra' | 'pipes' | 'accounts' | 'processes' | 'packages' | 'services' | 'remote' | 'scripting' | 'scheduling'
-  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers' | 'images' | 'storage-net' | 'compose' | 'runtime' | 'git' | 'forge' | 'workflows' | 'actions' | 'artifacts' | 'environments' | 'deploy-hosts' | 'cluster' | 'probes';
+  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers' | 'images' | 'storage-net' | 'compose' | 'runtime' | 'git' | 'forge' | 'workflows' | 'actions' | 'artifacts' | 'environments' | 'deploy-hosts' | 'cluster' | 'probes' | 'workloads';
 
 /** LNX-0: the commands a session may run (E1: and the features it switches on; none by default). */
 export interface ShellProfile { readonly id: string; readonly commands: readonly CommandName[]; readonly features?: readonly ShellFeature[] }
@@ -255,6 +257,8 @@ export const DEPLOY_HOSTS_PROFILE: ShellProfile = { id: 'deploy-hosts', commands
 export const CLUSTER_PROFILE: ShellProfile = { id: 'cluster', commands: above(DEPLOY_HOSTS_PROFILE, E32_COMMANDS), features: [...DEPLOY_HOSTS_PROFILE.features!, 'cluster'] };
 /** E33 (docs/curriculum/KUB0_E33_PROBES.md): the cluster profile plus probes, lifecycle hooks and graceful termination; no new commands. */
 export const PROBES_PROFILE: ShellProfile = { id: 'probes', commands: above(CLUSTER_PROFILE, []), features: [...CLUSTER_PROFILE.features!, 'probes'] };
+/** E34 (docs/curriculum/KUB0_E34_WORKLOADS.md): the probes profile plus Deployments, ReplicaSets, rollouts and node drains; no new commands. */
+export const WORKLOADS_PROFILE: ShellProfile = { id: 'workloads', commands: above(PROBES_PROFILE, []), features: [...PROBES_PROFILE.features!, 'workloads'] };
 export const RUNNER_DEPLOY_PROFILE: ShellProfile = { id: 'runner', commands: FORGE_PROFILE.commands, features: [...GIT_PROFILE.features!, 'deploy-hosts'] };
 /** The profiles a lesson machine may name (TerminalMachine.profile), from the narrowest. */
 export const PROFILES = {
@@ -262,7 +266,7 @@ export const PROFILES = {
   remote: REMOTE_PROFILE, scripting: SCRIPTING_PROFILE, scheduling: SCHEDULING_PROFILE, sockets: SOCKETS_PROFILE, dns: DNS_PROFILE, http: HTTP_PROFILE,
   tls: TLS_PROFILE, nginx: NGINX_PROFILE, proxy: PROXY_PROFILE, firewall: FIREWALL_PROFILE, tunnels: TUNNELS_PROFILE, edge: EDGE_PROFILE, diagnostics: DIAGNOSTICS_PROFILE,
   containers: CONTAINERS_PROFILE, images: IMAGES_PROFILE, 'storage-net': STORAGE_NET_PROFILE, compose: COMPOSE_PROFILE, runtime: RUNTIME_PROFILE, git: GIT_PROFILE, forge: FORGE_PROFILE, workflows: WORKFLOWS_PROFILE, actions: ACTIONS_PROFILE, artifacts: ARTIFACTS_PROFILE,
-  environments: ENVIRONMENTS_PROFILE, 'deploy-hosts': DEPLOY_HOSTS_PROFILE, cluster: CLUSTER_PROFILE, probes: PROBES_PROFILE,
+  environments: ENVIRONMENTS_PROFILE, 'deploy-hosts': DEPLOY_HOSTS_PROFILE, cluster: CLUSTER_PROFILE, probes: PROBES_PROFILE, workloads: WORKLOADS_PROFILE,
 } as const;
 export type ProfileId = keyof typeof PROFILES;
 

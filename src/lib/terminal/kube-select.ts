@@ -6,7 +6,7 @@ import { labelsOf, obj, str, type JObj } from './kube-model';
  * selectors kubectl get pods takes (metadata.name, metadata.namespace, spec.nodeName, spec.restartPolicy, status.phase).
  */
 
-type Req = { key: string; op: '=' | '!=' | 'in' | 'notin' | 'exists' | '!'; values: string[] };
+export type Req = { key: string; op: '=' | '!=' | 'in' | 'notin' | 'exists' | '!'; values: string[] };
 const KEY = /^([a-z0-9A-Z]([-a-z0-9A-Z_.]*[a-z0-9A-Z])?\/)?[a-zA-Z0-9]([-a-zA-Z0-9_.]*[a-zA-Z0-9])?$/;
 const VALUE = /^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$/;
 

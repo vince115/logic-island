@@ -4,6 +4,8 @@ import { printObjects } from './kube-output';
 import { fieldSelector, parseSelector, selects } from './kube-select';
 import { evalPath, parsePath, scalar } from './kube-jsonpath';
 import { describeObject } from './kube-describe';
+import { describeWorkload } from './kube-describe-workload';
+import { WORKLOAD_KINDS } from './kube-workload-spec';
 import { kindOf, nameOf, nsOf, type JObj } from './kube-model';
 import { flag, type KubeResult, type Kx } from './kubectl';
 
@@ -19,15 +21,22 @@ export const TYPES: { kind: string; names: string[]; plural: string }[] = [
   { kind: 'Namespace', names: ['namespaces', 'namespace', 'ns'], plural: 'namespaces' }, { kind: 'Event', names: ['events', 'event', 'ev'], plural: 'events' },
   { kind: 'Service', names: ['services', 'service', 'svc'], plural: 'services' }, { kind: 'Deployment', names: ['deployments', 'deployment', 'deploy', 'deployments.apps'], plural: 'deployments.apps' },
   { kind: 'DaemonSet', names: ['daemonsets', 'daemonset', 'ds', 'daemonsets.apps'], plural: 'daemonsets.apps' },
+  { kind: 'ReplicaSet', names: ['replicasets', 'replicaset', 'rs', 'replicasets.apps'], plural: 'replicasets.apps' },
 ];
+/** E34: kubectl get all (the kinds of the simulation that the "all" category holds, in kubectl's order). */
+const ALL = ['Pod', 'Service', 'DaemonSet', 'Deployment', 'ReplicaSet'];
 const LATER_TYPES: Record<string, string> = { replicasets: 'E34', replicaset: 'E34', rs: 'E34', endpoints: 'E35', ep: 'E35', endpointslices: 'E35', configmaps: 'E36', configmap: 'E36', cm: 'E36', secrets: 'E36', secret: 'E36',
   ingresses: 'E37', ingress: 'E37', ing: 'E37', ingressclasses: 'E37', gateways: 'E37', httproutes: 'E37', persistentvolumes: 'E38', pv: 'E38', persistentvolumeclaims: 'E38', pvc: 'E38', storageclasses: 'E38', sc: 'E38',
   statefulsets: 'E38', sts: 'E38', horizontalpodautoscalers: 'E40', hpa: 'E40', all: 'E34' };
-export const typeOf = (word: string) => TYPES.find(t => t.names.includes(word.toLowerCase()));
+const anyType = (word: string) => TYPES.find(t => t.names.includes(word.toLowerCase()));
+/** The kind a word names (pods, deploy, rs…), for kubectl events --for. */
+export const kindOfWord = (word: string) => anyType(word)?.kind;
 export type Target = { kind: string; plural: string; names: string[] };
 
 /** The targets of get, describe, delete, label…: a type and names, type/name words, or types joined with commas. */
 export function targets(x: Kx, words: readonly string[]): Target[] | { error: string } {
+  // E34: ReplicaSets and "all" exist on the workloads profile only.
+  const typeOf = (w: string) => { const t = anyType(w); return t && (t.kind !== 'ReplicaSet' || x.k.workloads) ? t : undefined; };
   if (!words.length) return { error: 'error: you must specify the type of resource to get. Use "kubectl api-resources" for a complete list of supported resources.' };
   const out: Target[] = [], unknown = (w: string) => LATER_TYPES[w.toLowerCase()] ? { error: `（模擬環境：${w} 要到引擎階段 ${LATER_TYPES[w.toLowerCase()]} 才模擬）` } : { error: `error: the server doesn't have a resource type "${w}"` };
   if (words[0].includes('/')) {
@@ -40,7 +49,10 @@ export function targets(x: Kx, words: readonly string[]): Target[] | { error: st
     }
     return out;
   }
-  for (const w of words[0].split(',')) { const type = typeOf(w); if (!type) return unknown(w); out.push({ kind: type.kind, plural: type.plural, names: [] }); }
+  for (const w of words[0].split(',')) {
+    if (w === 'all' && x.k.workloads) { out.push(...ALL.map(kind => ({ kind, plural: TYPES.find(t => t.kind === kind)!.plural, names: [] }))); continue; }
+    const type = typeOf(w); if (!type) return unknown(w); out.push({ kind: type.kind, plural: type.plural, names: [] });
+  }
   if (words.length > 1 && out.length > 1) return { error: 'error: arguments in resource/name form may not have more than one slash' };
   if (words.length > 1) out[0].names.push(...words.slice(1));
   return out;
@@ -110,7 +122,7 @@ export function describeCommand(x: Kx): KubeResult {
   for (const t of ts) {
     const r = pick(x, t);
     if ('error' in r) { x.io.err(r.error); return { state: x.state, status: 1 }; }
-    for (const o of r.items) out.push(describeObject(x.k, t.kind, o, x.now));
+    for (const o of r.items) out.push(x.k.workloads && WORKLOAD_KINDS.includes(t.kind) ? describeWorkload(x.k, o, x.now) : describeObject(x.k, t.kind, o, x.now));
     errors.push(...r.errors);
   }
   out.forEach((lines, i) => { if (i) { x.io.out(''); x.io.out(''); } lines.forEach(l => x.io.out(l)); });

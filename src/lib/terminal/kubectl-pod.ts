@@ -5,7 +5,7 @@ import { cOf, specOf, type Ref } from './kube-kubelet';
 import { settleKube } from './kube-settle';
 import { advanceClock } from './shell';
 import { evalPath, parseTemplate, runTemplate } from './kube-jsonpath';
-import { pick, targets } from './kubectl-get';
+import { kindOfWord, pick, targets } from './kubectl-get';
 import { arr, goTab, humanDuration, meta, nameOf, obj, stamp, str, uidOf, type JObj, type KubeEvent } from './kube-model';
 import type { FsNode } from './fs';
 import { flag, type KubeResult, type Kx } from './kubectl';
@@ -79,7 +79,8 @@ export function execCommand(x: Kx): KubeResult {
 export function eventsCommand(x: Kx): KubeResult {
   const types = flag(x, 'types')?.split(',').map(t => t.trim().toLowerCase()), target = flag(x, 'for');
   let list: KubeEvent[] = x.k.events.filter(e => (x.all || e.ns === x.ns) && (!types || types.includes(e.type.toLowerCase())));
-  if (target) { const [kind, name] = target.includes('/') ? target.split('/') : ['pod', target]; list = list.filter(e => e.name === name && e.kind.toLowerCase() === kind.replace(/s$/, '').replace(/^po$/, 'pod')); }
+  // Fix (E34): --for takes kubectl's names of the type (deploy/web, rs/web-…, no/node-01), as the resource builder does.
+  if (target) { const [word, name] = target.includes('/') ? target.split('/') : ['pod', target], kind = kindOfWord(word) ?? word; list = list.filter(e => e.name === name && e.kind.toLowerCase() === kind.toLowerCase()); }
   list = [...list].sort((a, b) => a.last - b.last || a.seq - b.seq);
   if (!list.length) return fail(x, x.all ? 'No events found.' : `No events found in ${x.ns} namespace.`, 0);
   const seen = (e: KubeEvent) => e.count > 1 ? `${humanDuration(x.now - e.last)} (x${e.count} over ${humanDuration(x.now - e.first)})` : humanDuration(x.now - e.last);

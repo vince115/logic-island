@@ -1,6 +1,7 @@
 import type { Seconds } from './clock';
 import { created, defaultPod, find, namespaceExists, NAMESPACED, put, remove } from './kube-api';
-import { API_VERSION, decodeProblem, fieldErrors, invalidText, KIND_STAGE, laterField, SCHEMAS } from './kube-manifest';
+import { API_VERSION, decodeProblem, fieldErrors, invalidText, KIND_STAGE, laterField, served } from './kube-manifest';
+import { defaultWorkload, immutableSelector, WORKLOAD_KINDS, workloadErrors, workloadLater } from './kube-workload-spec';
 import { changeImage } from './kube-kubelet';
 import { goJson } from './kube-output';
 import { arr, changed, clone, KUBE_LIMITS, kindOf, meta, nameOf, nsOf, obj, sameJ, sortJ, stamp, str, suffix, uid, uidOf, type J, type JObj, type KubeState } from './kube-model';
@@ -17,7 +18,10 @@ import { arr, changed, clone, KUBE_LIMITS, kindOf, meta, nameOf, nsOf, obj, same
 export const LAST_APPLIED = 'kubectl.kubernetes.io/last-applied-configuration';
 export type Written = { k: KubeState; line: string; warn?: string } | { error: string };
 const SERVER_META = ['uid', 'resourceVersion', 'creationTimestamp', 'managedFields', 'generation', 'selfLink'];
-const plural = (kind: string) => `${kind.toLowerCase()}s`;
+const plural = (kind: string) => WORKLOAD_KINDS.includes(kind) ? `${kind.toLowerCase()}s.apps` : `${kind.toLowerCase()}s`;
+const isWorkload = (k: KubeState, kind: string) => !!k.workloads && WORKLOAD_KINDS.includes(kind);
+/** kind/name as kubectl prints it after a write (deployment.apps/web). */
+export const lineName = (kind: string) => WORKLOAD_KINDS.includes(kind) ? `${kind.toLowerCase()}.apps` : kind.toLowerCase();
 
 function merge3(last: J | undefined, live: J | undefined, want: J): J {
   const isMap = (v: J | undefined): v is JObj => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -38,16 +42,16 @@ const FORBIDDEN = 'spec: Forbidden: pod updates may not change fields other than
 
 /** Checks a manifest document and its namespace (ns: the object's, or the command's). */
 export function checkDoc(k: KubeState, doc: JObj, ns: string, file: string): string | null {
-  const kind = kindOf(doc), name = nameOf(doc), api = str(doc.apiVersion) ?? '';
-  if (!SCHEMAS[kind] || API_VERSION[kind] !== api) {
+  const kind = kindOf(doc), name = nameOf(doc), api = str(doc.apiVersion) ?? '', workload = isWorkload(k, kind);
+  if (!served(kind, !!k.workloads) || API_VERSION[kind] !== api) {
     if (KIND_STAGE[kind] && API_VERSION[kind] === api) return `（模擬環境：${kind} 要到引擎階段 ${KIND_STAGE[kind]} 才模擬）`;
     return `error: resource mapping not found for name: "${name}" namespace: "${NAMESPACED[kind] ? ns : ''}" from "${file}": no matches for kind "${kind}" in version "${api}"\nensure CRDs are installed first`;
   }
-  const decode = decodeProblem(doc, !!k.probes);
+  const decode = decodeProblem(doc, !!k.probes, !!k.workloads);
   if (decode) return `Error from server (BadRequest): error when creating "${file}": ${kind} in version "v1" cannot be handled as a ${kind}: ${decode}`;
-  const later = laterField(doc, !!k.probes);
+  const later = workload ? workloadLater(doc) : laterField(doc, !!k.probes);
   if (later) return `（模擬環境：${later.path} 要到引擎階段 ${later.stage} 才模擬）`;
-  const errors = fieldErrors(doc, !!k.probes);
+  const errors = workload ? workloadErrors(defaultWorkload(doc)) : fieldErrors(doc, !!k.probes);
   if (errors.length) return invalidText(kind, name, errors);
   if (NAMESPACED[kind] && !namespaceExists(k, ns)) return `Error from server (NotFound): error when creating "${file}": namespaces "${ns}" not found`;
   return null;
@@ -67,11 +71,14 @@ export function createDoc(k0: KubeState, doc0: JObj, ns: string, t: Seconds, fil
   if (why) return { error: why };
   const kind = kindOf(doc0), doc = cleaned(doc0, ns), space = NAMESPACED[kind] ? ns : undefined;
   if (kind === 'Pod' && k0.objects.filter(o => kindOf(o) === 'Pod' && nsOf(o) !== 'kube-system').length >= KUBE_LIMITS.pods) return { error: `（模擬環境：叢集最多 ${KUBE_LIMITS.pods} 個 Pod）` };
+  if (kind === 'Deployment' && k0.objects.filter(o => kindOf(o) === 'Deployment' && nsOf(o) !== 'kube-system').length >= KUBE_LIMITS.deployments) return { error: `（模擬環境：叢集最多 ${KUBE_LIMITS.deployments} 個 Deployment）` };
   if (find(k0, kind, space, nameOf(doc))) return { error: `Error from server (AlreadyExists): error when creating "${file}": ${plural(kind)} "${nameOf(doc)}" already exists` };
   const annotations: JObj = { ...obj(meta(doc).annotations) };
   if (lastApplied) annotations[LAST_APPLIED] = `${goJson(sortJ({ ...doc, metadata: { ...meta(doc), annotations: { ...obj(meta(doc).annotations) } } }), false)}\n`;
   const r = created(k0, { ...doc, metadata: { ...meta(doc), ...Object.keys(annotations).length ? { annotations } : {} } }, space, t);
-  return { k: put(r.k, r.o), line: `${kind.toLowerCase()}/${nameOf(doc)} created` };
+  // E34: a Deployment or ReplicaSet gets its defaults and generation 1; the controllers take it from there.
+  const o = isWorkload(k0, kind) ? { ...defaultWorkload(r.o), metadata: { ...meta(r.o), generation: 1 }, status: {} } : r.o;
+  return { k: put(r.k, o), line: `${lineName(kind)}/${nameOf(doc)} created` };
 }
 
 export function applyDoc(k0: KubeState, doc0: JObj, ns: string, t: Seconds, file: string): Written {
@@ -89,11 +96,18 @@ export function applyDoc(k0: KubeState, doc0: JObj, ns: string, t: Seconds, file
   let merged = merge3(last, liveRest, want) as JObj;
   if (kind === 'Pod') merged = defaultPod(merged);
   if (kind === 'Pod' && !sameJ(frozen(obj(liveRest.spec)), frozen(obj(merged.spec)))) return { error: invalidText('Pod', nameOf(doc), [FORBIDDEN]) };
+  if (isWorkload(k0, kind)) {
+    // E34: defaults, the selector cannot change, a new spec is a new generation.
+    merged = defaultWorkload(merged);
+    const errs = [...workloadErrors(merged), ...immutableSelector(live, merged)];
+    if (errs.length) return { error: invalidText(kind, nameOf(doc), errs) };
+    if (!sameJ(obj(liveRest.spec), obj(merged.spec))) merged = { ...merged, metadata: { ...meta(merged), generation: Number(meta(live).generation ?? 1) + 1 } };
+  }
   const next: JObj = { ...merged, ...status !== undefined ? { status } : {} };
-  if (sameJ({ ...next, metadata: { ...meta(next), resourceVersion: null } }, { ...live, metadata: { ...meta(live), resourceVersion: null } })) return { k: k0, line: `${kind.toLowerCase()}/${nameOf(doc)} unchanged`, ...warn ? { warn } : {} };
+  if (sameJ({ ...next, metadata: { ...meta(next), resourceVersion: null } }, { ...live, metadata: { ...meta(live), resourceVersion: null } })) return { k: k0, line: `${lineName(kind)}/${nameOf(doc)} unchanged`, ...warn ? { warn } : {} };
   let k = put(k0, next);
   if (kind === 'Pod') k = imagesChanged(k, next, t);
-  return { k, line: `${kind.toLowerCase()}/${nameOf(doc)} configured`, ...warn ? { warn } : {} };
+  return { k, line: `${lineName(kind)}/${nameOf(doc)} configured`, ...warn ? { warn } : {} };
 }
 /** The kubelet restarts each container whose image the update changed. */
 function imagesChanged(k0: KubeState, pod: JObj, t: Seconds): KubeState {

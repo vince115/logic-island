@@ -5,6 +5,7 @@ import { configCommand, readConfig, type KubeConfig } from './kubectl-config';
 import { describeCommand, getCommand } from './kubectl-get';
 import { applyCommand, deleteCommand, runCommand } from './kubectl-apply';
 import { metaCommand } from './kubectl-meta';
+import { workloadVerb } from './kubectl-workload';
 import { eventsCommand, execCommand, logsCommand, waitCommand } from './kubectl-pod';
 import { API_SERVER, goTab, KUBE_VERSION, KUSTOMIZE_VERSION, type KubeState } from './kube-model';
 
@@ -21,14 +22,17 @@ export type KubeResult = { state: FsState; status: number; advance?: number };
 export interface Flags { values: Record<string, string[]>; bools: Set<string>; off?: Set<string> }
 export interface Kx { state: FsState; k: KubeState; ns: string; nsGiven: boolean; all: boolean; flags: Flags; pos: string[]; io: KubeIo; now: number; verb: string; cfg: KubeConfig; rest: string[] }
 
-const VALUE = ['namespace', 'output', 'selector', 'filename', 'container', 'field-selector', 'image', 'port', 'labels', 'env', 'restart', 'grace-period', 'tail', 'since', 'for', 'types',
+const VALUES = ['namespace', 'output', 'selector', 'filename', 'container', 'field-selector', 'image', 'port', 'labels', 'env', 'restart', 'grace-period', 'tail', 'since', 'for', 'types',
   'dry-run', 'label-columns', 'context', 'cluster', 'user', 'timeout', 'sort-by', 'requests', 'limits', 'overrides'];
-const BOOL = ['all-namespaces', 'show-labels', 'overwrite', 'all', 'force', 'previous', 'timestamps', 'follow', 'watch', 'stdin', 'tty', 'command', 'rm', 'minify', 'raw', 'current', 'wait', 'client', 'ignore-not-found', 'no-headers', 'help', 'quiet', 'show-kind', 'list'];
+/** E34 (the workloads profile): scale, rollout, delete --cascade, drain. */
+const E34_VALUE = ['replicas', 'to-revision', 'revision', 'cascade'], E34_BOOL = ['ignore-daemonsets', 'delete-emptydir-data'];
+const BOOLS = ['all-namespaces', 'show-labels', 'overwrite', 'all', 'force', 'previous', 'timestamps', 'follow', 'watch', 'stdin', 'tty', 'command', 'rm', 'minify', 'raw', 'current', 'wait', 'client', 'ignore-not-found', 'no-headers', 'help', 'quiet', 'show-kind', 'list'];
 const SHORT_VALUE: Record<string, string> = { n: 'namespace', o: 'output', l: 'selector', f: 'filename', c: 'container', L: 'label-columns' };
 const SHORT_BOOL: Record<string, string> = { A: 'all-namespaces', w: 'watch', i: 'stdin', t: 'tty', p: 'previous', h: 'help', q: 'quiet' };
 
 /** Flags and positional words (after -- everything is positional and kept apart). */
-export function parseFlags(verb: string, args: readonly string[]): { flags: Flags; pos: string[]; rest: string[] } | { error: string } {
+export function parseFlags(verb: string, args: readonly string[], workloads = false): { flags: Flags; pos: string[]; rest: string[] } | { error: string } {
+  const VALUE = workloads ? [...VALUES, ...E34_VALUE] : VALUES, BOOL = workloads ? [...BOOLS, ...E34_BOOL] : BOOLS;
   const values: Record<string, string[]> = {}, bools = new Set<string>(), off = new Set<string>(), pos: string[] = [];
   const short = { ...SHORT_VALUE, ...verb === 'logs' ? { f: '' } : {}, ...verb === 'run' ? { l: 'labels' } : {} }, shortBool = { ...SHORT_BOOL, ...verb === 'logs' ? { f: 'follow' } : {} };
   const setV = (name: string, v: string) => { (values[name] ??= []).push(v); };
@@ -66,11 +70,12 @@ const REFUSED = 'The connection to the server localhost:8080 was refused - did y
 export function kubectl(state0: FsState, args: readonly string[], io: KubeIo): KubeResult {
   const [verb, ...more] = args;
   if (!verb) { io.out('kubectl controls the Kubernetes cluster manager.'); io.out(''); io.out(' Find more information at: https://kubernetes.io/docs/reference/kubectl/'); return { state: state0, status: 0 }; }
-  if (LATER[verb]) { io.err(`（模擬環境：kubectl ${verb} 要到引擎階段 ${LATER[verb]} 才模擬）`); return { state: state0, status: 1 }; }
+  const workloads = !!state0.kube?.workloads;
+  if (LATER[verb] && !(workloads && LATER[verb] === 'E34')) { io.err(`（模擬環境：kubectl ${verb} 要到引擎階段 ${LATER[verb]} 才模擬）`); return { state: state0, status: 1 }; }
   if (verb === 'edit') { io.err('（模擬環境沒有文字編輯器：請修改 YAML 檔案後執行 kubectl apply -f 檔案）'); return { state: state0, status: 1 }; }
   if (PROSE.includes(verb)) { io.err(`（模擬環境不模擬 kubectl ${verb}，課文會說明它）`); return { state: state0, status: 1 }; }
-  if (!VERBS.includes(verb)) { io.err(`error: unknown command "${verb}" for "kubectl"`); io.err("Run 'kubectl --help' for usage."); return { state: state0, status: 1 }; }
-  const p = parseFlags(verb, more);
+  if (!VERBS.includes(verb) && !(workloads && LATER[verb] === 'E34')) { io.err(`error: unknown command "${verb}" for "kubectl"`); io.err("Run 'kubectl --help' for usage."); return { state: state0, status: 1 }; }
+  const p = parseFlags(verb, more, workloads);
   if ('error' in p) { io.err(p.error); io.err(`See 'kubectl ${verb} --help' for usage.`); return { state: state0, status: 1 }; }
   const state = settleKube(state0), now = clockOf(state).now, cfg = readConfig(state);
   if (verb === 'version' && p.flags.bools.has('client')) { io.out(`Client Version: ${KUBE_VERSION}`); io.out(`Kustomize Version: ${KUSTOMIZE_VERSION}`); return { state, status: 0 }; }
@@ -85,7 +90,14 @@ export function kubectl(state0: FsState, args: readonly string[], io: KubeIo): K
   }
   const nsFlag = p.flags.values.namespace?.at(-1);
   const x: Kx = { state, k: state.kube, ns: nsFlag ?? ctx.namespace ?? 'default', nsGiven: nsFlag !== undefined, all: p.flags.bools.has('all-namespaces'), flags: p.flags, pos: p.pos, io, now, verb, cfg, rest: p.rest };
-  switch (verb) {
+  if (!workloads) return verbOf(x);
+  // E34: a command that changed the cluster makes the controllers run now.
+  const r = workloadVerb(x) ?? verbOf(x), kube = r.state.kube;
+  return kube && kube !== x.k ? { ...r, state: { ...r.state, kube: { ...kube, dirty: Math.min(kube.dirty ?? x.now, x.now) } } } : r;
+}
+function verbOf(x: Kx): KubeResult {
+  const { state, io } = x;
+  switch (x.verb) {
     case 'version': io.out(`Client Version: ${KUBE_VERSION}`); io.out(`Kustomize Version: ${KUSTOMIZE_VERSION}`); io.out(`Server Version: ${KUBE_VERSION}`); return { state, status: 0 };
     case 'cluster-info':
       io.out(`Kubernetes control plane is running at ${API_SERVER}`); io.out(`CoreDNS is running at ${API_SERVER}/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy`);

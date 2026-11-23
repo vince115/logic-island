@@ -21,6 +21,8 @@ export interface KubeNode {
   labels: Readonly<Record<string, string>>; taints: readonly Taint[];
   /** Allocatable: millicores, bytes, pods (and the texts as the lesson wrote them). */
   cpu: number; memory: number; pods: number; cpuText: string; memoryText: string;
+  /** E34: kubectl cordon (spec.unschedulable and the node.kubernetes.io/unschedulable taint). */
+  unschedulable?: true;
 }
 /** An event (core/v1 Event), aggregated like the event correlator does: the same object, reason and message count up. */
 export interface KubeEvent {
@@ -72,6 +74,15 @@ export interface KubeState {
   /** E33 (the probes profile): probes, lifecycle hooks and graceful termination are simulated; the lesson's time-dependent health. */
   probes?: true;
   health?: readonly KubeHealth[];
+  /**
+   * E34 (the workloads profile): the ReplicaSet and Deployment controllers, the node lifecycle controller and the lesson's
+   * node failures (kube-controllers.ts). ctrl: when the controllers last ran; dirty: a command changed something they
+   * watch at that time; down: when each failed node was marked NotReady.
+   */
+  workloads?: true;
+  failures?: readonly { node: string; at: Seconds }[];
+  ctrl?: Seconds; dirty?: Seconds;
+  down?: Readonly<Record<string, Seconds>>;
 }
 /** E33: how a container image's service behaves over time since its start (kube-health.ts validates the lesson's data). */
 export interface KubeHealth {
@@ -92,7 +103,7 @@ export const NODE_KERNEL = '6.8.0-48-generic';
 export const SYSTEM_NAMESPACES = ['default', 'kube-node-lease', 'kube-public', 'kube-system'] as const;
 export const CONTROL_TAINT: Taint = { key: 'node-role.kubernetes.io/control-plane', effect: 'NoSchedule' };
 /** Limits that keep the settle loop cheap whatever the learner applies. */
-export const KUBE_LIMITS = { nodes: 5, pods: 60, objects: 200, events: 400, logs: 400 } as const;
+export const KUBE_LIMITS = { nodes: 5, pods: 60, objects: 200, events: 400, logs: 400, deployments: 20 } as const;
 
 /** A JSON value as an object (or an empty one). */
 export const obj = (v: J | undefined): JObj => v && typeof v === 'object' && !Array.isArray(v) ? v : {};

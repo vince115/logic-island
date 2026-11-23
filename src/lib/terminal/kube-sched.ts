@@ -11,6 +11,7 @@ import { podRequests } from './kube-api';
  * suffix. A pod with spec.nodeName is not scheduled: the kubelet of that node runs it.
  */
 
+export const UNSCHEDULABLE: Taint = { key: 'node.kubernetes.io/unschedulable', effect: 'NoSchedule' };
 /** Whether one toleration tolerates the taint. */
 export function tolerates(t0: J, taint: Taint): boolean {
   const t = obj(t0), key = str(t.key) ?? '', op = str(t.operator) ?? 'Equal', effect = str(t.effect) ?? '';
@@ -40,6 +41,8 @@ export function schedule(k: KubeState, pod: JObj): { node: KubeNode } | { messag
   const add = (m: Map<string, number>, r: string) => m.set(r, (m.get(r) ?? 0) + 1);
   const fits: KubeNode[] = [];
   for (const n of k.nodes) {
+    // E34: NodeUnschedulable runs first — a cordoned node takes only pods that tolerate node.kubernetes.io/unschedulable.
+    if (n.unschedulable && !arr(obj(pod.spec).tolerations).some(t => tolerates(t, UNSCHEDULABLE))) { add(counts, 'node(s) were unschedulable'); add(preempt, 'Preemption is not helpful for scheduling'); continue; }
     const taint = untolerated(pod, n);
     if (taint) { add(counts, `node(s) had untolerated taint {${taint.key}: ${taint.value ?? ''}}`); add(preempt, 'Preemption is not helpful for scheduling'); continue; }
     if (!selects(pod, n)) { add(counts, REASON.selector); add(preempt, 'Preemption is not helpful for scheduling'); continue; }

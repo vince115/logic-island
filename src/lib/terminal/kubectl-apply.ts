@@ -1,10 +1,11 @@
 import { find, NAMESPACED } from './kube-api';
 import { readManifests } from './kube-manifest';
-import { kubeYaml, goJson } from './kube-output';
+import { kubeYaml, goJson, resourceName } from './kube-output';
 import { applyDoc, createDoc, deleteObject, type Written } from './kube-write';
+import { endPod, orphan } from './kube-replicaset';
 import { noneText, pick, targets } from './kubectl-get';
 import { beginDelete } from './kube-stop';
-import { kindOf, nameOf, nsOf, obj, str, type J, type JObj, type KubeState } from './kube-model';
+import { kindOf, nameOf, nsOf, obj, str, uidOf, type J, type JObj, type KubeState } from './kube-model';
 import { flag, type KubeResult, type Kx } from './kubectl';
 
 /*
@@ -69,7 +70,7 @@ function createNamed(x: Kx): KubeResult {
     x.io.out(r.line);
     return { state: { ...x.state, kube: r.k }, status: 0 };
   }
-  const stage: Record<string, string> = { deployment: 'E34', deploy: 'E34', service: 'E35', svc: 'E35', configmap: 'E36', cm: 'E36', secret: 'E36', ingress: 'E37' };
+  const stage: Record<string, string> = { ...x.k.workloads ? {} : { deployment: 'E34', deploy: 'E34' }, service: 'E35', svc: 'E35', configmap: 'E36', cm: 'E36', secret: 'E36', ingress: 'E37' };
   x.io.err(stage[what] ? `（模擬環境：kubectl create ${what} 要到引擎階段 ${stage[what]} 才模擬）` : `error: unknown command "${what}" for "kubectl create"`);
   return { state: x.state, status: 1 };
 }
@@ -80,18 +81,22 @@ function graceOf(x: Kx, pod: JObj): number {
   return n < 0 ? Number(obj(pod.spec).terminationGracePeriodSeconds ?? 30) : n === 0 ? 1 : n;
 }
 export function deleteCommand(x: Kx): KubeResult {
-  const force = x.flags.bools.has('force') && flag(x, 'grace-period') === '0', errors: string[] = [];
+  const force = x.flags.bools.has('force') && flag(x, 'grace-period') === '0', errors: string[] = [], cascade = flag(x, 'cascade');
+  if (cascade !== undefined && !['background', 'foreground', 'orphan', 'true', 'false'].includes(cascade)) { x.io.err(`error: invalid cascade value (${cascade}). Must be "background", "foreground", or "orphan".`); return { state: x.state, status: 1 }; }
   let k = x.k, until = x.now;
   if (force) x.io.err('Warning: Immediate deletion does not wait for confirmation that the running resource has been terminated. The resource may continue to run on the cluster indefinitely.');
   const one = (o: JObj) => {
     if (kindOf(o) === 'Node' || kindOf(o) === 'Event') { errors.push(`（模擬環境：${kindOf(o) === 'Node' ? '節點是課程的資料' : '事件由叢集記錄'}，不能刪除）`); return; }
     if (kindOf(o) === 'Namespace' && ['default', 'kube-system', 'kube-public', 'kube-node-lease'].includes(nameOf(o))) { errors.push(`Error from server (Forbidden): namespaces "${nameOf(o)}" is forbidden: this namespace may not be deleted`); return; }
     // E33 (probes profile): a pod ends gracefully — Terminating, the hooks and signals — and kubectl waits until it is gone.
-    if (k.probes && !force && kindOf(o) === 'Pod' && nsOf(o) !== 'kube-system') {
+    // E34: --cascade=orphan leaves the dependents (their ownerReferences removed); a pod on a NotReady node stays Terminating.
+    if (k.workloads && (cascade === 'orphan' || cascade === 'false')) k = orphan(k, o);
+    if (k.workloads && !force && kindOf(o) === 'Pod' && k.down?.[k.pods[uidOf(o)]?.node ?? ''] !== undefined) k = endPod(x.state.docker, k, k.objects.find(y => uidOf(y) === uidOf(o)) ?? o, x.now);
+    else if (k.probes && !force && kindOf(o) === 'Pod' && nsOf(o) !== 'kube-system') {
       const live = k.objects.find(y => kindOf(y) === 'Pod' && nameOf(y) === nameOf(o) && nsOf(y) === nsOf(o)) ?? o, r = beginDelete(x.state.docker, k, live, graceOf(x, live), x.now);
       k = r.k; until = Math.max(until, r.until);
     } else k = deleteObject(k, o, x.now);
-    x.io.out(`${kindOf(o).toLowerCase()} "${nameOf(o)}" ${force ? 'force deleted' : 'deleted'}`);
+    x.io.out(`${resourceName(o).split('/')[0]} "${nameOf(o)}" ${force ? 'force deleted' : 'deleted'}`);
   };
   if (x.flags.values.filename) {
     const docs = documents(x);

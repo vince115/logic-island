@@ -2,6 +2,7 @@ import type { Seconds } from './clock';
 import { hex } from './docker';
 import { printPod } from './kube-status';
 import { resourceName } from './kube-output';
+import { selectorText } from './kube-workload-spec';
 import {
   arr, CONTAINERD_VERSION, createdOf, goTab, humanDuration, KUBE_VERSION, labelsOf, nameOf, NODE_KERNEL, NODE_OS, nsOf, obj, stamp, str, uid,
   type J, type JObj, type KubeEvent, type KubeNode, type KubeState,
@@ -20,11 +21,15 @@ export const rolesOf = (labels: Readonly<Record<string, string>>) => Object.keys
 /** A node as the API returns it (capacity is its allocatable: the simulation keeps no reserve). */
 export function nodeJson(k: KubeState, n: KubeNode, now: Seconds): JObj {
   const res = { cpu: n.cpuText, 'ephemeral-storage': '19221248Ki', memory: n.memoryText, pods: String(n.pods) };
-  const cond = (type: string, status: string, reason: string, message: string): J => ({ lastHeartbeatTime: stamp(now), lastTransitionTime: stamp(n.created), message, reason, status, type });
+  // E34: a failed node's kubelet stopped posting status (Unknown since it was marked NotReady).
+  const lost = k.down?.[n.name], beat = k.failures?.find(f => f.node === n.name)?.at;
+  const cond = (type: string, status: string, reason: string, message: string): J => lost !== undefined
+    ? { lastHeartbeatTime: stamp(beat ?? lost), lastTransitionTime: stamp(lost), message: 'Kubelet stopped posting node status.', reason: 'NodeStatusUnknown', status: 'Unknown', type }
+    : { lastHeartbeatTime: stamp(now), lastTransitionTime: stamp(n.created), message, reason, status, type };
   return { apiVersion: 'v1', kind: 'Node',
     metadata: { annotations: { 'kubeadm.alpha.kubernetes.io/cri-socket': 'unix:///var/run/containerd/containerd.sock', 'node.alpha.kubernetes.io/ttl': '0', 'volumes.kubernetes.io/controller-managed-attach-detach': 'true' },
       creationTimestamp: stamp(n.created), labels: { ...n.labels }, name: n.name, resourceVersion: String(k.rv), uid: uid(`node/${n.name}`) },
-    spec: { podCIDR: n.cidr, podCIDRs: [n.cidr], ...n.taints.length ? { taints: n.taints.map(t => ({ effect: t.effect, key: t.key, ...t.value ? { value: t.value } : {} })) } : {} },
+    spec: { podCIDR: n.cidr, podCIDRs: [n.cidr], ...n.unschedulable ? { unschedulable: true } : {}, ...n.taints.length ? { taints: n.taints.map(t => ({ effect: t.effect, key: t.key, ...t.value ? { value: t.value } : {} })) } : {} },
     status: { addresses: [{ address: n.address, type: 'InternalIP' }, { address: n.name, type: 'Hostname' }], allocatable: res, capacity: res,
       conditions: [cond('MemoryPressure', 'False', 'KubeletHasSufficientMemory', 'kubelet has sufficient memory available'), cond('DiskPressure', 'False', 'KubeletHasNoDiskPressure', 'kubelet has no disk pressure'),
         cond('PIDPressure', 'False', 'KubeletHasSufficientPID', 'kubelet has sufficient PID available'), cond('Ready', 'True', 'KubeletReady', 'kubelet is posting ready status')],
@@ -48,7 +53,7 @@ const COLUMNS: Record<string, (now: Seconds, k: KubeState) => Cols> = {
     row: o => { const p = printPod(o, now); return [nameOf(o), p.ready, p.status, p.restarts, age(createdOf(o), now)]; },
     more: o => [str(obj(o.status).podIP) ?? '<none>', str(obj(o.spec).nodeName) ?? '<none>', '<none>', '<none>'] }),
   Node: now => ({ head: ['NAME', 'STATUS', 'ROLES', 'AGE', 'VERSION'], wide: ['INTERNAL-IP', 'EXTERNAL-IP', 'OS-IMAGE', 'KERNEL-VERSION', 'CONTAINER-RUNTIME'],
-    row: o => [nameOf(o), obj(o.spec).unschedulable ? 'Ready,SchedulingDisabled' : 'Ready', rolesOf(labelsOf(o)), age(createdOf(o), now), KUBE_VERSION],
+    row: o => [nameOf(o), `${nodeReady(o) ? 'Ready' : 'NotReady'}${obj(o.spec).unschedulable ? ',SchedulingDisabled' : ''}`, rolesOf(labelsOf(o)), age(createdOf(o), now), KUBE_VERSION],
     more: o => [str(obj(arr(obj(o.status).addresses)[0]).address) ?? '<none>', '<none>', NODE_OS, NODE_KERNEL, `containerd://${CONTAINERD_VERSION}`] }),
   Namespace: now => ({ head: ['NAME', 'STATUS', 'AGE'], row: o => [nameOf(o), str(obj(o.status).phase) ?? 'Active', age(createdOf(o), now)] }),
   Service: now => ({ head: ['NAME', 'TYPE', 'CLUSTER-IP', 'EXTERNAL-IP', 'PORT(S)', 'AGE'], wide: ['SELECTOR'],
@@ -59,10 +64,13 @@ const COLUMNS: Record<string, (now: Seconds, k: KubeState) => Cols> = {
   DaemonSet: now => ({ head: ['NAME', 'DESIRED', 'CURRENT', 'READY', 'UP-TO-DATE', 'AVAILABLE', 'NODE SELECTOR', 'AGE'], wide: ['CONTAINERS', 'IMAGES', 'SELECTOR'],
     row: o => { const s = obj(o.status); return [nameOf(o), ...['desiredNumberScheduled', 'currentNumberScheduled', 'numberReady', 'updatedNumberScheduled', 'numberAvailable'].map(x => String(s[x] ?? 0)), selText(obj(obj(obj(o.spec).template).spec).nodeSelector), age(createdOf(o), now)]; },
     more: o => tmpl(o) }),
+  ReplicaSet: now => ({ head: ['NAME', 'DESIRED', 'CURRENT', 'READY', 'AGE'], wide: ['CONTAINERS', 'IMAGES', 'SELECTOR'],
+    row: o => [nameOf(o), String(obj(o.spec).replicas ?? 1), String(obj(o.status).replicas ?? 0), String(obj(o.status).readyReplicas ?? 0), age(createdOf(o), now)], more: o => tmpl(o) }),
   Event: now => ({ head: ['LAST SEEN', 'TYPE', 'REASON', 'OBJECT', 'MESSAGE'],
     row: o => [age(parseLast(o), now), str(o.type) ?? '', str(o.reason) ?? '', `${(str(obj(o.involvedObject).kind) ?? '').toLowerCase()}/${str(obj(o.involvedObject).name) ?? ''}`, str(o.message) ?? ''] }),
 };
-const tmpl = (o: JObj) => { const cs = arr(obj(obj(obj(o.spec).template).spec).containers).map(obj); return [cs.map(c => str(c.name)).join(','), cs.map(c => str(c.image)).join(','), selText(obj(obj(o.spec).selector).matchLabels)]; };
+const tmpl = (o: JObj) => { const cs = arr(obj(obj(obj(o.spec).template).spec).containers).map(obj); return [cs.map(c => str(c.name)).join(','), cs.map(c => str(c.image)).join(','), selectorText(obj(o.spec).selector)]; };
+const nodeReady = (o: JObj) => arr(obj(o.status).conditions).some(c => str(obj(c).type) === 'Ready' && str(obj(c).status) === 'True');
 const parseLast = (o: JObj) => { const v = str(o.lastTimestamp); return v ? createdOf({ metadata: { creationTimestamp: v } }) : undefined; };
 
 /** The table of these objects of one kind (the caller prints "No resources found" for none). */

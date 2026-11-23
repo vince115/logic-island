@@ -9,6 +9,7 @@ import { readManifests, validLabelName } from './kube-manifest';
 import { applyDoc } from './kube-write';
 import { healthProblems, type TerminalKubeHealth } from './kube-health';
 import { bytesOf, cpuMilli, KUBE_LIMITS, nsOf, obj, str, type KubeState } from './kube-model';
+import { systemWorkloads } from './kube-controllers';
 
 /*
  * Engine stage E32 as lesson data (docs/curriculum/KUB0_E32_CLUSTER.md §14). A machine of the cluster profile with `kube`
@@ -35,6 +36,11 @@ export interface TerminalKube {
    * 60 s), exec commands' exit status in a window. kube-health.ts.
    */
   health?: TerminalKubeHealth[];
+  /**
+   * E34 (workloads profile): nodes that fail at a time (UTC; may be after now): the kubelet stops, the node is NotReady 50 s
+   * later and its pods are evicted when their 300 s toleration runs out (kube-controllers.ts).
+   */
+  failures?: { node: string; at: string }[];
 }
 
 const homeOf = (m: TerminalMachine) => m.home ?? (m.user === 'root' ? '/root' : `/home/${m.user}`);
@@ -51,7 +57,7 @@ export function expandKube(m: TerminalMachine, cluster: boolean, add: { file(f: 
 }
 
 /** The cluster at the machine's start: its nodes and system objects, then the boot manifests in order. */
-export function buildKube(m: TerminalMachine, now: Seconds, probes = false): { k: KubeState; problems: string[] } {
+export function buildKube(m: TerminalMachine, now: Seconds, probes = false, workloads = false): { k: KubeState; problems: string[] } {
   const kube = m.kube!, created = parseTime(kube.created ?? '') ?? now - 30 * DAY;
   const nodes = nodesOf(kube.nodes ?? [{ name: 'cp-01', control: true }, { name: 'node-01' }, { name: 'node-02' }], created, t => cpuMilli(t) ?? 0, t => bytesOf(t) ?? 0);
   const boot = bootstrap(nodes, created), pull: Record<string, number> = {}, cache: Record<string, string[]> = Object.fromEntries(Object.entries(boot.cache).map(([n, l]) => [n, [...l]]));
@@ -61,6 +67,8 @@ export function buildKube(m: TerminalMachine, now: Seconds, probes = false): { k
   }
   let k: KubeState = { created, nodes, objects: boot.objects, pods: boot.pods, events: [], rv: 1000, seq: 0, settled: created, cache, pull, pullSeconds: kube.pullSeconds ?? 2, unscheduled: {},
     ...probes ? { probes: true as const, ...kube.health ? { health: kube.health.map(h => ({ ...h })) } : {} } : {} };
+  // E34: the controllers, kube-system's ReplicaSet, the lesson's node failures.
+  if (workloads) k = { ...systemWorkloads(k), workloads: true, failures: (kube.failures ?? []).map(f => ({ node: f.node, at: parseTime(f.at) ?? now })) };
   const problems: string[] = [];
   (kube.manifests ?? []).forEach((mf, i) => {
     const at = parseTime(mf.at ?? '') ?? now, file = mf.file ?? `manifest-${i + 1}.yaml`;
@@ -69,21 +77,21 @@ export function buildKube(m: TerminalMachine, now: Seconds, probes = false): { k
     for (const d of docs) {
       if ('error' in d) { problems.push(`kube.manifests[${i}]: ${d.error}`); continue; }
       const r = applyDoc(k, d.doc, str(obj(d.doc.metadata).namespace) ?? 'default', at, file);
-      if ('error' in r) problems.push(`kube.manifests[${i}]: ${r.error}`); else k = r.k;
+      if ('error' in r) problems.push(`kube.manifests[${i}]: ${r.error}`); else k = workloads ? { ...r.k, dirty: Math.min(r.k.dirty ?? at, at) } : r.k;
     }
   });
   return { k, problems };
 }
 
 /** E32: the state's cluster (the local machine of the cluster profile only). */
-export function kubeState(m: TerminalMachine, state: FsState, cluster: boolean, probes = false): FsState {
-  if (!cluster || !m.kube || kubeProblems(m, cluster, probes).length) return state;
-  return { ...state, kube: buildKube(m, nowOf(m, state), probes).k };
+export function kubeState(m: TerminalMachine, state: FsState, cluster: boolean, probes = false, workloads = false): FsState {
+  if (!cluster || !m.kube || kubeProblems(m, cluster, probes, workloads).length) return state;
+  return { ...state, kube: buildKube(m, nowOf(m, state), probes, workloads).k };
 }
 
 const LINE = (t: unknown, max = 64) => typeof t === 'string' && t.length >= 1 && t.length <= max && !t.includes('\n');
 /** E32: the problems of a machine's cluster data. */
-export function kubeProblems(m: TerminalMachine, cluster: boolean, probes = false): string[] {
+export function kubeProblems(m: TerminalMachine, cluster: boolean, probes = false, workloads = false): string[] {
   if (m.kube === undefined) return [];
   if (!cluster) return ['kube needs the cluster profile (engine stage E32)'];
   const out: string[] = [], kube = m.kube, now = nowOf(m), fail = (s: string) => out.push(`kube: ${s}`);
@@ -125,8 +133,18 @@ export function kubeProblems(m: TerminalMachine, cluster: boolean, probes = fals
     if (!probes) fail('health needs the probes profile (engine stage E33)');
     else out.push(...healthProblems(kube.health, (m.docker?.images ?? []).map(i => i.name)));
   }
+  // E34: the lesson's node failures.
+  if (kube.failures !== undefined) {
+    if (!workloads) fail('failures needs the workloads profile (engine stage E34)');
+    else if (!Array.isArray(kube.failures) || kube.failures.length > KUBE_LIMITS.nodes || new Set(kube.failures.map(f => f.node)).size !== kube.failures.length) fail(`failures is at most ${KUBE_LIMITS.nodes} of { node, at }, one per node`);
+    else for (const f of kube.failures) {
+      if (!nodeNames.has(f.node)) fail(`failures: no node ${String(f.node)}`);
+      const at = typeof f.at === 'string' ? parseTime(f.at) : undefined;
+      if (at === undefined || (created !== undefined && at < created) || at > now + DAY) fail(`failures: ${String(f.node)} at is a UTC time between created and a day after now`);
+    }
+  }
   if (out.length) return out;
-  const built = buildKube(m, now, probes);
+  const built = buildKube(m, now, probes, workloads);
   if (built.k.objects.filter(o => o.kind === 'Pod' && nsOf(o) !== 'kube-system').length > KUBE_LIMITS.pods) out.push(`kube: at most ${KUBE_LIMITS.pods} pods`);
   return [...out, ...built.problems.map(p => `kube: ${p}`)];
 }
