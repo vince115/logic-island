@@ -678,7 +678,21 @@
       ],
       "commit": "TBD",
       "tests": "TBD",
-      "notes": "CICD-4：終端機引擎階段 E29 artifacts（actions/cache 與 restore-keys、upload／download-artifact 與 gh run download、runner 上的 Docker 建置與推送、儲存庫與 environment 層級的 secret 與 variable、日誌遮蔽、GITHUB_TOKEN 對 git push 與 gh 的影響、逐片的 rerun --failed）；建置管線與產出物、環境變數與設定管理、機密管理三課"
+      "notes": "CICD-4：終端機引擎階段 E29 artifacts（actions/cache 與 restore-keys、upload／download-artifact 與 gh run download、runner 上的 Docker 建置與推送、儲存庫與 environment 層級的 secret 與 variable、日誌遮蔽、GITHUB_TOKEN 對 git push 與 gh 的影響、逐片的 rerun --failed）；建置管線與產出物、環境變數與設定管理、機密管理三課",
+      "pr": "#94",
+      "merged": "622ce41"
+    },
+    {
+      "id": 49,
+      "date": "2026-11-24",
+      "lessons": [
+        "CICD09",
+        "CICD10",
+        "CICD11"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "CICD-5：終端機引擎階段 E30 environments（必要審核者、等待計時、部署分支規則、concurrency、部署紀錄）與 E31 deploy-hosts（以 ssh 連到有 Docker 的主機部署、冒煙測試與以 digest 回滾），devops-explorer 的 D3（四大黃金訊號的儀表板、告警規則、偵測延遲、誤報與告警疲勞、事故時間線；monitoring-dashboard 改為已實作）與 D2 部署計畫的 gateFailed；部署管線、部署策略、監控與告警三課"
     }
   ]
 }

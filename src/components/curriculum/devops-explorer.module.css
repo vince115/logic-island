@@ -314,8 +314,8 @@ g[data-selected] .deploy {
   outline: 1px solid var(--border);
 }
 .stPending {
-  fill: #c98a00;
-  background: #c98a00;
+  fill: var(--cur-warn, #9a5b00);
+  background: var(--cur-warn, #9a5b00);
 }
 .stFiring {
   fill: var(--cur-bad, #b3261e);

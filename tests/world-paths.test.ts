@@ -141,9 +141,10 @@ describe('activity registry (F.0)', () => {
     // P7: terminal-sim likewise, by /learn/linux-terminal (R7: flexbox-playground by its own page).
     // R8.1: grid-playground by /learn/css-grid-playground.
     // LLM-1: the llm-explorer activities (token-explorer, sampling-explorer, embedding-space) by LLM01–LLM03.
+    // CICD-1: deployment-simulator by CICD01; CICD-5: monitoring-dashboard by CICD11 (both devops-explorer).
     // CICD-1: the devops-explorer's deployment-simulator by CICD01 (its deployment histories, D1).
     const standalone = new Set(['color-contrast', 'flexbox-playground', 'grid-playground', 'responsive-sim', 'mobile-nav-sim', 'terminal-sim']);
-    expect(of('activity').filter(a => a.availability === 'implemented').map(a => a.id)).toEqual(['architecture-diagram', 'color-contrast', 'deployment-simulator', 'dom-explorer', 'embedding-space', 'erd-builder', 'flexbox-playground', 'grid-playground', 'mobile-nav-sim', 'network-sequence', 'normalization-steps', 'packet-journey', 'protocol-sequence', 'query-plan', 'responsive-sim', 'sampling-explorer', 'sql-playground', 'terminal-sim', 'token-explorer', 'transaction-timeline'].filter(id => standalone.has(id) || used.has(id as 'sql-playground')));
+    expect(of('activity').filter(a => a.availability === 'implemented').map(a => a.id)).toEqual(['architecture-diagram', 'color-contrast', 'deployment-simulator', 'dom-explorer', 'embedding-space', 'erd-builder', 'flexbox-playground', 'grid-playground', 'mobile-nav-sim', 'monitoring-dashboard', 'network-sequence', 'normalization-steps', 'packet-journey', 'protocol-sequence', 'query-plan', 'responsive-sim', 'sampling-explorer', 'sql-playground', 'terminal-sim', 'token-explorer', 'transaction-timeline'].filter(id => standalone.has(id) || used.has(id as 'sql-playground')));
     expect(getActivity('color-contrast')).toMatchObject({ lab: 'color-contrast', version: '1.0.0', subjects: ['labs', 'ui-design'] });
     // RWD-1: RWD03 and RWD04, the lessons the blueprint outlined with the Flexbox Playground, are written as web-code
     // lessons (dom-explorer). The lab's activity stays in the registry, still offered on the responsive design island.
