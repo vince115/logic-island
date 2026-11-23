@@ -1,5 +1,6 @@
 import type { Seconds } from './clock';
 import { parseRef } from './docker';
+import { defaultProbes } from './kube-probe-spec';
 import {
   arr, bytesOf, cpuMilli, KUBE_LIMITS, kindOf, meta, nameOf, nsOf, obj, quantityText, stamp, str, suffix, uid,
   type J, type JObj, type KubeEvent, type KubeState,
@@ -60,6 +61,7 @@ export function defaultPod(o: JObj): JObj {
     c.terminationMessagePath ??= '/dev/termination-log';
     c.terminationMessagePolicy ??= 'File';
     if (c.ports) c.ports = arr(c.ports).map(p => ({ protocol: 'TCP', ...obj(p) }));
+    defaultProbes(c);
     const mounts = arr(c.volumeMounts);
     if (!mounts.some(m => str(obj(m).mountPath) === TOKEN_MOUNT)) c.volumeMounts = [...mounts, { mountPath: TOKEN_MOUNT, name: access, readOnly: true }];
     return c;

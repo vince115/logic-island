@@ -1,5 +1,6 @@
 import type { Seconds } from './clock';
-import { seedLines, type DockerState } from './docker';
+import { imageNodes, seedLines, type DockerImage, type DockerState } from './docker';
+import type { FsNode } from './fs';
 import { about, record } from './kube-api';
 import { behaviour, imageIdOf, resolveImage } from './kube-image';
 import { arr, containerId, goDuration, KUBE_LIMITS, nameOf, nsOf, obj, str, uidOf, type CSim, type J, type JObj, type KubeState, type PodSim } from './kube-model';
@@ -16,6 +17,7 @@ import { arr, containerId, goDuration, KUBE_LIMITS, nameOf, nsOf, obj, str, uidO
 export type Ref = { init: boolean; i: number };
 export const cOf = (sim: PodSim, r: Ref) => (r.init ? sim.init : sim.main)[r.i];
 const put = (sim: PodSim, r: Ref, c: CSim): PodSim => r.init ? { ...sim, init: sim.init.map((x, i) => i === r.i ? c : x) } : { ...sim, main: sim.main.map((x, i) => i === r.i ? c : x) };
+export const putContainer = put;
 export const specOf = (pod: JObj, r: Ref): J => arr(obj(pod.spec)[r.init ? 'initContainers' : 'containers'])[r.i];
 const fresh = (spec: J, init: boolean, t: Seconds, first: boolean): CSim => ({
   name: str(obj(spec).name) ?? '', image: str(obj(spec).image) ?? '', init, state: 'waiting', reason: init ? 'PodInitializing' : first ? 'ContainerCreating' : 'PodInitializing',
@@ -48,7 +50,8 @@ export function stepContainer(d: DockerState | undefined, k0: KubeState, pod: JO
     }
     ev('Normal', 'Created', `Created container: ${c.name}`);
     ev('Normal', 'Started', `Started container ${c.name}`);
-    const base = { ...c, state: 'running' as const, reason: undefined, message: undefined, exit: undefined, finished: undefined, started: t, cid, imageId: imageIdOf(res), logs: cap([...c.logs, ...b.lines]), retry: undefined };
+    const base = { ...c, state: 'running' as const, reason: undefined, message: undefined, exit: undefined, finished: undefined, started: t, cid, imageId: imageIdOf(res), logs: cap([...c.logs, ...b.lines]), retry: undefined,
+      ...k.probes && b.nodes ? { layer: layerOf(res.img, cid, b.nodes) } : {} };
     if (b.exit) set({ ...base, next: t, step: 'exit', plan: { exit: b.exit.exit, oom: b.exit.oom, logs: [] } });
     else if (b.later) set({ ...base, next: b.later.at, step: 'exit', plan: { exit: b.later.exit, oom: b.later.oom, logs: b.later.logs } });
     else set({ ...base, next: undefined, step: undefined, plan: undefined });
@@ -106,9 +109,10 @@ export function stepContainer(d: DockerState | undefined, k0: KubeState, pod: JO
       const reason = p.reason ?? (p.oom ? 'OOMKilled' : p.exit === 0 ? 'Completed' : 'Error');
       const ended: CSim = { ...c, state: 'terminated', reason, message: p.message, exit: p.exit, finished: t, logs: cap([...c.logs, ...seedLines(p.logs, t)]), next: undefined, step: undefined, plan: undefined };
       const restartPolicy = str(obj(pod.spec).restartPolicy) ?? 'Always';
-      const again = restartPolicy === 'Always' ? !(r.init && p.exit === 0) : restartPolicy === 'OnFailure' && p.exit !== 0;
+      // E33: a stop the kubelet began says itself whether the container starts again (a failed liveness probe: unless Never; a deletion: no).
+      const again = p.restart ?? (restartPolicy === 'Always' ? !(r.init && p.exit === 0) : restartPolicy === 'OnFailure' && p.exit !== 0);
       set(ended);
-      if (r.init && p.exit === 0) { sim = nextAfterInit(pod, sim, r.i, t); break; }
+      if (r.init && p.exit === 0 && p.restart !== false) { sim = nextAfterInit(pod, sim, r.i, t); break; }
       if (!again) break;
       const crashes = t - (c.started ?? t) >= 600 ? 1 : c.crashes + 1, wait = crashes <= 1 ? 0 : backoff(crashes - 1);
       set(wait === 0 ? { ...ended, crashes, next: t, step: 'restart' } : { ...ended, crashes, next: t + 1, step: 'backoff', retry: t + wait });
@@ -121,6 +125,12 @@ export function stepContainer(d: DockerState | undefined, k0: KubeState, pod: JO
     }
   }
   return { k, sim };
+}
+/** E33: the files the main process changed (its writable layer), against the image's. */
+function layerOf(img: DockerImage, cid: string, nodes: ReadonlyMap<string, FsNode>): ReadonlyMap<string, FsNode> {
+  const base = imageNodes(img, cid), layer = new Map<string, FsNode>();
+  for (const [path, n] of nodes) if (path !== '/etc/hostname' && JSON.stringify(base.get(path)) !== JSON.stringify(n)) layer.set(path, n);
+  return layer;
 }
 const lastOf = (c: CSim, t: Seconds) => ({ reason: c.reason ?? 'Error', exit: c.exit ?? 0, started: c.started ?? t, finished: c.finished ?? t });
 /** After init container i completed: the next one pulls, or (the last one) every app container. */

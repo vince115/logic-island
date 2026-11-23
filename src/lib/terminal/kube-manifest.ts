@@ -1,5 +1,6 @@
 import { parseYamlDocuments, YamlError, type Y } from './yaml';
 import { bytesOf, cpuMilli, type J, type JObj, obj, arr, str } from './kube-model';
+import { probeErrors, probeLater } from './kube-probe-spec';
 
 /*
  * Engine stage E32 (docs/curriculum/KUB0_E32_CLUSTER.md §3): manifests. A file is YAML with several documents (yaml.ts's
@@ -10,29 +11,38 @@ import { bytesOf, cpuMilli, type J, type JObj, obj, arr, str } from './kube-mode
  */
 
 /** A field's type: a string, integer, boolean, string map, quantity map, anything, an object or a list. */
-type F = 'str' | 'int' | 'bool' | 'smap' | 'qmap' | 'any' | { go: string; fields: Record<string, F> } | { list: F };
+type F = 'str' | 'int' | 'bool' | 'smap' | 'qmap' | 'any' | 'intstr' | { go: string; fields: Record<string, F> } | { list: F };
 const LATER: Record<string, string> = {
   livenessProbe: 'E33', readinessProbe: 'E33', startupProbe: 'E33', lifecycle: 'E33', envFrom: 'E36', valueFrom: 'E36',
   volumes: 'E36/E38', volumeMounts: 'E36/E38', affinity: '（課文說明）', topologySpreadConstraints: '（課文說明）', imagePullSecrets: 'E36',
 };
 const META: F = { go: 'ObjectMeta', fields: { name: 'str', generateName: 'str', namespace: 'str', labels: 'smap', annotations: 'smap', uid: 'str', resourceVersion: 'str', creationTimestamp: 'any', generation: 'int', managedFields: 'any', ownerReferences: 'any', finalizers: 'any' } };
-const CONTAINER: F = { go: 'Container', fields: {
+const CONTAINER_FIELDS: Record<string, F> = {
   name: 'str', image: 'str', command: { list: 'str' }, args: { list: 'str' }, workingDir: 'str', imagePullPolicy: 'str', terminationMessagePath: 'str', terminationMessagePolicy: 'str',
   env: { list: { go: 'EnvVar', fields: { name: 'str', value: 'str', valueFrom: 'any' } } },
   ports: { list: { go: 'ContainerPort', fields: { containerPort: 'int', name: 'str', protocol: 'str', hostPort: 'int' } } },
   resources: { go: 'ResourceRequirements', fields: { requests: 'qmap', limits: 'qmap' } },
   securityContext: 'any', stdin: 'bool', tty: 'bool', livenessProbe: 'any', readinessProbe: 'any', startupProbe: 'any', lifecycle: 'any', envFrom: 'any', volumeMounts: 'any',
-} };
-const POD_SPEC: F = { go: 'PodSpec', fields: {
-  containers: { list: CONTAINER }, initContainers: { list: CONTAINER }, restartPolicy: 'str', nodeSelector: 'smap', nodeName: 'str',
+};
+const CONTAINER: F = { go: 'Container', fields: CONTAINER_FIELDS };
+/** E33: the probes and hooks decoded strictly (below the probes profile they are a later stage's fields). */
+const HTTP_GET: F = { go: 'HTTPGetAction', fields: { path: 'str', port: 'intstr', host: 'str', scheme: 'str', httpHeaders: { list: { go: 'HTTPHeader', fields: { name: 'str', value: 'str' } } } } };
+const TCP: F = { go: 'TCPSocketAction', fields: { port: 'intstr', host: 'str' } }, EXEC: F = { go: 'ExecAction', fields: { command: { list: 'str' } } };
+const PROBE: F = { go: 'Probe', fields: { exec: EXEC, httpGet: HTTP_GET, tcpSocket: TCP, grpc: 'any', initialDelaySeconds: 'int', timeoutSeconds: 'int', periodSeconds: 'int', successThreshold: 'int', failureThreshold: 'int', terminationGracePeriodSeconds: 'int' } };
+const HANDLER: F = { go: 'LifecycleHandler', fields: { exec: EXEC, httpGet: HTTP_GET, tcpSocket: TCP, sleep: { go: 'SleepAction', fields: { seconds: 'int' } } } };
+const CONTAINER_E33: F = { go: 'Container', fields: { ...CONTAINER_FIELDS, livenessProbe: PROBE, readinessProbe: PROBE, startupProbe: PROBE, lifecycle: { go: 'Lifecycle', fields: { preStop: HANDLER, postStart: HANDLER } } } };
+const podSpec = (container: F): F => ({ go: 'PodSpec', fields: {
+  containers: { list: container }, initContainers: { list: container }, restartPolicy: 'str', nodeSelector: 'smap', nodeName: 'str',
   tolerations: { list: { go: 'Toleration', fields: { key: 'str', operator: 'str', value: 'str', effect: 'str', tolerationSeconds: 'int' } } },
   terminationGracePeriodSeconds: 'int', activeDeadlineSeconds: 'int', dnsPolicy: 'str', enableServiceLinks: 'bool', schedulerName: 'str', serviceAccountName: 'str', serviceAccount: 'str',
   securityContext: 'any', priority: 'int', preemptionPolicy: 'str', hostname: 'str', volumes: 'any', affinity: 'any', topologySpreadConstraints: 'any', imagePullSecrets: 'any',
-} };
+} });
+const NAMESPACE: F = { go: 'Namespace', fields: { apiVersion: 'str', kind: 'str', metadata: META, spec: 'any', status: 'any' } };
 export const SCHEMAS: Record<string, F> = {
-  Pod: { go: 'Pod', fields: { apiVersion: 'str', kind: 'str', metadata: META, spec: POD_SPEC, status: 'any' } },
-  Namespace: { go: 'Namespace', fields: { apiVersion: 'str', kind: 'str', metadata: META, spec: 'any', status: 'any' } },
+  Pod: { go: 'Pod', fields: { apiVersion: 'str', kind: 'str', metadata: META, spec: podSpec(CONTAINER), status: 'any' } },
+  Namespace: NAMESPACE,
 };
+const SCHEMAS_E33: Record<string, F> = { Pod: { go: 'Pod', fields: { apiVersion: 'str', kind: 'str', metadata: META, spec: podSpec(CONTAINER_E33), status: 'any' } }, Namespace: NAMESPACE };
 /** The kinds E32 creates and the stage that simulates the others (a known kind of a later stage is not an unknown kind). */
 export const KIND_STAGE: Record<string, string> = {
   Deployment: 'E34', ReplicaSet: 'E34', Service: 'E35', Endpoints: 'E35', ConfigMap: 'E36', Secret: 'E36', Ingress: 'E37', IngressClass: 'E37',
@@ -75,14 +85,15 @@ export function readManifests(text: string, file: string): Manifest[] | { error:
 }
 
 /** Strict decoding: the unknown fields (all of them) or the first type error, as the API server reports it. */
-export function decodeProblem(doc: JObj): string | null {
+export function decodeProblem(doc: JObj, probes = false): string | null {
   const kind = str(doc.kind)!, unknown: string[] = [];
   let typeError: string | null = null;
   const walk = (v: J, f: F, path: string, go: string, dotted: string) => {
     if (v === null || f === 'any') return;
     const bad = (want: string) => { typeError ??= `json: cannot unmarshal ${jsonType(v)} into Go struct field ${go}.${dotted} of type ${want}`; };
     if (f === 'str') { if (typeof v !== 'string') bad('string'); return; }
-    if (f === 'int') { if (typeof v !== 'number' || !Number.isInteger(v)) bad(go === 'PodSpec' || go === 'Toleration' ? 'int64' : 'int32'); return; }
+    if (f === 'int') { if (typeof v !== 'number' || !Number.isInteger(v)) bad(go === 'PodSpec' || go === 'Toleration' || go === 'SleepAction' || (go === 'Probe' && dotted.endsWith('terminationGracePeriodSeconds')) ? 'int64' : 'int32'); return; }
+    if (f === 'intstr') { if (typeof v !== 'string' && !(typeof v === 'number' && Number.isInteger(v))) bad('intstr.IntOrString'); return; }
     if (f === 'bool') { if (typeof v !== 'boolean') bad('bool'); return; }
     if (f === 'smap' || f === 'qmap') {
       if (typeof v !== 'object' || Array.isArray(v)) { bad(f === 'smap' ? 'map[string]string' : 'v1.ResourceList'); return; }
@@ -97,24 +108,24 @@ export function decodeProblem(doc: JObj): string | null {
       walk(x, sub, `${path ? `${path}.` : ''}${k}`, f.go, dotted ? `${dotted}.${k}` : k);
     }
   };
-  walk(doc, SCHEMAS[kind], '', kind, '');
+  walk(doc, (probes ? SCHEMAS_E33 : SCHEMAS)[kind], '', kind, '');
   if (unknown.length) return `strict decoding error: ${unknown.map(u => `unknown field "${u}"`).join(', ')}`;
   return typeError;
 }
 const jsonType = (v: J) => typeof v === 'string' ? 'string' : typeof v === 'number' ? 'number' : typeof v === 'boolean' ? 'bool' : Array.isArray(v) ? 'array' : 'object';
 
 /** The first field of a later stage the document uses (its path and the stage), or null. */
-export function laterField(doc: JObj): { path: string; stage: string } | null {
+export function laterField(doc: JObj, probes = false): { path: string; stage: string } | null {
   const spec = obj(doc.spec);
   for (const k of ['affinity', 'topologySpreadConstraints', 'imagePullSecrets']) if (spec[k] !== undefined) return { path: `spec.${k}`, stage: LATER[k] };
   for (const [i, v] of arr(spec.volumes).entries()) if (!/^kube-api-access-/.test(str(obj(v).name) ?? '')) return { path: `spec.volumes[${i}]`, stage: LATER.volumes };
   for (const list of ['initContainers', 'containers']) for (const [i, c] of arr(spec[list]).entries()) {
     const at = `spec.${list}[${i}]`, x = obj(c);
-    for (const k of ['livenessProbe', 'readinessProbe', 'startupProbe', 'lifecycle', 'envFrom']) if (x[k] !== undefined) return { path: `${at}.${k}`, stage: LATER[k] };
+    for (const k of probes ? ['envFrom'] : ['livenessProbe', 'readinessProbe', 'startupProbe', 'lifecycle', 'envFrom']) if (x[k] !== undefined) return { path: `${at}.${k}`, stage: LATER[k] };
     for (const [j, e] of arr(x.env).entries()) if (obj(e).valueFrom !== undefined) return { path: `${at}.env[${j}].valueFrom`, stage: LATER.valueFrom };
     for (const [j, m] of arr(x.volumeMounts).entries()) if (!/^kube-api-access-/.test(str(obj(m).name) ?? '')) return { path: `${at}.volumeMounts[${j}]`, stage: LATER.volumeMounts };
   }
-  return null;
+  return probes ? probeLater(doc) : null;
 }
 
 const LABEL = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;
@@ -124,7 +135,7 @@ const SUBDOMAIN_TEXT = "a lowercase RFC 1123 subdomain must consist of lower cas
 export const validLabelName = (s: string) => s.length <= 63 && LABEL.test(s);
 
 /** The field errors of a decoded Pod or Namespace (the API server's validation, a subset). */
-export function fieldErrors(doc: JObj): string[] {
+export function fieldErrors(doc: JObj, probes = false): string[] {
   const kind = str(doc.kind)!, name = str(obj(doc.metadata).name) ?? '', out: string[] = [];
   if (!name) out.push('metadata.name: Required value: name or generateName is required');
   else if (kind === 'Namespace' ? !validLabelName(name) : name.length > 253 || !SUBDOMAIN.test(name)) out.push(`metadata.name: Invalid value: "${name}": ${kind === 'Namespace' ? LABEL_TEXT : SUBDOMAIN_TEXT}`);
@@ -154,7 +165,7 @@ export function fieldErrors(doc: JObj): string[] {
     });
   }
   if (restart !== undefined && !['Always', 'OnFailure', 'Never'].includes(restart)) out.push(`spec.restartPolicy: Unsupported value: "${restart}": supported values: "Always", "OnFailure", "Never"`);
-  return out;
+  return probes ? [...out, ...probeErrors(doc)] : out;
 }
 /** "The Pod "web" is invalid: …" with one error, or a list of them. */
 export function invalidText(kind: string, name: string, errors: readonly string[]): string {

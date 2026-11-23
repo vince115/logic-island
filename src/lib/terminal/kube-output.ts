@@ -65,7 +65,7 @@ export const resourceName = (o: JObj) => `${GROUP[kindOf(o)] ?? kindOf(o).toLowe
 /** Lines, or (jsonpath) the text as it is: kubectl prints no newline after a template. */
 export type Printed = { lines: string[] } | { raw: string } | { error: string };
 /** -o json|yaml|name|jsonpath=…|custom-columns=… for these objects (single: one object was asked for by name). */
-export function printObjects(mode: string, items: readonly JObj[], single: boolean): Printed {
+export function printObjects(mode: string, items: readonly JObj[], single: boolean, noHeaders = false): Printed {
   const data: J = single && items.length === 1 ? items[0] : asList(items);
   if (mode === 'json') return { lines: goJson(sortJ(data)).split('\n') };
   if (mode === 'yaml') return { lines: kubeYaml(data) };
@@ -83,7 +83,7 @@ export function printObjects(mode: string, items: readonly JObj[], single: boole
     const bad = cols.find(c => 'error' in c!.path);
     if (bad) return { error: `error: ${(bad.path as { error: string }).error}` };
     const rows = items.map(o => cols.map(c => { const v = evalPath([o], c!.path as Exclude<ReturnType<typeof parsePath>, { error: string }>); return v.length ? v.map(scalar).join(',') : '<none>'; }).join('\t'));
-    return { lines: goTab([cols.map(c => c!.head).join('\t'), ...rows]) };
+    return { lines: goTab(noHeaders ? rows : [cols.map(c => c!.head).join('\t'), ...rows]) };
   }
   return { error: `error: unable to match a printer suitable for the output format "${mode}", allowed formats are: custom-columns,custom-columns-file,go-template,go-template-file,json,jsonpath,jsonpath-as-json,jsonpath-file,name,template,templatefile,wide,yaml` };
 }

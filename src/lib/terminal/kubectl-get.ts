@@ -86,7 +86,8 @@ export function getCommand(x: Kx): KubeResult {
   for (const t of ts) { const r = pick(x, t); if ('error' in r) { x.io.err(r.error); return { state: x.state, status: 1 }; } groups.push({ t, items: r.items }); errors.push(...r.errors); }
   const items = groups.flatMap(g => g.items), single = ts.length === 1 && ts[0].names.length === 1;
   if (mode && !wide) {
-    const p = printObjects(mode, items, single);
+    // Fix (E33): --no-headers leaves out custom-columns' header line too (the column widths come from the rows), as for the tables.
+    const p = printObjects(mode, items, single, x.flags.bools.has('no-headers'));
     if ('error' in p) { x.io.err(p.error); return { state: x.state, status: 1 }; }
     if ('raw' in p) x.io.raw(p.raw); else if (items.length || !('lines' in p && mode === 'name')) p.lines.forEach(l => x.io.out(l));
   } else {

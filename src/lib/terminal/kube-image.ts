@@ -62,7 +62,7 @@ export function argvOf(img: DockerImage, spec: J): string[] {
 }
 
 /** What the main process does from its start: lines it prints, an exit now or later (OOM at the memory limit), or a start error. */
-export interface Behaviour { lines: LogLine[]; exit?: { exit: number; oom?: boolean }; later?: { at: Seconds; exit: number; oom?: boolean; logs: readonly LogSeed[] }; startError?: string }
+export interface Behaviour { lines: LogLine[]; exit?: { exit: number; oom?: boolean }; later?: { at: Seconds; exit: number; oom?: boolean; logs: readonly LogSeed[] }; startError?: string; nodes?: ReadonlyMap<string, FsNode> }
 const outputLines = (text: string | undefined, t: Seconds): LogLine[] => text ? text.replace(/\n$/, '').split('\n').map(line => ({ t, stream: 1 as const, text: line })) : [];
 export function behaviour(d: DockerState | undefined, img: DockerImage, spec: J, pod: string, cid: string, t: Seconds): Behaviour {
   const s = obj(spec), own = !s.command && !s.args && !img.ownMain, argv = argvOf(img, spec);
@@ -86,7 +86,8 @@ export function behaviour(d: DockerState | undefined, img: DockerImage, spec: J,
   const r = shellMain(podContainer(img, spec, pod, cid, t), img, argv, t) ?? runIn(podContainer(img, spec, pod, cid, t), img, argv, { tty: false, env: [], now: t, main: true });
   if ('notFound' in r) return { lines: [], startError: `failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: "${r.notFound}": executable file not found in $PATH: unknown` };
   const lines = r.lines.map(l => ({ ...l, t }));
-  return r.running ? run(true, lines, 0, r.until) : run(false, lines, r.status);
+  // E33 reads nodes: what the main shell line wrote (touch /tmp/healthy) stays in the container's layer on the probes profile.
+  return { ...r.running ? run(true, lines, 0, r.until) : run(false, lines, r.status), nodes: r.nodes };
 }
 
 /** Splits a shell line at ; and && outside quotes (each part with the operator before it). */

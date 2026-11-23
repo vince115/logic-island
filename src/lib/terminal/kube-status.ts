@@ -1,5 +1,6 @@
 import type { Seconds } from './clock';
 import { qosOf } from './kube-api';
+import { readyOf, startedOf } from './kube-probes';
 import { qualified, parseRef } from './docker';
 import { arr, humanDuration, obj, parseStamp, stamp, str, type CSim, type J, type JObj, type KubeState, type PodSim } from './kube-model';
 
@@ -15,9 +16,10 @@ const cstate = (c: CSim): JObj => c.state === 'running' ? { running: { startedAt
 const imageName = (image: string) => { const r = parseRef(image.split('@')[0]); return r && !image.includes('@') ? qualified(r) : image; };
 function cstatus(c: CSim): JObj {
   const last: JObj = c.last ? { terminated: { containerID: `containerd://${c.cid ?? ''}`, exitCode: c.last.exit, finishedAt: stamp(c.last.finished), reason: c.last.reason, startedAt: stamp(c.last.started) } } : {};
-  const ready = c.init ? c.state === 'terminated' && c.exit === 0 : c.state === 'running';
+  // E33: a main container's probes decide started (startup) and ready (readiness); without probes, running is both.
+  const ready = c.init ? c.state === 'terminated' && c.exit === 0 : readyOf(c);
   return { ...c.cid ? { containerID: `containerd://${c.cid}` } : {}, image: imageName(c.image), imageID: c.imageId ?? '', lastState: last, name: c.name, ready, restartCount: c.restarts,
-    started: c.state === 'running', state: cstate(c) };
+    started: c.init ? c.state === 'running' : startedOf(c), state: cstate(c) };
 }
 /** The kubelet's phase (getPhase): init containers first, then running, stopped and waiting containers and the restart policy. */
 export function phaseOf(sim: PodSim, policy: string): string {
@@ -40,9 +42,9 @@ export function podStatus(k: KubeState, pod: JObj, sim: PodSim | undefined, unsc
   const qosClass = qosOf(pod);
   if (!sim) return { ...unschedulable ? { conditions: [cond('PodScheduled', false, unschedulable.t, 'Unschedulable', unschedulable.message)] } : {}, phase: 'Pending', qosClass };
   const node = k.nodes.find(n => n.name === sim.node), policy = str(obj(pod.spec).restartPolicy) ?? 'Always', phase = phaseOf(sim, policy);
-  const initDone = sim.init.every(c => c.state === 'terminated' && c.exit === 0), ready = phase === 'Running' && sim.main.every(c => c.state === 'running');
-  const changed = Math.max(sim.bound, ...[...sim.init, ...sim.main].flatMap(c => [c.started ?? 0, c.finished ?? 0]));
-  const notReady = sim.main.filter(c => c.state !== 'running').map(c => c.name), pending = sim.init.filter(c => !(c.state === 'terminated' && c.exit === 0)).map(c => c.name);
+  const initDone = sim.init.every(c => c.state === 'terminated' && c.exit === 0), ready = phase === 'Running' && sim.main.every(readyOf);
+  const changed = Math.max(sim.bound, ...[...sim.init, ...sim.main].flatMap(c => [c.started ?? 0, c.finished ?? 0, c.probe?.changed ?? 0]));
+  const notReady = sim.main.filter(c => !readyOf(c)).map(c => c.name), pending = sim.init.filter(c => !(c.state === 'terminated' && c.exit === 0)).map(c => c.name);
   const completed = phase === 'Succeeded' || phase === 'Failed';
   const conditions = [
     cond('PodReadyToStartContainers', !completed, completed ? changed : sim.bound),

@@ -8,7 +8,8 @@
 |---|---|
 | KUB-0（登錄） | `PREPARED_ISLAND_IDS = ['kubernetes-reliability']`、`LessonPrefixWritten` 與 `ISLAND_PREFIX` 加上 `KUB`、`UNITS['kubernetes-reliability'] = []`、`kubeFromBlueprint` 與逐課的 `KUB_SHAPES`；沒有課程、頁面、旗標、3D、GLB 或 `mapState` 的改動 |
 | E32 `cluster`（已完成） | `CLUSTER_PROFILE`（RANK 32，`deploy-hosts` 之上，`E32_COMMANDS = ['kubectl']`）；叢集的共用模型（節點、API 物件、排程器、kubelet 的 Pod 生命週期、事件、kubeconfig）與 kubectl 的動詞、表格與輸出格式；檢查 `kube-object`、`kube-pod` |
-| E33–E40、D5、D6 | 規劃中（§5、§6），範圍已定，細節在各自的批次寫入 |
+| E33 `probes`（已完成） | `PROBES_PROFILE`（RANK 33，`cluster` 之上，沒有新指令）；探針、課程宣告的健康狀態、preStop、SIGTERM 與寬限期、Terminating、會等待的 `kubectl delete`（[KUB0_E33_PROBES](KUB0_E33_PROBES.md)） |
+| E34–E40、D5、D6 | 規劃中（§5、§6），範圍已定，細節在各自的批次寫入 |
 
 不新增任何執行期套件；沒有亂數（UID、名稱的後綴、容器 ID 都由資料的 SHA-256 算出）；時鐘只在 `sleep` 與 `kubectl wait` 時前進。叢集是**虛構的 kubeadm 叢集**，輸出依真實 kubectl v1.32 的格式撰寫，但無法離線與真實叢集逐字比對，所以凡是憑記憶寫的文字都列在 §9。
 
@@ -67,7 +68,7 @@
 
 D5、D6 只在 `src/lib/devops` 與 `src/components/curriculum`，可以和任何 E 階段平行。KUB-2 或 KUB-3 太大時，在階段的邊界分批（同 CICD-1 的調整）。
 
-`KUBE_STAGES_BUILT = ['E32']`；之後每個批次在建好階段時加上它。
+`KUBE_STAGES_BUILT = ['E32', 'E33']`（E33 在 KUB-1 建好）；之後每個批次在建好階段時加上它。
 
 ## 5. 終端機引擎階段 E32–E40
 
@@ -78,7 +79,7 @@ profile 的鏈接在 `deploy-hosts`（RANK 31）之後，每個 profile 包含�
 | 階段 | 狀態 | 範圍 | 檢查 |
 |---|---|---|---|
 | **E32 `cluster`** | **已完成** | 共用模型、kubeconfig、`version`、`cluster-info`、`api-resources`（子集）、命名空間、節點、kube-system；`get`、`describe`、`apply -f`、`create -f`、`delete`、`label`、`annotate`、`taint`、`run`、`logs`、`exec`、`events`、`wait`；排程器與 kubelet 的生命週期（[KUB0_E32_CLUSTER](KUB0_E32_CLUSTER.md)） | `kube-object`、`kube-pod` |
-| E33 `probes` | 規劃 | liveness、readiness、startup（`httpGet` 對容器的 responder、`tcpSocket`、`exec`）；程式上課程宣告的隨時間變化的健康狀態；READY 欄、Ready 條件、`Unhealthy`／`Killing` 事件與 liveness 重啟；`terminationGracePeriodSeconds`、`preStop`、E24 `signals` 處理 SIGTERM、Terminating | `kube-pod` 的 `ready` 取得探針的意義 |
+| **E33 `probes`** | **已完成** | liveness、readiness、startup（`httpGet` 對容器的 responder、`tcpSocket`、`exec`）；課程宣告的隨時間變化的健康狀態（`kube.health`）；READY 欄、Ready 條件、`Unhealthy`／`Killing` 事件與 liveness 重啟；`terminationGracePeriodSeconds`、`preStop`、E24 `signals` 處理 SIGTERM、Terminating、`kubectl delete` 等待（[KUB0_E33_PROBES](KUB0_E33_PROBES.md)） | `kube-pod` 的 `ready` 取得探針的意義 |
 | E34 `workloads` | 規劃 | ReplicaSet、Deployment 的控制器、owner、改標籤讓 Pod 脫離、選擇器不可變；`create deployment`、`scale`、`set image`；滾動更新（沿用 `src/lib/devops/rollout.ts` 的 `resolveRolling`）、`minReadySeconds`、`progressDeadlineSeconds`、revisionHistoryLimit；`rollout status|history|undo|pause|resume|restart`；`cordon`、`uncordon`、`drain --ignore-daemonsets`、課程宣告的節點故障（NotReady，300 秒後驅逐） | `kube-workload`、`kube-rollout` |
 | E35 `kube-net` | 規劃 | Service（ClusterIP、NodePort、LoadBalancer、headless；LB 沒有宣告位址池時是 `<pending>`）、`expose`、具名 targetPort、Endpoints 與 EndpointSlice、CoreDNS 與 `ndots:5`、Pod 內的 `curl`／`getent`／`nslookup`（E22 的容器網路）、從學習者機器以 E12 `curl` 到 NodePort 與 LB、`port-forward` | `kube-service`；`http`、`reach` 加上 `pod?` |
 | E36 `kube-config` | 規劃 | `create configmap|secret generic|tls|docker-registry`、`-o yaml` 的 base64 與 `base64` 指令（GNU coreutils 9.4，76 欄換行）、`env`／`envFrom`／`valueFrom`／`optional`、CreateContainerConfigError、掛載與更新的延遲、`subPath`、`immutable`、`imagePullSecrets`（E23 Registry）、tls Secret 讀 E13 的 PEM | — |
@@ -123,6 +124,6 @@ Kubernetes、kubectl 與伺服器 v1.32.3；`kubectl version` 印出的 Kustomiz
 
 ## 11. 沒有把握的地方
 
-- E32 的所有輸出文字見 [KUB0_E32_CLUSTER](KUB0_E32_CLUSTER.md) §18。
+- E32 的所有輸出文字見 [KUB0_E32_CLUSTER](KUB0_E32_CLUSTER.md) §18；E33 的見 [KUB0_E33_PROBES](KUB0_E33_PROBES.md) §13。
 - §8 的版本號（包括 kubeadm 叢集裡 etcd、CoreDNS 的版本搭配）。
 - KUB12 以 `monitoring-dashboard` 加上終端機是否足以呈現 Allocated resources 與 `kubectl top`（E40 之後再確認）。

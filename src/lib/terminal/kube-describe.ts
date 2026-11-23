@@ -3,6 +3,7 @@ import { podRequests } from './kube-api';
 import { podsOnNode } from './kube-sched';
 import { rolesOf } from './kube-print';
 import { taintText } from './kube-system';
+import { describeProbe, PROBE_FIELD, PROBE_NAME } from './kube-probe-spec';
 import {
   arr, bytesOf, cpuMilli, createdOf, goTab, humanDuration, nameOf, nsOf, obj, parseStamp, quantityText, rfc1123, str, uidOf,
   type J, type JObj, type KubeEvent, type KubeState,
@@ -50,6 +51,8 @@ function containerLines(c0: J, cs0: J | undefined): string[] {
     lines.push(`    Ready:\t${cs.ready === true ? 'True' : 'False'}`, `    Restart Count:\t${String(cs.restartCount ?? 0)}`);
   }
   for (const [head, m] of [['Limits', r.limits], ['Requests', r.requests]] as const) if (Object.keys(obj(m)).length) lines.push(`    ${head}:`, ...Object.keys(obj(m)).sort().map(k => `      ${k}:\t${quantityText(obj(m)[k]) ?? ''}`));
+  // E33: Liveness, Readiness, Startup (describeContainerProbe's order).
+  for (const t of ['liveness', 'readiness', 'startup'] as const) if (c[PROBE_FIELD[t]] !== undefined && c[PROBE_FIELD[t]] !== null) lines.push(`    ${PROBE_NAME[t]}:\t${describeProbe(c[PROBE_FIELD[t]])}`);
   const env = arr(c.env).map(obj);
   lines.push(...env.length ? ['    Environment:', ...env.map(e => `      ${str(e.name)}:\t${str(e.value) ?? ''}`)] : ['    Environment:\t<none>']);
   const mounts = arr(c.volumeMounts).map(obj);
@@ -57,13 +60,19 @@ function containerLines(c0: J, cs0: J | undefined): string[] {
   return lines;
 }
 
+/** Status, or (E33) a pod being deleted: Terminating (lasts 25s) and its grace period. */
+function statusLines(o: JObj, now: Seconds): string[] {
+  const m = obj(o.metadata), phase = str(obj(o.status).phase) ?? 'Pending', del = parseStamp(str(m.deletionTimestamp));
+  if (del === undefined || phase === 'Failed' || phase === 'Succeeded') return [`Status:\t${phase}`];
+  return [`Status:\tTerminating (lasts ${humanDuration(del - now)})`, `Termination Grace Period:\t${String(m.deletionGracePeriodSeconds ?? 30)}s`];
+}
 function describePod(k: KubeState, o: JObj, now: Seconds): string[] {
   const m = obj(o.metadata), spec = obj(o.spec), status = obj(o.status), node = k.nodes.find(n => n.name === str(spec.nodeName));
   const csByName = (list: J | undefined) => new Map(arr(list).map(x => [str(obj(x).name) ?? '', x]));
   const main = csByName(status.containerStatuses), inits = csByName(status.initContainerStatuses);
   const lines = [`Name:\t${nameOf(o)}`, `Namespace:\t${nsOf(o) ?? 'default'}`, `Priority:\t${String(spec.priority ?? 0)}`, ...str(spec.priorityClassName) ? [`Priority Class Name:\t${str(spec.priorityClassName)}`] : [],
     `Service Account:\t${str(spec.serviceAccountName) ?? 'default'}`, `Node:\t${node ? `${node.name}/${node.address}` : '<none>'}`, ...status.startTime ? [`Start Time:\t${when(status.startTime)}`] : [],
-    ...multi('Labels:', mapLines(m.labels, '=')), ...multi('Annotations:', mapLines(m.annotations, ': ')), `Status:\t${str(status.phase) ?? 'Pending'}`];
+    ...multi('Labels:', mapLines(m.labels, '=')), ...multi('Annotations:', mapLines(m.annotations, ': ')), ...statusLines(o, now)];
   const ip = str(status.podIP);
   lines.push(`IP:\t${ip ?? ''}`, ...ip ? ['IPs:', `  IP:\t${ip}`] : ['IPs:\t<none>']);
   if (arr(spec.initContainers).length) lines.push('Init Containers:', ...arr(spec.initContainers).flatMap(c => containerLines(c, inits.get(str(obj(c).name) ?? ''))));

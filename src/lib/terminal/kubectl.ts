@@ -17,7 +17,8 @@ import { API_SERVER, goTab, KUBE_VERSION, KUSTOMIZE_VERSION, type KubeState } fr
 
 export interface KubeIo { out(line: string): void; raw(data: string): void; err(line: string): void; stdin: string | null; read(path: string): { text: string } | { error: string } }
 export type KubeResult = { state: FsState; status: number; advance?: number };
-export interface Flags { values: Record<string, string[]>; bools: Set<string> }
+/** E33: off holds the booleans given as --flag=false (delete's --wait=false). */
+export interface Flags { values: Record<string, string[]>; bools: Set<string>; off?: Set<string> }
 export interface Kx { state: FsState; k: KubeState; ns: string; nsGiven: boolean; all: boolean; flags: Flags; pos: string[]; io: KubeIo; now: number; verb: string; cfg: KubeConfig; rest: string[] }
 
 const VALUE = ['namespace', 'output', 'selector', 'filename', 'container', 'field-selector', 'image', 'port', 'labels', 'env', 'restart', 'grace-period', 'tail', 'since', 'for', 'types',
@@ -28,17 +29,17 @@ const SHORT_BOOL: Record<string, string> = { A: 'all-namespaces', w: 'watch', i:
 
 /** Flags and positional words (after -- everything is positional and kept apart). */
 export function parseFlags(verb: string, args: readonly string[]): { flags: Flags; pos: string[]; rest: string[] } | { error: string } {
-  const values: Record<string, string[]> = {}, bools = new Set<string>(), pos: string[] = [];
+  const values: Record<string, string[]> = {}, bools = new Set<string>(), off = new Set<string>(), pos: string[] = [];
   const short = { ...SHORT_VALUE, ...verb === 'logs' ? { f: '' } : {}, ...verb === 'run' ? { l: 'labels' } : {} }, shortBool = { ...SHORT_BOOL, ...verb === 'logs' ? { f: 'follow' } : {} };
   const setV = (name: string, v: string) => { (values[name] ??= []).push(v); };
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
-    if (a === '--') return { flags: { values, bools }, pos, rest: args.slice(i + 1) };
+    if (a === '--') return { flags: { values, bools, off }, pos, rest: args.slice(i + 1) };
     const long = /^--([a-z][a-z-]*)(?:=(.*))?$/s.exec(a);
     if (long) {
       const [, name, eq] = long;
       if (VALUE.includes(name)) { if (eq !== undefined) setV(name, eq); else if (i + 1 < args.length) setV(name, args[++i]); else return { error: `error: flag needs an argument: --${name}` }; }
-      else if (BOOL.includes(name)) { if (eq === 'false') bools.delete(name); else bools.add(name); }
+      else if (BOOL.includes(name)) { if (eq === 'false') { bools.delete(name); off.add(name); } else { bools.add(name); off.delete(name); } }
       else return { error: `error: unknown flag: --${name}` };
       continue;
     }
@@ -53,7 +54,7 @@ export function parseFlags(verb: string, args: readonly string[]): { flags: Flag
     }
     pos.push(a);
   }
-  return { flags: { values, bools }, pos, rest: [] };
+  return { flags: { values, bools, off }, pos, rest: [] };
 }
 export const flag = (x: Pick<Kx, 'flags'>, name: string) => x.flags.values[name]?.at(-1);
 

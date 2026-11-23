@@ -43,11 +43,11 @@ export function checkDoc(k: KubeState, doc: JObj, ns: string, file: string): str
     if (KIND_STAGE[kind] && API_VERSION[kind] === api) return `（模擬環境：${kind} 要到引擎階段 ${KIND_STAGE[kind]} 才模擬）`;
     return `error: resource mapping not found for name: "${name}" namespace: "${NAMESPACED[kind] ? ns : ''}" from "${file}": no matches for kind "${kind}" in version "${api}"\nensure CRDs are installed first`;
   }
-  const decode = decodeProblem(doc);
+  const decode = decodeProblem(doc, !!k.probes);
   if (decode) return `Error from server (BadRequest): error when creating "${file}": ${kind} in version "v1" cannot be handled as a ${kind}: ${decode}`;
-  const later = laterField(doc);
+  const later = laterField(doc, !!k.probes);
   if (later) return `（模擬環境：${later.path} 要到引擎階段 ${later.stage} 才模擬）`;
-  const errors = fieldErrors(doc);
+  const errors = fieldErrors(doc, !!k.probes);
   if (errors.length) return invalidText(kind, name, errors);
   if (NAMESPACED[kind] && !namespaceExists(k, ns)) return `Error from server (NotFound): error when creating "${file}": namespaces "${ns}" not found`;
   return null;

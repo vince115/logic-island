@@ -7,6 +7,7 @@ import type { TerminalFile, TerminalMachine } from './lesson';
 import { bootstrap, kubeconfigText, nodesOf, parseTaint, type TerminalKubeNode } from './kube-system';
 import { readManifests, validLabelName } from './kube-manifest';
 import { applyDoc } from './kube-write';
+import { healthProblems, type TerminalKubeHealth } from './kube-health';
 import { bytesOf, cpuMilli, KUBE_LIMITS, nsOf, obj, str, type KubeState } from './kube-model';
 
 /*
@@ -28,6 +29,12 @@ export interface TerminalKube {
   manifests?: { text: string; at?: string; file?: string }[];
   /** The namespace of the kubeconfig's context (kubectl config set-context --current --namespace). */
   namespace?: string;
+  /**
+   * E33 (probes profile): how an image's service behaves over time since its container started — listenAfter (seconds
+   * before its ports accept connections), paths answering another status in a window (after/until; e.g. /healthz 500 after
+   * 60 s), exec commands' exit status in a window. kube-health.ts.
+   */
+  health?: TerminalKubeHealth[];
 }
 
 const homeOf = (m: TerminalMachine) => m.home ?? (m.user === 'root' ? '/root' : `/home/${m.user}`);
@@ -44,7 +51,7 @@ export function expandKube(m: TerminalMachine, cluster: boolean, add: { file(f: 
 }
 
 /** The cluster at the machine's start: its nodes and system objects, then the boot manifests in order. */
-export function buildKube(m: TerminalMachine, now: Seconds): { k: KubeState; problems: string[] } {
+export function buildKube(m: TerminalMachine, now: Seconds, probes = false): { k: KubeState; problems: string[] } {
   const kube = m.kube!, created = parseTime(kube.created ?? '') ?? now - 30 * DAY;
   const nodes = nodesOf(kube.nodes ?? [{ name: 'cp-01', control: true }, { name: 'node-01' }, { name: 'node-02' }], created, t => cpuMilli(t) ?? 0, t => bytesOf(t) ?? 0);
   const boot = bootstrap(nodes, created), pull: Record<string, number> = {}, cache: Record<string, string[]> = Object.fromEntries(Object.entries(boot.cache).map(([n, l]) => [n, [...l]]));
@@ -52,7 +59,8 @@ export function buildKube(m: TerminalMachine, now: Seconds): { k: KubeState; pro
     if (img.seconds !== undefined) pull[img.name] = img.seconds;
     for (const n of img.nodes ?? []) cache[n]?.push(img.name);
   }
-  let k: KubeState = { created, nodes, objects: boot.objects, pods: boot.pods, events: [], rv: 1000, seq: 0, settled: created, cache, pull, pullSeconds: kube.pullSeconds ?? 2, unscheduled: {} };
+  let k: KubeState = { created, nodes, objects: boot.objects, pods: boot.pods, events: [], rv: 1000, seq: 0, settled: created, cache, pull, pullSeconds: kube.pullSeconds ?? 2, unscheduled: {},
+    ...probes ? { probes: true as const, ...kube.health ? { health: kube.health.map(h => ({ ...h })) } : {} } : {} };
   const problems: string[] = [];
   (kube.manifests ?? []).forEach((mf, i) => {
     const at = parseTime(mf.at ?? '') ?? now, file = mf.file ?? `manifest-${i + 1}.yaml`;
@@ -68,14 +76,14 @@ export function buildKube(m: TerminalMachine, now: Seconds): { k: KubeState; pro
 }
 
 /** E32: the state's cluster (the local machine of the cluster profile only). */
-export function kubeState(m: TerminalMachine, state: FsState, cluster: boolean): FsState {
-  if (!cluster || !m.kube || kubeProblems(m, cluster).length) return state;
-  return { ...state, kube: buildKube(m, nowOf(m, state)).k };
+export function kubeState(m: TerminalMachine, state: FsState, cluster: boolean, probes = false): FsState {
+  if (!cluster || !m.kube || kubeProblems(m, cluster, probes).length) return state;
+  return { ...state, kube: buildKube(m, nowOf(m, state), probes).k };
 }
 
 const LINE = (t: unknown, max = 64) => typeof t === 'string' && t.length >= 1 && t.length <= max && !t.includes('\n');
 /** E32: the problems of a machine's cluster data. */
-export function kubeProblems(m: TerminalMachine, cluster: boolean): string[] {
+export function kubeProblems(m: TerminalMachine, cluster: boolean, probes = false): string[] {
   if (m.kube === undefined) return [];
   if (!cluster) return ['kube needs the cluster profile (engine stage E32)'];
   const out: string[] = [], kube = m.kube, now = nowOf(m), fail = (s: string) => out.push(`kube: ${s}`);
@@ -112,8 +120,13 @@ export function kubeProblems(m: TerminalMachine, cluster: boolean): string[] {
     if (at === undefined || at > now || (created !== undefined && at < created)) fail(`manifests[${i}]: at is a UTC time between created and now`);
     if (mf.file !== undefined && !LINE(mf.file)) fail(`manifests[${i}]: file is a name`);
   }
+  // E33: the lesson's health of images.
+  if (kube.health !== undefined) {
+    if (!probes) fail('health needs the probes profile (engine stage E33)');
+    else out.push(...healthProblems(kube.health, (m.docker?.images ?? []).map(i => i.name)));
+  }
   if (out.length) return out;
-  const built = buildKube(m, now);
+  const built = buildKube(m, now, probes);
   if (built.k.objects.filter(o => o.kind === 'Pod' && nsOf(o) !== 'kube-system').length > KUBE_LIMITS.pods) out.push(`kube: at most ${KUBE_LIMITS.pods} pods`);
   return [...out, ...built.problems.map(p => `kube: ${p}`)];
 }

@@ -51,7 +51,7 @@ export interface TerminalZone { zone: string; text: string }
 export type TerminalListen = Listen;
 export type TerminalResponder = Responder;
 /** Which of the stages a machine's profile has. */
-export interface ServerLevels { sockets: boolean; dns: boolean; http: boolean; tls: boolean; nginx: boolean; proxy: boolean; firewall: boolean; tunnels: boolean; edge: boolean; diagnostics: boolean; containers: boolean; images: boolean; storageNet: boolean; compose?: boolean; runtime?: boolean; git?: boolean; forge?: boolean; workflows?: boolean; actions?: boolean; artifacts?: boolean; environments?: boolean; deployHosts?: boolean; cluster?: boolean }
+export interface ServerLevels { sockets: boolean; dns: boolean; http: boolean; tls: boolean; nginx: boolean; proxy: boolean; firewall: boolean; tunnels: boolean; edge: boolean; diagnostics: boolean; containers: boolean; images: boolean; storageNet: boolean; compose?: boolean; runtime?: boolean; git?: boolean; forge?: boolean; workflows?: boolean; actions?: boolean; artifacts?: boolean; environments?: boolean; deployHosts?: boolean; cluster?: boolean; probes?: boolean }
 
 /** E10–E12 (lesson checks). */
 export type ServerCheck =
@@ -207,7 +207,7 @@ export function serverState(m: TerminalMachine, state: FsState, lv: ServerLevels
     if (m.named !== undefined) next = { ...next, dns: { ...next.dns!, named: loadNamed(next).zones } };
   }
   if (lv.http) next = { ...next, http: { responders: (m.responders ?? []).map(r => ({ ...r, routes: r.routes.map(x => ({ ...x })) })) } };
-  return kubeState(m, deployState(m, environmentsState(m, artifactsState(m, actionsState(m, workflowState(m, forgeState(m, gitState(m, dockerState(m, edgeState(m, netState(m, webState(m, next, lv), lv), lv), lv), !!lv.git), !!lv.forge), !!lv.workflows), !!lv.actions, !!lv.artifacts, !!lv.deployHosts), !!lv.artifacts), !!lv.environments), !!lv.deployHosts), !!lv.cluster);
+  return kubeState(m, deployState(m, environmentsState(m, artifactsState(m, actionsState(m, workflowState(m, forgeState(m, gitState(m, dockerState(m, edgeState(m, netState(m, webState(m, next, lv), lv), lv), lv), !!lv.git), !!lv.forge), !!lv.workflows), !!lv.actions, !!lv.artifacts, !!lv.deployHosts), !!lv.artifacts), !!lv.environments), !!lv.deployHosts), !!lv.cluster, !!lv.probes);
 }
 
 const LINE = (max: number) => (t: unknown) => typeof t === 'string' && t.length >= 1 && t.length <= max && !t.includes('\n');
@@ -216,7 +216,7 @@ const HEADER_NAME = /^[A-Za-z0-9!#$%&'*+.^_`|~-]{1,64}$/;
 
 /** E10–E12: the problems of a machine's (expanded) server data; `own` is whether listen addresses are checked against it. */
 export function serverProblems(m: TerminalMachine, lv: ServerLevels, names?: readonly string[]): string[] {
-  const problems: string[] = [...webProblems(m, lv), ...netProblems(m, lv, () => machineState(m)), ...edgeProblems(m, lv, names), ...dockerProblems(m, lv), ...gitProblems(m, !!lv.git), ...forgeProblems(m, !!lv.forge), ...workflowProblems(m, !!lv.workflows), ...actionsProblems(m, !!lv.actions), ...artifactsProblems(m, !!lv.artifacts), ...environmentsProblems(m, !!lv.environments), ...deployProblems(m, !!lv.deployHosts), ...kubeProblems(m, !!lv.cluster)], fail = (what: string) => problems.push(what);
+  const problems: string[] = [...webProblems(m, lv), ...netProblems(m, lv, () => machineState(m)), ...edgeProblems(m, lv, names), ...dockerProblems(m, lv), ...gitProblems(m, !!lv.git), ...forgeProblems(m, !!lv.forge), ...workflowProblems(m, !!lv.workflows), ...actionsProblems(m, !!lv.actions), ...artifactsProblems(m, !!lv.artifacts), ...environmentsProblems(m, !!lv.environments), ...deployProblems(m, !!lv.deployHosts), ...kubeProblems(m, !!lv.cluster, !!lv.probes)], fail = (what: string) => problems.push(what);
   const listens = [...(m.processes ?? []).flatMap(p => p.listen ?? []), ...(m.programs ?? []).flatMap(p => p.listen ?? [])];
   if (!lv.sockets && (m.interfaces !== undefined || m.gateway !== undefined || m.connections !== undefined || m.resolved !== undefined || listens.length))
     fail('interfaces, gateway, connections, resolved and listen need the sockets profile (engine stage E10)');

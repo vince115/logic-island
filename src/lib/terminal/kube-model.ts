@@ -38,12 +38,19 @@ export interface CSim {
   /** During a back-off: when the kubelet tries again (the pull, or the restart). */
   retry?: Seconds;
   /** The exit planned at `next` (step exit). */
-  plan?: { exit: number; oom?: boolean; logs: readonly LogSeed[]; reason?: string; message?: string };
+  plan?: { exit: number; oom?: boolean; logs: readonly LogSeed[]; reason?: string; message?: string; restart?: boolean };
   imageId?: string; cid?: string;
   logs: readonly LogLine[]; prev: readonly LogLine[];
   /** Files exec changed (the container's writable layer; a restart starts from the image again). */
   layer?: ReadonlyMap<string, FsNode>;
+  /** E33: the probe workers of this run of the container (kube-probes.ts), and a stop the kubelet began (Killing). */
+  probe?: ProbeSim;
+  stopping?: true;
 }
+/** E33: one probe worker: when it probes next, its last result (undefined: none yet) and how many times in a row; on hold after a kill. */
+export interface ProbeRun { at?: Seconds; last?: boolean; run: number; hold?: true; msg?: string }
+/** E33: a container run's probes: startup passed (started), the readiness result, when either last changed, and the workers. */
+export interface ProbeSim { cid: string; started: boolean; ready: boolean; changed: Seconds; runs: Partial<Record<'liveness' | 'readiness' | 'startup', ProbeRun>> }
 /** The kubelet's record of a bound pod (by uid). */
 export interface PodSim { node: string; bound: Seconds; ip: string; init: readonly CSim[]; main: readonly CSim[]; static?: true }
 export interface KubeState {
@@ -62,6 +69,15 @@ export interface KubeState {
   unscheduled: Readonly<Record<string, { t: Seconds; message: string; n: number }>>;
   /** The last change that may let them fit (a pod deleted, a node's labels or taints): its time and number; they are tried again then. */
   retry?: { t: Seconds; n: number };
+  /** E33 (the probes profile): probes, lifecycle hooks and graceful termination are simulated; the lesson's time-dependent health. */
+  probes?: true;
+  health?: readonly KubeHealth[];
+}
+/** E33: how a container image's service behaves over time since its start (kube-health.ts validates the lesson's data). */
+export interface KubeHealth {
+  image: string; listenAfter?: number;
+  paths?: readonly { path: string; status?: number; after?: number; until?: number; delay?: number }[];
+  exec?: readonly { command: readonly string[]; exit?: number; output?: string; after?: number; until?: number; seconds?: number }[];
 }
 
 export const KUBE_VERSION = 'v1.32.3';

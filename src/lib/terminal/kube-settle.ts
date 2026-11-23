@@ -6,6 +6,9 @@ import { about, put, record } from './kube-api';
 import { bindPod, stepContainer, type Ref } from './kube-kubelet';
 import { freeIp, nodeNamed, podName, schedule } from './kube-sched';
 import { podStatus } from './kube-status';
+import { probeStep, probeTimes, syncProbes } from './kube-probes';
+import { finishDelete } from './kube-stop';
+import type { ProbeType } from './kube-probe-spec';
 import { createdOf, kindOf, obj, sameJ, str, uidOf, type JObj, type KubeState } from './kube-model';
 
 /*
@@ -50,6 +53,8 @@ function nextStep(k: KubeState, now: Seconds, d: DockerState | undefined): Step 
       const c = (r.init ? sim.init : sim.main)[r.i];
       if (c.next !== undefined) { const t = c.next; consider(t, kk => step(kk, id, r, t, d)); }
     }
+    // E33: the probe workers of the running containers (after the containers' own steps at the same time).
+    sim.main.forEach((c, i) => { for (const [type, t] of probeTimes(c)) consider(t, kk => probe(kk, id, i, type, t, d, now)); });
   }
   return best;
 }
@@ -79,6 +84,13 @@ function step(k: KubeState, id: string, r: Ref, t: Seconds, d: DockerState | und
   const pod = k.objects.find(o => uidOf(o) === id), sim = k.pods[id];
   if (!pod || !sim) return k;
   const out = stepContainer(d, k, pod, sim, r, t);
+  // E33: a container that started gets its probe workers; a pod being deleted is gone once nothing runs in it.
+  return finishDelete({ ...out.k, pods: { ...out.k.pods, [id]: syncProbes(pod, out.sim) } }, id, t);
+}
+function probe(k: KubeState, id: string, i: number, type: ProbeType, t: Seconds, d: DockerState | undefined, now: Seconds): KubeState {
+  const pod = k.objects.find(o => uidOf(o) === id), sim = k.pods[id];
+  if (!pod || !sim) return k;
+  const out = probeStep(d, k, pod, sim, i, type, t, now);
   return { ...out.k, pods: { ...out.k.pods, [id]: out.sim } };
 }
 

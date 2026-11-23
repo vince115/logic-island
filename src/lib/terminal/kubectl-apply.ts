@@ -3,7 +3,8 @@ import { readManifests } from './kube-manifest';
 import { kubeYaml, goJson } from './kube-output';
 import { applyDoc, createDoc, deleteObject, type Written } from './kube-write';
 import { noneText, pick, targets } from './kubectl-get';
-import { kindOf, nameOf, obj, str, type J, type JObj, type KubeState } from './kube-model';
+import { beginDelete } from './kube-stop';
+import { kindOf, nameOf, nsOf, obj, str, type J, type JObj, type KubeState } from './kube-model';
 import { flag, type KubeResult, type Kx } from './kubectl';
 
 /*
@@ -38,7 +39,7 @@ function nsFor(x: Kx, doc: JObj): string | { error: string } {
   if (own && x.nsGiven && own !== x.ns) return { error: `error: the namespace from the provided object "${own}" does not match the namespace "${x.ns}". You must pass '--namespace=${own}' to perform this operation.` };
   return own ?? x.ns;
 }
-const finish = (x: Kx, k: KubeState, errors: string[]): KubeResult => { errors.forEach(e => x.io.err(e)); return { state: { ...x.state, kube: k }, status: errors.length ? 1 : 0 }; };
+const finish = (x: Kx, k: KubeState, errors: string[], wait = 0): KubeResult => { errors.forEach(e => x.io.err(e)); return { state: { ...x.state, kube: k }, status: errors.length ? 1 : 0, ...wait > 0 ? { advance: wait } : {} }; };
 
 export function applyCommand(x: Kx): KubeResult {
   if (x.verb === 'create' && x.pos.length) return createNamed(x);
@@ -73,14 +74,23 @@ function createNamed(x: Kx): KubeResult {
   return { state: x.state, status: 1 };
 }
 
+/** E33: the grace period of a graceful delete (--grace-period, else the pod's; 0 without --force is 1, as kubectl makes it). */
+function graceOf(x: Kx, pod: JObj): number {
+  const g = flag(x, 'grace-period'), n = g !== undefined && /^-?\d+$/.test(g) ? Number(g) : -1;
+  return n < 0 ? Number(obj(pod.spec).terminationGracePeriodSeconds ?? 30) : n === 0 ? 1 : n;
+}
 export function deleteCommand(x: Kx): KubeResult {
   const force = x.flags.bools.has('force') && flag(x, 'grace-period') === '0', errors: string[] = [];
-  let k = x.k;
+  let k = x.k, until = x.now;
   if (force) x.io.err('Warning: Immediate deletion does not wait for confirmation that the running resource has been terminated. The resource may continue to run on the cluster indefinitely.');
   const one = (o: JObj) => {
     if (kindOf(o) === 'Node' || kindOf(o) === 'Event') { errors.push(`（模擬環境：${kindOf(o) === 'Node' ? '節點是課程的資料' : '事件由叢集記錄'}，不能刪除）`); return; }
     if (kindOf(o) === 'Namespace' && ['default', 'kube-system', 'kube-public', 'kube-node-lease'].includes(nameOf(o))) { errors.push(`Error from server (Forbidden): namespaces "${nameOf(o)}" is forbidden: this namespace may not be deleted`); return; }
-    k = deleteObject(k, o, x.now);
+    // E33 (probes profile): a pod ends gracefully — Terminating, the hooks and signals — and kubectl waits until it is gone.
+    if (k.probes && !force && kindOf(o) === 'Pod' && nsOf(o) !== 'kube-system') {
+      const live = k.objects.find(y => kindOf(y) === 'Pod' && nameOf(y) === nameOf(o) && nsOf(y) === nsOf(o)) ?? o, r = beginDelete(x.state.docker, k, live, graceOf(x, live), x.now);
+      k = r.k; until = Math.max(until, r.until);
+    } else k = deleteObject(k, o, x.now);
     x.io.out(`${kindOf(o).toLowerCase()} "${nameOf(o)}" ${force ? 'force deleted' : 'deleted'}`);
   };
   if (x.flags.values.filename) {
@@ -93,7 +103,7 @@ export function deleteCommand(x: Kx): KubeResult {
       const o = find(k, kindOf(d.doc), NAMESPACED[kindOf(d.doc)] ? ns : undefined, nameOf(d.doc));
       if (o) one(o); else if (!x.flags.bools.has('ignore-not-found')) errors.push(`Error from server (NotFound): error when deleting "${d.file}": ${kindOf(d.doc).toLowerCase()}s "${nameOf(d.doc)}" not found`);
     }
-    return finish(x, k, errors);
+    return waited(x, k, errors, until);
   }
   const ts = targets(x, x.pos);
   if ('error' in ts) { x.io.err(ts.error); return { state: x.state, status: 1 }; }
@@ -105,7 +115,14 @@ export function deleteCommand(x: Kx): KubeResult {
     if (!x.flags.bools.has('ignore-not-found')) errors.push(...r.errors);
     if (!t.names.length && !r.items.length) x.io.err(noneText(x, t.kind));
   }
-  return finish(x, k, errors);
+  return waited(x, k, errors, until);
+}
+/** E33: kubectl delete waits until the pods are gone (the clock moves as it waits), unless --wait=false; --timeout gives up. */
+function waited(x: Kx, k: KubeState, errors: string[], until: number): KubeResult {
+  if (until <= x.now || x.flags.off?.has('wait')) return finish(x, k, errors);
+  const t = flag(x, 'timeout'), m = t === undefined ? null : /^(\d+)(s|m)?$/.exec(t), limit = m ? Number(m[1]) * (m[2] === 'm' ? 60 : 1) : 0;
+  if (limit > 0 && x.now + limit < until) return finish(x, k, [...errors, 'error: timed out waiting for the condition'], limit);
+  return finish(x, k, errors, until - x.now);
 }
 
 export function runCommand(x: Kx): KubeResult {
