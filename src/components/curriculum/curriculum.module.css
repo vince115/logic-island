@@ -6,6 +6,7 @@
   --cur-muted: color-mix(in srgb, var(--muted) 65%, var(--text));
   --cur-ok: #137333;
   --cur-bad: #b3261e;
+  --cur-warn: #9a5b00;
   padding-top: 48px;
   padding-bottom: 64px;
 }
@@ -13,6 +14,7 @@
 :global([data-theme='dark']) .lesson {
   --cur-ok: #7ccf8f;
   --cur-bad: #f2a29b;
+  --cur-warn: #e8b04a;
 }
 .lesson {
   max-width: 900px;

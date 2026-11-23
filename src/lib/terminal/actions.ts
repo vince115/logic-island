@@ -6,13 +6,18 @@ import { evalIf, interpolate, templateValue } from './expr-template';
 import { parseWorkflow, workflowErrorLines, workflowName, type Workflow } from './workflow';
 import { expandMatrix, type MatrixSpec, type WorkflowJob } from './workflow-job';
 import { effectivePermissions } from './workflow-perms';
-import { executeJob } from './actions-job';
+import { executeJob, PICKUP } from './actions-job';
 import { TEMP } from './runner';
 import type { CiState, JobResult, RunAttempt, WorkflowRun } from './actions-model';
 import type { DockerRegistry } from './registry';
 import { masksOf, scoped } from './artifacts-model';
-import { commitArt } from './artifacts-run';
+import { commitArt, mergeRegistries } from './artifacts-run';
+import type { ActionsEffect } from './artifacts-model';
+import type { RemoteHost } from './ssh';
+import { hostsAt, registriesAt } from './deploy-hosts';
 import type { ArtPlan } from './artifacts-job';
+import { gateJob, holdJob, takeId, type Cut, type Gate, type JobHold } from './environments-gate';
+import { admitRun, settleEnv } from './environments-run';
 
 /*
  * Engine stage E28 (docs/curriculum/CICD0_E28_ACTIONS.md §3): a workflow run's attempt, computed in full when it starts.
@@ -22,13 +27,15 @@ import type { ArtPlan } from './artifacts-job';
  * --failed only the failed jobs and their dependents run again); a cancel cuts the jobs at that moment.
  */
 
-/** reg (E29): the machine's registries as they are now (a runner's Docker sees them). */
-export interface Actx { g: Git; ci: { state: CiState }; reg?: readonly DockerRegistry[] }
+/** reg (E29): the machine's registries as they are now (a runner's Docker sees them). E30: the IDs a recomputed attempt keeps, the jobs newer jobs cut. E31: the hosts runners reach, now. */
+export interface Actx { g: Git; ci: { state: CiState }; reg?: readonly DockerRegistry[]; ids?: Map<string, number>; cuts?: Cut[]; hosts?: readonly RemoteHost[] }
 export const MAX_JOBS = 12;
 export const MAX_STEPS = 30;
 export const MAX_RUNS = 200;
 
 const nextJobId = (x: Actx) => { const id = x.ci.state.next.job; x.ci.state = { ...x.ci.state, next: { ...x.ci.state.next, job: id + 1 } }; return id; };
+/** A leg's job ID (E30: the one it had when its attempt is recomputed). */
+const idOf = (x: Actx, leg: string) => (x.ids ? takeId(x, `job:${leg}`, () => nextJobId(x)) : nextJobId(x));
 export const workspaceOf = (url: string) => { const name = repoPath({ url }).split('/')[1]; return `/home/runner/work/${name}/${name}`; };
 
 /** The github context of a run's attempt (strings as GitHub gives them). */
@@ -99,20 +106,26 @@ function matrixOf(job: WorkflowJob, ctx: Record<string, Val>): Obj[] | undefined
 
 const memo = new WeakMap<object, Map<string, { jobs: readonly JobResult[]; next: number; art?: { artifact: number; cache: number } }>>();
 
-/** Computes an attempt of a run (previous and failedOnly: rerun only the failed jobs of the previous attempt and their dependents). */
-export function executeAttempt(x: Actx, forge: Forge, run: WorkflowRun, wf: Workflow, attempt: number, start: number, actor: string, previous?: RunAttempt): RunAttempt {
+/**
+ * Computes an attempt of a run (previous and failedOnly: rerun only the failed jobs of the previous attempt and their
+ * dependents). E30: resume recomputes these jobs of the previous attempt (and their dependents) and keeps the rest as they are.
+ */
+export function executeAttempt(x: Actx, forge: Forge, run: WorkflowRun, wf: Workflow, attempt: number, start: number, actor: string, previous?: RunAttempt, resume?: ReadonlySet<string>): RunAttempt {
   const payload = run.payload as Obj;
-  const ci = x.ci.state, site = forge.site!, cacheOf = ci.runner ? memo.get(ci.runner) ?? new Map() : undefined;
+  // E30: environments machines are not memoized (gates, concurrency and kept IDs depend on the other runs).
+  const ci = x.ci.state, site = forge.site!, cacheOf = ci.runner && !ci.env ? memo.get(ci.runner) ?? new Map() : undefined;
   const key = JSON.stringify([forge.url, run.id, run.number, run.path, run.sha, run.ref, run.event, run.title, run.actor, run.pr, run.inputs, attempt, start, actor, payload, ci.next.job, site.workflowPermissions,
     previous?.jobs.map(j => [j.id, j.key, j.conclusion]), ...ci.art ? [artKey(x, forge, run)] : []]);
   const hit = cacheOf?.get(key);
   if (hit) { x.ci.state = { ...ci, next: { ...ci.next, job: hit.next }, ...ci.art && hit.art ? { art: { ...ci.art, ...hit.art } } : {} }; return { attempt, startedAt: start, actor, jobs: hit.jobs }; }
   const objects = x.g.store.added.size ? x.g.store.all() : x.g.store.base;
   const github = githubContext(forge, run, attempt, payload, actor), results = new Map<string, JobResult[]>(), jobs: JobResult[] = [];
-  const failedKeys = new Set(previous ? previous.jobs.filter(j => j.conclusion === 'failure' || j.conclusion === 'cancelled').map(j => j.key) : []);
+  // E31: the effects of this attempt's jobs so far (a later job's runner sees what they deployed and pushed by its start).
+  const made: ActionsEffect[] = [];
+  const failedKeys = new Set(resume ?? (previous ? previous.jobs.filter(j => j.conclusion === 'failure' || j.conclusion === 'cancelled').map(j => j.key) : []));
   // Fix (E29 batch): a rerun of failed jobs reruns only the failed and cancelled legs of a matrix job (its successful legs are
   // kept) — every leg only when the job runs again because a job it needs does.
-  const failedLegs = new Set(previous ? previous.jobs.filter(j => j.conclusion === 'failure' || j.conclusion === 'cancelled').map(legOf) : []), dependents = new Set<string>();
+  const failedLegs = new Set(previous && !resume ? previous.jobs.filter(j => j.conclusion === 'failure' || j.conclusion === 'cancelled').map(legOf) : []), dependents = new Set<string>(resume);
   if (previous) for (const job of ordered(wf.jobs)) if (job.needs.some(n => failedKeys.has(n))) { failedKeys.add(job.id); dependents.add(job.id); }
   // E29: the attempt's caches and artifacts so far (kept jobs' artifacts stay), and the artifact and cache counters.
   const work = ci.art ? {
@@ -121,11 +134,11 @@ export function executeAttempt(x: Actx, forge: Forge, run: WorkflowRun, wf: Work
   } : undefined;
   for (const job of ordered(wf.jobs)) {
     if (previous && job.needs.some(n => failedKeys.has(n))) failedKeys.add(job.id);
-    if (previous && !failedKeys.has(job.id)) { const kept = previous.jobs.filter(j => j.key === job.id).map(j => ({ ...j, reused: true })); results.set(job.id, kept); jobs.push(...kept); continue; }
+    if (previous && !failedKeys.has(job.id)) { const kept = previous.jobs.filter(j => j.key === job.id).map(j => (resume ? j : { ...j, reused: true })); results.set(job.id, kept); jobs.push(...kept); continue; }
     const needs = job.needs.map(n => [n, aggregate(results.get(n) ?? [])] as const);
     const ctx: Record<string, Val> = { github: { ...github, job: job.id }, inputs: run.inputs ?? {}, vars: work ? scoped(site.variables, undefined) : {}, secrets: { GITHUB_TOKEN: '***' }, needs: Object.fromEntries(needs.map(([n, a]) => [n, { result: a.result, outputs: a.outputs }])) };
     const queuedAt = Math.max(start, ...needs.map(([, a]) => a.end ?? start));
-    const shell = (over: Partial<JobResult>): JobResult => ({ id: nextJobId(x), key: job.id, name: job.name ?? job.id, labels: job.runsOn, queuedAt, continueOnError: false, steps: [], outputs: {}, annotations: [], ...over });
+    const shell = (over: Partial<JobResult>): JobResult => ({ id: idOf(x, legOf({ key: job.id })), key: job.id, name: job.name ?? job.id, labels: job.runsOn, queuedAt, continueOnError: false, steps: [], outputs: {}, annotations: [], ...over });
     if (needs.some(([, a]) => a.end === undefined)) { const r = shell({}); results.set(job.id, [r]); jobs.push(r); continue; }
     let runIt: boolean;
     try {
@@ -149,17 +162,33 @@ export function executeAttempt(x: Actx, forge: Forge, run: WorkflowRun, wf: Work
       const mctx: Record<string, Val> = { ...ctx, matrix: matrix ?? {}, strategy: { 'fail-fast': failFast, 'job-index': i, 'job-total': combos.length, 'max-parallel': maxParallel } };
       const name = job.name !== undefined ? interpolate(job.name, { contexts: mctx }) : matrix && Object.keys(matrix).length ? `${job.id} (${Object.values(matrix).map(v => (typeof v === 'object' && v ? JSON.stringify(v) : toStr(v))).join(', ')})` : job.id;
       const labels = job.runsOn.map(l => interpolate(l, { contexts: mctx }));
-      const slot = slots.indexOf(Math.min(...slots)), at = slots[slot], id = nextJobId(x), runnerName = `GitHub Actions ${jobs.length + list.length + 1}`;
+      const slot = slots.indexOf(Math.min(...slots)), at = slots[slot], id = idOf(x, legOf({ key: job.id, matrix })), runnerName = `GitHub Actions ${jobs.length + list.length + 1}`;
       if (!labels.length || !labels.every(l => ci.labels.includes(l)) || !ci.runner) {
         list.push({ id, key: job.id, name, ...matrix ? { matrix } : {}, labels, queuedAt: at, continueOnError: false, steps: [], outputs: {}, annotations: [] });
         slots[slot] = Infinity;
         return;
       }
+      // E30: the job's concurrency group and environment gate decide when it starts (or that it waits, or fails).
+      const e = ci.env ? envGate(x, forge, run, job, mctx, attempt, at, legOf({ key: job.id, matrix })) : undefined;
+      if (e && e.start === undefined) {
+        list.push({ id, key: job.id, name, ...matrix ? { matrix } : {}, labels, queuedAt: at, continueOnError: false, steps: [], outputs: {}, annotations: e.gate?.annotations ?? [],
+          ...e.hold ? { concurrency: e.hold } : {}, ...e.gate ? { env: e.gate.env } : {}, ...e.gate?.end !== undefined ? { completedAt: e.gate.end, conclusion: 'failure' as const } : {} });
+        slots[slot] = e.gate?.end ?? Infinity;
+        return;
+      }
       const capped = { ...job, steps: job.steps.slice(0, MAX_STEPS - 2) };
       const plan = work && artPlan(x, forge, run, job, mctx, work);
-      const r = executeJob({ ...plan ? { art: plan } : {}, id, key: job.id, name, ...matrix ? { matrix } : {}, runnerName, queuedAt: at, labels, wf, job: capped, contexts: mctx, defaults: defaultEnv(mctx.github as Obj, job.id, runnerName),
+      if (plan && ci.deploy) {
+        const t = (e?.start ?? at) + PICKUP, pending = x.ci.state.art?.pending ?? [];
+        plan.hosts = hostsAt(x.hosts ?? [], pending, made, t);
+        plan.registries = registriesAt(plan.registries, pending, made, t, mergeRegistries);
+      }
+      const r0 = executeJob({ ...plan ? { art: plan } : {}, ...e?.gate ? { env: { gate: e.gate.env, ...job.environment?.url !== undefined ? { url: job.environment.url } : {} } } : {},
+        id, key: job.id, name, ...matrix ? { matrix } : {}, runnerName, queuedAt: e?.start ?? at, labels, wf, job: capped, contexts: mctx, defaults: defaultEnv(mctx.github as Obj, job.id, runnerName),
         permissions: effectivePermissions(wf.permissions, job.permissions, site.workflowPermissions ?? 'read'), base: ci.runner, ci, objects, repoUrl: forge.url,
         workspace: workspaceOf(forge.url), attempt, sha: run.sha, ref: run.ref });
+      const r = e ? { ...r0, queuedAt: at, ...e.hold ? { concurrency: e.hold } : {} } : r0;
+      if (ci.deploy) made.push(...r.art?.effects ?? []);
       list.push(r);
       if (work && plan) { work.caches = plan.caches; work.artifacts = plan.artifacts; }
       slots[slot] = r.completedAt ?? Infinity;
@@ -191,12 +220,18 @@ export function createRun(x: Actx, forge: Forge, n: NewRun, text: string): Workf
   const payload = n.payload;
   let title = n.title;
   if (p.ok && p.workflow.runName !== undefined) { try { title = interpolate(p.workflow.runName, { contexts: { github: { event_name: n.event, ref: n.ref, sha: n.sha, actor: n.actor, event: payload }, inputs: n.inputs ?? {}, vars: {} } }); } catch { /* GitHub falls back to the default title */ } }
-  const run: WorkflowRun = { ...n, id, number, workflowName: name, title, attempts: [], ...p.ok ? {} : { errors: workflowErrorLines(n.path, p.errors, p.yaml) } };
-  const attempt = p.ok ? executeAttempt(x, forge, run, p.workflow, 1, n.createdAt, n.actor) : { attempt: 1, startedAt: n.createdAt, actor: n.actor, jobs: [] };
+  const run0: WorkflowRun = { ...n, id, number, workflowName: name, title, attempts: [], ...p.ok ? {} : { errors: workflowErrorLines(n.path, p.errors, p.yaml) } };
+  // E30: the workflow's concurrency group may cancel older runs, or hold this one (pending) until the running one ends.
+  const admit = p.ok && x.ci.state.env ? admitRun(x, forge, run0, p.workflow) : undefined, run = admit?.group ? { ...run0, group: admit.group } : run0;
+  const attempt: RunAttempt = !p.ok ? { attempt: 1, startedAt: n.createdAt, actor: n.actor, jobs: [] }
+    : admit?.after !== undefined && admit.start === undefined ? { attempt: 1, startedAt: n.createdAt, actor: n.actor, jobs: [], pending: true, after: admit.after }
+      : { ...executeAttempt(x, forge, run, p.workflow, 1, admit?.start ?? n.createdAt, n.actor), ...admit?.after !== undefined ? { after: admit.after } : {} };
   const done = { ...run, attempts: [attempt] };
-  forge.site = { ...forge.site!, runs: [...runs, done].slice(-MAX_RUNS) };
+  forge.site = { ...forge.site!, runs: [...admit ? forge.site!.runs ?? [] : runs, done].slice(-MAX_RUNS) };
   commitArt(x.ci, forge, done, attempt);
-  return done;
+  if (!admit) return done;
+  settleEnv(x, forge, n.createdAt);
+  return forge.site!.runs!.find(r => r.id === done.id) ?? done;
 }
 
 /** Replaces a run on the site. */
@@ -224,5 +259,20 @@ function artPlan(x: Actx, forge: Forge, run: WorkflowRun, job: WorkflowJob, mctx
   };
 }
 
+/** E30: a job's concurrency group (it may wait for a job of another run), then its environment's gate. */
+function envGate(x: Actx, forge: Forge, run: WorkflowRun, job: WorkflowJob, mctx: Record<string, Val>, attempt: number, at: number, leg: string): { start?: number; hold?: JobHold; gate?: Gate } {
+  let start: number | undefined = at, hold: JobHold | undefined;
+  if (job.concurrency) {
+    let group = '', cancel = false;
+    try { group = interpolate(job.concurrency.group, { contexts: mctx }); cancel = toStr(templateValue(job.concurrency.cancelInProgress, { contexts: mctx })) === 'true'; } catch { group = ''; }
+    if (group) { hold = holdJob(x, forge, run, group, cancel, at); start = hold.until; }
+  }
+  let name: string | undefined;
+  try { name = job.environment ? interpolate(job.environment.name, { contexts: mctx }) : undefined; } catch { name = undefined; }
+  if (start === undefined || !name) return { start, ...hold ? { hold } : {} };
+  const gate = gateJob(x, forge, run, attempt, name, start, leg);
+  return { start: gate.start, gate, ...hold ? { hold } : {} };
+}
+
 /** A job's leg: its key and matrix values (the job itself when it has no matrix). */
-function legOf(j: { key: string; matrix?: Obj }): string { return `${j.key}\n${JSON.stringify(j.matrix ?? null)}`; }
+export function legOf(j: { key: string; matrix?: Obj }): string { return `${j.key}\n${JSON.stringify(j.matrix ?? null)}`; }

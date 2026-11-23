@@ -4,6 +4,7 @@ import type { TerminalMachine } from './lesson';
 import type { TerminalDocker } from './docker-lesson';
 import { FAKE_TOKEN } from './docker-lesson';
 import { NAME, type ActionsValue } from './artifacts-model';
+import { sshKeyValue, type TerminalSshKey } from './deploy-lesson';
 
 /*
  * Engine stage E29 as lesson data (docs/curriculum/CICD0_E29_ARTIFACTS.md §7). Per forge repository a lesson may declare
@@ -17,7 +18,9 @@ export interface TerminalSecret {
   /** Upper case like GitHub keeps it: letters, digits and _, not starting with a digit or GITHUB_. */
   name: string;
   /** An obviously fake lesson value (one line: E23's FAKE_TOKEN; several lines: each without a real token's shape). */
-  value: string;
+  value?: string;
+  /** E31 (deploy-hosts profile), instead of value: a simulated OpenSSH private key derived from a seed (deploy-lesson.ts). */
+  sshKey?: TerminalSshKey;
   /** An environment's secret (one of environments). */
   env?: string;
   /** When it was set (UTC 'YYYY-MM-DD HH:MM:SS', default the machine's now). */
@@ -62,7 +65,7 @@ export function artifactsProblems(m: TerminalMachine, artifacts: boolean): strin
         seen.add(`${String(v?.name).toUpperCase()}\n${v?.env ?? ''}`);
         if (v.env !== undefined && !envs.includes(v.env)) out.push(`${where}: env must be one of environments`);
         if (v.updated !== undefined && parseTime(v.updated) === undefined) out.push(`${where}: updated is a time YYYY-MM-DD HH:MM:SS`);
-        if (kind === 'secret' && !fakeSecret(v.value))
+        if (kind === 'secret' && !('sshKey' in v && v.sshKey !== undefined) && !fakeSecret(v.value))
           out.push(`${where}: the value must be an obviously fake lesson value (E23's fake token rule: containing lesson, fake, example or demo, and not shaped like a real provider's token)`);
         if (kind === 'variable' && (typeof v.value !== 'string' || v.value.length > ARTIFACTS_LIMITS.value)) out.push(`${where}: the value is a text of at most ${ARTIFACTS_LIMITS.value} characters`);
       }
@@ -96,7 +99,7 @@ export function artifactsState(m: TerminalMachine, state: FsState, artifacts: bo
   if (!artifacts || !state.ci || artifactsProblems(m, artifacts).length) return state;
   const now = parseTime(m.now ?? DEFAULT_NOW)!;
   const values = (list: readonly (TerminalSecret | TerminalVariable)[] | undefined): ActionsValue[] =>
-    (list ?? []).map(v => ({ name: v.name.toUpperCase(), value: v.value, ...v.env !== undefined ? { env: v.env } : {}, updatedAt: v.updated !== undefined ? parseTime(v.updated)! : now }));
+    (list ?? []).map(v => ({ name: v.name.toUpperCase(), value: 'sshKey' in v && v.sshKey ? sshKeyValue(v.sshKey) : v.value ?? '', ...v.env !== undefined ? { env: v.env } : {}, updatedAt: v.updated !== undefined ? parseTime(v.updated)! : now }));
   const git = state.git && {
     ...state.git,
     forge: state.git.forge.map(f => {

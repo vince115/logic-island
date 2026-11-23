@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { DeploymentHistoryView, DevopsExerciseBox, RolloutSimulatorView } from '@/components/curriculum/devops-explorer';
 import { DevopsExerciseView, devopsExamples } from '@/components/curriculum/devops-lesson';
 import { devopsContent, devopsLesson, exercises, histories, rollouts } from './support/devops-fixture';
+import { MonitoringDashboardView } from '@/components/curriculum/dashboard-view';
+import { dashboardContent, dashboardExercises, dashboardLesson, dashboards } from './support/dashboard-fixture';
 
 /*
  * CICD-0: the devops-explorer components. The history view states the four DORA metrics with their arithmetic, draws the
@@ -160,5 +162,116 @@ describe('devops exercises', () => {
     const plan = render(<DevopsExerciseView exercise={exercise('x-plan')} content={content}/>);
     expect(plan.container.textContent).toContain('其中一種設定：滾動更新（maxSurge 1、maxUnavailable 0）；模擬結果：錯誤 15、丟棄 0、尖峰 5 個、額外的執行個體分鐘 8，第 8 分鐘完成。');
     expect(devopsExamples(devopsLesson()).map(([id]) => id)).toEqual(['team-a', 'team-b', 'checkout', 'bad-canary', 'schema', 'flag']);
+  });
+});
+
+describe('MonitoringDashboardView (D3)', () => {
+  const dash = (id: string) => dashboards().find(d => d.id === id)!;
+  const summary = () => within(screen.getByLabelText('告警規則的結果'));
+  const card = (dt: string) => summary().getByText(dt).nextElementSibling!.textContent;
+  it('draws one line chart per series with a table of the same numbers, and shades the incidents', () => {
+    const { container } = render(<MonitoringDashboardView explorer={dash('api')}/>);
+    expect(container.textContent).toContain('示意資料');
+    const charts = [...container.querySelectorAll('svg[data-series]')];
+    expect(charts.map(c => c.getAttribute('data-series'))).toEqual(['p95', 'rpm', 'errors', 'cpu']);
+    for (const c of charts) expect(c.querySelectorAll('rect[class*="incident"]')).toHaveLength(2);
+    expect(charts[2].querySelector('title')!.textContent).toMatch(/^「錯誤率」（錯誤，單位 ‰）每分鐘的值，最大 \d+（第 \d+ 分鐘）；底色是 2 次事故的期間；虛線是告警門檻 10。數字見下方表格$/);
+    // The threshold is drawn on the rule's series only.
+    expect(charts.map(c => !!c.querySelector('[data-threshold]'))).toEqual([false, false, true, false]);
+    const table = screen.getByRole('table', { name: '「錯誤率」每分鐘的值（‰，圖的文字版，每列 10 分鐘）' });
+    expect(within(table).getAllByRole('row')).toHaveLength(19);
+    expect(within(table).getByRole('rowheader', { name: '100–109' }).parentElement!.children[1].textContent).toBe('29');
+  });
+  it('evaluates the lesson\'s rule, and re-evaluates when the rule is chosen or edited', () => {
+    const { container } = render(<MonitoringDashboardView explorer={dash('api')}/>);
+    expect([card('通知'), card('誤報'), card('偵測到的事故')]).toEqual(['3 次每次進入觸發中發一次', '1 次觸發期間沒有和任何事故重疊', '2 個漏掉 0 個']);
+    const intervals = screen.getByRole('table', { name: '觸發的期間（每一列是一次通知）' });
+    expect(within(intervals).getByRole('rowheader', { name: '2' }).parentElement!.textContent).toBe('2第 100 分鐘（第 101 分鐘恢復）誤報');
+    fireEvent.change(screen.getByLabelText('課程的規則'), { target: { value: 'slow' } });
+    expect((screen.getByLabelText('視窗長度（分鐘）') as HTMLInputElement).value).toBe('10');
+    expect([card('通知'), card('誤報')]).toEqual(['2 次每次進入觸發中發一次', '0 次觸發期間沒有和任何事故重疊']);
+    expect(screen.getByRole('table', { name: '每個事故：第一次觸發與偵測延遲' }).textContent).toContain('有問題的版本第 60 分鐘第 66 分鐘6 分鐘');
+    expect(container.querySelector('svg[data-series="errors"] path[class*="overlay"]')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('視窗計算'), { target: { value: 'none' } });
+    fireEvent.change(screen.getByLabelText('持續多久才觸發（分鐘）'), { target: { value: '1' } });
+    expect((screen.getByLabelText('課程的規則') as HTMLSelectElement).value).toBe('');
+    expect([card('通知'), card('誤報')]).toEqual(['2 次每次進入觸發中發一次', '0 次觸發期間沒有和任何事故重疊']);
+    expect(screen.getByRole('table', { name: '每個事故：第一次觸發與偵測延遲' }).textContent).toContain('資料庫連線耗盡第 130 分鐘第 132 分鐘2 分鐘');
+    fireEvent.change(screen.getByLabelText('指標'), { target: { value: 'cpu' } });
+    fireEvent.change(screen.getByLabelText('門檻（整數）'), { target: { value: '70' } });
+    expect(screen.getByRole('table', { name: '每個事故：第一次觸發與偵測延遲' }).textContent).toContain('有問題的版本第 60 分鐘沒有觸發（漏掉）');
+    expect(container.querySelector('svg[data-series="cpu"] [data-threshold="70"]')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /恢復課程的規則/ }));
+    expect((screen.getByLabelText('指標') as HTMLSelectElement).value).toBe('errors');
+  });
+  it('flags a rule it cannot evaluate and draws no state strip', () => {
+    render(<MonitoringDashboardView explorer={dash('tiny')}/>);
+    fireEvent.change(screen.getByLabelText('門檻（整數）'), { target: { value: '5.5' } });
+    expect(screen.getByRole('alert').textContent).toBe('「門檻（整數）」要填 0 以上的整數。');
+    expect(screen.getByLabelText('門檻（整數）').getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByLabelText('門檻（整數）').getAttribute('aria-describedby')).toBe(screen.getByRole('alert').id);
+    expect(screen.queryByLabelText('告警規則的結果')).toBeNull();
+    fireEvent.change(screen.getByLabelText('門檻（整數）'), { target: { value: '5' } });
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+  it('steps through the minutes with the keyboard, describing each minute and its alert state', () => {
+    const { container } = render(<MonitoringDashboardView explorer={dash('tiny')}/>);
+    fireEvent.change(screen.getByLabelText('課程的規則'), { target: { value: 'patient' } });
+    expect(live(container)).toContain('第 0 分鐘：錯誤率 1 ‰。條件不成立，告警狀態：未觸發。沒有進行中的事故。');
+    const next = screen.getByRole('button', { name: /下一步/ });
+    for (let k = 0; k < 4; k++) fireEvent.keyDown(next, { key: 'ArrowRight' });
+    expect(live(container)).toContain('第 4 分鐘：錯誤率 9 ‰。條件成立，告警狀態：等待中。事故「結帳失敗」進行中。');
+    fireEvent.click(next);
+    expect(live(container)).toContain('告警狀態：觸發中。');
+    expect(container.querySelector('svg rect[data-state="firing"]')).toBeTruthy();
+    fireEvent.keyDown(next, { key: 'End' });
+    expect(live(container)).toContain('第 11 分鐘：');
+    fireEvent.keyDown(screen.getByRole('button', { name: /上一步/ }), { key: 'Home' });
+    expect(live(container)).toContain('第 0 分鐘：');
+    fireEvent.change(screen.getByLabelText('課程的規則'), { target: { value: 'smooth' } });
+    expect(live(container)).toContain('規則的值（3 分鐘的視窗）還沒有（視窗未滿），條件不成立');
+    expect(screen.getByRole('table', { name: '每段相同狀態的分鐘' }).querySelector('tbody')!.textContent).toBe('第 0–3 分鐘未觸發第 4–6 分鐘觸發中第 7 分鐘已恢復第 8–11 分鐘未觸發');
+  });
+  it('shows the incident timeline with the computed times and the severity cell marked', () => {
+    render(<MonitoringDashboardView explorer={dash('api')}/>);
+    const a = within(screen.getByRole('region', { name: '事故時間線：有問題的版本' }));
+    expect(a.getByRole('table', { name: '「有問題的版本」的事件（依時間）' }).textContent).toContain('62偵測到錯誤率告警觸發');
+    const times = within(a.getByLabelText('「有問題的版本」的時間'));
+    expect(times.getByText('偵測時間').nextElementSibling!.textContent).toBe('2 分鐘偵測到 − 開始');
+    expect(times.getByText('恢復時間').nextElementSibling!.textContent).toBe('8 分鐘恢復 − 開始（影響的期間）');
+    const matrix = a.getByRole('table', { name: /嚴重等級矩陣/ });
+    expect([...matrix.querySelectorAll('td[data-at]')].map(c => c.textContent)).toEqual(['SEV2']);
+  });
+});
+
+describe('the alert-rule exercise (D3)', () => {
+  const content = dashboardContent();
+  const ex = (id: string) => dashboardExercises().find(e => e.id === id)!;
+  it('evaluates the learner\'s rule and states the result', () => {
+    const { container } = render(<DevopsExerciseBox exercise={ex('x-rule')} content={content}/>);
+    expect(container.textContent).toContain('條件：每個事故都在開始後 3 分鐘內觸發；誤報最多 0 次。');
+    fireEvent.change(screen.getByLabelText('指標'), { target: { value: 'errors' } });
+    fireEvent.change(screen.getByLabelText('比較'), { target: { value: '>' } });
+    fireEvent.change(screen.getByLabelText('門檻（整數）'), { target: { value: '10' } });
+    fireEvent.change(screen.getByLabelText('持續多久才觸發（分鐘）'), { target: { value: '0' } });
+    fireEvent.click(screen.getByRole('button', { name: /檢查答案/ }));
+    expect(live(container)).toContain('誤報有 1 次，超過上限 0。');
+    expect(live(container)).toContain('你的規則評估的結果：通知 3 次、誤報 1 次、漏掉 0 個事故；偵測延遲 有問題的版本 0 分鐘、資料庫連線耗盡 1 分鐘。');
+    fireEvent.change(screen.getByLabelText('持續多久才觸發（分鐘）'), { target: { value: '1' } });
+    fireEvent.click(screen.getByRole('button', { name: /檢查答案/ }));
+    expect(screen.getByText(/正確/)).toBeTruthy();
+  });
+  it('checks a golden-signal table, and shows computed reference answers and the dashboards by id', () => {
+    render(<DevopsExerciseBox exercise={ex('x-signals')} content={content}/>);
+    for (const [label, v] of [['p95 延遲', '延遲'], ['每分鐘請求', '流量'], ['錯誤率', '錯誤'], ['資料庫 CPU', '飽和度']]) fireEvent.change(screen.getByLabelText(label), { target: { value: v } });
+    fireEvent.click(screen.getByRole('button', { name: /檢查答案/ }));
+    expect(screen.getByText(/正確/)).toBeTruthy();
+    cleanup();
+    const view = render(<DevopsExerciseView exercise={ex('x-rule')} content={content}/>);
+    expect(view.container.textContent).toContain('其中一條規則：錯誤率（‰） > 10，持續 1 分鐘才觸發；評估結果：通知 2 次、誤報 0 次、漏掉 0 個事故；偵測延遲 有問題的版本 1 分鐘、資料庫連線耗盡 2 分鐘');
+    cleanup();
+    const sev = render(<DevopsExerciseView exercise={ex('x-incident')} content={content}/>);
+    expect(sev.container.textContent).toContain('嚴重等級：SEV2');
+    expect(devopsExamples(dashboardLesson()).map(([id]) => id)).toEqual(['tiny', 'api', 'api-slow']);
   });
 });

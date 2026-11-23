@@ -7,6 +7,7 @@ import { parseWorkflow, workflowErrorLines, workflowFiles, workflowId, workflowN
 import { dispatchInputs } from './workflow-match';
 import { dispatchRun } from './actions-events';
 import { listRow } from './gh-run-view';
+import { envReg } from './gh-environments';
 
 /*
  * Engine stage E27 (docs/curriculum/CICD0_E27_WORKFLOWS.md §8): gh workflow list and gh workflow view (workflows
@@ -106,7 +107,8 @@ function dispatchCommand(h: Gh, args: string[]): number {
   }
   const inputs = dispatchInputs(p.workflow.on.dispatch.inputs, given);
   if ('error' in inputs) return fail(inputs.error);
-  dispatchRun({ g, ci: h.ci! }, repo.forge, w.path, w.text, full, sha, inputs.values, g.now, account.login);
+  // E31: on a deploy-hosts machine the runners see the registries and the hosts as they are now.
+  dispatchRun({ g, ci: h.ci!, ...g.state.ci?.deploy ? envReg(g) : {} }, repo.forge, w.path, w.text, full, sha, inputs.values, g.now, account.login);
   g.out(`✓ Created workflow_dispatch event for ${base(w.path)} at ${ref}`, '', `To see runs for this workflow, try: gh run list --workflow="${base(w.path)}"`);
   return 0;
 }

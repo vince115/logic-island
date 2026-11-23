@@ -5,7 +5,10 @@ import { Check, RotateCcw, X } from 'lucide-react';
 import { checkDevopsAnswer, constraintTexts, outcomeText, parsePlan, PLAN_FIELDS, planAnswer, scenarioFor, simulatePlan } from '@/lib/devops/check';
 import { clockText, doraMetrics, durationText, failureStart, MINUTES_PER_DAY } from '@/lib/devops/history';
 import { simulateRollout, STRATEGY_KINDS, STRATEGY_LABEL, strategyIssues, strategyText, type MinuteRow, type RolloutResult, type RolloutScenario, type Strategy, type StrategyKind } from '@/lib/devops/rollout';
+import type { AlertResult } from '@/lib/devops/alerts';
+import { alertConstraintTexts, dashboardById, evaluatePlan } from '@/lib/devops/dashboard-check';
 import type { DevopsExercise, DevopsLessonContent, HistoryExplorer, RolloutExplorer } from '@/lib/devops/types';
+import { AlertRuleFields } from './alert-rule-fields';
 import { Rich } from './rich';
 import { Stepper } from './visualizations';
 import base from './curriculum.module.css';
@@ -14,7 +17,8 @@ import styles from './devops-explorer.module.css';
 
 /*
  * CICD-0 devops-explorer (docs/curriculum/CICD0_DEVOPS_CAPABILITY.md §8): the deployment history with its DORA metrics
- * (D1) and the rollout simulator (D2, the deployment-simulator activity), and the exercise box. Everything is computed in
+ * (D1) and the rollout simulator (D2, the deployment-simulator activity), and the exercise box (the D3 dashboard is in
+ * dashboard-view.tsx). Everything is computed in
  * the browser from the lesson's data by src/lib/devops; there is no randomness, so the server render and the browser
  * agree. Each chart is an SVG with a title and a table holding the same numbers; every control is a labelled form
  * control, and the minute stepper answers the arrow keys.
@@ -254,7 +258,7 @@ export function RolloutSimulatorView({ explorer }: { explorer: RolloutExplorer }
 export function DevopsExerciseBox({ exercise, content }: { exercise: DevopsExercise; content: DevopsLessonContent }) {
   const id = useId();
   const [values, setValues] = useState<Record<string, string>>({});
-  const [result, setResult] = useState<{ ok: boolean; messages: string[]; plan?: RolloutResult }>();
+  const [result, setResult] = useState<{ ok: boolean; messages: string[]; plan?: RolloutResult; alert?: AlertResult }>();
   const set = (k: string, v: string) => { setValues(old => ({ ...old, [k]: v })); setResult(undefined); };
   const input = (key: string, numeric: boolean) => <input id={`${id}-${key}`} className={styles.input} value={values[key] ?? ''}
     inputMode={numeric ? 'decimal' : 'text'} spellCheck={false} autoCapitalize="off" autoComplete="off" onChange={e => set(key, e.target.value)}/>;
@@ -266,7 +270,7 @@ export function DevopsExerciseBox({ exercise, content }: { exercise: DevopsExerc
       const n = content.rollouts?.find(x => x.id === exercise.plan.rollout)?.scenario.fleet.instances ?? 0;
       if (strategy && !strategyIssues(strategy, n).length) plan = simulatePlan(exercise.plan, content, strategy);
     }
-    setResult({ ...r, plan });
+    setResult({ ...r, plan, ...exercise.kind === 'alert-rule' ? { alert: evaluatePlan(exercise.plan, content, values) } : {} });
   };
   return <div className={activities.builder}>
     {exercise.kind === 'choice' ? <fieldset className={styles.radios}>
@@ -282,8 +286,13 @@ export function DevopsExerciseBox({ exercise, content }: { exercise: DevopsExerc
         <div className={styles.controls}>{Object.entries(PLAN_FIELDS[exercise.plan.strategy]).map(([k, label]) => <Fragment key={k}>
           <label htmlFor={`${id}-${k}`}>{label}</label>{input(k, k !== 'steps')}</Fragment>)}</div>
       </>
+      : exercise.kind === 'alert-rule' ? <>
+        <p className={styles.facts}>條件：{alertConstraintTexts(exercise.plan.constraints).join('；')}。</p>
+        <AlertRuleFields id={id} values={values} set={set} series={dashboardById(content, exercise.plan.dashboard).series}/>
+      </>
       : <div className={activities.row}><label htmlFor={`${id}-value`}><Rich text={exercise.blank.label}/></label>{input('value', exercise.kind === 'number')}</div>}
     <p className={base.muted}>{exercise.kind === 'rollout-plan' ? '按「檢查」時，用你的參數把這次部署重新模擬一次，再檢查每個條件；符合條件的設定都會通過。'
+      : exercise.kind === 'alert-rule' ? '按「檢查」時，用你的規則把儀表板的每一分鐘重新評估一次，再檢查每個條件；符合條件的規則都會通過。'
       : exercise.kind === 'choice' ? '' : '數字照題目要的單位填（可以加上單位，例如 120 分鐘、40%）；時間一律換算成分鐘。'}</p>
     <div className={base.vizControls}>
       <button type="button" className={base.primaryButton} onClick={check}><Check size={14} aria-hidden/>檢查答案</button>
@@ -292,6 +301,7 @@ export function DevopsExerciseBox({ exercise, content }: { exercise: DevopsExerc
     <div aria-live="polite">{result && <>
       <p className={activities.verdict} data-ok={result.ok}>{result.ok ? <><Check size={16} aria-hidden/>正確。</> : <><X size={16} aria-hidden/>還沒通過：</>}</p>
       {!result.ok && <ul className={activities.results}>{result.messages.map(m => <li key={m}>{m}</li>)}</ul>}
+      {result.alert && <p className={styles.facts}>你的規則評估的結果：通知 {result.alert.notifications} 次、誤報 {result.alert.falseAlerts} 次、漏掉 {result.alert.missed} 個事故；偵測延遲 {result.alert.incidents.map(i => `${i.label} ${i.delay === undefined ? '漏掉' : `${i.delay} 分鐘`}`).join('、') || '—'}。</p>}
       {result.plan && <p className={styles.facts}>你的設定模擬的結果：{outcomeText(result.plan.outcome)}{result.plan.completedAt !== undefined ? `（第 ${result.plan.completedAt} 分鐘）` : ''}；錯誤 {result.plan.totals.errors}、丟棄 {result.plan.totals.dropped}、尖峰 {result.plan.totals.peakInstances} 個、額外的執行個體分鐘 {result.plan.totals.extraInstanceMinutes}。</p>}
     </>}</div>
   </div>;

@@ -150,10 +150,13 @@ export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS
  * Actions workflow files: parsing, validation, triggers, expressions, token permissions, gh workflow list and view;
  * workflow*.ts, expr*.ts). E28: actions (runs of the workflows on simulated GitHub-hosted runners, CI tools, gh run and gh
  * workflow run; actions*.ts, runner.ts, ci-tools.ts, gh-run*.ts). E29: artifacts (caches, artifacts, Docker on runners, Actions
- * secrets and variables with masking, the GITHUB_TOKEN's effects; artifacts*.ts, actions-cache.ts, gh-secret.ts …).
+ * secrets and variables with masking, the GITHUB_TOKEN's effects; artifacts*.ts, actions-cache.ts, gh-secret.ts …). E30: environments
+ * (deployment environments with protection rules, pending deployments, concurrency groups, deployment records;
+ * environments*.ts, gh-environments.ts). E31: deploy-hosts (remote machines with a Docker daemon, reachable with ssh from the learner's
+ * machine and from runners; run effects on those hosts; deploy-*.ts).
  */
 export type ShellFeature = 'glob' | 'help-option' | 'multi-source' | 'ls-extra' | 'pipes' | 'accounts' | 'processes' | 'packages' | 'services' | 'remote' | 'scripting' | 'scheduling'
-  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers' | 'images' | 'storage-net' | 'compose' | 'runtime' | 'git' | 'forge' | 'workflows' | 'actions' | 'artifacts';
+  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers' | 'images' | 'storage-net' | 'compose' | 'runtime' | 'git' | 'forge' | 'workflows' | 'actions' | 'artifacts' | 'environments' | 'deploy-hosts';
 
 /** LNX-0: the commands a session may run (E1: and the features it switches on; none by default). */
 export interface ShellProfile { readonly id: string; readonly commands: readonly CommandName[]; readonly features?: readonly ShellFeature[] }
@@ -238,12 +241,19 @@ export const RUNNER_PROFILE: ShellProfile = { id: 'runner', commands: GIT_PROFIL
 export const ARTIFACTS_PROFILE: ShellProfile = { id: 'artifacts', commands: above(ACTIONS_PROFILE, []), features: [...ACTIONS_PROFILE.features!, 'artifacts'] };
 /** E29: an artifacts machine's runner shell — the git profile's commands with docker, and gh (with the job's GITHUB_TOKEN); not a lesson profile. */
 export const RUNNER_ARTIFACTS_PROFILE: ShellProfile = { id: 'runner', commands: FORGE_PROFILE.commands, features: GIT_PROFILE.features };
+/** E30 (docs/curriculum/CICD0_E30_ENVIRONMENTS.md): the artifacts profile plus environments, approvals, concurrency and deployments; no new commands. */
+export const ENVIRONMENTS_PROFILE: ShellProfile = { id: 'environments', commands: above(ARTIFACTS_PROFILE, []), features: [...ARTIFACTS_PROFILE.features!, 'environments'] };
+/** E31 (docs/curriculum/CICD0_E31_DEPLOY_HOSTS.md): the environments profile plus remote Docker daemons reachable from the learner and the runners; no new commands. */
+export const DEPLOY_HOSTS_PROFILE: ShellProfile = { id: 'deploy-hosts', commands: above(ENVIRONMENTS_PROFILE, []), features: [...ENVIRONMENTS_PROFILE.features!, 'deploy-hosts'] };
+/** E31: a deploy-hosts machine's runner shell — the artifacts runner's commands, and ssh and curl reach the hosts the lesson lets runners reach; not a lesson profile. */
+export const RUNNER_DEPLOY_PROFILE: ShellProfile = { id: 'runner', commands: FORGE_PROFILE.commands, features: [...GIT_PROFILE.features!, 'deploy-hosts'] };
 /** The profiles a lesson machine may name (TerminalMachine.profile), from the narrowest. */
 export const PROFILES = {
   lab: LAB_PROFILE, files: FILES_PROFILE, streams: STREAMS_PROFILE, users: USERS_PROFILE, processes: PROCESSES_PROFILE, packages: PACKAGES_PROFILE, services: SERVICES_PROFILE,
   remote: REMOTE_PROFILE, scripting: SCRIPTING_PROFILE, scheduling: SCHEDULING_PROFILE, sockets: SOCKETS_PROFILE, dns: DNS_PROFILE, http: HTTP_PROFILE,
   tls: TLS_PROFILE, nginx: NGINX_PROFILE, proxy: PROXY_PROFILE, firewall: FIREWALL_PROFILE, tunnels: TUNNELS_PROFILE, edge: EDGE_PROFILE, diagnostics: DIAGNOSTICS_PROFILE,
   containers: CONTAINERS_PROFILE, images: IMAGES_PROFILE, 'storage-net': STORAGE_NET_PROFILE, compose: COMPOSE_PROFILE, runtime: RUNTIME_PROFILE, git: GIT_PROFILE, forge: FORGE_PROFILE, workflows: WORKFLOWS_PROFILE, actions: ACTIONS_PROFILE, artifacts: ARTIFACTS_PROFILE,
+  environments: ENVIRONMENTS_PROFILE, 'deploy-hosts': DEPLOY_HOSTS_PROFILE,
 } as const;
 export type ProfileId = keyof typeof PROFILES;
 
@@ -1626,7 +1636,8 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
 
     case 'ssh': case 'ssh-keygen': case 'ssh-copy-id': case 'ssh-keyscan': case 'scp': case 'sshd': {
       // E7: other machines, keys and known_hosts (ssh.ts); a remote command runs on the remote machine's own shell.
-      const r = remoteCommand(cmd, cur(), args, { out: write, err: fail, user: state.user, tty: ctx.tty, stdin: ctx.stdin, profile, alone: (ctx.peers?.length ?? 1) === 1 });
+      // E31: on a deploy-hosts machine, what runs did to the hosts by now (deployments from runners) first.
+      const r = remoteCommand(cmd, features.has('deploy-hosts') ? settleArt(cur()) : cur(), args, { out: write, err: fail, user: state.user, tty: ctx.tty, stdin: ctx.stdin, profile, alone: (ctx.peers?.length ?? 1) === 1 });
       code = r.status;
       return done(r.state);
     }
@@ -1666,9 +1677,11 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
       // E10–E14 (sockets.ts, dns.ts, http.ts, openssl.ts, certbot.ts, nginx.ts): names are looked up through /etc/hosts and, from the dns profile up, DNS.
       // E18: edge (curl -w's timers); E19: the diagnostics of diag.ts.
       const io: NetIo = { out: write, err: fail, user: state.user, tty: ctx.tty, resolve: features.has('dns') ? dnsResolver : basicResolver, stdin: ctx.stdin, ...features.has('tls') ? { tls: true } : {}, ...features.has('edge') ? { edge: true } : {} };
+      // E31: on a deploy-hosts machine, what runs did to the hosts by now first (curl reaches what a runner deployed).
+      const base = features.has('deploy-hosts') ? settleArt(cur()) : cur();
       // E13: certbot runs a deploy hook through the shell (as the user it runs as, root).
-      const r = cmd === 'certbot' ? certbot(cur(), args, { ...io, hook: (s, source) => { const x = runText(s, source, profile, { parent: ctx }); return { state: x.state, status: x.status }; } })
-        : NET_COMMANDS[cmd as keyof typeof NET_COMMANDS](cur(), args, io);
+      const r = cmd === 'certbot' ? certbot(base, args, { ...io, hook: (s, source) => { const x = runText(s, source, profile, { parent: ctx }); return { state: x.state, status: x.status }; } })
+        : NET_COMMANDS[cmd as keyof typeof NET_COMMANDS](base, args, io);
       code = r.status;
       return done(r.state);
     }
@@ -1699,7 +1712,7 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
       const before = features.has('actions') ? actionsTick(cur()) : cur();
       // E29: the artifacts profile adds gh run download, gh secret, gh variable and gh cache (and standard input for gh secret set); on a runner gh uses GH_TOKEN.
       const r = gh(before, args, { out: print, err: fail, user: state.user, tty: ctx.tty, ...features.has('workflows') ? { workflows: true } : {}, ...features.has('actions') ? { actions: true } : {},
-        ...features.has('artifacts') ? { artifacts: true } : {}, ...features.has('artifacts') || cur().git?.token ? { stdin: ctx.stdin, env: ctx.env ?? {} } : {} });
+        ...features.has('artifacts') ? { artifacts: true } : {}, ...features.has('environments') ? { environments: true } : {}, ...features.has('artifacts') || cur().git?.token ? { stdin: ctx.stdin, env: ctx.env ?? {} } : {} });
       code = r.status;
       const after = features.has('actions') ? actionsAfter(before, r.state) : r.state;
       return done(r.advance ? advanceClock(after, r.advance) : after);
@@ -1817,7 +1830,7 @@ export function runInput(state: FsState, input: string, profile: ShellProfile, s
   const features = new Set(profile.features ?? []);
   if (input.length > LIMITS.input) return { state, lines: [{ text: `輸入太長：一行最多 ${LIMITS.input} 個字元`, kind: 'err' }] };
   // E7: during an interactive ssh session the line runs on the remote machine (exit there ends the session).
-  if (state.session && features.has('remote')) return remoteRun(state, input, profile);
+  if (state.session && features.has('remote')) return remoteRun(features.has('deploy-hosts') ? settleArt(state) : state, input, profile);
   // E8: the scripting profile's prompt is the interpreter itself (variables, ; && ||, if, for, functions…).
   if (features.has('scripting')) return runInteractive(state, input, profile, stdin, tty);
   if (features.has('pipes')) return runLine(state, input, profile, features, stdin, tty);

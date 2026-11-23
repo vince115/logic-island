@@ -1,6 +1,7 @@
 import type { FsState } from './fs';
 import type { Obj, Val } from './expr-value';
 import type { ArtState, JobArt } from './artifacts-model';
+import type { EnvReview, EnvState, JobEnv } from './environments-model';
 
 /*
  * Engine stage E28 (docs/curriculum/CICD0_E28_ACTIONS.md): what GitHub Actions keeps. A run is computed in full when it
@@ -11,7 +12,8 @@ import type { ArtState, JobArt } from './artifacts-model';
  */
 
 export type JobConclusion = 'success' | 'failure' | 'cancelled' | 'skipped';
-export type RunStatus = 'queued' | 'in_progress' | 'completed';
+/** E30: waiting (a deployment waits for its environment's protection rules) and pending (a concurrency group holds it). */
+export type RunStatus = 'queued' | 'in_progress' | 'completed' | 'waiting' | 'pending';
 
 /** One condition of a CI tool case: a workspace file (relative to the working folder) or an environment variable. */
 export interface CiCondition { path?: string; includes?: string; excludes?: string; absent?: boolean; env?: string; set?: boolean }
@@ -46,6 +48,10 @@ export interface CiState {
   attempt?: number;
   /** E29 (artifacts profile): artifact and cache IDs and the effects of runs not yet due. */
   art?: ArtState;
+  /** E30 (environments profile): deployment, environment and branch-policy IDs. */
+  env?: EnvState;
+  /** E31 (deploy-hosts profile): the remote machines the runners reach (deploy-hosts.ts). */
+  deploy?: { hosts: readonly string[] };
 }
 
 export interface LogLine { t: number; text: string }
@@ -82,8 +88,18 @@ export interface JobResult {
   reused?: boolean;
   /** E29: the caches, artifacts and effects the job left behind. */
   art?: JobArt;
+  /** E30: the job's environment gate and deployment. */
+  env?: JobEnv;
+  /** E30: the job's concurrency group held it until (undefined: until a job whose end is not known yet), after that job of another run. */
+  concurrency?: { group: string; until?: number; after?: { run: number; job: number } };
 }
-export interface RunAttempt { attempt: number; startedAt: number; actor: string; jobs: readonly JobResult[]; cancelledAt?: number }
+export interface RunAttempt {
+  attempt: number; startedAt: number; actor: string; jobs: readonly JobResult[]; cancelledAt?: number;
+  /** E30: the run waits (pending) for this run of its concurrency group; it starts at startedAt (pending: when that is not known yet, no jobs). */
+  after?: number; pending?: true;
+  /** E30: why the attempt was cancelled (a newer run of its concurrency group). */
+  note?: string;
+}
 export interface WorkflowRun {
   id: number; number: number; path: string; workflowName: string;
   event: string;
@@ -101,6 +117,9 @@ export interface WorkflowRun {
   attempts: readonly RunAttempt[];
   /** An invalid workflow file: GitHub's error lines (the run has no jobs). */
   errors?: readonly string[];
+  /** E30: its concurrency group, and the deployment reviews given for it. */
+  group?: { name: string; cancel: boolean };
+  reviews?: readonly EnvReview[];
 }
 
 export const lastAttempt = (r: WorkflowRun) => r.attempts[r.attempts.length - 1];
@@ -109,6 +128,9 @@ export const attemptOf = (r: WorkflowRun, n?: number) => (n === undefined ? last
 export function jobStatus(j: JobResult, t: number): RunStatus {
   if (j.completedAt !== undefined && t >= j.completedAt) return 'completed';
   if (j.startedAt !== undefined && t >= j.startedAt) return 'in_progress';
+  // E30: held by its concurrency group, or waiting at its environment's gate.
+  if (j.concurrency && t >= j.queuedAt && (j.concurrency.until === undefined || t < j.concurrency.until)) return 'pending';
+  if (j.env?.waits && t >= j.env.since) return 'waiting';
   return 'queued';
 }
 export function stepStatus(s: StepResult, t: number): RunStatus {
@@ -116,6 +138,7 @@ export function stepStatus(s: StepResult, t: number): RunStatus {
 }
 /** When the attempt ends (undefined: a job waits for a runner forever). */
 export function completedAt(r: WorkflowRun, a = lastAttempt(r)): number | undefined {
+  if (a.pending) return undefined;
   if (r.errors || !a.jobs.length) return a.startedAt;
   let end = a.startedAt;
   for (const j of a.jobs) { if (j.completedAt === undefined) return undefined; end = Math.max(end, j.completedAt); }
@@ -124,7 +147,11 @@ export function completedAt(r: WorkflowRun, a = lastAttempt(r)): number | undefi
 export function runStatus(r: WorkflowRun, t: number, a = lastAttempt(r)): RunStatus {
   const end = completedAt(r, a);
   if (end !== undefined && t >= end) return 'completed';
-  return a.jobs.some(j => jobStatus(j, t) !== 'queued') ? 'in_progress' : 'queued';
+  // E30: a run its concurrency group holds is pending; a run whose deployments wait (and nothing runs) is waiting.
+  if (a.pending || (a.after !== undefined && t < a.startedAt)) return 'pending';
+  const st = a.jobs.map(j => jobStatus(j, t));
+  if (st.includes('waiting') && !st.includes('in_progress')) return 'waiting';
+  return st.some(s => s === 'in_progress' || s === 'completed') ? 'in_progress' : st.includes('pending') ? 'pending' : 'queued';
 }
 /** The attempt's conclusion once it completes. */
 export function runConclusion(r: WorkflowRun, a = lastAttempt(r)): JobConclusion {

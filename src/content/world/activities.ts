@@ -162,6 +162,8 @@ const IMPLEMENTED_TEXT: Record<string, string> = {
   'network-sequence': '訊息時序以文字列出（第幾步、從哪個節點到哪個節點、名稱、是否遺失），每一步的標頭欄位以清單呈現；目前這一步的說明以 aria-live 宣告',
   // CICD-0: the devops-explorer's deployment histories (D1) and rollout simulator (D2), src/components/curriculum/devops-explorer.tsx.
   // Shown once a complete lesson uses the activity (until then it is planned and carries the requirement, like every planned one).
+  // CICD-0 D3: the monitoring dashboard (src/components/curriculum/dashboard-view.tsx), implemented once a complete lesson uses it.
+  'monitoring-dashboard': '每條時間序列的圖都有等效的表格（每列 10 分鐘），事故期間與告警門檻以文字寫出；告警規則的每段狀態（未觸發、等待中、觸發中、已恢復）、每個事故的偵測延遲與每次通知是否為誤報都以表格呈現，總計與目前這一分鐘的說明以 aria-live 宣告；事故時間線與嚴重等級矩陣是表格',
   'deployment-simulator': '每張圖都有等效的表格：部署紀錄逐筆列出（變更數、前置時間、是否失敗、偵測與復原時間），DORA 指標與其算式以文字寫出；部署模擬逐分鐘列出各版本的執行個體、承接的請求、錯誤與丟棄，閘門的判定與總計以表格呈現，目前這一分鐘的說明以 aria-live 宣告',
 };
 /** The requirement a planned activity carries instead of a description of its text equivalent. */

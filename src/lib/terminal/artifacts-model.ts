@@ -1,5 +1,6 @@
 import type { GitObject, Sha } from './git';
 import type { DockerRegistry } from './registry';
+import type { HostEffect } from './deploy-hosts';
 
 /*
  * Engine stage E29 (docs/curriculum/CICD0_E29_ARTIFACTS.md): what the artifacts profile keeps on top of E28. A forge
@@ -38,6 +39,8 @@ export interface ActionsEffect {
   objects?: readonly GitObject[];
   /** The registries after a docker push from the runner. */
   registries?: readonly DockerRegistry[];
+  /** E31: the deploy hosts the step changed (over ssh, or by curl's requests), as they were after it. */
+  hosts?: readonly HostEffect[];
 }
 /** What a job left behind (kept on its result so a remembered attempt brings it back). */
 export interface JobArt { caches: readonly CacheEntry[]; artifacts: readonly ArtifactEntry[]; effects: readonly ActionsEffect[] }

@@ -4,6 +4,8 @@ import type { ForgeRepo } from './git-state';
 import type { DockerRegistry } from './registry';
 import type { TokenPermissions } from './workflow-perms';
 import type { ActionsEffect, ArtifactEntry, CacheEntry, KeptFile } from './artifacts-model';
+import type { RemoteHost } from './ssh';
+import { hostChanges } from './deploy-hosts';
 
 /*
  * Engine stage E29 (docs/curriculum/CICD0_E29_ARTIFACTS.md §4): what a job on an artifacts machine's runner has besides
@@ -29,6 +31,8 @@ export interface ArtPlan {
   forge?: ForgeRepo;
   /** Artifact retention (days) when the step does not say. */
   retention: number;
+  /** E31 (deploy-hosts): the hosts the runner reaches, as they are when the job starts. */
+  hosts?: readonly RemoteHost[];
 }
 
 export const BOT = { login: 'github-actions[bot]', name: 'github-actions[bot]', email: '41898282+github-actions[bot]@users.noreply.github.example' };
@@ -39,7 +43,9 @@ export function prepareArt(state: FsState, plan: ArtPlan, permissions: TokenPerm
   const forge = plan.forge ? [{ ...plan.forge, ...plan.forge.site ? { site: { ...plan.forge.site, permission: 'write' as const } } : {} }] : [];
   const git = { objects: state.git?.objects ?? objects, repos: state.git?.repos ?? [], forge, account: BOT, token: { permissions: { ...permissions }, login: BOT.login } };
   const docker = state.docker && plan.registries ? { ...state.docker, registries: plan.registries } : state.docker;
-  return { ...state, git, ...docker ? { docker } : {} };
+  // E31: the deploy hosts in the runner's network.
+  const net = plan.hosts && state.net ? { net: { ...state.net, hosts: plan.hosts } } : {};
+  return { ...state, git, ...docker ? { docker } : {}, ...net };
 }
 
 /** A path a step names: ~/… is the runner's home, a relative path is under the workspace. */
@@ -83,7 +89,8 @@ export function stepEffect(before: FsState, after: FsState, plan: ArtPlan, t: nu
   const refs: [string, string][] = [];
   if (was && now) for (const [r, sha] of now) if (was.get(r) !== sha) refs.push([r, sha]);
   const registries = after.docker?.registries !== before.docker?.registries ? after.docker?.registries : undefined;
-  if (!refs.length && !registries) return undefined;
+  const hosts = plan.hosts ? hostChanges(before, after) : [];
+  if (!refs.length && !registries && !hosts.length) return undefined;
   const objects = refs.length ? [...after.git!.objects].filter(([id]) => !base.has(id)).map(([, o]) => o) : [];
-  return { at: t, url: plan.url, runId: plan.runId, ...refs.length ? { refs, objects } : {}, ...registries ? { registries } : {} };
+  return { at: t, url: plan.url, runId: plan.runId, ...refs.length ? { refs, objects } : {}, ...registries ? { registries } : {}, ...hosts.length ? { hosts } : {} };
 }

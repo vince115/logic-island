@@ -5,6 +5,7 @@ import { pushed } from './forge-state';
 import type { DockerRegistry } from './registry';
 import type { CiState, RunAttempt, WorkflowRun } from './actions-model';
 import type { ActionsEffect } from './artifacts-model';
+import { applyHosts } from './deploy-hosts';
 
 /*
  * Engine stage E29 (docs/curriculum/CICD0_E29_ARTIFACTS.md §5): what an attempt leaves on the site once it is computed —
@@ -75,5 +76,7 @@ export function settleArt(state: FsState): FsState {
     next = { ...g.result(), ci: next.ci };
   }
   for (const e of due) if (e.registries && next.docker) next = { ...next, docker: { ...next.docker, registries: mergeRegistries(next.docker.registries ?? [], e.registries) } };
+  // E31: what runners did on the deploy hosts.
+  for (const e of due) if (e.hosts) next = applyHosts(next, e.hosts);
   return next;
 }

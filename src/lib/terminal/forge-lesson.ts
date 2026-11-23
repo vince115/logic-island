@@ -1,4 +1,5 @@
 import type { TerminalSecret, TerminalVariable } from './artifacts-lesson';
+import type { TerminalApprover, TerminalEnvironment } from './environments-lesson';
 import type { FsState } from './fs';
 import { parseTime } from './clock';
 import { validRefName } from './git-core';
@@ -56,6 +57,8 @@ export interface TerminalForgeRepo {
   workflowPermissions?: 'read' | 'write';
   /** E29 (artifacts profile): Actions secrets (obviously fake values) and variables, at repository level or an environment's, and the environments. */
   secrets?: TerminalSecret[]; variables?: TerminalVariable[]; environments?: string[];
+  /** E30 (environments profile): protection rules of the environments, and approver personas for deployments. */
+  environmentRules?: TerminalEnvironment[]; approvers?: TerminalApprover[];
 }
 export interface TerminalForge { login: string; name?: string; email?: string; repos?: TerminalForgeRepo[] }
 

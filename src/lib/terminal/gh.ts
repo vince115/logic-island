@@ -38,6 +38,8 @@ export interface Gh {
   ci?: { state: CiState }; advance?: number;
   /** E29 (artifacts profile): gh run download, secrets and variables; standard input (gh secret set NAME < file); on a runner, the job's GITHUB_TOKEN. */
   artifacts?: boolean; stdin?: string | null; token?: RunnerToken;
+  /** E30 (environments profile): gh api for environments, pending deployments, deployments and users. */
+  environments?: boolean;
 }
 export type Flags = { values: Map<string, string[]>; rest: string[] };
 export const flag = (f: Flags, name: string) => f.values.get(name)?.at(-1);
@@ -154,7 +156,7 @@ function usage(g: Git, supported: string) {
 }
 
 /** gh 指令 子指令 …: runs one gh command on the machine (needs the forge profile's account; E27: workflows adds gh workflow). */
-export function gh(state: FsState, args: readonly string[], io: GitIo & { workflows?: boolean; actions?: boolean; artifacts?: boolean; stdin?: string | null; env?: Readonly<Record<string, string>> }): { state: FsState; status: number; advance?: number } {
+export function gh(state: FsState, args: readonly string[], io: GitIo & { workflows?: boolean; actions?: boolean; artifacts?: boolean; environments?: boolean; stdin?: string | null; env?: Readonly<Record<string, string>> }): { state: FsState; status: number; advance?: number } {
   let muted = false;
   const g = new Git(state, { ...io, out: l => { if (!muted) io.out(l); }, err: l => { if (!muted) io.err(l); } }), account = state.git?.account;
   const name = args[0];
@@ -166,7 +168,7 @@ export function gh(state: FsState, args: readonly string[], io: GitIo & { workfl
   if (name === '--version' || name === 'version') { g.out(...GH_VERSION); return { state, status: 0 }; }
   if (!account) { g.err('To get started with GitHub CLI, please run:  gh auth login', 'Alternatively, populate the GH_TOKEN environment variable with a GitHub API authentication token.'); return { state, status: 4 }; }
   const quiet = <T>(fn: () => T): T => { const was = muted; muted = true; try { return fn(); } finally { muted = was; } };
-  const h: Gh = { g, account, quiet, ...io.actions && state.ci ? { ci: { state: state.ci } } : {}, ...art ? { artifacts: true, stdin: io.stdin ?? null } : {}, ...token ? { token } : {} }, rest = [...args.slice(1)];
+  const h: Gh = { g, account, quiet, ...io.actions && state.ci ? { ci: { state: state.ci } } : {}, ...art ? { artifacts: true, stdin: io.stdin ?? null } : {}, ...token ? { token } : {}, ...io.environments && !token ? { environments: true } : {} }, rest = [...args.slice(1)];
   let status: number;
   const gate = token ? runnerGate(g, token, g.forge[0] ? repoPath(g.forge[0]) : undefined, name, rest, io.env ?? {}) : undefined;
   if (gate !== undefined) status = gate;

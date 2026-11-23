@@ -4,6 +4,7 @@ import { machineState, type TerminalFile, type TerminalMachine } from './lesson'
 import { PROFILES } from './shell';
 import type { CiCondition, CiState, CiTool } from './actions-model';
 import { runnerDocker } from './artifacts-lesson';
+import { runnerNetwork } from './deploy-lesson';
 
 /*
  * Engine stage E28 as lesson data (docs/curriculum/CICD0_E28_ACTIONS.md §7). A machine of the actions profile runs the
@@ -103,7 +104,7 @@ const dir = (path: string, owner = 'root', mode = 0o755): TerminalFile => ({ pat
 const OS_RELEASE = 'PRETTY_NAME="Ubuntu 24.04.1 LTS"\nNAME="Ubuntu"\nVERSION_ID="24.04"\nVERSION="24.04.1 LTS (Noble Numbat)"\nID=ubuntu\n';
 
 /** The runner image: Ubuntu with the user runner (sudo without a password, docker group), the lesson's files, the machine's clock. */
-export function runnerMachine(m: TerminalMachine, artifacts = false): TerminalMachine {
+export function runnerMachine(m: TerminalMachine, artifacts = false, deploy = false): TerminalMachine {
   // E29: the artifacts profile's runners have Docker (the machine's Docker Hub images and registries, nothing local).
   const docker = artifacts ? runnerDocker(m) : undefined;
   const base: TerminalFile[] = [dir('/etc'), { path: '/etc/os-release', kind: 'file', mode: 0o644, owner: 'root', content: OS_RELEASE }, dir('/home'), dir('/home/runner', 'runner', 0o750),
@@ -114,15 +115,17 @@ export function runnerMachine(m: TerminalMachine, artifacts = false): TerminalMa
     id: `${m.id}/runner`, title: 'GitHub-hosted runner', user: 'runner', cwd: '/home/runner', host: 'fv-az101-1', profile: 'git', files, now: m.now ?? DEFAULT_NOW,
     accounts: { users: [{ name: 'runner', uid: 1001 }], groups: [{ name: 'sudo', members: ['runner'] }, { name: 'adm', members: ['runner'] }, { name: 'docker', gid: 118, members: ['runner'] }] },
     ...docker ? { docker } : {},
+    // E31: the runner's address and the deploy hosts it reaches (its /etc/hosts).
+    ...deploy ? runnerNetwork(m) : {},
   };
 }
 
 /** E28: the machine's CI state — its tools, the runner image, the labels and the ID counters. */
-export function actionsState(m: TerminalMachine, state: FsState, actions: boolean, artifacts = false): FsState {
+export function actionsState(m: TerminalMachine, state: FsState, actions: boolean, artifacts = false, deploy = false): FsState {
   if (!actions || actionsProblems(m, actions).length) return state;
   const a = m.actions ?? {};
   const ci: CiState = {
-    tools: (a.tools ?? []).map(tool), runner: machineState(runnerMachine(m, artifacts)), labels: a.labels ?? DEFAULT_LABELS,
+    tools: (a.tools ?? []).map(tool), runner: machineState(runnerMachine(m, artifacts, deploy)), labels: a.labels ?? DEFAULT_LABELS,
     next: { run: a.ids?.run ?? 4100000001, job: a.ids?.job ?? 11300000001 }, scheduled: parseTime(m.now ?? DEFAULT_NOW)!, calls: {},
   };
   return { ...state, ci };

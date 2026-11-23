@@ -87,13 +87,16 @@ export function runFailure(c: RunCheck, end0: FsState): string | null {
 }
 
 /** The problems of a check's data (it needs an actions machine). */
-export function runCheckProblems(c: RunCheck, actions: boolean, artifacts = false): string | null {
+export function runCheckProblems(c: RunCheck, actions: boolean, artifacts = false, environments = false): string | null {
   if (!actions || typeof c.repo !== 'string' || !(normalized(c.repo) || FORGE_URL.test(c.repo))) return 'a run check needs an actions machine (engine stage E28) and a repo (an absolute path or https://github.example/<owner>/<repo>.git)';
   if (typeof c.workflow !== 'string' || !c.workflow.trim()) return 'a run check needs a workflow (a file name like ci.yml, its path or its name)';
   if (c.event !== undefined && !(RUN_EVENTS as readonly string[]).includes(c.event)) return `a run check's event is one of ${RUN_EVENTS.join(', ')}`;
   if (c.ref !== undefined && (typeof c.ref !== 'string' || !validRefName(c.ref))) return 'a run check\'s ref is a branch or tag name';
   if (c.tip !== undefined && typeof c.tip !== 'boolean') return 'a run check\'s tip must be true or false';
-  if (c.status !== undefined && !['queued', 'in_progress', 'completed'].includes(c.status)) return 'a run check\'s status is queued, in_progress or completed';
+  if (c.status !== undefined && !['queued', 'in_progress', 'completed'].includes(c.status)) {
+    // E30: waiting (a deployment waits for review) and pending (a concurrency group holds the run) need an environments machine.
+    if (!environments || !['waiting', 'pending'].includes(c.status)) return `a run check's status is queued, in_progress or completed${environments ? ' (waiting or pending)' : ''}`;
+  }
   if (c.conclusion !== undefined && !['success', 'failure', 'cancelled', 'skipped'].includes(c.conclusion)) return 'a run check\'s conclusion is success, failure, cancelled or skipped';
   if (c.conclusion !== undefined && c.status !== undefined && c.status !== 'completed') return 'a run check with a conclusion expects status completed';
   if (c.attempt !== undefined && !(Number.isInteger(c.attempt) && c.attempt >= 1 && c.attempt <= 10)) return 'a run check\'s attempt is 1..10';

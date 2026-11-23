@@ -4,6 +4,8 @@
 
 > **第一批之後（2026-11-20）**：PL01–PL05 發布，已發布 **85**、規劃中 **435**（CS 85／160；PL 5/20，程式語言島從「規劃中」變成「部分開放」）。
 > **第二批之後（2026-11-20）**：PL06–PL10 發布，已發布 **90**、規劃中 **430**（CS 90／160；PL 10/20，地景仍為規劃中）。
+> **CICD-5 之後（2026-11-24）**：DevOps 與 CI/CD 島 CICD09–CICD11 發布（E30 environments、E31 deploy-hosts，devops-explorer 的 D3 儀表板與告警；`monitoring-dashboard` 活動改為已實作）；已發布 **240**、規劃中 **280**。
+>
 > **CICD-4 之後（2026-11-24）**：DevOps 與 CI/CD 島 CICD06–CICD08 發布（終端機引擎階段 E29 artifacts：快取、產出物、runner 上的 Docker、secret 與 variable）；已發布 **237**、規劃中 **283**。
 >
 > **CICD-3 之後（2026-11-24）**：DevOps 與 CI/CD 島 CICD03–CICD05 發布（終端機引擎階段 E27 workflows 與 E28 actions：workflow 檔案與真的在模擬 runner 上執行的 run）；已發布 **234**、規劃中 **286**。
