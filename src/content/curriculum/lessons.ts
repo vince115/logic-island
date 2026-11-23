@@ -645,12 +645,14 @@ const webFoundations: Outline[] = [
   webFromBlueprint('WEB15', '不用框架，分五關完成小島圖書館的四頁網站：以語意結構與全站共用的樣式表建立頁面，用表單的 submit 與事件委派做出願望清單，以 fetch 取得新書並交代載入中、沒有資料與失敗三種狀態，用 localStorage 記住分類，最後補上選單按鈕的無障礙名稱與狀態、defer 與預留位置，通過無障礙與效能的檢查。', 110),
 ];
 
-/** DKR-1 (2026-11-23): the docker-containers island's first lessons, on the terminal capability with engine stage E20 (DKR0_CONTAINER_CAPABILITY.md). */
+/** DKR-1 (2026-11-23): the docker-containers island's first lessons, on the terminal capability with engine stage E20 (DKR0_CONTAINER_CAPABILITY.md); DKR-2 adds DKR05–DKR06 on E21. */
 const dockerContainers: Outline[] = [
   dockerFromBlueprint('DKR01', '說明容器解決的「在我電腦可以跑」問題與 Image 帶來的可重現環境（只固定使用者空間），比較 Hypervisor 與各自有客體核心的虛擬機和共用主機核心的容器在隔離方式、啟動時間、大小與安全界線上的取捨，以 docker version 分清 Client 與 daemon（containerd、runc），從 docker exec 的 ps（PID 1 是 uvicorn）與主機的 ps aux、hostname、/etc/os-release 與容器 IP 看出 pid、uts、mnt、net namespace 的效果並說明 ipc 與 user namespace（Docker 預設不重新對應 root），說明 cgroup 對記憶體、CPU、行程數與 I/O 的限制，用 uname -r 與 docker info 的 Kernel Version 證明所有容器共用一個核心，並依核心需求、對象是否可信與部署速度判斷該用容器還是虛擬機。', 45),
   dockerFromBlueprint('DKR02', '分辨 docker CLI（Client）與以 root 執行的 dockerd（Docker daemon），說明 Engine API 經由 /var/run/docker.sock 的權限與「docker 群組等於 root」，看懂 dockerd、containerd、shim 與 runc 的分工，依 registry/namespace/repository:tag 讀出 Image 的完整名稱並以 docker pull 從 Docker Hub 拉取，把 docker run nginx 從 Client 到核心畫成一條路徑，並說明 OCI 的 Image、runtime 與 distribution 規格的意義。', 45),
   dockerFromBlueprint('DKR03', '分辨唯讀的 Image 與帶有可寫層的 Container，從同一個 Image 啟動多個容器，追蹤容器從 created、running、exited 到刪除的狀態（docker run 等於 create 加 start），讀懂結束碼 0、1、125–127 與 docker stop 對忽略 SIGTERM 的 PID 1 送出 SIGKILL 的 137，證明可寫層與日誌撐得過 stop 與 start、撐不過 rm，並依先容器後 Image 的順序以 docker rm、docker container prune 與 docker rmi 清理主機（停止與 created 的容器也會讓 rmi 衝突，rmi -f 只移除標籤）。', 50),
   dockerFromBlueprint('DKR04', '用 docker run 的 -d、--name、-p、-e、--rm、-it 啟動容器，以 ps、logs、exec、inspect -f 檢查，並讀懂名稱衝突與連接埠被占用等錯誤。', 55),
+  dockerFromBlueprint('DKR05', '用 FROM（官方 Image、固定版本標籤而不是 latest、slim 與 alpine 的取捨）、RUN（apt-get update、安裝與清理寫在同一個 RUN）、COPY（而不是 ADD）、WORKDIR、ENV、ARG、LABEL、EXPOSE（只是說明，公開要靠 -p）與 USER 撰寫 Dockerfile，以 docker build -t 建置並用 docker run -p 執行，區分 CMD 與 ENTRYPOINT 的 exec 與 shell 形式、兩者如何組合與 exec 形式讓 PID 1 收到 SIGTERM，並用 .dockerignore 把 .env、.git 等檔案擋在建置內容與 Image 之外。', 55),
+  dockerFromBlueprint('DKR06', '說明 RUN、COPY、ADD 與建立資料夾的 WORKDIR 各產生一層而 ENV、CMD 等只改設定，以 docker history（<missing> 列、--no-trunc、--human=false）與 RootFS.Layers 讀出每一層的大小並找出最大的一層，看懂快取鍵（前一步的鍵加上這一步的定義與複製檔案的 checksum）帶來的 CACHED、之後各步一起失效、ARG 與 ENV 改值的影響與 --no-cache，先複製依賴清單並安裝再 COPY 原始碼讓改程式時安裝維持 CACHED，在同一個 RUN 清掉 apt 清單、以 pip --no-cache-dir 與合適的基底縮小 Image（後面的層刪檔不會變小），並用 .dockerignore 排除秘密、.git 與會自己變動的檔案。', 55),
 ];
 
 /** RWD-1 (2026-11-23): the responsive design island's first lessons, on the web-code capability with the resize step and preview widths (WEB0_WEB_CODE_CAPABILITY.md, RESPONSIVE_DESIGN_ISLAND.md); RWD-2 adds RWD05–RWD08, RWD-3 RWD09–RWD12 (the capstone): the island is complete. */

@@ -531,7 +531,9 @@
       ],
       "commit": "TBD",
       "tests": "TBD",
-      "notes": "DKR-1：Docker 容器島開放（terminal 能力，引擎階段 E20 containers：daemon 狀態、Image、模擬的 Registry、容器的檔案系統與可寫層、Docker CE 27.5.1 格式的 CLI、經 docker-proxy 的連接埠對應、docker 群組的 socket 權限）；容器概念、Docker 架構、Image 與 Container 的生命週期、Docker CLI 常用指令四課"
+      "notes": "DKR-1：Docker 容器島開放（terminal 能力，引擎階段 E20 containers：daemon 狀態、Image、模擬的 Registry、容器的檔案系統與可寫層、Docker CE 27.5.1 格式的 CLI、經 docker-proxy 的連接埠對應、docker 群組的 socket 權限）；容器概念、Docker 架構、Image 與 Container 的生命週期、Docker CLI 常用指令四課",
+      "pr": "#83",
+      "merged": "e5da508"
     },
     {
       "id": 38,
@@ -549,6 +551,17 @@
       "merged": "cc11e38"
     },
     {
+      "id": 39,
+      "date": "2026-11-23",
+      "lessons": [
+        "DKR05",
+        "DKR06"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "DKR-2：引擎階段 E21（images：docker build 與 Dockerfile 子集、BuildKit 的純文字輸出與錯誤格式、確定性的層與大小、以前一步、指令與複製檔案 checksum 為鍵的建置快取、.dockerignore、docker history、image inspect 與 prune、從這個 profile 起主機的 ps 列出容器行程）；撰寫 Dockerfile、Image 分層與建置快取兩課"
+    },
+    {
       "id": 40,
       "date": "2026-11-23",
       "lessons": [
@@ -560,7 +573,7 @@
       ],
       "commit": "TBD",
       "tests": "驗證器、發布閘門、TypeScript、ESLint、Vitest 137 檔 4007 passed／9 skipped（含 Chromium：44 堂網頁課的每個範例、參考解答、起始內容與常見錯誤，各在一般與傳統捲軸的瀏覽器跑一遍；模擬的 Service Worker：第一次造訪、回訪與等待中的新版本、離線、瀏覽器會強制的規則；預覽面板的 DOM 測試）、Production build、E2E 桌機＋手機旗標關 533 passed／2 failed／297 skipped（兩個失敗為 main 既有回歸 #36；課程頁上每個練習各做一遍；MOB09 的 Service Worker 面板在真實課程頁上操作）、測驗 40 題逐題複核、洩漏掃描",
-      "notes": "MOB-3：行動應用島完成（13／13）。Service Worker 與離線（生命週期、Cache API、快取優先／網路優先／背景更新／只走網路、離線替代回應、版本化的快取與等待中的新版本）、行動效能與省電（長任務與讓路、防彈跳、只動 transform 與 opacity、頁面隱藏時暫停輪詢；只呈現順序與次數，不量時間）、行動無障礙（螢幕閱讀器的測試腳本、文字放大與 320px 的重排、方向鎖定、拖曳的替代操作）、行動裝置測試（裝置模式／模擬器／真機各能驗證什麼的規則表、遠端除錯、測試矩陣、可重現的錯誤回報）、綜合專題（五關把小島外送做成可安裝、可離線的 PWA，最後是真機驗收紀錄表）。引擎階段 W10：模擬的 Service Worker 與 Cache API（第四個檔案 sw.js、setup.offline／caches／worker、network 操作、worker 與 cache 檢查、預覽面板），瀏覽器會強制的規則同樣強制。批次 39 保留給同時進行的 DKR-2"
+      "notes": "MOB-3：行動應用島完成（13／13）。Service Worker 與離線（生命週期、Cache API、快取優先／網路優先／背景更新／只走網路、離線替代回應、版本化的快取與等待中的新版本）、行動效能與省電（長任務與讓路、防彈跳、只動 transform 與 opacity、頁面隱藏時暫停輪詢；只呈現順序與次數，不量時間）、行動無障礙（螢幕閱讀器的測試腳本、文字放大與 320px 的重排、方向鎖定、拖曳的替代操作）、行動裝置測試（裝置模式／模擬器／真機各能驗證什麼的規則表、遠端除錯、測試矩陣、可重現的錯誤回報）、綜合專題（五關把小島外送做成可安裝、可離線的 PWA，最後是真機驗收紀錄表）。引擎階段 W10：模擬的 Service Worker 與 Cache API（第四個檔案 sw.js、setup.offline／caches／worker、network 操作、worker 與 cache 檢查、預覽面板），瀏覽器會強制的規則同樣強制。批次 39 是同時進行的 DKR-2（#85）"
     }
   ]
 }

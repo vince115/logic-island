@@ -34,7 +34,7 @@ export interface TerminalZone { zone: string; text: string }
 export type TerminalListen = Listen;
 export type TerminalResponder = Responder;
 /** Which of the stages a machine's profile has. */
-export interface ServerLevels { sockets: boolean; dns: boolean; http: boolean; tls: boolean; nginx: boolean; proxy: boolean; firewall: boolean; tunnels: boolean; edge: boolean; diagnostics: boolean; containers: boolean }
+export interface ServerLevels { sockets: boolean; dns: boolean; http: boolean; tls: boolean; nginx: boolean; proxy: boolean; firewall: boolean; tunnels: boolean; edge: boolean; diagnostics: boolean; containers: boolean; images: boolean }
 
 /** E10–E12 (lesson checks). */
 export type ServerCheck =
@@ -53,7 +53,7 @@ export type ServerCheck =
   | NetCheck
   /** E18: cache (edge-lesson.ts). */
   | EdgeCheck
-  /** E20: container and image (docker-lesson.ts). */
+  /** E20: container and image; E21: image's config and layers, build (docker-lesson.ts). */
   | DockerCheck;
 
 export const RESOLV_CONF = '# This is /run/systemd/resolve/stub-resolv.conf managed by man:systemd-resolved(8).\n# Do not edit.\n\nnameserver 127.0.0.53\noptions edns0 trust-ad\nsearch .\n';
@@ -290,7 +290,7 @@ export function serverCheckProblems(c: ServerCheck, lv: ServerLevels, known: (ho
         return 'headers and requestHeaders of an http check need an edge machine (engine stage E18) and [name, value] pairs';
       return null;
     case 'cache': return edgeCheckProblems(c, lv, known);
-    case 'container': case 'image': return dockerCheckProblems(c, lv);
+    case 'container': case 'image': case 'build': return dockerCheckProblems(c, lv);
     case 'cert': case 'nginx': return webCheckProblems(c, lv, known);
     case 'reach': case 'firewall': case 'tunnel': return netCheckProblems(c, lv, known);
   }
@@ -311,7 +311,7 @@ export function describeServerCheck(c: ServerCheck): string {
       return `${on(c.host)}GET ${c.url}${sent.length ? `（帶著 ${sent.join('、')}）` : ''} 應該回應${[...parts, ...more].join('、') || '成功'}`;
     }
     case 'cache': return describeEdgeCheck(c);
-    case 'container': case 'image': return describeDockerCheck(c);
+    case 'container': case 'image': case 'build': return describeDockerCheck(c);
     case 'cert': case 'nginx': return describeWebCheck(c);
     case 'reach': case 'firewall': case 'tunnel': return describeNetCheck(c);
   }
@@ -349,6 +349,6 @@ export function serverFailure(c: ServerCheck, end: FsState, hostState: (host: st
     case 'cert': case 'nginx': return webFailure(c, end, hostState);
     case 'reach': case 'firewall': case 'tunnel': return netFailure(c, end);
     case 'cache': return edgeFailure(c, end, resolve, h => h === undefined ? end : end.firewall ? viewOfHost(end, h) : hostState(h));
-    case 'container': case 'image': return dockerFailure(c, end);
+    case 'container': case 'image': case 'build': return dockerFailure(c, end);
   }
 }

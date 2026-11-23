@@ -84,6 +84,7 @@ exports[`route contract (multi-archipelago v2) > generates the same pages in the
     "how-the-web-works",
     "html-structure-and-semantics",
     "https-and-tls",
+    "image-layers-and-build-cache",
     "images-and-containers",
     "informed-search",
     "input-and-output",
@@ -222,6 +223,7 @@ exports[`route contract (multi-archipelago v2) > generates the same pages in the
     "what-is-ai",
     "while-loops",
     "wireless-and-mobile-networks",
+    "writing-dockerfiles",
   ],
   "islands/hex/scale/[variant]": [
     "19",
@@ -339,6 +341,7 @@ exports[`route contract (multi-archipelago v2) > generates the same pages with b
     "how-the-web-works",
     "html-structure-and-semantics",
     "https-and-tls",
+    "image-layers-and-build-cache",
     "images-and-containers",
     "informed-search",
     "input-and-output",
@@ -477,6 +480,7 @@ exports[`route contract (multi-archipelago v2) > generates the same pages with b
     "what-is-ai",
     "while-loops",
     "wireless-and-mobile-networks",
+    "writing-dockerfiles",
   ],
   "islands/hex/scale/[variant]": [
     "19",
