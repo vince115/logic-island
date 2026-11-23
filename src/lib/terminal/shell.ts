@@ -26,6 +26,7 @@ import { sed } from './sed';
 import { docker } from './docker';
 import { tar } from './tar';
 import { git } from './git-cli';
+import { gh } from './gh';
 
 /*
  * P7 Linux Terminal Simulator: the command interpreter. A fixed table of commands works on the virtual file system in
@@ -117,14 +118,16 @@ export const E20_COMMANDS = ['docker'] as const;
 export const E22_COMMANDS = ['tar'] as const;
 /** E25: git (GIT_PROFILE only), so every lower profile's command list (and `git: command not found`) stays. */
 export const E25_COMMANDS = ['git'] as const;
+/** E26: gh, the GitHub CLI against github.example (FORGE_PROFILE only). */
+export const E26_COMMANDS = ['gh'] as const;
 /** The commands of the files profile (the manual of E1 covers exactly these). */
 export type FilesCommand = typeof COMMANDS[number] | typeof E1_COMMANDS[number];
 export type CommandName = FilesCommand | typeof E2_COMMANDS[number] | typeof E3_COMMANDS[number] | typeof E4_COMMANDS[number] | typeof E5_COMMANDS[number] | typeof E6_COMMANDS[number]
   | typeof E7_COMMANDS[number] | typeof E8_COMMANDS[number] | typeof E9_COMMANDS[number] | typeof E10_COMMANDS[number] | typeof E11_COMMANDS[number]
-  | typeof E12_COMMANDS[number] | typeof E13_COMMANDS[number] | typeof E14_COMMANDS[number] | typeof E16_COMMANDS[number] | typeof E19_COMMANDS[number] | typeof E20_COMMANDS[number] | typeof E22_COMMANDS[number] | typeof E25_COMMANDS[number];
+  | typeof E12_COMMANDS[number] | typeof E13_COMMANDS[number] | typeof E14_COMMANDS[number] | typeof E16_COMMANDS[number] | typeof E19_COMMANDS[number] | typeof E20_COMMANDS[number] | typeof E22_COMMANDS[number] | typeof E25_COMMANDS[number] | typeof E26_COMMANDS[number];
 /** Every command any profile may list. */
 export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS, ...E2_COMMANDS, ...E3_COMMANDS, ...E4_COMMANDS, ...E5_COMMANDS, ...E6_COMMANDS,
-  ...E7_COMMANDS, ...E8_COMMANDS, ...E9_COMMANDS, ...E10_COMMANDS, ...E11_COMMANDS, ...E12_COMMANDS, ...E13_COMMANDS, ...E14_COMMANDS, ...E16_COMMANDS, ...E19_COMMANDS, ...E20_COMMANDS, ...E22_COMMANDS, ...E25_COMMANDS];
+  ...E7_COMMANDS, ...E8_COMMANDS, ...E9_COMMANDS, ...E10_COMMANDS, ...E11_COMMANDS, ...E12_COMMANDS, ...E13_COMMANDS, ...E14_COMMANDS, ...E16_COMMANDS, ...E19_COMMANDS, ...E20_COMMANDS, ...E22_COMMANDS, ...E25_COMMANDS, ...E26_COMMANDS];
 
 /**
  * Behaviour a profile switches on besides its commands. E1: glob (* ? [...] and ~), help-option (指令 --help, long
@@ -139,10 +142,11 @@ export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS
  * Docker networks and their DNS, tar). E23: compose (docker compose, health checks, multi-stage builds, registries: tag, login,
  * push and pull by digest). E24: runtime (docker inspect's runtime fields, exit codes, resource limits and OOM, restart policies,
  * signals and docker stop's grace period, docker stats, top, kill, update, wait and events, security options). E25: git (Git's
- * objects, refs, index and worktree, merges, rebases and the simulated forge github.example; git-cli.ts).
+ * objects, refs, index and worktree, merges, rebases and the simulated forge github.example; git-cli.ts). E26: forge (gh, pull
+ * requests, reviews, branch protection and repository settings on github.example; gh.ts, forge.ts).
  */
 export type ShellFeature = 'glob' | 'help-option' | 'multi-source' | 'ls-extra' | 'pipes' | 'accounts' | 'processes' | 'packages' | 'services' | 'remote' | 'scripting' | 'scheduling'
-  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers' | 'images' | 'storage-net' | 'compose' | 'runtime' | 'git';
+  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers' | 'images' | 'storage-net' | 'compose' | 'runtime' | 'git' | 'forge';
 
 /** LNX-0: the commands a session may run (E1: and the features it switches on; none by default). */
 export interface ShellProfile { readonly id: string; readonly commands: readonly CommandName[]; readonly features?: readonly ShellFeature[] }
@@ -215,12 +219,14 @@ export const COMPOSE_PROFILE: ShellProfile = { id: 'compose', commands: above(ST
 export const RUNTIME_PROFILE: ShellProfile = { id: 'runtime', commands: above(COMPOSE_PROFILE, []), features: [...COMPOSE_PROFILE.features!, 'runtime'] };
 /** E25 (docs/curriculum/CICD0_E25_GIT.md): the runtime profile plus git — repositories, commits, branches, merges, rebases and the forge github.example. */
 export const GIT_PROFILE: ShellProfile = { id: 'git', commands: above(RUNTIME_PROFILE, E25_COMMANDS), features: [...RUNTIME_PROFILE.features!, 'git'] };
+/** E26 (docs/curriculum/CICD0_E26_FORGE.md): the git profile plus gh — pull requests, reviews, branch protection and repository settings on github.example. */
+export const FORGE_PROFILE: ShellProfile = { id: 'forge', commands: above(GIT_PROFILE, E26_COMMANDS), features: [...GIT_PROFILE.features!, 'forge'] };
 /** The profiles a lesson machine may name (TerminalMachine.profile), from the narrowest. */
 export const PROFILES = {
   lab: LAB_PROFILE, files: FILES_PROFILE, streams: STREAMS_PROFILE, users: USERS_PROFILE, processes: PROCESSES_PROFILE, packages: PACKAGES_PROFILE, services: SERVICES_PROFILE,
   remote: REMOTE_PROFILE, scripting: SCRIPTING_PROFILE, scheduling: SCHEDULING_PROFILE, sockets: SOCKETS_PROFILE, dns: DNS_PROFILE, http: HTTP_PROFILE,
   tls: TLS_PROFILE, nginx: NGINX_PROFILE, proxy: PROXY_PROFILE, firewall: FIREWALL_PROFILE, tunnels: TUNNELS_PROFILE, edge: EDGE_PROFILE, diagnostics: DIAGNOSTICS_PROFILE,
-  containers: CONTAINERS_PROFILE, images: IMAGES_PROFILE, 'storage-net': STORAGE_NET_PROFILE, compose: COMPOSE_PROFILE, runtime: RUNTIME_PROFILE, git: GIT_PROFILE,
+  containers: CONTAINERS_PROFILE, images: IMAGES_PROFILE, 'storage-net': STORAGE_NET_PROFILE, compose: COMPOSE_PROFILE, runtime: RUNTIME_PROFILE, git: GIT_PROFILE, forge: FORGE_PROFILE,
 } as const;
 export type ProfileId = keyof typeof PROFILES;
 
@@ -322,6 +328,7 @@ const HELP: [CommandName | null, string][] = [
   ['docker', '  docker run|ps|images|pull|logs|exec|stop|start|rm|rmi|port|inspect …  管理 Image 與 Container（需要 docker 群組或 sudo）'],
   ['tar', '  tar czf 封存檔 [-C 目錄] 路徑… | tzf 封存檔 | xzf 封存檔 [-C 目錄]  建立、列出與解開 tar（.tgz）封存檔'],
   ['git', '  git init|clone|status|add|commit|log|diff|branch|switch|merge|rebase|push|pull …  版本控制（遠端是模擬的 github.example）'],
+  ['gh', '  gh auth status | repo view | pr create|list|view|diff|checkout|review|merge|checks|close | api …  GitHub CLI（github.example）'],
   ['man', '  man 指令                顯示指令的說明頁（也可以用 指令 --help）'],
 ];
 /** The lines that change when a profile has the feature (the lab keeps its own lines). */
@@ -1657,6 +1664,12 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
     case 'git': {
       // E25 (git-cli.ts): repositories in the machine's folders, Git's objects and the simulated forge in state.git.
       const r = git(cur(), args, { out: print, err: fail, user: state.user, tty: ctx.tty });
+      code = r.status;
+      return done(r.state);
+    }
+    case 'gh': {
+      // E26 (gh.ts): pull requests, reviews, protection and settings of the forge repositories in state.git.
+      const r = gh(cur(), args, { out: print, err: fail, user: state.user, tty: ctx.tty });
       code = r.status;
       return done(r.state);
     }

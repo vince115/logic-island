@@ -1,4 +1,5 @@
 import type { Entry, Files, Objects, Sha } from './git';
+import type { ForgeAccount, ForgeSite } from './forge-state';
 
 /*
  * Engine stage E25 (docs/curriculum/CICD0_E25_GIT.md): what a machine of the git profile keeps besides its files. The
@@ -40,8 +41,8 @@ export interface GitRepo {
   stash: readonly Sha[];
 }
 /** A bare repository on the simulated forge (https://github.example/<owner>/<repo>.git). */
-export interface ForgeRepo { url: string; head: string; refs: ReadonlyMap<string, Sha>; known: ReadonlySet<Sha> }
-export interface GitState { objects: Objects; repos: readonly GitRepo[]; forge: readonly ForgeRepo[]; /** The lesson's commit labels → IDs (for checks that name a commit by its label). */ labels?: ReadonlyMap<string, Sha> }
+export interface ForgeRepo { url: string; head: string; refs: ReadonlyMap<string, Sha>; known: ReadonlySet<Sha>; /** E26 (forge profile): settings, protection and pull requests (forge-state.ts). */ site?: ForgeSite }
+export interface GitState { objects: Objects; repos: readonly GitRepo[]; forge: readonly ForgeRepo[]; /** The lesson's commit labels → IDs (for checks that name a commit by its label). */ labels?: ReadonlyMap<string, Sha>; /** E26: the gh account logged in to github.example (forge profile). */ account?: ForgeAccount }
 
 export const FORGE_HOST = 'github.example';
 /** A forge repository's URL: https://github.example/owner/repo.git */

@@ -3,6 +3,7 @@ import { clockOf } from './processes';
 import { offsetAt, offsetText, zoneOf } from './calendar';
 import { objectId, readTree, Store, type CommitObject, type Entry, type Ident, type Sha } from './git';
 import type { GitOp, Unmerged } from './git-state';
+import type { ForgeSite } from './forge-state';
 
 /*
  * Engine stage E25 (docs/curriculum/CICD0_E25_GIT.md): what every git command shares — the machine being changed, the
@@ -16,7 +17,7 @@ export interface Repo {
   path: string; head: string; refs: Map<string, Sha>; symrefs: Map<string, string>; index: Map<string, Entry>; unmerged: Map<string, Unmerged>;
   config: Map<string, string>; known: Set<Sha>; op?: GitOp; origHead?: Sha; previous?: string; detached?: { name: string; at: Sha }; stash: Sha[];
 }
-export interface Forge { url: string; head: string; refs: Map<string, Sha>; known: Set<Sha> }
+export interface Forge { url: string; head: string; refs: Map<string, Sha>; known: Set<Sha>; site?: ForgeSite }
 
 const blobIds = new Map<string, Sha>();
 /** A blob's ID without storing it (what git hash-object prints), cached by content. */
@@ -62,7 +63,7 @@ export class Git {
   result(): FsState {
     const repos = this.repos.filter(r => this.hasGitDir(r.path));
     const objects = this.store.added.size ? this.store.all() : this.state.git?.objects ?? new Map();
-    return { ...this.state, nodes: this.nodes, git: { objects, repos, forge: this.forge, ...this.state.git?.labels ? { labels: this.state.git.labels } : {} } };
+    return { ...this.state, nodes: this.nodes, git: { objects, repos, forge: this.forge, ...this.state.git?.labels ? { labels: this.state.git.labels } : {}, ...this.state.git?.account ? { account: this.state.git.account } : {} } };
   }
 
   // ------------------------------------------------------------------------------------------- paths and the worktree

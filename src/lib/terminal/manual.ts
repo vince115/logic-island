@@ -558,13 +558,29 @@ export const GIT_MANUAL: Record<'git', ManualEntry> = {
   },
 };
 
+/** E26: gh (docs/curriculum/CICD0_E26_FORGE.md). */
+export const GH_MANUAL: Record<'gh', ManualEntry> = {
+  gh: {
+    usage: 'gh auth status | repo view [擁有者/儲存庫] | pr create|list|view|diff|checkout|review|merge|checks|close [選項] | api 端點 [-X 方法] [--input 檔案]',
+    summary: 'GitHub CLI（gh 2.65 的子集，主機是模擬的 github.example，已經登入）',
+    description: [
+      'gh 依目前儲存庫的 git remote（origin）找到 github.example 上的儲存庫；-R 擁有者/儲存庫 可以指定別的。',
+      'Pull Request：先 git push 分支，再 gh pr create --title 標題 --body 內容（或 --fill）；gh pr list、gh pr view 編號 看狀態與審查，gh pr diff 看變更，gh pr checks 看檢查結果。',
+      '審查與合併：gh pr review 編號 --approve | --request-changes -b 意見（不能核准自己的 PR）；gh pr merge 編號 --merge | --squash | --rebase [--delete-branch]。受保護的分支要先有足夠的核准與通過的檢查，也不能直接 git push。',
+      'gh api repos/{owner}/{repo}/branches/main/protection 讀分支保護（JSON）；管理員可以用 -X PUT --input 檔案.json 修改。',
+      '模擬環境沒有互動式的提問、瀏覽器與顏色：需要的資訊都用選項給。',
+    ],
+    options: [['-R 擁有者/儲存庫', '指定儲存庫'], ['--title、--body、--fill', 'pr create：標題與內容'], ['--approve、--request-changes、--comment', 'pr review：審查'], ['--merge、--squash、--rebase', 'pr merge：合併方式'], ['-d, --delete-branch', 'pr merge、pr close：刪除分支'], ['-X 方法、--input 檔案、-F 欄位=值', 'api：HTTP 方法與內容']],
+  },
+};
+
 /** The manual of a command in a profile with these features. */
 export function manualEntry(cmd: CommandName, features: Iterable<ShellFeature> = []): ManualEntry {
   const have = new Set(features);
   const special = FEATURE_MANUAL.find(([f, c]) => c === cmd && have.has(f));
   if (special) return special[2];
   return (MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd] ?? (STREAM_MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd] ?? (USER_MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd]
-    ?? (SYSTEM_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (LATER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (SERVER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (DIAG_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (STORAGE_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (GIT_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (CONTAINER_MANUAL as Record<string, ManualEntry>)[cmd];
+    ?? (SYSTEM_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (LATER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (SERVER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (DIAG_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (STORAGE_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (GIT_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (GH_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (CONTAINER_MANUAL as Record<string, ManualEntry>)[cmd];
 }
 
 const optionLines = (options: [string, string][], indent: string, width: number) => options.map(([flag, text]) => `${indent}${flag.padEnd(width)}${text}`);

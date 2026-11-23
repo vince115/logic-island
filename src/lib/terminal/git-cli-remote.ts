@@ -6,6 +6,7 @@ import { INIT_CONFIG } from './git-cli-commit';
 import { checkoutFiles } from './git-cli-switch';
 import { fastForward, mergeInto } from './git-cli-merge';
 import { rebaseOnto } from './git-cli-rebase';
+import { pushed, refusal } from './forge-state';
 
 /*
  * Engine stage E25 (docs/curriculum/CICD0_E25_GIT.md): remotes on the simulated forge https://github.example/<owner>/<repo>.git
@@ -201,13 +202,22 @@ export function pushCommand(g: Git, args: string[]): number {
   if (has(o, 'tags')) for (const [k, id] of r.refs) if (k.startsWith('refs/tags/') && !updates.some(u => u.dst === k)) updates.push({ src: shortRef(k), dst: k, id, force: has(o, 'f') });
   const remote = remoteForge(g, r, remoteName);
   if (!remote) return 128;
-  const f = remote.forge, lines: string[] = [], reasons = new Set<string>();
+  const f = remote.forge, lines: string[] = [], reasons = new Set<string>(), said: string[] = [];
+  // E26 (forge profile, forge-state.ts): branch protection refuses an update, GitHub's hook says why (before git's To line).
+  const declined = (branch: string, old: Sha | undefined, to: Sha | undefined, forced: boolean, shown: string) => {
+    const why = f.site ? refusal(f.site, g.store, branch, old, to, forced) : undefined;
+    if (!why) return false;
+    said.push(...why.map(l => `remote: error: ${l}`)); lines.push(` ! [remote rejected] ${shown} (protected branch hook declined)`); reasons.add('protected');
+    return true;
+  };
   const lease = has(o, 'force-with-lease');
   for (const u of updates) {
     const old = f.refs.get(u.dst), to = shortRef(u.dst), tag = u.dst.startsWith('refs/tags/');
     if (!u.id) {
       if (!old) { g.err(`error: unable to delete '${to}': remote ref does not exist`); reasons.add('delete'); continue; }
+      if (!tag && declined(to, old, undefined, false, to)) continue;
       f.refs.delete(u.dst); lines.push(` - [deleted]         ${to}`);
+      if (f.site && !tag) f.site = pushed(f.site, to, undefined, g.now);
       if (u.dst.startsWith('refs/heads/')) r.refs.delete(`refs/remotes/${remoteName}/${to}`);
       continue;
     }
@@ -224,12 +234,19 @@ export function pushCommand(g: Git, args: string[]): number {
       reasons.add(known ? 'behind' : 'fetch');
       continue;
     }
+    if (!tag && declined(to, old, u.id, line.startsWith(' + '), `${u.src} -> ${to}`)) continue;
     f.refs.set(u.dst, u.id);
     g.learn(f.known, [u.id]);
+    if (f.site && !tag) {
+      // E26: GitHub's hint for a new branch, and the pull requests from the branch see the new head.
+      if (!old && u.dst !== f.head) said.push('remote: ', `remote: Create a pull request for '${to}' on GitHub by visiting:`, `remote:      ${noGit(remote.url)}/pull/new/${to}`, 'remote: ');
+      f.site = pushed(f.site, to, u.id, g.now);
+    }
     if (!tag) r.refs.set(`refs/remotes/${remoteName}/${to}`, u.id);
     lines.push(line);
   }
   const url = remote.url;
+  g.err(...said);
   if (lines.length) g.err(`To ${url}`, ...lines);
   if (reasons.size) {
     g.err(`error: failed to push some refs to '${url}'`);
