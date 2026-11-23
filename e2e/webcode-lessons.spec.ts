@@ -153,6 +153,38 @@ test('行動課的指標步驟（MOB04）：課程頁列出「用手指按下、
   expect(await noOverflow(page)).toBeLessThanOrEqual(0);
 });
 
+test('行動課的 Service Worker（MOB09）：預覽顯示模擬的 worker 與快取；重新執行等於再造訪一次，切斷網路後由快取回答，移除後回到第一次造訪', async ({ page }) => {
+  const lesson = webLessons.find(l => l.lessonId === 'MOB09')!;
+  await page.goto(`/curriculum/${lesson.slug}`);
+  // The first example: a first visit (no staged worker), sw.js precaches on install and answers from the cache first.
+  const example = curriculum.contents.MOB09!.webCode!.examples.find(e => e.files.sw !== undefined && !e.setup?.worker && !e.setup?.caches)!;
+  const view = page.locator(`[data-web-example="${example.id}"]`);
+  const panel = view.getByRole('list', { name: `${example.title}：Service Worker 與快取` });
+  const inside = view.frameLocator('iframe');
+  // A first visit: the worker installs and activates, and this page is not its yet.
+  await expect(panel).toContainText('Service Worker：已啟用；這個頁面還沒有被它控制');
+  await expect(panel).toContainText('網路：連線中');
+  await expect(panel.locator('li', { hasText: '快取 shell-v1' })).toContainText('/offline.json');
+  await expect(inside.locator('#control')).toHaveText('沒有被控制');
+  // Running the page again is the next visit: the same sw.js is in control from the start, with the cache it left.
+  await view.locator('summary', { hasText: '動手改這個範例' }).click();
+  await expect(view.getByRole('textbox', { name: `${example.title}：Service Worker` })).toHaveValue(example.files.sw!);
+  await view.getByRole('button', { name: '執行' }).click();
+  await expect(panel).toContainText('Service Worker：已啟用；這個頁面由它控制');
+  await expect(inside.locator('#control')).toHaveText('由 Service Worker 控制');
+  // With the network away the controlled page is still answered, from the cache.
+  await view.getByRole('button', { name: '切斷網路連線' }).click();
+  await expect(panel).toContainText('網路：離線');
+  await inside.locator('#shop').click();
+  await expect(inside.locator('#out')).toContainText('滿 300 元免運費');
+  await expect(view.getByRole('button', { name: '恢復網路連線' })).toHaveAttribute('aria-pressed', 'true');
+  // Starting over: no worker and no caches, a first visit again.
+  await view.getByRole('button', { name: '移除 Service Worker 與快取並重新載入' }).click();
+  await expect(panel).toContainText('Service Worker：已啟用；這個頁面還沒有被它控制');
+  await expect(inside.locator('#control')).toHaveText('沒有被控制');
+  expect(await noOverflow(page)).toBeLessThanOrEqual(0);
+});
+
 test('行動應用島開放：課綱目錄列出 13 堂、已撰寫的可點；群島總覽標示已開放', async ({ page }) => {
   await page.goto('/curriculum');
   const island = page.getByRole('region', { name: /行動應用島/ });

@@ -57,7 +57,7 @@ export function databaseExamples(content: LessonContent): Map<string, React.Reac
 /** WEB-0: a page's files highlighted on the server (colours only), for the client components that show them. */
 function webTokens(files: WebFilesPart): WebTokens {
   return { ...(files.html !== undefined ? { html: highlight(files.html, 'HTML') } : {}), ...(files.css !== undefined ? { css: highlight(files.css, 'CSS') } : {}),
-    ...(files.js !== undefined ? { js: highlight(files.js, 'JavaScript') } : {}) };
+    ...(files.js !== undefined ? { js: highlight(files.js, 'JavaScript') } : {}), ...(files.sw !== undefined ? { sw: highlight(files.sw, 'JavaScript') } : {}) };
 }
 
 /**

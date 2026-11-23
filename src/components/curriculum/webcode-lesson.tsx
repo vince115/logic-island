@@ -43,25 +43,36 @@ const useInBrowser = () => useSyncExternalStore(noSubscription, () => true, () =
  * page (never per keystroke), and each run gets a new frame with its own nonce. The frame is made in the browser only:
  * its document carries the harness, which there is no reason to send with the lesson's HTML.
  */
+const workerText = (w: WebReport['worker']) => !w.active && !w.waiting && !w.installing ? '尚未註冊'
+  : `${w.active === 'activated' ? '已啟用' : w.active === 'activating' ? '啟用中' : w.installing ? '安裝中' : '已安裝'}${w.active && w.waiting ? '；有新版本已安裝、等待中' : w.active && w.installing ? '；新版本安裝中' : ''}${w.controlling ? '；這個頁面由它控制' : '；這個頁面還沒有被它控制'}`;
 function LivePage({ files, title, height, run, setup, widths }: { files: WebFiles; title: string; height?: number; run: number; setup?: WebSetup; widths?: number[] }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const inBrowser = useInBrowser();
   // A frame is believed by being the frame (event.source); the nonce only tells this run's document from the last one's.
-  const [reported, setReported] = useState<{ nonce: string; report: WebReport }>();
+  const [reported, setReported] = useState<{ nonce: string; report: WebReport; sw?: string }>();
   // W4: what the page stored is still there when it is run again, as it would be after a reload; the lesson's setup is
   // the first visit's state. `cleared` counts the times the learner emptied it (each is a fresh frame too).
-  const [carried, setCarried] = useState<{ run: number; cleared: number; stored?: WebStored }>({ run, cleared: 0 });
-  if (carried.run !== run) setCarried({ run, cleared: carried.cleared, stored: reported?.report.storage ?? carried.stored });
+  // W10: so are its caches and its service worker: a second run is a second visit, with the worker of the first in
+  // control; when sw.js was edited in between, that worker is the older version and the edited file a new one. A
+  // version that was still waiting when the page was run again is still not the active one: the older worker is.
+  const [carried, setCarried] = useState<{ run: number; cleared: number; stored?: WebStored; kept?: Record<string, Record<string, string>>; worker?: string }>({ run, cleared: 0 });
+  const lastWorker = useRef<string | undefined>(undefined);
+  if (carried.run !== run) setCarried({ run, cleared: carried.cleared, stored: reported?.report.storage ?? carried.stored, kept: reported?.report.kept ?? carried.kept,
+    worker: reported ? (reported.report.worker.active !== 'activated' ? undefined : reported.report.worker.version !== 'previous' ? reported.sw
+      : carried.worker ?? (setup?.worker && typeof setup.worker === 'object' ? setup.worker.previous : undefined)) : carried.worker });
   const nonce = `${useId().replace(/[^a-zA-Z0-9]/g, '')}r${run}c${carried.cleared}`;
-  const html = useMemo(() => webDocument(files, nonce, true, { ...setup, ...(carried.stored ? { storage: carried.stored.local, cookies: carried.stored.cookies } : {}) }),
-    [files, nonce, setup, carried.stored]);
+  const html = useMemo(() => webDocument(files, nonce, true, { ...setup, ...(carried.stored ? { storage: carried.stored.local, cookies: carried.stored.cookies } : {}),
+    ...(carried.kept ? { caches: carried.kept } : {}), ...(carried.worker !== undefined && files.sw !== undefined ? { worker: carried.worker === files.sw ? true as const : { previous: carried.worker } } : {}) }),
+    [files, nonce, setup, carried.stored, carried.kept, carried.worker]);
+  useLayoutEffect(() => { lastWorker.current = files.sw; }, [files.sw, nonce]);
   // A layout effect: the listener is in place before the browser starts loading the frame.
   useLayoutEffect(() => {
     const onMessage = (event: MessageEvent) => {
       const data = event.data as (WebReport & { li?: string }) | null;
       if (event.source !== frame.current?.contentWindow || !data || data.li !== nonce) return;
-      setReported({ nonce, report: { console: data.console, tree: data.tree, height: data.height, navigations: data.navigations, submissions: data.submissions, title: data.title, standards: data.standards,
-        requests: data.requests ?? [], storage: data.storage ?? { local: {}, session: {}, cookies: {} } } });
+      setReported({ nonce, sw: lastWorker.current, report: { console: data.console, tree: data.tree, height: data.height, navigations: data.navigations, submissions: data.submissions, title: data.title, standards: data.standards,
+        requests: data.requests ?? [], storage: data.storage ?? { local: {}, session: {}, cookies: {} },
+        worker: data.worker ?? { active: '', waiting: false, installing: false, next: '', controlling: false, offline: false, version: '' }, caches: data.caches ?? {}, kept: data.kept } });
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
@@ -115,7 +126,21 @@ function LivePage({ files, title, height, run, setup, widths }: { files: WebFile
         {stored.map(([area, key, value]) => <li key={`${area} ${key}`}><code>{area}</code> <code>{key}</code> = <code>{shownText(value)}</code></li>)}
       </ul>
       <div className={base.vizControls}>
-        <button type="button" onClick={() => setCarried(c => ({ run: c.run, cleared: c.cleared + 1, stored: { local: {}, session: {}, cookies: {} } }))}>清除儲存的資料並重新載入</button>
+        <button type="button" onClick={() => setCarried(c => ({ ...c, cleared: c.cleared + 1, stored: { local: {}, session: {}, cookies: {} } }))}>清除儲存的資料並重新載入</button>
+      </div>
+    </figure>}
+    {report && (files.sw !== undefined || Object.keys(report.caches).length > 0) && <figure className={styles.file}>
+      <figcaption>Service Worker 與快取（由課程模擬，只在這個預覽裡；重新執行等於再造訪一次）</figcaption>
+      <ul className={styles.requests} aria-label={`${title}：Service Worker 與快取`} aria-live="polite">
+        <li>Service Worker：{workerText(report.worker)}</li>
+        <li>網路：{report.worker.offline ? '離線（每個請求都會失敗）' : '連線中'}</li>
+        {Object.entries(report.caches).map(([name, paths]) => <li key={name}>快取 <code>{name}</code>：{paths.length ? paths.map(path => <code key={path}>{path}</code>).reduce<React.ReactNode[]>((all, c, i) => i ? [...all, '、', c] : [c], []) : '空的'}</li>)}
+        {Object.keys(report.caches).length === 0 && <li>快取：還沒有任何快取</li>}
+      </ul>
+      <div className={base.vizControls}>
+        <button type="button" aria-pressed={report.worker.offline} onClick={() => frame.current?.contentWindow?.postMessage({ li: nonce, kind: 'network', online: report.worker.offline }, '*')}>{report.worker.offline ? '恢復網路連線' : '切斷網路連線'}</button>
+        {/* Back to the page's own first state: nothing at all, or what the lesson says an earlier visit left. */}
+        <button type="button" onClick={() => setCarried(c => ({ run: c.run, cleared: c.cleared + 1, stored: c.stored }))}>{setup?.worker || setup?.caches ? '回到一開始的狀態並重新載入' : '移除 Service Worker 與快取並重新載入'}</button>
       </div>
     </figure>}
     {report && report.console.length > 0 && <figure className={styles.file}>

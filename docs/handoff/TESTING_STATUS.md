@@ -69,6 +69,19 @@ MOB-2 的結果（隔離副本，旗標關）：TypeScript 與 ESLint 通過；V
 
 併入 main `e5da508`（DKR-1 之後）再跑完整一輪：TypeScript 與 ESLint 通過；Vitest **137 檔、3991 passed／9 skipped**；Production build 通過；E2E 桌機＋手機 **521 passed／2 failed／297 skipped**（兩個失敗同上，#36）；洩漏掃描 clean。
 
+MOB-2 以 #84 合併（main `cc11e38`）：對正式站執行課程 E2E（MOB05–MOB08 的每個練習與三座網頁島的目錄，桌機＋手機）**16 passed**。
+
+### MOB-3（2026-11-23，`mob/3-capstone`）
+
+- 引擎階段 W10（`tests/webcode-runner.test.ts` 的「a pretend service worker (MOB-3: W10)」，都在 Chromium 執行）：第一次造訪安裝並啟用、斷線後由快取回答；回訪從一開始就受控制，新版本等待到頁面通知才接手並清掉舊快取；沒有 worker、安裝失敗與註冊不到檔案的情形；以及「what a browser enforces holds here too」：回應的本文只能讀一次（沒有 `clone()` 就存進快取再交給頁面，頁面的 `fetch` 失敗）、快取只收 GET、`fetch(event.request)` 保留方法與本文、`respondWith` 只能在監聽器自己的那一輪呼叫一次、只有啟用中的 worker 能 `clients.claim()`、沒有網路時註冊不了新的 `sw.js`、文字相同不算新版本、`sw.js` 裡沒有 `window`／`document`／頁面的儲存空間。這些規則是 MOB09 的寫手以課程頁面實測替身與規格的差異之後逐項補上的。
+- 預覽面板（`tests/webcode-lesson-dom.test.tsx`，jsdom）：Service Worker 的狀態與快取內容、切斷網路是送給框架的訊息、重新執行帶著上一次的 worker 與快取（改過 `sw.js` 就是新版本；新版本還在等待時重新執行，舊版本仍然是啟用的那個）、回到一開始的狀態（沒有安排造訪的頁面是第一次造訪，有安排的回到課程安排的狀態）。
+- E2E（`e2e/webcode-lessons.spec.ts`）：MOB09 的第一個範例在真實的課程頁上走一遍（第一次造訪不受控制 → 重新執行後受控制 → 切斷網路後由快取回答 → 移除後回到第一次造訪）；五堂課的每個練習照樣各做一遍（起始內容不通過、填入參考解答後通過）。
+- 替身不做的事（不攔截頁面本身與圖片／樣式表／指令稿的載入、事件之間不會被停止、沒有 `self.registration`／`clients.matchAll`／`importScripts`）寫在 [WEB0_WEB_CODE_CAPABILITY](../curriculum/WEB0_WEB_CODE_CAPABILITY.md) 的已知限制與 [MOBILE_APPS_ISLAND](../curriculum/MOBILE_APPS_ISLAND.md)。
+
+MOB-3 的結果（隔離副本，旗標關）：TypeScript 與 ESLint 通過（0 個錯誤；2 個既有檔案的未使用變數警告）；Vitest **137 檔、4007 passed／9 skipped**；Production build 通過；E2E 桌機＋手機 **533 passed／2 failed／297 skipped**（兩個失敗同上，#36）；洩漏掃描（`src`、`docs`、`tests`、`e2e`）clean。
+
+併入 main `7d63b60`（DKR-2，#85）之後重跑（隔離副本，旗標關）：TypeScript 通過；ESLint 0 個錯誤（4 個既有警告）；Vitest **138 檔、4056 passed／9 skipped**；Production build 通過；E2E 桌機＋手機 **532 passed／3 failed／297 skipped**：兩個是 #36，第三個是負載敏感的 D.3-5b（手機），單獨重跑通過；洩漏掃描（四個資料夾與 `origin/main..mob/3-capstone` 的歷史）clean。
+
 ## Private Vitest Runner（2026-11-22，分支 `trials/private-test-runner`）
 
 用法與選項：`docs/exam-system/34_T3J_PRIVATE_BANK_AND_CI_ACTIVATION.md` 第 2 節。**以下是本機隔離 checkout 的結果，不是 CI：公開 CI 沒有私有題庫，也不執行這個 Runner。**

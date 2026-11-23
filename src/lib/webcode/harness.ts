@@ -47,7 +47,7 @@ const SOURCE = String.raw`(function () {
   // W3: the page's pretend server. The frame has no network, so fetch is answered from the routes the lesson declares,
   // after the route's delay on the page's clock; every request is recorded. An unknown address is a 404, a route marked
   // fail is a network error (fetch rejects).
-  var SETUP = __LI_SETUP__, requests = [];
+  var SETUP = __LI_SETUP__, requests = [], offline = !!SETUP.offline;
   // The answer is a plain object with a response's everyday members, not a real Response: reading a real one's body takes
   // real time (it is a stream), which the virtual clock of a check could not account for. Here json() and text() settle
   // as promise callbacks, so what the page does after a fetch is in step with its timers.
@@ -59,8 +59,10 @@ const SOURCE = String.raw`(function () {
       return new Promise(function (resolve) { resolve(parse ? JSON.parse(text) : text); });
     }
     var res = { status: status, ok: status >= 200 && status <= 299, statusText: '', url: url, redirected: false, type: 'basic', headers: new Headers(headers),
-      json: function () { return read(true); }, text: function () { return read(false); }, clone: function () { return answer(status, text, headers, url); } };
+      json: function () { return read(true); }, text: function () { return read(false); }, clone: function () { if (used) throw new TypeError('Response body is already used'); return answer(status, text, headers, url); } };
     Object.defineProperty(res, 'bodyUsed', { get: function () { return used; } });
+    // W10: a cache takes the body as a reader does, once: a response that was stored without clone() cannot be read again.
+    Object.defineProperty(res, '__liTake', { value: function () { if (used) throw new TypeError('Response body is already used'); used = true; return text; } });
     return res;
   }
   window.fetch = function (input, init) {
@@ -78,7 +80,7 @@ const SOURCE = String.raw`(function () {
     touch();
     return new Promise(function (resolve, reject) {
       window.setTimeout(function () {
-        if (route && route.fail) { entry.status = -1; touch(); reject(new TypeError('Failed to fetch')); return; }
+        if (offline || (route && route.fail)) { entry.status = -1; touch(); reject(new TypeError('Failed to fetch')); return; }
         var status = route ? route.status || 200 : 404, body = route ? route.body : { error: 'Not Found' };
         var text = typeof body === 'string' ? body : body === undefined ? '' : JSON.stringify(body), headers = { 'Content-Type': typeof body === 'string' ? 'text/plain; charset=utf-8' : 'application/json' };
         if (route && route.headers) for (var k in route.headers) headers[k] = route.headers[k];
@@ -87,6 +89,275 @@ const SOURCE = String.raw`(function () {
         resolve(answer(status, status === 204 || status === 304 ? '' : text, headers, parsed.href));
       }, route && typeof route.delay === 'number' ? route.delay : 100);
     });
+  };
+
+  // W10 (MOB-3): a pretend service worker. A sandboxed frame can register none (its origin is opaque) and has no Cache
+  // API, so the page gets both from here: caches kept in memory, and sw.js run in a scope of its own (self, caches,
+  // fetch, clients, skipWaiting) with the life cycle of the specification in small: install, then waiting while an older
+  // worker is active, then activate; the page's requests go through the fetch listeners of the worker that controls it.
+  // What an earlier visit left (a worker in control, filled caches, an older version of sw.js) comes from the setup.
+  var netFetch = window.fetch, ORIGIN = 'https://library.example/', cacheNames = [], cacheData = {};
+  function own(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
+  function keyOf(input) {
+    var u = typeof input === 'string' ? input : input && input.url ? input.url : String(input);
+    try { var p = new URL(u, ORIGIN); return p.pathname + p.search; } catch (x) { return String(u); }
+  }
+  // A cache holds answers to GET requests only.
+  function methodOf(req) { return req && typeof req === 'object' && req.method ? String(req.method).toUpperCase() : 'GET'; }
+  function cachePut(name, key, status, text, headers) {
+    var c = cacheData[name];
+    if (!c) return;
+    if (!own(c.items, key)) c.keys.push(key);
+    c.items[key] = { status: status, text: text, headers: headers };
+    touch();
+  }
+  function cacheMake(name) {
+    if (!cacheData[name]) { cacheNames.push(name); cacheData[name] = { keys: [], items: {} }; touch(); }
+  }
+  function cacheAnswer(key, e) { return answer(e.status, e.text, e.headers, new URL(key, ORIGIN).href); }
+  function fetched(req) {
+    return netFetch(req).then(function (res) { if (!res.ok) throw new TypeError('Request failed'); return res; });
+  }
+  function cacheApi(name) {
+    var api = {
+      match: function (req) { var k = keyOf(req), c = cacheData[name]; return Promise.resolve(methodOf(req) === 'GET' && c && own(c.items, k) ? cacheAnswer(k, c.items[k]) : undefined); },
+      put: function (req, res) {
+        var k = keyOf(req), m = methodOf(req), h = {};
+        if (m !== 'GET') return Promise.reject(new TypeError('Request method ' + m + ' is unsupported'));
+        if (!res || typeof res.status !== 'number') return Promise.reject(new TypeError('A Response is needed'));
+        if (res.headers && typeof res.headers.forEach === 'function') res.headers.forEach(function (v, n) { h[n] = v; });
+        if (typeof res.__liTake !== 'function') return res.text().then(function (text) { cachePut(name, k, res.status, text, h); });
+        try { cachePut(name, k, res.status, res.__liTake(), h); } catch (x) { return Promise.reject(x); }
+        return Promise.resolve();
+      },
+      add: function (req) { return fetched(req).then(function (res) { return api.put(req, res); }); },
+      addAll: function (list) {
+        return Promise.all(Array.prototype.map.call(list, function (req) { return fetched(req).then(function (res) { return [req, res]; }); }))
+          .then(function (pairs) { return Promise.all(pairs.map(function (p) { return api.put(p[0], p[1]); })); }).then(function () { return undefined; });
+      },
+      delete: function (req) {
+        var k = keyOf(req), c = cacheData[name];
+        if (!c || !own(c.items, k)) return Promise.resolve(false);
+        delete c.items[k];
+        c.keys.splice(c.keys.indexOf(k), 1);
+        touch();
+        return Promise.resolve(true);
+      },
+      keys: function () { var c = cacheData[name]; return Promise.resolve((c ? c.keys : []).map(function (k) { return { url: new URL(k, ORIGIN).href, method: 'GET' }; })); }
+    };
+    return api;
+  }
+  var cachesApi = {
+    open: function (name) { name = String(name); cacheMake(name); return Promise.resolve(cacheApi(name)); },
+    has: function (name) { return Promise.resolve(own(cacheData, String(name))); },
+    keys: function () { return Promise.resolve(cacheNames.slice()); },
+    delete: function (name) {
+      name = String(name);
+      if (!own(cacheData, name)) return Promise.resolve(false);
+      delete cacheData[name];
+      cacheNames.splice(cacheNames.indexOf(name), 1);
+      touch();
+      return Promise.resolve(true);
+    },
+    match: function (req) {
+      var k = keyOf(req);
+      if (methodOf(req) !== 'GET') return Promise.resolve(undefined);
+      for (var i = 0; i < cacheNames.length; i++) { var c = cacheData[cacheNames[i]]; if (own(c.items, k)) return Promise.resolve(cacheAnswer(k, c.items[k])); }
+      return Promise.resolve(undefined);
+    }
+  };
+  (function () {
+    var given = SETUP.caches || {};
+    for (var name in given) {
+      cacheMake(name);
+      for (var path in given[name]) {
+        var body = given[name][path], text = typeof body === 'string' ? body : JSON.stringify(body);
+        cachePut(name, keyOf(path), 200, text, { 'Content-Type': typeof body === 'string' ? 'text/plain; charset=utf-8' : 'application/json' });
+      }
+    }
+  })();
+  try { Object.defineProperty(window, 'caches', { configurable: true, value: cachesApi }); } catch (x) { void x; }
+  function cachesShown() { var out = {}; cacheNames.forEach(function (n) { out[n] = cacheData[n].keys.slice(); }); return out; }
+  // A preview hands what its caches hold to the next run of the page (as the browser keeps them between visits).
+  function cachesKept() {
+    var out = {};
+    cacheNames.forEach(function (n) { out[n] = {}; cacheData[n].keys.forEach(function (k) { out[n][k] = cacheData[n].items[k].text; }); });
+    return out;
+  }
+
+  function hub() {
+    var map = {};
+    return {
+      on: function (type, fn) { if (typeof fn === 'function') (map[type] = map[type] || []).push(fn); },
+      off: function (type, fn) { map[type] = (map[type] || []).filter(function (f) { return f !== fn; }); },
+      emit: function (type, event) {
+        (map[type] || []).slice().forEach(function (fn) { try { fn(event); } catch (x) { record('error', 'Uncaught ' + show(x)); } });
+        return (map[type] || []).length;
+      }
+    };
+  }
+  var swPage = hub(), swReg = null, swController = null, swReady = null, swReadyDone = null;
+  function swFace(worker) {
+    if (!worker) return null;
+    if (!worker.face) {
+      worker.face = { scriptURL: ORIGIN + 'sw.js', addEventListener: worker.outside.on, removeEventListener: worker.outside.off,
+        postMessage: function (data) { tick().then(function () { worker.inside.emit('message', { data: data, waitUntil: function () {} }); }); } };
+      Object.defineProperty(worker.face, 'state', { get: function () { return worker.state; } });
+    }
+    return worker.face;
+  }
+  function swState(worker, state) { worker.state = state; touch(); worker.outside.emit('statechange', { target: swFace(worker) }); }
+  function swTake(worker) {
+    if (swController === worker) return;
+    swController = worker;
+    touch();
+    swPage.emit('controllerchange', {});
+  }
+  function swWaited(list) { return Promise.all(list).then(function () { return true; }, function (x) { record('error', 'Uncaught (in promise) ' + show(x)); return false; }); }
+  function swActivate(worker) {
+    if (!swReg || swReg.waiting !== worker) return Promise.resolve();
+    var old = swReg.active, had = swController === old && !!old;
+    swReg.waiting = null;
+    swReg.active = worker;
+    if (old) swState(old, 'redundant');
+    swState(worker, 'activating');
+    // A page the old worker controlled is the new worker's from the moment it activates.
+    if (had) swTake(worker);
+    var waits = [];
+    worker.inside.emit('activate', { waitUntil: function (p) { waits.push(p); } });
+    return swWaited(waits).then(function () { swState(worker, 'activated'); if (swReadyDone) { swReadyDone(swRegFace()); swReadyDone = null; } });
+  }
+  // sw.js cannot be evaluated from its text (the page's policy allows no eval): the document carries it as a function,
+  // one for this page's file and one for the older version a setup may name, handed over before the page's own scripts.
+  var swSources = {};
+  window.__liWorker = function (which, fn) {
+    swSources[which] = fn;
+    var tag = document.currentScript;
+    if (tag && tag.parentNode) tag.parentNode.removeChild(tag);
+  };
+  // What sw.js calls fetch with is the page's request: its method, headers and body go on to the network with it.
+  function swFetch(input, init) {
+    var given = input && typeof input === 'object' ? input.__liInit : undefined;
+    return given && !init ? netFetch(input.url, given) : netFetch(input, init);
+  }
+  // new Response(body, init) in sw.js makes an answer of the same kind as the pretend server's (a real Response's body
+  // is a stream read in real time, which a check's clock cannot follow).
+  function swResponse(body, init) {
+    var h = {};
+    if (init && init.headers) new Headers(init.headers).forEach(function (v, n) { h[n] = v; });
+    if (!own(h, 'content-type') && typeof body === 'string') h['content-type'] = 'text/plain;charset=UTF-8';
+    return answer(init && typeof init.status === 'number' ? init.status : 200, body === undefined || body === null ? '' : String(body), h, '');
+  }
+  swResponse.json = function (data, init) {
+    var h = {};
+    if (init && init.headers) new Headers(init.headers).forEach(function (v, n) { h[n] = v; });
+    if (!own(h, 'content-type')) h['content-type'] = 'application/json';
+    return answer(init && typeof init.status === 'number' ? init.status : 200, JSON.stringify(data), h, '');
+  };
+  swResponse.error = function () { var r = answer(0, '', {}, ''); r.type = 'error'; return r; };
+  function swMake(which) {
+    var worker = { state: 'parsed', inside: hub(), outside: hub(), skip: false, face: null, which: which };
+    var scope = {
+      addEventListener: worker.inside.on, removeEventListener: worker.inside.off, caches: cachesApi, fetch: swFetch, Response: swResponse, location: { href: ORIGIN + 'sw.js', origin: ORIGIN.slice(0, -1) },
+      skipWaiting: function () { worker.skip = true; return swReg && swReg.waiting === worker ? swActivate(worker) : Promise.resolve(); },
+      // Only the active worker may claim pages (in a browser the promise rejects with an InvalidStateError).
+      clients: { claim: function () {
+        if (!swReg || swReg.active !== worker) return Promise.reject(new DOMException('Only the active worker can claim clients.', 'InvalidStateError'));
+        swTake(worker);
+        return Promise.resolve();
+      } }
+    };
+    scope.self = scope;
+    if (typeof swSources[which] !== 'function') { worker.state = 'redundant'; return worker; }
+    // A worker has no page: its global object and location are its own, and window, document, the page's storage, parent,
+    // top and alert are not there (the function's remaining parameters stay undefined and hide the frame's own).
+    try { swSources[which].call(scope, scope, cachesApi, swFetch, scope.clients, scope.skipWaiting, scope.addEventListener, swResponse, scope.location, scope); }
+    catch (x) { record('error', 'Uncaught ' + show(x) + '（sw.js）'); worker.state = 'redundant'; }
+    return worker;
+  }
+  function swRegFace() {
+    if (!swReg.face) {
+      swReg.face = { scope: ORIGIN, addEventListener: swReg.hub.on, removeEventListener: swReg.hub.off, update: function () { return Promise.resolve(swReg.face); }, unregister: function () { return Promise.resolve(false); } };
+      ['installing', 'waiting', 'active'].forEach(function (slot) { Object.defineProperty(swReg.face, slot, { get: function () { return swFace(swReg[slot]); } }); });
+    }
+    return swReg.face;
+  }
+  function swInstall(worker) {
+    swReg.installing = worker;
+    if (worker.state !== 'installing') swState(worker, 'installing');
+    swReg.hub.emit('updatefound', { target: swRegFace() });
+    var waits = [];
+    worker.inside.emit('install', { waitUntil: function (p) { waits.push(p); } });
+    return swWaited(waits).then(function (fine) {
+      swReg.installing = null;
+      if (!fine) { swState(worker, 'redundant'); return; }
+      swReg.waiting = worker;
+      swState(worker, 'installed');
+      // It waits for as long as an older worker is active, unless it asked not to.
+      if (!swReg.active || worker.skip) return swActivate(worker);
+    });
+  }
+  function swStart() {
+    swReg = { installing: null, waiting: null, active: null, hub: hub(), face: null };
+    if (SETUP.worker && SETUP.sw) {
+      // An earlier visit: its worker is active and has this page from the start.
+      var old = swMake(SETUP.worker === 'previous' ? 'previous' : 'current');
+      if (old.state !== 'redundant') { old.state = 'activated'; swReg.active = old; swController = old; if (swReadyDone) { swReadyDone(swRegFace()); swReadyDone = null; } }
+    }
+  }
+  swReady = new Promise(function (r) { swReadyDone = r; });
+  // The worker of an earlier visit is there before the page's first script runs (the document hands sw.js over first).
+  window.__liWorkersGiven = function () { if (SETUP.sw && SETUP.worker && !swReg) swStart(); };
+  var swContainer = {
+    register: function (url) {
+      var name = String(url).split('?')[0].split('#')[0];
+      if (!SETUP.sw || (name !== 'sw.js' && name !== './sw.js' && name !== '/sw.js')) return Promise.reject(new TypeError('Failed to register a ServiceWorker: the script was not found.'));
+      if (!swReg) swStart();
+      // Without a network the file cannot be fetched: a first registration fails, and a visit that has a worker keeps it
+      // (the check for a new version fails quietly).
+      if (offline && !swReg.active) return Promise.reject(new TypeError('Failed to register a ServiceWorker: the script could not be fetched.'));
+      var face = swRegFace();
+      if (offline) return Promise.resolve(face);
+      // The same file as the active worker's is no new version; another text is, and installs beside the old one.
+      if (swReg.active && SETUP.worker === true) return Promise.resolve(face);
+      if (swReg.installing || swReg.waiting || swReg.started) return Promise.resolve(face);
+      swReg.started = true;
+      var worker = swMake('current');
+      if (worker.state === 'redundant') return Promise.reject(new TypeError('Failed to register a ServiceWorker: the script has an error.'));
+      // The registration already has its installing worker when the promise of register() settles.
+      swReg.installing = worker;
+      worker.state = 'installing';
+      touch();
+      tick().then(function () { return swInstall(worker); });
+      return Promise.resolve(face);
+    },
+    getRegistration: function () { return Promise.resolve(swReg && (swReg.active || swReg.waiting || swReg.installing) ? swRegFace() : undefined); },
+    addEventListener: swPage.on, removeEventListener: swPage.off
+  };
+  Object.defineProperty(swContainer, 'controller', { get: function () { return swFace(swController); } });
+  Object.defineProperty(swContainer, 'ready', { get: function () { return swReady; } });
+  try { Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: swContainer }); } catch (x) { void x; }
+  function workerShown() {
+    var w = swReg && (swReg.waiting || swReg.installing);
+    return { active: swReg && swReg.active ? swReg.active.state : '', waiting: !!(swReg && swReg.waiting), installing: !!(swReg && swReg.installing), next: w ? w.state : '', controlling: !!swController, offline: offline, version: swReg && swReg.active ? swReg.active.which : '' };
+  }
+  // A page a worker controls asks the worker first: an answer given with respondWith is the page's answer; a request no
+  // listener answers goes to the network as usual.
+  window.fetch = function (input, init) {
+    if (!swController) return netFetch(input, init);
+    var url = typeof input === 'string' ? input : input && input.url ? input.url : String(input), answered = null;
+    var method = String((init && init.method) || (input && typeof input === 'object' && input.method) || 'GET').toUpperCase();
+    var request = { url: new URL(url, ORIGIN).href, method: method, mode: 'cors', destination: '', headers: new Headers((init && init.headers) || {}), clone: function () { return request; } };
+    Object.defineProperty(request, '__liInit', { value: init || { method: method } });
+    // respondWith is for the listener's own turn, once: later (after an await) or a second time it throws, as in a browser.
+    var open = true;
+    swController.inside.emit('fetch', { request: request, waitUntil: function () {}, respondWith: function (p) {
+      if (!open || answered) throw new DOMException('The fetch event has already been responded to or is no longer being dispatched.', 'InvalidStateError');
+      answered = Promise.resolve(p);
+    } });
+    open = false;
+    if (!answered) return netFetch(input, init);
+    return answered.then(function (res) { if (!res || typeof res.status !== 'number' || res.type === 'error' || res.bodyUsed) throw new TypeError('Failed to fetch'); return res; });
   };
 
   // W4: storage. The frame's origin is opaque (the real localStorage and document.cookie throw), so the page gets its
@@ -270,7 +541,8 @@ const SOURCE = String.raw`(function () {
     var message = { li: NONCE, kind: kind, console: lines.slice(), tree: outline(), height: height(), navigations: navigations.slice(),
       // "standards": the document has a doctype. (compatMode is CSS1Compat in a srcdoc frame even without one.)
       submissions: submissions.slice(), title: document.title, standards: document.compatMode === 'CSS1Compat' && !!document.doctype,
-      requests: requests.map(function (r) { return { method: r.method, path: r.path, body: r.body, status: r.status }; }), storage: stored() };
+      requests: requests.map(function (r) { return { method: r.method, path: r.path, body: r.body, status: r.status }; }), storage: stored(), worker: workerShown(), caches: cachesShown() };
+    if (LIVE) message.kept = cachesKept();
     if (extra) for (var k in extra) message[k] = extra[k];
     window.parent.postMessage(message, '*');
   }
@@ -459,6 +731,11 @@ const SOURCE = String.raw`(function () {
       // one real frame passes, so what the page left to requestAnimationFrame has run before the next check looks.
       return (LIVE ? new Promise(function (r) { realSetTimeout(r, Math.min(ms, 1000)); }) : advance(ms).then(framed)).then(function () { return { ok: true }; });
     }
+    if (s.do === 'network') {
+      offline = !s.online;
+      touch();
+      return tick().then(function () { return { ok: true }; });
+    }
     if (s.do === 'resize') {
       // The frame cannot size itself: it asks the parent (RWD-0) and goes on once its own viewport has the size it asked
       // for, so media and container queries apply before the next check. The size can arrive a moment after the parent
@@ -575,6 +852,18 @@ const SOURCE = String.raw`(function () {
       }
       return { ok: true, actual: seen };
     }
+    if (s.check === 'worker') {
+      var shown = workerShown(), is = shown.waiting ? 'waiting' : shown.installing ? 'installing' : shown.active === 'activated' || shown.active === 'activating' ? 'active' : 'none';
+      // "active" also holds while a newer worker waits beside the active one: a step asks for one of the two.
+      var okState = s.state === 'active' ? shown.active === 'activated' : s.state === 'waiting' ? shown.waiting : s.state === 'installing' ? shown.installing : !shown.active && !shown.waiting && !shown.installing;
+      return { ok: okState && (s.controlling === undefined || s.controlling === shown.controlling), actual: is + (shown.controlling ? '+controlling' : '') };
+    }
+    if (s.check === 'cache') {
+      var ck = keyOf(s.path), names = s.name ? [String(s.name)] : cacheNames, inCache = '';
+      for (var ci = 0; ci < names.length && !inCache; ci++) if (cacheData[names[ci]] && own(cacheData[names[ci]].items, ck)) inCache = names[ci];
+      var all = cacheNames.map(function (n) { return n + ': ' + (cacheData[n].keys.join(', ') || '（空的）'); }).join('；');
+      return { ok: s.match === 'absent' ? !inCache : !!inCache, actual: all };
+    }
     if (s.check === 'storage') {
       var area = s.area === 'session' ? session : local, held = area.getItem(s.key);
       if (s.match === 'absent') return { ok: held === null, actual: held === null ? '' : held };
@@ -686,6 +975,7 @@ const SOURCE = String.raw`(function () {
   window.addEventListener('message', function (e) {
     var d = e.data;
     if (!d || d.li !== NONCE || e.source !== window.parent) return;
+    if (d.kind === 'network' && LIVE) { offline = !d.online; touch(); return; }
     if (d.kind !== 'run') return;
     run(d.steps || []).then(function (results) { return tick().then(function () { post('result', { results: results }); }); });
   });
