@@ -205,7 +205,7 @@ export function pushCommand(g: Git, args: string[]): number {
   const f = remote.forge, lines: string[] = [], reasons = new Set<string>(), said: string[] = [];
   // E26 (forge profile, forge-state.ts): branch protection refuses an update, GitHub's hook says why (before git's To line).
   const declined = (branch: string, old: Sha | undefined, to: Sha | undefined, forced: boolean, shown: string) => {
-    const why = f.site ? refusal(f.site, g.store, branch, old, to, forced) : undefined;
+    const why = f.site ? refusal(f.site, g.store, branch, old, to, forced, g.now) : undefined;
     if (!why) return false;
     said.push(...why.map(l => `remote: error: ${l}`)); lines.push(` ! [remote rejected] ${shown} (protected branch hook declined)`); reasons.add('protected');
     return true;

@@ -74,7 +74,7 @@ export function forgeFailure(c: ForgeCheck, end: FsState): string | null {
   if (c.method !== undefined && pr.merged?.method !== c.method) return pr.merged ? `${name} 是以 ${pr.merged.method} 合併的` : `${name} 還沒有合併`;
   if (c.approvals !== undefined) { const n = approvalsOf(decisions(site, g.store, pr, g.now)); if (n < c.approvals) return `${name} 只有 ${n} 個核准`; }
   if (c.checks !== undefined) {
-    const results = checksOf(site, g.store, headOf(pr)), got = !results.length ? undefined : results.some(x => x.conclusion === 'failure') ? 'failure' : results.some(x => x.conclusion === 'pending') ? 'pending' : 'success';
+    const results = checksOf(site, g.store, headOf(pr), g.now), got = !results.length ? undefined : results.some(x => x.conclusion === 'failure' || x.conclusion === 'cancelled') ? 'failure' : results.some(x => x.conclusion === 'pending') ? 'pending' : 'success';
     if (got !== c.checks) return got ? `${name} 的檢查結果是 ${got}` : `${name} 沒有檢查結果`;
   }
   return null;

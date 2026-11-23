@@ -51,7 +51,7 @@ export function mergeState(g: Git, f: Forge, pr: ForgePull): MergeState {
   const t = testMerge(g, f, pr), site = f.site!;
   if (!t) return 'BLOCKED';
   if (t.merge.unmerged.size) return 'DIRTY';
-  const p = site.protection.get(pr.base), checks = checksOf(site, g.store, t.head);
+  const p = site.protection.get(pr.base), checks = checksOf(site, g.store, t.head, g.now, webUrl(f));
   if (p?.reviews) {
     const d = decisions(site, g.store, pr, g.now);
     if (d.some(x => x.state === 'CHANGES_REQUESTED') || approvalsOf(d) < p.reviews.approvals) return 'BLOCKED';

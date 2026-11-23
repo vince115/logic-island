@@ -2,6 +2,8 @@ import {
   baseName, can, childrenOf, DEFAULT_HOST, DEFAULT_SYSTEM, depthOf, groupOf, groupsOf, humanSize, isInside, joinPath, LIMITS, linkTarget,
   MAX_LINK_HOPS, modeString, parentOf, physicalPath, resolvePath, subtreeOf, validName, type Access, type Accounts, type FsNode, type FsState, type Mount,
 } from './fs';
+import { actionsAfter, actionsTick } from './actions-events';
+import { findTool, runTool } from './ci-tools';
 import { ACCOUNT_NAME, accountsOf, findGroup, findUser, groupById, loginGroups, nextId, umaskSymbolic, writeAccountFiles } from './accounts';
 import { escapeGlob, expandGlob, hasMagic, type GlobIo } from './glob';
 import { helpPage, manualPage } from './manual';
@@ -145,10 +147,11 @@ export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS
  * objects, refs, index and worktree, merges, rebases and the simulated forge github.example; git-cli.ts). E26: forge (gh, pull
  * requests, reviews, branch protection and repository settings on github.example; gh.ts, forge.ts). E27: workflows (GitHub
  * Actions workflow files: parsing, validation, triggers, expressions, token permissions, gh workflow list and view;
- * workflow*.ts, expr*.ts).
+ * workflow*.ts, expr*.ts). E28: actions (runs of the workflows on simulated GitHub-hosted runners, CI tools, gh run and gh
+ * workflow run; actions*.ts, runner.ts, ci-tools.ts, gh-run*.ts).
  */
 export type ShellFeature = 'glob' | 'help-option' | 'multi-source' | 'ls-extra' | 'pipes' | 'accounts' | 'processes' | 'packages' | 'services' | 'remote' | 'scripting' | 'scheduling'
-  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers' | 'images' | 'storage-net' | 'compose' | 'runtime' | 'git' | 'forge' | 'workflows';
+  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers' | 'images' | 'storage-net' | 'compose' | 'runtime' | 'git' | 'forge' | 'workflows' | 'actions';
 
 /** LNX-0: the commands a session may run (E1: and the features it switches on; none by default). */
 export interface ShellProfile { readonly id: string; readonly commands: readonly CommandName[]; readonly features?: readonly ShellFeature[] }
@@ -225,12 +228,16 @@ export const GIT_PROFILE: ShellProfile = { id: 'git', commands: above(RUNTIME_PR
 export const FORGE_PROFILE: ShellProfile = { id: 'forge', commands: above(GIT_PROFILE, E26_COMMANDS), features: [...GIT_PROFILE.features!, 'forge'] };
 /** E27 (docs/curriculum/CICD0_E27_WORKFLOWS.md): the forge profile plus GitHub Actions workflow files (validation, triggers, expressions, permissions) and gh workflow list and view; no new commands. */
 export const WORKFLOWS_PROFILE: ShellProfile = { id: 'workflows', commands: above(FORGE_PROFILE, []), features: [...FORGE_PROFILE.features!, 'workflows'] };
+/** E28 (docs/curriculum/CICD0_E28_ACTIONS.md): the workflows profile plus GitHub Actions runs (events, runners, logs, gh run, gh workflow run) and CI tools; no new commands. */
+export const ACTIONS_PROFILE: ShellProfile = { id: 'actions', commands: above(WORKFLOWS_PROFILE, []), features: [...WORKFLOWS_PROFILE.features!, 'actions'] };
+/** E28: what a run: step's shell on a GitHub-hosted runner has — the git profile's commands but docker (Docker on runners is E29); not a lesson profile. */
+export const RUNNER_PROFILE: ShellProfile = { id: 'runner', commands: GIT_PROFILE.commands.filter(c => c !== 'docker'), features: GIT_PROFILE.features };
 /** The profiles a lesson machine may name (TerminalMachine.profile), from the narrowest. */
 export const PROFILES = {
   lab: LAB_PROFILE, files: FILES_PROFILE, streams: STREAMS_PROFILE, users: USERS_PROFILE, processes: PROCESSES_PROFILE, packages: PACKAGES_PROFILE, services: SERVICES_PROFILE,
   remote: REMOTE_PROFILE, scripting: SCRIPTING_PROFILE, scheduling: SCHEDULING_PROFILE, sockets: SOCKETS_PROFILE, dns: DNS_PROFILE, http: HTTP_PROFILE,
   tls: TLS_PROFILE, nginx: NGINX_PROFILE, proxy: PROXY_PROFILE, firewall: FIREWALL_PROFILE, tunnels: TUNNELS_PROFILE, edge: EDGE_PROFILE, diagnostics: DIAGNOSTICS_PROFILE,
-  containers: CONTAINERS_PROFILE, images: IMAGES_PROFILE, 'storage-net': STORAGE_NET_PROFILE, compose: COMPOSE_PROFILE, runtime: RUNTIME_PROFILE, git: GIT_PROFILE, forge: FORGE_PROFILE, workflows: WORKFLOWS_PROFILE,
+  containers: CONTAINERS_PROFILE, images: IMAGES_PROFILE, 'storage-net': STORAGE_NET_PROFILE, compose: COMPOSE_PROFILE, runtime: RUNTIME_PROFILE, git: GIT_PROFILE, forge: FORGE_PROFILE, workflows: WORKFLOWS_PROFILE, actions: ACTIONS_PROFILE,
 } as const;
 export type ProfileId = keyof typeof PROFILES;
 
@@ -826,6 +833,11 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
   const notRoot = (file: string) => { fail(`${cmd}: Permission denied.`); fail(`${cmd}: cannot lock ${file}; try again later.`); };
   const saveAccounts = (next: Accounts): Exec => { writeAccountFiles(nodes, next); return done({ ...state, nodes, accounts: next }); };
 
+  // E28: a CI tool the lesson declares (npm test, pytest) on an actions machine or a runner, by its exact words.
+  if (state.ci) {
+    const tool = findTool(state, words);
+    if (tool) { const r = runTool(state, tool, ctx.env ?? {}); r.events.forEach(push); code = r.status; return done(r.state); }
+  }
   const known = (profile.commands as readonly string[]).includes(cmd);
   // E1: 指令 --help prints the command's short help (echo prints it as text, as in bash; sudo only before its command).
   if (known && features.has('help-option') && !['echo', 'test', '[', 'true', 'false'].includes(cmd)) {
@@ -1667,16 +1679,21 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
     }
     case 'git': {
       // E25 (git-cli.ts): repositories in the machine's folders, Git's objects and the simulated forge in state.git.
-      const r = git(cur(), args, { out: print, err: fail, user: state.user, tty: ctx.tty });
+      // E28: the actions profile catches up on schedule events first, then starts the runs the command's pushes trigger.
+      const before = features.has('actions') ? actionsTick(cur()) : cur();
+      const r = git(before, args, { out: print, err: fail, user: state.user, tty: ctx.tty });
       code = r.status;
-      return done(r.state);
+      return done(features.has('actions') ? actionsAfter(before, r.state) : r.state);
     }
     case 'gh': {
       // E26 (gh.ts): pull requests, reviews, protection and settings of the forge repositories in state.git.
       // E27: the workflows profile adds gh workflow list and view.
-      const r = gh(cur(), args, { out: print, err: fail, user: state.user, tty: ctx.tty, ...features.has('workflows') ? { workflows: true } : {} });
+      // E28: the actions profile adds gh run, gh workflow run|enable|disable and real check results; pushes and pull requests start runs.
+      const before = features.has('actions') ? actionsTick(cur()) : cur();
+      const r = gh(before, args, { out: print, err: fail, user: state.user, tty: ctx.tty, ...features.has('workflows') ? { workflows: true } : {}, ...features.has('actions') ? { actions: true } : {} });
       code = r.status;
-      return done(r.state);
+      const after = features.has('actions') ? actionsAfter(before, r.state) : r.state;
+      return done(r.advance ? advanceClock(after, r.advance) : after);
     }
     case 'tar': {
       // E22 (tar.ts): GNU tar's create, list and extract with gzip, as the session's user.
@@ -1734,7 +1751,8 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
         else { fail(`bash: ${cmd}: 模擬環境不執行程式檔（指令稿的直譯在之後的引擎階段）`); code = 126; }
         return done();
       }
-      fail(`bash: ${cmd}: command not found（模擬環境支援：${profile.commands.join('、')}）`);
+      // E28: a runner's log says only what bash says.
+      fail(profile.id === 'runner' ? `bash: ${cmd}: command not found` : `bash: ${cmd}: command not found（模擬環境支援：${profile.commands.join('、')}）`);
       code = 127;
       return done();
     }

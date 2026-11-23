@@ -1,4 +1,5 @@
 import { readTree, walk, type Objects, type Sha } from './git';
+import { actionsChecks, type WorkflowRun } from './actions-model';
 
 /*
  * Engine stage E26 (docs/curriculum/CICD0_E26_FORGE.md): what the simulated forge github.example keeps for a repository
@@ -53,6 +54,9 @@ export interface ForgeSite {
   checks: readonly CheckRule[];
   /** E27 (workflows profile): the default GITHUB_TOKEN permissions when declared (read: restricted, the default; write: permissive). */
   workflowPermissions?: 'read' | 'write';
+  /** E28 (actions profile): the workflow runs, oldest first, and the workflows disabled with gh workflow disable (paths). */
+  runs?: readonly WorkflowRun[];
+  disabled?: readonly string[];
 }
 /** The gh account logged in to github.example. */
 export interface ForgeAccount { login: string; name: string; email: string }
@@ -72,9 +76,18 @@ export function fileAt(objects: Pick<Objects, 'get'>, sha: Sha, path: string): s
 }
 const matches = (objects: Pick<Objects, 'get'>, sha: Sha, m: Match | undefined) => !m || (fileAt(objects, sha, m.path)?.includes(m.includes) ?? false);
 
-/** The check results of a commit, one per context in rule order. */
-export function checksOf(site: ForgeSite, objects: Pick<Objects, 'get'>, sha: Sha): { context: string; conclusion: Conclusion; description: string; seconds: number }[] {
-  const out = new Map<string, { context: string; conclusion: Conclusion; description: string; seconds: number }>();
+/** A commit's status check: E28 adds Actions' cancelled and skipped, gh's name (CI/test (push)) and the job's URL. */
+export interface CheckResult { context: string; conclusion: Conclusion | 'cancelled' | 'skipped'; description: string; seconds: number; name?: string; url?: string }
+/**
+ * The check results of a commit, one per context in rule order. E28: when Actions ran for the commit, its jobs' results
+ * at the time `now` replace the lesson's rules (one per workflow, job and event).
+ */
+export function checksOf(site: ForgeSite, objects: Pick<Objects, 'get'>, sha: Sha, now = Infinity, web = ''): CheckResult[] {
+  if (site.runs?.length) {
+    const real = actionsChecks(site.runs, sha, now, web);
+    if (real.length) return real;
+  }
+  const out = new Map<string, CheckResult>();
   for (const r of site.checks) {
     if (out.has(r.context) || (r.commit !== undefined && r.commit !== sha) || !matches(objects, sha, r.when)) continue;
     out.set(r.context, { context: r.context, conclusion: r.conclusion, description: r.description, seconds: r.seconds });
@@ -113,7 +126,7 @@ export function decisions(site: ForgeSite, objects: Pick<Objects, 'get'>, pr: Fo
 export const approvalsOf = (d: readonly { state: ReviewState }[]) => d.filter(x => x.state === 'APPROVED').length;
 
 /** Why GitHub refuses an update of a protected branch (the remote: error lines), or undefined when it may proceed. */
-export function refusal(site: ForgeSite, objects: Pick<Objects, 'get'>, branch: string, old: Sha | undefined, to: Sha | undefined, forced: boolean): string[] | undefined {
+export function refusal(site: ForgeSite, objects: Pick<Objects, 'get'>, branch: string, old: Sha | undefined, to: Sha | undefined, forced: boolean, now = Infinity): string[] | undefined {
   const p = site.protection.get(branch);
   if (!p || (site.permission === 'admin' && !p.enforceAdmins)) return undefined;
   const head = [`GH006: Protected branch update failed for refs/heads/${branch}.`];
@@ -121,7 +134,7 @@ export function refusal(site: ForgeSite, objects: Pick<Objects, 'get'>, branch: 
   if (forced && !p.forcePush) return [...head, 'Cannot force-push to this branch'];
   if (p.reviews) return [...head, p.reviews.approvals ? `At least ${p.reviews.approvals} approving review${p.reviews.approvals === 1 ? ' is' : 's are'} required by reviewers with write access.` : 'Changes must be made through a pull request.'];
   if (p.checks?.contexts.length) {
-    const ok = new Set(checksOf(site, objects, to).filter(c => c.conclusion === 'success').map(c => c.context)), missing = p.checks.contexts.filter(c => !ok.has(c));
+    const ok = new Set(checksOf(site, objects, to, now).filter(c => c.conclusion === 'success').map(c => c.context)), missing = p.checks.contexts.filter(c => !ok.has(c));
     if (missing.length === 1) return [...head, `Required status check "${missing[0]}" is expected.`];
     if (missing.length) return [...head, `${missing.length} of ${p.checks.contexts.length} required status checks are expected.`];
   }

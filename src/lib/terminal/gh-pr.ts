@@ -2,7 +2,7 @@ import { mergeBases, stripspace, subjectOf, walk } from './git';
 import { plural, type Forge } from './git-core';
 import { fileChanges, patchLines, statusOf } from './git-format';
 import { checksOf, decisions, reviewsOf, type ForgePull, type ReviewState } from './forge-state';
-import { defaultBranch, headOf, pullStats, pullUrl, repoPath } from './forge';
+import { defaultBranch, headOf, pullStats, pullUrl, repoPath, webUrl } from './forge';
 import { baseRepo, flag, fuzzyAgo, on, parseFlags, type Flags, type Gh } from './gh';
 import { checkoutPr, checksPr, closePr, reviewPr } from './gh-pr-act';
 import { mergePr } from './gh-merge';
@@ -41,7 +41,7 @@ export function findPull(h: Gh, f: Flags): { forge: Forge; pr: ForgePull } | und
 
 /** ✓ Checks passing, × 1/2 checks failing, - Checks pending, No checks (gh pr view's summary). */
 export function checksSummary(results: readonly { conclusion: string }[]): string {
-  const failing = results.filter(c => c.conclusion === 'failure').length, pending = results.filter(c => c.conclusion === 'pending').length;
+  const failing = results.filter(c => c.conclusion === 'failure' || c.conclusion === 'cancelled').length, pending = results.filter(c => c.conclusion === 'pending').length;
   if (!results.length) return 'No checks';
   if (failing) return failing === results.length ? '× All checks failing' : `× ${failing}/${results.length} checks failing`;
   return pending ? '- Checks pending' : '✓ Checks passing';
@@ -112,7 +112,7 @@ function viewPr(h: Gh, args: string[]): number {
   if (!found) return 1;
   const { forge, pr } = found, site = forge.site!, stats = pullStats(g, forge, pr);
   g.out(`${pr.title} ${repoPath(forge)}#${pr.number}`, `${STATE_WORD[pr.state]} • ${pr.author} wants to merge ${plural(stats.commits, 'commit')} into ${pr.base} from ${pr.head} • ${fuzzyAgo(g.now, pr.created)}`,
-    `+${stats.additions} -${stats.deletions} • ${checksSummary(checksOf(site, g.store, headOf(pr)))}`);
+    `+${stats.additions} -${stats.deletions} • ${checksSummary(checksOf(site, g.store, headOf(pr), g.now, webUrl(forge)))}`);
   const reviewers = decisions(site, g.store, pr, g.now);
   if (reviewers.length) g.out(`Reviewers: ${reviewers.map(r => `${r.by} (${REVIEW_WORD[r.state]})`).join(', ')}`);
   g.out('', ...pr.body.trim() ? pr.body.replace(/\n$/, '').split('\n').map(l => l ? `  ${l}` : '') : ['  No description provided'], '');

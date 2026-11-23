@@ -29,6 +29,7 @@
  * profiles' machines have them.
  */
 
+import type { CiState } from './actions-model';
 import type { Clock, Job, Proc } from './processes';
 import type { PackageDb } from './packages';
 import type { JournalEntry, ServiceDb } from './services';
@@ -173,6 +174,8 @@ export interface FsState {
   docker?: DockerState;
   /** E25: Git's objects, the machine's repositories (their worktrees are its files) and the simulated forge's bare repositories. */
   git?: GitState;
+  /** E28: the CI tools the lesson declares (npm test, pytest), and on the learner's machine the runner image and the run and job counters. */
+  ci?: CiState;
 }
 /** E13: what certbot keeps (the simulated CA's certificate lifetime in days, its order counter). */
 export interface TlsState { lifetime: number; orders: number }
