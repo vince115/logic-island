@@ -1,6 +1,6 @@
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 /*
  * Multi-archipelago v2 (P1a): the contract for every dynamic route's static params, in the default build and in a build
@@ -34,6 +34,10 @@ async function routes() {
 }
 
 afterEach(() => { vi.unstubAllEnvs(); });
+// KUB-4: importing the pages loads the whole curriculum, which grows with every lesson (the first test took 3.5–5 s on CI
+// for the import alone). The modules are loaded once here, so each test measures the routes, not the import; the pages
+// read the feature flags when generateStaticParams runs, not when they are imported.
+beforeAll(async () => { for (const load of Object.values(PAGES)) await load(); });
 
 describe('route contract (multi-archipelago v2)', () => {
   it('generates the same pages in the default build', async () => {
