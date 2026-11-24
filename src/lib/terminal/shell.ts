@@ -171,10 +171,11 @@ export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS
  * Endpoints, kube-proxy, CoreDNS, port-forward; kube-service-spec.ts, kube-endpoints.ts, kube-net.ts, kube-dns.ts, kubectl-service.ts).
  * E36: kube-config (ConfigMaps, Secrets, env and volumes from them, imagePullSecrets, base64; kube-config-spec.ts, kube-env.ts,
  * kube-volumes.ts, kubectl-create-config.ts, base64.ts). E37: ingress (Ingress, ingress-nginx, the Gateway API; kube-ingress*.ts,
- * kube-gateway*.ts, kube-route*.ts, kubectl-ingress.ts).
+ * kube-gateway*.ts, kube-route*.ts, kubectl-ingress.ts). E38: kube-storage (StorageClasses, PVs, PVCs, StatefulSets, volume data,
+ * kubectl cp; kube-storage*.ts, kube-statefulset*.ts, kubectl-storage.ts).
  */
 export type ShellFeature = 'glob' | 'help-option' | 'multi-source' | 'ls-extra' | 'pipes' | 'accounts' | 'processes' | 'packages' | 'services' | 'remote' | 'scripting' | 'scheduling'
-  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers' | 'images' | 'storage-net' | 'compose' | 'runtime' | 'git' | 'forge' | 'workflows' | 'actions' | 'artifacts' | 'environments' | 'deploy-hosts' | 'cluster' | 'probes' | 'workloads' | 'kube-net' | 'kube-config' | 'ingress';
+  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers' | 'images' | 'storage-net' | 'compose' | 'runtime' | 'git' | 'forge' | 'workflows' | 'actions' | 'artifacts' | 'environments' | 'deploy-hosts' | 'cluster' | 'probes' | 'workloads' | 'kube-net' | 'kube-config' | 'ingress' | 'kube-storage';
 
 /** LNX-0: the commands a session may run (E1: and the features it switches on; none by default). */
 export interface ShellProfile { readonly id: string; readonly commands: readonly CommandName[]; readonly features?: readonly ShellFeature[] }
@@ -276,6 +277,8 @@ export const KUBE_NET_PROFILE: ShellProfile = { id: 'kube-net', commands: above(
 export const KUBE_CONFIG_PROFILE: ShellProfile = { id: 'kube-config', commands: above(KUBE_NET_PROFILE, E36_COMMANDS), features: [...KUBE_NET_PROFILE.features!, 'kube-config'] };
 /** E37 (docs/curriculum/KUB0_E37_INGRESS.md): the kube-config profile plus Ingress, the lesson's ingress-nginx and the Gateway API; no new commands. */
 export const INGRESS_PROFILE: ShellProfile = { id: 'ingress', commands: above(KUBE_CONFIG_PROFILE, []), features: [...KUBE_CONFIG_PROFILE.features!, 'ingress'] };
+/** E38 (docs/curriculum/KUB0_E38_KUBE_STORAGE.md): the ingress profile plus StorageClasses, PersistentVolumes and claims, StatefulSets and kubectl cp; no new commands. */
+export const KUBE_STORAGE_PROFILE: ShellProfile = { id: 'kube-storage', commands: above(INGRESS_PROFILE, []), features: [...INGRESS_PROFILE.features!, 'kube-storage'] };
 export const RUNNER_DEPLOY_PROFILE: ShellProfile = { id: 'runner', commands: FORGE_PROFILE.commands, features: [...GIT_PROFILE.features!, 'deploy-hosts'] };
 /** The profiles a lesson machine may name (TerminalMachine.profile), from the narrowest. */
 export const PROFILES = {
@@ -283,7 +286,7 @@ export const PROFILES = {
   remote: REMOTE_PROFILE, scripting: SCRIPTING_PROFILE, scheduling: SCHEDULING_PROFILE, sockets: SOCKETS_PROFILE, dns: DNS_PROFILE, http: HTTP_PROFILE,
   tls: TLS_PROFILE, nginx: NGINX_PROFILE, proxy: PROXY_PROFILE, firewall: FIREWALL_PROFILE, tunnels: TUNNELS_PROFILE, edge: EDGE_PROFILE, diagnostics: DIAGNOSTICS_PROFILE,
   containers: CONTAINERS_PROFILE, images: IMAGES_PROFILE, 'storage-net': STORAGE_NET_PROFILE, compose: COMPOSE_PROFILE, runtime: RUNTIME_PROFILE, git: GIT_PROFILE, forge: FORGE_PROFILE, workflows: WORKFLOWS_PROFILE, actions: ACTIONS_PROFILE, artifacts: ARTIFACTS_PROFILE,
-  environments: ENVIRONMENTS_PROFILE, 'deploy-hosts': DEPLOY_HOSTS_PROFILE, cluster: CLUSTER_PROFILE, probes: PROBES_PROFILE, workloads: WORKLOADS_PROFILE, 'kube-net': KUBE_NET_PROFILE, 'kube-config': KUBE_CONFIG_PROFILE, ingress: INGRESS_PROFILE,
+  environments: ENVIRONMENTS_PROFILE, 'deploy-hosts': DEPLOY_HOSTS_PROFILE, cluster: CLUSTER_PROFILE, probes: PROBES_PROFILE, workloads: WORKLOADS_PROFILE, 'kube-net': KUBE_NET_PROFILE, 'kube-config': KUBE_CONFIG_PROFILE, ingress: INGRESS_PROFILE, 'kube-storage': KUBE_STORAGE_PROFILE,
 } as const;
 export type ProfileId = keyof typeof PROFILES;
 

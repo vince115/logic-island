@@ -36,7 +36,8 @@ type Why = 'taint' | 'selector' | 'pods' | 'cpu' | 'memory';
 const REASON: Record<Exclude<Why, 'taint'>, string> = { selector: "node(s) didn't match Pod's node affinity/selector", pods: 'Too many pods', cpu: 'Insufficient cpu', memory: 'Insufficient memory' };
 
 /** Where the scheduler binds the pod, or the FailedScheduling message. */
-export function schedule(k: KubeState, pod: JObj): { node: KubeNode } | { message: string } {
+/** volumes (E38): the volume plugins' filter of a node after the others (a reason and its preemption text, or null). */
+export function schedule(k: KubeState, pod: JObj, volumes?: (n: KubeNode) => { reason: string; preempt: string } | null): { node: KubeNode } | { message: string } {
   const want = podRequests(pod), counts = new Map<string, number>(), preempt = new Map<string, number>();
   const add = (m: Map<string, number>, r: string) => m.set(r, (m.get(r) ?? 0) + 1);
   const fits: KubeNode[] = [];
@@ -51,6 +52,8 @@ export function schedule(k: KubeState, pod: JObj): { node: KubeNode } | { messag
     if (used.cpu + want.cpu > n.cpu) whys.push('cpu');
     if (used.memory + want.memory > n.memory) whys.push('memory');
     if (whys.length) { for (const w of whys) add(counts, REASON[w as Exclude<Why, 'taint'>]); add(preempt, 'No preemption victims found for incoming pod'); continue; }
+    const v = volumes?.(n);
+    if (v) { add(counts, v.reason); add(preempt, v.preempt); continue; }
     fits.push(n);
   }
   if (!fits.length) {

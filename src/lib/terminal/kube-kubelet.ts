@@ -2,9 +2,10 @@ import type { Seconds } from './clock';
 import { imageNodes, seedLines, type DockerImage, type DockerState } from './docker';
 import type { FsNode } from './fs';
 import { about, record } from './kube-api';
-import { behaviour, imageIdOf, resolveImage } from './kube-image';
+import { behaviour, imageIdOf, resolveImage, type Behaviour } from './kube-image';
 import { missingPullText, pullCreds, resolveEnv, skippedText } from './kube-env';
 import { mountNodes, subPathFiles } from './kube-volumes';
+import { commitStorage, startWrites } from './kube-storage-mount';
 import { arr, containerId, goDuration, KUBE_LIMITS, nameOf, nsOf, obj, str, uidOf, type CSim, type J, type JObj, type KubeState, type PodSim } from './kube-model';
 
 /*
@@ -56,8 +57,14 @@ export function stepContainer(d: DockerState | undefined, k0: KubeState, pod: JO
       for (const s of r.skipped) ev('Warning', 'InvalidEnvironmentVariableNames', skippedText(s));
       env = r.env; subs = subPathFiles(sim, spec);
     }
-    const cid = containerId(`${uidOf(pod)}/${c.name}/${c.restarts}`), mounts = k.config ? mountNodes(pod, sim, spec, { ...c, subs }) : undefined;
-    const b = behaviour(d, res.img, spec, nameOf(pod), cid, t, env, mounts);
+    // E38: the program's writes on its storage volumes happen as it starts (a read-only one makes it fail).
+    const wr = k.storage ? startWrites(d, k, pod, spec, res.img, t) : undefined;
+    if (wr) k = wr.k;
+    const cid = containerId(`${uidOf(pod)}/${c.name}/${c.restarts}`), mounts = k.config ? mountNodes(pod, sim, spec, { ...c, subs }, k) : undefined;
+    const b: Behaviour = wr?.fail ?? behaviour(d, res.img, spec, nameOf(pod), cid, t, env, mounts, !!k.storage);
+    // E38: what the main shell line wrote under a storage mount is the volume's, not the writable layer's.
+    const kept = k.storage && b.nodes ? commitStorage(k, pod, spec, b.nodes) : undefined;
+    if (kept) k = kept.k;
     if (b.startError) {
       ev('Warning', 'Failed', `Error: ${b.startError}`);
       set({ ...c, state: 'terminated', reason: 'StartError', message: b.startError, exit: 128, started: t, finished: t, cid, imageId: imageIdOf(res), next: t, step: 'exit', plan: { exit: 128, logs: [], reason: 'StartError', message: b.startError } });
@@ -66,7 +73,7 @@ export function stepContainer(d: DockerState | undefined, k0: KubeState, pod: JO
     ev('Normal', 'Created', `Created container: ${c.name}`);
     ev('Normal', 'Started', `Started container ${c.name}`);
     const base = { ...c, state: 'running' as const, reason: undefined, message: undefined, exit: undefined, finished: undefined, started: t, cid, imageId: imageIdOf(res), logs: cap([...c.logs, ...b.lines]), retry: undefined,
-      ...k.probes && b.nodes ? { layer: layerOf(res.img, cid, b.nodes, mounts) } : {}, ...k.config ? { env, subs } : {} };
+      ...k.probes && b.nodes ? { layer: kept ? new Map([...layerOf(res.img, cid, b.nodes, mounts)].filter(([p]) => !kept.owned(p))) : layerOf(res.img, cid, b.nodes, mounts) } : {}, ...k.config ? { env, subs } : {} };
     if (b.exit) set({ ...base, next: t, step: 'exit', plan: { exit: b.exit.exit, oom: b.exit.oom, logs: [] } });
     else if (b.later) set({ ...base, next: b.later.at, step: 'exit', plan: { exit: b.later.exit, oom: b.later.oom, logs: b.later.logs } });
     else set({ ...base, next: undefined, step: undefined, plan: undefined });

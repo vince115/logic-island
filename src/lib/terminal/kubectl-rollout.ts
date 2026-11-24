@@ -3,6 +3,7 @@ import { settleKube, waitStep } from './kube-settle';
 import { advanceClock } from './shell';
 import { resourceName } from './kube-output';
 import { changeCauseOf, historyOf, revisionOf, rolloutStatus } from './kube-deployment';
+import { setRolloutStatus } from './kube-statefulset-spec';
 import { historyTemplate } from './kube-describe-workload';
 import { HISTORY, MAX_REPLICAS, DESIRED, REVISION, RESTARTED, withoutHash } from './kube-workload-spec';
 import { LAST_APPLIED } from './kube-write';
@@ -28,7 +29,8 @@ export function rolloutCommand(x: Kx): KubeResult {
   if (!SUBS.includes(sub ?? '')) return fail(x, sub ? `error: unknown command "${sub}" for "kubectl rollout"` : 'error: Required resource not specified.');
   const r = workloadTargets(x, words, `rollout ${sub}`);
   if ('error' in r) return fail(x, r.error);
-  if (r.items.some(o => o.kind !== 'Deployment')) return fail(x, `（模擬環境：kubectl rollout ${sub} 只模擬 Deployment）`);
+  // E38: a StatefulSet's rollout status and restart (its history and undo are ControllerRevisions, prose).
+  if (r.items.some(o => o.kind !== 'Deployment' && !(o.kind === 'StatefulSet' && (sub === 'status' || sub === 'restart')))) return fail(x, `（模擬環境：kubectl rollout ${sub} 只模擬 Deployment${x.k.storage ? '；StatefulSet 只模擬 status 與 restart' : ''}）`);
   if (!r.items.length) return fail(x, r.errors[0] ?? 'error: Required resource not specified.');
   if (sub === 'status') return statusCommand(x, r.items[0]);
   let k = x.k, bad = r.errors.length > 0;
@@ -61,9 +63,9 @@ function statusCommand(x: Kx, d0: JObj): KubeResult {
   const limit = m && Number(m[1]) > 0 ? Number(m[1]) * (m[2] === 'm' ? 60 : 1) : STATUS_CAP, once = x.flags.off?.has('watch');
   let s = x.state, last = '';
   for (let waited = 0; ;) {
-    const d = find(s.kube!, 'Deployment', nsOf(d0), nameOf(d0));
-    if (!d) { x.io.err(`error: deployment "${nameOf(d0)}" was deleted`); return { state: x.state, status: 1, advance: waited }; }
-    const v = rolloutStatus(d);
+    const kind = String(d0.kind), d = find(s.kube!, kind, nsOf(d0), nameOf(d0));
+    if (!d) { x.io.err(`error: ${kind.toLowerCase()} "${nameOf(d0)}" was deleted`); return { state: x.state, status: 1, advance: waited }; }
+    const v = kind === 'StatefulSet' ? setRolloutStatus(d) : rolloutStatus(d);
     if ('error' in v) { x.io.err(v.error); return { state: x.state, status: 1, advance: waited }; }
     if (v.msg !== last) x.io.out(v.msg);
     last = v.msg;

@@ -16,7 +16,7 @@ import {
  */
 
 export const NAMESPACED: Record<string, boolean> = { Pod: true, Namespace: false, Node: false, Event: true, Service: true, Deployment: true, ReplicaSet: true, DaemonSet: true, ConfigMap: true, Secret: true, Endpoints: true, EndpointSlice: true,
-  Ingress: true, IngressClass: false, GatewayClass: false, Gateway: true, HTTPRoute: true };
+  Ingress: true, IngressClass: false, GatewayClass: false, Gateway: true, HTTPRoute: true, StatefulSet: true, PersistentVolumeClaim: true, PersistentVolume: false, StorageClass: false };
 export const find = (k: KubeState, kind: string, ns: string | undefined, name: string) =>
   k.objects.find(o => kindOf(o) === kind && nameOf(o) === name && (NAMESPACED[kind] ? nsOf(o) === ns : true));
 export const ofKind = (k: KubeState, kind: string, ns?: string) => k.objects.filter(o => kindOf(o) === kind && (ns === undefined || nsOf(o) === ns));

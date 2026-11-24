@@ -3,6 +3,8 @@ import { imageNodes, runIn } from './docker';
 import { podContainer, podEnv, resolveImage } from './kube-image';
 import { podExec, podNetCommand } from './kube-pod-net';
 import { mountNodes } from './kube-volumes';
+import { commitPod, streamInput, tarFinish, tarStream } from './kubectl-storage';
+import { readOnlyError } from './storage-net';
 import { cOf, specOf, type Ref } from './kube-kubelet';
 import { settleKube, waitStep } from './kube-settle';
 import { advanceClock } from './shell';
@@ -75,13 +77,26 @@ export function execCommand(x: Kx): KubeResult {
     if (status) x.io.err('command terminated with exit code 1');
     return { state: x.state, status };
   }
-  const mounts = x.k.config ? mountNodes(p.pod, sim, spec, c) : undefined;
+  const mounts = x.k.config ? mountNodes(p.pod, sim, spec, c, x.k) : undefined;
   const box = podContainer(res.img, spec, nameOf(p.pod), c.cid ?? '', x.now, c.layer, mounts);
   // E35: the pod's network (kubelet's /etc/hosts and /etc/resolv.conf, the other pods, Services, DNS); nslookup and wget.
   const net = x.k.net ? podExec(x.state, p.pod, box, c.layer) : undefined;
-  const r = (net && podNetCommand(box, res.img, net.view, argv)) || runIn(box, res.img, argv, { tty: x.flags.bools.has('tty'), env: [], now: x.now, ...net ? { view: net.view } : {} });
-  if ('notFound' in r) return fail(x, `error: Internal error occurred: Internal error occurred: error executing command in container: failed to exec in container: failed to start exec "${(c.cid ?? '').slice(0, 64)}": OCI runtime exec failed: exec failed: unable to start container process: exec: "${r.notFound}": executable file not found in $PATH: unknown`);
+  // E38: tar with the archive "-" streams it through kubectl's standard output, or reads it from standard input (-i).
+  const stream = x.k.storage ? tarStream(argv) : undefined;
+  if (stream && !stream.create) streamInput(box.nodes as Map<string, FsNode>, x.flags.bools.has('stdin') ? x.io.stdin ?? '' : '');
+  const r0 = (net && podNetCommand(box, res.img, net.view, argv)) || runIn(box, res.img, stream?.argv ?? argv, { tty: x.flags.bools.has('tty'), env: [], now: x.now, ...net ? { view: net.view } : {} });
+  if ('notFound' in r0) return fail(x, `error: Internal error occurred: Internal error occurred: error executing command in container: failed to exec in container: failed to start exec "${(c.cid ?? '').slice(0, 64)}": OCI runtime exec failed: exec failed: unable to start container process: exec: "${r0.notFound}": executable file not found in $PATH: unknown`);
+  const fin = stream ? tarFinish(stream, r0.nodes, r0.lines) : undefined, r = fin ? { ...r0, lines: fin.lines, nodes: fin.nodes } : r0;
   for (const l of r.lines) (l.stream === 1 ? x.io.out : x.io.err)(l.text);
+  if (fin?.raw !== undefined) x.io.raw(fin.raw);
+  // E38: what changed under the pod's volumes is theirs (a read-only mount refuses it), the rest the container's layer.
+  if (x.k.storage) {
+    const done = commitPod(x.k, p.pod, p.r, c, spec, res.img, new Map([...mounts ?? [], ...(net?.files ?? []).filter(([path]) => !c.layer?.has(path))]), r.nodes);
+    const status = done.refused ? r.status || 1 : r.status, line = /^(\/bin\/)?(sh|bash)$/.test(argv[0]) && argv[1] === '-c' ? argv[2] ?? '' : argv.join(' ');
+    if (done.refused) x.io.err(readOnlyError(line, done.refused, box.workdir));
+    if (status !== 0) x.io.err(`command terminated with exit code ${status}`);
+    return { state: { ...x.state, kube: { ...done.k, ...r.kubeNet ? { turns: r.kubeNet.turns } : {} } }, status };
+  }
   const base = imageNodes(res.img, c.cid ?? ''), layer = new Map<string, FsNode>();
   for (const [path, n] of mounts ?? []) base.set(path, n);
   for (const [path, n] of net?.files ?? []) if (!c.layer?.has(path)) base.set(path, n);

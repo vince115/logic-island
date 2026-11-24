@@ -5,6 +5,7 @@ import { applyDoc, createDoc, deleteObject, type Written } from './kube-write';
 import { endPod, orphan } from './kube-replicaset';
 import { noneText, pick, targets } from './kubectl-get';
 import { beginDelete } from './kube-stop';
+import { usersOf } from './kube-storage-model';
 import { kindOf, nameOf, systemNs, nsOf, obj, str, uidOf, type J, type JObj, type KubeState } from './kube-model';
 import { flag, type KubeResult, type Kx } from './kubectl';
 
@@ -97,6 +98,9 @@ export function deleteCommand(x: Kx): KubeResult {
       k = r.k; until = Math.max(until, r.until);
     } else k = deleteObject(k, o, x.now);
     x.io.out(`${resourceName(o).split('/')[0]} "${nameOf(o)}" ${force ? 'force deleted' : 'deleted'}`);
+    // E38: a claim a pod uses (or a volume still bound) stays Terminating; real kubectl would wait for it without end.
+    if (k.storage && kindOf(o) === 'PersistentVolumeClaim' && usersOf(k, o).length) x.io.err(`（模擬環境：Pod ${usersOf(k, o).map(nameOf).join(', ')} 還在使用 ${nameOf(o)}，它會停在 Terminating 直到這些 Pod 刪除；真實的 kubectl delete 會一直等待）`);
+    if (k.storage && kindOf(o) === 'PersistentVolume' && str(obj(o.status).phase) === 'Bound') x.io.err(`（模擬環境：${nameOf(o)} 還綁定著 PVC，它會停在 Terminating 直到 PVC 刪除；真實的 kubectl delete 會一直等待）`);
   };
   if (x.flags.values.filename) {
     const docs = documents(x);

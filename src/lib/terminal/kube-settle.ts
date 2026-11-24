@@ -12,6 +12,8 @@ import type { ProbeType } from './kube-probe-spec';
 import { controllerTimes, deadAt, lostStatus, runControllers, watched } from './kube-controllers';
 import { netSig, netTimes, syncNet } from './kube-endpoints';
 import { mountPod, syncVolume, volumeTimes } from './kube-volumes';
+import { claimNode, volumeNeeds } from './kube-storage-sched';
+import { WAIT } from './kube-storage-model';
 import { createdOf, kindOf, obj, sameJ, str, uidOf, type JObj, type KubeState } from './kube-model';
 
 /*
@@ -78,7 +80,8 @@ function nextStep(k: KubeState, now: Seconds, d: DockerState | undefined): Step 
     }
     const dead = k.workloads ? deadAt(k, sim.node) : undefined, alive = (t: Seconds) => dead === undefined || t < dead;
     // E36: a mount that waits for its ConfigMap or Secret is tried again (no container starts before it); mounted volumes sync.
-    if (sim.mount) { const t = sim.mount.next; if (alive(t)) consider(t, kk => mount(kk, id, t)); continue; }
+    // E38: a mount waiting for an attach (WAIT) has no time of its own: the storage controller tries it again.
+    if (sim.mount) { const t = sim.mount.next; if (t !== WAIT && alive(t)) consider(t, kk => mount(kk, id, t)); continue; }
     if (k.config) for (const v of volumeTimes(k, pod, sim)) if (alive(v.t)) consider(v.t, kk => resync(kk, id, v.vol, v.t));
     const refs: Ref[] = [...sim.init.map((_, i) => ({ init: true, i })), ...sim.main.map((_, i) => ({ init: false, i }))];
     for (const r of refs) {
@@ -99,11 +102,16 @@ function bind(k0: KubeState, id: string, t: Seconds): KubeState {
   let k = k0;
   const target = named !== undefined ? nodeNamed(k, named) : undefined;
   if (named !== undefined && !target) return { ...k, unscheduled: { ...k.unscheduled, [id]: { t, message: '', n: k.retry?.n ?? 0 } } };
-  const r = target ? { node: target } : schedule(k, pod);
+  // E38: a claim that is missing, being deleted or unbound fails before any node; the volumes filter the nodes.
+  const vol = k.storage && !target ? volumeNeeds(k, pod, t) : null, all = k.nodes.length;
+  const r = vol && 'message' in vol ? { message: `0/${all} nodes are available: ${vol.message}. preemption: 0/${all} nodes are available: ${all} Preemption is not helpful for scheduling.` }
+    : target ? { node: target } : schedule(k, pod, vol?.fits);
   if ('message' in r) {
     k = record(k, t, about(pod), 'Warning', 'FailedScheduling', r.message, 'default-scheduler');
     return { ...k, unscheduled: { ...k.unscheduled, [id]: { t, message: r.message, n: k.retry?.n ?? 0 } } };
   }
+  // E38: the pod's delayed claims are bound or provisioned for the node (the pod waits while one is not).
+  if (vol) { const c = claimNode(k, pod, r.node, t); k = c.k; if (c.wait) return { ...k, unscheduled: { ...k.unscheduled, [id]: { t, message: '', n: k.retry?.n ?? 0 } } }; }
   const { [id]: _done, ...unscheduled } = k.unscheduled;
   void _done;
   if (!target) k = record(k, t, about(pod), 'Normal', 'Scheduled', `Successfully assigned ${podName(pod)} to ${r.node.name}`, 'default-scheduler');

@@ -9,6 +9,7 @@ import { workloadVerb } from './kubectl-workload';
 import { netVerb } from './kubectl-service';
 import { configVerb } from './kubectl-create-config';
 import { ingressVerb } from './kubectl-ingress';
+import { storageVerb } from './kubectl-storage';
 import { eventsCommand, execCommand, logsCommand, waitCommand } from './kubectl-pod';
 import { API_SERVER, goTab, KUBE_VERSION, KUSTOMIZE_VERSION, type KubeState } from './kube-model';
 
@@ -35,13 +36,15 @@ const E35_VALUE = ['target-port', 'type', 'name', 'protocol', 'tcp', 'clusterip'
 const E36_VALUE = ['from-literal', 'from-file', 'from-env-file', 'cert', 'key', 'docker-server', 'docker-username', 'docker-password', 'docker-email'];
 /** E37 (the ingress profile): create ingress. */
 const E37_VALUE = ['class', 'rule', 'default-backend', 'annotation'];
+/** E38 (the kube-storage profile): kubectl cp. */
+const E38_VALUE = ['retries'], E38_BOOL = ['no-preserve'];
 const BOOLS = ['all-namespaces', 'show-labels', 'overwrite', 'all', 'force', 'previous', 'timestamps', 'follow', 'watch', 'stdin', 'tty', 'command', 'rm', 'minify', 'raw', 'current', 'wait', 'client', 'ignore-not-found', 'no-headers', 'help', 'quiet', 'show-kind', 'list'];
 const SHORT_VALUE: Record<string, string> = { n: 'namespace', o: 'output', l: 'selector', f: 'filename', c: 'container', L: 'label-columns' };
 const SHORT_BOOL: Record<string, string> = { A: 'all-namespaces', w: 'watch', i: 'stdin', t: 'tty', p: 'previous', h: 'help', q: 'quiet' };
 
 /** Flags and positional words (after -- everything is positional and kept apart). */
-export function parseFlags(verb: string, args: readonly string[], workloads = false, net = false, config = false, ingress = false): { flags: Flags; pos: string[]; rest: string[] } | { error: string } {
-  const VALUE = [...VALUES, ...workloads ? E34_VALUE : [], ...net ? E35_VALUE : [], ...config ? E36_VALUE : [], ...ingress ? E37_VALUE : []], BOOL = workloads ? [...BOOLS, ...E34_BOOL] : BOOLS;
+export function parseFlags(verb: string, args: readonly string[], workloads = false, net = false, config = false, ingress = false, storage = false): { flags: Flags; pos: string[]; rest: string[] } | { error: string } {
+  const VALUE = [...VALUES, ...workloads ? E34_VALUE : [], ...net ? E35_VALUE : [], ...config ? E36_VALUE : [], ...ingress ? E37_VALUE : [], ...storage ? E38_VALUE : []], BOOL = [...workloads ? [...BOOLS, ...E34_BOOL] : BOOLS, ...storage ? E38_BOOL : []];
   const values: Record<string, string[]> = {}, bools = new Set<string>(), off = new Set<string>(), pos: string[] = [];
   const short = { ...SHORT_VALUE, ...verb === 'logs' ? { f: '' } : {}, ...verb === 'run' ? { l: 'labels' } : {} }, shortBool = { ...SHORT_BOOL, ...verb === 'logs' ? { f: 'follow' } : {} };
   const setV = (name: string, v: string) => { (values[name] ??= []).push(v); };
@@ -79,12 +82,13 @@ const REFUSED = 'The connection to the server localhost:8080 was refused - did y
 export function kubectl(state0: FsState, args: readonly string[], io: KubeIo): KubeResult {
   const [verb, ...more] = args;
   if (!verb) { io.out('kubectl controls the Kubernetes cluster manager.'); io.out(''); io.out(' Find more information at: https://kubernetes.io/docs/reference/kubectl/'); return { state: state0, status: 0 }; }
-  const workloads = !!state0.kube?.workloads, net = !!state0.kube?.net, config = !!state0.kube?.config, ingress = !!state0.kube?.ingress, ready = (v: string) => (workloads && LATER[v] === 'E34') || (net && LATER[v] === 'E35');
+  const workloads = !!state0.kube?.workloads, net = !!state0.kube?.net, config = !!state0.kube?.config, ingress = !!state0.kube?.ingress, storage = !!state0.kube?.storage;
+  const ready = (v: string) => (workloads && LATER[v] === 'E34') || (net && LATER[v] === 'E35') || (storage && LATER[v] === 'E38');
   if (LATER[verb] && !ready(verb)) { io.err(`（模擬環境：kubectl ${verb} 要到引擎階段 ${LATER[verb]} 才模擬）`); return { state: state0, status: 1 }; }
   if (verb === 'edit') { io.err('（模擬環境沒有文字編輯器：請修改 YAML 檔案後執行 kubectl apply -f 檔案）'); return { state: state0, status: 1 }; }
   if (PROSE.includes(verb)) { io.err(`（模擬環境不模擬 kubectl ${verb}，課文會說明它）`); return { state: state0, status: 1 }; }
   if (!VERBS.includes(verb) && !ready(verb)) { io.err(`error: unknown command "${verb}" for "kubectl"`); io.err("Run 'kubectl --help' for usage."); return { state: state0, status: 1 }; }
-  const p = parseFlags(verb, more, workloads, net, config, ingress);
+  const p = parseFlags(verb, more, workloads, net, config, ingress, storage);
   if ('error' in p) { io.err(p.error); io.err(`See 'kubectl ${verb} --help' for usage.`); return { state: state0, status: 1 }; }
   const state = settleKube(state0), now = clockOf(state).now, cfg = readConfig(state);
   if (verb === 'version' && p.flags.bools.has('client')) { io.out(`Client Version: ${KUBE_VERSION}`); io.out(`Kustomize Version: ${KUSTOMIZE_VERSION}`); return { state, status: 0 }; }
@@ -101,8 +105,8 @@ export function kubectl(state0: FsState, args: readonly string[], io: KubeIo): K
   const x: Kx = { state, k: state.kube, ns: nsFlag ?? ctx.namespace ?? 'default', nsGiven: nsFlag !== undefined, all: p.flags.bools.has('all-namespaces'), flags: p.flags, pos: p.pos, io, now, verb, cfg, rest: p.rest };
   if (!workloads) return verbOf(x);
   // E34: a command that changed the cluster makes the controllers run now. E35: the endpoints controllers too.
-  // E36: create configmap and create secret. E37: create ingress.
-  const r = (ingress ? ingressVerb(x) : undefined) ?? (config ? configVerb(x) : undefined) ?? (net ? netVerb(x) : undefined) ?? workloadVerb(x) ?? verbOf(x), kube = r.state.kube;
+  // E36: create configmap and create secret. E37: create ingress. E38: cp.
+  const r = (storage ? storageVerb(x) : undefined) ?? (ingress ? ingressVerb(x) : undefined) ?? (config ? configVerb(x) : undefined) ?? (net ? netVerb(x) : undefined) ?? workloadVerb(x) ?? verbOf(x), kube = r.state.kube;
   return kube && kube !== x.k ? { ...r, state: { ...r.state, kube: { ...kube, dirty: Math.min(kube.dirty ?? x.now, x.now), ...net ? { netDirty: Math.min(kube.netDirty ?? x.now, x.now) } : {} } } } : r;
 }
 function verbOf(x: Kx): KubeResult {

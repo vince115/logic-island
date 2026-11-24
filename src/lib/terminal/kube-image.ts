@@ -4,6 +4,7 @@ import { imageNodes, parseRef, programFor, qualified, runIn, seedLines, type Doc
 import { digestRefOf, hostOf } from './registry';
 import type { RuntimeSpec } from './runtime';
 import { arr, bytesOf, obj, quantityText, str, type J } from './kube-model';
+import { isMountPoint } from './kube-storage-model';
 
 /*
  * Engine stage E32 (docs/curriculum/KUB0_E32_CLUSTER.md §6): what a pod's container is. Images come from the lesson's
@@ -64,8 +65,10 @@ export function podContainer(img: DockerImage, spec: J, pod: string, cid: string
   nodes.set('/etc/hostname', { kind: 'file', mode: 0o644, owner: 'root', content: `${pod}\n` });
   // E36: the configMap and secret volumes (kube-volumes.ts) over the image's files, under the writable layer: a volume's
   // folder hides what the image had there; the folders above it are the image's when it has them.
-  for (const p of [...mounts?.keys() ?? []].filter(p => mounts!.has(`${p}/..data`))) for (const q of [...nodes.keys()]) if (q.startsWith(`${p}/`)) nodes.delete(q);
-  for (const [p, n] of mounts ?? []) if (n.kind !== 'dir' || !nodes.has(p) || mounts!.has(`${p}/..data`)) nodes.set(p, n);
+  // E38: a storage volume's mount point hides the image's files under it too.
+  const hides = (p: string) => mounts!.has(`${p}/..data`) || isMountPoint(mounts!.get(p));
+  for (const p of [...mounts?.keys() ?? []].filter(hides)) for (const q of [...nodes.keys()]) if (q.startsWith(`${p}/`)) nodes.delete(q);
+  for (const [p, n] of mounts ?? []) if (n.kind !== 'dir' || !nodes.has(p) || hides(p)) nodes.set(p, n);
   for (const [p, n] of layer ?? []) nodes.set(p, n);
   return { id: cid, name: pod, ref: img.repo, image: img.id, path: argv[0] ?? 'sh', args: argv.slice(1), cmd: argv, custom: true, created: t, started: t, status: 'running', exitCode: 0,
     ports: [], env: [], workdir: str(obj(spec).workingDir) ?? (img.workdir || '/'), rm: false, tty: false, interactive: false, logs: [], nodes, execs: 0, hostname: pod, ...img.user ? { user: img.user } : {} };
@@ -80,7 +83,8 @@ export function argvOf(img: DockerImage, spec: J): string[] {
 /** What the main process does from its start: lines it prints, an exit now or later (OOM at the memory limit), or a start error. */
 export interface Behaviour { lines: LogLine[]; exit?: { exit: number; oom?: boolean }; later?: { at: Seconds; exit: number; oom?: boolean; logs: readonly LogSeed[] }; startError?: string; nodes?: ReadonlyMap<string, FsNode> }
 const outputLines = (text: string | undefined, t: Seconds): LogLine[] => text ? text.replace(/\n$/, '').split('\n').map(line => ({ t, stream: 1 as const, text: line })) : [];
-export function behaviour(d: DockerState | undefined, img: DockerImage, spec: J, pod: string, cid: string, t: Seconds, resolved?: readonly (readonly [string, string])[], mounts?: ReadonlyMap<string, FsNode>): Behaviour {
+/** redirects (E38): the main shell line's parts may redirect and pipe (echo … > /data/x; sleep 3600), as on the kube-storage profile. */
+export function behaviour(d: DockerState | undefined, img: DockerImage, spec: J, pod: string, cid: string, t: Seconds, resolved?: readonly (readonly [string, string])[], mounts?: ReadonlyMap<string, FsNode>, redirects = false): Behaviour {
   const s = obj(spec), own = !s.command && !s.args && !img.ownMain, argv = argvOf(img, spec);
   const prog = own ? undefined : d ? programFor(d, argv) : undefined;
   const rt: RuntimeSpec | undefined = own ? img.runtime : prog?.runtime;
@@ -100,7 +104,7 @@ export function behaviour(d: DockerState | undefined, img: DockerImage, spec: J,
   if (own) return run(img.service, [...seedLines(img.logs, t), ...img.service ? [] : outputLines(img.output, t)], img.exit);
   if (prog) return run(prog.service, [...seedLines(prog.logs, t), ...prog.service ? [] : outputLines(prog.output, t)], prog.exit);
   const box = podContainer(img, spec, pod, cid, t, undefined, mounts);
-  const r = shellMain(box, img, argv, t) ?? runIn(box, img, argv, { tty: false, env: [], now: t, main: true });
+  const r = shellMain(box, img, argv, t, redirects) ?? runIn(box, img, argv, { tty: false, env: [], now: t, main: true });
   if ('notFound' in r) return { lines: [], startError: `failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: "${r.notFound}": executable file not found in $PATH: unknown` };
   const lines = r.lines.map(l => ({ ...l, t }));
   // E33 reads nodes: what the main shell line wrote (touch /tmp/healthy) stays in the container's layer on the probes profile.
@@ -126,8 +130,8 @@ function parts(line: string): { op: ';' | '&&'; text: string }[] {
  * runs as its own simple command in the container (docker.ts's runIn), and a last sleep keeps the container running.
  * null: not that form (runIn takes the whole command).
  */
-function shellMain(c: DockerContainer, img: DockerImage, argv: readonly string[], t: Seconds): ReturnType<typeof runIn> | null {
-  if (!['sh', 'bash', '/bin/sh', '/bin/bash'].includes(argv[0]) || argv[1] !== '-c' || argv.length !== 3 || !/;|&&/.test(argv[2]) || /[|<>`$]|\|\|/.test(argv[2])) return null;
+function shellMain(c: DockerContainer, img: DockerImage, argv: readonly string[], t: Seconds, redirects = false): ReturnType<typeof runIn> | null {
+  if (!['sh', 'bash', '/bin/sh', '/bin/bash'].includes(argv[0]) || argv[1] !== '-c' || argv.length !== 3 || !/;|&&/.test(argv[2]) || (redirects ? /[`$]|\|\|/ : /[|<>`$]|\|\|/).test(argv[2])) return null;
   const lines: { stream: 1 | 2; text: string }[] = [];
   let box = c, status = 0;
   const list = parts(argv[2]);

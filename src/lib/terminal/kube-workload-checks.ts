@@ -11,8 +11,9 @@ import { arr, kindOf, nameOf, nsOf, obj, str, type JObj } from './kube-model';
  */
 
 export type WorkloadCheck =
-  | { kind: 'kube-workload'; resource?: 'Deployment' | 'ReplicaSet'; name: string; namespace?: string; replicas?: number; readyReplicas?: number; updatedReplicas?: number; availableReplicas?: number;
-    image?: string; container?: string; revision?: number; paused?: boolean; condition?: { type: string; status: string; reason?: string } }
+  | { kind: 'kube-workload'; resource?: 'Deployment' | 'ReplicaSet' | 'StatefulSet'; name: string; namespace?: string; replicas?: number; readyReplicas?: number; updatedReplicas?: number; availableReplicas?: number;
+    image?: string; container?: string; revision?: number; paused?: boolean; condition?: { type: string; status: string; reason?: string };
+    /** E38 (a StatefulSet): its revisions by name, and whether the rollout is done (currentRevision is updateRevision). */ currentRevision?: string; updateRevision?: string; rolledOut?: boolean }
   | { kind: 'kube-rollout'; name: string; namespace?: string; complete?: boolean; revision?: number; changeCause?: string; history?: number };
 export const WORKLOAD_CHECK_KINDS = ['kube-workload', 'kube-rollout'] as const;
 const LINE = (t: unknown, max = 253) => typeof t === 'string' && t.length >= 1 && t.length <= max && !t.includes('\n');
@@ -20,7 +21,7 @@ const COUNT = (v: unknown) => v === undefined || (Number.isInteger(v) && (v as n
 const COUNTS = ['replicas', 'readyReplicas', 'updatedReplicas', 'availableReplicas'] as const;
 const COUNT_TEXT: Record<typeof COUNTS[number], string> = { replicas: 'spec.replicas', readyReplicas: '就緒的 Pod', updatedReplicas: '已更新的 Pod', availableReplicas: '可用的 Pod' };
 
-export function workloadCheckProblems(c: WorkloadCheck, workloads: boolean): string | null {
+export function workloadCheckProblems(c: WorkloadCheck, workloads: boolean, storage = false): string | null {
   if (!workloads) return `a ${c.kind} check needs a workloads machine (engine stage E34)`;
   if (!LINE(c.name) || (c.namespace !== undefined && !LINE(c.namespace, 63))) return `a ${c.kind} check needs a name (and a namespace name)`;
   if (c.kind === 'kube-rollout') {
@@ -31,7 +32,12 @@ export function workloadCheckProblems(c: WorkloadCheck, workloads: boolean): str
     return null;
   }
   const resource = c.resource ?? 'Deployment';
-  if (resource !== 'Deployment' && resource !== 'ReplicaSet') return 'a kube-workload check\'s resource is Deployment or ReplicaSet';
+  // E38: a StatefulSet (kube-storage): its counts, image, revisions and rolledOut.
+  if (resource === 'StatefulSet' && !storage) return 'a kube-workload check of a StatefulSet needs a kube-storage machine (engine stage E38)';
+  if (resource !== 'Deployment' && resource !== 'ReplicaSet' && resource !== 'StatefulSet') return `a kube-workload check's resource is Deployment${storage ? ', ReplicaSet or StatefulSet' : ' or ReplicaSet'}`;
+  if (resource === 'StatefulSet' && (c.revision !== undefined || c.paused !== undefined || c.condition !== undefined)) return 'a StatefulSet has no revision number, paused or condition (use currentRevision, updateRevision, rolledOut)';
+  if (resource !== 'StatefulSet' && (c.currentRevision !== undefined || c.updateRevision !== undefined || c.rolledOut !== undefined)) return 'currentRevision, updateRevision and rolledOut are a StatefulSet\'s';
+  if ((c.currentRevision !== undefined && !LINE(c.currentRevision)) || (c.updateRevision !== undefined && !LINE(c.updateRevision)) || (c.rolledOut !== undefined && typeof c.rolledOut !== 'boolean')) return 'a kube-workload check\'s revisions are names and rolledOut is true or false';
   if (!COUNTS.every(key => COUNT(c[key]))) return 'a kube-workload check\'s replicas, readyReplicas, updatedReplicas and availableReplicas are whole numbers';
   if (resource === 'ReplicaSet' && (c.updatedReplicas !== undefined || c.paused !== undefined)) return 'a ReplicaSet has no updatedReplicas or paused';
   if ((c.image !== undefined && !LINE(c.image)) || (c.container !== undefined && !LINE(c.container, 63))) return 'a kube-workload check\'s image and container are names';
@@ -51,7 +57,8 @@ export function describeWorkloadCheck(c: WorkloadCheck): string {
   }
   const more = [...COUNTS.filter(key => c[key] !== undefined).map(key => `${COUNT_TEXT[key]} ${c[key]}`), c.image ? `${c.container ? `容器 ${c.container} 的 ` : ''}Image ${c.image}` : '',
     c.revision !== undefined ? `revision ${c.revision}` : '', c.paused === undefined ? '' : c.paused ? '已暫停' : '沒有暫停',
-    c.condition ? `${c.condition.type} 是 ${c.condition.status}${c.condition.reason ? `（${c.condition.reason}）` : ''}` : ''].filter(Boolean);
+    c.condition ? `${c.condition.type} 是 ${c.condition.status}${c.condition.reason ? `（${c.condition.reason}）` : ''}` : '',
+    c.currentRevision ? `currentRevision ${c.currentRevision}` : '', c.updateRevision ? `updateRevision ${c.updateRevision}` : '', c.rolledOut === undefined ? '' : c.rolledOut ? '所有 Pod 都是新的 revision' : '還有 Pod 是舊的 revision'].filter(Boolean);
   return `${ns} 命名空間應該有名為 ${c.name} 的 ${c.resource ?? 'Deployment'}${more.length ? `（${more.join('、')}）` : ''}`;
 }
 
@@ -78,6 +85,11 @@ export function workloadFailure(c: WorkloadCheck, end0: FsState): string | null 
     if (str(one.image) !== c.image) return `${c.name} 的 Image 是 ${str(one.image)}`;
   }
   if (c.revision !== undefined && revisionOf(o) !== c.revision) return `${c.name} 目前是 revision ${revisionOf(o)}`;
+  // E38: a StatefulSet's revisions.
+  const cur = str(status.currentRevision), upd = str(status.updateRevision);
+  if (c.currentRevision !== undefined && cur !== c.currentRevision) return `${c.name} 的 currentRevision 是 ${cur ?? '（沒有）'}`;
+  if (c.updateRevision !== undefined && upd !== c.updateRevision) return `${c.name} 的 updateRevision 是 ${upd ?? '（沒有）'}`;
+  if (c.rolledOut !== undefined && (!!upd && cur === upd) !== c.rolledOut) return c.rolledOut ? `${c.name} 還有 Pod 是舊的 revision（currentRevision ${cur}，updateRevision ${upd}）` : `${c.name} 的 Pod 都已經是新的 revision`;
   if (c.paused !== undefined && (obj(o.spec).paused === true) !== c.paused) return c.paused ? `${c.name} 沒有暫停` : `${c.name} 已暫停`;
   if (c.condition) {
     const got = conditionOf(o as JObj, c.condition.type);

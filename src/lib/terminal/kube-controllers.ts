@@ -3,6 +3,9 @@ import type { DockerState } from './docker';
 import { about, put, record } from './kube-api';
 import { collectGarbage, endPod, isAvailable, ownedBy, podFacts, syncReplicaSet, visible } from './kube-replicaset';
 import { deadlineOf, syncDeployment } from './kube-deployment';
+import { syncStatefulSet } from './kube-statefulset';
+import { syncStorage } from './kube-storage-ctl';
+import { STORAGE_KINDS } from './kube-storage-model';
 import { tolerates } from './kube-sched';
 import { DESIRED, HASH, MAX_REPLICAS, REVISION } from './kube-workload-spec';
 import { arr, clone, createdOf, systemNs, kindOf, meta, nameOf, nsOf, obj, stamp, str, uid, uidOf, type J, type JObj, type KubeState, type Taint } from './kube-model';
@@ -59,6 +62,11 @@ export function runControllers(d: DockerState | undefined, k0: KubeState, t: Sec
     k = collectGarbage(d, k, t);
     for (const rs of visible(k, 'ReplicaSet', undefined, t)) { const live = k.objects.find(o => uidOf(o) === uidOf(rs)); if (live && !meta(live).deletionTimestamp) k = syncReplicaSet(d, k, live, t); }
     for (const dep of visible(k, 'Deployment', undefined, t)) { const live = k.objects.find(o => uidOf(o) === uidOf(dep)); if (live) k = syncDeployment(k, live, t); }
+    // E38: the StatefulSet controller, then the PersistentVolume controller (and the attach/detach retries).
+    if (k.storage) {
+      for (const set of visible(k, 'StatefulSet', undefined, t)) { const live = k.objects.find(o => uidOf(o) === uidOf(set)); if (live) k = syncStatefulSet(d, k, live, t); }
+      k = syncStorage(k, t);
+    }
     if (k === before) break;
   }
   return { ...k, ctrl: t, dirty: k.dirty !== undefined && k.dirty <= t ? undefined : k.dirty };
@@ -71,7 +79,7 @@ export function controllerTimes(k: KubeState): Seconds[] {
   for (const o of k.objects) {
     if (systemNs(k, nsOf(o))) continue;
     const kind = kindOf(o), c = createdOf(o) ?? 0;
-    if ((kind === 'Deployment' || kind === 'ReplicaSet' || kind === 'Pod') && c > after) out.push(c);
+    if ((kind === 'Deployment' || kind === 'ReplicaSet' || kind === 'Pod' || (k.storage && STORAGE_KINDS.includes(kind))) && c > after) out.push(c);
     if (kind === 'Deployment') { const at = deadlineOf(o); if (at !== undefined && at > after) out.push(at); }
     if (kind === 'ReplicaSet') {
       const min = Number(obj(o.spec).minReadySeconds ?? 0);
