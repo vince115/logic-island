@@ -4,6 +4,9 @@ import { about, find, record } from './kube-api';
 import { cfgKey, secretText } from './kube-config-spec';
 import { arr, CONFIG_SYNC_SECONDS, nsOf, obj, str, uidOf, type CSim, type J, type JObj, type KubeState, type PodSim, type VolSync } from './kube-model';
 import type { Seconds } from './clock';
+import { storageNodes } from './kube-storage-mount';
+import { attachVolumes } from './kube-storage-sched';
+import { WAIT } from './kube-storage-model';
 
 /*
  * Engine stage E36 (docs/curriculum/KUB0_E36_KUBE_CONFIG.md §5): configMap and secret volumes. When the pod is bound the
@@ -53,9 +56,12 @@ export function mountPod(k0: KubeState, pod: JObj, sim0: PodSim, t: Seconds): { 
     if ('error' in r) { failed = true; k = record(k, t, about(pod), 'Warning', 'FailedMount', `MountVolume.SetUp failed for volume "${name}" : ${r.error}`); continue; }
     vols[name] = sync(`${uidOf(pod)}/${name}`, r.files, t);
   }
+  // E38: the attach/detach controller attaches the pod's volumes (or it waits: Multi-Attach), tried again by the storage controller.
+  const att = k.storage ? attachVolumes(k, pod, sim0, t) : undefined;
+  if (att) k = att.k;
   const fails = (sim0.mount?.fails ?? 0) + 1, { mount: _m, ...rest } = sim0;
   void _m;
-  if (failed) return { k, sim: { ...rest, vols, mount: { next: t + Math.min(2 ** (fails - 1), 122), fails } } };
+  if (failed || att?.wait) return { k, sim: { ...rest, vols, mount: { next: failed ? t + Math.min(2 ** (fails - 1), 122) : WAIT, fails } } };
   // Mounted: the containers' first steps happen now.
   const now = (c: CSim): CSim => c.next !== undefined && c.next < t ? { ...c, next: t } : c;
   return { k, sim: { ...rest, vols, ...sim0.mount ? { init: sim0.init.map(now), main: sim0.main.map(now) } : {} } };
@@ -91,7 +97,7 @@ export function subPathFiles(sim: PodSim, spec: J): Record<string, { content: st
   return out;
 }
 /** The files a container sees of its configMap and secret volumes (the folders above them too). */
-export function mountNodes(pod: JObj, sim: PodSim | undefined, spec: J, c: CSim | undefined): Map<string, FsNode> {
+export function mountNodes(pod: JObj, sim: PodSim | undefined, spec: J, c: CSim | undefined, k?: KubeState): Map<string, FsNode> {
   const nodes = new Map<string, FsNode>(), secretVol = new Set(volumesOf(pod).filter(v => v.secret).map(v => str(v.name)));
   const parents = (path: string) => { const parts = path.split('/').filter(Boolean); for (let i = 1; i < parts.length; i++) { const p = `/${parts.slice(0, i).join('/')}`; if (!nodes.has(p)) nodes.set(p, dirNode()); } };
   for (const m of arr(obj(spec).volumeMounts).map(obj)) {
@@ -109,5 +115,7 @@ export function mountNodes(pod: JObj, sim: PodSim | undefined, spec: J, c: CSim 
       nodes.set(`${at}/${parts[0]}`, { kind: 'link', mode: 0o777, owner: 'root', target: `..data/${parts[0]}` });
     }
   }
+  // E38: persistentVolumeClaim and emptyDir volumes (their file trees).
+  if (k?.storage) for (const [p, n] of storageNodes(k, pod, spec)) nodes.set(p, n);
   return nodes;
 }

@@ -7,6 +7,8 @@ import { externalIp, portsText } from './kube-service-spec';
 import { formatEndpoints, sliceAddresses, slicePorts } from './kube-endpoints';
 import { addressText, hostsText, portsColumn } from './kube-ingress-spec';
 import { GATEWAY_HEADS, gatewayRow } from './kube-gateway-spec';
+import { STORAGE_COLUMNS } from './kube-storage-print';
+import { HPA_COLUMNS } from './kube-hpa-print';
 import {
   arr, CONTAINERD_VERSION, createdOf, goTab, humanDuration, KUBE_VERSION, labelsOf, nameOf, NODE_KERNEL, NODE_OS, nsOf, obj, stamp, str, uid,
   type J, type JObj, type KubeEvent, type KubeNode, type KubeState,
@@ -70,6 +72,10 @@ const COLUMNS: Record<string, (now: Seconds, k: KubeState) => Cols> = {
   // E37: Ingress and IngressClass; the Gateway API's printer columns.
   Ingress: now => ({ head: ['NAME', 'CLASS', 'HOSTS', 'ADDRESS', 'PORTS', 'AGE'], row: o => [nameOf(o), str(obj(o.spec).ingressClassName) ?? '<none>', hostsText(o), addressText(o, false), portsColumn(o), age(createdOf(o), now)] }),
   IngressClass: now => ({ head: ['NAME', 'CONTROLLER', 'PARAMETERS', 'AGE'], row: o => [nameOf(o), str(obj(o.spec).controller) ?? '', obj(o.spec).parameters ? `${str(obj(obj(o.spec).parameters).kind)}/${str(obj(obj(o.spec).parameters).name)}` : '<none>', age(createdOf(o), now)] }),
+  // E38: StorageClass, PersistentVolume, PersistentVolumeClaim and StatefulSet.
+  ...STORAGE_COLUMNS,
+  // E40: HorizontalPodAutoscaler.
+  HorizontalPodAutoscaler: HPA_COLUMNS,
   ...Object.fromEntries(Object.entries(GATEWAY_HEADS).map(([kind, head]) => [kind, (now: Seconds) => ({ head: ['NAME', ...head, 'AGE'], row: (o: JObj) => [nameOf(o), ...gatewayRow(o), age(createdOf(o), now)] })])),
   Deployment: now => ({ head: ['NAME', 'READY', 'UP-TO-DATE', 'AVAILABLE', 'AGE'], wide: ['CONTAINERS', 'IMAGES', 'SELECTOR'],
     row: o => { const s = obj(o.status); return [nameOf(o), `${String(s.readyReplicas ?? 0)}/${String(obj(o.spec).replicas ?? 1)}`, String(s.updatedReplicas ?? 0), String(s.availableReplicas ?? 0), age(createdOf(o), now)]; },

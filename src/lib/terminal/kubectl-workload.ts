@@ -33,7 +33,8 @@ export function workloadTargets(x: Kx, words: readonly string[], verb: string): 
   if ('error' in ts) return ts;
   const items: JObj[] = [], errors: string[] = [];
   for (const t of ts as Target[]) {
-    if (t.kind !== 'Deployment' && t.kind !== 'ReplicaSet') return { error: `（模擬環境：kubectl ${verb} 只模擬 Deployment 與 ReplicaSet）` };
+    // E38: and StatefulSets on the kube-storage profile.
+    if (t.kind !== 'Deployment' && t.kind !== 'ReplicaSet' && !(t.kind === 'StatefulSet' && x.k.storage)) return { error: `（模擬環境：kubectl ${verb} 只模擬 Deployment${x.k.storage ? '、ReplicaSet 與 StatefulSet' : ' 與 ReplicaSet'}）` };
     if (!t.names.length && !x.flags.bools.has('all') && !x.flags.values.selector) return { error: 'error: resource(s) were provided, but no name was specified' };
     const r = pick(x, t);
     if ('error' in r) return r;

@@ -2,7 +2,7 @@ import type { FsNode, FsState } from './fs';
 import type { DockerContainer, DockerImage, RunOptions } from './docker';
 import { curl, parseUrl } from './http';
 import { podView, kubeConnect } from './kube-net';
-import { kubeResolver, nslookup, podHostsFile, resolvConf } from './kube-dns';
+import { kubeResolver, nslookup, podFqdn, podHostsFile, resolvConf } from './kube-dns';
 import { nameOf, nsOf, uidOf, type JObj } from './kube-model';
 
 /*
@@ -17,7 +17,7 @@ const file = (content: string): FsNode => ({ kind: 'file', mode: 0o644, owner: '
 /** The kubelet's files of the pod (kept out of the writable layer) and the pod's network view. */
 export function podExec(state: FsState, pod: JObj, box: DockerContainer, layer?: ReadonlyMap<string, FsNode>): { files: [string, FsNode][]; view: NonNullable<RunOptions['view']> } {
   const ip = state.kube!.pods[uidOf(pod)]!.ip;
-  const files: [string, FsNode][] = [['/etc/hosts', file(podHostsFile(ip, nameOf(pod)))], ['/etc/resolv.conf', file(resolvConf(nsOf(pod) ?? 'default'))]];
+  const files: [string, FsNode][] = [['/etc/hosts', file(podHostsFile(ip, nameOf(pod), podFqdn(pod)))], ['/etc/resolv.conf', file(resolvConf(nsOf(pod) ?? 'default'))]];
   const nodes = box.nodes as Map<string, FsNode>;
   for (const [p, n] of files) if (!layer?.has(p)) nodes.set(p, n);
   return { files, view: { ...podView(state, pod), ...state.clock ? { clock: state.clock } : {} } };

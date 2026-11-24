@@ -40,11 +40,11 @@ const CONTAINER_E36: F = { go: 'Container', fields: { ...CONTAINER_FIELDS, ...(C
   env: { list: { go: 'EnvVar', fields: { name: 'str', value: 'str', valueFrom: { go: 'EnvVarSource', fields: { configMapKeyRef: KEY_SEL('ConfigMapKeySelector'), secretKeyRef: KEY_SEL('SecretKeySelector'), fieldRef: 'any', resourceFieldRef: 'any' } } } } },
   envFrom: { list: { go: 'EnvFromSource', fields: { prefix: 'str', configMapRef: { go: 'ConfigMapEnvSource', fields: { name: 'str', optional: 'bool' } }, secretRef: { go: 'SecretEnvSource', fields: { name: 'str', optional: 'bool' } } } } },
   volumeMounts: { list: { go: 'VolumeMount', fields: { name: 'str', mountPath: 'str', subPath: 'str', readOnly: 'bool', subPathExpr: 'str', mountPropagation: 'str', recursiveReadOnly: 'str' } } } } };
-const podSpec = (container: F, e36 = false): F => ({ go: 'PodSpec', fields: {
+const podSpec = (container: F, e36 = false, volume: F = VOLUME): F => ({ go: 'PodSpec', fields: {
   containers: { list: container }, initContainers: { list: container }, restartPolicy: 'str', nodeSelector: 'smap', nodeName: 'str',
   tolerations: { list: { go: 'Toleration', fields: { key: 'str', operator: 'str', value: 'str', effect: 'str', tolerationSeconds: 'int' } } },
   terminationGracePeriodSeconds: 'int', activeDeadlineSeconds: 'int', dnsPolicy: 'str', enableServiceLinks: 'bool', schedulerName: 'str', serviceAccountName: 'str', serviceAccount: 'str',
-  securityContext: 'any', priority: 'int', preemptionPolicy: 'str', hostname: 'str', volumes: e36 ? { list: VOLUME } : 'any', affinity: 'any', topologySpreadConstraints: 'any',
+  securityContext: 'any', priority: 'int', preemptionPolicy: 'str', hostname: 'str', volumes: e36 ? { list: volume } : 'any', affinity: 'any', topologySpreadConstraints: 'any',
   imagePullSecrets: e36 ? { list: { go: 'LocalObjectReference', fields: { name: 'str' } } } : 'any',
 } });
 const NAMESPACE: F = { go: 'Namespace', fields: { apiVersion: 'str', kind: 'str', metadata: META, spec: 'any', status: 'any' } };
@@ -97,11 +97,40 @@ const SCHEMAS_GATEWAY: Record<string, F> = { ...SCHEMAS_E37,
   HTTPRoute: OBJ('HTTPRoute', { go: 'HTTPRouteSpec', fields: { parentRefs: { list: { go: 'ParentReference', fields: { group: 'str', kind: 'str', namespace: 'str', name: 'str', sectionName: 'str', port: 'int' } } },
     hostnames: { list: 'str' }, rules: { list: { go: 'HTTPRouteRule', fields: { name: 'str', matches: { list: MATCH }, filters: 'any', backendRefs: { list: BACKEND_REF }, timeouts: 'any', retry: 'any', sessionPersistence: 'any' } } } } }),
 };
+/** E38: persistentVolumeClaim and emptyDir volumes; StorageClass, PersistentVolume, PersistentVolumeClaim and StatefulSet on kube-storage. */
+const VOLUME_E38: F = { go: 'Volume', fields: { ...(VOLUME as { fields: Record<string, F> }).fields, persistentVolumeClaim: { go: 'PersistentVolumeClaimVolumeSource', fields: { claimName: 'str', readOnly: 'bool' } },
+  emptyDir: { go: 'EmptyDirVolumeSource', fields: { medium: 'str', sizeLimit: 'any' } } } };
+const PVC_SPEC: F = { go: 'PersistentVolumeClaimSpec', fields: { accessModes: { list: 'str' }, resources: { go: 'VolumeResourceRequirements', fields: { requests: 'qmap', limits: 'qmap' } }, storageClassName: 'str',
+  volumeName: 'str', volumeMode: 'str', selector: SELECTOR, dataSource: 'any', dataSourceRef: 'any', volumeAttributesClassName: 'str' } };
+const PV_SPEC: F = { go: 'PersistentVolumeSpec', fields: { capacity: 'qmap', accessModes: { list: 'str' }, persistentVolumeReclaimPolicy: 'str', storageClassName: 'str', volumeMode: 'str', mountOptions: { list: 'str' },
+  claimRef: 'any', nodeAffinity: 'any', hostPath: { go: 'HostPathVolumeSource', fields: { path: 'str', type: 'str' } }, local: { go: 'LocalVolumeSource', fields: { path: 'str', fsType: 'str' } },
+  nfs: { go: 'NFSVolumeSource', fields: { server: 'str', path: 'str', readOnly: 'bool' } }, csi: { go: 'CSIPersistentVolumeSource', fields: { driver: 'str', volumeHandle: 'str', fsType: 'str', readOnly: 'bool', volumeAttributes: 'smap' } },
+  volumeAttributesClassName: 'str' } };
+const storageSchemas = (base: Record<string, F>): Record<string, F> => {
+  const template: F = { go: 'PodTemplateSpec', fields: { metadata: META, spec: podSpec(CONTAINER_E36, true, VOLUME_E38) } };
+  return { ...base, Pod: { go: 'Pod', fields: { apiVersion: 'str', kind: 'str', metadata: META, spec: podSpec(CONTAINER_E36, true, VOLUME_E38), status: 'any' } }, ...workloadSchemas(template),
+    PersistentVolumeClaim: OBJ('PersistentVolumeClaim', PVC_SPEC), PersistentVolume: OBJ('PersistentVolume', PV_SPEC),
+    StorageClass: { go: 'StorageClass', fields: { apiVersion: 'str', kind: 'str', metadata: META, provisioner: 'str', parameters: 'smap', reclaimPolicy: 'str', volumeBindingMode: 'str', allowVolumeExpansion: 'bool', mountOptions: { list: 'str' }, allowedTopologies: 'any' } },
+    StatefulSet: OBJ('StatefulSet', { go: 'StatefulSetSpec', fields: { replicas: 'int', selector: SELECTOR, template, serviceName: 'str', podManagementPolicy: 'str', revisionHistoryLimit: 'int', minReadySeconds: 'int', ordinals: 'any',
+      volumeClaimTemplates: { list: { go: 'PersistentVolumeClaim', fields: { apiVersion: 'str', kind: 'str', metadata: META, spec: PVC_SPEC, status: 'any' } } },
+      updateStrategy: { go: 'StatefulSetUpdateStrategy', fields: { type: 'str', rollingUpdate: { go: 'RollingUpdateStatefulSetStrategy', fields: { partition: 'int', maxUnavailable: 'intstr' } } } },
+      persistentVolumeClaimRetentionPolicy: { go: 'StatefulSetPersistentVolumeClaimRetentionPolicy', fields: { whenDeleted: 'str', whenScaled: 'str' } } } }) };
+};
+const SCHEMAS_E38 = storageSchemas(SCHEMAS_E37), SCHEMAS_E38_GATEWAY = storageSchemas(SCHEMAS_GATEWAY);
+/** E40: HorizontalPodAutoscaler autoscaling/v2 on the autoscaling profile (Pods, Object, External and ContainerResource metrics are prose). */
+const RULES: F = { go: 'HPAScalingRules', fields: { stabilizationWindowSeconds: 'int', selectPolicy: 'str', policies: { list: { go: 'HPAScalingPolicy', fields: { type: 'str', value: 'int', periodSeconds: 'int' } } } } };
+const HPA: F = OBJ('HorizontalPodAutoscaler', { go: 'HorizontalPodAutoscalerSpec', fields: { scaleTargetRef: { go: 'CrossVersionObjectReference', fields: { apiVersion: 'str', kind: 'str', name: 'str' } },
+  minReplicas: 'int', maxReplicas: 'int', behavior: { go: 'HorizontalPodAutoscalerBehavior', fields: { scaleUp: RULES, scaleDown: RULES } },
+  metrics: { list: { go: 'MetricSpec', fields: { type: 'str', pods: 'any', object: 'any', external: 'any', containerResource: 'any',
+    resource: { go: 'ResourceMetricSource', fields: { name: 'str', target: { go: 'MetricTarget', fields: { type: 'str', averageUtilization: 'int', averageValue: 'any', value: 'any' } } } } } } } } });
+const SCHEMAS_E40: Record<string, F> = { ...SCHEMAS_E38, HorizontalPodAutoscaler: HPA }, SCHEMAS_E40_GATEWAY: Record<string, F> = { ...SCHEMAS_E38_GATEWAY, HorizontalPodAutoscaler: HPA };
 /** ingress (E37): 'ingress' serves Ingress and IngressClass, 'gateway' the Gateway API too (its CRDs installed). */
 export type IngressApi = 'ingress' | 'gateway' | undefined;
-const schemas = (probes: boolean, workloads: boolean, net: boolean, config: boolean, ingress?: IngressApi) => ingress === 'gateway' ? SCHEMAS_GATEWAY : ingress ? SCHEMAS_E37 : config ? SCHEMAS_E36 : net ? SCHEMAS_E35 : workloads ? SCHEMAS_E34 : probes ? SCHEMAS_E33 : SCHEMAS;
-/** Whether the profile's API server serves the kind (E34: Deployment and ReplicaSet on the workloads profile; E35: Service on kube-net; E36: ConfigMap and Secret on kube-config; E37: Ingress, and the Gateway API with its CRDs). */
-export const served = (kind: string, workloads: boolean, net = false, config = false, ingress?: IngressApi) => !!schemas(false, workloads, net, config, ingress)[kind];
+const schemas = (probes: boolean, workloads: boolean, net: boolean, config: boolean, ingress?: IngressApi, storage = false, autoscaling = false) => autoscaling ? ingress === 'gateway' ? SCHEMAS_E40_GATEWAY : SCHEMAS_E40
+  : storage ? ingress === 'gateway' ? SCHEMAS_E38_GATEWAY : SCHEMAS_E38
+  : ingress === 'gateway' ? SCHEMAS_GATEWAY : ingress ? SCHEMAS_E37 : config ? SCHEMAS_E36 : net ? SCHEMAS_E35 : workloads ? SCHEMAS_E34 : probes ? SCHEMAS_E33 : SCHEMAS;
+/** Whether the profile's API server serves the kind (E34: Deployment and ReplicaSet on the workloads profile; E35: Service on kube-net; E36: ConfigMap and Secret on kube-config; E37: Ingress, and the Gateway API with its CRDs; E38: storage on kube-storage; E40: HPA on autoscaling). */
+export const served = (kind: string, workloads: boolean, net = false, config = false, ingress?: IngressApi, storage = false, autoscaling = false) => !!schemas(false, workloads, net, config, ingress, storage, autoscaling)[kind];
 /** The kinds E32 creates and the stage that simulates the others (a known kind of a later stage is not an unknown kind). */
 export const KIND_STAGE: Record<string, string> = {
   Deployment: 'E34', ReplicaSet: 'E34', Service: 'E35', Endpoints: 'E35', ConfigMap: 'E36', Secret: 'E36', Ingress: 'E37', IngressClass: 'E37',
@@ -147,7 +176,7 @@ export function readManifests(text: string, file: string, octal = false): Manife
 }
 
 /** Strict decoding: the unknown fields (all of them) or the first type error, as the API server reports it. */
-export function decodeProblem(doc: JObj, probes = false, workloads = false, net = false, config = false, ingress?: IngressApi): string | null {
+export function decodeProblem(doc: JObj, probes = false, workloads = false, net = false, config = false, ingress?: IngressApi, storage = false, autoscaling = false): string | null {
   const kind = str(doc.kind)!, unknown: string[] = [];
   let typeError: string | null = null;
   const walk = (v: J, f: F, path: string, go: string, dotted: string) => {
@@ -170,18 +199,20 @@ export function decodeProblem(doc: JObj, probes = false, workloads = false, net 
       walk(x, sub, `${path ? `${path}.` : ''}${k}`, f.go, dotted ? `${dotted}.${k}` : k);
     }
   };
-  walk(doc, schemas(probes, workloads, net, config, ingress)[kind], '', kind, '');
+  walk(doc, schemas(probes, workloads, net, config, ingress, storage, autoscaling)[kind], '', kind, '');
   if (unknown.length) return `strict decoding error: ${unknown.map(u => `unknown field "${u}"`).join(', ')}`;
   return typeError;
 }
 const jsonType = (v: J) => typeof v === 'string' ? 'string' : typeof v === 'number' ? 'number' : typeof v === 'boolean' ? 'bool' : Array.isArray(v) ? 'array' : 'object';
 
 /** The first field of a later stage the document uses (its path and the stage), or null. */
-export function laterField(doc: JObj, probes = false, config = false): { path: string; stage: string } | null {
+export function laterField(doc: JObj, probes = false, config = false, storage = false): { path: string; stage: string } | null {
   const spec = obj(doc.spec);
   for (const k of ['affinity', 'topologySpreadConstraints', ...config ? [] : ['imagePullSecrets']]) if (spec[k] !== undefined) return { path: `spec.${k}`, stage: LATER[k] };
   // E36: configMap and secret volumes (and the mounts, env valueFrom and envFrom) are kube-config's; other volumes are E38's, the downward API prose.
-  for (const [i, v] of arr(spec.volumes).entries()) if (!/^kube-api-access-/.test(str(obj(v).name) ?? '') && !(config && (obj(v).configMap !== undefined || obj(v).secret !== undefined))) return { path: `spec.volumes[${i}]`, stage: config ? 'E38' : LATER.volumes };
+  // E38: persistentVolumeClaim and emptyDir volumes are kube-storage's; hostPath, nfs, projected and the downward API in a pod are prose.
+  const own = (v: JObj) => (config && (v.configMap !== undefined || v.secret !== undefined)) || (storage && (v.persistentVolumeClaim !== undefined || v.emptyDir !== undefined));
+  for (const [i, v] of arr(spec.volumes).entries()) if (!/^kube-api-access-/.test(str(obj(v).name) ?? '') && !own(obj(v))) return { path: `spec.volumes[${i}]`, stage: storage ? '（課文說明）' : config ? 'E38' : LATER.volumes };
   for (const list of ['initContainers', 'containers']) for (const [i, c] of arr(spec[list]).entries()) {
     const at = `spec.${list}[${i}]`, x = obj(c);
     for (const k of probes ? config ? [] : ['envFrom'] : ['livenessProbe', 'readinessProbe', 'startupProbe', 'lifecycle', 'envFrom']) if (x[k] !== undefined) return { path: `${at}.${k}`, stage: LATER[k] };

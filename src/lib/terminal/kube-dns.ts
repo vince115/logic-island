@@ -2,7 +2,7 @@ import type { FsState } from './fs';
 import { hostsLookup, isIPv4, type Resolver } from './sockets';
 import { endpointsOf } from './kube-endpoints';
 import { isHeadless } from './kube-service-spec';
-import { kindOf, nameOf, nsOf, obj, str, type KubeState } from './kube-model';
+import { kindOf, nameOf, nsOf, obj, str, type JObj, type KubeState } from './kube-model';
 
 /*
  * Engine stage E35 (docs/curriculum/KUB0_E35_KUBE_NET.md §5): cluster DNS as CoreDNS answers it and as a pod's glibc
@@ -22,8 +22,10 @@ export const searchOf = (ns: string) => [`${ns}.svc.${CLUSTER_DOMAIN}`, `svc.${C
 /** The kubelet's /etc/resolv.conf for a pod of the namespace (dnsPolicy ClusterFirst). */
 export const resolvConf = (ns: string) => `search ${searchOf(ns).join(' ')}\nnameserver ${DNS_IP}\noptions ndots:5\n`;
 /** The kubelet's /etc/hosts for a pod. */
-export const podHostsFile = (ip: string, pod: string) =>
-  `# Kubernetes-managed hosts file.\n127.0.0.1\tlocalhost\n::1\tlocalhost ip6-localhost ip6-loopback\nfe00::0\tip6-localnet\nfe00::0\tip6-mcastprefix\nfe00::1\tip6-allnodes\nfe00::2\tip6-allrouters\n${ip}\t${pod}\n`;
+export const podHostsFile = (ip: string, pod: string, fqdn?: string) =>
+  `# Kubernetes-managed hosts file.\n127.0.0.1\tlocalhost\n::1\tlocalhost ip6-localhost ip6-loopback\nfe00::0\tip6-localnet\nfe00::0\tip6-mcastprefix\nfe00::1\tip6-allnodes\nfe00::2\tip6-allrouters\n${ip}\t${fqdn ? `${fqdn}\t` : ''}${pod}\n`;
+/** E38: a pod's fully qualified name when it has hostname and subdomain (/etc/hosts lists it). */
+export const podFqdn = (pod: JObj) => { const sp = obj(pod.spec), h = str(sp.hostname), sub = str(sp.subdomain); return h && sub ? `${h}.${sub}.${nsOf(pod) ?? 'default'}.svc.${CLUSTER_DOMAIN}` : undefined; };
 
 /** CoreDNS's records of the cluster now, and the search list of a pod of the namespace. */
 export function kubeDns(k: KubeState, ns: string): KubeDns {
@@ -32,8 +34,10 @@ export function kubeDns(k: KubeState, ns: string): KubeDns {
     if (kindOf(svc) !== 'Service') continue;
     const fqdn = `${nameOf(svc)}.${nsOf(svc) ?? 'default'}.svc.${CLUSTER_DOMAIN}`;
     if (isHeadless(svc)) {
-      const publish = obj(svc.spec).publishNotReadyAddresses === true, ips = endpointsOf(k, svc).filter(e => publish ? !e.terminating : e.ready).map(e => e.ip);
+      const publish = obj(svc.spec).publishNotReadyAddresses === true, eps = endpointsOf(k, svc).filter(e => publish ? !e.terminating : e.ready), ips = eps.map(e => e.ip);
       if (ips.length) records[fqdn] = [...new Set(ips)];
+      // E38: a pod with hostname and subdomain (a StatefulSet's) has <hostname>.<service>.<ns>.svc.cluster.local.
+      for (const e of eps) { const sp = obj(e.pod.spec), h = str(sp.hostname); if (h && str(sp.subdomain) === nameOf(svc)) records[`${h}.${fqdn}`] = [e.ip]; }
     } else { const ip = str(obj(svc.spec).clusterIP); if (ip) records[fqdn] = [ip]; }
   }
   return { search: searchOf(ns), ndots: 5, records };

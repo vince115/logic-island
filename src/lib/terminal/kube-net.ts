@@ -2,7 +2,7 @@ import type { Seconds } from './clock';
 import type { FsNode, FsState } from './fs';
 import type { DockerState } from './docker';
 import { findResponder, type Responder } from './http';
-import { clockOf, tableOf, type Proc } from './processes';
+import { clockOf, tableOf, type Clock, type Proc } from './processes';
 import { interfacesOf, isLoopback, listenersOf, macFor, ownsAddress, type Listen } from './sockets';
 import type { RemoteHost } from './ssh';
 import { healthOf, serviceOf } from './kube-health';
@@ -63,10 +63,11 @@ export function podServing(d: DockerState | undefined, k: KubeState, pod: JObj, 
 }
 export const podHostName = (ns: string, pod: string) => `kube:pod/${ns}/${pod}`;
 /** A pod as a machine of the network (hidden: nobody else reaches it — the learner's view, or a failed node). */
-function podHost(d: DockerState | undefined, k: KubeState, pod: JObj, t: Seconds, hidden: boolean): RemoteHost {
+// KUB-4: a pod keeps the clock of the machine its cluster runs on (its responses' Date header said the default day).
+function podHost(d: DockerState | undefined, k: KubeState, pod: JObj, t: Seconds, hidden: boolean, clock: Clock): RemoteHost {
   const sim = k.pods[uidOf(pod)]!, s = podServing(d, k, pod, t), name = podHostName(nsOf(pod) ?? 'default', nameOf(pod)), dead = deadAt(k, sim.node), base = bare(name, sim.ip, 'eth0', 24);
   const off = hidden || (dead !== undefined && dead <= t);
-  return { host: name, address: sim.ip, aliases: [], passwords: [], state: { ...base, ...s.nodes ? { nodes: new Map(s.nodes) } : {}, sockets: { ...base.sockets!, ...off ? { onlyFrom: [] } : {} },
+  return { host: name, address: sim.ip, aliases: [], passwords: [], state: { ...base, clock, ...s.nodes ? { nodes: new Map(s.nodes) } : {}, sockets: { ...base.sockets!, ...off ? { onlyFrom: [] } : {} },
     processes: [proc(s.listen, t)], http: { responders: s.responders } } };
 }
 
@@ -103,7 +104,7 @@ export function bindVip(view: FsState, vip: KubeVip, turn: number): FsState {
     added = { port: vip.port, fd: 3 + keep.length, ...r ? { http: id } : {}, ...l.kubeTls ? { kubeTls: l.kubeTls } : {} };
   }
   const listen = added ? [...keep, added] : keep;
-  const next: FsState = { ...host, nodes, processes: [proc(listen, clockOf(view).now, 'kube-proxy')], http: { responders } };
+  const next: FsState = { ...host, clock: clockOf(view), nodes, processes: [proc(listen, clockOf(view).now, 'kube-proxy')], http: { responders } };
   return { ...view, net: { ...view.net!, hosts: hosts.map((h, i) => i === at ? { ...h, state: next } : h) } };
 }
 /** NetIo.connect: a new connection to address:port takes the Service's next endpoint (port-forward: kubectl says it handles it). */
@@ -135,8 +136,8 @@ const livePods = (k: KubeState, except?: string) => k.objects.filter(o => kindOf
 export function podView(state: FsState, pod: JObj): Pick<FsState, 'sockets' | 'processes' | 'http' | 'net' | 'kubeNet'> {
   const k = state.kube!, t = clockOf(state).now, d = state.docker, sim = k.pods[uidOf(pod)]!, own = podServing(d, k, pod, t);
   const gw = sim.ip.replace(/\.\d+$/, '.1'), vips = vipsOf(k, true);
-  let view: FsState = { ...bare(nameOf(pod), sim.ip, 'eth0', 24), processes: [proc(own.listen, t)], http: { responders: own.responders },
-    net: { address: sim.ip, seed: uidOf(pod), hosts: [...livePods(k, uidOf(pod)).map(p => podHost(d, k, p, t, false)), ...gatewayHosts(d, k, t)], connections: 0 },
+  let view: FsState = { ...bare(nameOf(pod), sim.ip, 'eth0', 24), clock: clockOf(state), processes: [proc(own.listen, t)], http: { responders: own.responders },
+    net: { address: sim.ip, seed: uidOf(pod), hosts: [...livePods(k, uidOf(pod)).map(p => podHost(d, k, p, t, false, clockOf(state))), ...gatewayHosts(d, k, t)], connections: 0 },
     kubeNet: { vips, turns: { ...k.turns }, dns: kubeDns(k, nsOf(pod) ?? 'default') } };
   view = { ...view, sockets: { ...view.sockets!, gateway: gw } };
   view = withVips(view, vips);
@@ -162,7 +163,7 @@ export function clusterView(state: FsState): FsState {
     return serves ? p : { ...p, listen: (p.listen ?? []).map(l => { const { forward: _f, ...rest } = l; void _f; return rest; }) };
   });
   const own = state.net, address = own?.address ?? interfacesOf(state)[1]?.address ?? '10.0.0.10';
-  const view: FsState = { ...state, processes, net: { address, seed: own?.seed ?? 'kube', hosts: [...own?.hosts ?? [], ...livePods(k).map(p => podHost(d, k, p, t, true)), ...gatewayHosts(d, k, t)], connections: own?.connections ?? 0 },
+  const view: FsState = { ...state, processes, net: { address, seed: own?.seed ?? 'kube', hosts: [...own?.hosts ?? [], ...livePods(k).map(p => podHost(d, k, p, t, true, clockOf(state))), ...gatewayHosts(d, k, t)], connections: own?.connections ?? 0 },
     kubeNet: { vips, turns: { ...k.turns }, forwards: forwards.filter(f => processes.some(p => p.pid === f.pid && p.listen?.length)).map(f => f.local) } };
   return withVips(view, vips);
 }

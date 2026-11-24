@@ -3,7 +3,11 @@ import type { DockerState } from './docker';
 import { about, put, record } from './kube-api';
 import { collectGarbage, endPod, isAvailable, ownedBy, podFacts, syncReplicaSet, visible } from './kube-replicaset';
 import { deadlineOf, syncDeployment } from './kube-deployment';
+import { syncStatefulSet } from './kube-statefulset';
+import { syncStorage } from './kube-storage-ctl';
+import { STORAGE_KINDS } from './kube-storage-model';
 import { tolerates } from './kube-sched';
+import { hpaTimes, syncHpas } from './kube-hpa';
 import { DESIRED, HASH, MAX_REPLICAS, REVISION } from './kube-workload-spec';
 import { arr, clone, createdOf, systemNs, kindOf, meta, nameOf, nsOf, obj, stamp, str, uid, uidOf, type J, type JObj, type KubeState, type Taint } from './kube-model';
 
@@ -54,11 +58,18 @@ function nodeLifecycle(d: DockerState | undefined, k0: KubeState, t: Seconds): K
 /** The controllers at t, until nothing changes (garbage collection, ReplicaSets, Deployments). */
 export function runControllers(d: DockerState | undefined, k0: KubeState, t: Seconds): KubeState {
   let k = nodeLifecycle(d, k0, t);
+  // E40: the HPAs due now scale their targets first (the workload controllers below take it from there).
+  if (k.autoscale) k = syncHpas(d, k, t);
   for (let i = 0; i < 8; i++) {
     const before = k;
     k = collectGarbage(d, k, t);
     for (const rs of visible(k, 'ReplicaSet', undefined, t)) { const live = k.objects.find(o => uidOf(o) === uidOf(rs)); if (live && !meta(live).deletionTimestamp) k = syncReplicaSet(d, k, live, t); }
     for (const dep of visible(k, 'Deployment', undefined, t)) { const live = k.objects.find(o => uidOf(o) === uidOf(dep)); if (live) k = syncDeployment(k, live, t); }
+    // E38: the StatefulSet controller, then the PersistentVolume controller (and the attach/detach retries).
+    if (k.storage) {
+      for (const set of visible(k, 'StatefulSet', undefined, t)) { const live = k.objects.find(o => uidOf(o) === uidOf(set)); if (live) k = syncStatefulSet(d, k, live, t); }
+      k = syncStorage(k, t);
+    }
     if (k === before) break;
   }
   return { ...k, ctrl: t, dirty: k.dirty !== undefined && k.dirty <= t ? undefined : k.dirty };
@@ -71,7 +82,7 @@ export function controllerTimes(k: KubeState): Seconds[] {
   for (const o of k.objects) {
     if (systemNs(k, nsOf(o))) continue;
     const kind = kindOf(o), c = createdOf(o) ?? 0;
-    if ((kind === 'Deployment' || kind === 'ReplicaSet' || kind === 'Pod') && c > after) out.push(c);
+    if ((kind === 'Deployment' || kind === 'ReplicaSet' || kind === 'Pod' || (k.storage && STORAGE_KINDS.includes(kind))) && c > after) out.push(c);
     if (kind === 'Deployment') { const at = deadlineOf(o); if (at !== undefined && at > after) out.push(at); }
     if (kind === 'ReplicaSet') {
       const min = Number(obj(o.spec).minReadySeconds ?? 0);
@@ -79,6 +90,8 @@ export function controllerTimes(k: KubeState): Seconds[] {
     }
   }
   for (const f of k.failures ?? []) if (k.down?.[f.node] === undefined) out.push(f.at + NODE_GRACE);
+  // E40: each HPA's next sync (every 15 s).
+  if (k.autoscale) out.push(...hpaTimes(k));
   for (const pod of onDownNode(k)) { const at = evictAt(pod, k.down![k.pods[uidOf(pod)].node]); if (at !== undefined) out.push(at); }
   return out.filter(t => t > after || t === k.dirty);
 }

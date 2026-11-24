@@ -42,5 +42,8 @@ export function envLine(e: JObj): string {
 export function volumeLines(v: JObj): string[] | null {
   if (v.configMap !== undefined && v.configMap !== null) return [`  ${str(v.name)}:`, '    Type:\tConfigMap (a volume populated by a ConfigMap)', `    Name:\t${str(obj(v.configMap).name) ?? ''}`, `    Optional:\t${optional(v.configMap)}`];
   if (v.secret !== undefined && v.secret !== null) return [`  ${str(v.name)}:`, '    Type:\tSecret (a volume populated by a Secret)', `    SecretName:\t${str(obj(v.secret).secretName) ?? ''}`, `    Optional:\t${optional(v.secret)}`];
+  // E38: a claim, and an emptyDir (Medium "" is the node's disk; no sizeLimit is <unset>).
+  if (v.persistentVolumeClaim) return [`  ${str(v.name)}:`, '    Type:\tPersistentVolumeClaim (a reference to a PersistentVolumeClaim in the same namespace)', `    ClaimName:\t${str(obj(v.persistentVolumeClaim).claimName) ?? ''}`, `    ReadOnly:\t${obj(v.persistentVolumeClaim).readOnly === true}`];
+  if (v.emptyDir) return [`  ${str(v.name)}:`, '    Type:\tEmptyDir (a temporary directory that shares a pod\'s lifetime)', `    Medium:\t${str(obj(v.emptyDir).medium) ?? ''}`, `    SizeLimit:\t${str(obj(v.emptyDir).sizeLimit) ?? '<unset>'}`];
   return null;
 }

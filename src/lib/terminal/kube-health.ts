@@ -63,7 +63,7 @@ export function runAction(x: Target, a: Action, timeout: number): Outcome {
     const res = resolveImage(x.d, x.c.image, x.k.config ? 'pulled' : undefined);
     if ('error' in res) return { errored: 'container not found', seconds: 0 };
     // E36: an exec probe sees the container's configMap and secret volumes.
-    const box = podContainer(res.img, x.spec, nameOf(x.pod), x.c.cid ?? '', x.t, x.c.layer, x.k.config ? mountNodes(x.pod, x.k.pods[uidOf(x.pod)], x.spec, x.c) : undefined);
+    const box = podContainer(res.img, x.spec, nameOf(x.pod), x.c.cid ?? '', x.t, x.c.layer, x.k.config ? mountNodes(x.pod, x.k.pods[uidOf(x.pod)], x.spec, x.c, x.k) : undefined);
     const r = a.command.length ? runIn(box, res.img, a.command, { tty: false, env: [], now: x.t }) : { notFound: '' };
     if ('notFound' in r) return { errored: `rpc error: code = Unknown desc = failed to exec in container: failed to start exec "${(x.c.cid ?? '').slice(0, 64)}": OCI runtime exec failed: exec failed: unable to start container process: exec: "${r.notFound}": executable file not found in $PATH: unknown`, seconds: 0 };
     const seconds = execSeconds(a.command);

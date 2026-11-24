@@ -91,7 +91,7 @@ describe('curriculum (E.1)', () => {
     expect(lessons.filter(l => l.islandId === 'mobile-apps').map(l => l.lessonId)).toEqual(ids('MOB', MOB_DONE));
     expect(CICD_DONE).toBeGreaterThanOrEqual(1);
     expect(lessons.filter(l => l.islandId === 'devops-cicd').map(l => l.lessonId)).toEqual(ids('CICD', CICD_DONE));
-    expect(KUB_DONE).toBeGreaterThanOrEqual(7);
+    expect(KUB_DONE).toBeGreaterThanOrEqual(10);
     expect(lessons.filter(l => l.islandId === 'kubernetes-reliability').map(l => l.lessonId)).toEqual(ids('KUB', KUB_DONE));
     expect(lessons).toHaveLength(60 + PL_DONE + DATABASES_DONE + NETWORKS_DONE + AIF_DONE + LNX_DONE + DKR_DONE + SRV_DONE + CICD_DONE + KUB_DONE + LLM_DONE + GEN_DONE + WEB_DONE + RWD_DONE + MOB_DONE);
     expect(new Set(lessons.map(l => l.lessonId)).size).toBe(lessons.length);
@@ -147,7 +147,7 @@ describe('curriculum (E.1)', () => {
     expect(lessons.filter(l => hasCapability(l, 'devops-explorer')).every(l => l.islandId === 'devops-cicd')).toBe(true);
     // KUB-1: the Kubernetes lessons follow kubeFromBlueprint's per-lesson table (KUB_SHAPES); KUB01, KUB03 and KUB04 are
     // the terminal with a simulated cluster (terminal-sim), KUB02 pairs it with a network-protocol scene (network-sequence).
-    // KUB-2: KUB05 and KUB06 are terminal-sim too, KUB07 is network-sequence like KUB02.
+    // KUB-2: KUB05 and KUB06 are terminal-sim too, KUB07 is network-sequence like KUB02. KUB-3: KUB08–KUB10 are terminal-sim.
     for (const l of lessons.filter(l => l.islandId === 'kubernetes-reliability')) {
       const shape = KUB_SHAPES[l.lessonId];
       expect([l.capabilities, l.activity, !!curriculum.contents[l.lessonId]?.terminal, !!curriculum.contents[l.lessonId]?.network, !!curriculum.contents[l.lessonId]?.devops], l.lessonId)

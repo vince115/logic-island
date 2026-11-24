@@ -8,8 +8,12 @@ import { describeWorkload } from './kube-describe-workload';
 import { describeEndpoints, describeService } from './kube-describe-service';
 import { describeConfig } from './kube-describe-config';
 import { describeGeneric, describeIngress } from './kube-describe-ingress';
+import { describeStorage } from './kube-storage-print';
+import { STORAGE_KINDS } from './kube-storage-model';
 import { GATEWAY_KINDS, INGRESS_KINDS } from './kube-ingress-spec';
 import { WORKLOAD_KINDS } from './kube-workload-spec';
+import { HPA } from './kube-hpa-spec';
+import { describeHpa } from './kube-hpa-print';
 import { kindOf, nameOf, nsOf, type JObj } from './kube-model';
 import { flag, type KubeResult, type Kx } from './kubectl';
 
@@ -35,13 +39,20 @@ export const TYPES: { kind: string; names: string[]; plural: string }[] = [
   { kind: 'GatewayClass', names: ['gatewayclasses', 'gatewayclass', 'gc', 'gatewayclasses.gateway.networking.k8s.io'], plural: 'gatewayclasses.gateway.networking.k8s.io' },
   { kind: 'Gateway', names: ['gateways', 'gateway', 'gtw', 'gateways.gateway.networking.k8s.io'], plural: 'gateways.gateway.networking.k8s.io' },
   { kind: 'HTTPRoute', names: ['httproutes', 'httproute', 'httproutes.gateway.networking.k8s.io'], plural: 'httproutes.gateway.networking.k8s.io' },
+  // E38: storage and StatefulSets.
+  { kind: 'StorageClass', names: ['storageclasses', 'storageclass', 'sc', 'storageclasses.storage.k8s.io'], plural: 'storageclasses.storage.k8s.io' },
+  { kind: 'PersistentVolume', names: ['persistentvolumes', 'persistentvolume', 'pv'], plural: 'persistentvolumes' },
+  { kind: 'PersistentVolumeClaim', names: ['persistentvolumeclaims', 'persistentvolumeclaim', 'pvc'], plural: 'persistentvolumeclaims' },
+  { kind: 'StatefulSet', names: ['statefulsets', 'statefulset', 'sts', 'statefulsets.apps'], plural: 'statefulsets.apps' },
+  // E40: HorizontalPodAutoscaler.
+  { kind: HPA, names: ['horizontalpodautoscalers', 'horizontalpodautoscaler', 'hpa', 'horizontalpodautoscalers.autoscaling'], plural: 'horizontalpodautoscalers.autoscaling' },
 ];
-/** E34: kubectl get all (the kinds of the simulation that the "all" category holds, in kubectl's order). */
-const ALL = ['Pod', 'Service', 'DaemonSet', 'Deployment', 'ReplicaSet'];
+/** E34: kubectl get all (the kinds of the simulation that the "all" category holds, in kubectl's order; E38: StatefulSet too). */
+const ALL = ['Pod', 'Service', 'DaemonSet', 'Deployment', 'ReplicaSet'], ALL_E38 = [...ALL, 'StatefulSet'], ALL_E40 = [...ALL_E38, HPA];
 const LATER_TYPES: Record<string, string> = { replicasets: 'E34', replicaset: 'E34', rs: 'E34', endpoints: 'E35', ep: 'E35', endpointslices: 'E35', configmaps: 'E36', configmap: 'E36', cm: 'E36', secrets: 'E36', secret: 'E36',
   ingresses: 'E37', ingress: 'E37', ing: 'E37', ingressclasses: 'E37', gateways: 'E37', httproutes: 'E37', persistentvolumes: 'E38', pv: 'E38', persistentvolumeclaims: 'E38', pvc: 'E38', storageclasses: 'E38', sc: 'E38',
   statefulsets: 'E38', sts: 'E38', horizontalpodautoscalers: 'E40', hpa: 'E40', all: 'E34' };
-const APPS = ['Deployment', 'DaemonSet', 'ReplicaSet'];
+const APPS = ['Deployment', 'DaemonSet', 'ReplicaSet', 'StatefulSet'];
 /** A type word: its names, and for the apps kinds also any name qualified with the group (`replicaset.apps`, as -o name prints). */
 const anyType = (word: string) => {
   const w = word.toLowerCase(), base = w.endsWith('.apps') ? w.slice(0, -5) : undefined;
@@ -58,7 +69,7 @@ export function targets(x: Kx, words: readonly string[]): Target[] | { error: st
   // E36: ConfigMaps and Secrets on the kube-config profile only.
   // E37: Ingress and IngressClass on the ingress profile, the Gateway API with the lesson's CRDs (without them: the server has no such type).
   const typeOf = (w: string) => { const t = anyType(w); return t && (t.kind === 'ReplicaSet' ? x.k.workloads : t.kind === 'Endpoints' || t.kind === 'EndpointSlice' ? x.k.net : t.kind === 'ConfigMap' || t.kind === 'Secret' ? x.k.config
-    : INGRESS_KINDS.includes(t.kind) ? x.k.ingress : GATEWAY_KINDS.includes(t.kind) ? x.k.ingress?.gateway : true) ? t : undefined; };
+    : INGRESS_KINDS.includes(t.kind) ? x.k.ingress : GATEWAY_KINDS.includes(t.kind) ? x.k.ingress?.gateway : STORAGE_KINDS.includes(t.kind) ? x.k.storage : t.kind === HPA ? x.k.autoscale : true) ? t : undefined; };
   if (!words.length) return { error: 'error: you must specify the type of resource to get. Use "kubectl api-resources" for a complete list of supported resources.' };
   const out: Target[] = [], unknown = (w: string) => LATER_TYPES[w.toLowerCase()] && !(x.k.ingress && GATEWAY_KINDS.includes(anyType(w)?.kind ?? '')) ? { error: `（模擬環境：${w} 要到引擎階段 ${LATER_TYPES[w.toLowerCase()]} 才模擬）` } : { error: `error: the server doesn't have a resource type "${w}"` };
   if (words[0].includes('/')) {
@@ -72,7 +83,7 @@ export function targets(x: Kx, words: readonly string[]): Target[] | { error: st
     return out;
   }
   for (const w of words[0].split(',')) {
-    if (w === 'all' && x.k.workloads) { out.push(...ALL.map(kind => ({ kind, plural: TYPES.find(t => t.kind === kind)!.plural, names: [] }))); continue; }
+    if (w === 'all' && x.k.workloads) { out.push(...(x.k.autoscale ? ALL_E40 : x.k.storage ? ALL_E38 : ALL).map(kind => ({ kind, plural: TYPES.find(t => t.kind === kind)!.plural, names: [] }))); continue; }
     const type = typeOf(w); if (!type) return unknown(w); out.push({ kind: type.kind, plural: type.plural, names: [] });
   }
   if (words.length > 1 && out.length > 1) return { error: 'error: arguments in resource/name form may not have more than one slash' };
@@ -146,8 +157,8 @@ export function describeCommand(x: Kx): KubeResult {
     if ('error' in r) { x.io.err(r.error); return { state: x.state, status: 1 }; }
     for (const o of r.items) out.push(x.k.workloads && WORKLOAD_KINDS.includes(t.kind) ? describeWorkload(x.k, o, x.now)
       : x.k.net && t.kind === 'Service' ? describeService(x.k, o, x.now) : x.k.net && t.kind === 'Endpoints' ? describeEndpoints(x.k, o, x.now)
-      : x.k.config && (t.kind === 'ConfigMap' || t.kind === 'Secret') ? describeConfig(x.k, o, x.now)
-      : t.kind === 'Ingress' ? describeIngress(x.k, o, x.now) : x.k.ingress && (INGRESS_KINDS.includes(t.kind) || GATEWAY_KINDS.includes(t.kind)) ? describeGeneric(x.k, o, x.now) : describeObject(x.k, t.kind, o, x.now));
+      : x.k.config && (t.kind === 'ConfigMap' || t.kind === 'Secret') ? describeConfig(x.k, o, x.now) : STORAGE_KINDS.includes(t.kind) ? describeStorage(x.k, o, x.now)
+      : t.kind === HPA && x.k.autoscale ? describeHpa(x.k, o, x.now) : t.kind === 'Ingress' ? describeIngress(x.k, o, x.now) : x.k.ingress && (INGRESS_KINDS.includes(t.kind) || GATEWAY_KINDS.includes(t.kind)) ? describeGeneric(x.k, o, x.now) : describeObject(x.k, t.kind, o, x.now));
     errors.push(...r.errors);
   }
   out.forEach((lines, i) => { if (i) { x.io.out(''); x.io.out(''); } lines.forEach(l => x.io.out(l)); });

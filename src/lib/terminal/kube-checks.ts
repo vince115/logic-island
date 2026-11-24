@@ -121,7 +121,7 @@ export function kubeFailure(c: KubeCheck, end0: FsState): string | null {
       if (c.file) {
         const cs = sim?.main[i];
         if (!cs || cs.state !== 'running') return `${name} 的容器沒有在執行`;
-        const nodes = podContainer(res.img, specs[i], name, cs.cid ?? '', now, cs.layer, k.config ? mountNodes(p, sim, specs[i], cs) : undefined).nodes;
+        const nodes = podContainer(res.img, specs[i], name, cs.cid ?? '', now, cs.layer, k.config ? mountNodes(p, sim, specs[i], cs, k) : undefined).nodes;
         const node = nodes.get(k.config ? physicalPath(nodes, c.file.path, true) : c.file.path);
         if (!node || node.kind !== 'file') return `${name} 的容器裡沒有 ${c.file.path}`;
         if (c.file.content !== undefined && !(node.content ?? '').includes(c.file.content)) return `${name} 的 ${c.file.path} 不包含題目要的文字`;

@@ -4,6 +4,7 @@ import { about, created, put, record, remove } from './kube-api';
 import { readyOf } from './kube-probes';
 import { phaseOf } from './kube-status';
 import { beginDelete } from './kube-stop';
+import { markDeleting } from './kube-storage-model';
 import { selectorMatches, replicasOf } from './kube-workload-spec';
 import {
   arr, changed, clone, createdOf, systemNs, KUBE_LIMITS, kindOf, labelsOf, meta, nameOf, nsOf, obj, sameJ, stamp, str, suffix, uidOf,
@@ -119,7 +120,8 @@ export function collectGarbage(d: DockerState | undefined, k0: KubeState, t: Sec
     if (systemNs(k0, nsOf(o)) || !refs.length || refs.some(r => uids.has(str(r.uid) ?? ''))) continue;
     const live = k.objects.find(x => uidOf(x) === uidOf(o));
     if (!live) continue;
-    k = kindOf(o) === 'Pod' ? endPod(d, k, live, t) : changed(remove(k, live), t);
+    // E38: a claim (a StatefulSet's whenDeleted or whenScaled: Delete) is deleted through its protection finalizer.
+    k = kindOf(o) === 'Pod' ? endPod(d, k, live, t) : k.storage && kindOf(o) === 'PersistentVolumeClaim' ? markDeleting(k, live, t) : changed(remove(k, live), t);
   }
   return k;
 }
