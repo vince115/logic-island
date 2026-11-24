@@ -91,7 +91,7 @@ describe('curriculum (E.1)', () => {
     expect(lessons.filter(l => l.islandId === 'mobile-apps').map(l => l.lessonId)).toEqual(ids('MOB', MOB_DONE));
     expect(CICD_DONE).toBeGreaterThanOrEqual(1);
     expect(lessons.filter(l => l.islandId === 'devops-cicd').map(l => l.lessonId)).toEqual(ids('CICD', CICD_DONE));
-    expect(KUB_DONE).toBeGreaterThanOrEqual(14);
+    expect(KUB_DONE).toBe(15); // KUB-5: the capstone KUB15, the island complete
     expect(lessons.filter(l => l.islandId === 'kubernetes-reliability').map(l => l.lessonId)).toEqual(ids('KUB', KUB_DONE));
     expect(lessons).toHaveLength(60 + PL_DONE + DATABASES_DONE + NETWORKS_DONE + AIF_DONE + LNX_DONE + DKR_DONE + SRV_DONE + CICD_DONE + KUB_DONE + LLM_DONE + GEN_DONE + WEB_DONE + RWD_DONE + MOB_DONE);
     expect(new Set(lessons.map(l => l.lessonId)).size).toBe(lessons.length);
@@ -144,15 +144,17 @@ describe('curriculum (E.1)', () => {
       const shape = CICD_SHAPES[l.lessonId];
       expect([l.capabilities, l.activity, !!curriculum.contents[l.lessonId]?.devops], l.lessonId).toEqual([shape.capabilities, shape.activity, shape.capabilities.includes('devops-explorer')]);
     }
-    // KUB-4: the devops-explorer is also on kubernetes-reliability's monitoring-dashboard lessons KUB12–KUB14 (KUB15, the
-    // capstone, will add it too); no other island declares it.
+    // KUB-4: the devops-explorer is also on kubernetes-reliability's monitoring-dashboard lessons KUB12–KUB14; KUB-5: and on
+    // the capstone KUB15 (D3, D5, D6); no other island declares it.
     expect(lessons.filter(l => hasCapability(l, 'devops-explorer')).every(l => l.islandId === 'devops-cicd' || l.islandId === 'kubernetes-reliability')).toBe(true);
-    expect(lessons.filter(l => hasCapability(l, 'devops-explorer') && l.islandId === 'kubernetes-reliability').map(l => l.lessonId).slice(0, 3)).toEqual(['KUB12', 'KUB13', 'KUB14']);
+    expect(lessons.filter(l => hasCapability(l, 'devops-explorer') && l.islandId === 'kubernetes-reliability').map(l => l.lessonId)).toEqual(['KUB12', 'KUB13', 'KUB14', 'KUB15']);
     // KUB-1: the Kubernetes lessons follow kubeFromBlueprint's per-lesson table (KUB_SHAPES); KUB01, KUB03 and KUB04 are
     // the terminal with a simulated cluster (terminal-sim), KUB02 pairs it with a network-protocol scene (network-sequence).
     // KUB-2: KUB05 and KUB06 are terminal-sim too, KUB07 is network-sequence like KUB02. KUB-3: KUB08–KUB10 are terminal-sim.
     // KUB-4: KUB11 is terminal-sim; KUB12 is monitoring-dashboard with the devops-explorer and the terminal (like CICD12),
-    // KUB13 and KUB14 are monitoring-dashboard with the devops-explorer alone (like CICD11).
+    // KUB13 and KUB14 are monitoring-dashboard with the devops-explorer alone (like CICD11). KUB-5: the capstone KUB15 is
+    // challenge-stages with the terminal, the devops-explorer and its six-stage visualization (like CICD15).
+    expect([curriculum.contents.KUB15?.visualization?.kind, curriculum.contents.KUB15?.visualization?.kind === 'challenge-stages' && curriculum.contents.KUB15.visualization.stages.length]).toEqual(['challenge-stages', 6]);
     for (const l of lessons.filter(l => l.islandId === 'kubernetes-reliability')) {
       const shape = KUB_SHAPES[l.lessonId];
       expect([l.capabilities, l.activity, !!curriculum.contents[l.lessonId]?.terminal, !!curriculum.contents[l.lessonId]?.network, !!curriculum.contents[l.lessonId]?.devops], l.lessonId)

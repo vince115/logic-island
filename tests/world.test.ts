@@ -117,8 +117,8 @@ describe('world registry (F.0)', () => {
     expect(labIslandConfig.labs).toEqual(['array', 'stack', 'queue', 'binary-search', 'bubble-sort', 'bfs']);
   });
 
-  it('marks the three existing islands, the database island (F.1d), PL (course production batches 1–5) CN (CN-1 to CN-5) AIF (AIF-1 to AIF-5) LNX (LNX-1 to LNX-5), SRV (SRV-1 to SRV-5) WEB (WEB-1 to WEB-5) RWD (RWD-1 to RWD-3) MOB (MOB-1 to MOB-3), DKR (DKR-1 to DKR-6) and CICD (CICD-1 to CICD-7) complete, GEN open (GEN-1), LLM open (LLM-1), KUB open (KUB-1), and the other twelve planned', () => {
-    expect(subjectIslands.filter(i => i.status === 'complete').map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'web-foundations', 'responsive-design', 'mobile-apps', 'linux-systems', 'docker-containers', 'network-servers', 'devops-cicd']);
+  it('marks the three existing islands, the database island (F.1d), PL (course production batches 1–5) CN (CN-1 to CN-5) AIF (AIF-1 to AIF-5) LNX (LNX-1 to LNX-5), SRV (SRV-1 to SRV-5) WEB (WEB-1 to WEB-5) RWD (RWD-1 to RWD-3) MOB (MOB-1 to MOB-3), DKR (DKR-1 to DKR-6), CICD (CICD-1 to CICD-7) and KUB (KUB-1 to KUB-5) complete, GEN open (GEN-1), LLM open (LLM-1), and the other twelve planned', () => {
+    expect(subjectIslands.filter(i => i.status === 'complete').map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'web-foundations', 'responsive-design', 'mobile-apps', 'linux-systems', 'docker-containers', 'network-servers', 'devops-cicd', 'kubernetes-reliability']);
     // Course production batch 5 published PL20, the last of 20: every PL lesson is written, but its map stays planned
     // (an island's 3D look is set by hand in IslandConfig.mapState, never by its lessons).
     // CN-5 published CN20, the last of 20: the computer-networks island is complete; its map stays planned too.
@@ -129,8 +129,9 @@ describe('world registry (F.0)', () => {
     // WEB-5 published WEB15, the last of 15: the web foundations island is complete; its map stays planned too.
     // CICD-1 published CICD01 of 15: the DevOps and CI/CD island is open (available) in the systems region; its map stays planned.
     // KUB-1 published KUB01–KUB04 of 15: the Kubernetes and reliability island is open (available) in the systems region; its map stays planned (KUB-2: KUB05–KUB07, 7 of 15; KUB-3: KUB08–KUB10, 10 of 15; KUB-4: KUB11–KUB14, 14 of 15).
-    expect(subjectIslands.filter(i => i.status === 'available').map(i => i.id)).toEqual(['large-language-models', 'generative-ai', 'kubernetes-reliability']);
-    expect(getIsland('kubernetes-reliability')).toMatchObject({ status: 'available', mapState: 'planned' });
+    expect(subjectIslands.filter(i => i.status === 'available').map(i => i.id)).toEqual(['large-language-models', 'generative-ai']);
+    // KUB-5 published KUB15, the last of 15: the Kubernetes and reliability island is complete; its map stays planned too.
+    expect(getIsland('kubernetes-reliability')).toMatchObject({ status: 'complete', mapState: 'planned' });
     // CICD-7 published CICD15, the last of 15: the DevOps and CI/CD island is complete; its map stays planned too.
     expect(getIsland('devops-cicd')).toMatchObject({ status: 'complete', mapState: 'planned' });
     // DKR-6 published DKR15, the last of 15: the Docker containers island is complete; its map stays planned too.
