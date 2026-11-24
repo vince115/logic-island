@@ -46,7 +46,11 @@ export interface Listen {
   ssl?: true;
   /** E17 (set by ssh, not by lessons): an SSH tunnel's listener; the connection is made from the machine `via`. */
   forward?: Forward;
+  /** E37 (set by the engine): an ingress controller's or a Gateway's TLS port — its certificates chosen by SNI (kube-route.ts). */
+  kubeTls?: KubeTls;
 }
+/** E37: PEM texts by the names they serve (exact or *.wildcard; none: any), and the certificate for every other name (none: the handshake fails). */
+export interface KubeTls { certs: readonly { names: readonly string[]; crt: string; key: string }[]; fallback?: { crt: string; key: string } }
 /**
  * E17: where a tunnel's connections go: `via` (a host name of the lesson) opens a connection to host:port, resolving host
  * there. -L: the listener is on the client and via is the SSH server; -R: the listener is on the server (held by sshd) and
@@ -81,6 +85,7 @@ export interface Socket {
   nginx?: true;
   ssl?: true;
   forward?: Forward;
+  kubeTls?: KubeTls;
 }
 
 // ----------------------------------------------------------------------------------------------------- addresses
@@ -150,6 +155,7 @@ export function socketsOf(state: FsState): Socket[] {
         proto, state: proto === 'tcp' ? 'LISTEN' : 'UNCONN', local: { address, port: l.port }, peer: null, recvQ: 0, sendQ: proto === 'tcp' ? l.backlog ?? 4096 : 0,
         inode: inodeOf(`${host}/${p.pid}/${proto}/${address}/${l.port}`), holders: [p, ...kids].map(proc => ({ proc, fd })), ...l.http ? { http: l.http } : {},
         ...l.tls ? { tls: l.tls } : {}, ...l.nginx ? { nginx: true } : {}, ...l.ssl ? { ssl: true } : {}, ...l.forward ? { forward: l.forward } : {},
+        ...l.kubeTls ? { kubeTls: l.kubeTls } : {},
       });
     });
   }

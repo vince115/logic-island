@@ -10,7 +10,8 @@ import { applyDoc } from './kube-write';
 import { healthProblems, type TerminalKubeHealth } from './kube-health';
 import { bytesOf, cpuMilli, KUBE_LIMITS, nsOf, obj, str, type KubeState } from './kube-model';
 import { systemWorkloads } from './kube-controllers';
-import { rootCas } from './kube-config-spec';
+import { rootCa, rootCas } from './kube-config-spec';
+import { installNginx, type NginxLesson } from './kube-ingress';
 
 /*
  * Engine stage E32 as lesson data (docs/curriculum/KUB0_E32_CLUSTER.md §14). A machine of the cluster profile with `kube`
@@ -47,7 +48,15 @@ export interface TerminalKube {
    * or CIDRs, at most 32 addresses; without it a LoadBalancer's EXTERNAL-IP stays <pending> (kube-endpoints.ts).
    */
   lbPool?: string[];
+  /**
+   * E37 (ingress profile): ingress-nginx installed when the cluster was created — its Service a LoadBalancer (an address
+   * from lbPool) or a NodePort (nodePorts: http, https), the IngressClass nginx (defaultClass: the default class). kube-ingress.ts.
+   */
+  ingressController?: NginxLesson;
+  /** E37: the Gateway API's CRDs (standard channel), and the controllerName of the lesson's Gateway controller (controller: false — the CRDs only). kube-gateway.ts. */
+  gatewayApi?: { controllerName?: string; controller?: boolean };
 }
+export const GATEWAY_CONTROLLER = 'example.com/gateway-controller';
 /** E35: the pool's addresses in order (null: not a pool of at most 32 IPv4 addresses). */
 export function poolAddresses(pool: readonly string[]): string[] | null {
   const out: string[] = [];
@@ -76,7 +85,7 @@ export function expandKube(m: TerminalMachine, cluster: boolean, add: { file(f: 
 }
 
 /** The cluster at the machine's start: its nodes and system objects, then the boot manifests in order. */
-export function buildKube(m: TerminalMachine, now: Seconds, probes = false, workloads = false, net = false, config = false): { k: KubeState; problems: string[] } {
+export function buildKube(m: TerminalMachine, now: Seconds, probes = false, workloads = false, net = false, config = false, ingress = false): { k: KubeState; problems: string[] } {
   const kube = m.kube!, created = parseTime(kube.created ?? '') ?? now - 30 * DAY;
   const nodes = nodesOf(kube.nodes ?? [{ name: 'cp-01', control: true }, { name: 'node-01' }, { name: 'node-02' }], created, t => cpuMilli(t) ?? 0, t => bytesOf(t) ?? 0);
   const boot = bootstrap(nodes, created), pull: Record<string, number> = {}, cache: Record<string, string[]> = Object.fromEntries(Object.entries(boot.cache).map(([n, l]) => [n, [...l]]));
@@ -92,6 +101,9 @@ export function buildKube(m: TerminalMachine, now: Seconds, probes = false, work
   if (net) k = { ...k, net: true, ...kube.lbPool ? { lb: poolAddresses(kube.lbPool) ?? [] } : {} };
   // E36: ConfigMaps and Secrets; every namespace's kube-root-ca.crt.
   if (config) k = rootCas({ ...k, config: true });
+  // E37: Ingress and IngressClass; the lesson's ingress-nginx; the Gateway API's CRDs and controller.
+  if (ingress) k = { ...k, ingress: kube.gatewayApi ? { gateway: kube.gatewayApi.controller === false ? {} : { controller: kube.gatewayApi.controllerName ?? GATEWAY_CONTROLLER } } : {} };
+  if (ingress && kube.ingressController) { k = installNginx(k, kube.ingressController, created); if (config) k = rootCa(k, 'ingress-nginx', created); }
   const problems: string[] = [];
   (kube.manifests ?? []).forEach((mf, i) => {
     const at = parseTime(mf.at ?? '') ?? now, file = mf.file ?? `manifest-${i + 1}.yaml`;
@@ -108,14 +120,15 @@ export function buildKube(m: TerminalMachine, now: Seconds, probes = false, work
 }
 
 /** E32: the state's cluster (the local machine of the cluster profile only). */
-export function kubeState(m: TerminalMachine, state: FsState, cluster: boolean, probes = false, workloads = false, net = false, config = false): FsState {
-  if (!cluster || !m.kube || kubeProblems(m, cluster, probes, workloads, net, config).length) return state;
-  return { ...state, kube: buildKube(m, nowOf(m, state), probes, workloads, net, config).k };
+export function kubeState(m: TerminalMachine, state: FsState, cluster: boolean, probes = false, workloads = false, net = false, config = false, ingress = false): FsState {
+  if (!cluster || !m.kube || kubeProblems(m, cluster, probes, workloads, net, config, ingress).length) return state;
+  return { ...state, kube: buildKube(m, nowOf(m, state), probes, workloads, net, config, ingress).k };
 }
+
 
 const LINE = (t: unknown, max = 64) => typeof t === 'string' && t.length >= 1 && t.length <= max && !t.includes('\n');
 /** E32: the problems of a machine's cluster data. */
-export function kubeProblems(m: TerminalMachine, cluster: boolean, probes = false, workloads = false, net = false, config = false): string[] {
+export function kubeProblems(m: TerminalMachine, cluster: boolean, probes = false, workloads = false, net = false, config = false, ingress = false): string[] {
   if (m.kube === undefined) return [];
   if (!cluster) return ['kube needs the cluster profile (engine stage E32)'];
   const out: string[] = [], kube = m.kube, now = nowOf(m), fail = (s: string) => out.push(`kube: ${s}`);
@@ -173,8 +186,27 @@ export function kubeProblems(m: TerminalMachine, cluster: boolean, probes = fals
     else if (!Array.isArray(kube.lbPool) || !poolAddresses(kube.lbPool)) fail('lbPool is at most 32 IPv4 addresses: a.b.c.d, a.b.c.d-a.b.c.e or a.b.c.d/27..32');
     else if (poolAddresses(kube.lbPool)!.some(a => addrs.has(a) || (!kube.nodes && ['10.0.0.50', '10.0.0.51', '10.0.0.52'].includes(a)))) fail('lbPool overlaps a node address');
   }
+  // E37: ingress-nginx and the Gateway API.
+  out.push(...ingressProblems(kube, ingress));
   if (out.length) return out;
-  const built = buildKube(m, now, probes, workloads, net, config);
+  const built = buildKube(m, now, probes, workloads, net, config, ingress);
   if (built.k.objects.filter(o => o.kind === 'Pod' && nsOf(o) !== 'kube-system').length > KUBE_LIMITS.pods) out.push(`kube: at most ${KUBE_LIMITS.pods} pods`);
   return [...out, ...built.problems.map(p => `kube: ${p}`)];
+}
+
+/** E37: the problems of the lesson's ingress-nginx and Gateway API. */
+function ingressProblems(kube: TerminalKube, ingress: boolean): string[] {
+  const out: string[] = [], ic = kube.ingressController, ga = kube.gatewayApi;
+  if (ic === undefined && ga === undefined) return out;
+  if (!ingress) return [`kube: ${ic !== undefined ? 'ingressController' : 'gatewayApi'} needs the ingress profile (engine stage E37)`];
+  if (ic !== undefined) {
+    if (typeof ic !== 'object' || ic === null || (ic.service !== undefined && !['LoadBalancer', 'NodePort'].includes(ic.service))) out.push('kube: ingressController.service is LoadBalancer or NodePort');
+    const ports = Object.values(ic?.nodePorts ?? {});
+    if (ic?.nodePorts !== undefined && (ic.service !== 'NodePort' || ports.some(p => !Number.isInteger(p) || p < 30000 || p > 32767) || new Set(ports).size !== ports.length)) out.push('kube: ingressController.nodePorts (http, https) are two different ports in 30000-32767 of a NodePort controller');
+    if (ic?.defaultClass !== undefined && typeof ic.defaultClass !== 'boolean') out.push('kube: ingressController.defaultClass is true or false');
+  }
+  if (ga !== undefined && (typeof ga !== 'object' || ga === null || (ga.controllerName !== undefined && !/^[a-z0-9]([-a-z0-9.]*[a-z0-9])?\/[A-Za-z0-9/._-]+$/.test(ga.controllerName)) || (ga.controller !== undefined && typeof ga.controller !== 'boolean'))) {
+    out.push('kube: gatewayApi is { controllerName?: a domain-prefixed path such as example.com/gateway-controller, controller?: boolean }');
+  }
+  return out;
 }

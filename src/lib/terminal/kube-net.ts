@@ -11,6 +11,8 @@ import { proxyTargets } from './kube-endpoints';
 import { kubeDns, type KubeDns } from './kube-dns';
 import { deadAt } from './kube-controllers';
 import { hasNodePorts, isHeadless, lbIpOf, portKey, portsOf } from './kube-service-spec';
+import { isNginxPod } from './kube-ingress';
+import { gatewayServing, nginxServing } from './kube-route';
 import { arr, kindOf, nameOf, nsOf, obj, str, uidOf, type JObj, type KubeState } from './kube-model';
 
 /*
@@ -35,6 +37,8 @@ const bare = (host: string, address: string, iface: string, prefix: number): FsS
 
 /** What a pod serves now: its running containers' listeners (once they listen) and responders (the lesson's kube.health paths first). */
 export function podServing(d: DockerState | undefined, k: KubeState, pod: JObj, t: Seconds): { listen: Listen[]; responders: Responder[]; nodes?: ReadonlyMap<string, FsNode> } {
+  // E37: the ingress-nginx controller answers through its router.
+  if (isNginxPod(k, pod)) return nginxServing(d, k, pod, t, podServing);
   const sim = k.pods[uidOf(pod)], listen: Listen[] = [], responders: Responder[] = [];
   let nodes: ReadonlyMap<string, FsNode> | undefined;
   if (!sim?.ip) return { listen, responders };
@@ -96,7 +100,7 @@ export function bindVip(view: FsState, vip: KubeVip, turn: number): FsState {
   if (src && l) {
     const r = findResponder(src, l)?.r;
     if (r) { responders.push({ ...r, id }); nodes = src.nodes; }
-    added = { port: vip.port, fd: 3 + keep.length, ...r ? { http: id } : {} };
+    added = { port: vip.port, fd: 3 + keep.length, ...r ? { http: id } : {}, ...l.kubeTls ? { kubeTls: l.kubeTls } : {} };
   }
   const listen = added ? [...keep, added] : keep;
   const next: FsState = { ...host, nodes, processes: [proc(listen, clockOf(view).now, 'kube-proxy')], http: { responders } };
@@ -120,6 +124,11 @@ function withVips(view: FsState, vips: readonly KubeVip[]): FsState {
   for (const v of vips) out = bindVip(out, v, view.kubeNet?.turns[v.key] ?? 0);
   return out;
 }
+/** E37: the Gateways the controller programmed, as machines at their addresses. */
+const gatewayHosts = (d: DockerState | undefined, k: KubeState, t: Seconds): RemoteHost[] => !k.ingress?.gateway ? [] : gatewayServing(d, k, t, podServing).map(g => {
+  const name = `kube:gw/${g.name}`, base = bare(name, g.address, 'eth0', 32);
+  return { host: name, address: g.address, aliases: [], passwords: [], state: { ...base, processes: [proc(g.listen, t, 'gateway')], http: { responders: g.responders } } };
+});
 const livePods = (k: KubeState, except?: string) => k.objects.filter(o => kindOf(o) === 'Pod' && uidOf(o) !== except && !!k.pods[uidOf(o)]?.ip && !k.pods[uidOf(o)]?.static);
 
 /** A pod's network (kubectl exec): its interface and listeners, the other pods, kube-proxy's addresses and CoreDNS. */
@@ -127,7 +136,7 @@ export function podView(state: FsState, pod: JObj): Pick<FsState, 'sockets' | 'p
   const k = state.kube!, t = clockOf(state).now, d = state.docker, sim = k.pods[uidOf(pod)]!, own = podServing(d, k, pod, t);
   const gw = sim.ip.replace(/\.\d+$/, '.1'), vips = vipsOf(k, true);
   let view: FsState = { ...bare(nameOf(pod), sim.ip, 'eth0', 24), processes: [proc(own.listen, t)], http: { responders: own.responders },
-    net: { address: sim.ip, seed: uidOf(pod), hosts: livePods(k, uidOf(pod)).map(p => podHost(d, k, p, t, false)), connections: 0 },
+    net: { address: sim.ip, seed: uidOf(pod), hosts: [...livePods(k, uidOf(pod)).map(p => podHost(d, k, p, t, false)), ...gatewayHosts(d, k, t)], connections: 0 },
     kubeNet: { vips, turns: { ...k.turns }, dns: kubeDns(k, nsOf(pod) ?? 'default') } };
   view = { ...view, sockets: { ...view.sockets!, gateway: gw } };
   view = withVips(view, vips);
@@ -153,7 +162,7 @@ export function clusterView(state: FsState): FsState {
     return serves ? p : { ...p, listen: (p.listen ?? []).map(l => { const { forward: _f, ...rest } = l; void _f; return rest; }) };
   });
   const own = state.net, address = own?.address ?? interfacesOf(state)[1]?.address ?? '10.0.0.10';
-  const view: FsState = { ...state, processes, net: { address, seed: own?.seed ?? 'kube', hosts: [...own?.hosts ?? [], ...livePods(k).map(p => podHost(d, k, p, t, true))], connections: own?.connections ?? 0 },
+  const view: FsState = { ...state, processes, net: { address, seed: own?.seed ?? 'kube', hosts: [...own?.hosts ?? [], ...livePods(k).map(p => podHost(d, k, p, t, true)), ...gatewayHosts(d, k, t)], connections: own?.connections ?? 0 },
     kubeNet: { vips, turns: { ...k.turns }, forwards: forwards.filter(f => processes.some(p => p.pid === f.pid && p.listen?.length)).map(f => f.local) } };
   return withVips(view, vips);
 }

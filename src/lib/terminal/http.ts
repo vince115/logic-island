@@ -12,6 +12,8 @@ import { base64 } from './ssh';
 import { resolvePath } from './fs';
 import { containerAccess } from './docker';
 import { containerReader } from './storage-net';
+import { kubeServe, sniPresented } from './kube-route-serve';
+import type { KubeRouter } from './kube-route';
 
 /*
  * Engine stage E12 (docs/curriculum/SRV0_SERVER_CAPABILITY.md §8): HTTP/1.1 with curl. A machine's responders are lesson
@@ -62,6 +64,8 @@ export interface Responder {
   /** E22 (set by the engine): the request reaches the container directly (from another container, or with --network host), so its log shows the real client; via: the address docker-proxy connects from (a user-defined network's gateway). */
   direct?: true;
   via?: string;
+  /** E37 (set by the engine): an ingress controller's or a Gateway's router (kube-route.ts); routes unused. */
+  kube?: KubeRouter;
 }
 
 export const CURL_VERSION = '8.5.0';
@@ -89,7 +93,7 @@ export function errorPage(status: number, server?: string): string {
 }
 
 /** version: E15, the HTTP version of the request line (nginx's proxy sends 1.0 unless proxy_http_version 1.1); default 1.1. */
-export interface Request { method: string; path: string; headers: [string, string][]; body?: string; version?: '1.0' | '1.1' }
+export interface Request { method: string; path: string; headers: [string, string][]; body?: string; version?: '1.0' | '1.1'; /** E37: it came over TLS to a router's port (kubeTls). */ tls?: true }
 /** wait: E15, the seconds the answer took (an upstream's delay, nginx's timeouts); curl -m compares it. */
 export interface Response {
   status: number; reason: string; headers: [string, string][]; body: string; close: boolean; wait?: number;
@@ -262,6 +266,7 @@ const WRONG_VERSION = 'OpenSSL/3.0.13: error:0A00010B:SSL routines::wrong versio
 export function tlsServer(reached: Extract<Reached, { result: 'ok' }>, address: string, sni: string): { chain: Cert[]; keyOk: boolean } | { plain: true } | { error: string } {
   const s = reached.socket;
   if (s.tls) return presentedBy(reached.host, s.tls.certificate, s.tls.key);
+  if (s.kubeTls) return sniPresented(s.kubeTls, sni);
   if (s.nginx && s.ssl) { const chain = nginxCertificate(reached.host, address, s.local.port, sni); return chain ? { chain, keyOk: true } : { error: 'no certificate' }; }
   return { plain: true };
 }
@@ -345,6 +350,8 @@ export function serveResponder(get: () => FsState, set: (s: FsState) => void, at
   return r.container ? { ...out, host: containerAccess(out.host, r, req, out.res, now, client) } : out;
 }
 function serveOn(get: () => FsState, set: (s: FsState) => void, at: 'self' | number, host: FsState, r: Responder, req: Request, now: number, client: string, depth: number): { res: Response; host: FsState } {
+  // E37: an ingress controller's or a Gateway's router.
+  if (r.kube) return { res: kubeServe(get, set, r, req, now), host };
   if (!host.http?.edge) return { res: respond(r, req, now, readerOf(host, r), client), host };
   if (r.cdn) {
     if (depth >= 3) return { res: respond({ ...r, routes: [] }, req, now), host };
@@ -564,7 +571,7 @@ export function curl(state0: FsState, args: readonly string[], io: NetIo): NetRe
       say('>');
       if (conn.tls && !conn.tickets) { say('* TLSv1.3 (IN), TLS handshake, Newsession Ticket (4):'); say('* TLSv1.3 (IN), TLS handshake, Newsession Ticket (4):'); conn.tickets = true; }
       const ok = reached as Extract<Reached, { result: 'ok' }>;
-      const req: Request = { method, path: u.path, headers: reqHeaders, ...o.data !== undefined ? { body: o.data } : {} }, now = clockOf(ok.host).now;
+      const req: Request = { method, path: u.path, headers: reqHeaders, ...o.data !== undefined ? { body: o.data } : {}, ...u.scheme === 'https' && socket?.kubeTls ? { tls: true as const } : {} }, now = clockOf(ok.host).now;
       let res: Response;
       if (nginx) {
         const x = { address, port: u.port, https: u.scheme === 'https', client: clientAddress(state, ok.at, address), req, now };
@@ -724,7 +731,10 @@ export function probe(state: FsState, url: string, resolve: NetIo['resolve'], tl
     if (v.first) return { error: `憑證驗證失敗：${VERIFY_TEXT[v.first]}` };
     if (!nameMatches(server.chain[0], u.host)) return { error: `憑證沒有 ${u.host} 這個名稱` };
   }
-  const req: Request = { method: 'GET', path: u.path, headers: [['Host', u.port === (u.scheme === 'https' ? 443 : 80) ? u.host : `${u.host}:${u.port}`], ['User-Agent', `curl/${CURL_VERSION}`], ['Accept', '*/*'], ...extra] };
+  // E37: a Host among the extra headers replaces the URL's (an ingress check by IP address).
+  const own = extra.some(([k]) => k.toLowerCase() === 'host');
+  const req: Request = { method: 'GET', path: u.path, headers: [...own ? [] : [['Host', u.port === (u.scheme === 'https' ? 443 : 80) ? u.host : `${u.host}:${u.port}`] as [string, string]], ['User-Agent', `curl/${CURL_VERSION}`], ['Accept', '*/*'], ...extra],
+    ...u.scheme === 'https' && reached.socket.kubeTls ? { tls: true as const } : {} };
   const now = clockOf(reached.host).now;
   if (reached.socket.nginx && reached.host.nginx?.applied) {
     const x = { address: r.found.address, port: u.port, https: u.scheme === 'https', client: clientAddress(r.state, reached.at, r.found.address), req, now };

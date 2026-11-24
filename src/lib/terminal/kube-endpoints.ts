@@ -3,6 +3,8 @@ import { about, put, record, remove } from './kube-api';
 import { podFacts } from './kube-replicaset';
 import { ipNumber } from './sockets';
 import { isHeadless, lbIpOf, portsOf, selectorOf, typeOfSvc } from './kube-service-spec';
+import { syncIngress } from './kube-ingress';
+import { syncGateways } from './kube-gateway';
 import {
   arr, createdOf, kindOf, labelsOf, meta, nameOf, nsOf, obj, sameJ, stamp, str, suffix, uid, uidOf,
   type J, type JObj, type KubeState,
@@ -132,7 +134,10 @@ export function syncNet(k0: KubeState, t: Seconds): KubeState {
   for (const o of k.objects) {
     if ((kindOf(o) === 'Endpoints' || kindOf(o) === 'EndpointSlice') && !keep.has(`${kindOf(o)}/${nsOf(o)}/${nameOf(o)}`)) k = remove(k, o);
   }
-  return { ...assignLb(k, t), netAt: t, netDirty: k.netDirty !== undefined && k.netDirty <= t ? undefined : k.netDirty };
+  // E37: ingress-nginx and the Gateway controller sync after the addresses are given.
+  k = assignLb(k, t);
+  if (k.ingress) k = syncGateways(syncIngress(k, t), t, k.lb ?? []);
+  return { ...k, netAt: t, netDirty: k.netDirty !== undefined && k.netDirty <= t ? undefined : k.netDirty };
 }
 
 /** The pool's addresses to LoadBalancer Services without one, oldest first (spec.loadBalancerIP asks for one of them). */
@@ -143,7 +148,9 @@ function assignLb(k0: KubeState, t: Seconds): KubeState {
   for (const o of k.objects) if (kindOf(o) === 'Service' && typeOfSvc(o) !== 'LoadBalancer' && lbIpOf(o)) k = put(k, { ...o, status: { loadBalancer: {} } });
   const pool = k.lb ?? [];
   if (!pool.length) return k;
-  const used = new Set(lbs.map(lbIpOf).filter((x): x is string => !!x));
+  // E37: the addresses Gateways hold are taken too.
+  const gateways = k.ingress ? k.objects.filter(o => kindOf(o) === 'Gateway').map(o => str(obj(arr(obj(o.status).addresses)[0]).value)) : [];
+  const used = new Set([...lbs.map(lbIpOf), ...gateways].filter((x): x is string => !!x));
   for (const svc of lbs) {
     if (lbIpOf(svc)) continue;
     const ask = str(obj(svc.spec).loadBalancerIP), ip = ask ? (pool.includes(ask) && !used.has(ask) ? ask : undefined) : pool.find(a => !used.has(a));

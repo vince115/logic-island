@@ -77,9 +77,31 @@ const SCHEMAS_E36: Record<string, F> = { ...SCHEMAS_E35,
   ConfigMap: { go: 'ConfigMap', fields: { apiVersion: 'str', kind: 'str', metadata: META, data: 'smap', binaryData: 'any', immutable: 'bool' } },
   Secret: { go: 'Secret', fields: { apiVersion: 'str', kind: 'str', metadata: META, data: 'smap', stringData: 'smap', type: 'str', immutable: 'bool' } },
 };
-const schemas = (probes: boolean, workloads: boolean, net: boolean, config: boolean) => config ? SCHEMAS_E36 : net ? SCHEMAS_E35 : workloads ? SCHEMAS_E34 : probes ? SCHEMAS_E33 : SCHEMAS;
-/** Whether the profile's API server serves the kind (E34: Deployment and ReplicaSet on the workloads profile; E35: Service on kube-net; E36: ConfigMap and Secret on kube-config). */
-export const served = (kind: string, workloads: boolean, net = false, config = false) => !!schemas(false, workloads, net, config)[kind];
+/** E37: Ingress and IngressClass (networking.k8s.io/v1) on the ingress profile; the Gateway API's standard channel when the lesson installs its CRDs. */
+const OBJ = (go: string, spec: F, status = true): F => ({ go, fields: { apiVersion: 'str', kind: 'str', metadata: META, spec, ...status ? { status: 'any' as F } : {} } });
+const BACKEND: F = { go: 'IngressBackend', fields: { service: { go: 'IngressServiceBackend', fields: { name: 'str', port: { go: 'ServiceBackendPort', fields: { name: 'str', number: 'int' } } } }, resource: 'any' } };
+const ING_PATH: F = { go: 'HTTPIngressPath', fields: { path: 'str', pathType: 'str', backend: BACKEND } };
+const SCHEMAS_E37: Record<string, F> = { ...SCHEMAS_E36,
+  Ingress: OBJ('Ingress', { go: 'IngressSpec', fields: { ingressClassName: 'str', defaultBackend: BACKEND, tls: { list: { go: 'IngressTLS', fields: { hosts: { list: 'str' }, secretName: 'str' } } },
+    rules: { list: { go: 'IngressRule', fields: { host: 'str', http: { go: 'HTTPIngressRuleValue', fields: { paths: { list: ING_PATH } } } } } } } }),
+  IngressClass: OBJ('IngressClass', { go: 'IngressClassSpec', fields: { controller: 'str', parameters: 'any' } }, false),
+};
+const REF: F = { go: 'SecretObjectReference', fields: { group: 'str', kind: 'str', name: 'str', namespace: 'str' } };
+const LISTENER: F = { go: 'Listener', fields: { name: 'str', hostname: 'str', port: 'int', protocol: 'str', tls: { go: 'GatewayTLSConfig', fields: { mode: 'str', certificateRefs: { list: REF }, options: 'any', frontendValidation: 'any' } },
+  allowedRoutes: { go: 'AllowedRoutes', fields: { namespaces: { go: 'RouteNamespaces', fields: { from: 'str', selector: 'any' } }, kinds: 'any' } } } };
+const MATCH: F = { go: 'HTTPRouteMatch', fields: { path: { go: 'HTTPPathMatch', fields: { type: 'str', value: 'str' } }, headers: 'any', queryParams: 'any', method: 'str' } };
+const BACKEND_REF: F = { go: 'HTTPBackendRef', fields: { group: 'str', kind: 'str', name: 'str', namespace: 'str', port: 'int', weight: 'int', filters: 'any' } };
+const SCHEMAS_GATEWAY: Record<string, F> = { ...SCHEMAS_E37,
+  GatewayClass: OBJ('GatewayClass', { go: 'GatewayClassSpec', fields: { controllerName: 'str', parametersRef: 'any', description: 'str' } }),
+  Gateway: OBJ('Gateway', { go: 'GatewaySpec', fields: { gatewayClassName: 'str', listeners: { list: LISTENER }, addresses: 'any', infrastructure: 'any', backendTLS: 'any' } }),
+  HTTPRoute: OBJ('HTTPRoute', { go: 'HTTPRouteSpec', fields: { parentRefs: { list: { go: 'ParentReference', fields: { group: 'str', kind: 'str', namespace: 'str', name: 'str', sectionName: 'str', port: 'int' } } },
+    hostnames: { list: 'str' }, rules: { list: { go: 'HTTPRouteRule', fields: { name: 'str', matches: { list: MATCH }, filters: 'any', backendRefs: { list: BACKEND_REF }, timeouts: 'any', retry: 'any', sessionPersistence: 'any' } } } } }),
+};
+/** ingress (E37): 'ingress' serves Ingress and IngressClass, 'gateway' the Gateway API too (its CRDs installed). */
+export type IngressApi = 'ingress' | 'gateway' | undefined;
+const schemas = (probes: boolean, workloads: boolean, net: boolean, config: boolean, ingress?: IngressApi) => ingress === 'gateway' ? SCHEMAS_GATEWAY : ingress ? SCHEMAS_E37 : config ? SCHEMAS_E36 : net ? SCHEMAS_E35 : workloads ? SCHEMAS_E34 : probes ? SCHEMAS_E33 : SCHEMAS;
+/** Whether the profile's API server serves the kind (E34: Deployment and ReplicaSet on the workloads profile; E35: Service on kube-net; E36: ConfigMap and Secret on kube-config; E37: Ingress, and the Gateway API with its CRDs). */
+export const served = (kind: string, workloads: boolean, net = false, config = false, ingress?: IngressApi) => !!schemas(false, workloads, net, config, ingress)[kind];
 /** The kinds E32 creates and the stage that simulates the others (a known kind of a later stage is not an unknown kind). */
 export const KIND_STAGE: Record<string, string> = {
   Deployment: 'E34', ReplicaSet: 'E34', Service: 'E35', Endpoints: 'E35', ConfigMap: 'E36', Secret: 'E36', Ingress: 'E37', IngressClass: 'E37',
@@ -87,7 +109,7 @@ export const KIND_STAGE: Record<string, string> = {
 };
 export const API_VERSION: Record<string, string> = { Pod: 'v1', Namespace: 'v1', Deployment: 'apps/v1', ReplicaSet: 'apps/v1', StatefulSet: 'apps/v1', Service: 'v1', ConfigMap: 'v1', Secret: 'v1',
   Endpoints: 'v1', PersistentVolume: 'v1', PersistentVolumeClaim: 'v1', Ingress: 'networking.k8s.io/v1', IngressClass: 'networking.k8s.io/v1', StorageClass: 'storage.k8s.io/v1',
-  Gateway: 'gateway.networking.k8s.io/v1', HTTPRoute: 'gateway.networking.k8s.io/v1', HorizontalPodAutoscaler: 'autoscaling/v2' };
+  Gateway: 'gateway.networking.k8s.io/v1', HTTPRoute: 'gateway.networking.k8s.io/v1', GatewayClass: 'gateway.networking.k8s.io/v1', HorizontalPodAutoscaler: 'autoscaling/v2' };
 
 /** YAML as sigs.k8s.io/yaml reads it into JSON (a documented subset: only true and false are booleans). */
 export function toJson(y: Y, octal = false): J {
@@ -125,7 +147,7 @@ export function readManifests(text: string, file: string, octal = false): Manife
 }
 
 /** Strict decoding: the unknown fields (all of them) or the first type error, as the API server reports it. */
-export function decodeProblem(doc: JObj, probes = false, workloads = false, net = false, config = false): string | null {
+export function decodeProblem(doc: JObj, probes = false, workloads = false, net = false, config = false, ingress?: IngressApi): string | null {
   const kind = str(doc.kind)!, unknown: string[] = [];
   let typeError: string | null = null;
   const walk = (v: J, f: F, path: string, go: string, dotted: string) => {
@@ -148,7 +170,7 @@ export function decodeProblem(doc: JObj, probes = false, workloads = false, net 
       walk(x, sub, `${path ? `${path}.` : ''}${k}`, f.go, dotted ? `${dotted}.${k}` : k);
     }
   };
-  walk(doc, schemas(probes, workloads, net, config)[kind], '', kind, '');
+  walk(doc, schemas(probes, workloads, net, config, ingress)[kind], '', kind, '');
   if (unknown.length) return `strict decoding error: ${unknown.map(u => `unknown field "${u}"`).join(', ')}`;
   return typeError;
 }
@@ -174,9 +196,9 @@ export function laterField(doc: JObj, probes = false, config = false): { path: s
 }
 
 const LABEL = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;
-const SUBDOMAIN = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$/;
+export const SUBDOMAIN = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$/;
 export const LABEL_TEXT = "a lowercase RFC 1123 label must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name',  or '123-abc', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?')";
-const SUBDOMAIN_TEXT = "a lowercase RFC 1123 subdomain must consist of lower case alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character (e.g. 'example.com', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*')";
+export const SUBDOMAIN_TEXT = "a lowercase RFC 1123 subdomain must consist of lower case alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character (e.g. 'example.com', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*')";
 export const validLabelName = (s: string) => s.length <= 63 && LABEL.test(s);
 
 /** The field errors of a decoded Pod or Namespace (the API server's validation, a subset). */

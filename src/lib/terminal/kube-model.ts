@@ -112,6 +112,8 @@ export interface KubeState {
    */
   config?: true;
   cfgAt?: Readonly<Record<string, Seconds>>;
+  /** E37 (the ingress profile): nginx, the lesson's ingress-nginx (its Service type); gateway, the Gateway API CRDs and the controller's name; seen, the Ingress generations synced. */
+  ingress?: { nginx?: 'LoadBalancer' | 'NodePort'; gateway?: { controller?: string }; seen?: Readonly<Record<string, number>> };
 }
 /** E35: a kubectl port-forward job: its process, the local port and the pod port it forwards to. */
 export interface KubeForward { pid: number; local: number; ns: string; pod: string; port: number }
@@ -132,6 +134,8 @@ export const ADMIN_CONTEXT = 'kubernetes-admin@kubernetes';
 export const NODE_OS = 'Ubuntu 24.04.1 LTS';
 export const NODE_KERNEL = '6.8.0-48-generic';
 export const SYSTEM_NAMESPACES = ['default', 'kube-node-lease', 'kube-public', 'kube-system'] as const;
+/** The system's namespaces the controllers leave alone: kube-system, and E37's ingress-nginx when the lesson installed it. */
+export const systemNs = (k: Pick<KubeState, 'ingress'>, ns: string | undefined) => ns === 'kube-system' || (ns === 'ingress-nginx' && !!k.ingress?.nginx);
 export const CONTROL_TAINT: Taint = { key: 'node-role.kubernetes.io/control-plane', effect: 'NoSchedule' };
 /** Limits that keep the settle loop cheap whatever the learner applies. */
 export const KUBE_LIMITS = { nodes: 5, pods: 60, objects: 200, events: 400, logs: 400, deployments: 20, services: 30, configs: 40 } as const;

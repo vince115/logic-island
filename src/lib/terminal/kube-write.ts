@@ -6,8 +6,10 @@ import { allocate, defaultService, serviceErrors, serviceLater } from './kube-se
 import { changeImage } from './kube-kubelet';
 import { CONFIG_KINDS, configDecode, configErrors, configProse, configUpdateErrors, defaultConfig, rootCa, touched } from './kube-config-spec';
 import { podConfigErrors } from './kube-pod-config';
+import { defaultIngressClass, GATEWAY_KINDS, INGRESS_KINDS, ingressErrors, ingressProse, ingressUpdateErrors } from './kube-ingress-spec';
+import { defaultGateway, gatewayErrors, gatewayProse, GROUP_OF, PLURAL_OF } from './kube-gateway-spec';
 import { goJson } from './kube-output';
-import { arr, changed, clone, KUBE_LIMITS, kindOf, meta, nameOf, nsOf, obj, sameJ, sortJ, stamp, str, suffix, uid, uidOf, type J, type JObj, type KubeState } from './kube-model';
+import { arr, changed, clone, systemNs, KUBE_LIMITS, kindOf, meta, nameOf, nsOf, obj, sameJ, sortJ, stamp, str, suffix, uid, uidOf, type J, type JObj, type KubeState } from './kube-model';
 
 /*
  * Engine stage E32 (docs/curriculum/KUB0_E32_CLUSTER.md §12): what the API server does with a manifest. create makes a new
@@ -21,10 +23,14 @@ import { arr, changed, clone, KUBE_LIMITS, kindOf, meta, nameOf, nsOf, obj, same
 export const LAST_APPLIED = 'kubectl.kubernetes.io/last-applied-configuration';
 export type Written = { k: KubeState; line: string; warn?: string } | { error: string };
 const SERVER_META = ['uid', 'resourceVersion', 'creationTimestamp', 'managedFields', 'generation', 'selfLink'];
-const plural = (kind: string) => WORKLOAD_KINDS.includes(kind) ? `${kind.toLowerCase()}s.apps` : `${kind.toLowerCase()}s`;
+const plural = (kind: string) => GROUP_OF[kind] ? `${PLURAL_OF[kind]}.${GROUP_OF[kind]}` : WORKLOAD_KINDS.includes(kind) ? `${kind.toLowerCase()}s.apps` : `${kind.toLowerCase()}s`;
+/** E37: what the profile's API server serves of Ingress and the Gateway API (its CRDs only when the lesson installs them). */
+export const ingressApi = (k: KubeState) => k.ingress ? (k.ingress.gateway ? 'gateway' as const : 'ingress' as const) : undefined;
+const isRoute = (k: KubeState, kind: string) => !!k.ingress && (INGRESS_KINDS.includes(kind) || GATEWAY_KINDS.includes(kind));
+const routeErrors = (o: JObj, live?: JObj) => INGRESS_KINDS.includes(kindOf(o)) ? [...ingressErrors(o), ...live ? ingressUpdateErrors(live, o) : []] : gatewayErrors(o, live);
 const isWorkload = (k: KubeState, kind: string) => !!k.workloads && WORKLOAD_KINDS.includes(kind);
 /** kind/name as kubectl prints it after a write (deployment.apps/web). */
-export const lineName = (kind: string) => WORKLOAD_KINDS.includes(kind) ? `${kind.toLowerCase()}.apps` : kind.toLowerCase();
+export const lineName = (kind: string) => GROUP_OF[kind] ? `${kind.toLowerCase()}.${GROUP_OF[kind]}` : WORKLOAD_KINDS.includes(kind) ? `${kind.toLowerCase()}.apps` : kind.toLowerCase();
 
 function merge3(last: J | undefined, live: J | undefined, want: J): J {
   const isMap = (v: J | undefined): v is JObj => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -50,18 +56,20 @@ export function checkDoc(k: KubeState, doc: JObj, ns: string, file: string): str
   const config = !!k.config, cfg = config && CONFIG_KINDS.includes(kind);
   // E35: Endpoints and EndpointSlices are the controllers' (a Service without a selector and its own Endpoints is prose).
   if (k.net && (kind === 'Endpoints' || kind === 'EndpointSlice')) return `（模擬環境：${kind} 由控制器依 Service 的 selector 維護；手動建立的 ${kind} 只在課文說明）`;
-  if (!served(kind, !!k.workloads, !!k.net, config) || API_VERSION[kind] !== api) {
-    if (KIND_STAGE[kind] && API_VERSION[kind] === api) return `（模擬環境：${kind} 要到引擎階段 ${KIND_STAGE[kind]} 才模擬）`;
+  // E37: Ingress on the ingress profile; without the lesson's Gateway API CRDs their kinds are unknown to the API server.
+  const route = isRoute(k, kind);
+  if (!served(kind, !!k.workloads, !!k.net, config, ingressApi(k)) || API_VERSION[kind] !== api) {
+    if (KIND_STAGE[kind] && API_VERSION[kind] === api && !(k.ingress && GATEWAY_KINDS.includes(kind))) return `（模擬環境：${kind} 要到引擎階段 ${KIND_STAGE[kind]} 才模擬）`;
     return `error: resource mapping not found for name: "${name}" namespace: "${NAMESPACED[kind] ? ns : ''}" from "${file}": no matches for kind "${kind}" in version "${api}"\nensure CRDs are installed first`;
   }
-  const decode = decodeProblem(doc, !!k.probes, !!k.workloads, !!k.net, config) ?? (cfg ? configDecode(doc) : null);
+  const decode = decodeProblem(doc, !!k.probes, !!k.workloads, !!k.net, config, ingressApi(k)) ?? (cfg ? configDecode(doc) : null);
   if (decode) return `Error from server (BadRequest): error when creating "${file}": ${kind} in version "v1" cannot be handled as a ${kind}: ${decode}`;
-  const prose = cfg ? configProse(doc) : null;
+  const prose = cfg ? configProse(doc) : route ? ingressProse(doc) ?? gatewayProse(doc) : null;
   if (prose) return prose;
-  const later = service ? serviceLater(doc) : workload ? workloadLater(doc, config) : laterField(doc, !!k.probes, config);
+  const later = route ? null : service ? serviceLater(doc) : workload ? workloadLater(doc, config) : laterField(doc, !!k.probes, config);
   if (later) return `（模擬環境：${later.path} 要到引擎階段 ${later.stage} 才模擬）`;
   const own = config && (kind === 'Pod' || workload) ? podConfigErrors(doc) : [];
-  const errors = service ? serviceErrors(defaultService(doc)) : workload ? [...workloadErrors(defaultWorkload(doc)), ...own] : cfg ? [...fieldErrors(doc), ...configErrors(defaultConfig(doc))] : [...fieldErrors(doc, !!k.probes), ...own];
+  const errors = route ? [...fieldErrors(doc), ...routeErrors(GATEWAY_KINDS.includes(kind) ? defaultGateway(doc) : doc)] : service ? serviceErrors(defaultService(doc)) : workload ? [...workloadErrors(defaultWorkload(doc)), ...own] : cfg ? [...fieldErrors(doc), ...configErrors(defaultConfig(doc))] : [...fieldErrors(doc, !!k.probes), ...own];
   if (errors.length) return invalidText(kind, name, errors);
   if (NAMESPACED[kind] && !namespaceExists(k, ns)) return `Error from server (NotFound): error when creating "${file}": namespaces "${ns}" not found`;
   return null;
@@ -84,6 +92,7 @@ export function createDoc(k0: KubeState, doc0: JObj, ns: string, t: Seconds, fil
   if (kind === 'Deployment' && k0.objects.filter(o => kindOf(o) === 'Deployment' && nsOf(o) !== 'kube-system').length >= KUBE_LIMITS.deployments) return { error: `（模擬環境：叢集最多 ${KUBE_LIMITS.deployments} 個 Deployment）` };
   if (kind === 'Service' && k0.objects.filter(o => kindOf(o) === 'Service').length >= KUBE_LIMITS.services) return { error: `（模擬環境：叢集最多 ${KUBE_LIMITS.services} 個 Service）` };
   if (CONFIG_KINDS.includes(kind) && k0.objects.filter(o => CONFIG_KINDS.includes(kindOf(o)) && nameOf(o) !== 'kube-root-ca.crt').length >= KUBE_LIMITS.configs) return { error: `（模擬環境：叢集最多 ${KUBE_LIMITS.configs} 個 ConfigMap 與 Secret）` };
+  if (isRoute(k0, kind) && k0.objects.filter(o => isRoute(k0, kindOf(o))).length >= 30) return { error: '（模擬環境：叢集最多 30 個 Ingress、IngressClass 與 Gateway API 物件）' };
   if (find(k0, kind, space, nameOf(doc))) return { error: `Error from server (AlreadyExists): error when creating "${file}": ${plural(kind)} "${nameOf(doc)}" already exists` };
   const annotations: JObj = { ...obj(meta(doc).annotations) };
   if (lastApplied) annotations[LAST_APPLIED] = `${goJson(sortJ({ ...doc, metadata: { ...meta(doc), annotations: { ...obj(meta(doc).annotations) } } }), false)}\n`;
@@ -94,6 +103,8 @@ export function createDoc(k0: KubeState, doc0: JObj, ns: string, t: Seconds, fil
   if (k0.net && kind === 'Service') { const a = allocate(k0, defaultService({ ...o, status: {} })); if ('errors' in a) return { error: invalidText(kind, nameOf(doc), a.errors) }; o = a.o; }
   // E36: a Secret's stringData merged into data; a new namespace gets its kube-root-ca.crt.
   if (k0.config && CONFIG_KINDS.includes(kind)) o = defaultConfig(o);
+  // E37: an Ingress gets the default IngressClass (admission) and an empty status; the Gateway API's objects their CRDs' defaults.
+  if (isRoute(k0, kind)) o = { ...kind === 'Ingress' ? { ...defaultIngressClass(k0, o), status: { loadBalancer: {} } } : defaultGateway(o), metadata: { ...meta(o), generation: 1 } };
   let k = touched(put(r.k, o), o, t);
   if (k0.config && kind === 'Namespace') k = rootCa(k, nameOf(doc), t);
   return { k, line: `${lineName(kind)}/${nameOf(doc)} created` };
@@ -136,6 +147,13 @@ export function applyDoc(k0: KubeState, doc0: JObj, ns: string, t: Seconds, file
     const errs = [...configErrors(merged), ...configUpdateErrors(live, merged)];
     if (errs.length) return { error: invalidText(kind, nameOf(doc), errs) };
   }
+  if (isRoute(k0, kind)) {
+    // E37: the CRDs' defaults again, the validation (an IngressClass's controller and a GatewayClass's controllerName are immutable), a new spec is a new generation.
+    if (GATEWAY_KINDS.includes(kind)) merged = defaultGateway(merged);
+    const errs = routeErrors({ ...merged, kind }, live);
+    if (errs.length) return { error: invalidText(kind, nameOf(doc), errs) };
+    if (!sameJ(obj(liveRest.spec), obj(merged.spec))) merged = { ...merged, metadata: { ...meta(merged), generation: Number(meta(live).generation ?? 1) + 1 } };
+  }
   const next: JObj = { ...merged, ...status !== undefined ? { status } : {} };
   if (sameJ({ ...next, metadata: { ...meta(next), resourceVersion: null } }, { ...live, metadata: { ...meta(live), resourceVersion: null } })) return { k: k0, line: `${lineName(kind)}/${nameOf(doc)} unchanged`, ...warn ? { warn } : {} };
   let k = touched(put(k0, next), next, t);
@@ -158,7 +176,7 @@ function imagesChanged(k0: KubeState, pod: JObj, t: Seconds): KubeState {
 export function deleteObject(k0: KubeState, o: JObj, t: Seconds): KubeState {
   let k = touched(remove(k0, o), o, t);
   if (kindOf(o) === 'Namespace') for (const x of k.objects.filter(y => nsOf(y) === nameOf(o))) k = remove(k, x);
-  if (kindOf(o) === 'Pod' && nsOf(o) === 'kube-system') k = recreateSystemPod(k, o, k0.pods[uidOf(o)], t);
+  if (kindOf(o) === 'Pod' && systemNs(k0, nsOf(o))) k = recreateSystemPod(k, o, k0.pods[uidOf(o)], t);
   return changed(k, t);
 }
 function recreateSystemPod(k: KubeState, o: JObj, sim: KubeState['pods'][string] | undefined, t: Seconds): KubeState {

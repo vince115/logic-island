@@ -7,6 +7,8 @@ import { describeObject } from './kube-describe';
 import { describeWorkload } from './kube-describe-workload';
 import { describeEndpoints, describeService } from './kube-describe-service';
 import { describeConfig } from './kube-describe-config';
+import { describeGeneric, describeIngress } from './kube-describe-ingress';
+import { GATEWAY_KINDS, INGRESS_KINDS } from './kube-ingress-spec';
 import { WORKLOAD_KINDS } from './kube-workload-spec';
 import { kindOf, nameOf, nsOf, type JObj } from './kube-model';
 import { flag, type KubeResult, type Kx } from './kubectl';
@@ -27,6 +29,12 @@ export const TYPES: { kind: string; names: string[]; plural: string }[] = [
   { kind: 'Endpoints', names: ['endpoints', 'ep'], plural: 'endpoints' },
   { kind: 'EndpointSlice', names: ['endpointslices', 'endpointslice', 'endpointslices.discovery.k8s.io'], plural: 'endpointslices.discovery.k8s.io' },
   { kind: 'ConfigMap', names: ['configmaps', 'configmap', 'cm'], plural: 'configmaps' }, { kind: 'Secret', names: ['secrets', 'secret'], plural: 'secrets' },
+  // E37: Ingress and IngressClass; the Gateway API (its CRDs' names).
+  { kind: 'Ingress', names: ['ingresses', 'ingress', 'ing', 'ingresses.networking.k8s.io'], plural: 'ingresses.networking.k8s.io' },
+  { kind: 'IngressClass', names: ['ingressclasses', 'ingressclass', 'ingressclasses.networking.k8s.io'], plural: 'ingressclasses.networking.k8s.io' },
+  { kind: 'GatewayClass', names: ['gatewayclasses', 'gatewayclass', 'gc', 'gatewayclasses.gateway.networking.k8s.io'], plural: 'gatewayclasses.gateway.networking.k8s.io' },
+  { kind: 'Gateway', names: ['gateways', 'gateway', 'gtw', 'gateways.gateway.networking.k8s.io'], plural: 'gateways.gateway.networking.k8s.io' },
+  { kind: 'HTTPRoute', names: ['httproutes', 'httproute', 'httproutes.gateway.networking.k8s.io'], plural: 'httproutes.gateway.networking.k8s.io' },
 ];
 /** E34: kubectl get all (the kinds of the simulation that the "all" category holds, in kubectl's order). */
 const ALL = ['Pod', 'Service', 'DaemonSet', 'Deployment', 'ReplicaSet'];
@@ -40,7 +48,7 @@ const anyType = (word: string) => {
   return TYPES.find(t => t.names.includes(w)) ?? (base ? TYPES.find(t => APPS.includes(t.kind) && t.names.includes(base)) : undefined);
 };
 /** The kind a word names (pods, deploy, rs…), for kubectl events --for. */
-export const kindOfWord = (word: string) => anyType(word)?.kind;
+export const kindOfWord = (word: string, k?: Pick<Kx['k'], 'ingress'>) => { const t = anyType(word); return t && (INGRESS_KINDS.includes(t.kind) || GATEWAY_KINDS.includes(t.kind)) && !k?.ingress ? undefined : t?.kind; };
 export type Target = { kind: string; plural: string; names: string[] };
 
 /** The targets of get, describe, delete, label…: a type and names, type/name words, or types joined with commas. */
@@ -48,9 +56,11 @@ export function targets(x: Kx, words: readonly string[]): Target[] | { error: st
   // E34: ReplicaSets and "all" exist on the workloads profile only.
   // E35: Endpoints and EndpointSlices on the kube-net profile only.
   // E36: ConfigMaps and Secrets on the kube-config profile only.
-  const typeOf = (w: string) => { const t = anyType(w); return t && (t.kind === 'ReplicaSet' ? x.k.workloads : t.kind === 'Endpoints' || t.kind === 'EndpointSlice' ? x.k.net : t.kind === 'ConfigMap' || t.kind === 'Secret' ? x.k.config : true) ? t : undefined; };
+  // E37: Ingress and IngressClass on the ingress profile, the Gateway API with the lesson's CRDs (without them: the server has no such type).
+  const typeOf = (w: string) => { const t = anyType(w); return t && (t.kind === 'ReplicaSet' ? x.k.workloads : t.kind === 'Endpoints' || t.kind === 'EndpointSlice' ? x.k.net : t.kind === 'ConfigMap' || t.kind === 'Secret' ? x.k.config
+    : INGRESS_KINDS.includes(t.kind) ? x.k.ingress : GATEWAY_KINDS.includes(t.kind) ? x.k.ingress?.gateway : true) ? t : undefined; };
   if (!words.length) return { error: 'error: you must specify the type of resource to get. Use "kubectl api-resources" for a complete list of supported resources.' };
-  const out: Target[] = [], unknown = (w: string) => LATER_TYPES[w.toLowerCase()] ? { error: `（模擬環境：${w} 要到引擎階段 ${LATER_TYPES[w.toLowerCase()]} 才模擬）` } : { error: `error: the server doesn't have a resource type "${w}"` };
+  const out: Target[] = [], unknown = (w: string) => LATER_TYPES[w.toLowerCase()] && !(x.k.ingress && GATEWAY_KINDS.includes(anyType(w)?.kind ?? '')) ? { error: `（模擬環境：${w} 要到引擎階段 ${LATER_TYPES[w.toLowerCase()]} 才模擬）` } : { error: `error: the server doesn't have a resource type "${w}"` };
   if (words[0].includes('/')) {
     for (const w of words) {
       const [t, n] = w.split('/'), type = typeOf(t);
@@ -136,7 +146,8 @@ export function describeCommand(x: Kx): KubeResult {
     if ('error' in r) { x.io.err(r.error); return { state: x.state, status: 1 }; }
     for (const o of r.items) out.push(x.k.workloads && WORKLOAD_KINDS.includes(t.kind) ? describeWorkload(x.k, o, x.now)
       : x.k.net && t.kind === 'Service' ? describeService(x.k, o, x.now) : x.k.net && t.kind === 'Endpoints' ? describeEndpoints(x.k, o, x.now)
-      : x.k.config && (t.kind === 'ConfigMap' || t.kind === 'Secret') ? describeConfig(x.k, o, x.now) : describeObject(x.k, t.kind, o, x.now));
+      : x.k.config && (t.kind === 'ConfigMap' || t.kind === 'Secret') ? describeConfig(x.k, o, x.now)
+      : t.kind === 'Ingress' ? describeIngress(x.k, o, x.now) : x.k.ingress && (INGRESS_KINDS.includes(t.kind) || GATEWAY_KINDS.includes(t.kind)) ? describeGeneric(x.k, o, x.now) : describeObject(x.k, t.kind, o, x.now));
     errors.push(...r.errors);
   }
   out.forEach((lines, i) => { if (i) { x.io.out(''); x.io.out(''); } lines.forEach(l => x.io.out(l)); });

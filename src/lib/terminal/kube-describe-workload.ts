@@ -3,7 +3,7 @@ import { containerLines, eventLines, mapLines, multi } from './kube-describe';
 import { controllerOf, ownedBy } from './kube-replicaset';
 import { replicaSetsOf } from './kube-deployment';
 import { rollingText, selectorText } from './kube-workload-spec';
-import { arr, goTab, kindOf, meta, nameOf, nsOf, obj, rfc1123, str, uidOf, createdOf, type J, type JObj, type KubeState } from './kube-model';
+import { arr, goTab, systemNs, kindOf, meta, nameOf, nsOf, obj, rfc1123, str, uidOf, createdOf, type J, type JObj, type KubeState } from './kube-model';
 
 /*
  * Engine stage E34 (docs/curriculum/KUB0_E34_WORKLOADS.md §7): kubectl describe deployment and replicaset as kubectl's
@@ -34,7 +34,7 @@ function describeDeployment(k: KubeState, d: JObj, now: Seconds): string[] {
     `StrategyType:\t${type}`, `MinReadySeconds:\t${n(spec.minReadySeconds)}`, ...type === 'RollingUpdate' ? [`RollingUpdateStrategy:\t${rollingText(d)}`] : [], ...templateLines(spec.template)];
   const conds = arr(s.conditions).map(obj);
   if (conds.length) lines.push('Conditions:', '  Type\tStatus\tReason', '  ----\t------\t------', ...conds.map(c => `  ${str(c.type)} \t${str(c.status)}\t${str(c.reason)}`));
-  const { rsNew, olds } = kindOf(d) === 'Deployment' && nsOf(d) !== 'kube-system' ? replicaSetsOf(k, d, Infinity) : systemSets(k, d);
+  const { rsNew, olds } = kindOf(d) === 'Deployment' && !systemNs(k, nsOf(d)) ? replicaSetsOf(k, d, Infinity) : systemSets(k, d);
   const created = (rs: JObj) => `${nameOf(rs)} (${n(obj(rs.status).replicas)}/${n(obj(rs.spec).replicas)} replicas created)`;
   const old = olds.filter(rs => n(obj(rs.spec).replicas) > 0);
   lines.push(`OldReplicaSets:\t${old.length ? old.map(created).join(', ') : '<none>'}`, `NewReplicaSet:\t${rsNew ? created(rsNew) : '<none>'}`, ...eventLines(k, uidOf(d), now));
@@ -47,7 +47,7 @@ function systemSets(k: KubeState, d: JObj): { rsNew?: JObj; olds: JObj[] } {
 
 function describeReplicaSet(k: KubeState, rs: JObj, now: Seconds): string[] {
   const m = meta(rs), spec = obj(rs.spec), owner = controllerOf(rs);
-  const pods = nsOf(rs) === 'kube-system' ? k.objects.filter(o => kindOf(o) === 'Pod' && str(controllerOf(o)?.uid) === uidOf(rs)) : ownedBy(k, rs, 'Pod', Infinity);
+  const pods = systemNs(k, nsOf(rs)) ? k.objects.filter(o => kindOf(o) === 'Pod' && str(controllerOf(o)?.uid) === uidOf(rs)) : ownedBy(k, rs, 'Pod', Infinity);
   const phase = (p: string) => pods.filter(o => (str(obj(o.status).phase) ?? 'Pending') === p).length;
   const lines = [...head(rs), `Selector:\t${selectorText(spec.selector)}`, ...multi('Labels:', mapLines(m.labels, '=')), ...multi('Annotations:', mapLines(m.annotations, ': ')),
     ...owner ? [`Controlled By:\t${str(owner.kind)}/${str(owner.name)}`] : [], `Replicas:\t${n(obj(rs.status).replicas)} current / ${n(spec.replicas)} desired`,

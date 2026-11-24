@@ -36,7 +36,7 @@ function podFor(x: Kx, o: JObj): JObj | undefined {
 export function portForwardCommand(x: Kx): KubeResult {
   const [word, ...specs] = x.pos;
   if (!word || !specs.length) return fail(x, 'error: TYPE/NAME and list of ports are required for port-forward');
-  const [tw, name] = word.includes('/') ? word.split('/') : ['pod', word], kind = kindOfWord(tw);
+  const [tw, name] = word.includes('/') ? word.split('/') : ['pod', word], kind = kindOfWord(tw, x.k);
   if (!kind) return fail(x, `error: the server doesn't have a resource type "${tw}"`);
   if (kind !== 'Pod' && !WORKLOAD[kind]) return fail(x, `error: cannot attach to *v1.${kind}: selector for *v1.${kind} not implemented`);
   const o = find(x.k, kind, x.ns, name);

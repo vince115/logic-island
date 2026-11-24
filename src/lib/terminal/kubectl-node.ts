@@ -4,7 +4,7 @@ import { UNSCHEDULABLE } from './kube-sched';
 import { beginDelete } from './kube-stop';
 import { deleteObject } from './kube-write';
 import { controllerOf } from './kube-replicaset';
-import { changed, kindOf, meta, nameOf, nsOf, obj, str, uidOf, type JObj, type KubeState } from './kube-model';
+import { changed, systemNs, kindOf, meta, nameOf, nsOf, obj, str, uidOf, type JObj, type KubeState } from './kube-model';
 import { flag, type KubeResult, type Kx } from './kubectl';
 
 /*
@@ -69,7 +69,7 @@ function drain(x: Kx, k0: KubeState, node: string): { k: KubeState; wait: number
   const gone: { name: string; at: number }[] = [], g = flag(x, 'grace-period'), grace = g !== undefined && /^\d+$/.test(g) ? Number(g) : undefined;
   for (const p of evict) {
     x.io.out(`evicting pod ${nsOf(p)}/${nameOf(p)}`);
-    if (nsOf(p) === 'kube-system') { k = deleteObject(k, p, x.now); gone.push({ name: nameOf(p), at: x.now }); continue; }
+    if (systemNs(k, nsOf(p))) { k = deleteObject(k, p, x.now); gone.push({ name: nameOf(p), at: x.now }); continue; }
     const r = beginDelete(x.state.docker, k, k.objects.find(o => uidOf(o) === uidOf(p)) ?? p, grace ?? Number(obj(p.spec).terminationGracePeriodSeconds ?? 30), x.now);
     k = r.k; gone.push({ name: nameOf(p), at: r.until });
   }

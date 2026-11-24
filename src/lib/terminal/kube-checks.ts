@@ -20,22 +20,27 @@ import { arr, kindOf, labelsOf, nameOf, nsOf, obj, str, uidOf, type JObj } from 
  */
 
 export type KubeCheck =
-  | { kind: 'kube-object'; resource: string; name: string; namespace?: string; absent?: true; labels?: Record<string, string>; fields?: { path: string; equals: string }[] }
+  | { kind: 'kube-object'; resource: string; name: string; namespace?: string; absent?: true; labels?: Record<string, string>; fields?: { path: string; equals: string }[];
+    /** E37: conditions of status.conditions (an HTTPRoute: of every parent's), each { type, status, reason? }. */ conditions?: { type: string; status: string; reason?: string }[] }
   | { kind: 'kube-pod'; name?: string; selector?: string; namespace?: string; count?: number; status?: string; ready?: boolean; restartsAtLeast?: number; node?: string; container?: string;
     env?: [string, string]; file?: { path: string; content?: string } };
 export const KUBE_CHECK_KINDS = ['kube-object', 'kube-pod'] as const;
-const RESOURCES = ['Pod', 'Namespace', 'Node', 'Service', 'Deployment', 'DaemonSet'], CONFIG_RESOURCES = ['ConfigMap', 'Secret'];
+const RESOURCES = ['Pod', 'Namespace', 'Node', 'Service', 'Deployment', 'DaemonSet'], CONFIG_RESOURCES = ['ConfigMap', 'Secret'], ROUTE_RESOURCES = ['Ingress', 'IngressClass', 'GatewayClass', 'Gateway', 'HTTPRoute'];
 const LINE = (t: unknown, max = 253) => typeof t === 'string' && t.length >= 1 && t.length <= max && !t.includes('\n');
 
-export function kubeCheckProblems(c: KubeCheck, cluster: boolean, config = false): string | null {
+export function kubeCheckProblems(c: KubeCheck, cluster: boolean, config = false, ingress = false): string | null {
   if (!cluster) return `a ${c.kind} check needs a cluster machine (engine stage E32)`;
   // E36: ConfigMaps and Secrets exist on the kube-config profile.
   if (c.kind === 'kube-object' && CONFIG_RESOURCES.includes(c.resource) && !config) return `a kube-object check of a ${c.resource} needs a kube-config machine (engine stage E36)`;
+  // E37: Ingress and the Gateway API exist on the ingress profile.
+  if (c.kind === 'kube-object' && ROUTE_RESOURCES.includes(c.resource) && !ingress) return `a kube-object check of ${/^[AEIOU]/.test(c.resource) ? 'an' : 'a'} ${c.resource} needs an ingress machine (engine stage E37)`;
+  if (c.kind === 'kube-object' && c.conditions !== undefined && !ingress) return 'a kube-object check\'s conditions need an ingress machine (engine stage E37)';
   if (c.namespace !== undefined && !LINE(c.namespace, 63)) return `a ${c.kind} check's namespace is a name`;
   if (c.kind === 'kube-object') {
-    const list = config ? [...RESOURCES, ...CONFIG_RESOURCES] : RESOURCES;
+    const list = [...RESOURCES, ...config ? CONFIG_RESOURCES : [], ...ingress ? ROUTE_RESOURCES : []];
     if (!list.includes(c.resource) || !LINE(c.name)) return `a kube-object check needs a resource among ${list.join(', ')} and a name`;
-    if (c.absent && (c.labels || c.fields)) return 'a kube-object check with absent has no labels or fields';
+    if (c.absent && (c.labels || c.fields || c.conditions)) return 'a kube-object check with absent has no labels, fields or conditions';
+    if ((c.conditions ?? []).some(x => !LINE(x?.type, 64) || !['True', 'False', 'Unknown'].includes(x.status) || (x.reason !== undefined && !LINE(x.reason, 64)))) return 'a kube-object check\'s conditions are { type, status: True|False|Unknown, reason? }';
     if ((c.fields ?? []).some(f => !LINE(f.path, 200) || typeof f.equals !== 'string' || 'error' in parsePath(f.path))) return 'a kube-object check\'s fields are { path: a JSONPath such as .spec.nodeName, equals: text }';
     return null;
   }
@@ -53,7 +58,8 @@ export function describeKubeCheck(c: KubeCheck): string {
   if (c.kind === 'kube-object') {
     const where = NAMESPACED[c.resource] ? `${ns} 命名空間` : '叢集';
     if (c.absent) return `${where}應該沒有名為 ${c.name} 的 ${c.resource}`;
-    const more = [...Object.entries(c.labels ?? {}).map(([a, b]) => `標籤 ${a}=${b}`), ...(c.fields ?? []).map(f => `${f.path} 是 ${f.equals}`)];
+    const more = [...Object.entries(c.labels ?? {}).map(([a, b]) => `標籤 ${a}=${b}`), ...(c.fields ?? []).map(f => `${f.path} 是 ${f.equals}`),
+      ...(c.conditions ?? []).map(x => `${x.type} 條件是 ${x.status}${x.reason ? `（${x.reason}）` : ''}`)];
     return `${where}應該有名為 ${c.name} 的 ${c.resource}${more.length ? `（${more.join('、')}）` : ''}`;
   }
   const who = c.name !== undefined ? `名為 ${c.name} 的 Pod` : `符合 ${c.selector} 的 Pod${c.count !== undefined ? `（${c.count} 個）` : ''}`;
@@ -76,6 +82,16 @@ export function kubeFailure(c: KubeCheck, end0: FsState): string | null {
     for (const f of c.fields ?? []) {
       const p = parsePath(f.path), got = 'error' in p ? [] : evalPath([o], p).map(scalar).join(' ');
       if (got !== f.equals) return got === '' ? `它沒有 ${f.path}` : `它的 ${f.path} 是 ${got}`;
+    }
+    // E37: the conditions (an HTTPRoute's: every parent's entry must have them).
+    const lists = c.resource === 'HTTPRoute' ? arr(obj(o.status).parents).map(p => obj(p).conditions) : [obj(o.status).conditions];
+    for (const x of c.conditions ?? []) {
+      if (!lists.length) return `它還沒有 ${x.type} 條件`;
+      for (const list of lists) {
+        const got = arr(list).map(obj).find(y => str(y.type) === x.type);
+        if (!got) return `它還沒有 ${x.type} 條件`;
+        if (str(got.status) !== x.status || (x.reason !== undefined && str(got.reason) !== x.reason)) return `它的 ${x.type} 條件是 ${str(got.status)}（${str(got.reason)}）`;
+      }
     }
     return null;
   }

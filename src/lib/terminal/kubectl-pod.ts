@@ -95,7 +95,7 @@ export function eventsCommand(x: Kx): KubeResult {
   const types = flag(x, 'types')?.split(',').map(t => t.trim().toLowerCase()), target = flag(x, 'for');
   let list: KubeEvent[] = x.k.events.filter(e => (x.all || e.ns === x.ns) && (!types || types.includes(e.type.toLowerCase())));
   // Fix (E34): --for takes kubectl's names of the type (deploy/web, rs/web-…, no/node-01), as the resource builder does.
-  if (target) { const [word, name] = target.includes('/') ? target.split('/') : ['pod', target], kind = kindOfWord(word) ?? word; list = list.filter(e => e.name === name && e.kind.toLowerCase() === kind.toLowerCase()); }
+  if (target) { const [word, name] = target.includes('/') ? target.split('/') : ['pod', target], kind = kindOfWord(word, x.k) ?? word; list = list.filter(e => e.name === name && e.kind.toLowerCase() === kind.toLowerCase()); }
   list = [...list].sort((a, b) => a.last - b.last || a.seq - b.seq);
   if (!list.length) return fail(x, x.all ? 'No events found.' : `No events found in ${x.ns} namespace.`, 0);
   const seen = (e: KubeEvent) => e.count > 1 ? `${humanDuration(x.now - e.last)} (x${e.count} over ${humanDuration(x.now - e.first)})` : humanDuration(x.now - e.last);
