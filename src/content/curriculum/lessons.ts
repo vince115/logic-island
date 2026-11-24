@@ -781,6 +781,14 @@ const devopsCicd: Outline[] = [
   cicdFromBlueprint('CICD15', '為虛構咖啡店的點餐服務建立從 commit 到上線的完整流程：以分支保護要求 PR、核准與 lint、test 兩個必要檢查並讓 CI 在 PR 上執行，經由 PR 修好失敗的測試；main 的每個 commit 只建置一次 Image，以 env 與 --password-stdin 推送 sha-<commit> 並快取 npm 的下載；依環境設定 variable 與 secret、刪除人人讀得到的儲存庫層級金鑰、以審核者與受保護分支保護 production；修好部署管線的權限、digest 與 environment，以同一個 digest 從 staging 晉升到 production；在部署模擬器選一個閘門在足夠樣本上擋下壞版本的金絲雀計畫，在儀表板寫一條及時又沒有誤報的症狀告警；最後在演練中從部署紀錄找到上一個 digest、經由 rollback.yml 回滾並算出偵測、確認、止血與恢復時間。', 90),
 ];
 
+/** KUB-1 (2026-11-24): the kubernetes-reliability island's first lessons, on the terminal with a simulated cluster (engine stages E32 cluster, E33 probes, E34 workloads; KUB0_KUBERNETES_CAPABILITY.md, KUBERNETES_RELIABILITY_ISLAND.md); KUB02 pairs the terminal with network-protocol scenes. */
+const kubernetesReliability: Outline[] = [
+  kubeFromBlueprint('KUB01', '從單機 Compose 的極限（一台主機就是一個故障域、restart: always 只在同一台重新啟動、手動放置、--scale 與寫死的主機埠、只在一台主機有效的服務名稱）說明容器編排要解決的問題，比較命令式指令與宣告式的期望狀態（kubectl apply 的 unchanged 與 configured）並和 DKR09 的 Compose 對照，說明控制器的調和迴圈與排程，在模擬叢集上刪掉 Deployment 的 Pod 看 ReplicaSet 以新名稱、新節點與新 IP 補回而 bare pod 不會回來，以 drain --ignore-daemonsets 排空節點並看 uncordon 不會重新平衡，觀察節點失聯 50 秒後 NotReady、300 秒後驅逐並在其他節點重建，說明 Pod 會換所以需要服務發現，並以團隊、流量、服務數量與維運能力判斷何時不需要編排、改用一台 VM 加 Compose 或託管平台。', 30),
+  kubeFromBlueprint('KUB02', '分辨控制平面（kube-apiserver、etcd、kube-scheduler、kube-controller-manager）與工作節點（kubelet、kube-proxy、containerd）的職責，從 kubeconfig、節點與 kube-system 的 static pod 讀出一個 kubeadm 叢集的組成，把一次 kubectl apply 從 API server 的檢查與 etcd 的寫入、scheduler 的 binding、kubelet 的 watch 到 CRI 啟動容器逐步追蹤，以 kubectl wait 等到 Pod 就緒，並說明 watch 與調和迴圈、etcd 為什麼是唯一的真實來源、quorum 的容錯與備份。', 30),
+  kubeFromBlueprint('KUB03', '以 YAML manifest 描述 Pod（apiVersion、kind、metadata、spec、containers、ports 與 resources），理解同一個 Pod 的容器共用 IP 與 localhost、一起排程到同一個節點，用 init container 與 sidecar 組成多容器 Pod 並以 logs -c、exec -c 檢查各個容器，從 phase、STATUS、restartPolicy 與退避讀懂 Completed 與 CrashLoopBackOff，以存活、就緒與啟動探針判斷容器是否該重啟或接工作，修好探針寫錯與初始化失敗的 Pod，並說明不可變的 spec 與 SIGTERM、寬限期的優雅終止。', 35),
+  kubeFromBlueprint('KUB04', '以 Deployment 維持指定數量的 Pod，沿著 ownerReferences 與 pod-template-hash 看懂 Deployment、ReplicaSet 與 Pod 三層物件，用等號、集合與存在的 Label 選擇器篩選資源並以 kubectl label --overwrite 修改標籤，理解選擇器必須符合範本而且不可修改，以 kubectl scale 或修改 manifest 再 apply 調整副本數並避開命令式改動造成的漂移，知道縮減時先刪哪些 Pod，並觀察刪除 Pod、把 Pod 移出選擇器之後 ReplicaSet 如何自動補上。', 40),
+];
+
 /** RWD-1 (2026-11-23): the responsive design island's first lessons, on the web-code capability with the resize step and preview widths (WEB0_WEB_CODE_CAPABILITY.md, RESPONSIVE_DESIGN_ISLAND.md); RWD-2 adds RWD05–RWD08, RWD-3 RWD09–RWD12 (the capstone): the island is complete. */
 const responsiveDesign: Outline[] = [
   responsiveFromBlueprint('RWD01', '從寫死 960px 的頁面在窄視窗得橫向捲動出發，說明響應式設計如何以同一份 HTML 依寬度調整版面，用 max-width 加 margin: 0 auto、圖片的 max-width: 100% 與一條 min-width 媒體查詢寫出行動優先的頁面，並以內容優先決定原始碼順序與斷點、以漸進增強確保頁面始終可用。', 45),
@@ -830,7 +838,7 @@ function idAt(islandId: (typeof ISLAND_IDS)[number], index: number, blueprintId?
 /** F, D and A are taught in the program languages: every lesson there declares program-code. */
 const program = (list: Omit<Outline, 'capabilities'>[]): Outline[] => list.map(o => ({ ...o, capabilities: ['program-code'] }));
 const outlines: Record<(typeof ISLAND_IDS)[number], Outline[]> = {
-  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages, networks, 'ai-foundations': aiFoundations, 'large-language-models': largeLanguageModels, 'generative-ai': generativeAi, 'web-foundations': webFoundations, 'responsive-design': responsiveDesign, 'mobile-apps': mobileApps, 'linux-systems': linuxSystems, 'docker-containers': dockerContainers, 'network-servers': networkServers, 'devops-cicd': devopsCicd };
+  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages, networks, 'ai-foundations': aiFoundations, 'large-language-models': largeLanguageModels, 'generative-ai': generativeAi, 'web-foundations': webFoundations, 'responsive-design': responsiveDesign, 'mobile-apps': mobileApps, 'linux-systems': linuxSystems, 'docker-containers': dockerContainers, 'network-servers': networkServers, 'devops-cicd': devopsCicd, 'kubernetes-reliability': kubernetesReliability };
 
 /** Every lesson the blueprint outlines, written or not (validateCurriculum's recommended-lesson check). */
 export const outlinedLessonIds: readonly string[] = planning.plannedLessons.map(l => l.lessonId);

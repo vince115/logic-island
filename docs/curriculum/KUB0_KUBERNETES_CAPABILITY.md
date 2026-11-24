@@ -67,6 +67,8 @@
 | KUB-4 | KUB11–KUB14 | **D5**、**D6**（KUB11、KUB12 不需要新階段） |
 | KUB-5 | KUB15 | 無（只有總結專題） |
 
+- **KUB-1 已發布（2026-11-24）**：KUB01–KUB04 依 §2 的對應發布（[KUBERNETES_RELIABILITY_ISLAND](KUBERNETES_RELIABILITY_ISLAND.md)），島嶼移入 `ISLAND_IDS`（`devops-cicd` 之後），`PREPARED_ISLAND_IDS` 成為空的；單元「編排的觀念與叢集架構」（KUB01–KUB02）與「Pod 與工作負載」（KUB03–KUB04）。活動登錄依 §3：`terminal-sim`、`network-sequence` 的島嶼清單加上本島，`architecture-diagram` 的少了本島，`cluster-sim` 仍是規劃中。課文避開的引擎差異（故障節點上的 `kubectl delete pod` 立即返回、`get events --field-selector involvedObject.kind` 不支援、原生 sidecar／共用 Volume／Pod 內 localhost 沒有模擬、manifest 的 `sh -c` 字串含 `'` 無法解析）記在島嶼文件。
+
 D5、D6 只在 `src/lib/devops` 與 `src/components/curriculum`，可以和任何 E 階段平行。KUB-2 或 KUB-3 太大時，在階段的邊界分批（同 CICD-1 的調整）。
 
 `KUBE_STAGES_BUILT = ['E32', 'E33', 'E34']`（E33、E34 在 KUB-1 建好，KUB01、KUB03、KUB04 可以建立）；之後每個批次在建好階段時加上它。

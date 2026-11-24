@@ -24,6 +24,7 @@
 | 資料庫 | SQL 範例與練習，在 SQL 練習場執行 | SQL 測試實際執行 |
 | 網路工程（CN、SRV） | 封包欄位、協定往返（`protocol-sequence`）、資料流圖；實際指令的輸出用固定的範例資料 | CN：`network-protocol` 能力（CN-0）；SRV：沿用 `terminal`（引擎階段 E10 起的 socket、DNS、HTTP）加上 `network-protocol` 的情境（SRV-0），不需要新的 capability |
 | Linux／Docker（LNX、DKR） | 命令、設定檔與執行結果；可用 Linux Terminal Simulator 的模擬檔案系統 | LNX：`terminal` 能力（LNX-0），範例重播到完全相同的輸出、練習以結果檢查；DKR：沿用 `terminal`（引擎階段 E20 起的 `docker`）加上 `network-protocol` 的情境（DKR-0），不需要新的 capability |
+| Kubernetes（KUB） | 以 `kubectl` 操作模擬叢集的指令與 YAML manifest；控制平面的路徑以網路情境呈現 | 沿用 `terminal`（引擎階段 E32 起的模擬 kubeadm 叢集），範例重播到完全相同的輸出、練習以叢集物件與 Pod 的狀態檢查；KUB02、KUB07 加上 `network-protocol` 的情境 |
 | DevOps（CICD） | 部署紀錄、部署策略的模擬，以及 git、Pull Request 與 workflow 的指令 | `devops-explorer` 能力（CICD-0）：DORA 指標與逐分鐘的部署模擬，答案由模擬器算出；git、gh 與 workflow 沿用 `terminal`（引擎階段 E25 起） |
 | AI | 資料、模型與推論流程；數值用預先計算的小資料，不呼叫真實模型 | AIF：`python-code`（AIF-0）；LLM 與 GEN 的分詞、取樣、向量課：`llm-explorer`（LLM-0，可再加 `python-code`），資料一律標示為示意資料；其他需要新增 capability（§4） |
 | 網頁（WEB，之後的 FE、RWD、MOB） | HTML、CSS、JavaScript 的小頁面，在瀏覽器的沙盒框架裡執行，旁邊是瀏覽器建立的 DOM 樹 | WEB：`web-code` 能力（WEB-0）：範例的陳述與練習的參考解答、常見錯誤都由測試在真實的 Chromium 裡執行 |
@@ -92,6 +93,7 @@
 | CICD-5 | CICD09–11 | 終端機引擎階段 E30（`environments`：審核、等待計時、部署分支規則、concurrency 與部署紀錄）、E31（`deploy-hosts`：以 ssh 連到有 Docker 的主機部署與冒煙測試），devops-explorer 的 D3（儀表板與告警，`monitoring-dashboard`）＋三課 |
 | CICD-6 | CICD12–14 | devops-explorer 的 D4（集中式日誌：篩選、關聯 ID、遮蔽、保留容量）＋三課（日誌、回滾與發布安全、事故應變） |
 | CICD-7 | CICD15 | 綜合專題（challenge-stages 六關），全島完成 |
+| KUB-1（見 [KUBERNETES_RELIABILITY_ISLAND](KUBERNETES_RELIABILITY_ISLAND.md)） | KUB01–04 | 終端機引擎階段 E33（`probes`：存活、就緒與啟動探針、退避與優雅終止）與 E34（`workloads`：ReplicaSet、Deployment、擴縮、排空節點與節點故障）＋四課，島嶼開放；KUB02 加上 `network-protocol` 的情境 |
 | SRV-0（架構） | — | 網路與伺服器島登錄為預備島嶼，沿用 `terminal` 與 `network-protocol` 能力（`serverFromBlueprint`）；引擎階段 E10–E12（`sockets`、`dns`、`http`）先完成（[SRV0_SERVER_CAPABILITY](SRV0_SERVER_CAPABILITY.md)）；SRV-1 至 SRV-5 依引擎階段 E10–E19 依序發布 |
 | LLM-0（架構） | — | 大型語言模型島與生成式 AI 島登錄為預備島嶼；新能力 `llm-explorer`：位元組層級 BPE（`token-explorer`）、錄好的玩具模型與 temperature／top-k／top-p／種子取樣（`sampling-explorer`）、手寫向量與 PCA（`embedding-space`），練習以數值比對（`llmFromBlueprint`，[LLM0_LANGUAGE_MODEL_CAPABILITY](LLM0_LANGUAGE_MODEL_CAPABILITY.md)）；LLM-1 為 LLM01–LLM03，GEN-1 為 GEN01 |
 | WEB-0（架構） | — | `web-code` 能力（沙盒框架裡的 HTML、CSS、JavaScript 頁面，以瀏覽器建立的結果檢查的練習，迴圈保護）、網頁基礎島登錄為預備島嶼（[WEB0_WEB_CODE_CAPABILITY](WEB0_WEB_CODE_CAPABILITY.md)）；WEB-1 至 WEB-5 依引擎階段 W1–W6 依序發布 |
@@ -108,6 +110,7 @@
 | MOB-2 | MOB05–08 | 行動表單與虛擬鍵盤、安全區域／方向／動態視窗高度、原生／跨平台／PWA 的選擇、Web App Manifest 與安裝（引擎：練習的預覽高度、`wait` 之後等一個畫格） |
 | MOB-3 | MOB09–13 | Service Worker 與離線、行動效能與省電、行動無障礙、行動裝置測試、綜合專題（引擎階段 W10：模擬的 Service Worker 與 Cache API）；行動應用島完成 |
 | CICD-0（架構） | — | DevOps 與 CI/CD 島登錄為預備島嶼，逐課對應（`cicdFromBlueprint` 的 `CICD_SHAPES`）；新能力 `devops-explorer`：部署紀錄與 DORA 指標（D1）、逐分鐘的部署模擬（D2，`deployment-simulator`：重建、滾動、藍綠、金絲雀與閘門、擴充與收縮、功能旗標），答案由模擬器算出（[CICD0_DEVOPS_CAPABILITY](CICD0_DEVOPS_CAPABILITY.md)）；CICD-1 至 CICD-6 依終端機引擎階段 E25–E31 與 D3、D4 分批發布 |
+| KUB-0（架構） | — | Kubernetes 與可靠性工程島登錄為預備島嶼，逐課對應（`kubeFromBlueprint` 的 `KUB_SHAPES`），沿用 `terminal`（以 `kubectl` 操作模擬叢集，引擎階段 E32 `cluster` 起）、`network-protocol`（KUB02、KUB07）與 `devops-explorer`（KUB12–KUB14）（[KUB0_KUBERNETES_CAPABILITY](KUB0_KUBERNETES_CAPABILITY.md)）；KUB-1 為 KUB01–KUB04 |
 | 之後 | 依 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 自動選擇 | 先修已滿足、能力已備妥、解鎖其他島最多的島優先；缺少的共用能力先做最小可用版本 |
 
 進度記錄在 [COURSE_PRODUCTION_PROGRESS](COURSE_PRODUCTION_PROGRESS.md)。

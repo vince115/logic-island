@@ -127,7 +127,7 @@
     "kubernetes-reliability": {
       "capability": "terminal (engine stages E32 cluster, E33 probes, E34 workloads, E35 kube-net, E36 kube-config, E37 ingress, E38 kube-storage, E39 helm, E40 autoscaling: a simulated cluster driven with kubectl and helm) + network-protocol (KUB02, KUB07) + devops-explorer (monitoring-dashboard with D3-D6 for KUB12-KUB14); a per-lesson mapping (KUB_SHAPES)",
       "status": "prepared",
-      "note": "KUB-0 prepared the island (kubeFromBlueprint) and built engine stage E32 cluster; KUB-1 (KUB01-KUB04) needs E33-E34 and moves the island to ISLAND_IDS, KUB-2 (KUB05-KUB07) E35-E37, KUB-3 (KUB08-KUB10) E38-E40, KUB-4 (KUB11-KUB14) D5-D6, KUB-5 is the capstone (KUB0_KUBERNETES_CAPABILITY.md)"
+      "note": "KUB-0 prepared the island (kubeFromBlueprint) and built engine stage E32 cluster; KUB-1 published KUB01-KUB04 on E33-E34 (the island opens, after devops-cicd in ISLAND_IDS), KUB-2 (KUB05-KUB07) E35-E37, KUB-3 (KUB08-KUB10) E38-E40, KUB-4 (KUB11-KUB14) D5-D6, KUB-5 is the capstone (KUB0_KUBERNETES_CAPABILITY.md)"
     }
   }
 }

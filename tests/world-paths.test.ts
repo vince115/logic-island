@@ -153,7 +153,8 @@ describe('activity registry (F.0)', () => {
     expect(activitiesOfIsland('responsive-design').map(a => a.id)).toEqual(expect.arrayContaining(['dom-explorer', 'flexbox-playground', 'grid-playground', 'responsive-sim', 'mobile-nav-sim']));
     expect(getActivity('terminal-sim')).toMatchObject({ lab: 'linux-terminal', version: '1.0.0', availability: 'implemented' });
     // DKR-1: the Docker island's container-playground lessons (DKR03, DKR04) are terminal-sim lessons too. CICD-2: so is CICD02 (decision-simulation in the blueprint).
-    expect(getActivity('terminal-sim')!.subjects).toEqual(['labs', 'linux-systems', 'docker-containers', 'network-servers', 'devops-cicd']);
+    // KUB-1: and the Kubernetes island's cluster-sim lessons (KUB01, KUB03, KUB04).
+    expect(getActivity('terminal-sim')!.subjects).toEqual(['labs', 'linux-systems', 'docker-containers', 'network-servers', 'devops-cicd', 'kubernetes-reliability']);
     for (const id of ['token-explorer', 'sampling-explorer', 'embedding-space', 'deployment-simulator']) expect(used.has(id as 'token-explorer'), id).toBe(true);
     expect(getActivity('token-explorer')).toMatchObject({ availability: 'implemented', version: '1.0.0', subjects: ['large-language-models'] });
     expect(getActivity('sampling-explorer')).toMatchObject({ availability: 'implemented', version: '1.0.0', subjects: ['large-language-models', 'generative-ai'] });

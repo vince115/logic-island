@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { curriculum, getLessonBySlug, lessons } from '@/content/curriculum';
 import { cicdFromBlueprint, DEVOPS_STAGES_BUILT, dockerFromBlueprint, KUB_SHAPES, KUBE_STAGES_BUILT, kubeFromBlueprint } from '@/content/curriculum/lessons';
-import { ISLAND_IDS, ISLAND_PREFIX, LESSON_ACTIVITIES, PREPARED_ISLAND_IDS, validateCurriculum, type LessonMeta } from '@/content/curriculum/schema';
+import { ISLAND_IDS, ISLAND_PREFIX, LESSON_ACTIVITIES, PREPARED_ISLAND_IDS, validateCurriculum } from '@/content/curriculum/schema';
 import { UNITS } from '@/content/curriculum/units';
 import { getIsland } from '@/content/world';
 import { getActivity } from '@/content/world/activities';
@@ -13,7 +13,9 @@ import { validateTerminalLessonsFirst } from './support/terminal-replays';
  * KUB-0 (docs/curriculum/KUB0_KUBERNETES_CAPABILITY.md): the kubernetes-reliability island prepared for authoring and
  * its per-lesson mapping (kubeFromBlueprint, KUB_SHAPES, every row asserted). Engine stages E32, E33 and E34 are built
  * (tests/terminal-e32.test.ts, terminal-e33.test.ts, terminal-e34.test.ts); a lesson that needs a later stage (E35–E40, D5,
- * D6) cannot be built yet.
+ * D6) cannot be built yet. KUB-1 publishes the island (KUB01–KUB04) after devops-cicd; it dropped the test that a
+ * synthetic KUB02 was refused while the island was prepared: no island is prepared any more, so it cannot be built;
+ * network-capability.test.ts keeps the refusal of a lesson outside the curriculum islands.
  */
 const outline = (id: string) => kubeFromBlueprint(id, 's', 50);
 
@@ -66,33 +68,51 @@ describe('kubeFromBlueprint (KUB_SHAPES)', () => {
   });
 });
 
-describe('the kubernetes-reliability island: prepared in KUB-0', () => {
-  it('is registered for authoring, not published: no unit, no page, all 15 lessons planned', () => {
-    expect(PREPARED_ISLAND_IDS).toEqual(['kubernetes-reliability']);
-    expect(ISLAND_IDS).not.toContain('kubernetes-reliability');
+describe('the kubernetes-reliability island: prepared in KUB-0, published from KUB-1', () => {
+  it('is a curriculum island after devops-cicd with its first lessons written in id order and in its units; the rest stay planned outlines without a page', () => {
+    // KUB-1 moved it to ISLAND_IDS: no island is prepared any more.
+    expect(PREPARED_ISLAND_IDS).toEqual([]);
+    expect(ISLAND_IDS).toContain('kubernetes-reliability');
+    // The world's order in the systems region: LNX, DKR, SRV, CLD (still planned), CICD, KUB.
+    expect(ISLAND_IDS.indexOf('kubernetes-reliability')).toBe(ISLAND_IDS.indexOf('devops-cicd') + 1);
     expect(ISLAND_PREFIX['kubernetes-reliability']).toBe('KUB');
-    expect(UNITS['kubernetes-reliability']).toEqual([]);
-    expect(lessons.filter(l => l.islandId === 'kubernetes-reliability')).toEqual([]);
+    const written = lessons.filter(l => l.islandId === 'kubernetes-reliability');
+    expect(written.map(l => l.lessonId)).toEqual(written.map((_, i) => `KUB${String(i + 1).padStart(2, '0')}`));
+    expect(written.length).toBeGreaterThanOrEqual(4);
+    // KUB-1: two units, KUB01–KUB02 and KUB03–KUB04.
+    expect(UNITS['kubernetes-reliability'].slice(0, 2)).toMatchObject([{ title: '編排的觀念與叢集架構', lessonIds: ['KUB01', 'KUB02'] }, { title: 'Pod 與工作負載', lessonIds: ['KUB03', 'KUB04'] }]);
+    expect(UNITS['kubernetes-reliability'].flatMap(u => u.lessonIds)).toEqual(written.map(l => l.lessonId));
+    // Every written lesson has its page and follows its KUB_SHAPES row: KUB01, KUB03 and KUB04 are the terminal with a
+    // simulated cluster, KUB02 adds a network-protocol scene.
+    for (const l of written) expect(getLessonBySlug(l.slug)?.lessonId, l.slug).toBe(l.lessonId);
+    expect(written.slice(0, 4).map(l => [l.lessonId, l.capabilities, l.activity, !!curriculum.contents[l.lessonId]?.terminal, !!curriculum.contents[l.lessonId]?.network])).toEqual([
+      ['KUB01', ['terminal'], 'terminal-sim', true, false],
+      ['KUB02', ['terminal', 'network-protocol'], 'network-sequence', true, true],
+      ['KUB03', ['terminal'], 'terminal-sim', true, false],
+      ['KUB04', ['terminal'], 'terminal-sim', true, false],
+    ]);
     const planned = lessonsOfIsland('kubernetes-reliability');
     expect(planned.map(l => l.lessonId)).toEqual(Array.from({ length: 15 }, (_, i) => `KUB${String(i + 1).padStart(2, '0')}`));
-    for (const l of planned) {
+    expect(planned.slice(0, written.length).every(l => l.lessonStatus === 'complete' && l.href === `/curriculum/${l.slug}`)).toBe(true);
+    for (const l of planned.slice(written.length)) {
       expect(l.lessonStatus, l.lessonId).toBe('planned');
       expect(l.href, l.lessonId).toBeUndefined();
       expect(getLessonBySlug(l.slug), l.slug).toBeUndefined();
     }
-    expect(getIsland('kubernetes-reliability')).toMatchObject({ status: 'planned' });
-  });
-  it('refuses a KUB lesson in the curriculum until the island joins ISLAND_IDS', () => {
-    const o = outline('KUB02');
-    const meta: LessonMeta = { lessonId: 'KUB02', islandId: 'kubernetes-reliability', slug: o.slug, title: o.title, summary: o.summary, learningObjectives: o.objectives, difficulty: o.difficulty,
-      estimatedMinutes: o.minutes, prerequisites: o.prerequisites, concepts: o.concepts, apcsRelevance: o.apcs, supportedLanguages: [], visualizationType: o.visualization, lessonStatus: 'complete',
-      version: '1.0.0', capabilities: o.capabilities, activity: o.activity };
-    const problems = validateCurriculum({ ...curriculum, lessons: [...lessons, meta], contents: { ...curriculum.contents, KUB02: curriculum.contents.DKR01! } });
-    expect(problems).toContain('KUB02: kubernetes-reliability is prepared for authoring, not a curriculum island yet: move it to ISLAND_IDS with its first written lesson');
+    // Its lessons open on their own; its 3D landscape stays the planned one (IslandConfig.mapState, set by hand).
+    expect(getIsland('kubernetes-reliability')).toMatchObject({ status: written.length < 15 ? 'available' : 'complete', mapState: 'planned' });
   });
   it('registers no new activity: cluster-sim and metric-explorer stay blueprint names', () => {
     for (const a of ['cluster-sim', 'metric-explorer']) expect(LESSON_ACTIVITIES, a).not.toContain(a);
     expect(getActivity('cluster-sim')).toMatchObject({ availability: 'planned' });
+    // KUB-1 (KUB0 §3, effects on the activity registry): cluster-sim keeps the island while KUB05–KUB11 are planned with it;
+    // KUB02, written as network-sequence, takes kubernetes-reliability off architecture-diagram (still implemented by DB19)
+    // and onto network-sequence; KUB01, KUB03 and KUB04 put it on terminal-sim.
+    expect(getActivity('cluster-sim')!.subjects).toEqual(['kubernetes-reliability']);
+    expect(getActivity('architecture-diagram')).toMatchObject({ availability: 'implemented' });
+    expect(getActivity('architecture-diagram')!.subjects).not.toContain('kubernetes-reliability');
+    expect(getActivity('network-sequence')!.subjects).toContain('kubernetes-reliability');
+    expect(getActivity('terminal-sim')!.subjects).toContain('kubernetes-reliability');
   });
   it('leaves the curriculum valid', () => {
     expect(validateCurriculum(curriculum)).toEqual([]);

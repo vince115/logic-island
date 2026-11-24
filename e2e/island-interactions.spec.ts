@@ -18,7 +18,8 @@ test('every published island\'s syllabus anchor exists on /curriculum and lands 
   // SRV-1 opened the network and servers island; LLM-1 the large-language-models island, GEN-1 the generative-ai island, WEB-1 the web foundations island, RWD-1 the responsive design island and MOB-1 the mobile apps island (in region order: ai, web, sys).
   // DKR-1 opened the Docker containers island, between the Linux systems and network servers islands (the world's order).
   // CICD-1 opened the DevOps and CI/CD island, after network servers (the cloud infrastructure island between them is planned).
-  expect(published.map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'large-language-models', 'generative-ai', 'web-foundations', 'responsive-design', 'mobile-apps', 'linux-systems', 'docker-containers', 'network-servers', 'devops-cicd']);
+  // KUB-1 opened the Kubernetes and reliability island, after DevOps and CI/CD.
+  expect(published.map(i => i.id)).toEqual(['foundations', 'structures', 'algorithms', 'programming-languages', 'databases', 'networks', 'ai-foundations', 'large-language-models', 'generative-ai', 'web-foundations', 'responsive-design', 'mobile-apps', 'linux-systems', 'docker-containers', 'network-servers', 'devops-cicd', 'kubernetes-reliability']);
   for (const island of published) {
     await page.goto(`/curriculum#island-${island.id}`);
     const heading = page.locator(`#island-${island.id}`);
