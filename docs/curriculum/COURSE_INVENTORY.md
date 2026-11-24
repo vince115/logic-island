@@ -4,6 +4,8 @@
 
 > **第一批之後（2026-11-20）**：PL01–PL05 發布，已發布 **85**、規劃中 **435**（CS 85／160；PL 5/20，程式語言島從「規劃中」變成「部分開放」）。
 > **第二批之後（2026-11-20）**：PL06–PL10 發布，已發布 **90**、規劃中 **430**（CS 90／160；PL 10/20，地景仍為規劃中）。
+> **KUB-2 之後（2026-11-24）**：Kubernetes 與可靠性工程島 KUB05–KUB07 發布（終端機引擎階段 E35 kube-net、E36 kube-config 與 E37 ingress：Service 與叢集 DNS、ConfigMap 與 Secret、Ingress 與 Gateway API；KUB07 加上 `network-protocol` 情境）；已發布 **251**、規劃中 **269**。
+>
 > **KUB-1 之後（2026-11-24）**：Kubernetes 與可靠性工程島開放 KUB01–KUB04（`terminal` 能力的模擬叢集，終端機引擎階段 E33 probes 與 E34 workloads；KUB02 加上 `network-protocol` 情境）；已發布 **248**、規劃中 **272**。
 >
 > **CICD-7 之後（2026-11-24）**：DevOps 與 CI/CD 島綜合專題 CICD15 發布，全島 15／15 完成；已發布 **244**、規劃中 **276**。

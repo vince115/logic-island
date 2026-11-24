@@ -16,6 +16,7 @@ import { validateTerminalLessonsFirst } from './support/terminal-replays';
  * needs a later stage (E38–E40, D5, D6) cannot be built yet. KUB-1 publishes the island (KUB01–KUB04) after
  * devops-cicd; it dropped the test that a synthetic KUB02 was refused while the island was prepared: no island is prepared
  * any more, so it cannot be built; network-capability.test.ts keeps the refusal of a lesson outside the curriculum islands.
+ * KUB-2 adds KUB05–KUB07 (E35 kube-net, E36 kube-config, E37 ingress) in a third unit.
  */
 const outline = (id: string) => kubeFromBlueprint(id, 's', 50);
 
@@ -80,18 +81,23 @@ describe('the kubernetes-reliability island: prepared in KUB-0, published from K
     expect(ISLAND_PREFIX['kubernetes-reliability']).toBe('KUB');
     const written = lessons.filter(l => l.islandId === 'kubernetes-reliability');
     expect(written.map(l => l.lessonId)).toEqual(written.map((_, i) => `KUB${String(i + 1).padStart(2, '0')}`));
-    expect(written.length).toBeGreaterThanOrEqual(4);
-    // KUB-1: two units, KUB01–KUB02 and KUB03–KUB04.
-    expect(UNITS['kubernetes-reliability'].slice(0, 2)).toMatchObject([{ title: '編排的觀念與叢集架構', lessonIds: ['KUB01', 'KUB02'] }, { title: 'Pod 與工作負載', lessonIds: ['KUB03', 'KUB04'] }]);
+    expect(written.length).toBeGreaterThanOrEqual(7);
+    // KUB-1: two units, KUB01–KUB02 and KUB03–KUB04; KUB-2: a third, KUB05–KUB07.
+    expect(UNITS['kubernetes-reliability'].slice(0, 3)).toMatchObject([{ title: '編排的觀念與叢集架構', lessonIds: ['KUB01', 'KUB02'] }, { title: 'Pod 與工作負載', lessonIds: ['KUB03', 'KUB04'] },
+      { title: '服務、設定與入口', lessonIds: ['KUB05', 'KUB06', 'KUB07'] }]);
     expect(UNITS['kubernetes-reliability'].flatMap(u => u.lessonIds)).toEqual(written.map(l => l.lessonId));
     // Every written lesson has its page and follows its KUB_SHAPES row: KUB01, KUB03 and KUB04 are the terminal with a
-    // simulated cluster, KUB02 adds a network-protocol scene.
+    // simulated cluster, KUB02 adds a network-protocol scene; KUB-2: KUB05 and KUB06 are cluster lessons too, KUB07 (the
+    // blueprint's request-path) adds a network-protocol scene like KUB02.
     for (const l of written) expect(getLessonBySlug(l.slug)?.lessonId, l.slug).toBe(l.lessonId);
-    expect(written.slice(0, 4).map(l => [l.lessonId, l.capabilities, l.activity, !!curriculum.contents[l.lessonId]?.terminal, !!curriculum.contents[l.lessonId]?.network])).toEqual([
+    expect(written.slice(0, 7).map(l => [l.lessonId, l.capabilities, l.activity, !!curriculum.contents[l.lessonId]?.terminal, !!curriculum.contents[l.lessonId]?.network])).toEqual([
       ['KUB01', ['terminal'], 'terminal-sim', true, false],
       ['KUB02', ['terminal', 'network-protocol'], 'network-sequence', true, true],
       ['KUB03', ['terminal'], 'terminal-sim', true, false],
       ['KUB04', ['terminal'], 'terminal-sim', true, false],
+      ['KUB05', ['terminal'], 'terminal-sim', true, false],
+      ['KUB06', ['terminal'], 'terminal-sim', true, false],
+      ['KUB07', ['terminal', 'network-protocol'], 'network-sequence', true, true],
     ]);
     const planned = lessonsOfIsland('kubernetes-reliability');
     expect(planned.map(l => l.lessonId)).toEqual(Array.from({ length: 15 }, (_, i) => `KUB${String(i + 1).padStart(2, '0')}`));
@@ -115,6 +121,9 @@ describe('the kubernetes-reliability island: prepared in KUB-0, published from K
     expect(getActivity('architecture-diagram')!.subjects).not.toContain('kubernetes-reliability');
     expect(getActivity('network-sequence')!.subjects).toContain('kubernetes-reliability');
     expect(getActivity('terminal-sim')!.subjects).toContain('kubernetes-reliability');
+    // KUB-2: KUB07, the island's request-path lesson, is written as network-sequence. request-path stays planned through the
+    // planned network-request lab (DKR-5's rule) and, with no catalog lesson left on it, lists the islands of its outlines.
+    expect(getActivity('request-path')).toMatchObject({ availability: 'planned', subjects: ['network-servers', 'kubernetes-reliability'] });
   });
   it('leaves the curriculum valid', () => {
     expect(validateCurriculum(curriculum)).toEqual([]);

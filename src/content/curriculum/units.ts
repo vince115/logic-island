@@ -86,10 +86,12 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '綜合專題', summary: '分六關把咖啡店的點餐服務從 commit 帶到上線：PR 與必要檢查、只建置一次的 Image 與快取、各環境的設定與機密、以同一個 digest 晉升、金絲雀計畫與症狀告警、回滾演練與事故時間', lessonIds: ['CICD15'] },
   ],
   // KUB-1 (2026-11-24): KUB01–KUB04 on the terminal with a simulated cluster (E32 cluster, E33 probes, E34 workloads),
-  // KUB02 beside a network-protocol scene; the later lessons need E35–E40 and the devops-explorer's D5–D6.
+  // KUB02 beside a network-protocol scene; KUB-2: KUB05–KUB07 on E35 kube-net, E36 kube-config and E37 ingress, KUB07
+  // beside a network-protocol scene too; the later lessons need E38–E40 and the devops-explorer's D5–D6.
   'kubernetes-reliability': [
     { title: '編排的觀念與叢集架構', summary: '單機 Compose 的極限、宣告式的期望狀態與調和迴圈、排程、自我修復、排空節點與節點失聯，何時不需要編排；控制平面與工作節點的元件、kubeconfig 與 static pod，一次 kubectl apply 從 API server、etcd、scheduler 到 kubelet 的路徑', lessonIds: ['KUB01', 'KUB02'] },
     { title: 'Pod 與工作負載', summary: '以 YAML manifest 描述 Pod、多容器 Pod、init container 與 sidecar，phase、重啟策略與 CrashLoopBackOff，存活、就緒與啟動探針與優雅終止；Deployment、ReplicaSet 與 Pod 三層物件、Label 與選擇器、調整副本數與自動補回的 Pod', lessonIds: ['KUB03', 'KUB04'] },
+    { title: '服務、設定與入口', summary: 'Service 的穩定名稱與 ClusterIP、ClusterIP／NodePort／LoadBalancer／headless，port、targetPort 與 nodePort，只收就緒 Pod 的 Endpoints 與 EndpointSlice，叢集 DNS 與 port-forward；設定與機密離開 Image，ConfigMap 與 Secret 以環境變數或掛載檔案交給 Pod、改了設定之後什麼會跟著變，Secret 只是編碼、imagePullSecrets 與 immutable；Ingress 與 Ingress Controller、主機與路徑路由、在入口終止 TLS、一個 HTTPS 請求從 DNS 到 Pod 的路徑，Gateway API 與加權的金絲雀分流', lessonIds: ['KUB05', 'KUB06', 'KUB07'] },
   ],
   'network-servers': [
     { title: '位址、名稱與請求', summary: '公有與私有 IP、介面與路由、監聽埠與 socket、ss、lsof 與 nc；DNS 區域、A／CNAME／MX／TXT、TTL 與快取、dig；用 curl 讀懂 HTTP 請求、回應、狀態碼與重新導向', lessonIds: range('SRV', 1, 3) },

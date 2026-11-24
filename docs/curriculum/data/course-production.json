@@ -734,6 +734,20 @@
       "commit": "TBD",
       "tests": "TBD",
       "notes": "KUB-1：Kubernetes 與可靠性工程島開放（terminal 能力的模擬叢集，終端機引擎階段 E33 probes 與 E34 workloads；KUB02 加上 network-protocol 情境）；容器編排概念、Kubernetes 架構、Pod、Deployment 與 ReplicaSet 四課",
+      "pr": "#98",
+      "merged": "c4a42e4"
+    },
+    {
+      "id": 53,
+      "date": "2026-11-24",
+      "lessons": [
+        "KUB05",
+        "KUB06",
+        "KUB07"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "KUB-2：終端機引擎階段 E35 kube-net（Service、Endpoints 與 EndpointSlice、叢集 DNS、NodePort、LoadBalancer 與位址池、port-forward）、E36 kube-config（ConfigMap、Secret、env／envFrom／Volume 與 subPath、imagePullSecrets、immutable）與 E37 ingress（ingress-nginx、Ingress TLS、Gateway API；KUB07 加上 network-protocol 情境）；Service 與服務發現、ConfigMap 與 Secret、Ingress 與 Gateway API 三課",
       "pr": null
     }
   ]
