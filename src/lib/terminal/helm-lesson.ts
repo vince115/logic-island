@@ -8,6 +8,7 @@ import { REPO_URL, indexFile, indexYaml, repoFile, reposYaml } from './helm-repo
 import { historyOf } from './helm-release';
 import { install, upgrade } from './helm-install';
 import type { Hx } from './helm';
+import { clockOf } from './processes';
 
 /*
  * Engine stage E39 (docs/curriculum/KUB0_E39_HELM.md §11): the lesson's Helm data (kube.helm, the helm profile only).
@@ -73,17 +74,22 @@ export function helmFiles(h: HelmLesson | undefined, home: string, created: Seco
 
 /** Installs (or upgrades) the boot releases in time order on the state; problems for the lesson's data. */
 export function bootReleases(state0: FsState, h: HelmLesson | undefined, now: Seconds, problems: string[]): FsState {
+  // Each release is installed at its own time: the clock is moved there (so its Secret, ReplicaSets and LAST DEPLOYED
+  // carry that time), then put back (KUB-3). The cluster is not settled in between (that would replay everything since
+  // its creation for every machine built): the controllers play the boot rollouts later, at the first settle.
   let state = state0;
+  const clock0 = state0.clock, at0 = (t: Seconds): FsState => ({ ...state, clock: { ...clockOf(state), now: t } });
   const errs: string[] = [], io = { out: () => undefined, err: (l: string) => { errs.push(l); } };
   for (const [i, r] of (h?.releases ?? []).map((r, i) => [i, r] as const).sort((a, b) => (parseTime(a[1].at ?? '') ?? now) - (parseTime(b[1].at ?? '') ?? now))) {
     const files = chartFiles(h!, r.chart, r.version), ch = files ? loadChart(files) : null, values = parseValues(r.values ?? '', 'values');
     if (!ch || 'error' in ch || 'error' in values) continue;
     const at = parseTime(r.at ?? '') ?? now, ns = r.namespace ?? 'default';
+    state = at0(at);
     const x: Hx = { state, flags: { values: {}, bools: new Set(['create-namespace']) }, pos: [], io, now: at, ns, nsGiven: true, cluster: true };
     errs.length = 0;
     const res = historyOf(state.kube as KubeState, r.name, ns).length ? upgrade(x, r.name, ch, values as VMap, true, true) : install(x, r.name, ch, values as VMap, true);
     if (res.status) problems.push(`helm.releases[${i}]: ${errs.join(' ').replace(/^Error: /, '')}`);
     else state = res.state;
   }
-  return state;
+  return clock0 ? { ...state, clock: clock0 } : (({ clock: _c, ...rest }) => (void _c, rest as FsState))(state);
 }

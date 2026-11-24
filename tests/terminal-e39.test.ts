@@ -45,6 +45,14 @@ describe('the helm profile and its boundary', () => {
     expect(s.log[4].out.map(cells)).toEqual([['NAME', 'CHART VERSION', 'APP VERSION', 'DESCRIPTION'], ['example/web', '0.1.0', '1.27', 'A demo web chart']]);
     expect(s.log[5].out.at(-1)).toMatch(/^-rw------- learner learner .* repositories\.yaml$/);
   });
+  it('installs each boot release at its own time: its Secret and LAST DEPLOYED carry that time (KUB-3)', () => {
+    const lab = withHelm(helmLab, { ...helmLab.kube!.helm, releases: [{ name: 'shop', chart: 'web', version: '0.1.0', at: '2026-11-24 09:00:00' },
+      { name: 'shop', chart: 'web', version: '0.1.0', values: 'image:\n  tag: "1.28"\n', at: '2026-11-24 09:30:00' }] });
+    const s = hmOn(lab, 'kubectl get secrets -l owner=helm', 'helm history shop');
+    const words = (l: string) => l.split(/\s+/);
+    expect(s.log[0].out.slice(1).map(l => [words(l)[0], words(l).at(-1)])).toEqual([['sh.helm.release.v1.shop.v1', '60m'], ['sh.helm.release.v1.shop.v2', '30m']]);
+    expect(s.log[1].out.slice(1).map(l => cells(l)[1])).toEqual(['Tue Nov 24 09:00:00 2026', 'Tue Nov 24 09:30:00 2026']);
+  });
 });
 
 describe('install, list, status and the release Secrets', () => {

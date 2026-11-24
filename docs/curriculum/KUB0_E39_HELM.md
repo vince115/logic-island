@@ -127,6 +127,8 @@ kube: {
 - **儲存庫**：只有 charts.example.test；沒有 TLS、帳號、OCI（`oci://`）、`--devel` 與版本範圍；`curl https://charts.example.test/index.yaml` 不通（儲存庫是 helm 內建的模擬，不是 E12 的 responder）。
 - **範本**：`helm create` 是縮減版（§10）；它的 Image `nginx:1.16.0` 要在課程的 `docker.images` 與 `kube.images` 才拉得到，否則 Pod 是 ErrImagePull、`--wait` 逾時。
 
+- KUB-3 整合時修正：開機時的 release（`kube.helm.releases`）依時間逐一在各自的時刻安裝——時鐘先移到那個時刻再 install／upgrade，最後放回，所以各 revision 的 Secret 與 LAST DEPLOYED 帶著各自的時間（原本 Secret 的 AGE 都是 0s）。叢集不在兩個 release 之間 settle（那會讓每台機器建立時都從叢集建立時重播一次，KUB09 的驗證從 0.6 秒變成 42 秒），所以開機的升級只留下最後一個 revision 的 ReplicaSet，中間 revision 的 rollout 不會重現；課程不要以開機歷史中間 revision 的 ReplicaSet 出題。
+
 ## 14. 課程作者要知道的事
 
 - 機器寫 `profile: 'helm'`；chart 放在工作站（`files`）或 `kube.helm.charts`（儲存庫）。chart 用到的 Image 要宣告在 `docker.images` 與 `kube.images`（拉取秒數決定 `--wait` 的時間）。
