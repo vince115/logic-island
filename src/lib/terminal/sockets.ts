@@ -303,7 +303,7 @@ export function hostsLookup(state: FsState, name: string, family: 4 | 6): HostsE
 export const hostsReverse = (state: FsState, address: string) => hostsOf(state).find(e => e.address === address)?.names[0];
 
 /** A name looked up: the address, the canonical name and the other names (getent hosts prints them in this order). */
-export interface Lookup { address: string; name: string; aliases: string[] }
+export interface Lookup { address: string; name: string; aliases: string[]; /** E35: every address of the name (a headless Service), when more than one. */ addresses?: string[] }
 /** `cached`: the local resolver answered from its cache without sending a query (dig's 0 msec). */
 export type Resolved = { state: FsState; found: Lookup; cached?: boolean } | { state: FsState; error: 'notfound' | 'tryagain' };
 /** How a command looks up a host name (files, then DNS from the dns profile up, or E7's names below it). */
@@ -333,6 +333,8 @@ export interface NetIo {
   tls?: boolean;
   /** E18: the edge profile (curl -w's timing variables, from the lesson's latencies). */
   edge?: boolean;
+  /** E35: a new TCP connection to address:port is about to be made (kube-proxy picks a Service's endpoint; kube-net.ts). */
+  connect?: (state: FsState, address: string, port: number) => FsState;
 }
 export type NetResult = { state: FsState; status: number };
 const lines = (io: NetIo, rows: readonly string[]) => rows.forEach(r => io.out(`${r.replace(/\s+$/, '')}\n`));
@@ -507,6 +509,8 @@ export function nc(state: FsState, args: readonly string[], io: NetIo): NetResul
   const shown = host === address ? address : `${host} (${address})`;
   let ok = false;
   for (let port = first; port <= last; port++) {
+    // E35: a new connection (kube-proxy picks a Service's endpoint).
+    if (io.connect) next = io.connect(next, address, port);
     const r = reach(next, address, port);
     if (r.result === 'ok') { ok = true; if (verbose) io.err(`Connection to ${shown} ${port} port [tcp/${serviceName(next, port, 'tcp') ?? '*'}] succeeded!`); }
     else if (r.result === 'refused') { if (verbose) io.err(`nc: connect to ${shown} port ${port} (tcp) failed: Connection refused`); }
@@ -630,7 +634,8 @@ export function getent(state: FsState, args: readonly string[], io: NetIo): NetR
     if ('found' in v6) { lines(io, [hostLine(v6.found.address, [v6.found.name, ...v6.found.aliases])]); continue; }
     const v4 = io.resolve(next, key, 4);
     next = v4.state;
-    if ('found' in v4) lines(io, [hostLine(v4.found.address, [v4.found.name, ...v4.found.aliases])]); else status = 2;
+    // E35: a name with several addresses (a headless Service) is a line per address, as glibc's getent prints them.
+    if ('found' in v4) lines(io, (v4.found.addresses ?? [v4.found.address]).map(a => hostLine(a, [v4.found.name, ...v4.found.aliases]))); else status = 2;
   }
   return { state: next, status };
 }

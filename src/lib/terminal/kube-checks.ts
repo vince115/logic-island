@@ -7,6 +7,8 @@ import { printPod } from './kube-status';
 import { evalPath, parsePath, scalar } from './kube-jsonpath';
 import { parseSelector, selects } from './kube-select';
 import { podContainer, podEnv, resolveImage } from './kube-image';
+import { mountNodes } from './kube-volumes';
+import { physicalPath } from './fs';
 import { arr, kindOf, labelsOf, nameOf, nsOf, obj, str, uidOf, type JObj } from './kube-model';
 
 /*
@@ -22,14 +24,17 @@ export type KubeCheck =
   | { kind: 'kube-pod'; name?: string; selector?: string; namespace?: string; count?: number; status?: string; ready?: boolean; restartsAtLeast?: number; node?: string; container?: string;
     env?: [string, string]; file?: { path: string; content?: string } };
 export const KUBE_CHECK_KINDS = ['kube-object', 'kube-pod'] as const;
-const RESOURCES = ['Pod', 'Namespace', 'Node', 'Service', 'Deployment', 'DaemonSet'];
+const RESOURCES = ['Pod', 'Namespace', 'Node', 'Service', 'Deployment', 'DaemonSet'], CONFIG_RESOURCES = ['ConfigMap', 'Secret'];
 const LINE = (t: unknown, max = 253) => typeof t === 'string' && t.length >= 1 && t.length <= max && !t.includes('\n');
 
-export function kubeCheckProblems(c: KubeCheck, cluster: boolean): string | null {
+export function kubeCheckProblems(c: KubeCheck, cluster: boolean, config = false): string | null {
   if (!cluster) return `a ${c.kind} check needs a cluster machine (engine stage E32)`;
+  // E36: ConfigMaps and Secrets exist on the kube-config profile.
+  if (c.kind === 'kube-object' && CONFIG_RESOURCES.includes(c.resource) && !config) return `a kube-object check of a ${c.resource} needs a kube-config machine (engine stage E36)`;
   if (c.namespace !== undefined && !LINE(c.namespace, 63)) return `a ${c.kind} check's namespace is a name`;
   if (c.kind === 'kube-object') {
-    if (!RESOURCES.includes(c.resource) || !LINE(c.name)) return `a kube-object check needs a resource among ${RESOURCES.join(', ')} and a name`;
+    const list = config ? [...RESOURCES, ...CONFIG_RESOURCES] : RESOURCES;
+    if (!list.includes(c.resource) || !LINE(c.name)) return `a kube-object check needs a resource among ${list.join(', ')} and a name`;
     if (c.absent && (c.labels || c.fields)) return 'a kube-object check with absent has no labels or fields';
     if ((c.fields ?? []).some(f => !LINE(f.path, 200) || typeof f.equals !== 'string' || 'error' in parsePath(f.path))) return 'a kube-object check\'s fields are { path: a JSONPath such as .spec.nodeName, equals: text }';
     return null;
@@ -93,13 +98,15 @@ export function kubeFailure(c: KubeCheck, end0: FsState): string | null {
     if (c.env || c.file) {
       const specs = arr(obj(p.spec).containers), i = c.container ? specs.findIndex(s => str(obj(s).name) === c.container) : 0, sim = k.pods[uidOf(p)];
       if (i < 0) return `${name} 沒有名為 ${c.container} 的容器`;
-      const res = resolveImage(end.docker, str(obj(specs[i]).image) ?? '');
+      const res = resolveImage(end.docker, str(obj(specs[i]).image) ?? '', k.config ? 'pulled' : undefined);
       if ('error' in res) return `${name} 的 Image 拉不下來`;
-      if (c.env) { const want = `${c.env[0]}=${c.env[1]}`, env = podEnv(specs[i], res.img, name), have = env.find(e => e.startsWith(`${c.env![0]}=`)); if (have !== want) return have ? `${name} 的環境變數 ${have}` : `${name} 沒有環境變數 ${c.env[0]}`; }
+      // E36: the variables the kubelet resolved for the container's run (valueFrom, envFrom), and its configMap and secret volumes.
+      if (c.env) { const want = `${c.env[0]}=${c.env[1]}`, env = podEnv(specs[i], res.img, name, true, k.config ? sim?.main[i]?.env ?? [] : undefined), have = env.find(e => e.startsWith(`${c.env![0]}=`)); if (have !== want) return have ? `${name} 的環境變數 ${have}` : `${name} 沒有環境變數 ${c.env[0]}`; }
       if (c.file) {
         const cs = sim?.main[i];
         if (!cs || cs.state !== 'running') return `${name} 的容器沒有在執行`;
-        const node = podContainer(res.img, specs[i], name, cs.cid ?? '', now, cs.layer).nodes.get(c.file.path);
+        const nodes = podContainer(res.img, specs[i], name, cs.cid ?? '', now, cs.layer, k.config ? mountNodes(p, sim, specs[i], cs) : undefined).nodes;
+        const node = nodes.get(k.config ? physicalPath(nodes, c.file.path, true) : c.file.path);
         if (!node || node.kind !== 'file') return `${name} 的容器裡沒有 ${c.file.path}`;
         if (c.file.content !== undefined && !(node.content ?? '').includes(c.file.content)) return `${name} 的 ${c.file.path} 不包含題目要的文字`;
       }

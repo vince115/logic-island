@@ -1,4 +1,5 @@
 import type { CommandName, FilesCommand, ShellFeature } from './shell';
+import { BASE64_MANUAL } from './base64';
 
 /*
  * Engine stage E1 (docs/curriculum/LNX0_TERMINAL_CAPABILITY.md §9): the short, fixed manual of every command, printed by
@@ -596,7 +597,7 @@ export function manualEntry(cmd: CommandName, features: Iterable<ShellFeature> =
   const special = FEATURE_MANUAL.find(([f, c]) => c === cmd && have.has(f));
   if (special) return special[2];
   return (MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd] ?? (STREAM_MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd] ?? (USER_MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd]
-    ?? (SYSTEM_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (LATER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (SERVER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (DIAG_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (STORAGE_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (GIT_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (GH_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (KUBE_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (CONTAINER_MANUAL as Record<string, ManualEntry>)[cmd];
+    ?? (SYSTEM_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (LATER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (SERVER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (DIAG_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (STORAGE_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (GIT_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (GH_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (KUBE_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (BASE64_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (CONTAINER_MANUAL as Record<string, ManualEntry>)[cmd];
 }
 
 const optionLines = (options: [string, string][], indent: string, width: number) => options.map(([flag, text]) => `${indent}${flag.padEnd(width)}${text}`);

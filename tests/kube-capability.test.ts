@@ -11,11 +11,11 @@ import { validateTerminalLessonsFirst } from './support/terminal-replays';
 
 /*
  * KUB-0 (docs/curriculum/KUB0_KUBERNETES_CAPABILITY.md): the kubernetes-reliability island prepared for authoring and
- * its per-lesson mapping (kubeFromBlueprint, KUB_SHAPES, every row asserted). Engine stages E32, E33 and E34 are built
- * (tests/terminal-e32.test.ts, terminal-e33.test.ts, terminal-e34.test.ts); a lesson that needs a later stage (E35–E40, D5,
- * D6) cannot be built yet. KUB-1 publishes the island (KUB01–KUB04) after devops-cicd; it dropped the test that a
- * synthetic KUB02 was refused while the island was prepared: no island is prepared any more, so it cannot be built;
- * network-capability.test.ts keeps the refusal of a lesson outside the curriculum islands.
+ * its per-lesson mapping (kubeFromBlueprint, KUB_SHAPES, every row asserted). Engine stages E32, E33, E34, E35 and E36 are
+ * built (tests/terminal-e32.test.ts, terminal-e33.test.ts, terminal-e34.test.ts, terminal-e35.test.ts, terminal-e36.test.ts); a
+ * lesson that needs a later stage (E37–E40, D5, D6) cannot be built yet. KUB-1 publishes the island (KUB01–KUB04) after
+ * devops-cicd; it dropped the test that a synthetic KUB02 was refused while the island was prepared: no island is prepared
+ * any more, so it cannot be built; network-capability.test.ts keeps the refusal of a lesson outside the curriculum islands.
  */
 const outline = (id: string) => kubeFromBlueprint(id, 's', 50);
 
@@ -46,15 +46,15 @@ describe('kubeFromBlueprint (KUB_SHAPES)', () => {
     expect(row('KUB14')).toEqual(['metric-explorer', 'monitoring-dashboard', ['devops-explorer'], [], 'none', 'D6']);
     expect(row('KUB15')).toEqual(['challenge-stages', 'challenge-stages', ['terminal', 'devops-explorer', 'visualization'], [], 'challenge-stages', 'E32 E33 E34 E35 E36 E37 E38 E39 E40 D3 D5 D6']);
   });
-  it('builds only the lessons whose stages exist: E32, E33 and E34 are built, the later KUB stages and D5–D6 are not', () => {
-    expect(KUBE_STAGES_BUILT).toEqual(['E32', 'E33', 'E34']);
+  it('builds only the lessons whose stages exist: E32–E36 are built, the later KUB stages and D5–D6 are not', () => {
+    expect(KUBE_STAGES_BUILT).toEqual(['E32', 'E33', 'E34', 'E35', 'E36']);
     expect(DEVOPS_STAGES_BUILT).toEqual(['D1', 'D2', 'D3', 'D4']);
     const b = planning.plannedLessons.find(l => l.lessonId === 'KUB02')!;
     expect(outline('KUB02')).toMatchObject({ slug: b.slug, title: b.title, objectives: b.learningObjectives, concepts: b.concepts, prerequisites: b.prerequisites, activity: 'network-sequence',
       capabilities: ['terminal', 'network-protocol'], visualization: 'none', blueprintId: 'KUB02' });
-    for (const id of ['KUB01', 'KUB03', 'KUB04']) expect(outline(id)).toMatchObject({ activity: 'terminal-sim', capabilities: ['terminal'], visualization: 'none', blueprintId: id });
-    expect(() => outline('KUB11')).toThrow('KUB11: the terminal engine stage E35 is not built yet (the lesson needs E34, E35)');
-    expect(() => outline('KUB07')).toThrow('KUB07: the terminal engine stage E35, E37 is not built yet (the lesson needs E35, E37)');
+    for (const id of ['KUB01', 'KUB03', 'KUB04', 'KUB05', 'KUB06', 'KUB11']) expect(outline(id)).toMatchObject({ activity: 'terminal-sim', capabilities: ['terminal'], visualization: 'none', blueprintId: id });
+    expect(kubeFromBlueprint('KUB11', 's', 50, true).capabilities).toEqual(['terminal', 'devops-explorer']);
+    expect(() => outline('KUB07')).toThrow('KUB07: the terminal engine stage E37 is not built yet (the lesson needs E35, E37)');
     expect(() => outline('KUB13')).toThrow('KUB13: the devops-explorer stage D5 is not built yet (the lesson needs D3, D4, D5)');
     expect(() => outline('KUB14')).toThrow('KUB14: the devops-explorer stage D6 is not built yet (the lesson needs D6)');
     expect(() => outline('KUB12')).toThrow(/E40 is not built yet/);

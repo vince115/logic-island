@@ -5,6 +5,8 @@ import { fieldSelector, parseSelector, selects } from './kube-select';
 import { evalPath, parsePath, scalar } from './kube-jsonpath';
 import { describeObject } from './kube-describe';
 import { describeWorkload } from './kube-describe-workload';
+import { describeEndpoints, describeService } from './kube-describe-service';
+import { describeConfig } from './kube-describe-config';
 import { WORKLOAD_KINDS } from './kube-workload-spec';
 import { kindOf, nameOf, nsOf, type JObj } from './kube-model';
 import { flag, type KubeResult, type Kx } from './kubectl';
@@ -22,6 +24,9 @@ export const TYPES: { kind: string; names: string[]; plural: string }[] = [
   { kind: 'Service', names: ['services', 'service', 'svc'], plural: 'services' }, { kind: 'Deployment', names: ['deployments', 'deployment', 'deploy', 'deployments.apps'], plural: 'deployments.apps' },
   { kind: 'DaemonSet', names: ['daemonsets', 'daemonset', 'ds', 'daemonsets.apps'], plural: 'daemonsets.apps' },
   { kind: 'ReplicaSet', names: ['replicasets', 'replicaset', 'rs', 'replicasets.apps'], plural: 'replicasets.apps' },
+  { kind: 'Endpoints', names: ['endpoints', 'ep'], plural: 'endpoints' },
+  { kind: 'EndpointSlice', names: ['endpointslices', 'endpointslice', 'endpointslices.discovery.k8s.io'], plural: 'endpointslices.discovery.k8s.io' },
+  { kind: 'ConfigMap', names: ['configmaps', 'configmap', 'cm'], plural: 'configmaps' }, { kind: 'Secret', names: ['secrets', 'secret'], plural: 'secrets' },
 ];
 /** E34: kubectl get all (the kinds of the simulation that the "all" category holds, in kubectl's order). */
 const ALL = ['Pod', 'Service', 'DaemonSet', 'Deployment', 'ReplicaSet'];
@@ -41,7 +46,9 @@ export type Target = { kind: string; plural: string; names: string[] };
 /** The targets of get, describe, delete, label…: a type and names, type/name words, or types joined with commas. */
 export function targets(x: Kx, words: readonly string[]): Target[] | { error: string } {
   // E34: ReplicaSets and "all" exist on the workloads profile only.
-  const typeOf = (w: string) => { const t = anyType(w); return t && (t.kind !== 'ReplicaSet' || x.k.workloads) ? t : undefined; };
+  // E35: Endpoints and EndpointSlices on the kube-net profile only.
+  // E36: ConfigMaps and Secrets on the kube-config profile only.
+  const typeOf = (w: string) => { const t = anyType(w); return t && (t.kind === 'ReplicaSet' ? x.k.workloads : t.kind === 'Endpoints' || t.kind === 'EndpointSlice' ? x.k.net : t.kind === 'ConfigMap' || t.kind === 'Secret' ? x.k.config : true) ? t : undefined; };
   if (!words.length) return { error: 'error: you must specify the type of resource to get. Use "kubectl api-resources" for a complete list of supported resources.' };
   const out: Target[] = [], unknown = (w: string) => LATER_TYPES[w.toLowerCase()] ? { error: `（模擬環境：${w} 要到引擎階段 ${LATER_TYPES[w.toLowerCase()]} 才模擬）` } : { error: `error: the server doesn't have a resource type "${w}"` };
   if (words[0].includes('/')) {
@@ -127,7 +134,9 @@ export function describeCommand(x: Kx): KubeResult {
   for (const t of ts) {
     const r = pick(x, t);
     if ('error' in r) { x.io.err(r.error); return { state: x.state, status: 1 }; }
-    for (const o of r.items) out.push(x.k.workloads && WORKLOAD_KINDS.includes(t.kind) ? describeWorkload(x.k, o, x.now) : describeObject(x.k, t.kind, o, x.now));
+    for (const o of r.items) out.push(x.k.workloads && WORKLOAD_KINDS.includes(t.kind) ? describeWorkload(x.k, o, x.now)
+      : x.k.net && t.kind === 'Service' ? describeService(x.k, o, x.now) : x.k.net && t.kind === 'Endpoints' ? describeEndpoints(x.k, o, x.now)
+      : x.k.config && (t.kind === 'ConfigMap' || t.kind === 'Secret') ? describeConfig(x.k, o, x.now) : describeObject(x.k, t.kind, o, x.now));
     errors.push(...r.errors);
   }
   out.forEach((lines, i) => { if (i) { x.io.out(''); x.io.out(''); } lines.forEach(l => x.io.out(l)); });

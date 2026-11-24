@@ -132,8 +132,8 @@ export function immutableSelector(live: JObj, next: JObj): string[] {
   return sameJ(a, b) ? [] : [`spec.selector: Invalid value: ${goSelector(b)}: field is immutable`];
 }
 /** The first field of a later stage the template uses (its path under spec.template, and the stage). */
-export function workloadLater(doc: JObj): { path: string; stage: string } | null {
-  const t = obj(obj(doc.spec).template), r = laterField({ kind: 'Pod', metadata: obj(t.metadata), spec: obj(t.spec) }, true);
+export function workloadLater(doc: JObj, config = false): { path: string; stage: string } | null {
+  const t = obj(obj(doc.spec).template), r = laterField({ kind: 'Pod', metadata: obj(t.metadata), spec: obj(t.spec) }, true, config);
   return r ? { ...r, path: r.path.replace(/^spec\./, 'spec.template.spec.') } : null;
 }
 

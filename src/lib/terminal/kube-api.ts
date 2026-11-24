@@ -1,6 +1,7 @@
 import type { Seconds } from './clock';
 import { parseRef } from './docker';
 import { defaultProbes } from './kube-probe-spec';
+import { defaultConfigVolume } from './kube-pod-config';
 import {
   arr, bytesOf, cpuMilli, KUBE_LIMITS, kindOf, meta, nameOf, nsOf, obj, quantityText, stamp, str, suffix, uid,
   type J, type JObj, type KubeEvent, type KubeState,
@@ -14,7 +15,7 @@ import {
  * so -o yaml shows what a real API server returns. Events are aggregated like the kubelet's event correlator.
  */
 
-export const NAMESPACED: Record<string, boolean> = { Pod: true, Namespace: false, Node: false, Event: true, Service: true, Deployment: true, ReplicaSet: true, DaemonSet: true, ConfigMap: true };
+export const NAMESPACED: Record<string, boolean> = { Pod: true, Namespace: false, Node: false, Event: true, Service: true, Deployment: true, ReplicaSet: true, DaemonSet: true, ConfigMap: true, Secret: true, Endpoints: true, EndpointSlice: true };
 export const find = (k: KubeState, kind: string, ns: string | undefined, name: string) =>
   k.objects.find(o => kindOf(o) === kind && nameOf(o) === name && (NAMESPACED[kind] ? nsOf(o) === ns : true));
 export const ofKind = (k: KubeState, kind: string, ns?: string) => k.objects.filter(o => kindOf(o) === kind && (ns === undefined || nsOf(o) === ns));
@@ -63,7 +64,8 @@ export function defaultContainer(c0: J): JObj {
 /** The API server's defaults of a Pod (idempotent: an updated spec is defaulted again). */
 export function defaultPod(o: JObj): JObj {
   const spec = { ...obj(o.spec) }, id = str(meta(o).uid) ?? nameOf(o);
-  const volumes = arr(spec.volumes), own = volumes.map(v => str(obj(v).name) ?? '').find(n => n.startsWith('kube-api-access-'));
+  // E36: configMap and secret volumes get defaultMode 420 (no other volume exists below kube-config).
+  const volumes = arr(spec.volumes).map(defaultConfigVolume), own = volumes.map(v => str(obj(v).name) ?? '').find(n => n.startsWith('kube-api-access-'));
   const access = own ?? `kube-api-access-${suffix(`api/${id}`)}`;
   const container = (c0: J): J => {
     const c = defaultContainer(c0);
@@ -85,7 +87,8 @@ export function defaultPod(o: JObj): JObj {
   spec.terminationGracePeriodSeconds ??= 30;
   const tol = arr(spec.tolerations);
   spec.tolerations = [...tol, ...DEFAULT_TOLERATIONS.filter(d => !tol.some(x => str(obj(x).key) === str(obj(d).key)))];
-  if (!own) spec.volumes = [...volumes, { name: access, projected: { defaultMode: 420, sources: [
+  if (own) spec.volumes = volumes;
+  else spec.volumes = [...volumes, { name: access, projected: { defaultMode: 420, sources: [
     { serviceAccountToken: { expirationSeconds: 3607, path: 'token' } },
     { configMap: { items: [{ key: 'ca.crt', path: 'ca.crt' }], name: 'kube-root-ca.crt' } },
     { downwardAPI: { items: [{ fieldRef: { apiVersion: 'v1', fieldPath: 'metadata.namespace' }, path: 'namespace' }] } },

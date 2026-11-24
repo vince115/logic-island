@@ -20,7 +20,7 @@ export interface NetLevels { proxy: boolean; firewall: boolean; tunnels: boolean
 
 export type NetCheck =
   /** E16: from a machine (default the exercise's) a TCP connection to host:port succeeds, is refused or times out. */
-  | { kind: 'reach'; from?: string; to: string; port: number; proto?: Proto; result: 'succeeded' | 'refused' | 'timeout' }
+  | { kind: 'reach'; from?: string; to: string; port: number; proto?: Proto; result: 'succeeded' | 'refused' | 'timeout'; /** E35: from inside this pod (ns/name or name; to is looked up in cluster DNS). */ pod?: string }
   /** E16: ufw is (not) enabled, its default policies, a rule (as ufw's command words: 'allow 22/tcp') is there (absent: not); an nft input chain's policy and rule text. */
   | { kind: 'firewall'; host?: string; enabled?: boolean; incoming?: Policy; outgoing?: Policy; rule?: string; absent?: true; nftPolicy?: 'accept' | 'drop'; nftRule?: string }
   /** E17: a tunnel listens on port (on host; default the exercise's machine) and forwards to target host:port (works: a connection gets through). */

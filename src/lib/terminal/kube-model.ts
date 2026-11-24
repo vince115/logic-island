@@ -48,13 +48,24 @@ export interface CSim {
   /** E33: the probe workers of this run of the container (kube-probes.ts), and a stop the kubelet began (Killing). */
   probe?: ProbeSim;
   stopping?: true;
+  /** E36: the variables the kubelet resolved from env and envFrom when it created this run (they never change while it runs). */
+  env?: readonly (readonly [string, string])[];
+  /** E36: the subPath mounts as they were when this run started (mountPath → content and mode; they never update). */
+  subs?: Readonly<Record<string, { content: string; mode: number }>>;
 }
 /** E33: one probe worker: when it probes next, its last result (undefined: none yet) and how many times in a row; on hold after a kill. */
 export interface ProbeRun { at?: Seconds; last?: boolean; run: number; hold?: true; msg?: string }
 /** E33: a container run's probes: startup passed (started), the readiness result, when either last changed, and the workers. */
 export interface ProbeSim { cid: string; started: boolean; ready: boolean; changed: Seconds; runs: Partial<Record<'liveness' | 'readiness' | 'startup', ProbeRun>> }
 /** The kubelet's record of a bound pod (by uid). */
-export interface PodSim { node: string; bound: Seconds; ip: string; init: readonly CSim[]; main: readonly CSim[]; static?: true }
+export interface PodSim {
+  node: string; bound: Seconds; ip: string; init: readonly CSim[]; main: readonly CSim[]; static?: true;
+  /** E36: the configMap and secret volumes as the kubelet last wrote them, and a mount still waiting for its source (FailedMount). */
+  vols?: Readonly<Record<string, VolSync>>;
+  mount?: { next: Seconds; fails: number };
+}
+/** E36: a configMap or secret volume's files (path in the volume → content and mode), when it was last synced, its timestamped folder. */
+export interface VolSync { files: Readonly<Record<string, { content: string; mode: number }>>; at: Seconds; dir: string }
 export interface KubeState {
   created: Seconds;
   nodes: readonly KubeNode[];
@@ -83,7 +94,27 @@ export interface KubeState {
   failures?: readonly { node: string; at: Seconds }[];
   ctrl?: Seconds; dirty?: Seconds;
   down?: Readonly<Record<string, Seconds>>;
+  /**
+   * E35 (the kube-net profile): Services, Endpoints and EndpointSlices, kube-proxy and CoreDNS (kube-service-spec.ts,
+   * kube-endpoints.ts, kube-net.ts). lb: the lesson's LoadBalancer address pool (a MetalLB-like provider); turns:
+   * kube-proxy's next endpoint per Service port; forwards: the kubectl port-forward jobs; netAt: when the endpoints
+   * controller last ran; netDirty: a command changed the cluster at that time (the controller runs then).
+   */
+  net?: true;
+  lb?: readonly string[];
+  turns?: Readonly<Record<string, number>>;
+  forwards?: readonly KubeForward[];
+  netAt?: Seconds; netDirty?: Seconds;
+  /**
+   * E36 (the kube-config profile): ConfigMaps and Secrets, env and envFrom, configMap and secret volumes, imagePullSecrets
+   * (kube-config-spec.ts, kube-env.ts, kube-volumes.ts). cfgAt: when each ConfigMap or Secret last changed (ns/Kind/name);
+   * the kubelet writes the change into mounted volumes CONFIG_SYNC_SECONDS later.
+   */
+  config?: true;
+  cfgAt?: Readonly<Record<string, Seconds>>;
 }
+/** E35: a kubectl port-forward job: its process, the local port and the pod port it forwards to. */
+export interface KubeForward { pid: number; local: number; ns: string; pod: string; port: number }
 /** E33: how a container image's service behaves over time since its start (kube-health.ts validates the lesson's data). */
 export interface KubeHealth {
   image: string; listenAfter?: number;
@@ -103,7 +134,9 @@ export const NODE_KERNEL = '6.8.0-48-generic';
 export const SYSTEM_NAMESPACES = ['default', 'kube-node-lease', 'kube-public', 'kube-system'] as const;
 export const CONTROL_TAINT: Taint = { key: 'node-role.kubernetes.io/control-plane', effect: 'NoSchedule' };
 /** Limits that keep the settle loop cheap whatever the learner applies. */
-export const KUBE_LIMITS = { nodes: 5, pods: 60, objects: 200, events: 400, logs: 400, deployments: 20 } as const;
+export const KUBE_LIMITS = { nodes: 5, pods: 60, objects: 200, events: 400, logs: 400, deployments: 20, services: 30, configs: 40 } as const;
+/** E36: seconds after a ConfigMap or Secret changes until the kubelet has written it into the volumes that mount it (its sync model). */
+export const CONFIG_SYNC_SECONDS = 60;
 
 /** A JSON value as an object (or an empty one). */
 export const obj = (v: J | undefined): JObj => v && typeof v === 'object' && !Array.isArray(v) ? v : {};

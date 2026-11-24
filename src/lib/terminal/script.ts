@@ -1025,7 +1025,9 @@ class Interp {
   private background(ao: AndOr) {
     const only = !ao.rest.length && ao.first.cmds.length === 1 && ao.first.cmds[0].t === 'simple' ? ao.first.cmds[0] : undefined;
     const argv = only ? this.glob(only.words.flatMap(w => this.fields(w))) : [];
-    if (!only || argv[0] !== 'sleep' || only.redirs.length) { this.err(`${this.where()}模擬環境的背景執行（&）只支援 sleep，例如 sleep 300 &`); this.status = 1; return; }
+    // E35: kubectl port-forward … & on the kube-net profile is a job too (shell.ts's background).
+    const job = argv[0] === 'sleep' || (argv[0] === 'kubectl' && argv[1] === 'port-forward' && this.features.has('kube-net'));
+    if (!only || !job || only.redirs.length) { this.err(`${this.where()}模擬環境的背景執行（&）只支援 sleep，例如 sleep 300 &`); this.status = 1; return; }
     const r = background(this.state, [{ argv: argv.map(literalWord), redirects: [] }], this.features);
     this.state = r.state;
     for (const l of r.lines) if (this.interactive || l.kind === 'err') this.write(l.kind === 'out' ? this.fd1 : this.fd2, `${l.text}\n`);

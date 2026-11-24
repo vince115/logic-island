@@ -28,7 +28,7 @@ function documents(x: Kx): Doc[] | { error: string } {
       catch { out.push({ error: `error: error parsing ${f}: invalid character in JSON` }); }
       continue;
     }
-    const docs = readManifests(r.text, f);
+    const docs = readManifests(r.text, f, !!x.k.config);
     if ('error' in docs) return docs;
     out.push(...docs.map(d => 'error' in d ? d : { doc: d.doc, file: f }));
   }

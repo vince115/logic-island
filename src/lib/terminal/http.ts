@@ -484,6 +484,8 @@ export function curl(state0: FsState, args: readonly string[], io: NetIo): NetRe
         }
         timing = { lookup, rtt: rttTo(state, address) ?? 0, tls: u.scheme === 'https', fresh: true };
         say(`*   Trying ${address}:${u.port}...`);
+        // E35: a new connection (kube-proxy picks a Service's endpoint for it).
+        if (io.connect) state = io.connect(state, address, u.port);
         const reached = reach(state, address, u.port);
         if (reached.result !== 'ok') {
           if (reached.result === 'timeout' && o.connectTimeout !== undefined) ex.exit = error(28, `Failed to connect to ${u.host} port ${u.port} after ${Math.round(o.connectTimeout * 1000)} ms: Timeout was reached`);

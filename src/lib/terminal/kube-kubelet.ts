@@ -3,6 +3,8 @@ import { imageNodes, seedLines, type DockerImage, type DockerState } from './doc
 import type { FsNode } from './fs';
 import { about, record } from './kube-api';
 import { behaviour, imageIdOf, resolveImage } from './kube-image';
+import { missingPullText, pullCreds, resolveEnv, skippedText } from './kube-env';
+import { mountNodes, subPathFiles } from './kube-volumes';
 import { arr, containerId, goDuration, KUBE_LIMITS, nameOf, nsOf, obj, str, uidOf, type CSim, type J, type JObj, type KubeState, type PodSim } from './kube-model';
 
 /*
@@ -38,11 +40,24 @@ export function stepContainer(d: DockerState | undefined, k0: KubeState, pod: JO
   const spec = obj(specOf(pod, r)), who = about(pod), ev = (type: 'Normal' | 'Warning', reason: string, message: string) => { k = record(k, t, who, type, reason, message); };
   const set = (x: CSim) => { c = x; sim = put(sim, r, x); };
   const image = c.image, policy = str(spec.imagePullPolicy) ?? 'IfNotPresent', cache = k.cache[sim.node] ?? [];
+  // E36: an image the node has needs no login; the environment and subPath files are read when the container is created.
+  const have = k.config ? 'pulled' as const : undefined;
   const start = () => {
-    const res = resolveImage(d, image);
+    const res = resolveImage(d, image, have);
     if ('error' in res) return;
-    const cid = containerId(`${uidOf(pod)}/${c.name}/${c.restarts}`);
-    const b = behaviour(d, res.img, spec, nameOf(pod), cid, t);
+    let env: [string, string][] | undefined, subs: CSim['subs'];
+    if (k.config) {
+      const r = resolveEnv(k, pod, spec);
+      if ('error' in r) {
+        ev('Warning', 'Failed', `Error: ${r.error}`);
+        set({ ...c, state: 'waiting', reason: 'CreateContainerConfigError', message: r.error, next: t + 10, step: 'pull' });
+        return;
+      }
+      for (const s of r.skipped) ev('Warning', 'InvalidEnvironmentVariableNames', skippedText(s));
+      env = r.env; subs = subPathFiles(sim, spec);
+    }
+    const cid = containerId(`${uidOf(pod)}/${c.name}/${c.restarts}`), mounts = k.config ? mountNodes(pod, sim, spec, { ...c, subs }) : undefined;
+    const b = behaviour(d, res.img, spec, nameOf(pod), cid, t, env, mounts);
     if (b.startError) {
       ev('Warning', 'Failed', `Error: ${b.startError}`);
       set({ ...c, state: 'terminated', reason: 'StartError', message: b.startError, exit: 128, started: t, finished: t, cid, imageId: imageIdOf(res), next: t, step: 'exit', plan: { exit: 128, logs: [], reason: 'StartError', message: b.startError } });
@@ -51,14 +66,17 @@ export function stepContainer(d: DockerState | undefined, k0: KubeState, pod: JO
     ev('Normal', 'Created', `Created container: ${c.name}`);
     ev('Normal', 'Started', `Started container ${c.name}`);
     const base = { ...c, state: 'running' as const, reason: undefined, message: undefined, exit: undefined, finished: undefined, started: t, cid, imageId: imageIdOf(res), logs: cap([...c.logs, ...b.lines]), retry: undefined,
-      ...k.probes && b.nodes ? { layer: layerOf(res.img, cid, b.nodes) } : {} };
+      ...k.probes && b.nodes ? { layer: layerOf(res.img, cid, b.nodes, mounts) } : {}, ...k.config ? { env, subs } : {} };
     if (b.exit) set({ ...base, next: t, step: 'exit', plan: { exit: b.exit.exit, oom: b.exit.oom, logs: [] } });
     else if (b.later) set({ ...base, next: b.later.at, step: 'exit', plan: { exit: b.later.exit, oom: b.later.oom, logs: b.later.logs } });
     else set({ ...base, next: undefined, step: undefined, plan: undefined });
   };
   switch (c.step) {
     case 'pull': {
-      const present = cache.includes(image), res = resolveImage(d, image);
+      // E36: the pod's imagePullSecrets (a missing one is an event; the pull goes on without it).
+      const pc = k.config ? pullCreds(k, pod) : undefined;
+      if (pc?.missing.length) ev('Warning', 'FailedToRetrieveImagePullSecret', missingPullText(pc.missing));
+      const present = cache.includes(image), res = resolveImage(d, image, pc ? { creds: pc.creds } : undefined);
       if (policy !== 'Always' && present) { ev('Normal', 'Pulled', `Container image "${image}" already present on machine`); start(); break; }
       if (policy === 'Never') {
         ev('Warning', 'ErrImageNeverPull', `Container image "${image}" is not present with pull policy of Never`);
@@ -85,7 +103,7 @@ export function stepContainer(d: DockerState | undefined, k0: KubeState, pod: JO
       break;
     }
     case 'pulled': {
-      const res = resolveImage(d, image), seconds = c.plan?.exit ?? 0, size = 'img' in res ? res.img.size : 0;
+      const res = resolveImage(d, image, have), seconds = c.plan?.exit ?? 0, size = 'img' in res ? res.img.size : 0;
       ev('Normal', 'Pulled', `Successfully pulled image "${image}" in ${goDuration(seconds)} (${goDuration(seconds)} including waiting). Image size: ${size} bytes.`);
       if (!cache.includes(image)) k = { ...k, cache: { ...k.cache, [sim.node]: [...cache, image] } };
       set({ ...c, plan: undefined });
@@ -127,8 +145,9 @@ export function stepContainer(d: DockerState | undefined, k0: KubeState, pod: JO
   return { k, sim };
 }
 /** E33: the files the main process changed (its writable layer), against the image's. */
-function layerOf(img: DockerImage, cid: string, nodes: ReadonlyMap<string, FsNode>): ReadonlyMap<string, FsNode> {
+function layerOf(img: DockerImage, cid: string, nodes: ReadonlyMap<string, FsNode>, mounts?: ReadonlyMap<string, FsNode>): ReadonlyMap<string, FsNode> {
   const base = imageNodes(img, cid), layer = new Map<string, FsNode>();
+  for (const [p, n] of mounts ?? []) base.set(p, n);
   for (const [path, n] of nodes) if (path !== '/etc/hostname' && JSON.stringify(base.get(path)) !== JSON.stringify(n)) layer.set(path, n);
   return layer;
 }

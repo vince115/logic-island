@@ -3,6 +3,8 @@ import { hex } from './docker';
 import { printPod } from './kube-status';
 import { resourceName } from './kube-output';
 import { selectorText } from './kube-workload-spec';
+import { externalIp, portsText } from './kube-service-spec';
+import { formatEndpoints, sliceAddresses, slicePorts } from './kube-endpoints';
 import {
   arr, CONTAINERD_VERSION, createdOf, goTab, humanDuration, KUBE_VERSION, labelsOf, nameOf, NODE_KERNEL, NODE_OS, nsOf, obj, stamp, str, uid,
   type J, type JObj, type KubeEvent, type KubeNode, type KubeState,
@@ -46,7 +48,6 @@ export function eventJson(e: KubeEvent): JObj {
 /** prefix: several types in one get (each name is kind/name). */
 export interface TableOpts { wide: boolean; all: boolean; labels: boolean; now: Seconds; prefix?: boolean; /** -L: a column per label key. */ columns?: readonly string[] }
 type Cols = { head: string[]; wide?: string[]; row: (o: JObj) => string[]; more?: (o: JObj) => string[] };
-const svcPorts = (o: JObj) => arr(obj(o.spec).ports).map(p => `${String(obj(p).port)}/${str(obj(p).protocol) ?? 'TCP'}`).join(',') || '<none>';
 const selText = (m: J | undefined) => Object.keys(obj(m)).length ? Object.entries(obj(m)).map(([a, b]) => `${a}=${String(b)}`).join(',') : '<none>';
 const COLUMNS: Record<string, (now: Seconds, k: KubeState) => Cols> = {
   Pod: now => ({ head: ['NAME', 'READY', 'STATUS', 'RESTARTS', 'AGE'], wide: ['IP', 'NODE', 'NOMINATED NODE', 'READINESS GATES'],
@@ -57,7 +58,13 @@ const COLUMNS: Record<string, (now: Seconds, k: KubeState) => Cols> = {
     more: o => [str(obj(arr(obj(o.status).addresses)[0]).address) ?? '<none>', '<none>', NODE_OS, NODE_KERNEL, `containerd://${CONTAINERD_VERSION}`] }),
   Namespace: now => ({ head: ['NAME', 'STATUS', 'AGE'], row: o => [nameOf(o), str(obj(o.status).phase) ?? 'Active', age(createdOf(o), now)] }),
   Service: now => ({ head: ['NAME', 'TYPE', 'CLUSTER-IP', 'EXTERNAL-IP', 'PORT(S)', 'AGE'], wide: ['SELECTOR'],
-    row: o => [nameOf(o), str(obj(o.spec).type) ?? 'ClusterIP', str(obj(o.spec).clusterIP) ?? '<none>', '<none>', svcPorts(o), age(createdOf(o), now)], more: o => [selText(obj(o.spec).selector)] }),
+    row: o => [nameOf(o), str(obj(o.spec).type) ?? 'ClusterIP', str(obj(o.spec).clusterIP) ?? '<none>', externalIp(o), portsText(o), age(createdOf(o), now)], more: o => [selText(obj(o.spec).selector)] }),
+  // E35: Endpoints and EndpointSlices.
+  Endpoints: now => ({ head: ['NAME', 'ENDPOINTS', 'AGE'], row: o => [nameOf(o), formatEndpoints(o), age(createdOf(o), now)] }),
+  EndpointSlice: now => ({ head: ['NAME', 'ADDRESSTYPE', 'PORTS', 'ENDPOINTS', 'AGE'], row: o => [nameOf(o), str(o.addressType) ?? 'IPv4', slicePorts(o), sliceAddresses(o), age(createdOf(o), now)] }),
+  // E36: ConfigMaps and Secrets (DATA counts data and binaryData keys).
+  ConfigMap: now => ({ head: ['NAME', 'DATA', 'AGE'], row: o => [nameOf(o), String(Object.keys(obj(o.data)).length + Object.keys(obj(o.binaryData)).length), age(createdOf(o), now)] }),
+  Secret: now => ({ head: ['NAME', 'TYPE', 'DATA', 'AGE'], row: o => [nameOf(o), str(o.type) ?? 'Opaque', String(Object.keys(obj(o.data)).length), age(createdOf(o), now)] }),
   Deployment: now => ({ head: ['NAME', 'READY', 'UP-TO-DATE', 'AVAILABLE', 'AGE'], wide: ['CONTAINERS', 'IMAGES', 'SELECTOR'],
     row: o => { const s = obj(o.status); return [nameOf(o), `${String(s.readyReplicas ?? 0)}/${String(obj(o.spec).replicas ?? 1)}`, String(s.updatedReplicas ?? 0), String(s.availableReplicas ?? 0), age(createdOf(o), now)]; },
     more: o => tmpl(o) }),

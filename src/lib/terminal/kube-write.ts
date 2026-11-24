@@ -2,7 +2,10 @@ import type { Seconds } from './clock';
 import { created, defaultPod, find, namespaceExists, NAMESPACED, put, remove } from './kube-api';
 import { API_VERSION, decodeProblem, fieldErrors, invalidText, KIND_STAGE, laterField, served } from './kube-manifest';
 import { defaultWorkload, immutableSelector, WORKLOAD_KINDS, workloadErrors, workloadLater } from './kube-workload-spec';
+import { allocate, defaultService, serviceErrors, serviceLater } from './kube-service-spec';
 import { changeImage } from './kube-kubelet';
+import { CONFIG_KINDS, configDecode, configErrors, configProse, configUpdateErrors, defaultConfig, rootCa, touched } from './kube-config-spec';
+import { podConfigErrors } from './kube-pod-config';
 import { goJson } from './kube-output';
 import { arr, changed, clone, KUBE_LIMITS, kindOf, meta, nameOf, nsOf, obj, sameJ, sortJ, stamp, str, suffix, uid, uidOf, type J, type JObj, type KubeState } from './kube-model';
 
@@ -42,16 +45,23 @@ const FORBIDDEN = 'spec: Forbidden: pod updates may not change fields other than
 
 /** Checks a manifest document and its namespace (ns: the object's, or the command's). */
 export function checkDoc(k: KubeState, doc: JObj, ns: string, file: string): string | null {
-  const kind = kindOf(doc), name = nameOf(doc), api = str(doc.apiVersion) ?? '', workload = isWorkload(k, kind);
-  if (!served(kind, !!k.workloads) || API_VERSION[kind] !== api) {
+  const kind = kindOf(doc), name = nameOf(doc), api = str(doc.apiVersion) ?? '', workload = isWorkload(k, kind), service = !!k.net && kind === 'Service';
+  // E36 (kube-config): ConfigMaps and Secrets, and the pods' configuration fields.
+  const config = !!k.config, cfg = config && CONFIG_KINDS.includes(kind);
+  // E35: Endpoints and EndpointSlices are the controllers' (a Service without a selector and its own Endpoints is prose).
+  if (k.net && (kind === 'Endpoints' || kind === 'EndpointSlice')) return `（模擬環境：${kind} 由控制器依 Service 的 selector 維護；手動建立的 ${kind} 只在課文說明）`;
+  if (!served(kind, !!k.workloads, !!k.net, config) || API_VERSION[kind] !== api) {
     if (KIND_STAGE[kind] && API_VERSION[kind] === api) return `（模擬環境：${kind} 要到引擎階段 ${KIND_STAGE[kind]} 才模擬）`;
     return `error: resource mapping not found for name: "${name}" namespace: "${NAMESPACED[kind] ? ns : ''}" from "${file}": no matches for kind "${kind}" in version "${api}"\nensure CRDs are installed first`;
   }
-  const decode = decodeProblem(doc, !!k.probes, !!k.workloads);
+  const decode = decodeProblem(doc, !!k.probes, !!k.workloads, !!k.net, config) ?? (cfg ? configDecode(doc) : null);
   if (decode) return `Error from server (BadRequest): error when creating "${file}": ${kind} in version "v1" cannot be handled as a ${kind}: ${decode}`;
-  const later = workload ? workloadLater(doc) : laterField(doc, !!k.probes);
+  const prose = cfg ? configProse(doc) : null;
+  if (prose) return prose;
+  const later = service ? serviceLater(doc) : workload ? workloadLater(doc, config) : laterField(doc, !!k.probes, config);
   if (later) return `（模擬環境：${later.path} 要到引擎階段 ${later.stage} 才模擬）`;
-  const errors = workload ? workloadErrors(defaultWorkload(doc)) : fieldErrors(doc, !!k.probes);
+  const own = config && (kind === 'Pod' || workload) ? podConfigErrors(doc) : [];
+  const errors = service ? serviceErrors(defaultService(doc)) : workload ? [...workloadErrors(defaultWorkload(doc)), ...own] : cfg ? [...fieldErrors(doc), ...configErrors(defaultConfig(doc))] : [...fieldErrors(doc, !!k.probes), ...own];
   if (errors.length) return invalidText(kind, name, errors);
   if (NAMESPACED[kind] && !namespaceExists(k, ns)) return `Error from server (NotFound): error when creating "${file}": namespaces "${ns}" not found`;
   return null;
@@ -72,13 +82,21 @@ export function createDoc(k0: KubeState, doc0: JObj, ns: string, t: Seconds, fil
   const kind = kindOf(doc0), doc = cleaned(doc0, ns), space = NAMESPACED[kind] ? ns : undefined;
   if (kind === 'Pod' && k0.objects.filter(o => kindOf(o) === 'Pod' && nsOf(o) !== 'kube-system').length >= KUBE_LIMITS.pods) return { error: `（模擬環境：叢集最多 ${KUBE_LIMITS.pods} 個 Pod）` };
   if (kind === 'Deployment' && k0.objects.filter(o => kindOf(o) === 'Deployment' && nsOf(o) !== 'kube-system').length >= KUBE_LIMITS.deployments) return { error: `（模擬環境：叢集最多 ${KUBE_LIMITS.deployments} 個 Deployment）` };
+  if (kind === 'Service' && k0.objects.filter(o => kindOf(o) === 'Service').length >= KUBE_LIMITS.services) return { error: `（模擬環境：叢集最多 ${KUBE_LIMITS.services} 個 Service）` };
+  if (CONFIG_KINDS.includes(kind) && k0.objects.filter(o => CONFIG_KINDS.includes(kindOf(o)) && nameOf(o) !== 'kube-root-ca.crt').length >= KUBE_LIMITS.configs) return { error: `（模擬環境：叢集最多 ${KUBE_LIMITS.configs} 個 ConfigMap 與 Secret）` };
   if (find(k0, kind, space, nameOf(doc))) return { error: `Error from server (AlreadyExists): error when creating "${file}": ${plural(kind)} "${nameOf(doc)}" already exists` };
   const annotations: JObj = { ...obj(meta(doc).annotations) };
   if (lastApplied) annotations[LAST_APPLIED] = `${goJson(sortJ({ ...doc, metadata: { ...meta(doc), annotations: { ...obj(meta(doc).annotations) } } }), false)}\n`;
   const r = created(k0, { ...doc, metadata: { ...meta(doc), ...Object.keys(annotations).length ? { annotations } : {} } }, space, t);
   // E34: a Deployment or ReplicaSet gets its defaults and generation 1; the controllers take it from there.
-  const o = isWorkload(k0, kind) ? { ...defaultWorkload(r.o), metadata: { ...meta(r.o), generation: 1 }, status: {} } : r.o;
-  return { k: put(r.k, o), line: `${lineName(kind)}/${nameOf(doc)} created` };
+  let o = isWorkload(k0, kind) ? { ...defaultWorkload(r.o), metadata: { ...meta(r.o), generation: 1 }, status: {} } : r.o;
+  // E35: a Service gets its defaults, its ClusterIP and its NodePorts (or the allocators' errors).
+  if (k0.net && kind === 'Service') { const a = allocate(k0, defaultService({ ...o, status: {} })); if ('errors' in a) return { error: invalidText(kind, nameOf(doc), a.errors) }; o = a.o; }
+  // E36: a Secret's stringData merged into data; a new namespace gets its kube-root-ca.crt.
+  if (k0.config && CONFIG_KINDS.includes(kind)) o = defaultConfig(o);
+  let k = touched(put(r.k, o), o, t);
+  if (k0.config && kind === 'Namespace') k = rootCa(k, nameOf(doc), t);
+  return { k, line: `${lineName(kind)}/${nameOf(doc)} created` };
 }
 
 export function applyDoc(k0: KubeState, doc0: JObj, ns: string, t: Seconds, file: string): Written {
@@ -103,9 +121,24 @@ export function applyDoc(k0: KubeState, doc0: JObj, ns: string, t: Seconds, file
     if (errs.length) return { error: invalidText(kind, nameOf(doc), errs) };
     if (!sameJ(obj(liveRest.spec), obj(merged.spec))) merged = { ...merged, metadata: { ...meta(merged), generation: Number(meta(live).generation ?? 1) + 1 } };
   }
+  if (k0.net && kind === 'Service') {
+    // E35: defaults again, the ClusterIP and the NodePorts kept (new ones for a new type), the type's fields dropped.
+    merged = defaultService({ ...merged, status: status ?? {} });
+    const errs = serviceErrors(merged), a = errs.length ? undefined : allocate(k0, merged, live);
+    if (errs.length || (a && 'errors' in a)) return { error: invalidText(kind, nameOf(doc), errs.length ? errs : (a as { errors: string[] }).errors) };
+    const { status: _st, ...spec0 } = (a as { o: JObj }).o;
+    void _st;
+    merged = spec0;
+  }
+  if (k0.config && CONFIG_KINDS.includes(kind)) {
+    // E36: stringData merged again (the last apply's keys stay in data), the keys and an immutable object checked.
+    merged = defaultConfig(merged);
+    const errs = [...configErrors(merged), ...configUpdateErrors(live, merged)];
+    if (errs.length) return { error: invalidText(kind, nameOf(doc), errs) };
+  }
   const next: JObj = { ...merged, ...status !== undefined ? { status } : {} };
   if (sameJ({ ...next, metadata: { ...meta(next), resourceVersion: null } }, { ...live, metadata: { ...meta(live), resourceVersion: null } })) return { k: k0, line: `${lineName(kind)}/${nameOf(doc)} unchanged`, ...warn ? { warn } : {} };
-  let k = put(k0, next);
+  let k = touched(put(k0, next), next, t);
   if (kind === 'Pod') k = imagesChanged(k, next, t);
   return { k, line: `${lineName(kind)}/${nameOf(doc)} configured`, ...warn ? { warn } : {} };
 }
@@ -123,7 +156,7 @@ function imagesChanged(k0: KubeState, pod: JObj, t: Seconds): KubeState {
 
 /** Deletes the object (a namespace with everything in it); kube-system's pods come back at once, as their controllers make them. */
 export function deleteObject(k0: KubeState, o: JObj, t: Seconds): KubeState {
-  let k = remove(k0, o);
+  let k = touched(remove(k0, o), o, t);
   if (kindOf(o) === 'Namespace') for (const x of k.objects.filter(y => nsOf(y) === nameOf(o))) k = remove(k, x);
   if (kindOf(o) === 'Pod' && nsOf(o) === 'kube-system') k = recreateSystemPod(k, o, k0.pods[uidOf(o)], t);
   return changed(k, t);

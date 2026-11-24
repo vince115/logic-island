@@ -17,8 +17,8 @@ import { changed, meta, obj, stamp, str, uidOf, type JObj, type KubeState, type 
  */
 
 /** What PID 1 does on the container's stop signal: the program's handler, or none (a shell-form sh -c ignores it). */
-export function stopHandler(d: DockerState | undefined, spec: unknown, image: string): { seconds: number; logs: readonly LogSeed[]; exit: number } | undefined {
-  const res = resolveImage(d, image);
+export function stopHandler(d: DockerState | undefined, spec: unknown, image: string, pulled = false): { seconds: number; logs: readonly LogSeed[]; exit: number } | undefined {
+  const res = resolveImage(d, image, pulled ? 'pulled' : undefined);
   if ('error' in res) return undefined;
   const img = res.img, s = obj(spec as JObj), argv = argvOf(img, spec as JObj), base = (argv[0] ?? '').slice((argv[0] ?? '').lastIndexOf('/') + 1);
   if ((base === 'sh' || base === 'bash') && argv[1] === '-c' && argv.length >= 3 && !/^\s*exec\s/.test(argv[2])) return undefined;
@@ -49,7 +49,7 @@ export function stopContainer(d: DockerState | undefined, k0: KubeState, pod: JO
     used = Math.min(o.seconds, why.grace);
     if ('errored' in o || !o.ok) k = record(k, t, about(pod), 'Warning', 'FailedPreStopHook', 'PreStopHook failed');
   }
-  const left = Math.max(why.grace - used, MIN_GRACE), at = t + used, h = stopHandler(d, spec, c.image);
+  const left = Math.max(why.grace - used, MIN_GRACE), at = t + used, h = stopHandler(d, spec, c.image, !!k0.config);
   const handled = !!h && h.seconds <= left, end = handled ? at + h.seconds : at + left;
   const plan = { exit: handled ? h.exit : 137, logs: h?.logs ?? [], restart: why.restart };
   const keep = c.step === 'exit' && c.next !== undefined && c.next <= end && c.plan;

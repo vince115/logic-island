@@ -45,6 +45,7 @@ import type { LinkState } from './diag';
 import type { DockerState } from './docker';
 import type { GitState } from './git-state';
 import type { KubeState } from './kube-model';
+import type { KubeNetView } from './kube-net';
 
 export interface FsNode {
   /** E1: 'link' is a symbolic link (the lab never has one). */
@@ -179,6 +180,8 @@ export interface FsState {
   ci?: CiState;
   /** E32: the simulated Kubernetes cluster kubectl talks to (only the local machine of the cluster profile has one). */
   kube?: KubeState;
+  /** E35: a view of the cluster's network (a pod's, or the learner's with NodePorts and LoadBalancers): kube-proxy's Service addresses, their turns, CoreDNS. */
+  kubeNet?: KubeNetView;
 }
 /** E13: what certbot keeps (the simulated CA's certificate lifetime in days, its order counter). */
 export interface TlsState { lifetime: number; orders: number }
