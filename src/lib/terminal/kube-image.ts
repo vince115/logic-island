@@ -80,6 +80,14 @@ export function argvOf(img: DockerImage, spec: J): string[] {
   return argv[0]?.endsWith('.sh') && argv.length > 1 ? argv.slice(1) : argv;
 }
 
+/** E40: the runtime model of a container's main process (the image's own, or the lesson's program) and whether it is a service. */
+export function mainRuntime(d: DockerState | undefined, img: DockerImage, spec: J): { rt?: RuntimeSpec; service: boolean } {
+  const s = obj(spec);
+  if (!s.command && !s.args && !img.ownMain) return { rt: img.runtime, service: img.service };
+  const prog = d ? programFor(d, argvOf(img, spec)) : undefined;
+  return prog ? { rt: prog.runtime, service: prog.service } : { service: false };
+}
+
 /** What the main process does from its start: lines it prints, an exit now or later (OOM at the memory limit), or a start error. */
 export interface Behaviour { lines: LogLine[]; exit?: { exit: number; oom?: boolean }; later?: { at: Seconds; exit: number; oom?: boolean; logs: readonly LogSeed[] }; startError?: string; nodes?: ReadonlyMap<string, FsNode> }
 const outputLines = (text: string | undefined, t: Seconds): LogLine[] => text ? text.replace(/\n$/, '').split('\n').map(line => ({ t, stream: 1 as const, text: line })) : [];

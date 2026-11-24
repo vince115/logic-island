@@ -11,6 +11,7 @@ import { defaultGateway, gatewayErrors, gatewayProse, GROUP_OF, PLURAL_OF } from
 import { goJson } from './kube-output';
 import { defaultStorage, podStorageErrors, storageErrors, storageProse, storageUpdateErrors } from './kube-storage-spec';
 import { markDeleting, STORAGE_KINDS } from './kube-storage-model';
+import { defaultHpa, HPA, hpaErrors, hpaProse } from './kube-hpa-spec';
 import { arr, changed, clone, systemNs, KUBE_LIMITS, kindOf, meta, nameOf, nsOf, obj, sameJ, sortJ, stamp, str, suffix, uid, uidOf, type J, type JObj, type KubeState } from './kube-model';
 
 /*
@@ -26,7 +27,9 @@ export const LAST_APPLIED = 'kubectl.kubernetes.io/last-applied-configuration';
 export type Written = { k: KubeState; line: string; warn?: string } | { error: string };
 const SERVER_META = ['uid', 'resourceVersion', 'creationTimestamp', 'managedFields', 'generation', 'selfLink'];
 /** E38: StatefulSet is apps', StorageClass storage.k8s.io's. */
-const STORAGE_GROUP: Record<string, [string, string]> = { StatefulSet: ['statefulsets', 'apps'], StorageClass: ['storageclasses', 'storage.k8s.io'] };
+const STORAGE_GROUP: Record<string, [string, string]> = { StatefulSet: ['statefulsets', 'apps'], StorageClass: ['storageclasses', 'storage.k8s.io'], HorizontalPodAutoscaler: ['horizontalpodautoscalers', 'autoscaling'] };
+/** E40: an HPA on the autoscaling profile. */
+const isHpa = (k: KubeState, kind: string) => !!k.autoscale && kind === HPA;
 const plural = (kind: string) => STORAGE_GROUP[kind] ? STORAGE_GROUP[kind].join('.') : GROUP_OF[kind] ? `${PLURAL_OF[kind]}.${GROUP_OF[kind]}` : WORKLOAD_KINDS.includes(kind) ? `${kind.toLowerCase()}s.apps` : `${kind.toLowerCase()}s`;
 /** E37: what the profile's API server serves of Ingress and the Gateway API (its CRDs only when the lesson installs them). */
 export const ingressApi = (k: KubeState) => k.ingress ? (k.ingress.gateway ? 'gateway' as const : 'ingress' as const) : undefined;
@@ -62,20 +65,21 @@ export function checkDoc(k: KubeState, doc: JObj, ns: string, file: string): str
   // E35: Endpoints and EndpointSlices are the controllers' (a Service without a selector and its own Endpoints is prose).
   if (k.net && (kind === 'Endpoints' || kind === 'EndpointSlice')) return `（模擬環境：${kind} 由控制器依 Service 的 selector 維護；手動建立的 ${kind} 只在課文說明）`;
   // E37: Ingress on the ingress profile; without the lesson's Gateway API CRDs their kinds are unknown to the API server.
-  const route = isRoute(k, kind), store = isStorage(k, kind), storage = !!k.storage;
-  if (!served(kind, !!k.workloads, !!k.net, config, ingressApi(k), storage) || API_VERSION[kind] !== api) {
+  const route = isRoute(k, kind), store = isStorage(k, kind), storage = !!k.storage, hpa = isHpa(k, kind);
+  if (hpa && api === 'autoscaling/v1') return '（模擬環境：manifest 只模擬 autoscaling/v2 的 HorizontalPodAutoscaler；請把 targetCPUUtilizationPercentage 寫成 v2 的 metrics）';
+  if (!served(kind, !!k.workloads, !!k.net, config, ingressApi(k), storage, !!k.autoscale) || API_VERSION[kind] !== api) {
     if (KIND_STAGE[kind] && API_VERSION[kind] === api && !(k.ingress && GATEWAY_KINDS.includes(kind))) return `（模擬環境：${kind} 要到引擎階段 ${KIND_STAGE[kind]} 才模擬）`;
     return `error: resource mapping not found for name: "${name}" namespace: "${NAMESPACED[kind] && (storage || !STORAGE_KINDS.includes(kind)) ? ns : ''}" from "${file}": no matches for kind "${kind}" in version "${api}"\nensure CRDs are installed first`;
   }
-  const decode = decodeProblem(doc, !!k.probes, !!k.workloads, !!k.net, config, ingressApi(k), storage) ?? (cfg ? configDecode(doc) : null);
+  const decode = decodeProblem(doc, !!k.probes, !!k.workloads, !!k.net, config, ingressApi(k), storage, !!k.autoscale) ?? (cfg ? configDecode(doc) : null);
   if (decode) return `Error from server (BadRequest): error when creating "${file}": ${kind} in version "v1" cannot be handled as a ${kind}: ${decode}`;
-  const prose = cfg ? configProse(doc) : route ? ingressProse(doc) ?? gatewayProse(doc) : store ? storageProse(doc) : null;
+  const prose = cfg ? configProse(doc) : route ? ingressProse(doc) ?? gatewayProse(doc) : store ? storageProse(doc) : hpa ? hpaProse(doc) : null;
   if (prose) return prose;
   // E38: a StatefulSet's template as a workload's; PVs, PVCs and classes have no later fields.
-  const later = route ? null : service ? serviceLater(doc) : workload || kind === 'StatefulSet' ? workloadLater(doc, config, storage) : store ? null : laterField(doc, !!k.probes, config, storage);
+  const later = route || hpa ? null : service ? serviceLater(doc) : workload || kind === 'StatefulSet' ? workloadLater(doc, config, storage) : store ? null : laterField(doc, !!k.probes, config, storage);
   if (later) return `（模擬環境：${later.path} 要到引擎階段 ${later.stage} 才模擬）`;
   const own = config && (kind === 'Pod' || workload) ? [...podConfigErrors(doc), ...storage ? podStorageErrors(doc) : []] : [];
-  const errors = store ? storageErrors(defaultStorage(k, doc, 0)) : route ? [...fieldErrors(doc), ...routeErrors(GATEWAY_KINDS.includes(kind) ? defaultGateway(doc) : doc)] : service ? serviceErrors(defaultService(doc)) : workload ? [...workloadErrors(defaultWorkload(doc)), ...own] : cfg ? [...fieldErrors(doc), ...configErrors(defaultConfig(doc))] : [...fieldErrors(doc, !!k.probes), ...own];
+  const errors = hpa ? [...fieldErrors(doc), ...hpaErrors(defaultHpa(doc))] : store ? storageErrors(defaultStorage(k, doc, 0)) : route ? [...fieldErrors(doc), ...routeErrors(GATEWAY_KINDS.includes(kind) ? defaultGateway(doc) : doc)] : service ? serviceErrors(defaultService(doc)) : workload ? [...workloadErrors(defaultWorkload(doc)), ...own] : cfg ? [...fieldErrors(doc), ...configErrors(defaultConfig(doc))] : [...fieldErrors(doc, !!k.probes), ...own];
   if (errors.length) return invalidText(kind, name, errors);
   if (NAMESPACED[kind] && !namespaceExists(k, ns)) return `Error from server (NotFound): error when creating "${file}": namespaces "${ns}" not found`;
   return null;
@@ -100,6 +104,7 @@ export function createDoc(k0: KubeState, doc0: JObj, ns: string, t: Seconds, fil
   if (CONFIG_KINDS.includes(kind) && k0.objects.filter(o => CONFIG_KINDS.includes(kindOf(o)) && nameOf(o) !== 'kube-root-ca.crt').length >= KUBE_LIMITS.configs) return { error: `（模擬環境：叢集最多 ${KUBE_LIMITS.configs} 個 ConfigMap 與 Secret）` };
   if (isRoute(k0, kind) && k0.objects.filter(o => isRoute(k0, kindOf(o))).length >= 30) return { error: '（模擬環境：叢集最多 30 個 Ingress、IngressClass 與 Gateway API 物件）' };
   if (isStorage(k0, kind) && k0.objects.filter(o => STORAGE_KINDS.includes(kindOf(o))).length >= 40) return { error: '（模擬環境：叢集最多 40 個 StorageClass、PV、PVC 與 StatefulSet）' };
+  if (isHpa(k0, kind) && k0.objects.filter(o => kindOf(o) === HPA).length >= 10) return { error: '（模擬環境：叢集最多 10 個 HorizontalPodAutoscaler）' };
   if (find(k0, kind, space, nameOf(doc))) return { error: `Error from server (AlreadyExists): error when creating "${file}": ${plural(kind)} "${nameOf(doc)}" already exists` };
   const annotations: JObj = { ...obj(meta(doc).annotations) };
   if (lastApplied) annotations[LAST_APPLIED] = `${goJson(sortJ({ ...doc, metadata: { ...meta(doc), annotations: { ...obj(meta(doc).annotations) } } }), false)}\n`;
@@ -114,6 +119,8 @@ export function createDoc(k0: KubeState, doc0: JObj, ns: string, t: Seconds, fil
   if (isRoute(k0, kind)) o = { ...kind === 'Ingress' ? { ...defaultIngressClass(k0, o), status: { loadBalancer: {} } } : defaultGateway(o), metadata: { ...meta(o), generation: 1 } };
   // E38: a storage object's defaults, the DefaultStorageClass admission and the protection finalizers; a StatefulSet's generation 1.
   if (isStorage(k0, kind)) o = kind === 'StatefulSet' ? { ...defaultStorage(k0, o, t, true), metadata: { ...meta(o), generation: 1 }, status: { availableReplicas: 0, replicas: 0 } } : defaultStorage(k0, o, t, true);
+  // E40: an HPA's defaults and generation 1; the controller syncs it at once.
+  if (isHpa(k0, kind)) o = { ...defaultHpa(o), metadata: { ...meta(o), generation: 1 }, status: { currentMetrics: null, desiredReplicas: 0 } };
   let k = touched(put(r.k, o), o, t);
   if (k0.config && kind === 'Namespace') k = rootCa(k, nameOf(doc), t);
   return { k, line: `${lineName(kind)}/${nameOf(doc)} created` };
@@ -175,6 +182,13 @@ export function applyDoc(k0: KubeState, doc0: JObj, ns: string, t: Seconds, file
     if (errs.length) return { error: invalidText(kind, nameOf(doc), errs) };
     if (u.forbidden) return { error: `Error from server (Forbidden): error when patching "${file}": ${plural(kind)} "${nameOf(doc)}" is forbidden: ${u.forbidden}` };
     if (kind === 'StatefulSet' && !sameJ(obj(liveRest.spec), obj(merged.spec))) merged = { ...merged, metadata: { ...meta(merged), generation: Number(meta(live).generation ?? 1) + 1 } };
+  }
+  if (isHpa(k0, kind)) {
+    // E40: the defaults again and the validation; a new spec is a new generation.
+    merged = defaultHpa(merged);
+    const errs = hpaErrors(merged);
+    if (errs.length) return { error: invalidText(kind, nameOf(doc), errs) };
+    if (!sameJ(obj(liveRest.spec), obj(merged.spec))) merged = { ...merged, metadata: { ...meta(merged), generation: Number(meta(live).generation ?? 1) + 1 } };
   }
   const next: JObj = { ...merged, ...status !== undefined ? { status } : {} };
   if (sameJ({ ...next, metadata: { ...meta(next), resourceVersion: null } }, { ...live, metadata: { ...meta(live), resourceVersion: null } })) return { k: k0, line: `${lineName(kind)}/${nameOf(doc)} unchanged`, ...warn ? { warn } : {} };

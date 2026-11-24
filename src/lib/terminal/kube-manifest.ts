@@ -117,12 +117,20 @@ const storageSchemas = (base: Record<string, F>): Record<string, F> => {
       persistentVolumeClaimRetentionPolicy: { go: 'StatefulSetPersistentVolumeClaimRetentionPolicy', fields: { whenDeleted: 'str', whenScaled: 'str' } } } }) };
 };
 const SCHEMAS_E38 = storageSchemas(SCHEMAS_E37), SCHEMAS_E38_GATEWAY = storageSchemas(SCHEMAS_GATEWAY);
+/** E40: HorizontalPodAutoscaler autoscaling/v2 on the autoscaling profile (Pods, Object, External and ContainerResource metrics are prose). */
+const RULES: F = { go: 'HPAScalingRules', fields: { stabilizationWindowSeconds: 'int', selectPolicy: 'str', policies: { list: { go: 'HPAScalingPolicy', fields: { type: 'str', value: 'int', periodSeconds: 'int' } } } } };
+const HPA: F = OBJ('HorizontalPodAutoscaler', { go: 'HorizontalPodAutoscalerSpec', fields: { scaleTargetRef: { go: 'CrossVersionObjectReference', fields: { apiVersion: 'str', kind: 'str', name: 'str' } },
+  minReplicas: 'int', maxReplicas: 'int', behavior: { go: 'HorizontalPodAutoscalerBehavior', fields: { scaleUp: RULES, scaleDown: RULES } },
+  metrics: { list: { go: 'MetricSpec', fields: { type: 'str', pods: 'any', object: 'any', external: 'any', containerResource: 'any',
+    resource: { go: 'ResourceMetricSource', fields: { name: 'str', target: { go: 'MetricTarget', fields: { type: 'str', averageUtilization: 'int', averageValue: 'any', value: 'any' } } } } } } } } });
+const SCHEMAS_E40: Record<string, F> = { ...SCHEMAS_E38, HorizontalPodAutoscaler: HPA }, SCHEMAS_E40_GATEWAY: Record<string, F> = { ...SCHEMAS_E38_GATEWAY, HorizontalPodAutoscaler: HPA };
 /** ingress (E37): 'ingress' serves Ingress and IngressClass, 'gateway' the Gateway API too (its CRDs installed). */
 export type IngressApi = 'ingress' | 'gateway' | undefined;
-const schemas = (probes: boolean, workloads: boolean, net: boolean, config: boolean, ingress?: IngressApi, storage = false) => storage ? ingress === 'gateway' ? SCHEMAS_E38_GATEWAY : SCHEMAS_E38
+const schemas = (probes: boolean, workloads: boolean, net: boolean, config: boolean, ingress?: IngressApi, storage = false, autoscaling = false) => autoscaling ? ingress === 'gateway' ? SCHEMAS_E40_GATEWAY : SCHEMAS_E40
+  : storage ? ingress === 'gateway' ? SCHEMAS_E38_GATEWAY : SCHEMAS_E38
   : ingress === 'gateway' ? SCHEMAS_GATEWAY : ingress ? SCHEMAS_E37 : config ? SCHEMAS_E36 : net ? SCHEMAS_E35 : workloads ? SCHEMAS_E34 : probes ? SCHEMAS_E33 : SCHEMAS;
-/** Whether the profile's API server serves the kind (E34: Deployment and ReplicaSet on the workloads profile; E35: Service on kube-net; E36: ConfigMap and Secret on kube-config; E37: Ingress, and the Gateway API with its CRDs; E38: storage on kube-storage). */
-export const served = (kind: string, workloads: boolean, net = false, config = false, ingress?: IngressApi, storage = false) => !!schemas(false, workloads, net, config, ingress, storage)[kind];
+/** Whether the profile's API server serves the kind (E34: Deployment and ReplicaSet on the workloads profile; E35: Service on kube-net; E36: ConfigMap and Secret on kube-config; E37: Ingress, and the Gateway API with its CRDs; E38: storage on kube-storage; E40: HPA on autoscaling). */
+export const served = (kind: string, workloads: boolean, net = false, config = false, ingress?: IngressApi, storage = false, autoscaling = false) => !!schemas(false, workloads, net, config, ingress, storage, autoscaling)[kind];
 /** The kinds E32 creates and the stage that simulates the others (a known kind of a later stage is not an unknown kind). */
 export const KIND_STAGE: Record<string, string> = {
   Deployment: 'E34', ReplicaSet: 'E34', Service: 'E35', Endpoints: 'E35', ConfigMap: 'E36', Secret: 'E36', Ingress: 'E37', IngressClass: 'E37',
@@ -168,7 +176,7 @@ export function readManifests(text: string, file: string, octal = false): Manife
 }
 
 /** Strict decoding: the unknown fields (all of them) or the first type error, as the API server reports it. */
-export function decodeProblem(doc: JObj, probes = false, workloads = false, net = false, config = false, ingress?: IngressApi, storage = false): string | null {
+export function decodeProblem(doc: JObj, probes = false, workloads = false, net = false, config = false, ingress?: IngressApi, storage = false, autoscaling = false): string | null {
   const kind = str(doc.kind)!, unknown: string[] = [];
   let typeError: string | null = null;
   const walk = (v: J, f: F, path: string, go: string, dotted: string) => {
@@ -191,7 +199,7 @@ export function decodeProblem(doc: JObj, probes = false, workloads = false, net 
       walk(x, sub, `${path ? `${path}.` : ''}${k}`, f.go, dotted ? `${dotted}.${k}` : k);
     }
   };
-  walk(doc, schemas(probes, workloads, net, config, ingress, storage)[kind], '', kind, '');
+  walk(doc, schemas(probes, workloads, net, config, ingress, storage, autoscaling)[kind], '', kind, '');
   if (unknown.length) return `strict decoding error: ${unknown.map(u => `unknown field "${u}"`).join(', ')}`;
   return typeError;
 }

@@ -7,6 +7,7 @@ import { syncStatefulSet } from './kube-statefulset';
 import { syncStorage } from './kube-storage-ctl';
 import { STORAGE_KINDS } from './kube-storage-model';
 import { tolerates } from './kube-sched';
+import { hpaTimes, syncHpas } from './kube-hpa';
 import { DESIRED, HASH, MAX_REPLICAS, REVISION } from './kube-workload-spec';
 import { arr, clone, createdOf, systemNs, kindOf, meta, nameOf, nsOf, obj, stamp, str, uid, uidOf, type J, type JObj, type KubeState, type Taint } from './kube-model';
 
@@ -57,6 +58,8 @@ function nodeLifecycle(d: DockerState | undefined, k0: KubeState, t: Seconds): K
 /** The controllers at t, until nothing changes (garbage collection, ReplicaSets, Deployments). */
 export function runControllers(d: DockerState | undefined, k0: KubeState, t: Seconds): KubeState {
   let k = nodeLifecycle(d, k0, t);
+  // E40: the HPAs due now scale their targets first (the workload controllers below take it from there).
+  if (k.autoscale) k = syncHpas(d, k, t);
   for (let i = 0; i < 8; i++) {
     const before = k;
     k = collectGarbage(d, k, t);
@@ -87,6 +90,8 @@ export function controllerTimes(k: KubeState): Seconds[] {
     }
   }
   for (const f of k.failures ?? []) if (k.down?.[f.node] === undefined) out.push(f.at + NODE_GRACE);
+  // E40: each HPA's next sync (every 15 s).
+  if (k.autoscale) out.push(...hpaTimes(k));
   for (const pod of onDownNode(k)) { const at = evictAt(pod, k.down![k.pods[uidOf(pod)].node]); if (at !== undefined) out.push(at); }
   return out.filter(t => t > after || t === k.dirty);
 }

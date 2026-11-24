@@ -506,7 +506,7 @@ export const KUB_SHAPES: Readonly<Record<string, KubeShape>> = {
     stages: ['E32', 'E33', 'E34', 'E35', 'E36', 'E37', 'E38', 'E39', 'E40', 'D3', 'D5', 'D6'] },
 };
 /** The terminal engine stages of the KUB range (E32–E40) that exist (KUB0_KUBERNETES_CAPABILITY.md §4): E32, built in KUB-0; E33 and E34 (KUB-1); E35, E36 and E37 (KUB-2); E38 and E39 (KUB-3). */
-export const KUBE_STAGES_BUILT: readonly string[] = ['E32', 'E33', 'E34', 'E35', 'E36', 'E37', 'E38', 'E39'];
+export const KUBE_STAGES_BUILT: readonly string[] = ['E32', 'E33', 'E34', 'E35', 'E36', 'E37', 'E38', 'E39', 'E40'];
 const KUBE_RANGE = /^E(3[2-9]|40)$/;
 export function kubeFromBlueprint(lessonId: string, summary: string, minutes: number, withOptional = false): Outline {
   const b = planning.plannedLessons.find(l => l.lessonId === lessonId);
