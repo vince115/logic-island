@@ -27,10 +27,33 @@ import { createdOf, kindOf, obj, sameJ, str, uidOf, type JObj, type KubeState } 
 /** At most this many steps per settle (a crash loop is played step by step: about two months of one at the 5-minute back-off). */
 export const SETTLE_STEPS = 20000;
 
+/**
+ * KUB-4: the settled cluster depends only on the cluster, the machine's Docker state and the clock, and a lesson's
+ * validation replays the same machine from the same start many times (every exercise's solution, mistakes and variants);
+ * so the result is kept per cluster object, Docker object and time.
+ */
+const settledKube = new WeakMap<KubeState, { docker: string; now: Seconds; k: KubeState }[]>();
+// The Docker state is rebuilt for every replay, so it is compared by content (its text, made once per object).
+const dockerTexts = new WeakMap<object, string>();
+const dockerText = (d: FsState['docker']): string => {
+  if (!d) return '';
+  let t = dockerTexts.get(d);
+  if (t === undefined) { t = JSON.stringify(d); dockerTexts.set(d, t); }
+  return t;
+};
 export function settleKube(state: FsState): FsState {
   const k0 = state.kube;
   if (!k0) return state;
-  const now = clockOf(state).now;
+  const now = clockOf(state).now, seen = settledKube.get(k0) ?? [], docker = dockerText(state.docker);
+  const hit = seen.find(e => e.docker === docker && e.now === now);
+  if (hit) return { ...state, kube: hit.k };
+  const out = settleOnce(state, k0, now);
+  if (seen.length >= 8) seen.shift();
+  seen.push({ docker, now, k: out.kube! });
+  settledKube.set(k0, seen);
+  return out;
+}
+function settleOnce(state: FsState, k0: KubeState, now: Seconds): FsState {
   let k = k0;
   for (let n = 0; n < SETTLE_STEPS; n++) {
     const next = nextStep(k, now, state.docker);

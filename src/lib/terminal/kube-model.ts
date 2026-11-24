@@ -160,6 +160,15 @@ export const nameOf = (o: JObj) => str(meta(o).name) ?? '';
 export const nsOf = (o: JObj) => str(meta(o).namespace);
 export const kindOf = (o: JObj) => str(o.kind) ?? '';
 export const uidOf = (o: JObj) => str(meta(o).uid) ?? '';
+// KUB-4: the controllers look objects up by uid many times per step; an index is kept per objects array (states are never
+// changed in place, so an array's index stays right).
+const uidIndex = new WeakMap<readonly JObj[], Map<string, JObj>>();
+/** The object of the cluster with this uid (the first one, as find would give). */
+export function objectByUid(k: Pick<KubeState, 'objects'>, uid: string): JObj | undefined {
+  let ix = uidIndex.get(k.objects);
+  if (!ix) { ix = new Map(); for (const o of k.objects) { const u = uidOf(o); if (!ix.has(u)) ix.set(u, o); } uidIndex.set(k.objects, ix); }
+  return ix.get(uid);
+}
 export const labelsOf = (o: JObj): Record<string, string> => Object.fromEntries(Object.entries(obj(meta(o).labels)).filter((e): e is [string, string] => typeof e[1] === 'string'));
 export const createdOf = (o: JObj) => parseStamp(str(meta(o).creationTimestamp));
 

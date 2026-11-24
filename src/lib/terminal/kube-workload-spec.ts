@@ -138,7 +138,13 @@ export function workloadLater(doc: JObj, config = false, storage = false): { pat
 }
 
 /** A template without its pod-template-hash label (how the Deployment controller compares templates). */
+// KUB-4: kept per template object (templates are never changed in place; the controllers ask for it every step).
+const unhashed = new WeakMap<object, JObj>();
 export function withoutHash(t0: J | undefined): JObj {
+  if (t0 && typeof t0 === 'object') { const hit = unhashed.get(t0); if (hit) return hit; const out = withoutHashOnce(t0); unhashed.set(t0, out); return out; }
+  return withoutHashOnce(t0);
+}
+function withoutHashOnce(t0: J | undefined): JObj {
   const t = obj(t0), m: JObj = { ...obj(t.metadata) }, labels = { ...obj(m.labels) };
   delete labels[HASH];
   if (Object.keys(labels).length) m.labels = labels; else delete m.labels;

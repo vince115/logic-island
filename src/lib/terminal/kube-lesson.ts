@@ -104,7 +104,23 @@ export function expandKube(m: TerminalMachine, cluster: boolean, add: { file(f: 
 }
 
 /** The cluster at the machine's start: its nodes and system objects, then the boot manifests in order. */
+/**
+ * KUB-4: the cluster at a machine's start depends only on the machine's data, the time and the profile; validation builds
+ * the same machine for every replay, so it is built once per machine object, time and profile (the result is never
+ * changed in place: every engine step returns new objects).
+ */
+const built = new WeakMap<TerminalMachine, Map<string, { k: KubeState; problems: string[] }>>();
 export function buildKube(m: TerminalMachine, now: Seconds, probes = false, workloads = false, net = false, config = false, ingress = false, storage = false, helm = false, autoscaling = false): { k: KubeState; problems: string[] } {
+  const key = [now, probes, workloads, net, config, ingress, storage, helm, autoscaling].join('|'), byKey = built.get(m) ?? new Map();
+  const hit = byKey.get(key);
+  if (hit) return { k: hit.k, problems: [...hit.problems] };
+  const out = buildKubeOnce(m, now, probes, workloads, net, config, ingress, storage, helm, autoscaling);
+  if (byKey.size >= 8) byKey.delete(byKey.keys().next().value!);
+  byKey.set(key, { k: out.k, problems: [...out.problems] });
+  built.set(m, byKey);
+  return out;
+}
+function buildKubeOnce(m: TerminalMachine, now: Seconds, probes: boolean, workloads: boolean, net: boolean, config: boolean, ingress: boolean, storage: boolean, helm: boolean, autoscaling: boolean): { k: KubeState; problems: string[] } {
   const kube = m.kube!, created = parseTime(kube.created ?? '') ?? now - 30 * DAY;
   const nodes = nodesOf(kube.nodes ?? [{ name: 'cp-01', control: true }, { name: 'node-01' }, { name: 'node-02' }], created, t => cpuMilli(t) ?? 0, t => bytesOf(t) ?? 0);
   const boot = bootstrap(nodes, created), pull: Record<string, number> = {}, cache: Record<string, string[]> = Object.fromEntries(Object.entries(boot.cache).map(([n, l]) => [n, [...l]]));
