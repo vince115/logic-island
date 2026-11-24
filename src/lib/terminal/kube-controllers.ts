@@ -5,7 +5,7 @@ import { collectGarbage, endPod, isAvailable, ownedBy, podFacts, syncReplicaSet,
 import { deadlineOf, syncDeployment } from './kube-deployment';
 import { tolerates } from './kube-sched';
 import { DESIRED, HASH, MAX_REPLICAS, REVISION } from './kube-workload-spec';
-import { arr, clone, createdOf, kindOf, meta, nameOf, nsOf, obj, stamp, str, uid, uidOf, type J, type JObj, type KubeState, type Taint } from './kube-model';
+import { arr, clone, createdOf, systemNs, kindOf, meta, nameOf, nsOf, obj, stamp, str, uid, uidOf, type J, type JObj, type KubeState, type Taint } from './kube-model';
 
 /*
  * Engine stage E34 (docs/curriculum/KUB0_E34_WORKLOADS.md §5): when the controllers run. They run at a time t after a
@@ -29,7 +29,7 @@ function evictAt(pod: JObj, notReady: Seconds): Seconds | undefined {
   if (!tol) return notReady;
   return typeof tol.tolerationSeconds === 'number' ? notReady + Math.max(0, tol.tolerationSeconds) : undefined;
 }
-const onDownNode = (k: KubeState) => k.objects.filter(o => kindOf(o) === 'Pod' && nsOf(o) !== 'kube-system' && !meta(o).deletionTimestamp && k.down?.[k.pods[uidOf(o)]?.node ?? ''] !== undefined);
+const onDownNode = (k: KubeState) => k.objects.filter(o => kindOf(o) === 'Pod' && !systemNs(k, nsOf(o)) && !meta(o).deletionTimestamp && k.down?.[k.pods[uidOf(o)]?.node ?? ''] !== undefined);
 
 /** The node lifecycle controller at t: failed nodes become NotReady (taints, events), their pods are evicted when due. */
 function nodeLifecycle(d: DockerState | undefined, k0: KubeState, t: Seconds): KubeState {
@@ -69,7 +69,7 @@ export function controllerTimes(k: KubeState): Seconds[] {
   const after = k.ctrl ?? -Infinity, out: Seconds[] = [];
   if (k.dirty !== undefined) out.push(k.dirty);
   for (const o of k.objects) {
-    if (nsOf(o) === 'kube-system') continue;
+    if (systemNs(k, nsOf(o))) continue;
     const kind = kindOf(o), c = createdOf(o) ?? 0;
     if ((kind === 'Deployment' || kind === 'ReplicaSet' || kind === 'Pod') && c > after) out.push(c);
     if (kind === 'Deployment') { const at = deadlineOf(o); if (at !== undefined && at > after) out.push(at); }
@@ -85,7 +85,7 @@ export function controllerTimes(k: KubeState): Seconds[] {
 
 /** What the controllers watch of the pods (a step that changes it makes them run). */
 export function watched(k: KubeState): string {
-  return k.objects.filter(o => kindOf(o) === 'Pod' && nsOf(o) !== 'kube-system').map(p => { const f = podFacts(k, p, Infinity); return `${uidOf(p)}:${f.ready ? 1 : 0}${f.phase}${f.deleting ? 'd' : ''}`; }).join(',');
+  return k.objects.filter(o => kindOf(o) === 'Pod' && !systemNs(k, nsOf(o))).map(p => { const f = podFacts(k, p, Infinity); return `${uidOf(p)}:${f.ready ? 1 : 0}${f.phase}${f.deleting ? 'd' : ''}`; }).join(',');
 }
 
 /** A pod on a node marked NotReady: its Ready condition is False from then on (the node controller's MarkPodsNotReady). */

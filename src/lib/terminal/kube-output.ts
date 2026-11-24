@@ -59,7 +59,8 @@ export function kubeYaml(v: J): string[] {
 
 /** A List of the objects (kubectl prints one object as itself, several as a List). */
 export const asList = (items: readonly JObj[]): JObj => ({ apiVersion: 'v1', items: [...items], kind: 'List', metadata: { resourceVersion: '' } });
-const GROUP: Record<string, string> = { Deployment: 'deployment.apps', ReplicaSet: 'replicaset.apps', DaemonSet: 'daemonset.apps', StatefulSet: 'statefulset.apps' };
+const GROUP: Record<string, string> = { Deployment: 'deployment.apps', ReplicaSet: 'replicaset.apps', DaemonSet: 'daemonset.apps', StatefulSet: 'statefulset.apps', EndpointSlice: 'endpointslice.discovery.k8s.io',
+  Ingress: 'ingress.networking.k8s.io', IngressClass: 'ingressclass.networking.k8s.io', GatewayClass: 'gatewayclass.gateway.networking.k8s.io', Gateway: 'gateway.gateway.networking.k8s.io', HTTPRoute: 'httproute.gateway.networking.k8s.io' };
 export const resourceName = (o: JObj) => `${GROUP[kindOf(o)] ?? kindOf(o).toLowerCase()}/${nameOf(o)}`;
 
 /** Lines, or (jsonpath) the text as it is: kubectl prints no newline after a template. */

@@ -3,7 +3,8 @@ import { parseRef, programFor, qualified, runIn, type DockerImage, type DockerSt
 import { respond, type Responder } from './http';
 import { argvOf, podContainer, resolveImage } from './kube-image';
 import type { Action } from './kube-probe-spec';
-import { arr, nameOf, obj, str, type CSim, type J, type JObj, type KubeHealth, type KubeState } from './kube-model';
+import { mountNodes } from './kube-volumes';
+import { arr, nameOf, obj, str, uidOf, type CSim, type J, type JObj, type KubeHealth, type KubeState } from './kube-model';
 
 /*
  * Engine stage E33 (docs/curriculum/KUB0_E33_PROBES.md §3): what a probe or a hook meets in the container. The service is
@@ -26,7 +27,7 @@ const within = (w: { after?: number; until?: number }, age: number) => age >= (w
 
 /** The container's service: its HTTP port and responder, the ports that listen, and seconds before they do. */
 export function serviceOf(x: Target): { img?: DockerImage; http?: { port: number; responder: Responder }; ports: number[]; listen: number } {
-  const res = resolveImage(x.d, x.c.image);
+  const res = resolveImage(x.d, x.c.image, x.k.config ? 'pulled' : undefined);
   if ('error' in res) return { ports: [], listen: 0 };
   const img = res.img, s = obj(x.spec), own = !s.command && !s.args && !img.ownMain, prog = own || !x.d ? undefined : programFor(x.d, argvOf(img, x.spec));
   const http = own ? img.http : prog?.http, service = own ? img.service : !!prog?.service;
@@ -59,9 +60,10 @@ export function runAction(x: Target, a: Action, timeout: number): Outcome {
       if (seconds >= timeout) return { ok: false, message: `command "${a.command.join(' ')}" timed out`, seconds: timeout };
       return { ok: (own.exit ?? 1) === 0, message: own.output ?? '', seconds };
     }
-    const res = resolveImage(x.d, x.c.image);
+    const res = resolveImage(x.d, x.c.image, x.k.config ? 'pulled' : undefined);
     if ('error' in res) return { errored: 'container not found', seconds: 0 };
-    const box = podContainer(res.img, x.spec, nameOf(x.pod), x.c.cid ?? '', x.t, x.c.layer);
+    // E36: an exec probe sees the container's configMap and secret volumes.
+    const box = podContainer(res.img, x.spec, nameOf(x.pod), x.c.cid ?? '', x.t, x.c.layer, x.k.config ? mountNodes(x.pod, x.k.pods[uidOf(x.pod)], x.spec, x.c) : undefined);
     const r = a.command.length ? runIn(box, res.img, a.command, { tty: false, env: [], now: x.t }) : { notFound: '' };
     if ('notFound' in r) return { errored: `rpc error: code = Unknown desc = failed to exec in container: failed to start exec "${(x.c.cid ?? '').slice(0, 64)}": OCI runtime exec failed: exec failed: unable to start container process: exec: "${r.notFound}": executable file not found in $PATH: unknown`, seconds: 0 };
     const seconds = execSeconds(a.command);

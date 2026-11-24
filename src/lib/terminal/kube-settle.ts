@@ -10,6 +10,8 @@ import { probeStep, probeTimes, syncProbes } from './kube-probes';
 import { finishDelete } from './kube-stop';
 import type { ProbeType } from './kube-probe-spec';
 import { controllerTimes, deadAt, lostStatus, runControllers, watched } from './kube-controllers';
+import { netSig, netTimes, syncNet } from './kube-endpoints';
+import { mountPod, syncVolume, volumeTimes } from './kube-volumes';
 import { createdOf, kindOf, obj, sameJ, str, uidOf, type JObj, type KubeState } from './kube-model';
 
 /*
@@ -32,10 +34,14 @@ export function settleKube(state: FsState): FsState {
     const next = nextStep(k, now, state.docker);
     if (!next) break;
     // E34: a step that changes what the controllers watch makes them run at its time.
-    const seen = k.workloads && !next.ctl ? watched(k) : '';
+    // E35: one that changes a pod's address, readiness, deletion or phase makes the endpoints controllers run.
+    const seen = k.workloads && !next.ctl ? watched(k) : '', sig = k.net && !next.net ? netSig(k) : '';
     k = next.run(k);
     if (k.workloads && !next.ctl && watched(k) !== seen) k = runControllers(state.docker, k, next.t);
+    if (k.net && !next.net && netSig(k) !== sig) k = syncNet(k, next.t);
   }
+  // E35: and once more now (what commands changed: Services, labels, selectors).
+  if (k.net) k = syncNet(k, now);
   return { ...state, kube: writeStatuses({ ...k, settled: now }) };
 }
 
@@ -53,10 +59,12 @@ export function waitStep(state: FsState, left: Seconds): Seconds {
   return next === undefined ? left : Math.max(1, Math.min(next - clockOf(state).now, left));
 }
 
-type Step = { t: Seconds; run: (k: KubeState) => KubeState; ctl?: true };
+type Step = { t: Seconds; run: (k: KubeState) => KubeState; ctl?: true; net?: true };
 function nextStep(k: KubeState, now: Seconds, d: DockerState | undefined): Step | null {
   let best: Step | null = null;
-  const consider = (t: Seconds, run: Step['run'], ctl?: true) => { if (t <= now && (!best || t < best.t)) best = { t, run, ...ctl ? { ctl } : {} }; };
+  const consider = (t: Seconds, run: Step['run'], ctl?: true, net?: true) => { if (t <= now && (!best || t < best.t)) best = { t, run, ...ctl ? { ctl } : {}, ...net ? { net } : {} }; };
+  // E35: a Service appearing (a boot manifest's) makes the endpoints controllers run at its time.
+  if (k.net) for (const t of netTimes(k)) consider(t, kk => syncNet(kk, t), undefined, true);
   // E34: the controllers' own times (before the pods' steps at the same time); a failed node's kubelet takes no more steps.
   if (k.workloads) for (const t of controllerTimes(k)) consider(t, kk => runControllers(d, kk, t), true);
   for (const pod of k.objects) {
@@ -69,6 +77,9 @@ function nextStep(k: KubeState, now: Seconds, d: DockerState | undefined): Step 
       continue;
     }
     const dead = k.workloads ? deadAt(k, sim.node) : undefined, alive = (t: Seconds) => dead === undefined || t < dead;
+    // E36: a mount that waits for its ConfigMap or Secret is tried again (no container starts before it); mounted volumes sync.
+    if (sim.mount) { const t = sim.mount.next; if (alive(t)) consider(t, kk => mount(kk, id, t)); continue; }
+    if (k.config) for (const v of volumeTimes(k, pod, sim)) if (alive(v.t)) consider(v.t, kk => resync(kk, id, v.vol, v.t));
     const refs: Ref[] = [...sim.init.map((_, i) => ({ init: true, i })), ...sim.main.map((_, i) => ({ init: false, i }))];
     for (const r of refs) {
       const c = (r.init ? sim.init : sim.main)[r.i];
@@ -96,7 +107,9 @@ function bind(k0: KubeState, id: string, t: Seconds): KubeState {
   const { [id]: _done, ...unscheduled } = k.unscheduled;
   void _done;
   if (!target) k = record(k, t, about(pod), 'Normal', 'Scheduled', `Successfully assigned ${podName(pod)} to ${r.node.name}`, 'default-scheduler');
-  const sim = bindPod(pod, r.node.name, freeIp(k, r.node), t);
+  let sim = bindPod(pod, r.node.name, freeIp(k, r.node), t);
+  // E36: the kubelet mounts the pod's configMap and secret volumes first.
+  if (k.config) { const m = mountPod(k, pod, sim, t); k = m.k; sim = m.sim; }
   k = { ...k, unscheduled, pods: { ...k.pods, [id]: sim } };
   return put(k, { ...pod, spec: { ...obj(pod.spec), nodeName: r.node.name } });
 }
@@ -107,6 +120,16 @@ function step(k: KubeState, id: string, r: Ref, t: Seconds, d: DockerState | und
   const out = stepContainer(d, k, pod, sim, r, t);
   // E33: a container that started gets its probe workers; a pod being deleted is gone once nothing runs in it.
   return finishDelete({ ...out.k, pods: { ...out.k.pods, [id]: syncProbes(pod, out.sim) } }, id, t);
+}
+function mount(k: KubeState, id: string, t: Seconds): KubeState {
+  const pod = k.objects.find(o => uidOf(o) === id), sim = k.pods[id];
+  if (!pod || !sim) return k;
+  const m = mountPod(k, pod, sim, t);
+  return { ...m.k, pods: { ...m.k.pods, [id]: m.sim } };
+}
+function resync(k: KubeState, id: string, vol: string, t: Seconds): KubeState {
+  const pod = k.objects.find(o => uidOf(o) === id), sim = k.pods[id];
+  return pod && sim ? { ...k, pods: { ...k.pods, [id]: syncVolume(k, pod, sim, vol, t) } } : k;
 }
 function probe(k: KubeState, id: string, i: number, type: ProbeType, t: Seconds, d: DockerState | undefined, now: Seconds): KubeState {
   const pod = k.objects.find(o => uidOf(o) === id), sim = k.pods[id];

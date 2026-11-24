@@ -6,6 +6,9 @@ import { describeCommand, getCommand } from './kubectl-get';
 import { applyCommand, deleteCommand, runCommand } from './kubectl-apply';
 import { metaCommand } from './kubectl-meta';
 import { workloadVerb } from './kubectl-workload';
+import { netVerb } from './kubectl-service';
+import { configVerb } from './kubectl-create-config';
+import { ingressVerb } from './kubectl-ingress';
 import { eventsCommand, execCommand, logsCommand, waitCommand } from './kubectl-pod';
 import { API_SERVER, goTab, KUBE_VERSION, KUSTOMIZE_VERSION, type KubeState } from './kube-model';
 
@@ -16,7 +19,7 @@ import { API_SERVER, goTab, KUBE_VERSION, KUSTOMIZE_VERSION, type KubeState } fr
  * Verbs of later stages, and the ones the simulation cannot do (an editor, a keyboard), say so.
  */
 
-export interface KubeIo { out(line: string): void; raw(data: string): void; err(line: string): void; stdin: string | null; read(path: string): { text: string } | { error: string } }
+export interface KubeIo { out(line: string): void; raw(data: string): void; err(line: string): void; stdin: string | null; read(path: string): { text: string } | { error: string }; /** E35: run as a background job (kubectl port-forward … &): its command line. */ job?: string }
 export type KubeResult = { state: FsState; status: number; advance?: number };
 /** E33: off holds the booleans given as --flag=false (delete's --wait=false). */
 export interface Flags { values: Record<string, string[]>; bools: Set<string>; off?: Set<string> }
@@ -26,13 +29,19 @@ const VALUES = ['namespace', 'output', 'selector', 'filename', 'container', 'fie
   'dry-run', 'label-columns', 'context', 'cluster', 'user', 'timeout', 'sort-by', 'requests', 'limits', 'overrides'];
 /** E34 (the workloads profile): scale, rollout, delete --cascade, drain. */
 const E34_VALUE = ['replicas', 'to-revision', 'revision', 'cascade'], E34_BOOL = ['ignore-daemonsets', 'delete-emptydir-data'];
+/** E35 (the kube-net profile): expose and create service. */
+const E35_VALUE = ['target-port', 'type', 'name', 'protocol', 'tcp', 'clusterip', 'node-port'];
+/** E36 (the kube-config profile): create configmap and create secret generic|tls|docker-registry. */
+const E36_VALUE = ['from-literal', 'from-file', 'from-env-file', 'cert', 'key', 'docker-server', 'docker-username', 'docker-password', 'docker-email'];
+/** E37 (the ingress profile): create ingress. */
+const E37_VALUE = ['class', 'rule', 'default-backend', 'annotation'];
 const BOOLS = ['all-namespaces', 'show-labels', 'overwrite', 'all', 'force', 'previous', 'timestamps', 'follow', 'watch', 'stdin', 'tty', 'command', 'rm', 'minify', 'raw', 'current', 'wait', 'client', 'ignore-not-found', 'no-headers', 'help', 'quiet', 'show-kind', 'list'];
 const SHORT_VALUE: Record<string, string> = { n: 'namespace', o: 'output', l: 'selector', f: 'filename', c: 'container', L: 'label-columns' };
 const SHORT_BOOL: Record<string, string> = { A: 'all-namespaces', w: 'watch', i: 'stdin', t: 'tty', p: 'previous', h: 'help', q: 'quiet' };
 
 /** Flags and positional words (after -- everything is positional and kept apart). */
-export function parseFlags(verb: string, args: readonly string[], workloads = false): { flags: Flags; pos: string[]; rest: string[] } | { error: string } {
-  const VALUE = workloads ? [...VALUES, ...E34_VALUE] : VALUES, BOOL = workloads ? [...BOOLS, ...E34_BOOL] : BOOLS;
+export function parseFlags(verb: string, args: readonly string[], workloads = false, net = false, config = false, ingress = false): { flags: Flags; pos: string[]; rest: string[] } | { error: string } {
+  const VALUE = [...VALUES, ...workloads ? E34_VALUE : [], ...net ? E35_VALUE : [], ...config ? E36_VALUE : [], ...ingress ? E37_VALUE : []], BOOL = workloads ? [...BOOLS, ...E34_BOOL] : BOOLS;
   const values: Record<string, string[]> = {}, bools = new Set<string>(), off = new Set<string>(), pos: string[] = [];
   const short = { ...SHORT_VALUE, ...verb === 'logs' ? { f: '' } : {}, ...verb === 'run' ? { l: 'labels' } : {} }, shortBool = { ...SHORT_BOOL, ...verb === 'logs' ? { f: 'follow' } : {} };
   const setV = (name: string, v: string) => { (values[name] ??= []).push(v); };
@@ -70,12 +79,12 @@ const REFUSED = 'The connection to the server localhost:8080 was refused - did y
 export function kubectl(state0: FsState, args: readonly string[], io: KubeIo): KubeResult {
   const [verb, ...more] = args;
   if (!verb) { io.out('kubectl controls the Kubernetes cluster manager.'); io.out(''); io.out(' Find more information at: https://kubernetes.io/docs/reference/kubectl/'); return { state: state0, status: 0 }; }
-  const workloads = !!state0.kube?.workloads;
-  if (LATER[verb] && !(workloads && LATER[verb] === 'E34')) { io.err(`（模擬環境：kubectl ${verb} 要到引擎階段 ${LATER[verb]} 才模擬）`); return { state: state0, status: 1 }; }
+  const workloads = !!state0.kube?.workloads, net = !!state0.kube?.net, config = !!state0.kube?.config, ingress = !!state0.kube?.ingress, ready = (v: string) => (workloads && LATER[v] === 'E34') || (net && LATER[v] === 'E35');
+  if (LATER[verb] && !ready(verb)) { io.err(`（模擬環境：kubectl ${verb} 要到引擎階段 ${LATER[verb]} 才模擬）`); return { state: state0, status: 1 }; }
   if (verb === 'edit') { io.err('（模擬環境沒有文字編輯器：請修改 YAML 檔案後執行 kubectl apply -f 檔案）'); return { state: state0, status: 1 }; }
   if (PROSE.includes(verb)) { io.err(`（模擬環境不模擬 kubectl ${verb}，課文會說明它）`); return { state: state0, status: 1 }; }
-  if (!VERBS.includes(verb) && !(workloads && LATER[verb] === 'E34')) { io.err(`error: unknown command "${verb}" for "kubectl"`); io.err("Run 'kubectl --help' for usage."); return { state: state0, status: 1 }; }
-  const p = parseFlags(verb, more, workloads);
+  if (!VERBS.includes(verb) && !ready(verb)) { io.err(`error: unknown command "${verb}" for "kubectl"`); io.err("Run 'kubectl --help' for usage."); return { state: state0, status: 1 }; }
+  const p = parseFlags(verb, more, workloads, net, config, ingress);
   if ('error' in p) { io.err(p.error); io.err(`See 'kubectl ${verb} --help' for usage.`); return { state: state0, status: 1 }; }
   const state = settleKube(state0), now = clockOf(state).now, cfg = readConfig(state);
   if (verb === 'version' && p.flags.bools.has('client')) { io.out(`Client Version: ${KUBE_VERSION}`); io.out(`Kustomize Version: ${KUSTOMIZE_VERSION}`); return { state, status: 0 }; }
@@ -91,9 +100,10 @@ export function kubectl(state0: FsState, args: readonly string[], io: KubeIo): K
   const nsFlag = p.flags.values.namespace?.at(-1);
   const x: Kx = { state, k: state.kube, ns: nsFlag ?? ctx.namespace ?? 'default', nsGiven: nsFlag !== undefined, all: p.flags.bools.has('all-namespaces'), flags: p.flags, pos: p.pos, io, now, verb, cfg, rest: p.rest };
   if (!workloads) return verbOf(x);
-  // E34: a command that changed the cluster makes the controllers run now.
-  const r = workloadVerb(x) ?? verbOf(x), kube = r.state.kube;
-  return kube && kube !== x.k ? { ...r, state: { ...r.state, kube: { ...kube, dirty: Math.min(kube.dirty ?? x.now, x.now) } } } : r;
+  // E34: a command that changed the cluster makes the controllers run now. E35: the endpoints controllers too.
+  // E36: create configmap and create secret. E37: create ingress.
+  const r = (ingress ? ingressVerb(x) : undefined) ?? (config ? configVerb(x) : undefined) ?? (net ? netVerb(x) : undefined) ?? workloadVerb(x) ?? verbOf(x), kube = r.state.kube;
+  return kube && kube !== x.k ? { ...r, state: { ...r.state, kube: { ...kube, dirty: Math.min(kube.dirty ?? x.now, x.now), ...net ? { netDirty: Math.min(kube.netDirty ?? x.now, x.now) } : {} } } } : r;
 }
 function verbOf(x: Kx): KubeResult {
   const { state, io } = x;
@@ -126,7 +136,10 @@ export const API_RESOURCES: [string, string, string, boolean, string][] = [
   ['horizontalpodautoscalers', 'hpa', 'autoscaling/v2', true, 'HorizontalPodAutoscaler'], ['ingressclasses', '', 'networking.k8s.io/v1', false, 'IngressClass'], ['ingresses', 'ing', 'networking.k8s.io/v1', true, 'Ingress'],
   ['storageclasses', 'sc', 'storage.k8s.io/v1', false, 'StorageClass'],
 ];
+/** E37: the Gateway API's resources (with the lesson's CRDs). */
+const GATEWAY_RESOURCES: typeof API_RESOURCES = [['gatewayclasses', 'gc', 'gateway.networking.k8s.io/v1', false, 'GatewayClass'], ['gateways', 'gtw', 'gateway.networking.k8s.io/v1', true, 'Gateway'],
+  ['httproutes', '', 'gateway.networking.k8s.io/v1', true, 'HTTPRoute']];
 function apiResources(x: Kx) {
-  const rows = API_RESOURCES.map(([n, s, v, nsd, kind]) => [n, s, v, String(nsd), kind].join('\t'));
+  const rows = [...API_RESOURCES, ...x.k.ingress?.gateway ? GATEWAY_RESOURCES : []].map(([n, s, v, nsd, kind]) => [n, s, v, String(nsd), kind].join('\t'));
   for (const l of goTab(['NAME\tSHORTNAMES\tAPIVERSION\tNAMESPACED\tKIND', ...rows])) x.io.out(l);
 }

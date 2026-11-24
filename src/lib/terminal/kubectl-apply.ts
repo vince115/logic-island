@@ -5,7 +5,7 @@ import { applyDoc, createDoc, deleteObject, type Written } from './kube-write';
 import { endPod, orphan } from './kube-replicaset';
 import { noneText, pick, targets } from './kubectl-get';
 import { beginDelete } from './kube-stop';
-import { kindOf, nameOf, nsOf, obj, str, uidOf, type J, type JObj, type KubeState } from './kube-model';
+import { kindOf, nameOf, systemNs, nsOf, obj, str, uidOf, type J, type JObj, type KubeState } from './kube-model';
 import { flag, type KubeResult, type Kx } from './kubectl';
 
 /*
@@ -28,7 +28,7 @@ function documents(x: Kx): Doc[] | { error: string } {
       catch { out.push({ error: `error: error parsing ${f}: invalid character in JSON` }); }
       continue;
     }
-    const docs = readManifests(r.text, f);
+    const docs = readManifests(r.text, f, !!x.k.config);
     if ('error' in docs) return docs;
     out.push(...docs.map(d => 'error' in d ? d : { doc: d.doc, file: f }));
   }
@@ -92,7 +92,7 @@ export function deleteCommand(x: Kx): KubeResult {
     // E34: --cascade=orphan leaves the dependents (their ownerReferences removed); a pod on a NotReady node stays Terminating.
     if (k.workloads && (cascade === 'orphan' || cascade === 'false')) k = orphan(k, o);
     if (k.workloads && !force && kindOf(o) === 'Pod' && k.down?.[k.pods[uidOf(o)]?.node ?? ''] !== undefined) k = endPod(x.state.docker, k, k.objects.find(y => uidOf(y) === uidOf(o)) ?? o, x.now);
-    else if (k.probes && !force && kindOf(o) === 'Pod' && nsOf(o) !== 'kube-system') {
+    else if (k.probes && !force && kindOf(o) === 'Pod' && !systemNs(k, nsOf(o))) {
       const live = k.objects.find(y => kindOf(y) === 'Pod' && nameOf(y) === nameOf(o) && nsOf(y) === nsOf(o)) ?? o, r = beginDelete(x.state.docker, k, live, graceOf(x, live), x.now);
       k = r.k; until = Math.max(until, r.until);
     } else k = deleteObject(k, o, x.now);

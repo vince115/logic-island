@@ -31,6 +31,9 @@ import { deployCheckFailure, deployCheckProblems, describeDeployCheck, isDeployC
 import { expandKube, kubeProblems, kubeState } from './kube-lesson';
 import { describeKubeCheck, kubeCheckProblems, kubeFailure, type KubeCheck } from './kube-checks';
 import { describeWorkloadCheck, workloadCheckProblems, workloadFailure, type WorkloadCheck } from './kube-workload-checks';
+import { configCheckFailure, configCheckProblems, describeConfigCheck, type ConfigCheck } from './kube-config-checks';
+import { checkPlace, describeServiceCheck, kubeReachFailure, podCheckProblem, serviceCheckFailure, serviceCheckProblems, type ServiceCheck } from './kube-service-checks';
+import { kubeResolver } from './kube-dns';
 
 /*
  * Engine stages E10–E12 as lesson data (docs/curriculum/SRV0_SERVER_CAPABILITY.md §9). A machine of the sockets profile is
@@ -52,7 +55,7 @@ export interface TerminalZone { zone: string; text: string }
 export type TerminalListen = Listen;
 export type TerminalResponder = Responder;
 /** Which of the stages a machine's profile has. */
-export interface ServerLevels { sockets: boolean; dns: boolean; http: boolean; tls: boolean; nginx: boolean; proxy: boolean; firewall: boolean; tunnels: boolean; edge: boolean; diagnostics: boolean; containers: boolean; images: boolean; storageNet: boolean; compose?: boolean; runtime?: boolean; git?: boolean; forge?: boolean; workflows?: boolean; actions?: boolean; artifacts?: boolean; environments?: boolean; deployHosts?: boolean; cluster?: boolean; probes?: boolean; workloads?: boolean }
+export interface ServerLevels { sockets: boolean; dns: boolean; http: boolean; tls: boolean; nginx: boolean; proxy: boolean; firewall: boolean; tunnels: boolean; edge: boolean; diagnostics: boolean; containers: boolean; images: boolean; storageNet: boolean; compose?: boolean; runtime?: boolean; git?: boolean; forge?: boolean; workflows?: boolean; actions?: boolean; artifacts?: boolean; environments?: boolean; deployHosts?: boolean; cluster?: boolean; probes?: boolean; workloads?: boolean; kubeNet?: boolean; kubeConfig?: boolean; ingress?: boolean }
 
 /** E10–E12 (lesson checks). */
 export type ServerCheck =
@@ -64,7 +67,7 @@ export type ServerCheck =
    * E12: a GET of the URL (no redirects followed) answers this status, header (name and value) and a body containing this text.
    * E18 (edge): more headers that must be there, and request headers to send (a conditional request: If-None-Match…).
    */
-  | { kind: 'http'; url: string; status?: number; header?: [string, string]; body?: string; host?: string; headers?: [string, string][]; requestHeaders?: [string, string][] }
+  | { kind: 'http'; url: string; status?: number; header?: [string, string]; body?: string; host?: string; headers?: [string, string][]; requestHeaders?: [string, string][]; /** E35: the request comes from inside this pod (ns/name or name). */ pod?: string }
   /** E13–E14: cert and nginx (web-lesson.ts). */
   | WebCheck
   /** E15–E17: reach, firewall and tunnel (net-lesson.ts). */
@@ -85,8 +88,8 @@ export type ServerCheck =
   | ArtifactsCheck
   /** E30: environment and deployment (environments-checks.ts). */
   | EnvironmentsCheck
-  /** E32: kube-object and kube-pod (kube-checks.ts). E34: kube-workload and kube-rollout (kube-workload-checks.ts). */
-  | KubeCheck | WorkloadCheck;
+  /** E32: kube-object and kube-pod (kube-checks.ts). E34: kube-workload and kube-rollout (kube-workload-checks.ts). E35: kube-service (kube-service-checks.ts). E36: kube-config (kube-config-checks.ts). */
+  | KubeCheck | WorkloadCheck | ServiceCheck | ConfigCheck;
 
 export const RESOLV_CONF = '# This is /run/systemd/resolve/stub-resolv.conf managed by man:systemd-resolved(8).\n# Do not edit.\n\nnameserver 127.0.0.53\noptions edns0 trust-ad\nsearch .\n';
 const NAMED_CONF = '// This is the primary configuration file for the BIND DNS server named.\n\ninclude "/etc/bind/named.conf.options";\ninclude "/etc/bind/named.conf.local";\n';
@@ -208,7 +211,7 @@ export function serverState(m: TerminalMachine, state: FsState, lv: ServerLevels
     if (m.named !== undefined) next = { ...next, dns: { ...next.dns!, named: loadNamed(next).zones } };
   }
   if (lv.http) next = { ...next, http: { responders: (m.responders ?? []).map(r => ({ ...r, routes: r.routes.map(x => ({ ...x })) })) } };
-  return kubeState(m, deployState(m, environmentsState(m, artifactsState(m, actionsState(m, workflowState(m, forgeState(m, gitState(m, dockerState(m, edgeState(m, netState(m, webState(m, next, lv), lv), lv), lv), !!lv.git), !!lv.forge), !!lv.workflows), !!lv.actions, !!lv.artifacts, !!lv.deployHosts), !!lv.artifacts), !!lv.environments), !!lv.deployHosts), !!lv.cluster, !!lv.probes, !!lv.workloads);
+  return kubeState(m, deployState(m, environmentsState(m, artifactsState(m, actionsState(m, workflowState(m, forgeState(m, gitState(m, dockerState(m, edgeState(m, netState(m, webState(m, next, lv), lv), lv), lv), !!lv.git), !!lv.forge), !!lv.workflows), !!lv.actions, !!lv.artifacts, !!lv.deployHosts), !!lv.artifacts), !!lv.environments), !!lv.deployHosts), !!lv.cluster, !!lv.probes, !!lv.workloads, !!lv.kubeNet, !!lv.kubeConfig, !!lv.ingress);
 }
 
 const LINE = (max: number) => (t: unknown) => typeof t === 'string' && t.length >= 1 && t.length <= max && !t.includes('\n');
@@ -217,7 +220,7 @@ const HEADER_NAME = /^[A-Za-z0-9!#$%&'*+.^_`|~-]{1,64}$/;
 
 /** E10–E12: the problems of a machine's (expanded) server data; `own` is whether listen addresses are checked against it. */
 export function serverProblems(m: TerminalMachine, lv: ServerLevels, names?: readonly string[]): string[] {
-  const problems: string[] = [...webProblems(m, lv), ...netProblems(m, lv, () => machineState(m)), ...edgeProblems(m, lv, names), ...dockerProblems(m, lv), ...gitProblems(m, !!lv.git), ...forgeProblems(m, !!lv.forge), ...workflowProblems(m, !!lv.workflows), ...actionsProblems(m, !!lv.actions), ...artifactsProblems(m, !!lv.artifacts), ...environmentsProblems(m, !!lv.environments), ...deployProblems(m, !!lv.deployHosts), ...kubeProblems(m, !!lv.cluster, !!lv.probes, !!lv.workloads)], fail = (what: string) => problems.push(what);
+  const problems: string[] = [...webProblems(m, lv), ...netProblems(m, lv, () => machineState(m)), ...edgeProblems(m, lv, names), ...dockerProblems(m, lv), ...gitProblems(m, !!lv.git), ...forgeProblems(m, !!lv.forge), ...workflowProblems(m, !!lv.workflows), ...actionsProblems(m, !!lv.actions), ...artifactsProblems(m, !!lv.artifacts), ...environmentsProblems(m, !!lv.environments), ...deployProblems(m, !!lv.deployHosts), ...kubeProblems(m, !!lv.cluster, !!lv.probes, !!lv.workloads, !!lv.kubeNet, !!lv.kubeConfig, !!lv.ingress)], fail = (what: string) => problems.push(what);
   const listens = [...(m.processes ?? []).flatMap(p => p.listen ?? []), ...(m.programs ?? []).flatMap(p => p.listen ?? [])];
   if (!lv.sockets && (m.interfaces !== undefined || m.gateway !== undefined || m.connections !== undefined || m.resolved !== undefined || listens.length))
     fail('interfaces, gateway, connections, resolved and listen need the sockets profile (engine stage E10)');
@@ -320,6 +323,7 @@ export function serverCheckProblems(c: ServerCheck, lv: ServerLevels, known: (ho
         return 'a dns check needs a dns machine (engine stage E11), a name, a type among A AAAA CNAME MX TXT NS SOA, a known server and not both absent and values';
       return null;
     case 'http':
+      if (c.pod !== undefined && (c.host !== undefined || podCheckProblem(c.pod, !!lv.kubeNet))) return c.host !== undefined ? 'an http check has a host or a pod, not both' : podCheckProblem(c.pod, !!lv.kubeNet);
       if (!lv.http || !(lv.tls ? /^https?:\/\/[^\s/]+/ : /^http:\/\/[^\s/]+/).test(c.url) || (c.status !== undefined && !whole(c.status, 100, 599)) || (c.host !== undefined && !known(c.host)))
         return 'an http check needs an http machine (engine stage E12), an http:// URL (https:// from the tls profile, E13), a status 100..599 and a known host';
       if ((c.headers !== undefined || c.requestHeaders !== undefined) && (!lv.edge || [...c.headers ?? [], ...c.requestHeaders ?? []].some(h => !Array.isArray(h) || h.length !== 2 || !HEADER_NAME.test(h[0]) || !LINE(500)(h[1]))))
@@ -338,11 +342,14 @@ export function serverCheckProblems(c: ServerCheck, lv: ServerLevels, known: (ho
     case 'workflow': return workflowCheckProblems(c, !!lv.workflows);
     case 'run': return runCheckProblems(c, !!lv.actions, !!lv.artifacts, !!lv.environments);
     case 'environment': case 'deployment': return environmentsCheckProblems(c, !!lv.environments);
-    case 'kube-object': case 'kube-pod': return kubeCheckProblems(c, !!lv.cluster);
+    case 'kube-object': case 'kube-pod': return kubeCheckProblems(c, !!lv.cluster, !!lv.kubeConfig, !!lv.ingress);
     case 'kube-workload': case 'kube-rollout': return workloadCheckProblems(c, !!lv.workloads);
+    case 'kube-service': return serviceCheckProblems(c, !!lv.kubeNet);
+    case 'kube-config': return configCheckProblems(c, !!lv.kubeConfig);
     case 'secret': case 'variable': return artifactsCheckProblems(c, !!lv.artifacts);
     // E22: a reach check from a container is the daemon's (docker-lesson.ts).
-    case 'reach': return 'container' in c ? dockerCheckProblems(c, lv) : netCheckProblems(c, lv, known);
+    // E35: a reach check from a pod names its target as the pod would (cluster DNS).
+    case 'reach': return 'container' in c ? dockerCheckProblems(c, lv) : c.pod !== undefined ? podCheckProblem(c.pod, !!lv.kubeNet) ?? (c.from !== undefined ? 'a reach check has a from or a pod, not both' : netCheckProblems({ ...c, to: '127.0.0.1' }, lv, known)) : netCheckProblems(c, lv, known);
     case 'firewall': case 'tunnel': return netCheckProblems(c, lv, known);
   }
 }
@@ -359,7 +366,7 @@ export function describeServerCheck(c: ServerCheck): string {
     case 'http': {
       const parts = [c.status !== undefined ? `狀態碼 ${c.status}` : '', c.header ? `標頭 ${c.header[0]}: ${c.header[1]}` : '', c.body !== undefined ? `內容包含「${c.body}」` : ''].filter(Boolean);
       const more = (c.headers ?? []).map(([k, v]) => `標頭 ${k}: ${v}`), sent = (c.requestHeaders ?? []).map(([k, v]) => `${k}: ${v}`);
-      return `${on(c.host)}GET ${c.url}${sent.length ? `（帶著 ${sent.join('、')}）` : ''} 應該回應${[...parts, ...more].join('、') || '成功'}`;
+      return `${c.pod !== undefined ? `從 Pod ${c.pod} ` : on(c.host)}GET ${c.url}${sent.length ? `（帶著 ${sent.join('、')}）` : ''} 應該回應${[...parts, ...more].join('、') || '成功'}`;
     }
     case 'cache': return describeEdgeCheck(c);
     case 'container': case 'image': case 'build': case 'volume': case 'network': case 'compose': case 'registry':
@@ -374,7 +381,9 @@ export function describeServerCheck(c: ServerCheck): string {
     case 'environment': case 'deployment': return describeEnvironmentsCheck(c);
     case 'kube-object': case 'kube-pod': return describeKubeCheck(c);
     case 'kube-workload': case 'kube-rollout': return describeWorkloadCheck(c);
-    case 'reach': return 'container' in c ? describeDockerCheck(c) : describeNetCheck(c);
+    case 'kube-service': return describeServiceCheck(c);
+    case 'kube-config': return describeConfigCheck(c);
+    case 'reach': return 'container' in c ? describeDockerCheck(c) : c.pod !== undefined ? describeNetCheck({ ...c, from: `Pod ${c.pod}` }) : describeNetCheck(c);
     case 'firewall': case 'tunnel': return describeNetCheck(c);
   }
 }
@@ -399,9 +408,12 @@ export function serverFailure(c: ServerCheck, end: FsState, hostState: (host: st
     }
     case 'http': {
       // E16: from the firewall profile up, a request from another host goes through the network (firewalls, tunnels) as from there.
-      const s = c.host ? (end.firewall ? viewOfHost(end, c.host) : hostState(c.host)) : end;
+      // E35: on a kube-net machine, from a pod (cluster DNS) or from the learner's machine with the cluster's outside.
+      const place = end.kube?.net && !c.host ? checkPlace(end, c.pod) : undefined;
+      if (place && 'error' in place) return place.error;
+      const s = place ?? (c.host ? (end.firewall ? viewOfHost(end, c.host) : hostState(c.host)) : end);
       if (!s) return `沒有 ${c.host} 這台主機`;
-      const r = probe(s, c.url, resolve, true, c.requestHeaders ?? []);
+      const r = probe(s, c.url, c.pod !== undefined ? kubeResolver : resolve, true, c.requestHeaders ?? []);
       if ('error' in r) return r.error;
       if (c.status !== undefined && r.status !== c.status) return `狀態碼是 ${r.status}`;
       for (const h of [...c.header ? [c.header] : [], ...c.headers ?? []]) { const v = responseHeader(r.headers, h[0]); if (v !== h[1]) return v === undefined ? `沒有 ${h[0]} 標頭` : `${h[0]} 是 ${v}`; }
@@ -418,7 +430,9 @@ export function serverFailure(c: ServerCheck, end: FsState, hostState: (host: st
     case 'environment': case 'deployment': return environmentsFailure(c, end);
     case 'kube-object': case 'kube-pod': return kubeFailure(c, end);
     case 'kube-workload': case 'kube-rollout': return workloadFailure(c, end);
-    case 'reach': return 'container' in c ? dockerFailure(c, end) : netFailure(c, end);
+    case 'kube-service': return serviceCheckFailure(c, end);
+    case 'kube-config': return configCheckFailure(c, end);
+    case 'reach': return 'container' in c ? dockerFailure(c, end) : end.kube?.net ? kubeReachFailure(c, end) : netFailure(c, end);
     case 'firewall': case 'tunnel': return netFailure(c, end);
     case 'cache': return edgeFailure(c, end, resolve, h => h === undefined ? end : end.firewall ? viewOfHost(end, h) : hostState(h));
     case 'container': case 'image': case 'build': case 'volume': case 'network': case 'compose': return isDeployCheck(c) ? deployCheckFailure(c, end, hostState) : dockerFailure(c, end);

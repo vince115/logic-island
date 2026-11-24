@@ -476,6 +476,8 @@ export type Outcome = {
   lines: { stream: 1 | 2; text: string }[]; status: number; nodes: ReadonlyMap<string, FsNode>; running?: true; until?: Seconds;
   /** E22: the host's files after the command (what it wrote through its volumes and bind mounts), its tmpfs, and other containers' new access lines. */
   hostNodes?: ReadonlyMap<string, FsNode>; tmpfs?: Record<string, ReadonlyMap<string, FsNode>>; logs?: Record<string, LogLine[]>;
+  /** E35: the pod's network view after the command (kube-proxy's turns moved on). */
+  kubeNet?: FsState['kubeNet'];
 };
 const quoteArg = (a: string) => /^[A-Za-z0-9_./=:,@%+-]+$/.test(a) ? a : `'${a.replace(/'/g, `'\\''`)}'`;
 const OCI_NOT_FOUND = (cmd: string) => `exec: "${cmd}": executable file not found in $PATH`;
@@ -507,7 +509,8 @@ export function configEnv(c: Pick<DockerContainer, 'env'>, img: DockerImage | un
  * notFound: what a missing executable is reported as by the caller (OCI's error). main: argv is the container's main
  * process (docker run IMAGE ps shows ps as PID 1 and nothing else); system: the host's uname fields (the kernel is shared).
  */
-export type RunOptions = { tty: boolean; env: string[]; now: Seconds; workdir?: string; system?: Partial<SystemInfo>; main?: boolean; /** E22: the host (its files and daemon): mounts and networks. */ host?: FsState };
+export type RunOptions = { tty: boolean; env: string[]; now: Seconds; workdir?: string; system?: Partial<SystemInfo>; main?: boolean; /** E22: the host (its files and daemon): mounts and networks. */ host?: FsState;
+  /** E35: a Kubernetes pod's network (kube-net.ts): its commands get getent, curl and nc on it. */ view?: Pick<FsState, 'sockets' | 'processes' | 'http' | 'net' | 'kubeNet' | 'clock'> };
 export function runIn(c: DockerContainer, img: DockerImage | undefined, argv: readonly string[], o: RunOptions): Outcome | { notFound: string } {
   const has = (cmd: string) => (img?.commands ?? IMAGE_COMMANDS).includes(cmd);
   const [cmd, ...rest] = argv;
@@ -557,7 +560,7 @@ export function runIn(c: DockerContainer, img: DockerImage | undefined, argv: re
         return 'notFound' in r ? done([{ stream: 2, text: `${name}: 1: ${r.notFound}: not found` }], 127) : r;
       }
       // E22: the container's shell is the interpreter (for, if, ; && ||), so its keywords are not commands.
-      const names = o.host?.docker?.storageNet ? scriptCommandNames(line) : commandNames(line);
+      const names = o.host?.docker?.storageNet || o.view ? scriptCommandNames(line) : commandNames(line);
       if (names.includes('exit')) return done([{ stream: 2, text: `${name} -c：模擬環境的 exit 只支援單獨的 exit N，或寫在最後（指令; exit N）` }], 2);
       const missing = names.find(n => !has(n));
       if (missing) return done([{ stream: 2, text: `${name}: 1: ${missing}: not found` }], 127);
@@ -608,7 +611,7 @@ function pgIsReady(c: DockerContainer, args: readonly string[], o: RunOptions): 
 /** The uname fields in the container: the host's kernel (BusyBox's uname -o on Alpine prints Linux). */
 const systemOf = (img: DockerImage | undefined, host: Partial<SystemInfo> | undefined): Partial<SystemInfo> => ({ ...host, ...isAlpine(img) ? { os: 'Linux' } : {} });
 /** A line of the simulation's shell on the container's files (no tty: ls prints one name per line, as in docker exec without -t). */
-function shellLine(c: DockerContainer, line: string, o: { tty: boolean; workdir?: string; system?: Partial<SystemInfo>; busybox?: boolean; host?: FsState }): Outcome {
+function shellLine(c: DockerContainer, line: string, o: { tty: boolean; workdir?: string; system?: Partial<SystemInfo>; busybox?: boolean; host?: FsState; view?: RunOptions['view'] }): Outcome {
   // E22: the container's files with its mounts laid over them, and its network.
   const e22 = o.host?.docker?.storageNet ? o.host : undefined;
   const nodes = e22 ? mountedNodes(e22, c) : c.nodes;
@@ -618,11 +621,14 @@ function shellLine(c: DockerContainer, line: string, o: { tty: boolean; workdir?
   const cwd = nodes.get(o.workdir ?? c.workdir)?.kind === 'dir' ? o.workdir ?? c.workdir : '/';
   const state: FsState = { nodes, cwd, user: who.name, home: who.home, host: c.hostname ?? short(c.id),
     system: { ...DEFAULT_SYSTEM, ...o.system }, ...groups ? { groups } : {},
-    ...e22 ? { accounts: imageAccounts(c.nodes), ...e22.clock ? { clock: e22.clock } : {}, ...networkView(e22, e22.docker!, c) } : {} };
-  const r = runInput(state, line, e22 ? CONTAINER_E22_PROFILE : CONTAINER_PROFILE, null, o.tty);
+    ...e22 ? { accounts: imageAccounts(c.nodes), ...e22.clock ? { clock: e22.clock } : {}, ...networkView(e22, e22.docker!, c) } : {},
+    // E35: a pod's network (kubectl exec on the kube-net profile).
+    ...!e22 && o.view ? { accounts: imageAccounts(c.nodes), ...o.view } : {} };
+  const r = runInput(state, line, e22 || o.view ? CONTAINER_E22_PROFILE : CONTAINER_PROFILE, null, o.tty);
   // Fix (E20): BusyBox's ls (Alpine) names a missing path without GNU's "cannot access" and quotes.
   const busy = (text: string) => o.busybox ? text.replace(/^ls: cannot access '(.*)': /, 'ls: $1: ') : text;
   const lines = r.lines.map(l => ({ stream: (l.kind === 'out' ? 1 : 2) as 1 | 2, text: l.kind === 'out' ? l.text : busy(l.text) }));
+  if (o.view && !e22) return { lines, status: r.state.status ?? (lines.some(l => l.stream === 2) ? 1 : 0), nodes: r.state.nodes, ...r.state.kubeNet ? { kubeNet: r.state.kubeNet } : {} };
   if (!e22) return { lines, status: lines.some(l => l.stream === 2) ? 1 : 0, nodes: r.state.nodes };
   // E22: what changed under a mount goes back to the host (never through a read-only mount); the services' access lines too.
   const u = unmount(e22, c, r.state.nodes), logs = peerLogs(r.state, e22.docker!);

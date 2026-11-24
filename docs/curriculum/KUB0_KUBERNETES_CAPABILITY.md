@@ -10,7 +10,10 @@
 | E32 `cluster`（已完成） | `CLUSTER_PROFILE`（RANK 32，`deploy-hosts` 之上，`E32_COMMANDS = ['kubectl']`）；叢集的共用模型（節點、API 物件、排程器、kubelet 的 Pod 生命週期、事件、kubeconfig）與 kubectl 的動詞、表格與輸出格式；檢查 `kube-object`、`kube-pod` |
 | E33 `probes`（已完成） | `PROBES_PROFILE`（RANK 33，`cluster` 之上，沒有新指令）；探針、課程宣告的健康狀態、preStop、SIGTERM 與寬限期、Terminating、會等待的 `kubectl delete`（[KUB0_E33_PROBES](KUB0_E33_PROBES.md)） |
 | E34 `workloads`（已完成） | `WORKLOADS_PROFILE`（RANK 34，`probes` 之上，沒有新指令）；ReplicaSet 與 Deployment 控制器、滾動更新與 Recreate、`kubectl rollout`、`create deployment`、`scale`、`set image`、`cordon`、`uncordon`、`drain`、課程宣告的節點故障；檢查 `kube-workload`、`kube-rollout`（[KUB0_E34_WORKLOADS](KUB0_E34_WORKLOADS.md)） |
-| E35–E40、D5、D6 | 規劃中（§5、§6），範圍已定，細節在各自的批次寫入 |
+| E35 `kube-net`（已完成） | `KUBE_NET_PROFILE`（RANK 35，`workloads` 之上，沒有新指令）；Service（ClusterIP、NodePort、LoadBalancer、headless）、Endpoints 與 EndpointSlice 控制器、kube-proxy 的輪替、CoreDNS、Pod 裡的 `curl`／`getent`／`nc`／`nslookup`／`wget`、`expose`、`create service`、`port-forward`；檢查 `kube-service`，`http`、`reach` 加上 `pod`（[KUB0_E35_KUBE_NET](KUB0_E35_KUBE_NET.md)） |
+| E36 `kube-config`（已完成） | `KUBE_CONFIG_PROFILE`（RANK 36，`kube-net` 之上，`E36_COMMANDS = ['base64']`）；ConfigMap 與 Secret（`stringData`、base64 的 `data`、三種類型、`immutable`、`kube-root-ca.crt`）、`create configmap|secret generic|tls|docker-registry`、`env`／`envFrom`／`valueFrom`／`optional`、CreateContainerConfigError、configMap／secret Volume（atomic writer、`items`、`defaultMode`、`subPath`、FailedMount）、60 秒的更新模型、`imagePullSecrets`（E23 Registry）、GNU 的 `base64`；檢查 `kube-config`，`kube-object` 加上 ConfigMap／Secret（[KUB0_E36_KUBE_CONFIG](KUB0_E36_KUBE_CONFIG.md)） |
+| E37 `ingress`（已完成） | `INGRESS_PROFILE`（RANK 37，`kube-config` 之上，沒有新指令）；Ingress 與 IngressClass、課程宣告的 ingress-nginx（LoadBalancer 或 NodePort、預設 class）、host 與 Exact／Prefix／最長比對的路由、預設後端 404、503／502、TLS（E36 的 tls Secret、E13 驗證、Fake Certificate、ssl-redirect 308、HSTS）、Gateway API v1 子集（GatewayClass、Gateway、HTTPRoute、條件、E15 的平滑加權輪替）、`create ingress`；檢查 `kube-object` 加上這五種與 `conditions`，`http` 的 Host 標頭（[KUB0_E37_INGRESS](KUB0_E37_INGRESS.md)） |
+| E38–E40、D5、D6 | 規劃中（§5、§6），範圍已定，細節在各自的批次寫入 |
 
 不新增任何執行期套件；沒有亂數（UID、名稱的後綴、容器 ID 都由資料的 SHA-256 算出）；時鐘只在 `sleep` 與 `kubectl wait` 時前進。叢集是**虛構的 kubeadm 叢集**，輸出依真實 kubectl v1.32 的格式撰寫，但無法離線與真實叢集逐字比對，所以凡是憑記憶寫的文字都列在 §9。
 
@@ -68,10 +71,11 @@
 | KUB-5 | KUB15 | 無（只有總結專題） |
 
 - **KUB-1 已發布（2026-11-24）**：KUB01–KUB04 依 §2 的對應發布（[KUBERNETES_RELIABILITY_ISLAND](KUBERNETES_RELIABILITY_ISLAND.md)），島嶼移入 `ISLAND_IDS`（`devops-cicd` 之後），`PREPARED_ISLAND_IDS` 成為空的；單元「編排的觀念與叢集架構」（KUB01–KUB02）與「Pod 與工作負載」（KUB03–KUB04）。活動登錄依 §3：`terminal-sim`、`network-sequence` 的島嶼清單加上本島，`architecture-diagram` 的少了本島，`cluster-sim` 仍是規劃中。課文避開的引擎差異（故障節點上的 `kubectl delete pod` 立即返回、`get events --field-selector involvedObject.kind` 不支援、原生 sidecar／共用 Volume／Pod 內 localhost 沒有模擬、manifest 的 `sh -c` 字串含 `'` 無法解析）記在島嶼文件。
+- **KUB-2 已發布（2026-11-24）**：KUB05–KUB07 依 §2 的對應發布，階段 E35 `kube-net`、E36 `kube-config`、E37 `ingress` 建好；單元「服務、設定與入口」（KUB05–KUB07）。KUB05、KUB06 是 `terminal-sim`，KUB07 是 `network-sequence`（藍圖的 request-path，終端機旁加上一個 HTTPS 請求進入叢集的網路情境）。活動登錄依 §3：島嶼清單沒有變動；`request-path` 仍是規劃中，已沒有目錄課程使用它，島嶼清單改由藍圖大綱列出（`network-servers` 與本島）。課文避開的引擎差異（後面的開機 manifest 改過的 ConfigMap 在 Pod 第一次啟動時已是新版本、後端收到的 X-Real-IP／X-Forwarded-For 是 controller Pod 的位址、`api-resources` 不列出 endpointslices、kube-proxy 依端點順序輪流）記在島嶼文件。
 
 D5、D6 只在 `src/lib/devops` 與 `src/components/curriculum`，可以和任何 E 階段平行。KUB-2 或 KUB-3 太大時，在階段的邊界分批（同 CICD-1 的調整）。
 
-`KUBE_STAGES_BUILT = ['E32', 'E33', 'E34']`（E33、E34 在 KUB-1 建好，KUB01、KUB03、KUB04 可以建立）；之後每個批次在建好階段時加上它。
+`KUBE_STAGES_BUILT = ['E32', 'E33', 'E34', 'E35', 'E36', 'E37']`（E33、E34 在 KUB-1 建好，KUB01、KUB03、KUB04 可以建立；E35 在 KUB-2 建好，KUB05 與 KUB11 可以建立；E36 在 KUB-2 建好，KUB06 可以建立；E37 在 KUB-2 建好，KUB07 可以建立）；之後每個批次在建好階段時加上它。
 
 ## 5. 終端機引擎階段 E32–E40
 
@@ -84,9 +88,9 @@ profile 的鏈接在 `deploy-hosts`（RANK 31）之後，每個 profile 包含�
 | **E32 `cluster`** | **已完成** | 共用模型、kubeconfig、`version`、`cluster-info`、`api-resources`（子集）、命名空間、節點、kube-system；`get`、`describe`、`apply -f`、`create -f`、`delete`、`label`、`annotate`、`taint`、`run`、`logs`、`exec`、`events`、`wait`；排程器與 kubelet 的生命週期（[KUB0_E32_CLUSTER](KUB0_E32_CLUSTER.md)） | `kube-object`、`kube-pod` |
 | **E33 `probes`** | **已完成** | liveness、readiness、startup（`httpGet` 對容器的 responder、`tcpSocket`、`exec`）；課程宣告的隨時間變化的健康狀態（`kube.health`）；READY 欄、Ready 條件、`Unhealthy`／`Killing` 事件與 liveness 重啟；`terminationGracePeriodSeconds`、`preStop`、E24 `signals` 處理 SIGTERM、Terminating、`kubectl delete` 等待（[KUB0_E33_PROBES](KUB0_E33_PROBES.md)） | `kube-pod` 的 `ready` 取得探針的意義 |
 | **E34 `workloads`** | **已完成** | ReplicaSet、Deployment 的控制器、owner、收養與改標籤讓 Pod 脫離、選擇器不可變、背景串連刪除與 `--cascade=orphan`；`create deployment`、`scale`、`set image`；滾動更新（沿用 `src/lib/devops/rollout.ts` 的 `resolveRolling`）、Recreate、`minReadySeconds`、`progressDeadlineSeconds`、revisionHistoryLimit；`rollout status|history|undo|pause|resume|restart`；`cordon`、`uncordon`、`drain --ignore-daemonsets`、課程宣告的節點故障（50 秒後 NotReady，300 秒後驅逐）（[KUB0_E34_WORKLOADS](KUB0_E34_WORKLOADS.md)） | `kube-workload`、`kube-rollout` |
-| E35 `kube-net` | 規劃 | Service（ClusterIP、NodePort、LoadBalancer、headless；LB 沒有宣告位址池時是 `<pending>`）、`expose`、具名 targetPort、Endpoints 與 EndpointSlice、CoreDNS 與 `ndots:5`、Pod 內的 `curl`／`getent`／`nslookup`（E22 的容器網路）、從學習者機器以 E12 `curl` 到 NodePort 與 LB、`port-forward` | `kube-service`；`http`、`reach` 加上 `pod?` |
-| E36 `kube-config` | 規劃 | `create configmap|secret generic|tls|docker-registry`、`-o yaml` 的 base64 與 `base64` 指令（GNU coreutils 9.4，76 欄換行）、`env`／`envFrom`／`valueFrom`／`optional`、CreateContainerConfigError、掛載與更新的延遲、`subPath`、`immutable`、`imagePullSecrets`（E23 Registry）、tls Secret 讀 E13 的 PEM | — |
-| E37 `ingress` | 規劃 | 課程宣告的 ingress-nginx、Ingress v1 的 host 與路徑規則、預設後端 404、TLS（E13 `tls.ts`；沒有 Secret 時是 Fake Certificate、ssl-redirect 308）；Gateway API v1 子集（GatewayClass、Gateway、HTTPRoute 與 E15 `proxy.ts` 的平滑加權輪替） | `http`、`kube-object` |
+| **E35 `kube-net`** | **已完成** | Service（ClusterIP、NodePort、LoadBalancer、headless；LB 沒有宣告位址池時是 `<pending>`，課程的 `lbPool` 是 MetalLB 式的提供者）、雜湊加下一個空位的 ClusterIP 與 NodePort、`expose`、`create service`、具名 targetPort、Endpoints 與 EndpointSlice 控制器（readiness、Terminating）、CoreDNS 與 `ndots:5`、Pod 內的 `curl`／`getent`／`nc`／`nslookup`／`wget`（E22 的容器網路）、kube-proxy 依端點 IP 順序輪替、從學習者機器以 E12 `curl` 到 NodePort 與 LB（ClusterIP 逾時）、`port-forward` 是 E4 背景工作與 E10 的聆聽（[KUB0_E35_KUBE_NET](KUB0_E35_KUBE_NET.md)） | `kube-service`；`http`、`reach` 加上 `pod?` |
+| **E36 `kube-config`** | **已完成** | `create configmap|secret generic|tls|docker-registry`、`-o yaml` 的 base64 與 `base64` 指令（GNU coreutils 9.4，76 欄換行）、`env`／`envFrom`／`valueFrom`／`optional`、CreateContainerConfigError（每 10 秒重試）、configMap／secret Volume 與 FailedMount、掛載內容在最後一次改變的 60 秒後更新、`subPath` 與環境變數不更新、`immutable`、`imagePullSecrets`（E23 Registry）、tls Secret 讀 E13 的 PEM（[KUB0_E36_KUBE_CONFIG](KUB0_E36_KUBE_CONFIG.md)） | `kube-config`；`kube-object` 加上 ConfigMap、Secret；`kube-pod` 的 `env`／`file` 看得到解析的變數與 Volume |
+| **E37 `ingress`** | **已完成** | 課程宣告的 ingress-nginx（`kube.ingressController`）、Ingress v1 的 host 與路徑規則（Exact、依路徑元素的 Prefix、最長比對、單一標籤的萬用字元）、預設後端 404、`defaultBackend`、503／502、TLS（E13 `tls.ts`；沒有 Secret 時是 Fake Certificate、ssl-redirect 308、HSTS）、`create ingress`；Gateway API v1 子集（`kube.gatewayApi`：GatewayClass、Gateway 的位址與 listener、HTTPRoute 的 parents 條件與 E15 `proxy.ts` 的平滑加權輪替）（[KUB0_E37_INGRESS](KUB0_E37_INGRESS.md)） | `http`（Host 標頭）、`kube-object`（加上 `conditions`） |
 | E38 `kube-storage` | 規劃 | StorageClass、PV／PVC 綁定與存取模式（RWO 跨節點是 Multi-Attach）、PV 的內容是檔案樹（同 E22 Volume）、`emptyDir`；StatefulSet 的順序、穩定 DNS、`volumeClaimTemplates`；`kubectl exec … -- tar` 與 `kubectl cp` 子集 | `kube-volume`；`kube-pod` 的檔案 |
 | E39 `helm` | 規劃（已決定模擬） | Chart 檔案、新的 Go template 引擎（不改 `storage-net-cli.ts` 的 `goTemplate`）、values 的優先順序、`.Release`／`.Chart`／`.Capabilities`、install／upgrade／list／status／history／rollback／uninstall／get／template／lint／show／repo／pull；Release 存成 Secret | `helm-release` |
 | E40 `autoscaling` | 規劃 | requests／limits、QoS、在 limit 被 OOMKilled（E24 的記憶體模型）、metrics-server 與 `kubectl top`、課程宣告的負載（沿用 D3 的 `generateSeries`）、HPA `autoscaling/v2`（容忍 0.1、15 秒同步、預設的擴張策略、300 秒縮減穩定視窗）、`autoscale`、Pending（Insufficient cpu）；節點自動擴展在 E40 決定 | `kube-hpa` |
@@ -106,7 +110,7 @@ profile 的鏈接在 `deploy-hosts`（RANK 31）之後，每個 profile 包含�
 
 ## 7. 新的檢查種類
 
-E32 有 `kube-object`、`kube-pod`（[KUB0_E32_CLUSTER](KUB0_E32_CLUSTER.md) §15，`src/lib/terminal/kube-checks.ts`，接在 `TERMINAL_CHECK_KINDS`）；E34 有 `kube-workload`（resource、name、replicas／readyReplicas／updatedReplicas／availableReplicas、image、revision、paused、condition）、`kube-rollout`（complete、revision、change-cause、歷史的筆數）（[KUB0_E34_WORKLOADS](KUB0_E34_WORKLOADS.md) §10，`kube-workload-checks.ts`）。之後：`kube-service`（type、readyEndpoints、port、nodePort）、`kube-volume`（PVC Bound、storageClass、容量）、`kube-hpa`（min、max、target、replicas 的範圍）、`helm-release`（`helm-checks.ts`：status、revision、chart 版本、某個路徑的值）；`http`、`reach` 加上 `pod?`（從那個 Pod 發出請求）。
+E32 有 `kube-object`、`kube-pod`（[KUB0_E32_CLUSTER](KUB0_E32_CLUSTER.md) §15，`src/lib/terminal/kube-checks.ts`，接在 `TERMINAL_CHECK_KINDS`）；E34 有 `kube-workload`（resource、name、replicas／readyReplicas／updatedReplicas／availableReplicas、image、revision、paused、condition）、`kube-rollout`（complete、revision、change-cause、歷史的筆數）（[KUB0_E34_WORKLOADS](KUB0_E34_WORKLOADS.md) §10，`kube-workload-checks.ts`）。E35 有 `kube-service`（type、clusterIP、ports 的 targetPort 與 nodePort、selector、readyEndpoints、addresses、externalIP）與 `http`、`reach` 的 `pod?`（從那個 Pod 發出請求）（[KUB0_E35_KUBE_NET](KUB0_E35_KUBE_NET.md) §9，`kube-service-checks.ts`）。E36 有 `kube-config`（ConfigMap／Secret 的類型、鍵、值、immutable、檔案裡沒有明文值），`kube-object` 加上 ConfigMap 與 Secret（[KUB0_E36_KUBE_CONFIG](KUB0_E36_KUBE_CONFIG.md) §9，`kube-config-checks.ts`）。E37 沒有新的檢查種類：`kube-object` 加上 Ingress、IngressClass、GatewayClass、Gateway、HTTPRoute 與 `conditions`（HTTPRoute 看每一筆 parent），`http` 的 `requestHeaders` 的 Host 取代 URL 的（[KUB0_E37_INGRESS](KUB0_E37_INGRESS.md) §10）。之後：`kube-volume`（PVC Bound、storageClass、容量）、`kube-hpa`（min、max、target、replicas 的範圍）、`helm-release`（`helm-checks.ts`：status、revision、chart 版本、某個路徑的值）。
 
 ## 8. 要固定的版本（全部標記「待核對」）
 
@@ -127,6 +131,6 @@ Kubernetes、kubectl 與伺服器 v1.32.3；`kubectl version` 印出的 Kustomiz
 
 ## 11. 沒有把握的地方
 
-- E32 的所有輸出文字見 [KUB0_E32_CLUSTER](KUB0_E32_CLUSTER.md) §18；E33 的見 [KUB0_E33_PROBES](KUB0_E33_PROBES.md) §13；E34 的見 [KUB0_E34_WORKLOADS](KUB0_E34_WORKLOADS.md) §15。
+- E32 的所有輸出文字見 [KUB0_E32_CLUSTER](KUB0_E32_CLUSTER.md) §18；E33 的見 [KUB0_E33_PROBES](KUB0_E33_PROBES.md) §13；E34 的見 [KUB0_E34_WORKLOADS](KUB0_E34_WORKLOADS.md) §15；E35 的見 [KUB0_E35_KUBE_NET](KUB0_E35_KUBE_NET.md) §14；E36 的見 [KUB0_E36_KUBE_CONFIG](KUB0_E36_KUBE_CONFIG.md) §14；E37 的見 [KUB0_E37_INGRESS](KUB0_E37_INGRESS.md) §14。
 - §8 的版本號（包括 kubeadm 叢集裡 etcd、CoreDNS 的版本搭配）。
 - KUB12 以 `monitoring-dashboard` 加上終端機是否足以呈現 Allocated resources 與 `kubectl top`（E40 之後再確認）。

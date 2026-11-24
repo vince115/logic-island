@@ -6,7 +6,7 @@ import { phaseOf } from './kube-status';
 import { beginDelete } from './kube-stop';
 import { selectorMatches, replicasOf } from './kube-workload-spec';
 import {
-  arr, changed, clone, createdOf, KUBE_LIMITS, kindOf, labelsOf, meta, nameOf, nsOf, obj, sameJ, stamp, str, suffix, uidOf,
+  arr, changed, clone, createdOf, systemNs, KUBE_LIMITS, kindOf, labelsOf, meta, nameOf, nsOf, obj, sameJ, stamp, str, suffix, uidOf,
   type J, type JObj, type KubeState,
 } from './kube-model';
 
@@ -50,7 +50,7 @@ export const ownerRef = (o: JObj): J => ({ apiVersion: 'apps/v1', blockOwnerDele
 const withOwners = (o: JObj, refs: J[]): JObj => { const m: JObj = { ...meta(o) }; if (refs.length) m.ownerReferences = refs; else delete m.ownerReferences; return { ...o, metadata: m }; };
 /** The objects of a namespace the controllers see at t (what existed then). */
 export const visible = (k: KubeState, kind: string, ns: string | undefined, t: Seconds) =>
-  k.objects.filter(o => kindOf(o) === kind && (ns === undefined || nsOf(o) === ns) && nsOf(o) !== 'kube-system' && (createdOf(o) ?? 0) <= t);
+  k.objects.filter(o => kindOf(o) === kind && (ns === undefined || nsOf(o) === ns) && !systemNs(k, nsOf(o)) && (createdOf(o) ?? 0) <= t);
 export const ownedBy = (k: KubeState, owner: JObj, kind: string, t: Seconds) => visible(k, kind, nsOf(owner), t).filter(o => str(controllerOf(o)?.uid) === uidOf(owner));
 
 /** kubectl delete --cascade=orphan: the dependents of the object lose their ownerReference to it. */
@@ -88,7 +88,7 @@ export function syncReplicaSet(d: DockerState | undefined, k0: KubeState, rs0: J
   const rs = k.objects.find(o => uidOf(o) === id) ?? rs0, want = replicasOf(rs);
   let facts = ownedBy(k, rs, 'Pod', t).map(p => podFacts(k, p, t)).filter(isActive);
   if (facts.length < want) {
-    const room = KUBE_LIMITS.pods - k.objects.filter(o => kindOf(o) === 'Pod' && nsOf(o) !== 'kube-system').length;
+    const room = KUBE_LIMITS.pods - k.objects.filter(o => kindOf(o) === 'Pod' && !systemNs(k, nsOf(o))).length;
     for (let n = 0; n < Math.min(want - facts.length, Math.max(0, room)); n++) k = newPod(k, rs, t);
     if (room < want - facts.length && !k.events.some(e => e.uid === id && e.reason === 'FailedCreate' && e.last === t))
       k = record(k, t, about(rs), 'Warning', 'FailedCreate', `Error creating: （模擬環境：叢集最多 ${KUBE_LIMITS.pods} 個 Pod）`, 'replicaset-controller');
@@ -116,7 +116,7 @@ export function collectGarbage(d: DockerState | undefined, k0: KubeState, t: Sec
   const uids = new Set(k0.objects.map(uidOf));
   for (const o of k0.objects) {
     const refs = arr(meta(o).ownerReferences).map(obj);
-    if (nsOf(o) === 'kube-system' || !refs.length || refs.some(r => uids.has(str(r.uid) ?? ''))) continue;
+    if (systemNs(k0, nsOf(o)) || !refs.length || refs.some(r => uids.has(str(r.uid) ?? ''))) continue;
     const live = k.objects.find(x => uidOf(x) === uidOf(o));
     if (!live) continue;
     k = kindOf(o) === 'Pod' ? endPod(d, k, live, t) : changed(remove(k, live), t);

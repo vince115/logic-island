@@ -1,6 +1,8 @@
 import { find } from './kube-api';
 import { imageNodes, runIn } from './docker';
 import { podContainer, podEnv, resolveImage } from './kube-image';
+import { podExec, podNetCommand } from './kube-pod-net';
+import { mountNodes } from './kube-volumes';
 import { cOf, specOf, type Ref } from './kube-kubelet';
 import { settleKube, waitStep } from './kube-settle';
 import { advanceClock } from './shell';
@@ -62,16 +64,29 @@ export function execCommand(x: Kx): KubeResult {
   if (!sim || !c || c.state !== 'running') return fail(x, `error: unable to upgrade connection: container not found ("${str(obj(spec).name) ?? ''}")`);
   const argv = x.rest, interactive = x.flags.bools.has('stdin') && x.flags.bools.has('tty');
   if (interactive && ['sh', 'bash', '/bin/sh', '/bin/bash'].includes(argv[0]) && argv.length === 1) return fail(x, '（模擬環境沒有鍵盤：不能開互動的 shell；請在 -- 後面直接寫要執行的指令，例如 kubectl exec web -- ls /）');
-  const res = resolveImage(x.state.docker, c.image);
+  const res = resolveImage(x.state.docker, c.image, x.k.config ? 'pulled' : undefined);
   if ('error' in res) return fail(x, `error: unable to upgrade connection: container not found ("${c.name}")`);
-  if (argv.length === 1 && argv[0] === 'env' && (res.img.commands ?? []).includes('env')) { podEnv(spec, res.img, nameOf(p.pod)).forEach(l => x.io.out(l)); return { state: x.state, status: 0 }; }
-  const box = podContainer(res.img, spec, nameOf(p.pod), c.cid ?? '', x.now, c.layer);
-  const r = runIn(box, res.img, argv, { tty: x.flags.bools.has('tty'), env: [], now: x.now });
+  if (argv.length === 1 && argv[0] === 'env' && (res.img.commands ?? []).includes('env')) { podEnv(spec, res.img, nameOf(p.pod), true, x.k.config ? c.env ?? [] : undefined).forEach(l => x.io.out(l)); return { state: x.state, status: 0 }; }
+  // E36: printenv [NAME…] (an image that lists it) prints the variables the kubelet resolved; the volumes are in the files.
+  if (x.k.config && argv[0] === 'printenv' && (res.img.commands ?? []).includes('printenv')) {
+    const env = podEnv(spec, res.img, nameOf(p.pod), true, c.env ?? []), values = argv.slice(1).map(n => env.find(e => e.startsWith(`${n}=`))?.slice(n.length + 1));
+    (argv.length === 1 ? env : values.filter((v): v is string => v !== undefined)).forEach(l => x.io.out(l));
+    const status = values.some(v => v === undefined) ? 1 : 0;
+    if (status) x.io.err('command terminated with exit code 1');
+    return { state: x.state, status };
+  }
+  const mounts = x.k.config ? mountNodes(p.pod, sim, spec, c) : undefined;
+  const box = podContainer(res.img, spec, nameOf(p.pod), c.cid ?? '', x.now, c.layer, mounts);
+  // E35: the pod's network (kubelet's /etc/hosts and /etc/resolv.conf, the other pods, Services, DNS); nslookup and wget.
+  const net = x.k.net ? podExec(x.state, p.pod, box, c.layer) : undefined;
+  const r = (net && podNetCommand(box, res.img, net.view, argv)) || runIn(box, res.img, argv, { tty: x.flags.bools.has('tty'), env: [], now: x.now, ...net ? { view: net.view } : {} });
   if ('notFound' in r) return fail(x, `error: Internal error occurred: Internal error occurred: error executing command in container: failed to exec in container: failed to start exec "${(c.cid ?? '').slice(0, 64)}": OCI runtime exec failed: exec failed: unable to start container process: exec: "${r.notFound}": executable file not found in $PATH: unknown`);
   for (const l of r.lines) (l.stream === 1 ? x.io.out : x.io.err)(l.text);
   const base = imageNodes(res.img, c.cid ?? ''), layer = new Map<string, FsNode>();
+  for (const [path, n] of mounts ?? []) base.set(path, n);
+  for (const [path, n] of net?.files ?? []) if (!c.layer?.has(path)) base.set(path, n);
   for (const [path, n] of r.nodes) if (base.get(path) !== n && JSON.stringify(base.get(path)) !== JSON.stringify(n)) layer.set(path, n);
-  const k = { ...x.k, pods: { ...x.k.pods, [id]: { ...sim, [p.r.init ? 'init' : 'main']: (p.r.init ? sim.init : sim.main).map((y, i) => i === p.r.i ? { ...y, layer } : y) } } };
+  const k = { ...x.k, ...r.kubeNet ? { turns: r.kubeNet.turns } : {}, pods: { ...x.k.pods, [id]: { ...sim, [p.r.init ? 'init' : 'main']: (p.r.init ? sim.init : sim.main).map((y, i) => i === p.r.i ? { ...y, layer } : y) } } };
   if (r.status !== 0) x.io.err(`command terminated with exit code ${r.status}`);
   return { state: { ...x.state, kube: k }, status: r.status };
 }
@@ -80,7 +95,7 @@ export function eventsCommand(x: Kx): KubeResult {
   const types = flag(x, 'types')?.split(',').map(t => t.trim().toLowerCase()), target = flag(x, 'for');
   let list: KubeEvent[] = x.k.events.filter(e => (x.all || e.ns === x.ns) && (!types || types.includes(e.type.toLowerCase())));
   // Fix (E34): --for takes kubectl's names of the type (deploy/web, rs/web-…, no/node-01), as the resource builder does.
-  if (target) { const [word, name] = target.includes('/') ? target.split('/') : ['pod', target], kind = kindOfWord(word) ?? word; list = list.filter(e => e.name === name && e.kind.toLowerCase() === kind.toLowerCase()); }
+  if (target) { const [word, name] = target.includes('/') ? target.split('/') : ['pod', target], kind = kindOfWord(word, x.k) ?? word; list = list.filter(e => e.name === name && e.kind.toLowerCase() === kind.toLowerCase()); }
   list = [...list].sort((a, b) => a.last - b.last || a.seq - b.seq);
   if (!list.length) return fail(x, x.all ? 'No events found.' : `No events found in ${x.ns} namespace.`, 0);
   const seen = (e: KubeEvent) => e.count > 1 ? `${humanDuration(x.now - e.last)} (x${e.count} over ${humanDuration(x.now - e.first)})` : humanDuration(x.now - e.last);

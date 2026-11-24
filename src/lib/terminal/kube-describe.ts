@@ -4,6 +4,7 @@ import { podsOnNode } from './kube-sched';
 import { rolesOf } from './kube-print';
 import { taintText } from './kube-system';
 import { describeProbe, PROBE_FIELD, PROBE_NAME } from './kube-probe-spec';
+import { envFromLines, envLine, volumeLines } from './kube-describe-config';
 import {
   arr, bytesOf, cpuMilli, createdOf, goTab, humanDuration, nameOf, nsOf, obj, parseStamp, quantityText, rfc1123, str, uidOf,
   type J, type JObj, type KubeEvent, type KubeState,
@@ -53,10 +54,11 @@ export function containerLines(c0: J, cs0: J | undefined): string[] {
   for (const [head, m] of [['Limits', r.limits], ['Requests', r.requests]] as const) if (Object.keys(obj(m)).length) lines.push(`    ${head}:`, ...Object.keys(obj(m)).sort().map(k => `      ${k}:\t${quantityText(obj(m)[k]) ?? ''}`));
   // E33: Liveness, Readiness, Startup (describeContainerProbe's order).
   for (const t of ['liveness', 'readiness', 'startup'] as const) if (c[PROBE_FIELD[t]] !== undefined && c[PROBE_FIELD[t]] !== null) lines.push(`    ${PROBE_NAME[t]}:\t${describeProbe(c[PROBE_FIELD[t]])}`);
+  // E36: envFrom, env valueFrom (<set to the key …>) and subPath mounts (path="…"); none of them exists below kube-config.
   const env = arr(c.env).map(obj);
-  lines.push(...env.length ? ['    Environment:', ...env.map(e => `      ${str(e.name)}:\t${str(e.value) ?? ''}`)] : ['    Environment:\t<none>']);
+  lines.push(...envFromLines(c), ...env.length ? ['    Environment:', ...env.map(envLine)] : ['    Environment:\t<none>']);
   const mounts = arr(c.volumeMounts).map(obj);
-  lines.push(...mounts.length ? ['    Mounts:', ...mounts.map(m => `      ${str(m.mountPath)} from ${str(m.name)} (${m.readOnly ? 'ro' : 'rw'})`)] : ['    Mounts:\t<none>']);
+  lines.push(...mounts.length ? ['    Mounts:', ...mounts.map(m => `      ${str(m.mountPath)} from ${str(m.name)} (${m.readOnly ? 'ro' : 'rw'}${str(m.subPath) ? `,path="${str(m.subPath)}"` : ''})`)] : ['    Mounts:\t<none>']);
   return lines;
 }
 
@@ -83,7 +85,7 @@ function describePod(k: KubeState, o: JObj, now: Seconds): string[] {
   const conds = arr(status.conditions).map(obj);
   if (conds.length) lines.push('Conditions:', '  Type \tStatus', ...conds.map(c => `  ${str(c.type)} \t${str(c.status)} `));
   const vols = arr(spec.volumes).map(obj);
-  lines.push(...vols.length ? ['Volumes:', ...vols.flatMap(v => [`  ${str(v.name)}:`, '    Type:\tProjected (a volume that contains injected data from multiple sources)', '    TokenExpirationSeconds:\t3607',
+  lines.push(...vols.length ? ['Volumes:', ...vols.flatMap(v => volumeLines(v) ?? [`  ${str(v.name)}:`, '    Type:\tProjected (a volume that contains injected data from multiple sources)', '    TokenExpirationSeconds:\t3607',
     '    ConfigMapName:\tkube-root-ca.crt', '    Optional:\tfalse', '    DownwardAPI:\ttrue'])] : ['Volumes:\t<none>']);
   const tol = arr(spec.tolerations).map(obj).map(t => `${str(t.key) ?? ''}${str(t.value) ? `=${str(t.value)}` : ''}${str(t.effect) ? `:${str(t.effect)}` : ''} op=${str(t.operator) ?? 'Equal'}${typeof t.tolerationSeconds === 'number' ? ` for ${t.tolerationSeconds}s` : ''}`);
   lines.push(`QoS Class:\t${str(status.qosClass) ?? 'BestEffort'}`, ...multi('Node-Selectors:', mapLines(spec.nodeSelector, '=')), ...multi('Tolerations:', tol), ...eventLines(k, uidOf(o), now));

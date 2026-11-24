@@ -505,8 +505,8 @@ export const KUB_SHAPES: Readonly<Record<string, KubeShape>> = {
   KUB15: { blueprint: 'challenge-stages', activity: 'challenge-stages', capabilities: ['terminal', 'devops-explorer', 'visualization'], visualization: 'challenge-stages',
     stages: ['E32', 'E33', 'E34', 'E35', 'E36', 'E37', 'E38', 'E39', 'E40', 'D3', 'D5', 'D6'] },
 };
-/** The terminal engine stages of the KUB range (E32–E40) that exist (KUB0_KUBERNETES_CAPABILITY.md §4): E32, built in KUB-0; E33 and E34 (KUB-1). */
-export const KUBE_STAGES_BUILT: readonly string[] = ['E32', 'E33', 'E34'];
+/** The terminal engine stages of the KUB range (E32–E40) that exist (KUB0_KUBERNETES_CAPABILITY.md §4): E32, built in KUB-0; E33 and E34 (KUB-1); E35, E36 and E37 (KUB-2). */
+export const KUBE_STAGES_BUILT: readonly string[] = ['E32', 'E33', 'E34', 'E35', 'E36', 'E37'];
 const KUBE_RANGE = /^E(3[2-9]|40)$/;
 export function kubeFromBlueprint(lessonId: string, summary: string, minutes: number, withOptional = false): Outline {
   const b = planning.plannedLessons.find(l => l.lessonId === lessonId);
@@ -781,12 +781,15 @@ const devopsCicd: Outline[] = [
   cicdFromBlueprint('CICD15', '為虛構咖啡店的點餐服務建立從 commit 到上線的完整流程：以分支保護要求 PR、核准與 lint、test 兩個必要檢查並讓 CI 在 PR 上執行，經由 PR 修好失敗的測試；main 的每個 commit 只建置一次 Image，以 env 與 --password-stdin 推送 sha-<commit> 並快取 npm 的下載；依環境設定 variable 與 secret、刪除人人讀得到的儲存庫層級金鑰、以審核者與受保護分支保護 production；修好部署管線的權限、digest 與 environment，以同一個 digest 從 staging 晉升到 production；在部署模擬器選一個閘門在足夠樣本上擋下壞版本的金絲雀計畫，在儀表板寫一條及時又沒有誤報的症狀告警；最後在演練中從部署紀錄找到上一個 digest、經由 rollback.yml 回滾並算出偵測、確認、止血與恢復時間。', 90),
 ];
 
-/** KUB-1 (2026-11-24): the kubernetes-reliability island's first lessons, on the terminal with a simulated cluster (engine stages E32 cluster, E33 probes, E34 workloads; KUB0_KUBERNETES_CAPABILITY.md, KUBERNETES_RELIABILITY_ISLAND.md); KUB02 pairs the terminal with network-protocol scenes. */
+/** KUB-1 (2026-11-24): the kubernetes-reliability island's first lessons, on the terminal with a simulated cluster (engine stages E32 cluster, E33 probes, E34 workloads; KUB0_KUBERNETES_CAPABILITY.md, KUBERNETES_RELIABILITY_ISLAND.md); KUB02 pairs the terminal with network-protocol scenes.; KUB-2 adds KUB05–KUB07 on E35 kube-net, E36 kube-config and E37 ingress, KUB07 beside a network-protocol scene too. */
 const kubernetesReliability: Outline[] = [
   kubeFromBlueprint('KUB01', '從單機 Compose 的極限（一台主機就是一個故障域、restart: always 只在同一台重新啟動、手動放置、--scale 與寫死的主機埠、只在一台主機有效的服務名稱）說明容器編排要解決的問題，比較命令式指令與宣告式的期望狀態（kubectl apply 的 unchanged 與 configured）並和 DKR09 的 Compose 對照，說明控制器的調和迴圈與排程，在模擬叢集上刪掉 Deployment 的 Pod 看 ReplicaSet 以新名稱、新節點與新 IP 補回而 bare pod 不會回來，以 drain --ignore-daemonsets 排空節點並看 uncordon 不會重新平衡，觀察節點失聯 50 秒後 NotReady、300 秒後驅逐並在其他節點重建，說明 Pod 會換所以需要服務發現，並以團隊、流量、服務數量與維運能力判斷何時不需要編排、改用一台 VM 加 Compose 或託管平台。', 30),
   kubeFromBlueprint('KUB02', '分辨控制平面（kube-apiserver、etcd、kube-scheduler、kube-controller-manager）與工作節點（kubelet、kube-proxy、containerd）的職責，從 kubeconfig、節點與 kube-system 的 static pod 讀出一個 kubeadm 叢集的組成，把一次 kubectl apply 從 API server 的檢查與 etcd 的寫入、scheduler 的 binding、kubelet 的 watch 到 CRI 啟動容器逐步追蹤，以 kubectl wait 等到 Pod 就緒，並說明 watch 與調和迴圈、etcd 為什麼是唯一的真實來源、quorum 的容錯與備份。', 30),
   kubeFromBlueprint('KUB03', '以 YAML manifest 描述 Pod（apiVersion、kind、metadata、spec、containers、ports 與 resources），理解同一個 Pod 的容器共用 IP 與 localhost、一起排程到同一個節點，用 init container 與 sidecar 組成多容器 Pod 並以 logs -c、exec -c 檢查各個容器，從 phase、STATUS、restartPolicy 與退避讀懂 Completed 與 CrashLoopBackOff，以存活、就緒與啟動探針判斷容器是否該重啟或接工作，修好探針寫錯與初始化失敗的 Pod，並說明不可變的 spec 與 SIGTERM、寬限期的優雅終止。', 35),
   kubeFromBlueprint('KUB04', '以 Deployment 維持指定數量的 Pod，沿著 ownerReferences 與 pod-template-hash 看懂 Deployment、ReplicaSet 與 Pod 三層物件，用等號、集合與存在的 Label 選擇器篩選資源並以 kubectl label --overwrite 修改標籤，理解選擇器必須符合範本而且不可修改，以 kubectl scale 或修改 manifest 再 apply 調整副本數並避開命令式改動造成的漂移，知道縮減時先刪哪些 Pod，並觀察刪除 Pod、把 Pod 移出選擇器之後 ReplicaSet 如何自動補上。', 40),
+  kubeFromBlueprint('KUB05', '以 Service 給一直更換的 Pod 一個穩定的名稱與 ClusterIP，比較 ClusterIP、NodePort、LoadBalancer（有沒有位址池的提供者）與 headless，分清 port、targetPort（含具名的埠）與 nodePort，看懂只收就緒 Pod 的 Endpoints 與 EndpointSlice 並排查選擇器打錯字造成的零端點，用叢集 DNS 的短名、跨命名空間名稱與 ndots:5 的搜尋清單從 Pod 連線，以 kubectl expose 建立 Service，並用 port-forward 除錯。', 40),
+  kubeFromBlueprint('KUB06', '從 The Twelve-Factor App 的設定原則與「一個 Image 跑在每個環境」說明設定與機密為什麼要離開 Image 並和 CICD08 的 secret 對照，以 --from-literal、--from-file、--from-env-file 與 YAML 建立 ConfigMap，用 env 的 valueFrom、加上前綴的 envFrom、defaultMode 的 configMap Volume 與 subPath 把設定交給 Pod，看懂缺少來源時的 FailedMount 與 CreateContainerConfigError，分辨改了設定之後掛載的檔案約一分鐘後更新、環境變數與 subPath 永遠不變而要 kubectl rollout restart，認識 Secret 的類型、以 jsonpath 加 base64 -d 還原值、echo 與 echo -n 的差別和 stringData 留在 last-applied 註解的陷阱，說明 Secret 預設只是編碼而不是加密、誰能讀到它、etcd 靜態加密與外部機密管理，並以 docker-registry Secret 與 imagePullSecrets 修好私有 Registry 的拉取、以 immutable 防止設定被改動。', 40),
+  kubeFromBlueprint('KUB07', '讓多個 Service 共用一個對外入口：分清 Ingress 與 Ingress Controller（IngressClass、ingressClassName、沒有人服務的 Ingress），以 Exact、Prefix 與最長比對依網域與路徑分流，用 kubernetes.io/tls 的 Secret 在入口終止 TLS 並看懂 SNI、Fake Certificate 與 308 轉址，追蹤一個 HTTPS 請求從 DNS、LoadBalancer 位址到 Pod 的路徑，再以 Gateway API 的 GatewayClass、Gateway 與 HTTPRoute 分開平台與應用的責任，並用加權的 backendRefs 做金絲雀分流。', 45),
 ];
 
 /** RWD-1 (2026-11-23): the responsive design island's first lessons, on the web-code capability with the resize step and preview widths (WEB0_WEB_CODE_CAPABILITY.md, RESPONSIVE_DESIGN_ISLAND.md); RWD-2 adds RWD05–RWD08, RWD-3 RWD09–RWD12 (the capstone): the island is complete. */

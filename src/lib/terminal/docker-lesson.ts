@@ -198,7 +198,7 @@ export type DockerCheck =
   /** E23: the registry's repository has the tag (absent: it does not), pointing to this digest, or to the content of this local image. */
   /** E29: commit (artifacts profile) appends a branch's current commit to the tag (sha-<commit>), resolved in server-lesson.ts. */
   | { kind: 'registry'; registry: string; repository: string; tag: string; absent?: true; digest?: string; image?: string; commit?: RegistryCommit };
-export interface DockerLevels { containers: boolean; images?: boolean; storageNet?: boolean; compose?: boolean; runtime?: boolean }
+export interface DockerLevels { containers: boolean; images?: boolean; storageNet?: boolean; compose?: boolean; runtime?: boolean; /** E35: pods' nslookup and wget (kube-pod-net.ts). */ kubeNet?: boolean; /** E36: pods' printenv (kubectl-pod.ts). */ kubeConfig?: boolean }
 
 const DOCKER_GID = 988;
 const DOCKERD = '/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock';
@@ -523,8 +523,9 @@ export function dockerProblems(m: TerminalMachine, lv: DockerLevels): string[] {
     if (i.service && i.output !== undefined) fail(`${at}: a service keeps running; output is for an image that prints and exits`);
     if ((i.exit !== undefined && !whole(i.exit, 0, 255)) || (i.stopExit !== undefined && !whole(i.stopExit, 0, 255))) fail(`${at}: exit and stopExit are 0..255`);
     // E24: and the executables of the lesson's programs (node, python…), which run as PID 1.
-    const allowed = lv.runtime ? [...composeCommands(m), ...(m.docker?.programs ?? []).map(p => (p.command?.[0] ?? '').slice((p.command?.[0] ?? '').lastIndexOf('/') + 1)).filter(Boolean)]
+    const allowed0: readonly string[] = lv.runtime ? [...composeCommands(m), ...(m.docker?.programs ?? []).map(p => (p.command?.[0] ?? '').slice((p.command?.[0] ?? '').lastIndexOf('/') + 1)).filter(Boolean)]
       : lv.compose ? composeCommands(m) : lv.storageNet ? E22_IMAGE_COMMANDS : IMAGE_COMMANDS;
+    const allowed = lv.kubeNet ? [...allowed0, 'nslookup', 'wget', ...lv.kubeConfig ? ['printenv'] : []] : allowed0;
     if (i.commands !== undefined && (!Array.isArray(i.commands) || i.commands.some(c => !allowed.includes(c)))) fail(`${at}: commands are among ${allowed.join(' ')}`);
     // E22: VOLUME paths.
     if (i.volumes !== undefined) {

@@ -31,11 +31,21 @@ const TCP: F = { go: 'TCPSocketAction', fields: { port: 'intstr', host: 'str' } 
 const PROBE: F = { go: 'Probe', fields: { exec: EXEC, httpGet: HTTP_GET, tcpSocket: TCP, grpc: 'any', initialDelaySeconds: 'int', timeoutSeconds: 'int', periodSeconds: 'int', successThreshold: 'int', failureThreshold: 'int', terminationGracePeriodSeconds: 'int' } };
 const HANDLER: F = { go: 'LifecycleHandler', fields: { exec: EXEC, httpGet: HTTP_GET, tcpSocket: TCP, sleep: { go: 'SleepAction', fields: { seconds: 'int' } } } };
 const CONTAINER_E33: F = { go: 'Container', fields: { ...CONTAINER_FIELDS, livenessProbe: PROBE, readinessProbe: PROBE, startupProbe: PROBE, lifecycle: { go: 'Lifecycle', fields: { preStop: HANDLER, postStart: HANDLER } } } };
-const podSpec = (container: F): F => ({ go: 'PodSpec', fields: {
+/** E36: env valueFrom, envFrom, volume mounts, configMap and secret volumes and imagePullSecrets, decoded strictly on kube-config. */
+const KEY_SEL = (go: string): F => ({ go, fields: { name: 'str', key: 'str', optional: 'bool' } });
+const ITEMS: F = { list: { go: 'KeyToPath', fields: { key: 'str', path: 'str', mode: 'int' } } };
+const VOLUME: F = { go: 'Volume', fields: { name: 'str', configMap: { go: 'ConfigMapVolumeSource', fields: { name: 'str', items: ITEMS, defaultMode: 'int', optional: 'bool' } },
+  secret: { go: 'SecretVolumeSource', fields: { secretName: 'str', items: ITEMS, defaultMode: 'int', optional: 'bool' } }, projected: 'any', emptyDir: 'any', persistentVolumeClaim: 'any', hostPath: 'any', downwardAPI: 'any', nfs: 'any' } };
+const CONTAINER_E36: F = { go: 'Container', fields: { ...CONTAINER_FIELDS, ...(CONTAINER_E33 as { fields: Record<string, F> }).fields,
+  env: { list: { go: 'EnvVar', fields: { name: 'str', value: 'str', valueFrom: { go: 'EnvVarSource', fields: { configMapKeyRef: KEY_SEL('ConfigMapKeySelector'), secretKeyRef: KEY_SEL('SecretKeySelector'), fieldRef: 'any', resourceFieldRef: 'any' } } } } },
+  envFrom: { list: { go: 'EnvFromSource', fields: { prefix: 'str', configMapRef: { go: 'ConfigMapEnvSource', fields: { name: 'str', optional: 'bool' } }, secretRef: { go: 'SecretEnvSource', fields: { name: 'str', optional: 'bool' } } } } },
+  volumeMounts: { list: { go: 'VolumeMount', fields: { name: 'str', mountPath: 'str', subPath: 'str', readOnly: 'bool', subPathExpr: 'str', mountPropagation: 'str', recursiveReadOnly: 'str' } } } } };
+const podSpec = (container: F, e36 = false): F => ({ go: 'PodSpec', fields: {
   containers: { list: container }, initContainers: { list: container }, restartPolicy: 'str', nodeSelector: 'smap', nodeName: 'str',
   tolerations: { list: { go: 'Toleration', fields: { key: 'str', operator: 'str', value: 'str', effect: 'str', tolerationSeconds: 'int' } } },
   terminationGracePeriodSeconds: 'int', activeDeadlineSeconds: 'int', dnsPolicy: 'str', enableServiceLinks: 'bool', schedulerName: 'str', serviceAccountName: 'str', serviceAccount: 'str',
-  securityContext: 'any', priority: 'int', preemptionPolicy: 'str', hostname: 'str', volumes: 'any', affinity: 'any', topologySpreadConstraints: 'any', imagePullSecrets: 'any',
+  securityContext: 'any', priority: 'int', preemptionPolicy: 'str', hostname: 'str', volumes: e36 ? { list: VOLUME } : 'any', affinity: 'any', topologySpreadConstraints: 'any',
+  imagePullSecrets: e36 ? { list: { go: 'LocalObjectReference', fields: { name: 'str' } } } : 'any',
 } });
 const NAMESPACE: F = { go: 'Namespace', fields: { apiVersion: 'str', kind: 'str', metadata: META, spec: 'any', status: 'any' } };
 export const SCHEMAS: Record<string, F> = {
@@ -45,15 +55,53 @@ export const SCHEMAS: Record<string, F> = {
 const SCHEMAS_E33: Record<string, F> = { Pod: { go: 'Pod', fields: { apiVersion: 'str', kind: 'str', metadata: META, spec: podSpec(CONTAINER_E33), status: 'any' } }, Namespace: NAMESPACE };
 /** E34: Deployment and ReplicaSet (apps/v1), their pod template decoded as E33's pods are. */
 const SELECTOR: F = { go: 'LabelSelector', fields: { matchLabels: 'smap', matchExpressions: { list: { go: 'LabelSelectorRequirement', fields: { key: 'str', operator: 'str', values: { list: 'str' } } } } } };
-const TEMPLATE: F = { go: 'PodTemplateSpec', fields: { metadata: META, spec: podSpec(CONTAINER_E33) } };
 const STRATEGY: F = { go: 'DeploymentStrategy', fields: { type: 'str', rollingUpdate: { go: 'RollingUpdateDeployment', fields: { maxSurge: 'intstr', maxUnavailable: 'intstr' } } } };
-const SCHEMAS_E34: Record<string, F> = { ...SCHEMAS_E33,
+const workloadSchemas = (template: F): Record<string, F> => ({
   Deployment: { go: 'Deployment', fields: { apiVersion: 'str', kind: 'str', metadata: META, status: 'any', spec: { go: 'DeploymentSpec', fields: {
-    replicas: 'int', selector: SELECTOR, template: TEMPLATE, strategy: STRATEGY, minReadySeconds: 'int', revisionHistoryLimit: 'int', paused: 'bool', progressDeadlineSeconds: 'int' } } } },
-  ReplicaSet: { go: 'ReplicaSet', fields: { apiVersion: 'str', kind: 'str', metadata: META, status: 'any', spec: { go: 'ReplicaSetSpec', fields: { replicas: 'int', minReadySeconds: 'int', selector: SELECTOR, template: TEMPLATE } } } },
+    replicas: 'int', selector: SELECTOR, template, strategy: STRATEGY, minReadySeconds: 'int', revisionHistoryLimit: 'int', paused: 'bool', progressDeadlineSeconds: 'int' } } } },
+  ReplicaSet: { go: 'ReplicaSet', fields: { apiVersion: 'str', kind: 'str', metadata: META, status: 'any', spec: { go: 'ReplicaSetSpec', fields: { replicas: 'int', minReadySeconds: 'int', selector: SELECTOR, template } } } },
+});
+const SCHEMAS_E34: Record<string, F> = { ...SCHEMAS_E33, ...workloadSchemas({ go: 'PodTemplateSpec', fields: { metadata: META, spec: podSpec(CONTAINER_E33) } }) };
+/** E35: Service v1 on the kube-net profile. */
+const SERVICE_PORT: F = { go: 'ServicePort', fields: { name: 'str', protocol: 'str', appProtocol: 'str', port: 'int', targetPort: 'intstr', nodePort: 'int' } };
+const SCHEMAS_E35: Record<string, F> = { ...SCHEMAS_E34,
+  Service: { go: 'Service', fields: { apiVersion: 'str', kind: 'str', metadata: META, status: 'any', spec: { go: 'ServiceSpec', fields: {
+    type: 'str', selector: 'smap', ports: { list: SERVICE_PORT }, clusterIP: 'str', clusterIPs: { list: 'str' }, sessionAffinity: 'str', sessionAffinityConfig: 'any', externalTrafficPolicy: 'str',
+    internalTrafficPolicy: 'str', loadBalancerIP: 'str', loadBalancerSourceRanges: 'any', externalIPs: 'any', externalName: 'str', publishNotReadyAddresses: 'bool', ipFamilies: 'any', ipFamilyPolicy: 'str',
+    allocateLoadBalancerNodePorts: 'bool', loadBalancerClass: 'str', healthCheckNodePort: 'int', trafficDistribution: 'str' } } } },
 };
-/** Whether the profile's API server serves the kind (E34: Deployment and ReplicaSet on the workloads profile). */
-export const served = (kind: string, workloads: boolean) => !!(workloads ? SCHEMAS_E34 : SCHEMAS)[kind];
+/** E36: ConfigMap and Secret v1, and the pods' (and templates') configuration fields, on kube-config. */
+const SCHEMAS_E36: Record<string, F> = { ...SCHEMAS_E35,
+  Pod: { go: 'Pod', fields: { apiVersion: 'str', kind: 'str', metadata: META, spec: podSpec(CONTAINER_E36, true), status: 'any' } },
+  ...workloadSchemas({ go: 'PodTemplateSpec', fields: { metadata: META, spec: podSpec(CONTAINER_E36, true) } }),
+  ConfigMap: { go: 'ConfigMap', fields: { apiVersion: 'str', kind: 'str', metadata: META, data: 'smap', binaryData: 'any', immutable: 'bool' } },
+  Secret: { go: 'Secret', fields: { apiVersion: 'str', kind: 'str', metadata: META, data: 'smap', stringData: 'smap', type: 'str', immutable: 'bool' } },
+};
+/** E37: Ingress and IngressClass (networking.k8s.io/v1) on the ingress profile; the Gateway API's standard channel when the lesson installs its CRDs. */
+const OBJ = (go: string, spec: F, status = true): F => ({ go, fields: { apiVersion: 'str', kind: 'str', metadata: META, spec, ...status ? { status: 'any' as F } : {} } });
+const BACKEND: F = { go: 'IngressBackend', fields: { service: { go: 'IngressServiceBackend', fields: { name: 'str', port: { go: 'ServiceBackendPort', fields: { name: 'str', number: 'int' } } } }, resource: 'any' } };
+const ING_PATH: F = { go: 'HTTPIngressPath', fields: { path: 'str', pathType: 'str', backend: BACKEND } };
+const SCHEMAS_E37: Record<string, F> = { ...SCHEMAS_E36,
+  Ingress: OBJ('Ingress', { go: 'IngressSpec', fields: { ingressClassName: 'str', defaultBackend: BACKEND, tls: { list: { go: 'IngressTLS', fields: { hosts: { list: 'str' }, secretName: 'str' } } },
+    rules: { list: { go: 'IngressRule', fields: { host: 'str', http: { go: 'HTTPIngressRuleValue', fields: { paths: { list: ING_PATH } } } } } } } }),
+  IngressClass: OBJ('IngressClass', { go: 'IngressClassSpec', fields: { controller: 'str', parameters: 'any' } }, false),
+};
+const REF: F = { go: 'SecretObjectReference', fields: { group: 'str', kind: 'str', name: 'str', namespace: 'str' } };
+const LISTENER: F = { go: 'Listener', fields: { name: 'str', hostname: 'str', port: 'int', protocol: 'str', tls: { go: 'GatewayTLSConfig', fields: { mode: 'str', certificateRefs: { list: REF }, options: 'any', frontendValidation: 'any' } },
+  allowedRoutes: { go: 'AllowedRoutes', fields: { namespaces: { go: 'RouteNamespaces', fields: { from: 'str', selector: 'any' } }, kinds: 'any' } } } };
+const MATCH: F = { go: 'HTTPRouteMatch', fields: { path: { go: 'HTTPPathMatch', fields: { type: 'str', value: 'str' } }, headers: 'any', queryParams: 'any', method: 'str' } };
+const BACKEND_REF: F = { go: 'HTTPBackendRef', fields: { group: 'str', kind: 'str', name: 'str', namespace: 'str', port: 'int', weight: 'int', filters: 'any' } };
+const SCHEMAS_GATEWAY: Record<string, F> = { ...SCHEMAS_E37,
+  GatewayClass: OBJ('GatewayClass', { go: 'GatewayClassSpec', fields: { controllerName: 'str', parametersRef: 'any', description: 'str' } }),
+  Gateway: OBJ('Gateway', { go: 'GatewaySpec', fields: { gatewayClassName: 'str', listeners: { list: LISTENER }, addresses: 'any', infrastructure: 'any', backendTLS: 'any' } }),
+  HTTPRoute: OBJ('HTTPRoute', { go: 'HTTPRouteSpec', fields: { parentRefs: { list: { go: 'ParentReference', fields: { group: 'str', kind: 'str', namespace: 'str', name: 'str', sectionName: 'str', port: 'int' } } },
+    hostnames: { list: 'str' }, rules: { list: { go: 'HTTPRouteRule', fields: { name: 'str', matches: { list: MATCH }, filters: 'any', backendRefs: { list: BACKEND_REF }, timeouts: 'any', retry: 'any', sessionPersistence: 'any' } } } } }),
+};
+/** ingress (E37): 'ingress' serves Ingress and IngressClass, 'gateway' the Gateway API too (its CRDs installed). */
+export type IngressApi = 'ingress' | 'gateway' | undefined;
+const schemas = (probes: boolean, workloads: boolean, net: boolean, config: boolean, ingress?: IngressApi) => ingress === 'gateway' ? SCHEMAS_GATEWAY : ingress ? SCHEMAS_E37 : config ? SCHEMAS_E36 : net ? SCHEMAS_E35 : workloads ? SCHEMAS_E34 : probes ? SCHEMAS_E33 : SCHEMAS;
+/** Whether the profile's API server serves the kind (E34: Deployment and ReplicaSet on the workloads profile; E35: Service on kube-net; E36: ConfigMap and Secret on kube-config; E37: Ingress, and the Gateway API with its CRDs). */
+export const served = (kind: string, workloads: boolean, net = false, config = false, ingress?: IngressApi) => !!schemas(false, workloads, net, config, ingress)[kind];
 /** The kinds E32 creates and the stage that simulates the others (a known kind of a later stage is not an unknown kind). */
 export const KIND_STAGE: Record<string, string> = {
   Deployment: 'E34', ReplicaSet: 'E34', Service: 'E35', Endpoints: 'E35', ConfigMap: 'E36', Secret: 'E36', Ingress: 'E37', IngressClass: 'E37',
@@ -61,17 +109,19 @@ export const KIND_STAGE: Record<string, string> = {
 };
 export const API_VERSION: Record<string, string> = { Pod: 'v1', Namespace: 'v1', Deployment: 'apps/v1', ReplicaSet: 'apps/v1', StatefulSet: 'apps/v1', Service: 'v1', ConfigMap: 'v1', Secret: 'v1',
   Endpoints: 'v1', PersistentVolume: 'v1', PersistentVolumeClaim: 'v1', Ingress: 'networking.k8s.io/v1', IngressClass: 'networking.k8s.io/v1', StorageClass: 'storage.k8s.io/v1',
-  Gateway: 'gateway.networking.k8s.io/v1', HTTPRoute: 'gateway.networking.k8s.io/v1', HorizontalPodAutoscaler: 'autoscaling/v2' };
+  Gateway: 'gateway.networking.k8s.io/v1', HTTPRoute: 'gateway.networking.k8s.io/v1', GatewayClass: 'gateway.networking.k8s.io/v1', HorizontalPodAutoscaler: 'autoscaling/v2' };
 
 /** YAML as sigs.k8s.io/yaml reads it into JSON (a documented subset: only true and false are booleans). */
-export function toJson(y: Y): J {
+export function toJson(y: Y, octal = false): J {
   switch (y.t) {
-    case 'map': return Object.fromEntries(y.m.map(([k, v]) => [k, toJson(v)]));
-    case 'seq': return y.a.map(toJson);
+    case 'map': return Object.fromEntries(y.m.map(([k, v]) => [k, toJson(v, octal)]));
+    case 'seq': return y.a.map(v => toJson(v, octal));
     case 'null': return null;
     case 'str':
       if (y.q) return y.v;
       if (y.v === 'true' || y.v === 'false') return y.v === 'true';
+      // E36 (kube-config manifests only): YAML 1.1's octal integers (defaultMode: 0644 is 420), as sigs.k8s.io/yaml reads them.
+      if (octal && /^0[0-7]+$/.test(y.v)) return parseInt(y.v, 8);
       if (/^-?\d+$/.test(y.v) && Math.abs(Number(y.v)) <= Number.MAX_SAFE_INTEGER) return Number(y.v);
       if (/^-?\d+\.\d+$/.test(y.v)) return Number(y.v);
       return y.v;
@@ -80,14 +130,15 @@ export function toJson(y: Y): J {
 
 export type Manifest = { doc: JObj } | { error: string };
 /** The documents of a file (each a JSON object, or the error kubectl prints for it). */
-export function readManifests(text: string, file: string): Manifest[] | { error: string } {
+/** octal (E36, the kube-config profile): leading-zero integers are YAML 1.1 octal; below it they stay decimal, as before. */
+export function readManifests(text: string, file: string, octal = false): Manifest[] | { error: string } {
   let docs: Y[];
   try { docs = parseYamlDocuments(text); } catch (e) {
     if (e instanceof YamlError) return { error: `error: error parsing ${file}: error converting YAML to JSON: ${e.message}` };
     throw e;
   }
   return docs.map(y => {
-    const doc = toJson(y);
+    const doc = toJson(y, octal);
     if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return { error: `error: error validating "${file}": error validating data: invalid object to validate; if you choose to ignore these errors, turn validation off with --validate=false` };
     const missing = [!str(doc.apiVersion) ? 'apiVersion not set' : '', !str(doc.kind) ? 'kind not set' : ''].filter(Boolean);
     if (missing.length) return { error: `error: error validating "${file}": error validating data: [${missing.join(', ')}]; if you choose to ignore these errors, turn validation off with --validate=false` };
@@ -96,19 +147,19 @@ export function readManifests(text: string, file: string): Manifest[] | { error:
 }
 
 /** Strict decoding: the unknown fields (all of them) or the first type error, as the API server reports it. */
-export function decodeProblem(doc: JObj, probes = false, workloads = false): string | null {
+export function decodeProblem(doc: JObj, probes = false, workloads = false, net = false, config = false, ingress?: IngressApi): string | null {
   const kind = str(doc.kind)!, unknown: string[] = [];
   let typeError: string | null = null;
   const walk = (v: J, f: F, path: string, go: string, dotted: string) => {
     if (v === null || f === 'any') return;
-    const bad = (want: string) => { typeError ??= `json: cannot unmarshal ${jsonType(v)} into Go struct field ${go}.${dotted} of type ${want}`; };
+    const bad = (want: string, of: J = v) => { typeError ??= `json: cannot unmarshal ${jsonType(of)} into Go struct field ${go}.${dotted} of type ${want}`; };
     if (f === 'str') { if (typeof v !== 'string') bad('string'); return; }
     if (f === 'int') { if (typeof v !== 'number' || !Number.isInteger(v)) bad(go === 'PodSpec' || go === 'Toleration' || go === 'SleepAction' || (go === 'Probe' && dotted.endsWith('terminationGracePeriodSeconds')) ? 'int64' : 'int32'); return; }
     if (f === 'intstr') { if (typeof v !== 'string' && !(typeof v === 'number' && Number.isInteger(v))) bad('intstr.IntOrString'); return; }
     if (f === 'bool') { if (typeof v !== 'boolean') bad('bool'); return; }
     if (f === 'smap' || f === 'qmap') {
       if (typeof v !== 'object' || Array.isArray(v)) { bad(f === 'smap' ? 'map[string]string' : 'v1.ResourceList'); return; }
-      for (const x of Object.values(v)) if (f === 'smap' ? typeof x !== 'string' : typeof x !== 'string' && typeof x !== 'number') { bad(f === 'smap' ? 'string' : 'resource.Quantity'); return; }
+      for (const x of Object.values(v)) if (f === 'smap' ? typeof x !== 'string' : typeof x !== 'string' && typeof x !== 'number') { bad(f === 'qmap' ? 'resource.Quantity' : go === 'Secret' && dotted === 'data' ? '[]uint8' : 'string', go === 'ConfigMap' || go === 'Secret' ? x : v); return; }
       return;
     }
     if ('list' in f) { if (!Array.isArray(v)) { bad(`[]${typeof f.list === 'object' && 'go' in f.list ? `v1.${f.list.go}` : 'string'}`); return; } v.forEach((x, i) => walk(x, f.list, `${path}[${i}]`, go, dotted)); return; }
@@ -119,30 +170,35 @@ export function decodeProblem(doc: JObj, probes = false, workloads = false): str
       walk(x, sub, `${path ? `${path}.` : ''}${k}`, f.go, dotted ? `${dotted}.${k}` : k);
     }
   };
-  walk(doc, (workloads ? SCHEMAS_E34 : probes ? SCHEMAS_E33 : SCHEMAS)[kind], '', kind, '');
+  walk(doc, schemas(probes, workloads, net, config, ingress)[kind], '', kind, '');
   if (unknown.length) return `strict decoding error: ${unknown.map(u => `unknown field "${u}"`).join(', ')}`;
   return typeError;
 }
 const jsonType = (v: J) => typeof v === 'string' ? 'string' : typeof v === 'number' ? 'number' : typeof v === 'boolean' ? 'bool' : Array.isArray(v) ? 'array' : 'object';
 
 /** The first field of a later stage the document uses (its path and the stage), or null. */
-export function laterField(doc: JObj, probes = false): { path: string; stage: string } | null {
+export function laterField(doc: JObj, probes = false, config = false): { path: string; stage: string } | null {
   const spec = obj(doc.spec);
-  for (const k of ['affinity', 'topologySpreadConstraints', 'imagePullSecrets']) if (spec[k] !== undefined) return { path: `spec.${k}`, stage: LATER[k] };
-  for (const [i, v] of arr(spec.volumes).entries()) if (!/^kube-api-access-/.test(str(obj(v).name) ?? '')) return { path: `spec.volumes[${i}]`, stage: LATER.volumes };
+  for (const k of ['affinity', 'topologySpreadConstraints', ...config ? [] : ['imagePullSecrets']]) if (spec[k] !== undefined) return { path: `spec.${k}`, stage: LATER[k] };
+  // E36: configMap and secret volumes (and the mounts, env valueFrom and envFrom) are kube-config's; other volumes are E38's, the downward API prose.
+  for (const [i, v] of arr(spec.volumes).entries()) if (!/^kube-api-access-/.test(str(obj(v).name) ?? '') && !(config && (obj(v).configMap !== undefined || obj(v).secret !== undefined))) return { path: `spec.volumes[${i}]`, stage: config ? 'E38' : LATER.volumes };
   for (const list of ['initContainers', 'containers']) for (const [i, c] of arr(spec[list]).entries()) {
     const at = `spec.${list}[${i}]`, x = obj(c);
-    for (const k of probes ? ['envFrom'] : ['livenessProbe', 'readinessProbe', 'startupProbe', 'lifecycle', 'envFrom']) if (x[k] !== undefined) return { path: `${at}.${k}`, stage: LATER[k] };
-    for (const [j, e] of arr(x.env).entries()) if (obj(e).valueFrom !== undefined) return { path: `${at}.env[${j}].valueFrom`, stage: LATER.valueFrom };
-    for (const [j, m] of arr(x.volumeMounts).entries()) if (!/^kube-api-access-/.test(str(obj(m).name) ?? '')) return { path: `${at}.volumeMounts[${j}]`, stage: LATER.volumeMounts };
+    for (const k of probes ? config ? [] : ['envFrom'] : ['livenessProbe', 'readinessProbe', 'startupProbe', 'lifecycle', 'envFrom']) if (x[k] !== undefined) return { path: `${at}.${k}`, stage: LATER[k] };
+    for (const [j, e] of arr(x.env).entries()) {
+      const from = obj(obj(e).valueFrom);
+      if (obj(e).valueFrom !== undefined && !config) return { path: `${at}.env[${j}].valueFrom`, stage: LATER.valueFrom };
+      for (const k of ['fieldRef', 'resourceFieldRef']) if (config && from[k] !== undefined) return { path: `${at}.env[${j}].valueFrom.${k}`, stage: '（課文說明）' };
+    }
+    if (!config) for (const [j, m] of arr(x.volumeMounts).entries()) if (!/^kube-api-access-/.test(str(obj(m).name) ?? '')) return { path: `${at}.volumeMounts[${j}]`, stage: LATER.volumeMounts };
   }
   return probes ? probeLater(doc) : null;
 }
 
 const LABEL = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;
-const SUBDOMAIN = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$/;
+export const SUBDOMAIN = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$/;
 export const LABEL_TEXT = "a lowercase RFC 1123 label must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name',  or '123-abc', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?')";
-const SUBDOMAIN_TEXT = "a lowercase RFC 1123 subdomain must consist of lower case alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character (e.g. 'example.com', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*')";
+export const SUBDOMAIN_TEXT = "a lowercase RFC 1123 subdomain must consist of lower case alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character (e.g. 'example.com', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*')";
 export const validLabelName = (s: string) => s.length <= 63 && LABEL.test(s);
 
 /** The field errors of a decoded Pod or Namespace (the API server's validation, a subset). */

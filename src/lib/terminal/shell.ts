@@ -31,6 +31,11 @@ import { tar } from './tar';
 import { git } from './git-cli';
 import { gh } from './gh';
 import { kubectl } from './kubectl';
+import { afterCluster, clusterView, kubeConnect } from './kube-net';
+import { kubeResolver } from './kube-dns';
+import { settleKube } from './kube-settle';
+import { base64Command } from './base64';
+import { portForwardJob } from './kubectl-forward';
 
 /*
  * P7 Linux Terminal Simulator: the command interpreter. A fixed table of commands works on the virtual file system in
@@ -126,14 +131,16 @@ export const E25_COMMANDS = ['git'] as const;
 export const E26_COMMANDS = ['gh'] as const;
 /** E32: kubectl against the lesson's simulated cluster (CLUSTER_PROFILE only), so every lower profile's command list stays. */
 export const E32_COMMANDS = ['kubectl'] as const;
+/** E36: base64 (GNU coreutils) for Secrets' data (KUBE_CONFIG_PROFILE and above only), so every lower profile's command list stays. */
+export const E36_COMMANDS = ['base64'] as const;
 /** The commands of the files profile (the manual of E1 covers exactly these). */
 export type FilesCommand = typeof COMMANDS[number] | typeof E1_COMMANDS[number];
 export type CommandName = FilesCommand | typeof E2_COMMANDS[number] | typeof E3_COMMANDS[number] | typeof E4_COMMANDS[number] | typeof E5_COMMANDS[number] | typeof E6_COMMANDS[number]
   | typeof E7_COMMANDS[number] | typeof E8_COMMANDS[number] | typeof E9_COMMANDS[number] | typeof E10_COMMANDS[number] | typeof E11_COMMANDS[number]
-  | typeof E12_COMMANDS[number] | typeof E13_COMMANDS[number] | typeof E14_COMMANDS[number] | typeof E16_COMMANDS[number] | typeof E19_COMMANDS[number] | typeof E20_COMMANDS[number] | typeof E22_COMMANDS[number] | typeof E25_COMMANDS[number] | typeof E26_COMMANDS[number] | typeof E32_COMMANDS[number];
+  | typeof E12_COMMANDS[number] | typeof E13_COMMANDS[number] | typeof E14_COMMANDS[number] | typeof E16_COMMANDS[number] | typeof E19_COMMANDS[number] | typeof E20_COMMANDS[number] | typeof E22_COMMANDS[number] | typeof E25_COMMANDS[number] | typeof E26_COMMANDS[number] | typeof E32_COMMANDS[number] | typeof E36_COMMANDS[number];
 /** Every command any profile may list. */
 export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS, ...E2_COMMANDS, ...E3_COMMANDS, ...E4_COMMANDS, ...E5_COMMANDS, ...E6_COMMANDS,
-  ...E7_COMMANDS, ...E8_COMMANDS, ...E9_COMMANDS, ...E10_COMMANDS, ...E11_COMMANDS, ...E12_COMMANDS, ...E13_COMMANDS, ...E14_COMMANDS, ...E16_COMMANDS, ...E19_COMMANDS, ...E20_COMMANDS, ...E22_COMMANDS, ...E25_COMMANDS, ...E26_COMMANDS, ...E32_COMMANDS];
+  ...E7_COMMANDS, ...E8_COMMANDS, ...E9_COMMANDS, ...E10_COMMANDS, ...E11_COMMANDS, ...E12_COMMANDS, ...E13_COMMANDS, ...E14_COMMANDS, ...E16_COMMANDS, ...E19_COMMANDS, ...E20_COMMANDS, ...E22_COMMANDS, ...E25_COMMANDS, ...E26_COMMANDS, ...E32_COMMANDS, ...E36_COMMANDS];
 
 /**
  * Behaviour a profile switches on besides its commands. E1: glob (* ? [...] and ~), help-option (指令 --help, long
@@ -160,10 +167,14 @@ export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS
  * cluster: nodes, the API store, the scheduler and the kubelet's pod lifecycle; kube-*.ts, kubectl*.ts). E33: probes (liveness,
  * readiness and startup probes, preStop hooks and graceful termination of pods; kube-probe*.ts, kube-health.ts, kube-stop.ts). E34:
  * workloads (ReplicaSet and Deployment controllers, rollouts, cordon and drain, node failures; kube-replicaset.ts,
- * kube-deployment.ts, kube-controllers.ts, kubectl-workload.ts, kubectl-rollout.ts, kubectl-node.ts).
+ * kube-deployment.ts, kube-controllers.ts, kubectl-workload.ts, kubectl-rollout.ts, kubectl-node.ts). E35: kube-net (Services,
+ * Endpoints, kube-proxy, CoreDNS, port-forward; kube-service-spec.ts, kube-endpoints.ts, kube-net.ts, kube-dns.ts, kubectl-service.ts).
+ * E36: kube-config (ConfigMaps, Secrets, env and volumes from them, imagePullSecrets, base64; kube-config-spec.ts, kube-env.ts,
+ * kube-volumes.ts, kubectl-create-config.ts, base64.ts). E37: ingress (Ingress, ingress-nginx, the Gateway API; kube-ingress*.ts,
+ * kube-gateway*.ts, kube-route*.ts, kubectl-ingress.ts).
  */
 export type ShellFeature = 'glob' | 'help-option' | 'multi-source' | 'ls-extra' | 'pipes' | 'accounts' | 'processes' | 'packages' | 'services' | 'remote' | 'scripting' | 'scheduling'
-  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers' | 'images' | 'storage-net' | 'compose' | 'runtime' | 'git' | 'forge' | 'workflows' | 'actions' | 'artifacts' | 'environments' | 'deploy-hosts' | 'cluster' | 'probes' | 'workloads';
+  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers' | 'images' | 'storage-net' | 'compose' | 'runtime' | 'git' | 'forge' | 'workflows' | 'actions' | 'artifacts' | 'environments' | 'deploy-hosts' | 'cluster' | 'probes' | 'workloads' | 'kube-net' | 'kube-config' | 'ingress';
 
 /** LNX-0: the commands a session may run (E1: and the features it switches on; none by default). */
 export interface ShellProfile { readonly id: string; readonly commands: readonly CommandName[]; readonly features?: readonly ShellFeature[] }
@@ -259,6 +270,12 @@ export const CLUSTER_PROFILE: ShellProfile = { id: 'cluster', commands: above(DE
 export const PROBES_PROFILE: ShellProfile = { id: 'probes', commands: above(CLUSTER_PROFILE, []), features: [...CLUSTER_PROFILE.features!, 'probes'] };
 /** E34 (docs/curriculum/KUB0_E34_WORKLOADS.md): the probes profile plus Deployments, ReplicaSets, rollouts and node drains; no new commands. */
 export const WORKLOADS_PROFILE: ShellProfile = { id: 'workloads', commands: above(PROBES_PROFILE, []), features: [...PROBES_PROFILE.features!, 'workloads'] };
+/** E35 (docs/curriculum/KUB0_E35_KUBE_NET.md): the workloads profile plus Services, Endpoints, kube-proxy, cluster DNS and port-forward; no new commands. */
+export const KUBE_NET_PROFILE: ShellProfile = { id: 'kube-net', commands: above(WORKLOADS_PROFILE, []), features: [...WORKLOADS_PROFILE.features!, 'kube-net'] };
+/** E36 (docs/curriculum/KUB0_E36_KUBE_CONFIG.md): the kube-net profile plus ConfigMaps, Secrets, their use in pods, imagePullSecrets and base64. */
+export const KUBE_CONFIG_PROFILE: ShellProfile = { id: 'kube-config', commands: above(KUBE_NET_PROFILE, E36_COMMANDS), features: [...KUBE_NET_PROFILE.features!, 'kube-config'] };
+/** E37 (docs/curriculum/KUB0_E37_INGRESS.md): the kube-config profile plus Ingress, the lesson's ingress-nginx and the Gateway API; no new commands. */
+export const INGRESS_PROFILE: ShellProfile = { id: 'ingress', commands: above(KUBE_CONFIG_PROFILE, []), features: [...KUBE_CONFIG_PROFILE.features!, 'ingress'] };
 export const RUNNER_DEPLOY_PROFILE: ShellProfile = { id: 'runner', commands: FORGE_PROFILE.commands, features: [...GIT_PROFILE.features!, 'deploy-hosts'] };
 /** The profiles a lesson machine may name (TerminalMachine.profile), from the narrowest. */
 export const PROFILES = {
@@ -266,7 +283,7 @@ export const PROFILES = {
   remote: REMOTE_PROFILE, scripting: SCRIPTING_PROFILE, scheduling: SCHEDULING_PROFILE, sockets: SOCKETS_PROFILE, dns: DNS_PROFILE, http: HTTP_PROFILE,
   tls: TLS_PROFILE, nginx: NGINX_PROFILE, proxy: PROXY_PROFILE, firewall: FIREWALL_PROFILE, tunnels: TUNNELS_PROFILE, edge: EDGE_PROFILE, diagnostics: DIAGNOSTICS_PROFILE,
   containers: CONTAINERS_PROFILE, images: IMAGES_PROFILE, 'storage-net': STORAGE_NET_PROFILE, compose: COMPOSE_PROFILE, runtime: RUNTIME_PROFILE, git: GIT_PROFILE, forge: FORGE_PROFILE, workflows: WORKFLOWS_PROFILE, actions: ACTIONS_PROFILE, artifacts: ARTIFACTS_PROFILE,
-  environments: ENVIRONMENTS_PROFILE, 'deploy-hosts': DEPLOY_HOSTS_PROFILE, cluster: CLUSTER_PROFILE, probes: PROBES_PROFILE, workloads: WORKLOADS_PROFILE,
+  environments: ENVIRONMENTS_PROFILE, 'deploy-hosts': DEPLOY_HOSTS_PROFILE, cluster: CLUSTER_PROFILE, probes: PROBES_PROFILE, workloads: WORKLOADS_PROFILE, 'kube-net': KUBE_NET_PROFILE, 'kube-config': KUBE_CONFIG_PROFILE, ingress: INGRESS_PROFILE,
 } as const;
 export type ProfileId = keyof typeof PROFILES;
 
@@ -370,6 +387,7 @@ const HELP: [CommandName | null, string][] = [
   ['git', '  git init|clone|status|add|commit|log|diff|branch|switch|merge|rebase|push|pull …  版本控制（遠端是模擬的 github.example）'],
   ['gh', '  gh auth status | repo view | pr create|list|view|diff|checkout|review|merge|checks|close | api …  GitHub CLI（github.example）'],
   ['kubectl', '  kubectl get|describe|apply|create|delete|label|annotate|taint|run|logs|exec|events|wait|config …  操作模擬的 Kubernetes 叢集'],
+  ['base64', '  base64 [-d] [-w 欄數] [檔案]   以 base64 編碼或解碼（-d），預設每 76 個字元換行'],
   ['man', '  man 指令                顯示指令的說明頁（也可以用 指令 --help）'],
 ];
 /** The lines that change when a profile has the feature (the lab keeps its own lines). */
@@ -1690,14 +1708,18 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
     case 'openssl': case 'nginx': case 'certbot': case 'ufw': case 'nft': case 'ping': case 'traceroute': case 'mtr': case 'tcpdump': {
       // E10–E14 (sockets.ts, dns.ts, http.ts, openssl.ts, certbot.ts, nginx.ts): names are looked up through /etc/hosts and, from the dns profile up, DNS.
       // E18: edge (curl -w's timers); E19: the diagnostics of diag.ts.
-      const io: NetIo = { out: write, err: fail, user: state.user, tty: ctx.tty, resolve: features.has('dns') ? dnsResolver : basicResolver, stdin: ctx.stdin, ...features.has('tls') ? { tls: true } : {}, ...features.has('edge') ? { edge: true } : {} };
+      // E35: a pod's commands look names up in cluster DNS; a new connection to a Service address takes kube-proxy's next endpoint.
+      const kubeNet = !!cur().kubeNet || features.has('kube-net');
+      const io: NetIo = { out: write, err: fail, user: state.user, tty: ctx.tty, resolve: cur().kubeNet?.dns ? kubeResolver : features.has('dns') ? dnsResolver : basicResolver, stdin: ctx.stdin, ...features.has('tls') ? { tls: true } : {}, ...features.has('edge') ? { edge: true } : {},
+        ...kubeNet ? { connect: (s: FsState, a: string, p: number) => kubeConnect(s, a, p, fail) } : {} };
       // E31: on a deploy-hosts machine, what runs did to the hosts by now first (curl reaches what a runner deployed).
-      const base = features.has('deploy-hosts') ? settleArt(cur()) : cur();
+      // E35: on a kube-net machine, with the cluster's NodePorts, LoadBalancers and port-forwards (afterCluster takes them away again).
+      const base0 = features.has('deploy-hosts') ? settleArt(cur()) : cur(), base = features.has('kube-net') ? clusterView(settleKube(base0)) : base0;
       // E13: certbot runs a deploy hook through the shell (as the user it runs as, root).
       const r = cmd === 'certbot' ? certbot(base, args, { ...io, hook: (s, source) => { const x = runText(s, source, profile, { parent: ctx }); return { state: x.state, status: x.status }; } })
         : NET_COMMANDS[cmd as keyof typeof NET_COMMANDS](base, args, io);
       code = r.status;
-      return done(r.state);
+      return done(features.has('kube-net') ? afterCluster(base0, r.state) : r.state);
     }
     case 'docker': {
       // E20 (docker.ts): the daemon's images and containers; the socket decides who may use it (root or the docker group).
@@ -1736,6 +1758,11 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
       const r = kubectl(cur(), args, { out: print, raw: write, err: fail, stdin: ctx.stdin, read: name => { const x = readPath(cur(), name); return 'error' in x ? { error: x.error } : { text: x.text }; } });
       code = r.status;
       return done(r.advance ? advanceClock(r.state, r.advance) : r.state);
+    }
+    case 'base64': {
+      // E36 (base64.ts): GNU coreutils' base64 (encode wrapped at 76, -w, -d, -i), for Secrets' data.
+      code = base64Command(args, { out: write, err: fail, read: name => name === '-' ? ctx.stdin === null ? { error: 'NOINPUT' } : { text: ctx.stdin, regular: false } : readPath(cur(), name) });
+      return done();
     }
     case 'tar': {
       // E22 (tar.ts): GNU tar's create, list and extract with gzip, as the session's user.
@@ -1899,6 +1926,9 @@ function runLine(state: FsState, input: string, profile: ShellProfile, features:
 /** E4: a line ending in &: only sleep runs in the background (it is the one program that would keep running); bash prints [job] pid. */
 export function background(state: FsState, stages: readonly Stage[], features: ReadonlySet<ShellFeature>): { state: FsState; status: number; lines: Line[] } {
   const err = (...texts: string[]) => ({ state, status: 1, lines: texts.map(text => ({ text, kind: 'err' as const })) });
+  // E35: kubectl port-forward … & is a job holding the local listener (kubectl-forward.ts).
+  if (features.has('kube-net') && stages.length === 1 && !stages[0].redirects.length && stages[0].argv[0]?.text === 'kubectl' && stages[0].argv[1]?.text === 'port-forward')
+    return portForwardJob(state, expand(state, stages[0].argv, features, j => j === 0).slice(2));
   const only = stages.length === 1 && !stages[0].redirects.length && stages[0].argv[0]?.text === 'sleep';
   if (!only) return err('bash: 模擬環境的背景執行（&）只支援 sleep，例如 sleep 300 &');
   const argv = expand(state, stages[0].argv, features, j => j === 0), problem = proc.sleepProblem(argv.slice(1));
