@@ -108,12 +108,12 @@ describe('Ingress routing at ingress-nginx', () => {
     const pods = s.log.slice(4, 7).map(l => l.out[0]);
     expect([pods[0] === pods[2], pods[0] === pods[1]]).toEqual([true, false]);
     expect(who(s.log[8].out)).toBe('api');
-    expect(s.log[11].out.slice(0, 7)).toEqual(['HTTP/1.1 503 Service Temporarily Unavailable', 'Server: nginx', 'Date: Sun, 22 Nov 2026 10:00:00 GMT', 'Content-Type: text/html', 'Content-Length: 183', 'Connection: keep-alive', '']);
+    expect(s.log[11].out.slice(0, 7)).toEqual(['HTTP/1.1 503 Service Temporarily Unavailable', 'Server: nginx', 'Date: Tue, 24 Nov 2026 10:00:47 GMT', 'Content-Type: text/html', 'Content-Length: 183', 'Connection: keep-alive', '']);
     expect(who(s.log[12].out)).toBe('502 Bad Gateway');
   });
   it('proxies with nginx\'s Server and the X-Forwarded headers; the backend sees the controller pod', () => {
     const s = go('curl -si -H "Host: app.example.test" http://10.0.0.200/echo/a?b=1');
-    expect(s.log[4].out).toEqual(['HTTP/1.1 200 OK', 'Server: nginx', 'Date: Sun, 22 Nov 2026 10:00:00 GMT', 'Content-Type: text/plain', 'Content-Length: 277', 'Connection: keep-alive', '',
+    expect(s.log[4].out).toEqual(['HTTP/1.1 200 OK', 'Server: nginx', 'Date: Tue, 24 Nov 2026 10:00:07 GMT', 'Content-Type: text/plain', 'Content-Length: 277', 'Connection: keep-alive', '',
       'remote_addr: 10.244.1.2', 'GET /echo/a?b=1 HTTP/1.1', 'Host: app.example.test', 'X-Real-IP: 10.244.1.2', 'X-Forwarded-For: 10.244.1.2', 'X-Forwarded-Host: app.example.test', 'X-Forwarded-Port: 80',
       'X-Forwarded-Proto: http', 'X-Forwarded-Scheme: http', 'X-Scheme: http', 'User-Agent: curl/8.5.0', 'Accept: */*']);
   });
@@ -132,8 +132,8 @@ describe('TLS at ingress-nginx', () => {
     const s = tls(`curl -s ${R('app.example.test')} --cacert k8s/ca.crt https://app.example.test/`, `curl -sI ${R('app.example.test')} --cacert k8s/ca.crt https://app.example.test/`,
       `curl -si ${R('app.example.test', 80)} http://app.example.test/a/b?c=1`, `curl -sL ${R('app.example.test', 80)} ${R('app.example.test')} --cacert k8s/ca.crt http://app.example.test/`, 'kubectl get ing secure');
     expect(s.log[4].out[0]).toMatch(/^Hostname: web-/);
-    expect(s.log[5].out).toEqual(['HTTP/1.1 200 OK', 'Server: nginx', 'Date: Sun, 22 Nov 2026 10:00:00 GMT', 'Content-Type: text/plain', 'Content-Length: 46', 'Connection: keep-alive', 'Strict-Transport-Security: max-age=31536000; includeSubDomains', '']);
-    expect(s.log[6].out).toEqual(['HTTP/1.1 308 Permanent Redirect', 'Server: nginx', 'Date: Sun, 22 Nov 2026 10:00:00 GMT', 'Content-Type: text/html', 'Content-Length: 157', 'Connection: keep-alive',
+    expect(s.log[5].out).toEqual(['HTTP/1.1 200 OK', 'Server: nginx', 'Date: Tue, 24 Nov 2026 10:00:05 GMT', 'Content-Type: text/plain', 'Content-Length: 46', 'Connection: keep-alive', 'Strict-Transport-Security: max-age=31536000; includeSubDomains', '']);
+    expect(s.log[6].out).toEqual(['HTTP/1.1 308 Permanent Redirect', 'Server: nginx', 'Date: Tue, 24 Nov 2026 10:00:05 GMT', 'Content-Type: text/html', 'Content-Length: 157', 'Connection: keep-alive',
       'Location: https://app.example.test/a/b?c=1', '', '<html>', '<head><title>308 Permanent Redirect</title></head>', '<body>', '<center><h1>308 Permanent Redirect</h1></center>', '<hr><center>nginx</center>', '</body>', '</html>']);
     expect(s.log[7].out[0]).toMatch(/^Hostname: web-/);
     expect(s.log[8].out[1]).toMatch(/^secure\s+nginx\s+app\.example\.test,nosecret\.example\.test\s+10\.0\.0\.200\s+80, 443\s+0s$/);

@@ -107,6 +107,9 @@ kube: {
 - **TLS**：Secret 的憑證不涵蓋 host 時照樣使用（curl 名稱不符）；SNI 的萬用字元只比對一個標籤；沒有 OCSP、TLS 參數與 mTLS。
 - **Gateway API**：只有 HTTPRoute（GRPCRoute、TLSRoute、TCPRoute、ReferenceGrant、BackendTLSPolicy 只在課文）、只有 HTTP／HTTPS listener、`Conflicted` 條件與 listener 衝突不模擬。
 
+- 後端收到的 `X-Real-IP` 與 `X-Forwarded-For` 是 controller Pod 自己的位址，不是用戶端（真實的 ingress-nginx 會帶入它看到的來源位址；經過 externalTrafficPolicy: Cluster 的 SNAT 時通常是節點位址）。課程不要以這兩個標頭的值出題。
+- KUB-2 整合時修正：經過 ingress-nginx 或 Gateway 的回應，`Date` 標頭原本用代表 controller 的主機的預設時鐘（固定在 2026-11-22 10:00:00），現在用學習者機器（叢集所在）的時鐘，會隨 `sleep` 前進。
+
 ## 12. 課程作者要知道的事
 
 - 機器寫 `profile: 'ingress'`；要有 controller 寫 `kube.ingressController`，要有位址寫 `kube.lbPool`（controller 的 LoadBalancer 拿第一個位址，例如 10.0.0.200；Gateway 依建立順序拿後面的）。NodePort 版本固定 `nodePorts`，ADDRESS 是 controller Pod 的節點位址（第一個 worker，預設 node-01 的 10.0.0.51）。

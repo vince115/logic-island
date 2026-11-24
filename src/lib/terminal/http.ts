@@ -351,7 +351,9 @@ export function serveResponder(get: () => FsState, set: (s: FsState) => void, at
 }
 function serveOn(get: () => FsState, set: (s: FsState) => void, at: 'self' | number, host: FsState, r: Responder, req: Request, now: number, client: string, depth: number): { res: Response; host: FsState } {
   // E37: an ingress controller's or a Gateway's router.
-  if (r.kube) return { res: kubeServe(get, set, r, req, now), host };
+  // The cluster runs on the learner's machine (the network's root): its routers keep that machine's clock, not the
+  // stand-in host's (KUB-2: the Date header said the default day).
+  if (r.kube) return { res: kubeServe(get, set, r, req, clockOf(get()).now), host };
   if (!host.http?.edge) return { res: respond(r, req, now, readerOf(host, r), client), host };
   if (r.cdn) {
     if (depth >= 3) return { res: respond({ ...r, routes: [] }, req, now), host };

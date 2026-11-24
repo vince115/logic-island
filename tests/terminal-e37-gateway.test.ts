@@ -77,7 +77,7 @@ describe('routing at a Gateway', () => {
     const s = go('kubectl apply -f k8s/paths.yaml -f k8s/miss.yaml -f k8s/zero.yaml', get('a.example.test', '/v1'), get('a.b.example.test', '/v1/x'), get('a.example.test', '/v1/web'), get('a.example.test', '/web/1'),
       get('a.example.test', '/v10'), get('example.test', '/v1'), `curl -si -H 'Host: miss.example.test' http://10.0.0.201/`, get('zero.example.test'), 'kubectl scale deploy api --replicas=0', 'sleep 40', `curl -si -H 'Host: a.example.test' http://10.0.0.201/v1`);
     expect(s.log.slice(4, 10).map(l => who(l.out))).toEqual(['api', 'api', 'web', 'web', '(empty)', '(empty)']);
-    expect(s.log[10].out).toEqual(['HTTP/1.1 500 Internal Server Error', 'Date: Sun, 22 Nov 2026 10:00:00 GMT', 'Content-Type: text/plain', 'Content-Length: 0', 'Connection: keep-alive', '']);
+    expect(s.log[10].out).toEqual(['HTTP/1.1 500 Internal Server Error', 'Date: Tue, 24 Nov 2026 10:00:05 GMT', 'Content-Type: text/plain', 'Content-Length: 0', 'Connection: keep-alive', '']);
     expect(who(s.log[11].out)).toBe('(empty)');
     expect(s.log[14].out.slice(0, 1).concat(s.log[14].out.slice(-1))).toEqual(['HTTP/1.1 503 Service Unavailable', 'no healthy upstream']);
   });
