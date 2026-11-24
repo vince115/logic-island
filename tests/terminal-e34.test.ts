@@ -202,3 +202,14 @@ describe('kubectl rollout', () => {
     expect(s.log[6].err).toEqual(['error: invalid cascade value (sideways). Must be "background", "foreground", or "orphan".']);
   });
 });
+
+describe('group-qualified type names', () => {
+  it('accepts the names -o name prints (replicaset.apps/x, deployment.apps/x) and keeps refusing core types with a group', () => {
+    const s = go('kubectl apply -f k8s/rs.yaml', 'kubectl apply -f k8s/deploy.yaml', 'sleep 5', 'kubectl get rs solo -o name', 'kubectl scale replicaset.apps/solo --replicas=3',
+      'kubectl scale $(kubectl get deploy web -o name) --replicas=1', 'kubectl get pods.apps');
+    expect(s.log[3].out).toEqual(['replicaset.apps/solo']);
+    expect(s.log[4].out).toEqual(['replicaset.apps/solo scaled']);
+    expect(s.log[5].out).toEqual(['deployment.apps/web scaled']);
+    expect(s.log[6].err).toEqual(['error: the server doesn\'t have a resource type "pods.apps"']);
+  });
+});

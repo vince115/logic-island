@@ -28,7 +28,12 @@ const ALL = ['Pod', 'Service', 'DaemonSet', 'Deployment', 'ReplicaSet'];
 const LATER_TYPES: Record<string, string> = { replicasets: 'E34', replicaset: 'E34', rs: 'E34', endpoints: 'E35', ep: 'E35', endpointslices: 'E35', configmaps: 'E36', configmap: 'E36', cm: 'E36', secrets: 'E36', secret: 'E36',
   ingresses: 'E37', ingress: 'E37', ing: 'E37', ingressclasses: 'E37', gateways: 'E37', httproutes: 'E37', persistentvolumes: 'E38', pv: 'E38', persistentvolumeclaims: 'E38', pvc: 'E38', storageclasses: 'E38', sc: 'E38',
   statefulsets: 'E38', sts: 'E38', horizontalpodautoscalers: 'E40', hpa: 'E40', all: 'E34' };
-const anyType = (word: string) => TYPES.find(t => t.names.includes(word.toLowerCase()));
+const APPS = ['Deployment', 'DaemonSet', 'ReplicaSet'];
+/** A type word: its names, and for the apps kinds also any name qualified with the group (`replicaset.apps`, as -o name prints). */
+const anyType = (word: string) => {
+  const w = word.toLowerCase(), base = w.endsWith('.apps') ? w.slice(0, -5) : undefined;
+  return TYPES.find(t => t.names.includes(w)) ?? (base ? TYPES.find(t => APPS.includes(t.kind) && t.names.includes(base)) : undefined);
+};
 /** The kind a word names (pods, deploy, rs…), for kubectl events --for. */
 export const kindOfWord = (word: string) => anyType(word)?.kind;
 export type Target = { kind: string; plural: string; names: string[] };

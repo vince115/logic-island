@@ -126,6 +126,7 @@ kube: {
 - `kubectl delete`、`label`、`annotate` 的物件名稱帶 API group：`deployment.apps "coredns" deleted`、`daemonset.apps/kube-proxy labeled`（原本是 `deployment "coredns" deleted`）。
 - `kubectl events --for` 接受 kubectl 的類型名稱（`deploy/web`、`rs/…`、`no/node-01`），原本只認單複數的 kind。
 - `get … -o wide` 的 SELECTOR 依鍵排序（kubectl 的 selector 字串）。
+- KUB-1 整合時：類型名稱接受 apps 群組的限定寫法（`replicaset.apps/solo`、`deployment.apps/web`、`rs.apps`），也就是 `-o name` 印出的形式，所以 `kubectl scale $(kubectl get deploy web -o name) --replicas=1` 可以用；核心類型加群組（`pods.apps`）仍是 `doesn't have a resource type`。
 
 ## 13. 測試
 
