@@ -135,7 +135,7 @@ describe('island interaction specs (P9 S1)', () => {
 
   it('a planned island offers information only: routes are refused by validation and dropped by the page', () => {
     const planned = worldIslands.filter(i => i.status === 'planned');
-    // 29 subject islands: F, DS, AL, DB, PL, CN, AIF, LNX, SRV, WEB and RWD complete, LLM open since LLM-1, GEN open since GEN-1, MOB open since MOB-1, DKR open since DKR-1, CICD open since CICD-1, KUB open since KUB-1, the other 12 planned.
+    // 29 subject islands: F, DS, AL, DB, PL, CN, AIF, LNX, SRV, WEB, RWD, MOB, DKR, CICD and KUB complete (KUB-5: KUB15, 15 of 15), LLM open since LLM-1, GEN open since GEN-1, the other 12 planned.
     expect(planned.length).toBe(12);
     for (const island of planned) {
       const routed: IslandInteractionSpec = { islandId: island.id, targets: [

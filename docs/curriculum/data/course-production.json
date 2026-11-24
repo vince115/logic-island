@@ -777,6 +777,18 @@
       "commit": "TBD",
       "tests": "TBD",
       "notes": "KUB-4：devops-explorer 階段 D5 traces（分散式追蹤：span 的樹與產生器、自身時間、關鍵路徑與瓶頸、日誌與範例追蹤的連結、頭部與尾端取樣、基數）與 D6 slo（SLI、錯誤預算、消耗率、SLA 補償表、多視窗的消耗率告警）；滾動更新與回滾（terminal-sim）、叢集監控（monitoring-dashboard 加上終端機）、可觀測性：指標、日誌與追蹤、SLI、SLO 與 SLA（monitoring-dashboard）四課",
+      "pr": "#102",
+      "merged": "06b4225"
+    },
+    {
+      "id": 56,
+      "date": "2026-11-24",
+      "lessons": [
+        "KUB15"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "KUB-5：Kubernetes 與可靠性工程島綜合專題（challenge-stages 六關，用 E32–E40 與 devops-explorer D3、D5、D6 已有的一切），全島 15／15 完成",
       "pr": null
     }
   ]
