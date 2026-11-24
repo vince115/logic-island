@@ -458,8 +458,8 @@ export const CICD_SHAPES: Readonly<Record<string, CicdShape>> = {
   CICD14: { blueprint: 'case-study-board', activity: 'terminal-sim', capabilities: ['terminal', 'devops-explorer'], visualization: 'none', stages: ['E31', 'D3'] },
   CICD15: { blueprint: 'challenge-stages', activity: 'challenge-stages', capabilities: ['terminal', 'devops-explorer', 'visualization'], visualization: 'challenge-stages', stages: ['E25', 'E26', 'E27', 'E28', 'E29', 'E30', 'E31', 'D2', 'D3'] },
 };
-/** The devops-explorer stages that exist (docs/curriculum/CICD0_DEVOPS_CAPABILITY.md §4): all four. */
-export const DEVOPS_STAGES_BUILT: readonly string[] = ['D1', 'D2', 'D3', 'D4'];
+/** The devops-explorer stages that exist (docs/curriculum/CICD0_DEVOPS_CAPABILITY.md §4): D1–D4, D5 (traces) and D6 (SLOs), KUB-4. */
+export const DEVOPS_STAGES_BUILT: readonly string[] = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6'];
 export function cicdFromBlueprint(lessonId: string, summary: string, minutes: number, withOptional = false): Outline {
   const b = planning.plannedLessons.find(l => l.lessonId === lessonId);
   if (!b || b.islandId !== 'devops-cicd') throw new Error(`${lessonId} is not a DevOps and CI/CD lesson of the blueprint`);

@@ -65,6 +65,8 @@ export interface AlertResult {
   detected: number;
   firingMinutes: number;
 }
+/** A run of the state machine without the rule's values (D6's burn-rate alerts have two burn rates instead). */
+export type AlertRun = Omit<AlertResult, 'values'>;
 
 /** The value as shown: whole for a single value, max or min; one decimal (half up) for an average. */
 export const ruleValueText = (v: RuleValue | undefined) => !v ? '—' : v.count === 1 ? String(v.sum) : (roundHalfUp(10 * v.sum, v.count) / 10).toFixed(1);
@@ -84,13 +86,21 @@ function valueAt(values: readonly number[], t: number, w: AlertCondition['window
 export function evaluateAlert(rule: AlertCondition, series: MetricSeries, minutes: number, incidents: readonly Incident[] = []): AlertResult {
   const raw = seriesValues(series, minutes);
   const values = raw.map((_, t) => valueAt(raw, t, rule.window));
-  const holds = values.map(v => !!v && compare(v.sum, rule.op, rule.threshold * v.count));
+  return { values, ...runAlert(values.map(v => !!v && compare(v.sum, rule.op, rule.threshold * v.count)), rule.forMinutes, incidents) };
+}
+
+/**
+ * The state machine and the incident matching above, on a condition that holds or not at each step (a minute here; D6's
+ * burn-rate alerts run it once per bucket, slo.ts / burn.ts): states, firing intervals, detections and the counts.
+ */
+export function runAlert(holds: readonly boolean[], forMinutes: number, incidents: readonly Incident[] = []): AlertRun {
+  const minutes = holds.length;
   const states: AlertState[] = [], intervals: FiringInterval[] = [];
   let run = 0, firing = false;
   for (let t = 0; t < minutes; t++) {
     if (holds[t]) {
       run++;
-      if (run > rule.forMinutes) {
+      if (run > forMinutes) {
         states.push('firing');
         if (!firing) intervals.push({ start: t, end: minutes, open: true });
         firing = true;
@@ -109,7 +119,7 @@ export function evaluateAlert(rule: AlertCondition, series: MetricSeries, minute
   });
   const firstFiring = states.indexOf('firing'), firstResolved = states.indexOf('resolved');
   return {
-    values, holds, states, intervals, incidents: detections,
+    holds: [...holds], states, intervals, incidents: detections,
     ...firstFiring >= 0 ? { firstFiring } : {}, ...firstResolved >= 0 ? { firstResolved } : {},
     notifications: intervals.length,
     falseAlerts: intervals.filter(iv => !iv.incident).length,

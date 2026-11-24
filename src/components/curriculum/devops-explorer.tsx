@@ -5,12 +5,17 @@ import { Check, RotateCcw, X } from 'lucide-react';
 import { blanksOf, checkDevopsAnswer, constraintTexts, outcomeText, parsePlan, PLAN_FIELDS, planAnswer, scenarioFor, simulatePlan } from '@/lib/devops/check';
 import { clockText, doraMetrics, durationText, failureStart, MINUTES_PER_DAY } from '@/lib/devops/history';
 import { simulateRollout, STRATEGY_KINDS, STRATEGY_LABEL, strategyIssues, strategyText, type MinuteRow, type RolloutResult, type RolloutScenario, type Strategy, type StrategyKind } from '@/lib/devops/rollout';
-import type { AlertResult } from '@/lib/devops/alerts';
+import type { AlertRun } from '@/lib/devops/alerts';
 import { alertConstraintTexts, dashboardById, evaluatePlan } from '@/lib/devops/dashboard-check';
 import { evaluateRedact } from '@/lib/devops/logs-check';
+import type { SamplingResult } from '@/lib/devops/sampling';
+import { evaluateSamplingPlan, samplingConstraintTexts } from '@/lib/devops/sampling-check';
+import { evaluateBurnPlan, inMinutes, sloById } from '@/lib/devops/slo-check';
+import { BurnFields } from './burn-form';
 import type { DevopsExercise, DevopsLessonContent, HistoryExplorer, RolloutExplorer } from '@/lib/devops/types';
 import { AlertRuleFields } from './alert-rule-fields';
 import { MaskRulesField } from './log-masking';
+import { SamplingFields, SamplingResults } from './sampling-form';
 import { Rich } from './rich';
 import { Stepper } from './visualizations';
 import base from './curriculum.module.css';
@@ -30,6 +35,10 @@ const ILLUSTRATIVE = '示意資料：由課程撰寫的教學模型，用來說�
 const n0 = (x: number) => x.toLocaleString('en-US');
 /** D4's queries: their exercises answer times in m:ss or seconds, not minutes. */
 const LOG_TASKS: readonly string[] = ['logs', 'correlate', 'retention', 'log-format'];
+/** D5's queries: their exercises answer times in milliseconds. */
+const TRACE_TASKS: readonly string[] = ['trace', 'sampling', 'cardinality'];
+/** D6's queries: their exercises answer percentages at the value's decimals and burn rates as multiples. */
+const SLO_TASKS: readonly string[] = ['slo', 'burn'];
 
 // ---- D1: deployment history ---------------------------------------------------------------------------------------
 const HW = 600, HH = 120, HP = 16;
@@ -262,7 +271,7 @@ export function RolloutSimulatorView({ explorer }: { explorer: RolloutExplorer }
 export function DevopsExerciseBox({ exercise, content }: { exercise: DevopsExercise; content: DevopsLessonContent }) {
   const id = useId();
   const [values, setValues] = useState<Record<string, string>>({});
-  const [result, setResult] = useState<{ ok: boolean; messages: string[]; plan?: RolloutResult; alert?: AlertResult; masked?: number }>();
+  const [result, setResult] = useState<{ ok: boolean; messages: string[]; plan?: RolloutResult; alert?: AlertRun; masked?: number; sampled?: SamplingResult }>();
   const set = (k: string, v: string) => { setValues(old => ({ ...old, [k]: v })); setResult(undefined); };
   const input = (key: string, numeric: boolean) => <input id={`${id}-${key}`} className={styles.input} value={values[key] ?? ''}
     inputMode={numeric ? 'decimal' : 'text'} spellCheck={false} autoCapitalize="off" autoComplete="off" onChange={e => set(key, e.target.value)}/>;
@@ -274,8 +283,12 @@ export function DevopsExerciseBox({ exercise, content }: { exercise: DevopsExerc
       const n = content.rollouts?.find(x => x.id === exercise.plan.rollout)?.scenario.fleet.instances ?? 0;
       if (strategy && !strategyIssues(strategy, n).length) plan = simulatePlan(exercise.plan, content, strategy);
     }
+    const burned = exercise.kind === 'burn-alert' ? evaluateBurnPlan(exercise.burn, content, values) : undefined;
+    const bucketMinutes = exercise.kind === 'burn-alert' ? sloById(content, exercise.burn.slo).bucketMinutes : 1;
     setResult({ ...r, plan, ...exercise.kind === 'alert-rule' ? { alert: evaluatePlan(exercise.plan, content, values) } : {},
-      ...exercise.kind === 'redact' ? { masked: evaluateRedact(exercise.redact, content, values).outcome?.masked } : {} });
+      ...burned ? { alert: inMinutes(burned, bucketMinutes) } : {},
+      ...exercise.kind === 'redact' ? { masked: evaluateRedact(exercise.redact, content, values).outcome?.masked } : {},
+      ...exercise.kind === 'sampling-plan' ? { sampled: evaluateSamplingPlan(exercise.sampling, content, values) } : {} });
   };
   return <div className={activities.builder}>
     {exercise.kind === 'choice' ? <fieldset className={styles.radios}>
@@ -299,11 +312,25 @@ export function DevopsExerciseBox({ exercise, content }: { exercise: DevopsExerc
         <p className={styles.facts}>必須隱藏：{exercise.redact.mustHide.map(v => `「${v}」`).join('、')}；必須保留：{exercise.redact.mustKeep.map(v => `「${v}」`).join('、') || '—'}。</p>
         <MaskRulesField id={id} value={values.rules ?? ''} set={v => set('rules', v)}/>
       </>
+      : exercise.kind === 'sampling-plan' ? <>
+        <p className={styles.facts}>條件：{samplingConstraintTexts(exercise.sampling.constraints).join('；')}。</p>
+        <SamplingFields id={id} values={values} set={set}/>
+      </>
+      : exercise.kind === 'burn-alert' ? <>
+        <p className={styles.facts}>條件：{alertConstraintTexts(exercise.burn.constraints).join('；')}。</p>
+        <BurnFields id={id} values={values} set={set}/>
+      </>
       : <div className={activities.row}><label htmlFor={`${id}-value`}><Rich text={exercise.blank.label}/></label>{input('value', exercise.kind === 'number')}</div>}
     <p className={base.muted}>{exercise.kind === 'rollout-plan' ? '按「檢查」時，用你的參數把這次部署重新模擬一次，再檢查每個條件；符合條件的設定都會通過。'
       : exercise.kind === 'alert-rule' ? '按「檢查」時，用你的規則把儀表板的每一分鐘重新評估一次，再檢查每個條件；符合條件的規則都會通過。'
       : exercise.kind === 'redact' ? '按「檢查」時，把你的規則套用到課程的日誌，檢查必須隱藏的值都看不到、必須保留的值一個都沒有被遮掉；符合的規則都會通過。'
-      : exercise.kind === 'choice' ? '' : blanksOf(exercise).some(b => LOG_TASKS.includes(b.query.task))
+      : exercise.kind === 'sampling-plan' ? '按「檢查」時，用你的設定把課程的每個追蹤重新取樣一次，再檢查每個條件；符合條件的設定都會通過。比例填百分比（最多一位小數），時間填毫秒。'
+      : exercise.kind === 'burn-alert' ? '按「檢查」時，用你的告警把每個時段重新評估一次（兩個視窗的消耗率都達到門檻才觸發），再檢查每個條件；符合條件的設定都會通過。視窗填分鐘（也可以寫成 1 小時），門檻填倍數。'
+      : exercise.kind === 'choice' ? '' : blanksOf(exercise).some(b => SLO_TASKS.includes(b.query.task))
+        ? '數字照題目要的單位與小數位數填（可以加上單位，例如 99.905%、14.4 倍、500 個）；時間一律以分鐘計（時段的開始）。'
+      : blanksOf(exercise).some(b => TRACE_TASKS.includes(b.query.task))
+        ? '數字照題目要的單位填（可以加上單位，例如 120 ms、24 條）；追蹤的時間一律以毫秒計，trace id 可以只填前 8 碼，服務的順序用逗號或 → 分開。'
+      : blanksOf(exercise).some(b => LOG_TASKS.includes(b.query.task))
         ? '數字照題目要的單位填（可以加上單位，例如 5 秒、13.5 GB）；日誌的時間寫成「分:秒」或秒數，服務的順序用逗號或 → 分開。'
         : '數字照題目要的單位填（可以加上單位，例如 120 分鐘、40%）；時間一律換算成分鐘。'}</p>
     <div className={base.vizControls}>
@@ -313,7 +340,8 @@ export function DevopsExerciseBox({ exercise, content }: { exercise: DevopsExerc
     <div aria-live="polite">{result && <>
       <p className={activities.verdict} data-ok={result.ok}>{result.ok ? <><Check size={16} aria-hidden/>正確。</> : <><X size={16} aria-hidden/>還沒通過：</>}</p>
       {!result.ok && <ul className={activities.results}>{result.messages.map(m => <li key={m}>{m}</li>)}</ul>}
-      {result.alert && <p className={styles.facts}>你的規則評估的結果：通知 {result.alert.notifications} 次、誤報 {result.alert.falseAlerts} 次、漏掉 {result.alert.missed} 個事故；偵測延遲 {result.alert.incidents.map(i => `${i.label} ${i.delay === undefined ? '漏掉' : `${i.delay} 分鐘`}`).join('、') || '—'}。</p>}
+      {result.alert && <p className={styles.facts}>{exercise.kind === 'burn-alert' ? '你的告警' : '你的規則'}評估的結果：通知 {result.alert.notifications} 次、誤報 {result.alert.falseAlerts} 次、漏掉 {result.alert.missed} 個事故；偵測延遲 {result.alert.incidents.map(i => `${i.label} ${i.delay === undefined ? '漏掉' : `${i.delay} 分鐘`}`).join('、') || '—'}。</p>}
+      {result.sampled && <SamplingResults result={result.sampled} caption="你的設定取樣的結果" tail={values.tail === 'on'}/>}
       {result.masked !== undefined && <p className={styles.facts}>你的規則改動了 {result.masked} 個值（訊息、欄位或原始行）。</p>}
       {result.plan && <p className={styles.facts}>你的設定模擬的結果：{outcomeText(result.plan.outcome)}{result.plan.completedAt !== undefined ? `（第 ${result.plan.completedAt} 分鐘）` : ''}；錯誤 {result.plan.totals.errors}、丟棄 {result.plan.totals.dropped}、尖峰 {result.plan.totals.peakInstances} 個、額外的執行個體分鐘 {result.plan.totals.extraInstanceMinutes}。</p>}
     </>}</div>

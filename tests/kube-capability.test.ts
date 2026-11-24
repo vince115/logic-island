@@ -48,9 +48,9 @@ describe('kubeFromBlueprint (KUB_SHAPES)', () => {
     expect(row('KUB14')).toEqual(['metric-explorer', 'monitoring-dashboard', ['devops-explorer'], [], 'none', 'D6']);
     expect(row('KUB15')).toEqual(['challenge-stages', 'challenge-stages', ['terminal', 'devops-explorer', 'visualization'], [], 'challenge-stages', 'E32 E33 E34 E35 E36 E37 E38 E39 E40 D3 D5 D6']);
   });
-  it('builds only the lessons whose stages exist: E32–E40 are built, D5–D6 are not', () => {
+  it('builds every lesson: E32–E40 and D1–D6 are built', () => {
     expect(KUBE_STAGES_BUILT).toEqual(['E32', 'E33', 'E34', 'E35', 'E36', 'E37', 'E38', 'E39', 'E40']);
-    expect(DEVOPS_STAGES_BUILT).toEqual(['D1', 'D2', 'D3', 'D4']);
+    expect(DEVOPS_STAGES_BUILT).toEqual(['D1', 'D2', 'D3', 'D4', 'D5', 'D6']);
     const b = planning.plannedLessons.find(l => l.lessonId === 'KUB02')!;
     expect(outline('KUB02')).toMatchObject({ slug: b.slug, title: b.title, objectives: b.learningObjectives, concepts: b.concepts, prerequisites: b.prerequisites, activity: 'network-sequence',
       capabilities: ['terminal', 'network-protocol'], visualization: 'none', blueprintId: 'KUB02' });
@@ -62,8 +62,8 @@ describe('kubeFromBlueprint (KUB_SHAPES)', () => {
     expect(outline('KUB08')).toMatchObject({ activity: 'terminal-sim', capabilities: ['terminal'], visualization: 'none', blueprintId: 'KUB08' });
     // E39 (KUB-3): KUB09 is a terminal lesson of Helm charts, values and releases.
     expect(outline('KUB09')).toMatchObject({ activity: 'terminal-sim', capabilities: ['terminal'], visualization: 'none', blueprintId: 'KUB09' });
-    expect(() => outline('KUB13')).toThrow('KUB13: the devops-explorer stage D5 is not built yet (the lesson needs D3, D4, D5)');
-    expect(() => outline('KUB14')).toThrow('KUB14: the devops-explorer stage D6 is not built yet (the lesson needs D6)');
+    // D5 and D6 (KUB-4): KUB13 (traces) and KUB14 (SLOs) are monitoring-dashboard lessons on the devops-explorer.
+    for (const id of ['KUB13', 'KUB14']) expect(outline(id)).toMatchObject({ activity: 'monitoring-dashboard', capabilities: ['devops-explorer'], visualization: 'none', blueprintId: id });
     // E40 (KUB-3): KUB10 is a terminal lesson of requests, limits, metrics-server and the HPA; KUB12 (D3, D4 and E40) can be built too.
     expect(outline('KUB10')).toMatchObject({ activity: 'terminal-sim', capabilities: ['terminal'], visualization: 'none', blueprintId: 'KUB10' });
     expect(outline('KUB12')).toMatchObject({ activity: 'monitoring-dashboard', blueprintId: 'KUB12' });

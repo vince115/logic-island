@@ -8,6 +8,12 @@ import { MonitoringDashboardView } from '@/components/curriculum/dashboard-view'
 import { dashboardContent, dashboardExercises, dashboardLesson, dashboards } from './support/dashboard-fixture';
 import { LogViewer } from '@/components/curriculum/log-viewer';
 import { logExercises, logExplorers, logsContent, logsLesson } from './support/logs-fixture';
+import { TracesExplorerView } from '@/components/curriculum/trace-view';
+import { DEVOPS_TRACES_NOTICE } from '@/components/curriculum/devops-lesson';
+import * as tf from './support/traces-fixture';
+import { SloExplorerView } from '@/components/curriculum/slo-view';
+import { DEVOPS_EXERCISE_NOTICE as NOTICE_D1, DEVOPS_SLO_NOTICE } from '@/components/curriculum/devops-lesson';
+import * as sf from './support/slo-fixture';
 
 /*
  * CICD-0: the devops-explorer components. The history view states the four DORA metrics with their arithmetic, draws the
@@ -406,5 +412,244 @@ describe('the D4 exercises', () => {
     expect(devopsExerciseNotice(content)).toBe(DEVOPS_LOGS_NOTICE);
     expect(devopsExerciseNotice(devopsContent())).toBe(DEVOPS_EXERCISE_NOTICE);
     expect(DEVOPS_EXERCISE_NOTICE).toContain('時間一律以分鐘計');
+  });
+});
+
+describe('TracesExplorerView (D5)', () => {
+  const content = tf.tracesContent();
+  const view = (id: string) => render(<TracesExplorerView explorer={tf.traceExplorers().find(x => x.id === id)!} content={content}/>);
+  const spanTable = () => screen.getByRole('table', { name: /^每個 span 的時間/ });
+  it('states the facts, picks a trace and shows its waterfall with an equivalent table', () => {
+    const { container } = view('checkout');
+    expect(container.textContent).toContain('3 個追蹤、15 個 span；有錯誤的追蹤 1 個；追蹤時間 p50 400 ms、p95 5,200 ms、p99 5,200 ms（最近排名法）。');
+    expect(container.textContent).toContain('示意資料');
+    const picker = screen.getByLabelText('追蹤（trace id 的前 8 碼、入口與時間）') as HTMLSelectElement;
+    expect([...picker.options].map(o => o.textContent)).toEqual(['4bf92f35… gateway：POST /checkout，400 ms', '0af76519… gateway：POST /checkout，5,200 ms，有錯誤', 'f1e2d3c4… search：GET /search，100 ms']);
+    const rows = within(screen.getByRole('list', { name: /^瀑布圖/ })).getAllByRole('button');
+    expect(rows.map(b => b.textContent)).toEqual(['gateway：POST /checkout400 ms', 'auth：auth.verify6 ms', 'orders：POST /orders300 ms', 'orders：db.query50 ms', 'orders：cache.get60 ms', 'payments：POST /charge200 ms', 'payments：provider.charge180 ms']);
+    expect(within(spanTable()).getAllByRole('row').slice(1).map(r => [...r.children].slice(4).map(c => c.textContent).join(' '))).toEqual([
+      '0 400 94 在路徑上（自己 94 ms）', '2 6 6 在路徑上（自己 6 ms）', '10 300 40 在路徑上（自己 40 ms）', '20 50 50 在路徑上（自己 10 ms）', '30 60 60 在路徑上（自己 50 ms）',
+      '80 200 20 在路徑上（自己 20 ms）', '90 180 180 在路徑上（自己 180 ms）']);
+    expect(container.textContent).toContain('關鍵路徑依序經過 gateway → auth → orders → payments；各服務在關鍵路徑上的時間：payments 200 ms、orders 100 ms、gateway 94 ms、auth 6 ms；瓶頸是 payments。');
+    fireEvent.change(picker, { target: { value: tf.T_PAR } });
+    expect(within(spanTable()).getAllByRole('row').slice(1).map(r => r.lastElementChild!.textContent)).toEqual(['在路徑上（自己 20 ms）', '—', '在路徑上（自己 80 ms）', '—']);
+    fireEvent.change(picker, { target: { value: tf.T_FAIL } });
+    expect(within(spanTable()).getAllByRole('row')[1].querySelector('[data-bad]')!.textContent).toBe('錯誤');
+    expect(container.querySelectorAll('[data-error]')).toHaveLength(4);
+  });
+  it('moves between spans with the keyboard and describes the selected one', () => {
+    const { container } = view('checkout');
+    const rows = () => within(screen.getByRole('list', { name: /^瀑布圖/ })).getAllByRole('button');
+    expect(live(container)).toContain('第 1／7 個 span：gateway：POST /checkout（伺服器端，正常），從 0 ms 到 400 ms，持續 400 ms，自身時間 94 ms；在關鍵路徑上（其中 94 ms 是它自己的時間）。');
+    expect(rows().map(b => b.tabIndex)).toEqual([0, -1, -1, -1, -1, -1, -1]);
+    rows()[0].focus();
+    fireEvent.keyDown(rows()[0], { key: 'ArrowDown' });
+    fireEvent.keyDown(rows()[1], { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(rows()[2]);
+    expect(rows()[2].getAttribute('aria-pressed')).toBe('true');
+    expect(live(container)).toContain('第 3／7 個 span：orders：POST /orders（伺服器端，正常），從 10 ms 到 310 ms，持續 300 ms，自身時間 40 ms');
+    fireEvent.keyDown(rows()[2], { key: 'End' });
+    expect(live(container)).toContain('第 7／7 個 span：payments：provider.charge（用戶端，正常）');
+    fireEvent.keyDown(rows()[6], { key: 'Home' });
+    expect(document.activeElement).toBe(rows()[0]);
+    fireEvent.click(rows()[3]);
+    expect(live(container)).toContain('第 4／7 個 span：orders：db.query');
+  });
+  it('opens an exemplar\'s trace and lists the log records that carry its id', () => {
+    const { container } = view('shop-traces');
+    expect(screen.getByLabelText('追蹤（trace id 的前 8 碼、入口與時間）').querySelectorAll('optgroup')).toHaveLength(3);
+    expect(screen.getByRole('table', { name: /^trace_id = 4bf92f35… 的紀錄/ }).querySelectorAll('tbody tr')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: '開啟追蹤 0af76519…' }));
+    expect(container.textContent).toContain(`trace id：${tf.T_FAIL}`);
+    expect(container.textContent).toContain('第 4 分鐘「p95 延遲」：');
+    const logs = screen.getByRole('table', { name: /^trace_id = 0af76519… 的紀錄（2 筆/ });
+    expect(within(logs).getAllByRole('row').slice(1).map(r => r.textContent)).toEqual(['24:05payments錯誤（error）provider timeout after 5000 ms', '34:06gateway錯誤（error）POST /checkout 504']);
+  });
+});
+
+describe('the D5 sampling and cardinality panels', () => {
+  const content = tf.tracesContent();
+  const shopView = () => render(<TracesExplorerView explorer={tf.traceExplorers()[0]} content={content}/>);
+  it('samples with the controls, shows the results table, and flags fields it cannot read', () => {
+    const { container } = shopView();
+    expect(live(container)).toContain('保留 26／303 個追蹤（8.6%），有錯誤的 0／5 個，慢於 91 ms 的');
+    const results = () => screen.getByRole('table', { name: '取樣的結果（課程的追蹤）' });
+    expect(within(results()).getByRole('rowheader', { name: '每天的 span（估計）' }).parentElement!.textContent).toBe('每天的 span（估計）10,000,000871,2878.7%');
+    fireEvent.change(screen.getByLabelText('頭部取樣：保留的比例（%）'), { target: { value: '100' } });
+    fireEvent.change(screen.getByLabelText('尾端取樣'), { target: { value: 'on' } });
+    fireEvent.change(screen.getByLabelText('尾端：保留有錯誤的追蹤'), { target: { value: 'yes' } });
+    fireEvent.change(screen.getByLabelText('尾端：保留慢於幾毫秒的追蹤（空白表示不用這條）'), { target: { value: '800' } });
+    fireEvent.change(screen.getByLabelText('尾端：其餘的追蹤保留的比例（%）'), { target: { value: '5' } });
+    fireEvent.change(screen.getByLabelText('列為慢的門檻（ms，預設是 p95）'), { target: { value: '800' } });
+    expect(live(container)).toContain('有錯誤的 5／5 個，慢於 800 ms 的 5／5 個；估計每天保留 983,498 個 span。');
+    expect(container.textContent).toContain('頭部取樣丟掉 0 個追蹤；尾端取樣在頭部留下的 303 個之中，因為有錯誤保留 5 個');
+    fireEvent.change(screen.getByLabelText('頭部取樣：保留的比例（%）'), { target: { value: 'abc' } });
+    const alert = screen.getAllByRole('alert').find(a => a.textContent!.includes('頭部取樣'))!;
+    expect(alert.textContent).toBe('「頭部取樣：保留的比例（%）」要填 0 到 100 的百分比，最多一位小數（例如 10 或 0.5）。');
+    expect(screen.getByLabelText('頭部取樣：保留的比例（%）').getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByLabelText('頭部取樣：保留的比例（%）').getAttribute('aria-describedby')).toBe(alert.id);
+    expect(screen.queryByRole('table', { name: '取樣的結果（課程的追蹤）' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /恢復預設/ }));
+    expect((screen.getByLabelText('尾端取樣') as HTMLSelectElement).value).toBe('off');
+    expect((screen.getByLabelText('尾端：其餘的追蹤保留的比例（%）') as HTMLInputElement).disabled).toBe(true);
+  });
+  it('multiplies the chosen labels\' distinct values and shows the jump a high-cardinality label makes', () => {
+    const { container } = render(<TracesExplorerView explorer={tf.traceExplorers()[1]} content={content}/>);
+    const table = screen.getByRole('table', { name: /^span 的標籤與不同值的個數/ });
+    expect(within(table).getAllByRole('row').slice(1).map(r => r.textContent)).toEqual(['service8', 'name11', 'status2', 'kind2', 'http.route1', 'user_id2', 'timeout_ms1']);
+    expect(live(container)).toContain('可能的序列數（service、status）：8 × 2 = 16 條。');
+    fireEvent.click(screen.getByLabelText('計入標籤 name'));
+    expect(live(container)).toContain('可能的序列數（service、name、status）：8 × 11 × 2 = 176 條。');
+    fireEvent.change(screen.getByLabelText('不同值的個數（空白表示不加）'), { target: { value: '50,000' } });
+    expect(live(container)).toContain('加上 user_id（50,000 個值）：176 × 50,000 = 8,800,000 條，是原本的 50,000 倍。');
+    fireEvent.change(screen.getByLabelText('不同值的個數（空白表示不加）'), { target: { value: 'many' } });
+    expect(screen.getByRole('alert').textContent).toBe('「不同值的個數」要填 1 到 999,999,999 的整數。');
+    expect(screen.getByLabelText('不同值的個數（空白表示不加）').getAttribute('aria-invalid')).toBe('true');
+  });
+});
+
+describe('the D5 exercises', () => {
+  const content = tf.tracesContent();
+  const ex = (id: string) => tf.traceExercises().find(e => e.id === id)!;
+  it('checks a sampling plan and shows what the learner\'s policy kept', () => {
+    const { container } = render(<DevopsExerciseBox exercise={ex('t-plan')} content={content}/>);
+    expect(container.textContent).toContain('條件：保留每一個有錯誤的追蹤；保留每一個慢於 800 ms 的追蹤；估計每天保留的 span 最多 1,200,000 個。');
+    fireEvent.change(screen.getByLabelText('頭部取樣：保留的比例（%）'), { target: { value: '10' } });
+    fireEvent.click(screen.getByRole('button', { name: /檢查答案/ }));
+    expect(live(container)).toContain('有錯誤的追蹤有 5 個，只保留了 0 個；題目要全部保留。');
+    expect(screen.getByRole('table', { name: '你的設定取樣的結果' })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('頭部取樣：保留的比例（%）'), { target: { value: '100' } });
+    fireEvent.change(screen.getByLabelText('尾端取樣'), { target: { value: 'on' } });
+    fireEvent.change(screen.getByLabelText('尾端：保留有錯誤的追蹤'), { target: { value: 'yes' } });
+    fireEvent.change(screen.getByLabelText('尾端：保留慢於幾毫秒的追蹤（空白表示不用這條）'), { target: { value: '800' } });
+    fireEvent.change(screen.getByLabelText('尾端：其餘的追蹤保留的比例（%）'), { target: { value: '5' } });
+    fireEvent.click(screen.getByRole('button', { name: /檢查答案/ }));
+    expect(screen.getByText(/正確/)).toBeTruthy();
+  });
+  it('checks a trace table, shows computed references, the traces by id and the traces notice', () => {
+    const box = render(<DevopsExerciseBox exercise={ex('t-trace')} content={content}/>);
+    expect(box.container.textContent).toContain('追蹤的時間一律以毫秒計');
+    fireEvent.change(screen.getByLabelText('追蹤的時間（ms）'), { target: { value: '400 ms' } });
+    fireEvent.change(screen.getByLabelText('orders 的 POST /orders 的自身時間（ms）'), { target: { value: '40' } });
+    fireEvent.change(screen.getByLabelText('關鍵路徑依序經過的服務'), { target: { value: 'gateway → auth → orders → payments' } });
+    fireEvent.change(screen.getByLabelText('瓶頸的服務'), { target: { value: 'payments' } });
+    fireEvent.click(screen.getByRole('button', { name: /檢查答案/ }));
+    expect(screen.getByText(/正確/)).toBeTruthy();
+    cleanup();
+    const plan = render(<DevopsExerciseView exercise={ex('t-plan')} content={content}/>);
+    expect(plan.container.textContent).toContain('其中一種設定：頭部取樣 100%；尾端取樣：保留有錯誤的追蹤、保留慢於 800 ms 的追蹤、其餘保留 5%；取樣結果：保留 30／303 個追蹤、有錯誤的 5／5 個、慢於 800 ms 的 5／5 個，估計每天 983,498 個 span');
+    cleanup();
+    const card = render(<DevopsExerciseView exercise={ex('t-card')} content={content}/>);
+    expect(card.container.textContent).toContain('加上 user_id（條）：880000 條');
+    expect(devopsExamples(tf.tracesLesson()).map(([id]) => id)).toEqual(['latency', 'trace-logs', 'shop-traces', 'checkout']);
+    expect(devopsExerciseNotice(content)).toBe(DEVOPS_TRACES_NOTICE);
+    expect(devopsExerciseNotice(logsContent())).toBe(DEVOPS_LOGS_NOTICE);
+  });
+});
+
+describe('SloExplorerView (D6)', () => {
+  const x = (id: string) => sf.sloExplorers().find(e => e.id === id)!;
+  const card = (dt: string) => within(screen.getByLabelText('SLO 與錯誤預算')).getByText(dt).nextElementSibling!.textContent;
+  const result = (dt: string) => within(screen.getByLabelText('告警規則的結果')).getByText(dt).nextElementSibling!.textContent;
+  it('states the SLO and its budget, draws the SLI and the budget with one table of the same numbers', () => {
+    const { container } = render(<SloExplorerView explorer={x('checkout-slo')}/>);
+    expect(container.textContent).toContain('示意資料');
+    expect([card('SLO'), card('SLI（整段期間）'), card('錯誤預算'), card('期間結束時')])
+      .toEqual(['99%12 分鐘的視窗；好事件：回應碼不是 5xx 的請求', '98.633%11,836 ÷ 12,000，未達成目標', '120 個事件⌊12,000 × 1%⌋', '剩 -36.7%用掉 164 個（136.7%）']);
+    const titles = screen.getAllByRole('img').slice(0, 2).map(c => c.querySelector('title')!.textContent);
+    expect(titles).toEqual(['每個時段的 SLI（好事件 ÷ 全部事件），最低 95.000%（第 4 分鐘）；虛線是目標 99%，4 個時段低於目標；底色是 1 次事故。數字見下方表格',
+      '每個時段之後剩下的錯誤預算（%），最後剩 -36.7%，在第 5 分鐘用完；實線是 0%。數字見下方表格']);
+    expect(container.querySelectorAll('svg rect[class*="incident"]')).toHaveLength(2);
+    const table = screen.getByRole('table', { name: '每個時段的事件、SLI 與錯誤預算（12 個時段，每段 1 分鐘）' });
+    expect(within(table).getAllByRole('row')).toHaveLength(13);
+    expect(within(table).getByRole('rowheader', { name: '第 4 分鐘' }).parentElement!.textContent).toBe('第 4 分鐘1,0009505095.000%10020（16.7%）');
+    expect(within(table).getByRole('rowheader', { name: '第 0 分鐘' }).parentElement!.hasAttribute('data-current')).toBe(true);
+  });
+  it('steps through the buckets with the keyboard, with the burn rate of each window', () => {
+    const { container } = render(<SloExplorerView explorer={x('checkout-slo')}/>);
+    expect(live(container)).toContain('第 0 分鐘：全部 1,000 個事件、好的 998 個、壞的 2 個，SLI 99.800%。到這裡累計 2 個壞事件，用掉預算的 1.7%，剩 98.3%。消耗率：5 分鐘 （視窗未滿）、1 分鐘 0.2；告警狀態：未觸發。沒有進行中的事故。');
+    const next = screen.getByRole('button', { name: /下一步/ });
+    for (let k = 0; k < 4; k++) fireEvent.keyDown(next, { key: 'ArrowRight' });
+    expect(live(container)).toContain('第 4 分鐘：全部 1,000 個事件、好的 950 個、壞的 50 個，SLI 95.000%。到這裡累計 100 個壞事件，用掉預算的 83.3%，剩 16.7%。消耗率：5 分鐘 2.0、1 分鐘 5.0；告警狀態：觸發中。事故「結帳錯誤」進行中。');
+    const burn = screen.getByRole('table', { name: /^各視窗在這個時段結束時的消耗率/ });
+    expect(within(burn).getAllByRole('row').slice(1).map(r => r.textContent)).toEqual(['5 分鐘1005,0002.000%2.0（≥ 2）0.0 小時', '1 分鐘501,0005.000%5.0（≥ 2）0.0 小時']);
+    fireEvent.keyDown(next, { key: 'End' });
+    expect(live(container)).toContain('第 11 分鐘：');
+    expect(within(screen.getByRole('table', { name: /^各視窗/ })).getAllByRole('row')[1].textContent).toBe('5 分鐘295,0000.580%0.6（< 2）已用完');
+    fireEvent.keyDown(screen.getByRole('button', { name: /上一步/ }), { key: 'Home' });
+    expect(live(container)).toContain('第 0 分鐘：');
+  });
+  it('evaluates the lesson\'s burn-rate alert with D3\'s results, re-evaluates when edited, and flags fields it cannot read', () => {
+    const { container } = render(<SloExplorerView explorer={x('checkout-slo')}/>);
+    expect([result('通知'), result('誤報'), result('偵測到的事故'), result('觸發中的分鐘')]).toEqual(['2 次每次進入觸發中發一次', '1 次觸發期間沒有和任何事故重疊', '1 個漏掉 0 個', '3 分鐘第一次在第 4 分鐘']);
+    expect(live(container)).toContain('告警：長視窗 5 分鐘與短視窗 1 分鐘的消耗率都 ≥ 2（快速消耗（5 分鐘／1 分鐘），嚴重）。');
+    const intervals = screen.getByRole('table', { name: '觸發的期間（每一列是一次通知）' });
+    expect(within(intervals).getByRole('rowheader', { name: '2' }).parentElement!.textContent).toBe('2第 8 分鐘（第 9 分鐘恢復）誤報');
+    expect(container.querySelectorAll('svg rect[data-state="firing"]')).toHaveLength(3);
+    fireEvent.change(screen.getByLabelText('長視窗（分鐘）'), { target: { value: '3' } });
+    expect((screen.getByLabelText('課程的告警') as HTMLSelectElement).value).toBe('');
+    expect([result('通知'), result('誤報')]).toEqual(['1 次每次進入觸發中發一次', '0 次觸發期間沒有和任何事故重疊']);
+    fireEvent.change(screen.getByLabelText('長視窗（分鐘）'), { target: { value: 'abc' } });
+    expect(screen.getByRole('alert').textContent).toBe('「長視窗（分鐘）」要填整數的分鐘數（也可以寫成 1 小時）。');
+    expect(screen.getByLabelText('消耗率門檻（倍，最多一位小數）').getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByLabelText('長視窗（分鐘）').getAttribute('aria-describedby')).toBe(screen.getByRole('alert').id);
+    expect(screen.queryByLabelText('告警規則的結果')).toBeNull();
+    fireEvent.change(screen.getByLabelText('長視窗（分鐘）'), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('短視窗（分鐘）'), { target: { value: '5' } });
+    expect(screen.getByRole('alert').textContent).toBe('短視窗不能比長視窗長。');
+    fireEvent.click(screen.getByRole('button', { name: /恢復課程的告警/ }));
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect((screen.getByLabelText('長視窗（分鐘）') as HTMLInputElement).value).toBe('5');
+  });
+  it('writes hourly buckets as minutes, and marks the SLA band the period falls in', () => {
+    render(<SloExplorerView explorer={x('monthly-slo')}/>);
+    expect(screen.getByRole('table', { name: /^每個時段的事件/ }).textContent).toContain('第 18,000–18,059 分鐘（第 13 天 12:00）10,0009,395605');
+    const incidents = screen.getByRole('table', { name: '每個事故：第一次觸發與偵測延遲' });
+    expect(within(incidents).getAllByRole('row').slice(1).map(r => r.textContent)).toEqual(['付款服務逾時第 18000 分鐘第 18000 分鐘0 分鐘', '新版本的緩慢錯誤第 30000 分鐘沒有觸發（漏掉）—']);
+    expect(screen.getByRole('table', { name: '觸發的期間（每一列是一次通知）' }).textContent).toContain('1第 18000–18239 分鐘（第 18240 分鐘恢復）付款服務逾時');
+    fireEvent.change(screen.getByLabelText('課程的告警'), { target: { value: 'ticket' } });
+    expect(screen.getByRole('table', { name: '每個事故：第一次觸發與偵測延遲' }).textContent).toContain('新版本的緩慢錯誤第 30000 分鐘第 31380 分鐘1380 分鐘');
+    const sla = screen.getByRole('table', { name: 'SLA 的補償表（依整段期間的可用度）' });
+    expect(within(sla).getAllByRole('row').slice(1).map(r => [r.textContent, r.hasAttribute('data-current')]))
+      .toEqual([['99.5% 以上0%（這段期間）', true], ['99% 以上、低於 99.5%10%', false], ['95% 以上、低於 99%25%', false], ['低於 95%50%', false]]);
+    cleanup();
+    const { container } = render(<SloExplorerView explorer={{ ...x('checkout-slo'), slo: { ...sf.tiny(), bad: { values: Array(12).fill(20) } } }}/>);
+    expect(live(container)).toContain('這段期間的可用度（SLI）是 98.000%；SLA 承諾 98.5%，落在「低於 98.5%」這一段，補償帳單的 10%。');
+    expect([...screen.getByRole('table', { name: /^SLA 的補償表/ }).querySelectorAll('tr[data-current]')].map(r => r.textContent)).toEqual(['95% 以上、低於 98.5%10%（這段期間）']);
+  });
+});
+
+describe('the D6 exercises', () => {
+  const content = sf.sloContent();
+  const ex = (id: string) => sf.sloExercises().find(e => e.id === id)!;
+  it('checks a burn-rate alert and states what the learner\'s alert did', () => {
+    const { container } = render(<DevopsExerciseBox exercise={ex('s-plan')} content={content}/>);
+    expect(container.textContent).toContain('條件：每個事故都在開始後 1 分鐘內觸發；誤報最多 0 次。');
+    fireEvent.change(screen.getByLabelText('長視窗（分鐘）'), { target: { value: '5' } });
+    fireEvent.change(screen.getByLabelText('短視窗（分鐘）'), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('消耗率門檻（倍，最多一位小數）'), { target: { value: '2' } });
+    fireEvent.click(screen.getByRole('button', { name: /檢查答案/ }));
+    expect(live(container)).toContain('誤報有 1 次，超過上限 0。');
+    expect(live(container)).toContain('你的告警評估的結果：通知 2 次、誤報 1 次、漏掉 0 個事故；偵測延遲 結帳錯誤 1 分鐘。');
+    fireEvent.change(screen.getByLabelText('長視窗（分鐘）'), { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: /檢查答案/ }));
+    expect(screen.getByText(/正確/)).toBeTruthy();
+  });
+  it('checks an SLO table, shows computed references, the SLOs by id and the SLO notice', () => {
+    const box = render(<DevopsExerciseBox exercise={ex('s-budget')} content={content}/>);
+    expect(box.container.textContent).toContain('時間一律以分鐘計（時段的開始）');
+    for (const [label, v] of [['錯誤預算（個事件）', '120 個事件'], ['整段的 SLI（%，三位小數）', '98.633%'], ['第 4 分鐘結束時用掉的預算（%，一位小數）', '83.3'], ['預算在第幾分鐘用完', '5 分鐘']])
+      fireEvent.change(screen.getByLabelText(label), { target: { value: v } });
+    fireEvent.click(screen.getByRole('button', { name: /檢查答案/ }));
+    expect(screen.getByText(/正確/)).toBeTruthy();
+    cleanup();
+    const plan = render(<DevopsExerciseView exercise={ex('s-plan')} content={content}/>);
+    expect(plan.container.textContent).toContain('其中一種設定：長視窗 3 分鐘與短視窗 1 分鐘的消耗率都 ≥ 2；評估結果：通知 1 次、誤報 0 次、漏掉 0 個事故；偵測延遲 結帳錯誤 1 分鐘（條件：每個事故都在開始後 1 分鐘內觸發；誤報最多 0 次）。');
+    cleanup();
+    const burn = render(<DevopsExerciseView exercise={ex('s-burn')} content={content}/>);
+    expect(burn.container.textContent).toContain('第 3 分鐘、1 分鐘視窗：4.0 倍');
+    expect(devopsExamples(sf.sloLesson()).map(([id]) => id)).toEqual(['checkout-slo', 'monthly-slo', 'shop-slo']);
+    expect(devopsExerciseNotice(content)).toBe(DEVOPS_SLO_NOTICE);
+    expect([devopsExerciseNotice(tf.tracesContent()), devopsExerciseNotice(logsContent()), devopsExerciseNotice(devopsContent())]).toEqual([DEVOPS_TRACES_NOTICE, DEVOPS_LOGS_NOTICE, NOTICE_D1]);
   });
 });

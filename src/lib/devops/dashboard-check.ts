@@ -1,4 +1,4 @@
-import { conditionIssues, ruleValueNumber, STATE_LABEL, type AlertCondition, type AlertResult } from './alerts';
+import { conditionIssues, ruleValueNumber, STATE_LABEL, type AlertCondition, type AlertResult, type AlertRun } from './alerts';
 import type { DevopsValue } from './check';
 import { dashboardProblems, evaluateOn, seriesOf, type Dashboard } from './dashboard';
 import { incidentTimes, INCIDENT_METRICS, severityOf } from './incident';
@@ -13,7 +13,7 @@ import { ALERT_METRICS, SERIES_METRICS, type AlertConstraints, type AlertPlanTas
 
 const num = (value: number, unit: string, decimals = 0): DevopsValue => ({ type: 'number', value, decimals, unit });
 const text = (value: string, shown: string, aliases: string[]): DevopsValue => ({ type: 'text', value, shown, aliases: [value, shown, ...aliases] });
-const STATE_ALIASES = { inactive: ['正常', '未觸發', 'ok'], pending: ['等待', '等待中', 'pending'], firing: ['觸發', '觸發中', '告警中', 'firing'], resolved: ['恢復', '已恢復', 'resolved'] } as const;
+export const STATE_ALIASES = { inactive: ['正常', '未觸發', 'ok'], pending: ['等待', '等待中', 'pending'], firing: ['觸發', '觸發中', '告警中', 'firing'], resolved: ['恢復', '已恢復', 'resolved'] } as const;
 
 export function dashboardById(c: DevopsLessonContent, id: string): Dashboard {
   const found = c.dashboards?.find(x => x.id === id);
@@ -138,7 +138,7 @@ export function alertConstraintTexts(c: AlertConstraints): string[] {
   ];
 }
 /** The constraints a rule's evaluation breaks, in words (empty when it meets them all). */
-export function alertViolations(c: AlertConstraints, r: AlertResult): string[] {
+export function alertViolations(c: AlertConstraints, r: AlertRun): string[] {
   const out: string[] = [];
   if (c.detectWithin !== undefined) for (const i of r.incidents) {
     if (i.delay === undefined) out.push(`事故「${i.label}」在它持續的期間沒有觸發告警（漏掉了）。`);

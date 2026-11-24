@@ -1,6 +1,6 @@
 # CICD-0：DevOps 與 CI/CD 島的 `devops-explorer` 課程能力
 
-> 2026-11-23。目標：讓 DevOps 與 CI/CD 島（`devops-cicd`，前綴 CICD，15 堂）可以撰寫、驗證、發布。本階段**不寫任何課程內容**，只把島嶼登錄為預備島嶼、建立逐課的活動對應，並建好新能力 `devops-explorer` 的 **D1**（部署紀錄與 DORA 指標）與 **D2**（部署模擬，`deployment-simulator` 活動）。本文件是終端機引擎階段 **E25–E31** 與 `devops-explorer` 階段 **D1–D4** 的唯一說明處：D1、D2 在此完整規定（§5–§9），**D3**（監控儀表板與告警規則，`monitoring-dashboard` 活動，CICD-4）在 §10.3，**D4**（集中式日誌，同一個活動，CICD-5）在 §10.4，其餘是規劃中的階段與範圍（§10）。之後的進度與下一批由 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 計算。
+> 2026-11-23。目標：讓 DevOps 與 CI/CD 島（`devops-cicd`，前綴 CICD，15 堂）可以撰寫、驗證、發布。本階段**不寫任何課程內容**，只把島嶼登錄為預備島嶼、建立逐課的活動對應，並建好新能力 `devops-explorer` 的 **D1**（部署紀錄與 DORA 指標）與 **D2**（部署模擬，`deployment-simulator` 活動）。本文件是終端機引擎階段 **E25–E31** 與 `devops-explorer` 階段 **D1–D6** 的唯一說明處：D1、D2 在此完整規定（§5–§9），**D3**（監控儀表板與告警規則，`monitoring-dashboard` 活動，CICD-4）在 §10.3，**D4**（集中式日誌，同一個活動，CICD-5）在 §10.4，**D5**（分散式追蹤、取樣與基數，同一個活動，給 KUB13，KUB-4）在 §10.5，**D6**（SLI、SLO、SLA、錯誤預算與消耗率告警，同一個活動，給 KUB14，KUB-4）在 §10.6，其餘是規劃中的階段與範圍（§10）。之後的進度與下一批由 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md) 計算。
 
 ## 1. 範圍
 
@@ -12,6 +12,8 @@
 | D2 `rollout`（已完成，§6） | 部署模擬：一組相同的執行個體從舊版本換到新版本，逐分鐘模擬重建、滾動更新、藍綠部署、金絲雀發布（含閘門與中止）、資料庫的擴充與收縮、功能旗標；三張圖與逐分鐘的表格 |
 | D3 `dashboards`（已完成，§10.3） | 監控儀表板（`monitoring-dashboard`）：每分鐘的時間序列（標註黃金訊號，可由種子產生器產生）、事故期間、告警規則逐分鐘評估（未觸發、等待中、觸發中、已恢復）、偵測延遲、漏掉的事故、誤報與通知數；事故時間線與嚴重等級矩陣 |
 | D4 `logs`（已完成，§10.4） | 集中式日誌（`monitoring-dashboard` 的一部分）：結構化紀錄（時間、服務、主機、等級、訊息、欄位，可由種子產生器補上一般流量）與原始行；以控制項篩選（服務、最低等級、欄位條件、時間範圍）、分組計數、以關聯 ID 追蹤跨服務的請求、遮蔽規則（欄位名稱或固定的樣式）與 `redact` 檢查、保留容量的整數計算 |
+| D5 `traces`（已完成，§10.5） | 分散式追蹤（`monitoring-dashboard` 的一部分，給 KUB13、KUB15）：span 的樹（16 碼 id、父 span、服務、操作、整數毫秒的開始與持續、狀態、種類、屬性，可由種子產生器依呼叫結構產生）；自身時間、關鍵路徑、瓶頸服務、跨追蹤的百分位數；日誌的 trace_id 與儀表板的範例追蹤連到追蹤；頭部與尾端取樣（自訂的 trace id 門檻規則）與 `sampling-plan` 題；基數（標籤不同值的乘積） |
+| D6 `slo`（已完成，§10.6） | SLO（`monitoring-dashboard` 的一部分，給 KUB14、KUB15）：以 1、5 或 60 分鐘的時段記錄好事件與全部事件（可由 D3 的產生器產生）、萬分比的目標與視窗、可選的 SLA 補償表；SLI、錯誤預算（事件）、用掉與剩下的預算、消耗率、預算用完的時刻與還能撐的時間、SLA 的補償；長短兩個視窗的消耗率告警沿用 D3 的狀態機與事故對應，`burn-alert` 題 |
 | 練習（§7） | `number`、`field`、`choice`、`table` 四種填答形式，查詢 `dora`、`dora-best`、`rollout`、`rollout-best`；以及 `rollout-plan`（學習者設定策略參數，模擬後檢查條件）。答案一律由模擬器算出，**不寫在課程資料裡** |
 
 不新增任何執行期套件；沒有亂數，所有數字是整數運算，伺服器的畫面與瀏覽器一致。D1、D2 是**自創的教學模型**，不宣稱符合任何調度系統、負載平衡器、雲端或監控產品的語意；用到 maxSurge／maxUnavailable 這兩個詞時，只有「百分比怎麼取整」照 Kubernetes 的做法（§6.4），讓之後 KUB 島的 `cluster-sim` 不會互相矛盾。
@@ -241,12 +243,14 @@ Profile 延續 `runtime` 之後的線性鏈（RANK 25–31）。每個階段只�
 
 資料：`TerminalMachine.forge`、`TerminalVariant.forge`（變體讓從 `gh` 輸出讀到的答案無法直接打出來）、`TerminalRemote.docker`。尚待決定（產品負責人）：學習者怎麼改儲存庫設定（`gh api` 的 JSON、設定面板或唯讀）；`/learn` 的 `cicd-pipeline` 實驗室要不要在 E28 之後成為終端機實驗室。
 
-### 10.2 `devops-explorer` 階段 D3、D4
+### 10.2 `devops-explorer` 階段 D3–D6
 
 | 階段 | 範圍 | 練習 |
 |---|---|---|
 | D3 `dashboards`（`monitoring-dashboard`，CICD-4 登錄；**已完成**，見 §10.3） | 每分鐘的時間序列，標註黃金訊號；事故區間；告警規則（指標、運算子、門檻、可選的視窗平均或最大值、`for` 分鐘、嚴重度）；逐分鐘評估 pending、firing、resolved（語意類似常見的告警系統但保持中立）；結果：偵測延遲、漏掉的事故、誤報、通知數（告警疲勞）；事故時間線（CICD14）：依序的事件、偵測與恢復時間、依課程給的矩陣判定嚴重等級；約 180 點的序列用重用 `src/lib/llm/prng.ts` 的種子產生器 | `alert-eval`、`alert-rule`（例如「每個事故 5 分鐘內偵測、最多 1 次誤報」）、`incident` |
 | D4 `logs`（`monitoring-dashboard`；**已完成**，見 §10.4） | 紀錄（時間、服務、主機、等級、訊息、欄位，可選原始行）；欄位與等級篩選（只用欄位／值的控制項，不發明查詢語言）；以關聯 ID 串起跨服務的請求；分組計數；遮蔽規則（欄位名稱或樣式）；保留容量（量 × 天數） | `correlate`、`redact`（mustHide、mustKeep）、`retention` |
+| D5 `traces`（`monitoring-dashboard`，KUB-4；**已完成**，見 §10.5） | 追蹤與 span、產生器、自身時間、關鍵路徑、瓶頸、p95；日誌與範例追蹤的連結；頭部與尾端取樣、每天的 span；基數 | `trace`、`sampling`、`cardinality` 查詢；`sampling-plan` |
+| D6 `slo`（`monitoring-dashboard`，KUB-4；**已完成**，見 §10.6） | 時段的好事件與全部事件、萬分比的目標與視窗、SLI、錯誤預算、消耗率、預算用完的時刻與剩下的時間、SLA 的補償表；長短兩個視窗的消耗率告警（D3 的狀態機） | `slo`、`burn` 查詢；`burn-alert` |
 
 ### 10.3 D3：監控儀表板與告警規則（`monitoring-dashboard`，**已完成**）
 
@@ -427,6 +431,183 @@ interface LogTraffic { seed; count /* 1–3000 */; from; to /* 秒 [from, to) */
 - **過度遮蔽的判定**：以 mustKeep 的「出現次數」判定，值的一部分被遮掉也算；這是本課程為了能檢查而固定的規則。
 - **保留容量**：只計算未壓縮的 JSON 行；實際的儲存量受壓縮、索引與副本影響很大，題目的數字是量級的估計。
 
+### 10.5 D5：分散式追蹤、取樣與基數（`monitoring-dashboard` 的一部分，**已完成**）
+
+`src/lib/devops/traces.ts`（資料、產生器、驗證）、`trace-query.ts`（自身時間、關鍵路徑、瓶頸、百分位數）、`sampling.ts`（頭部與尾端取樣、每天的 span、基數）、`traces-check.ts`（`trace`、`sampling`、`cardinality` 查詢與探索器的連結驗證）、`sampling-check.ts`（`sampling-plan` 題）；元件 `trace-view.tsx`（加上 `trace-waterfall.tsx`、`sampling-form.tsx`、`trace-cardinality.tsx`）。給 KUB13（三大支柱、分散式追蹤、OpenTelemetry 的概念、取樣、高基數）與之後的 KUB15。和 D1–D4 一樣是**自創的教學模型**：沒有任何追蹤產品、SDK 或 Collector 的行為，文字也不提任何廠商；trace id 與 span id 的長度（32 與 16 個十六進位數字）和常見的 trace context 相同，但取樣規則是本課程自己的，**不宣稱**符合 OpenTelemetry 的位元配置。不登錄新活動：`metric-explorer` 仍是藍圖的名稱（ML19–22 之後另有用途），KUB13 的活動是 `monitoring-dashboard`。
+
+#### 10.5.1 資料（`content.devops.traces`）
+
+```ts
+interface TracesExplorer { id; title; description; traces: TraceSet; links?: { logs?; field?; dashboard? }; labels?: string[] }
+interface TraceSet {
+  traces?: { id /* 32 個小寫十六進位數字 */; spans: SpanInput[] }[];   // 課程寫的追蹤，每個 1–200 個 span
+  generate?: { seed; count /* 1–2000 */; root: CallShape; users? /* 1–1000000 */ };
+  perDay?: number;                          // 正式環境每天的請求（追蹤）數，1–10⁹
+  exemplars?: { series; minute; trace }[];  // D3 儀表板某一分鐘的範例追蹤
+}
+interface SpanInput { id /* 16 個十六進位數字 */; parent?; service; name; start; duration /* 整數毫秒 */; status?: 'ok' | 'error'; kind?: 'server' | 'client' | 'internal' | 'producer' | 'consumer'; attributes?: Record<string, string | number> }
+interface CallShape { service; name; kind?; selfMs: { min; max }; calls?: CallShape[]; parallel?; errorPermille?; slowPermille?; slowMs?; attributes? }
+```
+
+- 一個追蹤恰好一個根 span（沒有 parent），其他 span 的 parent 都在同一個追蹤裡、一路連到根；子 span 不早於父 span 開始，**可以晚於父 span 結束**（非同步的工作），分析時裁到父 span 的期間。時間是從追蹤開始算起的整數毫秒（最多一小時）。狀態預設 ok，種類預設 internal（產生的根是 server）。span 依深度優先排列，同一層依開始時間（同時開始時保持寫的順序）。
+- **追蹤的時間** = 最晚的結束 − 最早的開始（可能比根 span 長）；有任何 span 的狀態是 error 的追蹤是「有錯誤的追蹤」。
+- **產生器**（決定性，`mulberry32(seed)`）：第 k 個追蹤依序抽：trace id 四次（每次 ⌊u × 2³²⌋ 寫成 8 個十六進位數字）；呼叫結構的每個 span，深度優先（先自己、再依序它的呼叫）：span id 兩次、自身時間一次（min + ⌊u × (max − min + 1)⌋）、`errorPermille` > 0 時一次（u × 1000 < errorPermille 就是 error）、`slowPermille` > 0 時一次（成立就在自身時間加上 slowMs）；最後有 `users` 時一次，根 span 的 `user_id` = `u-${1000 + ⌊u × users⌋}`。時間：一個 span 先做 ⌊自身 ÷ 2⌋ 毫秒，再做它的呼叫（依序一個接一個，`parallel` 時同時開始），再做剩下的自身時間；所以它的自身時間恰好是抽到的值。
+- 範圍：最多 2,000 個追蹤；呼叫結構最多 40 個 span、8 層，產生的 span 總數（count × 結構的 span 數）最多 20,000；trace id 不重複（課程寫的與產生的一起檢查）。
+- **連結**：`links.logs` 是同一堂課的日誌探索器，它的紀錄在 `links.field`（預設是那份日誌的關聯欄位，D4 已可設定，例如 `trace_id`）帶著 trace id；`links.dashboard` 是同一堂課的儀表板，`exemplars` 的序列與分鐘必須在它上面。
+
+#### 10.5.2 自身時間、關鍵路徑與瓶頸（`trace-query.ts`）
+
+- **自身時間** = 持續時間 − 子 span 期間的**聯集**長度（每個子 span 先裁到父 span 的 [start, end)，重疊的部分只算一次）。例：POST /orders [10, 310) 的子 span [20, 70)、[30, 90)、[80, 280) 聯集是 [20, 280) = 260，自身時間 40。
+- **關鍵路徑**（在根 span 的期間內）：從根的結束往回走；在游標之前開始的子 span 中，取（裁到游標後）**最晚結束**的那一個（同時結束取先開始的），它結束到游標之間的時間屬於父 span，然後走進這個子 span（到它裁過的結束），游標移到它的開始，再找下一個；沒有子 span 的時間屬於父 span。所有片段加起來恰好是根 span 的持續時間。
+- **經過的服務**：關鍵路徑經過的 span 依開始時間排列，取服務名稱，連續相同的只寫一次（和 D4 的關聯相同）。**瓶頸**：各服務在關鍵路徑上屬於自己的片段加總，最多的那個；平手時沒有瓶頸（查詢拒絕）。平行的呼叫只有最晚結束的那個在路徑上。
+- **百分位數**（跨追蹤，最近排名法）：追蹤的時間由小到大排序，取第 ⌈p × N ÷ 100⌉ 個（p 是 1–100 的整數，預設 95）。
+
+手算的例子（`tests/support/traces-fixture.ts` 的 T_OK，400 ms、7 個 span）：自身時間 94、6、40、50、60、20、180；關鍵路徑 gateway 310–400 → orders 280–310 → payments 270–280 → provider.charge 90–270 → payments 80–90 → cache.get 30–80（裁到 POST /charge 的開始）→ db.query 20–30 → orders 10–20 → gateway 8–10 → auth 2–8 → gateway 0–2；payments 200、orders 100、gateway 94、auth 6，瓶頸是 payments，經過 gateway → auth → orders → payments。
+
+#### 10.5.3 取樣與基數（`sampling.ts`）
+
+- 比例以千分比保存（0–1000；1000 是全部保留），畫面與作答寫成百分比，最多一位小數（0.5% = 5‰）。
+- **門檻規則**（本課程自訂）：從 trace id 取 8 個十六進位數字成為 r（0…2³² − 1），**r × 1000 < 比例 × 2³²** 時保留。同一個 trace id 在每個服務得到相同的決定；比例越大保留的追蹤包含比例小時保留的全部。整數運算，瀏覽器與 Node 相同。
+- **頭部取樣**：在根 span 開始時決定，還不知道結果；用 trace id 的**最後** 8 個數字與頭部比例。
+- **尾端取樣**：在整個追蹤完成後、只對頭部留下的追蹤決定，依序：`keepErrors` 時有錯誤就保留；有 `slowerThanMs` 時時間 **>** X 就保留；否則 trace id 的**前** 8 個數字落在 `restPermille` 之下就保留（和頭部用不同的數字，兩個比例互相獨立）。
+- **每天的 span**（估計）= perDay × 保留的 span 數 ÷ 追蹤數，四捨五入（§5.3 的 roundHalfUp）；不取樣時用全部的 span 數。例：303 個追蹤、1,515 個 span、每天 2,000,000 個請求 → 10,000,000 個 span；頭部 10% 留下 132 個 span → 871,287。
+- **基數**：一個以 span 產生的指標，序列數最多是各標籤**不同值個數的乘積**（以 bigint 精確計算）。標籤是 service、name、status、kind 與各屬性；不同值在所有有這個標籤的 span 上計算。加上一個有 5,000 個值的 `user_id`，序列數就乘上 5,000。這是上限；實際出現的組合可能較少（課文說明）。
+
+#### 10.5.4 練習
+
+| 查詢 `task` | 值 |
+|---|---|
+| `trace`（`trace` 是 trace id；`metric`：`spans`、`duration`、`self-time`（要 `span`：span id，或在這個追蹤裡唯一的操作名稱）、`critical-services`、`bottleneck`、`bottleneck-time`、`error-spans`、`log-records`（經由探索器的 `links.logs`）；不需要 `trace` 的：`percentile`（`p`，預設 95）、`slowest`（必須唯一）、`exemplar`（要 `series`、`minute`）） | 毫秒、個、筆；服務的**有序清單**；服務名稱；trace id（完整的 32 碼，或在這組追蹤裡唯一的前 8 碼） |
+| `sampling`（`policy` 可選，預設全部保留；`metric`：`traces`、`error-traces`、`slow-traces`、`kept`、`kept-errors`、`kept-slow`（slow 兩種要 `slowerThan`）、`spans`、`kept-spans`、`spans-per-day`、`kept-spans-per-day`（要追蹤組的 `perDay`）） | 個 |
+| `cardinality`（`labels`：標籤名稱（在 `traces` 的 span 上計數）或 `{ name, values }`；`metric`：`series`（乘積，條）、`distinct`（恰好一個標籤）） | 條或個 |
+
+- 追蹤的讀法、取樣的數字與基數都是既有的 `number`／`field`／`table`／`choice` 題配上這些查詢；查詢寫錯（沒有的追蹤、span、標籤、範例，沒有連結的日誌，比例超出範圍，乘積超過安全整數）時驗證拒絕。數字可以帶「ms、毫秒、個、條、span」等單位。
+- 新的填答形式 **`sampling-plan`**：`{ traces, constraints: { keepAllErrors?: true; keepSlowerThan?; maxSpansPerDay? }, reference: SamplingPolicy }`。學習者填頭部比例（%）、尾端取樣（用或不用）、尾端是否保留有錯誤的追蹤、慢於幾毫秒（空白表示不用）、其餘的比例（%）（答案的欄位 `head`、`tail`、`errors`、`slower`、`rest`）；檢查器用這個設定把課程的追蹤重新取樣，逐項檢查：有錯誤的追蹤全部保留、時間 > X 的追蹤全部保留、估計每天的 span ≤ N。符合的設定都通過，`reference` 是其中一種。訊息例如「有錯誤的追蹤有 5 個，只保留了 0 個；題目要全部保留。」、「估計每天保留 10,000,000 個 span，超過上限 1,200,000。」。
+- 驗證（`tracesExplorerProblems`、`samplingPlanProblems`，由 `devopsContentProblems` 呼叫，訊息加上「traces 探索器 id」）：追蹤組的每項規則（§10.5.1）；連結的日誌存在、有那個欄位、至少一筆紀錄帶著這組的某個 trace id；連結的儀表板存在、範例的序列存在、分鐘在儀表板內；有範例就要連結儀表板；`labels` 都是 span 有的標籤；`sampling-plan` 至少一個條件、`maxSpansPerDay` 需要 perDay、`keepAllErrors` 需要有錯誤的追蹤、`keepSlowerThan` 需要至少一個更慢的追蹤、參考設定合法且符合全部條件。參考答案通過、常見錯誤不通過（同 §9）。
+- `validateContent`：活動是 `monitoring-dashboard` 時至少要有儀表板、日誌**或追蹤**（「the monitoring-dashboard activity needs at least one of content.devops.dashboards, content.devops.logs or content.devops.traces」）；`devopsContentProblems` 沒有探索器時的訊息改為「(a history, a rollout, a dashboard, logs or traces)」。`DEVOPS_STAGES_BUILT = ['D1', 'D2', 'D3', 'D4', 'D5']`。`IMPLEMENTED_TEXT['monitoring-dashboard']` 加上追蹤的文字說明（活動已實作，所以登錄的說明跟著更新）。已發布的 CICD11、CICD12 沒有改動；它們沒有追蹤，練習上方的說明逐字不變（有追蹤的課改用 `DEVOPS_TRACES_NOTICE`）。
+
+#### 10.5.5 UI（`trace-view.tsx`）
+
+- 開頭的事實：追蹤數、span 數、有錯誤的追蹤數、追蹤時間的 p50／p95／p99（最近排名法）、其中有幾個是產生的、每天的請求數；標示「示意資料」。
+- **選追蹤**：下拉選單分組列出課程寫的追蹤、產生的有錯誤的追蹤（最多 20 個）、產生的最慢的 10 個（選項寫出 trace id 的前 8 碼、入口的服務與操作、時間、是否有錯誤）；由範例或日誌開啟的其他追蹤另成一組。下方寫出完整的 trace id。
+- **瀑布圖**（`trace-waterfall.tsx`）：每個 span 一列，左邊是依深度縮排的按鈕（服務：操作、持續時間），右邊是共用時間軸上的 CSS 長條（錯誤的 span 用 `--cur-bad`，關鍵路徑上屬於它自己的片段畫成細線），下方是時間軸的刻度；按鈕採 roving tabindex，方向鍵（上下左右）、Home、End 移動並聚焦，`aria-pressed` 標出選取的 span，`aria-live` 說明它的服務、種類、狀態、開始與結束、持續、自身時間、是否在關鍵路徑上。上方以文字寫出關鍵路徑經過的服務、各服務在路徑上的時間與瓶頸。等效的表格：#、span、種類、狀態、開始、持續、自身時間、關鍵路徑（「在路徑上（自己 N ms）」或「—」）。
+- **範例追蹤**：連結儀表板時列出每個範例（第幾分鐘、序列的名稱），按鈕開啟那個追蹤。**日誌**：連結日誌時，表格列出帶著所選 trace id 的紀錄（時間、服務、等級、訊息）。
+- **取樣**（`sampling-form.tsx`）：頭部比例、尾端取樣（選單）、保留有錯誤的追蹤（選單）、慢於幾毫秒、其餘的比例，加上「列為慢的門檻」（預設 p95，只用來計數）；不用尾端時尾端的欄位停用。讀不懂時欄位 `aria-invalid`，以 `aria-describedby` 指向 `role="alert"` 的錯誤清單，不列結果；「恢復預設（頭部 10%）」。結果以 `aria-live` 總結，表格列出追蹤、有錯誤的、慢的、span 與每天的 span（全部、保留、比例），並寫出頭部丟掉幾個、尾端因錯誤、因為慢、依比例各保留幾個。
+- **基數**（`trace-cardinality.tsx`）：表格列出每個標籤與不同值的個數，每列一個有標籤的勾選框；「假設再加一個標籤」的名稱與個數（例如 user_id、50,000，不合法時 `aria-invalid` 與 `role="alert"`）；`aria-live` 寫出算式（8 × 11 × 2 = 176 條）與加上後的乘積與倍數。
+- 練習：`sampling-plan` 用相同的欄位元件，寫出條件，檢查後列出你的設定取樣的結果表；參考解答寫出參考設定與它的結果。用到 D5 查詢的填答題，說明改為「追蹤的時間一律以毫秒計，trace id 可以只填前 8 碼」。
+- 文字全是繁體中文；顏色只用主題的 token（`--accent`、`--cur-bad`、`--text`、`--soft`、`--border`）。在 390 px 寬時瀑布圖的每列改成上下兩段（按鈕在上、長條在下），控制項變成單欄，表格在自己的框裡捲動，頁面沒有水平捲動（暫時頁面在瀏覽器中以 390 × 844 量過 `scrollWidth` = 390，量完即刪除）。
+
+#### 10.5.6 只在課文說明的部分
+
+- OpenTelemetry 的 SDK、自動 instrumentation、Collector 的設定（receiver、processor、exporter、tail sampling processor 的設定檔）、OTLP 協定、trace context 標頭（`traceparent`）的格式與跨服務的傳遞、baggage。
+- 任何廠商或開源的追蹤後端與它們的儲存、查詢、保留與計價；span 事件與 links、多個父 span、跨追蹤的關聯。
+- 由 span 產生 RED 指標的實作、exemplar 的實際儲存方式；基數造成的記憶體與費用、標籤的白名單與彙整；實際出現的組合數（本模型只算上限）。
+- 取樣比例在多個服務間的協調（parent-based、一致性取樣的機率傳遞）、依延遲或錯誤的動態取樣、取樣後的計數補正。
+
+#### 10.5.7 沒有把握的地方
+
+- **取樣的位元**：門檻規則（後 8 碼給頭部、前 8 碼給尾端的比例，r × 1000 < 比例 × 2³²）是本課程為了能手算而定的；OpenTelemetry 的機率取樣規格以 trace id 的隨機位元與 rejection threshold 判定，細節不同，課文不能說成任何規格或產品的行為。
+- **關鍵路徑**：「最晚結束的子 span」演算法是常見的教學版本；非同步的 span（晚於父 span 結束、producer／consumer）裁到父 span 的期間，真實的工具可能把它們另外顯示或不列入。平手的處理（先開始的）是本模型的選擇。
+- **瓶頸的定義**：以「服務在關鍵路徑上的自身片段加總」判定；也有工具用整個追蹤的自身時間或最長的 span，課文要說明是哪一種。
+- **每天的 span**：以樣本的平均推估，假設正式環境的追蹤和樣本相同分布；真實的量會隨流量與錯誤率變動。
+- **基數**：乘積是上限；實際的序列數是出現過的組合，通常較少，但高基數標籤（user_id、request id）仍會讓它失控。
+
+### 10.6 D6：SLI、SLO、SLA、錯誤預算與消耗率告警（`monitoring-dashboard` 的一部分，**已完成**）
+
+`src/lib/devops/slo.ts`（資料、事件、SLI、錯誤預算、SLA、驗證）、`burn.ts`（消耗率、剩下的時間、多視窗告警的評估）、`slo-check.ts`（`slo`、`burn` 查詢與 `burn-alert` 題）；元件 `slo-view.tsx`（加上 `budget-chart.tsx`、`burn-form.tsx`，並沿用 D3 的 `alert-results.tsx`）。給 KUB14（SLI、SLO、SLA、錯誤預算、以 SLO 為基礎的告警）與之後的 KUB15。和 D1–D5 一樣是**自創的教學模型**：「多個視窗、多個消耗率門檻」的告警是 SRE 實務中常見的說法，但這裡的規則（取整、時段、沒有 `for`）是本課程自己的，不宣稱符合任何產品或文件，文字也不提任何廠商。不登錄新活動：KUB14 的活動仍是 `monitoring-dashboard`。
+
+#### 10.6.1 資料（`content.devops.slos`）
+
+```ts
+interface SloExplorer { id; title; description; slo: SloScenario }
+interface SloScenario {
+  service: string;
+  sli: string;                                   // 好事件的定義（文字，例如「回應碼不是 5xx 的請求」）
+  bucketMinutes: 1 | 5 | 60;                     // 時段 t 涵蓋第 [t × B, (t + 1) × B) 分鐘
+  buckets: number;                               // 1–720（720 個小時是 30 天）
+  total: EventSeries;                            // 每個時段的全部事件
+  good?: EventSeries; bad?: EventSeries;         // 恰好給一個；另一個由 total 相減
+  objective: { targetPermyriad; windowMinutes; windowTotal? };   // 9990 = 99.9%
+  sla?: { targetPermyriad; credits: { belowPermyriad; creditPercent }[] };
+  incidents?: Incident[];                        // 宣告的事故，以時段計 [start, end)
+  alerts?: BurnAlertRule[];                      // 課程的消耗率告警；探索器從第一條開始
+}
+interface EventSeries { values?: number[]; shape?: SeriesShape }   // D3 的產生器（§10.3.1），以時段為單位
+interface BurnAlertRule { id; label; longMinutes; shortMinutes; factorTenths; severity }      // 14.4 倍 = 144
+```
+
+- 事件是每個時段 0–10,000,000 的整數；逐點寫出（長度等於 `buckets`）或用 D3 的形狀（`at`、`from`、`to`、尖峰長度都以時段計）。好事件或壞事件不能超過全部事件。
+- **期間** = buckets × bucketMinutes。**視窗**是 bucketMinutes 的倍數、不短於期間、最多 90 天。期間比視窗短時，情境是視窗的開頭，課程必須寫出 `windowTotal`（整個視窗預計的事件數，不少於期間的總數）；期間等於視窗時不能寫。
+
+#### 10.6.2 算術（全部是精確的整數運算；乘積用 BigInt）
+
+| 量 | 算法 | 顯示 |
+|---|---|---|
+| SLI（一段時段 [from, to)） | 好 ÷ 全部 | 百分比、三位小數，四捨五入（§5.3）：roundHalfUp(好 × 100000, 全部) ÷ 1000 |
+| 是否達成 SLO | 好 × 10000 ≥ 目標 × 全部（交叉相乘，**不用**顯示的取整值） | 達成／未達成 |
+| 錯誤預算（事件） | ⌊視窗總數 × (10000 − 目標) ÷ 10000⌋：仍能達成 SLO 的最多壞事件（壞事件是整數，壞 ≤ ⌊x⌋ ⇔ 壞 ≤ x） | 整數；必須 ≥ 1 |
+| 用掉的預算（第 t 個時段之後） | 時段 0…t 的壞事件累計；用掉 % = 累計 × 100 ÷ 預算 | 一位小數，四捨五入 |
+| 剩下的預算 | 預算 − 累計（可以是負數）；剩下 % = 100 − 用掉 %（用顯示的一位小數相減，兩者相加恰好 100） | 整數；一位小數 |
+| 預算用完 | 第一個累計 ≥ 預算的時段，答案是它開始的分鐘 | 分鐘 |
+| 消耗率（第 t 個時段、W 分鐘的視窗） | 時段 [t − k + 1, t]（k = W ÷ bucketMinutes）的 (壞 ÷ 全部) ÷ (1 − 目標) = 壞 × 10000 ÷ (全部 × (10000 − 目標))；視窗未滿沒有值；沒有事件是 0 | 一位小數，四捨五入（十分位整數 roundHalfUp(壞 × 100000, 全部 × (10000 − 目標))） |
+| 預算還能撐幾小時 | 剩下的預算 ÷ 視窗裡每小時的壞事件 = 剩下 × W ÷ (壞 × 60)；已用完是 0，視窗沒有壞事件就「不會用完」（查詢拒絕） | 一位小數 |
+| SLA 的補償 | 補償表由 SLA 的目標往下（belowPermyriad 遞減、補償遞增，第一段的 below 就是 SLA 的目標）；取 SLI **低於**的最低一段：好 × 10000 < below × 全部 | 整數 %；不低於任何一段是 0% |
+
+- **消耗率告警**（`evaluateBurn`）：第 t 個時段，長、短兩個視窗都已滿、而且兩者的消耗率都 ≥ factor ÷ 10（精確比較：壞 × 100000 ≥ factorTenths × 全部 × (10000 − 目標)）時條件成立。狀態、觸發期間與事故的對應**直接使用 D3 的狀態機**（`alerts.ts` 抽出的 `runAlert`，`evaluateAlert` 也改用它，行為不變），每個時段一步，`for` 固定為 0（短視窗讓問題停止後很快恢復，扮演了等待的角色）。偵測延遲、誤報、漏掉的定義同 §10.3.2；對外的時間（第一次觸發、延遲、觸發中的時間、訊息）一律換算成**分鐘**（時段 × bucketMinutes）。
+- 視窗是 bucketMinutes 的倍數、在 bucketMinutes 到期間之間，短視窗不長於長視窗；門檻 0.1–1000 倍。
+
+手算的例子（`tests/support/slo-fixture.ts`）：
+
+- `tiny`：12 個 1 分鐘的時段，每個 1,000 個事件，目標 99%（視窗就是這 12 分鐘），壞事件 2 3 5 40 50 30 5 2 20 3 2 2，事故 [3, 6)。預算 ⌊12,000 × 1%⌋ = 120；第 4 分鐘之後用掉 100（83.3%），第 5 分鐘累計 130，預算用完；最後 164（136.7%），剩 −44（−36.7%）；SLI 11,836 ÷ 12,000 = 98.633%（未達成）。消耗率：第 3 分鐘 1 分鐘視窗 4.0、第 4 分鐘 3 分鐘視窗 95 ÷ 3,000 ÷ 1% = 3.2、5 分鐘視窗 2.0。
+
+| 告警（長／短 ≥ 門檻） | 觸發 | 通知 | 誤報 | 偵測延遲 |
+|---|---|---|---|---|
+| 5／1 分鐘 ≥ 2（2.0 ≥ 2.0 成立） | 第 4–5、8 分鐘 | 2 | 1（第 8 分鐘） | 1 分鐘 |
+| 3／1 分鐘 ≥ 2 | 第 4–5 分鐘（第 8 分鐘的 3 分鐘消耗率只有 0.9） | 1 | 0 | 1 分鐘 |
+| 1／1 分鐘 ≥ 2（等於單一視窗） | 第 3–5、8 分鐘 | 2 | 1 | 0 |
+| 5／1 分鐘 ≥ 3 | 沒有（5 分鐘的消耗率最高 2.6） | 0 | 0 | 漏掉 |
+
+- `month`：720 個小時（30 天，就是視窗），每小時 10,000 個事件，目標 99.9%；壞事件每小時 5，第 300–303 小時 605，第 500 小時起 10（形狀產生，沒有雜訊）。預算 7,200；用掉 7,100（98.6%），剩 100；SLI 99.901%（達成）。第 303 小時之後用掉 3,920（54.4%），照最近 1 小時的速率還能撐 3,280 ÷ 605 = 5.4 小時，照最近 6 小時是 8.1 小時。「1 小時 ≥ 14.4」只抓到尖峰；「24 小時／6 小時 ≥ 1」在第 300–308 小時與第 523 小時起觸發，緩慢的錯誤延遲 23 小時（1,380 分鐘）才偵測到。第 300–323 小時的可用度 98.95%，落在 SLA 的「低於 99%」，補償 25%。
+
+#### 10.6.3 練習
+
+| 查詢 `task` | 值 |
+|---|---|
+| `slo`（`metric`：`sli`、`slo-met`、`total-events`、`bad-events`、`sla-credit`（可選 `from`、`to`，時段的範圍，預設全部）；`budget-events`；`consumed`、`consumed-pct`、`remaining`、`remaining-pct`（可選 `at`，預設最後一個時段）；`burn-rate-at`、`hours-left`（要 `at` 與 `window` 分鐘）；`exhausted-at`） | 百分比（SLI 三位小數，預算一位小數）、個、倍（一位小數）、小時（一位小數）、分鐘，或文字（`slo-met`：達成、未達成，也接受 met、missed） |
+| `burn`（`rule`：情境的告警 id，或直接寫一個條件；`metric`：`first-firing`、`first-resolved`、`notifications`、`false-alerts`、`missed`、`detected`、`firing-minutes`、`detection-delay`（要 `incident`）、`state-at`（要 `at`）） | 分鐘、次、個，或狀態的文字（同 D3） |
+
+- 讀 SLO 的題目都是既有的 `number`／`field`／`table`／`choice` 題配上這些查詢；查詢寫錯（沒有的情境、告警或事故、範圍顛倒、時段超出、視窗未滿、沒有 SLA、預算從未用完）時驗證拒絕。數字可以帶「%、個、事件、倍、×、x、小時、分鐘」等單位。
+- 新的填答形式 **`burn-alert`**：`{ slo, constraints, reference }`，條件和 `alert-rule` 相同（`detectWithin` 以**分鐘**計、`maxMissed`、`maxFalseAlerts`、`maxNotifications`，都含等號）。學習者填長視窗、短視窗（分鐘，也可以寫成「1 小時」、「6h」）與門檻（倍，最多一位小數，可帶「倍」或 x）（答案的欄位 `long`、`short`、`factor`）；檢查器把每個時段重新評估一次，逐項檢查。符合條件的設定都通過，`reference` 是其中一種。訊息沿用 D3，例如「誤報有 1 次，超過上限 0。」、「事故「新版本的緩慢錯誤」第 30000 分鐘開始，第 31380 分鐘才觸發，延遲 1380 分鐘，超過 60 分鐘。」。
+- 驗證（`sloProblems`、`burnAlertProblems`，由 `devopsContentProblems` 呼叫，訊息加上「slo 探索器 id」）：服務與 SLI 的文字；時段長度與個數；恰好有好或壞事件之一；事件序列（D3 的檢查，訊息改寫成時段）；好或壞事件不超過全部；目標 1–9999；視窗與 `windowTotal`；預算至少 1 個事件；SLA 的目標低於 SLO、第一段等於 SLA 的目標、區間遞減、補償遞增；事故（D3 的檢查）；告警的 id 不重複（和事故共用）、名稱、嚴重度與條件；`burn-alert` 至少一個條件且都是 ≥ 0 的整數、偵測類的條件需要事故、參考設定合法且符合全部條件。參考答案通過、常見錯誤不通過（同 §9）。
+- `validateContent`：活動是 `monitoring-dashboard` 時至少要有儀表板、日誌、追蹤**或 SLO**（「the monitoring-dashboard activity needs at least one of content.devops.dashboards, content.devops.logs, content.devops.traces or content.devops.slos」）；`devopsContentProblems` 沒有探索器時的訊息改為「(a history, a rollout, a dashboard, logs, traces or an SLO)」。`DEVOPS_STAGES_BUILT = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6']`。`IMPLEMENTED_TEXT['monitoring-dashboard']` 加上 SLO 的文字說明。已發布的 CICD11、CICD12 沒有改動；它們沒有 SLO，練習上方的說明逐字不變（有 SLO 的課改用 `DEVOPS_SLO_NOTICE`）。
+
+#### 10.6.4 UI（`slo-view.tsx`）
+
+- 開頭：標示「示意資料」；四張卡片（`SLO 與錯誤預算`）寫出目標與視窗、好事件的定義、整段的 SLI（好 ÷ 全部，是否達成）、錯誤預算與算式（⌊總數 × 允許的比例⌋，有 `windowTotal` 時註明）、期間結束時剩下與用掉的預算；時段的長度、期間是否只是視窗的開頭、事故。
+- **兩張 SVG**（`budget-chart.tsx`，不用圖表套件）：每個時段的 SLI 與目標的虛線、剩下的錯誤預算（%）與 0% 的實線；事故是底色，選取的時段有底色；每張有 `<title>`（最低的 SLI 與時段、低於目標的時段數；最後剩下多少、在哪個時段用完）與 `<desc>`。等效的表格（`<details>`）每列一個時段：時段（1 分鐘寫「第 t 分鐘」，5 與 60 分鐘寫分鐘範圍，60 分鐘另加「第 d 天 hh:mm」）、全部、好、壞、SLI、累計的壞事件、剩下的預算（個與 %），低於目標與用完的格子以 `--cur-bad` 標出。
+- 共用的步進器（方向鍵、Home、End）逐時段移動，`aria-live` 說明這個時段的事件與 SLI、累計用掉與剩下的預算、目前告警的兩個視窗的消耗率與狀態、進行中的事故。
+- **各視窗的消耗率表**：課程告警與目前設定用到的每個視窗，在選取的時段寫出壞事件、全部事件、錯誤率、消耗率（是否達到門檻）與照這個速率預算還能撐幾小時（「已用完」、「這個速率不會用完」）；視窗未滿時寫出還需要幾個時段。
+- **消耗率告警**（`burn-form.tsx`）：「課程的告警」選單、長視窗、短視窗、門檻三個有標籤的輸入欄；讀不懂或不合法時每個欄位 `aria-invalid`，以 `aria-describedby` 指向 `role="alert"` 的錯誤清單，不畫狀態列與結果；「恢復課程的告警」。結果沿用 D3：總計卡片（`aria-live`，時間換成分鐘）、每個時段的狀態列（SVG）與圖例、事故的偵測表、觸發期間表與狀態變化表（`AlertTables` 加上可選的 `bucketMinutes`，把時段寫成分鐘；D3 的預設是 1，輸出不變）。
+- **SLA**：`aria-live` 寫出整段的可用度、承諾與落在的區間與補償；補償表每列一個區間（「99% 以上、低於 99.5%」），落在的那一列以 `data-current` 標出並寫「（這段期間）」。
+- 練習：`burn-alert` 用相同的欄位元件，寫出條件，檢查後寫出你的告警的通知、誤報、漏掉與每個事故的偵測延遲（分鐘）；參考解答寫出參考設定與它的評估結果。用到 D6 查詢的填答題，說明改為「時間一律以分鐘計（時段的開始）」。
+- 文字全是繁體中文；顏色只用主題的 token（沿用 `devops-explorer.module.css` 既有的類別，沒有新的樣式）。在 390 px 寬時卡片與控制項變成單欄、圖隨欄寬縮放、表格在自己的框裡捲動，頁面沒有水平捲動（暫時頁面在瀏覽器中以 390 × 844 量過 `scrollWidth` = 390，展開全部表格後仍是 390，量完即刪除）。
+
+#### 10.6.5 只在課文說明的部分
+
+- 真實的 SLO 工具與監控系統的設定、記錄規則（recording rules）與查詢語言、告警路由與值班呼叫；以時間（好的分鐘數）而不是事件計算的 SLI、延遲 SLI 的百分位數怎麼由請求算出。
+- 滾動視窗與日曆視窗的差別、錯誤預算政策（預算用完時凍結發布、事後檢討）的組織流程、多個 SLI 的組合、依賴服務的 SLO。
+- SLA 的法律與合約內容（量測方式、排除條款、申請補償的流程、補償的上限）；本模型只查表。
+- 常見的多視窗門檻組合（例如 1 小時／5 分鐘 14.4 倍、6 小時／30 分鐘 6 倍、3 天／6 小時 1 倍）可以在課文說明為「常見的起點」，數字的由來（例如 1 小時用掉 30 天預算的 2%）以算式說明；探索器的時段若是一小時，就無法表示 5 分鐘的短視窗。
+
+#### 10.6.6 沒有把握的地方
+
+- **錯誤預算取整**：⌊總數 × (1 − 目標)⌋ 是本課程為了讓「最多幾個壞事件」是整數而定的；有些文件把預算寫成小數或以時間表示，題目要用本模型的定義。
+- **用掉的百分比以預算的整數為分母**，而消耗率用精確的 1 − 目標；兩者在預算不是整數時有極小的差異，「剩下幾小時」的手算若用顯示的取整值可能差在最後一位，題目宜選整除的數字。
+- **剩下的時間**以「視窗裡每小時的壞事件」推估（假設流量不變），不是以消耗率乘上視窗長度；兩者在流量平均時相同。
+- **沒有 `for`**：多視窗告警以短視窗取代等待時間是常見的說法；本模型固定 `for` 0，告警每個時段評估一次，時段為 60 分鐘時偵測的粒度就是一小時。
+- **期間比視窗短**時，預算來自課程寫的 `windowTotal`（預計的流量），用掉的百分比是「相對整個視窗的預算」，而 SLI 只算期間內的事件；課文要說明兩者的差別。
+- **SLA 的補償表**由課程提供，沒有通用標準；可用度用好事件 ÷ 全部事件，真實合約常以可用的分鐘數計算。
+
 ## 11. 測試
 
 | 檔案 | 內容 |
@@ -439,6 +620,12 @@ interface LogTraffic { seed; count /* 1–3000 */; from; to /* 秒 [from, to) */
 | `tests/devops-capability.test.ts`（D4） | 紀錄依時間排序與編號、`分:秒`；產生器和 `draws(seed)` 逐筆相同（每筆六次抽樣）、可重現、換種子就不同、同一秒課程寫的在前；UTF-8 位元組和 Node 的 `Buffer.byteLength` 相同、JSON 行；日誌的驗證錯誤；`small` 的篩選（等級、服務、欄位、時間範圍、沒有欄位的紀錄）、分組、關聯（Δ、經過的服務、經過時間、第一個錯誤）、原始行的格式；遮蔽規則的解析與錯誤、欄位與樣式的遮蔽（卡號、IP、權杖）、洩漏與過度遮蔽；保留容量的手算值與四捨五入；`logs`、`correlate`、`retention`、`log-format` 每種查詢與錯誤（含有序清單與時間的比對）；每道 D4 練習的參考答案通過、常見錯誤不通過；`redact` 題的訊息；驗證錯誤；CICD12 可以建立；CICD12 大綱的日誌課（只有 devops-explorer）通過 `validateContent` 與發布閘門，完整形狀需要終端機內容 |
 | `tests/devops-explorer-dom.test.tsx`（D4） | 日誌檢視器的事實、分頁（第一頁到最後一頁、按鈕停用）、篩選（等級、服務、欄位、時間）與分組表、不合法篩選的 `aria-invalid` 與警示、關聯選單與 Δ 表、遮蔽編輯器（課程的規則、遮蔽後的 JSON Lines、必須隱藏與保留的結果、過度遮蔽、不合法規則的警示、恢復）、原始行的解析結果；`redact` 練習的檢查與結果、`correlate` 表的檢查、算出的參考解答、日誌以 id 顯示 |
 | `tests/support/logs-fixture.ts` | 只供測試：`small`（九筆手寫紀錄、四行原始行，含電子郵件、卡號、權杖與密碼）、`shop`（400 筆產生的流量與兩次付款逾時）、三個日誌探索器、七道 D4 練習與一份 CICD12 大綱的日誌課內容 |
+| `tests/devops-capability.test.ts`（D5） | 追蹤依深度優先排列、時間與錯誤、晚於父 span 結束的子 span；產生器和 `draws(seed)` 逐個相同（每個追蹤 22 次抽樣）、可重現、換種子就不同；追蹤組的每種驗證錯誤；聯集長度；T_OK、T_FAIL、T_PAR 手算的自身時間、關鍵路徑片段（加起來等於根）、經過的服務、各服務的時間與瓶頸；裁切、平手、沒有瓶頸；最近排名法；頭部取樣的門檻（10%、19.9%、20% 手算）、尾端的規則與順序、比例越大保留越多、和 BigInt 的獨立計算相同、每天的 span；`policyText`；不同值與乘積；`trace`、`sampling`、`cardinality` 每種查詢與錯誤；每道 D5 練習的參考答案通過、常見錯誤不通過；`sampling-plan` 的欄位解析與訊息；驗證錯誤（連結、範例、標籤、任務）；以 KUB13 的概念合成的 `monitoring-dashboard` 課（只有追蹤也可以）通過 `validateContent` 與發布閘門；`DEVOPS_STAGES_BUILT` 有 D5、`monitoring-dashboard` 的說明提到追蹤 |
+| `tests/devops-explorer-dom.test.tsx`（D5） | 追蹤探索器的事實、選單的分組、瀑布圖的按鈕與等效表格（自身時間、關鍵路徑）、換追蹤、錯誤的 span；方向鍵、Home、End 與點選移動並聚焦、`aria-live` 的說明；範例追蹤開啟追蹤、帶著 trace id 的日誌表；取樣的結果表與總結、尾端的欄位、讀不懂的比例 `aria-invalid` 與警示、恢復預設；基數的表格、勾選、假設的 user_id 與警示；`sampling-plan` 練習的檢查與結果表、追蹤表的檢查、算出的參考解答、追蹤以 id 顯示、`DEVOPS_TRACES_NOTICE` |
+| `tests/devops-capability.test.ts`（D6） | 整數的輔助函式（向下取整、BigInt 的四捨五入、萬分比與十分位的文字）；`tiny` 的 SLI、預算、逐時段累計、用完的時段、精確比較（99.8996% 顯示 99.900% 但未達成）；`month` 與 `shopDay` 的事件和 D3 的產生器相同、`windowTotal` 的預算；SLA 補償的區間與邊界；情境的每種驗證錯誤（訊息以時段計）；各視窗的消耗率與精確的門檻比較（2.0 ≥ 2.0）、剩下的小時數；`tiny` 四種多視窗告警逐時段的狀態、觸發期間、通知、誤報、延遲，和 `runAlert` 的結果相同；`month` 的快速與緩慢告警、換算成分鐘；`slo`、`burn` 每種查詢、單位與錯誤；每道 D6 練習的參考答案通過、常見錯誤不通過；`burn-alert` 的欄位解析與訊息（分鐘）；驗證錯誤；以 KUB14 的概念合成的 `monitoring-dashboard` 課（只有 SLO）通過 `validateContent` 與發布閘門；已發布的 CICD11、CICD12 沒有 SLO；`DEVOPS_STAGES_BUILT` 有 D6、`monitoring-dashboard` 的說明提到 SLO |
+| `tests/devops-explorer-dom.test.tsx`（D6） | SLO 探索器的卡片、兩張圖的 `<title>`、事故的底色與每時段的表格；方向鍵、Home、End 與每個時段的 `aria-live` 說明、各視窗的消耗率表（已用完）；課程的告警的結果、觸發期間表、改視窗重新評估、讀不懂與短視窗比長視窗長的 `aria-invalid` 與警示、恢復；每小時的時段寫成分鐘與日期、偵測表與觸發期間表以分鐘計、換成緩慢消耗的告警；SLA 補償表標出落在的區間；`burn-alert` 練習的檢查與結果、SLO 表的檢查、算出的參考解答、SLO 以 id 顯示、`DEVOPS_SLO_NOTICE` 與其他課的說明不變 |
+| `tests/support/slo-fixture.ts` | 只供測試：`tiny`（12 分鐘逐點寫出，有 SLA 與一條告警）、`month`（30 天、每小時，形狀產生，兩次事故、兩條告警、SLA）、`shopDay`（一天、每 5 分鐘，有雜訊，30 天視窗的開頭，寫出 `windowTotal`）、三個 SLO 探索器、七道 D6 練習與一份 `monitoring-dashboard` 課的內容（數字在註解裡手算） |
+| `tests/support/traces-fixture.ts` | 只供測試：三個手寫的追蹤（成功的結帳、逾時的結帳、平行的搜尋，數字在註解裡手算）、300 個產生的追蹤（種子 2026）、帶著 trace_id 的三筆日誌與十分鐘的延遲儀表板、兩個追蹤探索器、八道 D5 練習與一份 `monitoring-dashboard` 課的內容 |
 | `tests/support/devops-fixture.ts` | 只供測試：兩個團隊的部署紀錄、四個部署情境（結帳服務、有問題的金絲雀、結構變更、功能旗標）、八道練習與一堂合成的 CICD10 課（沒有真實的課程檔案） |
 
 ## 12. 只在課文說明的部分
@@ -449,7 +636,7 @@ interface LogTraffic { seed; count /* 1–3000 */; from; to /* 秒 [from, to) */
 - Vault 與雲端的 secret 儲存、改寫 git 歷史來清除 secret。
 - 服務網格與負載平衡器產品、真實的監控與日誌系統、值班呼叫與狀態頁。
 - `gh --jq`／`--template`、終端機動畫。
-- D3 沒有模擬的部分見 §10.3.6；D4 見 §10.4.8。
+- D3 沒有模擬的部分見 §10.3.6；D4 見 §10.4.8；D5 見 §10.5.6（OpenTelemetry 的 SDK 與 Collector 設定、廠商的後端只在課文說明）；D6 見 §10.6.5（SLO 工具、錯誤預算政策、SLA 的合約內容）。
 - D2 沒有模擬：流量隨時間變化（rpm 固定）、自動擴展、影子部署、多於兩個版本同時存在、請求重試、工作階段黏著、延遲隨負載變化（p95 是宣告的數字）、資料回填的耗時（expand 視為立即可用）。
 
 ## 13. 沒有把握的地方
@@ -460,6 +647,8 @@ interface LogTraffic { seed; count /* 1–3000 */; from; to /* 秒 [from, to) */
 - **E25–E31 的輸出格式**：gh、runner 日誌、GitHub 的 YAML 與驗證訊息、`hashFiles` 與快取的文字都無法離線核對；這些階段建置時要逐項列在本節，教學上最關鍵的（結束碼的註記、`***`、403 與保護規則的錯誤）優先。git 的合併與 rebase 衝突處理簡化為一段。
 - **D3**：pending／for 的邊界、誤報與漏掉的判定、恢復時間的定義、嚴重等級沒有通用標準，見 §10.3.7。
 - **D4**：整數秒的時間精度、以紀錄時間差當作延遲、固定樣式的涵蓋範圍、過度遮蔽以出現次數判定、保留容量不含壓縮，見 §10.4.9。
+- **D5**：自訂的取樣門檻（不是 OpenTelemetry 的位元配置）、關鍵路徑對非同步 span 與平手的處理、瓶頸的定義、每天 span 的推估、基數只算上限，見 §10.5.7。
+- **D6**：錯誤預算向下取整、用掉的百分比與消耗率的分母、剩下時間的推估、沒有 `for`、期間比視窗短時的 `windowTotal`、SLA 補償表沒有標準，見 §10.6.6。
 
 ## 14. 改動的既有規則與測試
 
@@ -468,6 +657,8 @@ interface LogTraffic { seed; count /* 1–3000 */; from; to /* 秒 [from, to) */
 - `lessons.ts`：`cicdFromBlueprint` 與 `CICD_SHAPES`；其他島的對應與錯誤不變。D3 加上 `DEVOPS_STAGES_BUILT`：課需要的 devops-explorer 階段（D1–D4）沒有全部建好時拒絕建立（CICD12 等 D4）。
 - D3（§10.3）：`schema.ts` 登錄 `monitoring-dashboard`，`validateCurriculum` 的訊息改為「names deployment-simulator or monitoring-dashboard as its activity」，`devopsContentProblems` 沒有探索器時的訊息改為「(a history, a rollout or a dashboard)」，`tests/devops-capability.test.ts` 對應的斷言同步更新（同樣嚴格）；`activities.ts` 加上 `monitoring-dashboard` 的 `IMPLEMENTED_TEXT`（規劃中時不採用）。
 - D4（§10.4）：`lessons.ts` 的 `DEVOPS_STAGES_BUILT` 加上 D4（CICD12 可以建立），`tests/devops-capability.test.ts` 原本斷言 CICD12 被拒絕，改為斷言它的形狀（同樣嚴格）；`schema.ts` 的 `monitoring-dashboard` 改為需要儀表板或日誌、`devopsContentProblems` 沒有探索器時的訊息改為「(a history, a rollout, a dashboard or logs)」，對應的斷言同步更新；`check.ts` 的數字可以帶「秒、筆、位元組、MB、GB」單位、文字值可以是有序清單、沒有單位時不加空白；`curriculum.module.css` 加上 `--cur-warn`（淺色與深色），D3 等待中的顏色改用它；`activities.ts` 的 `monitoring-dashboard` 說明加上日誌（規劃中時不採用）。
+- D5（§10.5）：`lessons.ts` 的 `DEVOPS_STAGES_BUILT` 加上 D5，`tests/devops-capability.test.ts` 對應的斷言同步更新；`schema.ts` 的 `monitoring-dashboard` 改為需要儀表板、日誌或追蹤，`devopsContentProblems` 沒有探索器時的訊息改為「(a history, a rollout, a dashboard, logs or traces)」，對應的兩個斷言同步更新（同樣嚴格）；`check.ts` 的數字可以帶「條、span」單位；`activities.ts` 的 `monitoring-dashboard` 說明加上追蹤；`devops-lesson.tsx` 加上追蹤探索器與 `DEVOPS_TRACES_NOTICE`（沒有追蹤的課說明不變）；`devops-explorer.module.css` 加上瀑布圖的樣式（只用主題 token）。沒有新的活動、旗標、`mapState` 或 3D 改動；已發布的 CICD11、CICD12 不變。
+- D6（§10.6）：`lessons.ts` 的 `DEVOPS_STAGES_BUILT` 加上 D6，`tests/devops-capability.test.ts` 對應的斷言同步更新；`schema.ts` 的 `monitoring-dashboard` 改為需要儀表板、日誌、追蹤或 SLO，`devopsContentProblems` 沒有探索器時的訊息改為「(a history, a rollout, a dashboard, logs, traces or an SLO)」，對應的三個斷言同步更新（同樣嚴格）；`alerts.ts` 把狀態機與事故對應抽成 `runAlert`（`evaluateAlert` 改用它，D3 的測試全部不變地通過），新增型別 `AlertRun`（沒有規則值的結果），`alert-results.tsx` 的元件改收 `AlertRun`，`AlertTables` 加上可選的 `bucketMinutes`（預設 1，D3 的輸出不變）；`dashboard-check.ts` 匯出 `STATE_ALIASES`、`alertViolations` 改收 `AlertRun`；`check.ts` 的數字可以帶「事件、個事件、倍、×、x」單位；`activities.ts` 的 `monitoring-dashboard` 說明加上 SLO；`devops-lesson.tsx` 加上 SLO 探索器、`burn-alert` 的參考解答與 `DEVOPS_SLO_NOTICE`（沒有 SLO 的課說明不變）；`devops-explorer.tsx` 的練習框加上 `burn-alert`。沒有新的活動、旗標、`mapState`、3D 或 CSS 改動。
 - `database-lesson.tsx`：加入 devops 的探索器、練習與說明；其他課的頁面不變。
 - `tests/llm-capability.test.ts`：預備島嶼的斷言由 `[]` 改為 `['devops-cicd']`。
 - `docs/curriculum/data/island-capabilities.json`：`devops-cicd` 改為 `prepared`，`AUTONOMOUS_CURRICULUM_PROGRESS.md` 依它以 `scripts/curriculum-queue.ts` 重新產生；`COURSE_CONTENT_SPECIFICATION.md` 加上 DevOps 的範例形式與 CICD-0 的列。`COURSE_INVENTORY.md` 只記發布的批次，沒有改動（沒有課發布）。
