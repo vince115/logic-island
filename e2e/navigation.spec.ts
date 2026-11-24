@@ -308,18 +308,19 @@ test('AI 群島入口：首頁「更多學習群島」→ 群島總覽，七座�
 // P6 added 系統與雲端工程群島 (six islands, no navigation groups). LNX-1 to LNX-5 opened Linux 系統島 (15 of 15), SRV-1 to
 // SRV-5 網路與伺服器島 (14 of 14), DKR-1 to DKR-6 Docker 容器島 (15 of 15) and CICD-1 DevOps 與 CI/CD 島 (CICD01 of 15):
 // 59 of the region's 89 lessons (CICD-2: CICD02 too; CICD-3: CICD03–CICD05; CICD-4: CICD06–CICD08; CICD-5: CICD09–CICD11; CICD-6: CICD12–CICD14; CICD-7: CICD15, the island complete).
-test('系統與雲端工程群島：首頁「更多學習群島」已開放 59／89 堂，群島總覽六座島，Linux 系統島、網路與伺服器島、Docker 容器島與 DevOps 與 CI/CD 島全部開放、其餘兩座規劃中；側欄 Docker 容器島 15 堂可點、DevOps 與 CI/CD 島 1 堂可點、14 堂規劃中', async ({ page }, info) => {
+// KUB-1 opened Kubernetes 與可靠性工程島 with KUB01–KUB04: 63 of 89.
+test('系統與雲端工程群島：首頁「更多學習群島」已開放 63／89 堂，群島總覽六座島，Linux 系統島、網路與伺服器島、Docker 容器島與 DevOps 與 CI/CD 島全部開放、Kubernetes 與可靠性工程島部分開放、雲端基礎設施島規劃中；側欄 Docker 容器島與 DevOps 與 CI/CD 島各 15 堂可點、Kubernetes 與可靠性工程島 4 堂可點、11 堂規劃中', async ({ page }, info) => {
   const phone = info.project.name.startsWith('mobile');
   if (!P9) {
     await page.goto('/');
     const more = page.getByRole('navigation', { name: '更多學習群島' });
     if (!await more.isVisible()) await page.getByRole('button', { name: /清單/ }).first().click();
-    await expect(more.getByRole('link', { name: /系統與雲端工程群島/ })).toContainText('6 座主題島 · 已開放 59／89 堂');
+    await expect(more.getByRole('link', { name: /系統與雲端工程群島/ })).toContainText('6 座主題島 · 已開放 63／89 堂');
   }
   await page.goto('/regions/sys');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('系統與雲端工程群島');
   const main = page.locator('main');
-  await expect(main.locator('header').first()).toContainText('59 堂已開放');
+  await expect(main.locator('header').first()).toContainText('63 堂已開放');
   await expect(main.locator('article')).toHaveCount(6);
   // The complete islands say 已開放 and lead to their syllabus (DKR-6: Docker 容器島 too, 15 of 15; CICD-7: DevOps 與 CI/CD 島, 15 of 15).
   for (const [name, id, open] of [[/Linux 系統島/, 'linux-systems', 15], [/網路與伺服器島/, 'network-servers', 14], [/Docker 容器島/, 'docker-containers', 15], [/DevOps 與 CI\/CD 島/, 'devops-cicd', 15]] as const) {
@@ -331,22 +332,28 @@ test('系統與雲端工程群島：首頁「更多學習群島」已開放 59�
   }
   await expect(main.getByRole('article', { name: /Docker 容器島/ }).locator('details')).toHaveCount(0);
   await expect(main.getByRole('article', { name: /DevOps 與 CI\/CD 島/ }).locator('details')).toHaveCount(0);
-  // CLD and KUB stay planned: each card's tag says 規劃中, and so does every lesson of their folded outlines (15 + 15).
-  await expect(main.locator('article > div:first-child').getByText('規劃中', { exact: true })).toHaveCount(2);
-  await expect(main.locator('article details').getByText('規劃中', { exact: true })).toHaveCount(30);
+  // KUB-1: Kubernetes 與可靠性工程島 is open with 4 of its 15 lessons: its card says 部分開放 and leads to its syllabus, with no folded outline.
+  const kube = main.getByRole('article', { name: /Kubernetes 與可靠性工程島/ });
+  await expect(kube).toContainText('部分開放');
+  await expect(kube.getByRole('link')).toHaveAttribute('href', '/curriculum#island-kubernetes-reliability');
+  await expect(kube.getByRole('link')).toContainText('4 堂已開放');
+  await expect(kube.locator('details')).toHaveCount(0);
+  // CLD stays planned: its card's tag says 規劃中, and so does every lesson of its folded outline (15).
+  await expect(main.locator('article > div:first-child').getByText('規劃中', { exact: true })).toHaveCount(1);
+  await expect(main.locator('article details').getByText('規劃中', { exact: true })).toHaveCount(15);
   await expect(main.locator('a[href^="/curriculum/"]')).toHaveCount(0);
-  // Paths K, L and M lead mostly through the region; CICD01 is on all three (K 48 → 49, L 36 → 37, M 29 → 30 open; CICD-2: CICD02 too, K 50, L 38, M 31; CICD-3: CICD03–CICD04, K 52, L 40, M 33; CICD-4: CICD06–CICD07, K 54, L 42, M 35; CICD-5: CICD09 on all three, CICD11 on L, CICD10 on M: K 55, L 44, M 37; CICD-6: CICD12 on L, L 45).
+  // Paths K, L and M lead mostly through the region; CICD01 is on all three (K 48 → 49, L 36 → 37, M 29 → 30 open; CICD-2: CICD02 too, K 50, L 38, M 31; CICD-3: CICD03–CICD04, K 52, L 40, M 33; CICD-4: CICD06–CICD07, K 54, L 42, M 35; CICD-5: CICD09 on all three, CICD11 on L, CICD10 on M: K 55, L 44, M 37; CICD-6: CICD12 on L, L 45; KUB-1: KUB01–KUB04 on L and M, not K: K 55, L 49, M 41).
   const paths = main.locator('section[aria-labelledby="region-paths"] li');
   await expect(paths).toHaveCount(3);
   await expect(paths.filter({ hasText: '全端部署' })).toContainText('路線共 62 堂 · 已開放 55 堂 · 其餘 7 堂規劃中');
-  await expect(paths.filter({ hasText: 'AI 基礎設施' })).toContainText('路線共 60 堂 · 已開放 45 堂 · 其餘 15 堂規劃中');
-  await expect(paths.filter({ hasText: '雲端與 DevOps 基礎' })).toContainText('路線共 48 堂 · 已開放 37 堂 · 其餘 11 堂規劃中');
-  // The sidebar: the region says 59／89 堂 and Docker 容器島 15 堂; all fifteen lessons are links under 入門, 中級 and 進階, no disabled row.
+  await expect(paths.filter({ hasText: 'AI 基礎設施' })).toContainText('路線共 60 堂 · 已開放 49 堂 · 其餘 11 堂規劃中');
+  await expect(paths.filter({ hasText: '雲端與 DevOps 基礎' })).toContainText('路線共 48 堂 · 已開放 41 堂 · 其餘 7 堂規劃中');
+  // The sidebar: the region says 63／89 堂 and Docker 容器島 15 堂; all fifteen lessons are links under 入門, 中級 and 進階, no disabled row.
   const sidebar = page.locator('#site-sidebar');
   if (phone) { await page.getByRole('button', { name: '選單' }).click(); await expect(sidebar).toBeVisible(); }
   const tree = sidebar.getByRole('navigation', { name: '學習群島目錄' });
   await expect(tree.getByRole('button', { name: /^系統與雲端工程群島/ })).toHaveAttribute('aria-expanded', 'true');
-  await expect(tree.getByRole('button', { name: /^系統與雲端工程群島/ })).toContainText('59／89 堂');
+  await expect(tree.getByRole('button', { name: /^系統與雲端工程群島/ })).toContainText('63／89 堂');
   const dockerButton = tree.getByRole('button', { name: /^Docker 容器島/ });
   // A complete island's button shows its lesson count alone (15 堂), as Linux 系統島 and 網路與伺服器島 do.
   await expect(dockerButton).toContainText('15 堂');
@@ -371,6 +378,15 @@ test('系統與雲端工程群島：首頁「更多學習群島」已開放 59�
   await cicd.getByRole('button', { name: /^進階/ }).click();
   await expect(cicd.locator('a[href^="/curriculum/"]')).toHaveCount(15);
   for (const l of lessons.filter(l => l.islandId === 'devops-cicd')) await expect(cicd.locator(`a[href="/curriculum/${l.slug}"]`), l.lessonId).toHaveCount(1);
+  // KUB-1: Kubernetes 與可靠性工程島 says 4／15 堂; KUB01–KUB04 are links under 中級, the other 11 are disabled rows.
+  const kubeButton = tree.getByRole('button', { name: /^Kubernetes 與可靠性工程島/ });
+  await expect(kubeButton).toContainText('4／15 堂');
+  await kubeButton.click();
+  const kub = tree.locator(`#${await kubeButton.getAttribute('aria-controls')}`);
+  await expect(kub.locator('[aria-disabled="true"]')).toHaveCount(11);
+  await kub.getByRole('button', { name: /^中級/ }).click();
+  await expect(kub.locator('a[href^="/curriculum/"]')).toHaveCount(4);
+  for (const l of lessons.filter(l => l.islandId === 'kubernetes-reliability')) await expect(kub.locator(`a[href="/curriculum/${l.slug}"]`), l.lessonId).toHaveCount(1);
   if (phone) { await page.keyboard.press('Escape'); await expect(sidebar).toBeHidden(); }
 });
 

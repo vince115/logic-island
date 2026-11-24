@@ -574,13 +574,29 @@ export const GH_MANUAL: Record<'gh', ManualEntry> = {
   },
 };
 
+/** E32: kubectl (docs/curriculum/KUB0_E32_CLUSTER.md). */
+export const KUBE_MANUAL: Record<'kubectl', ManualEntry> = {
+  kubectl: {
+    usage: 'kubectl get|describe|apply|create|delete|label|annotate|taint|run|logs|exec|events|wait|config|version|cluster-info|api-resources [選項] [參數…]',
+    summary: '操作 Kubernetes 叢集（kubectl v1.32 的子集，叢集是模擬的 kubeadm 叢集）',
+    description: [
+      'kubectl 依 ~/.kube/config 的 current-context 連到叢集的 API server，命名空間預設是 context 的 namespace（沒有時是 default）；-n 指定命名空間，-A 是全部的命名空間。',
+      'kubectl get 類型 [名稱…] 列出物件（pods、nodes、namespaces、events…），-o wide|yaml|json|name|jsonpath=…|custom-columns=… 換輸出格式，-l 以標籤篩選，--show-labels 顯示標籤；kubectl describe 看細節與事件。',
+      'kubectl apply -f 檔案 建立或更新 YAML 描述的物件（可以有多份以 --- 分隔的文件），kubectl delete 刪除；kubectl run 名稱 --image=Image 建立一個 Pod。',
+      'kubectl logs Pod [-c 容器] [--previous] 看容器的輸出，kubectl exec Pod -- 指令 在容器裡執行指令。',
+      '模擬環境的時間只在 sleep 與 kubectl wait 時前進：拉取 Image、容器結束與重新啟動都依時間發生。沒有文字編輯器與鍵盤：kubectl edit 與互動的 -it shell 不能用，-w 與 -f 只印出目前的狀態。',
+    ],
+    options: [['-n 命名空間', '指定命名空間'], ['-A', '全部的命名空間'], ['-o 格式', '輸出格式'], ['-l 選擇器', '依標籤篩選'], ['-f 檔案', 'apply、create、delete：YAML 檔案（- 是標準輸入）'], ['-c 容器', 'logs、exec：指定容器']],
+  },
+};
+
 /** The manual of a command in a profile with these features. */
 export function manualEntry(cmd: CommandName, features: Iterable<ShellFeature> = []): ManualEntry {
   const have = new Set(features);
   const special = FEATURE_MANUAL.find(([f, c]) => c === cmd && have.has(f));
   if (special) return special[2];
   return (MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd] ?? (STREAM_MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd] ?? (USER_MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd]
-    ?? (SYSTEM_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (LATER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (SERVER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (DIAG_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (STORAGE_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (GIT_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (GH_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (CONTAINER_MANUAL as Record<string, ManualEntry>)[cmd];
+    ?? (SYSTEM_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (LATER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (SERVER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (DIAG_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (STORAGE_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (GIT_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (GH_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (KUBE_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (CONTAINER_MANUAL as Record<string, ManualEntry>)[cmd];
 }
 
 const optionLines = (options: [string, string][], indent: string, width: number) => options.map(([flag, text]) => `${indent}${flag.padEnd(width)}${text}`);

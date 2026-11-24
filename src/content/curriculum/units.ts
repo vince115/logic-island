@@ -85,6 +85,12 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
     { title: '日誌、回滾與事故', summary: '結構化日誌、集中收集、關聯 ID、遮蔽敏感資料與保留期限；以 digest 回滾、功能旗標、向前修復、相容的資料庫遷移與發布檢查清單；嚴重等級、事故指揮與對外溝通、時間線與不究責的事後檢討', lessonIds: ['CICD12', 'CICD13', 'CICD14'] },
     { title: '綜合專題', summary: '分六關把咖啡店的點餐服務從 commit 帶到上線：PR 與必要檢查、只建置一次的 Image 與快取、各環境的設定與機密、以同一個 digest 晉升、金絲雀計畫與症狀告警、回滾演練與事故時間', lessonIds: ['CICD15'] },
   ],
+  // KUB-1 (2026-11-24): KUB01–KUB04 on the terminal with a simulated cluster (E32 cluster, E33 probes, E34 workloads),
+  // KUB02 beside a network-protocol scene; the later lessons need E35–E40 and the devops-explorer's D5–D6.
+  'kubernetes-reliability': [
+    { title: '編排的觀念與叢集架構', summary: '單機 Compose 的極限、宣告式的期望狀態與調和迴圈、排程、自我修復、排空節點與節點失聯，何時不需要編排；控制平面與工作節點的元件、kubeconfig 與 static pod，一次 kubectl apply 從 API server、etcd、scheduler 到 kubelet 的路徑', lessonIds: ['KUB01', 'KUB02'] },
+    { title: 'Pod 與工作負載', summary: '以 YAML manifest 描述 Pod、多容器 Pod、init container 與 sidecar，phase、重啟策略與 CrashLoopBackOff，存活、就緒與啟動探針與優雅終止；Deployment、ReplicaSet 與 Pod 三層物件、Label 與選擇器、調整副本數與自動補回的 Pod', lessonIds: ['KUB03', 'KUB04'] },
+  ],
   'network-servers': [
     { title: '位址、名稱與請求', summary: '公有與私有 IP、介面與路由、監聽埠與 socket、ss、lsof 與 nc；DNS 區域、A／CNAME／MX／TXT、TTL 與快取、dig；用 curl 讀懂 HTTP 請求、回應、狀態碼與重新導向', lessonIds: range('SRV', 1, 3) },
     { title: '憑證與網頁伺服器', summary: '憑證鏈、ACME 與 Let\'s Encrypt、certbot 自動更新、HSTS 與到期監控；網頁伺服器與應用伺服器、並行模型、逾時與 502／504；nginx 的 server 與 location、nginx -t 與 reload、存取與錯誤日誌', lessonIds: range('SRV', 4, 6) },

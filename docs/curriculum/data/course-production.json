@@ -718,7 +718,23 @@
       ],
       "commit": "TBD",
       "tests": "TBD",
-      "notes": "CICD-7：DevOps 與 CI/CD 島綜合專題（challenge-stages 六關，用 E25–E31 與 devops-explorer D1–D4 已有的一切），全島 15／15 完成"
+      "notes": "CICD-7：DevOps 與 CI/CD 島綜合專題（challenge-stages 六關，用 E25–E31 與 devops-explorer D1–D4 已有的一切），全島 15／15 完成",
+      "pr": "#97",
+      "merged": "5550c3e"
+    },
+    {
+      "id": 52,
+      "date": "2026-11-24",
+      "lessons": [
+        "KUB01",
+        "KUB02",
+        "KUB03",
+        "KUB04"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "KUB-1：Kubernetes 與可靠性工程島開放（terminal 能力的模擬叢集，終端機引擎階段 E33 probes 與 E34 workloads；KUB02 加上 network-protocol 情境）；容器編排概念、Kubernetes 架構、Pod、Deployment 與 ReplicaSet 四課",
+      "pr": null
     }
   ]
 }

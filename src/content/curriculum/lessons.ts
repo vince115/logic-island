@@ -475,6 +475,56 @@ export function cicdFromBlueprint(lessonId: string, summary: string, minutes: nu
     capabilities: withOptional ? [...s.capabilities, ...s.optional!] : [...s.capabilities], blueprintId: lessonId };
 }
 /**
+ * KUB-0 (2026-11-24): a lesson of the kubernetes-reliability island written from its blueprint outline (slug, title,
+ * objectives, concepts, difficulty, prerequisites), docs/curriculum/KUB0_KUBERNETES_CAPABILITY.md §2. The shape is chosen
+ * per lesson, as CICD_SHAPES does: the blueprint's cluster-sim is the terminal with a simulated cluster (kubectl, engine
+ * stages E32–E40), architecture-diagram (KUB02) and request-path (KUB07) pair the terminal with network-protocol scenes,
+ * KUB12–KUB14 are the devops-explorer's monitoring-dashboard (metric-explorer is not registered: ML19–ML22 keep that name
+ * for model metrics), and the capstone is challenge-stages. `stages` are the terminal engine stages (E32–E40, plus older
+ * ones a lesson leans on) and devops-explorer stages (D3–D6) it needs; a lesson whose KUB engine stages
+ * (KUBE_STAGES_BUILT) or devops-explorer stages (DEVOPS_STAGES_BUILT) are not all built cannot be built yet: the builder
+ * says so. KUB11's optional devops-explorer (a D2 rollout beside kubectl) is added with `withOptional`.
+ */
+type KubeShape = { blueprint: string; activity: string; capabilities: LessonCapability[]; optional?: LessonCapability[]; visualization: VisualizationType; stages: readonly string[] };
+const cluster = (stages: string[]): KubeShape => ({ blueprint: 'cluster-sim', activity: 'terminal-sim', capabilities: ['terminal'], visualization: 'none', stages });
+export const KUB_SHAPES: Readonly<Record<string, KubeShape>> = {
+  KUB01: cluster(['E32', 'E33', 'E34']),
+  KUB02: { blueprint: 'architecture-diagram', activity: 'network-sequence', capabilities: ['terminal', 'network-protocol'], visualization: 'none', stages: ['E32'] },
+  KUB03: cluster(['E32', 'E33']),
+  KUB04: cluster(['E32', 'E33', 'E34']),
+  KUB05: cluster(['E35']),
+  KUB06: cluster(['E36']),
+  KUB07: { blueprint: 'request-path', activity: 'network-sequence', capabilities: ['terminal', 'network-protocol'], visualization: 'none', stages: ['E35', 'E37', 'E13'] },
+  KUB08: cluster(['E38']),
+  KUB09: cluster(['E39']),
+  KUB10: cluster(['E40']),
+  KUB11: { ...cluster(['E34', 'E35']), optional: ['devops-explorer'] },
+  KUB12: { blueprint: 'monitoring-dashboard', activity: 'monitoring-dashboard', capabilities: ['devops-explorer', 'terminal'], visualization: 'none', stages: ['D3', 'D4', 'E40'] },
+  KUB13: { blueprint: 'metric-explorer', activity: 'monitoring-dashboard', capabilities: ['devops-explorer'], visualization: 'none', stages: ['D3', 'D4', 'D5'] },
+  KUB14: { blueprint: 'metric-explorer', activity: 'monitoring-dashboard', capabilities: ['devops-explorer'], visualization: 'none', stages: ['D6'] },
+  KUB15: { blueprint: 'challenge-stages', activity: 'challenge-stages', capabilities: ['terminal', 'devops-explorer', 'visualization'], visualization: 'challenge-stages',
+    stages: ['E32', 'E33', 'E34', 'E35', 'E36', 'E37', 'E38', 'E39', 'E40', 'D3', 'D5', 'D6'] },
+};
+/** The terminal engine stages of the KUB range (E32–E40) that exist (KUB0_KUBERNETES_CAPABILITY.md §4): E32, built in KUB-0; E33 and E34 (KUB-1). */
+export const KUBE_STAGES_BUILT: readonly string[] = ['E32', 'E33', 'E34'];
+const KUBE_RANGE = /^E(3[2-9]|40)$/;
+export function kubeFromBlueprint(lessonId: string, summary: string, minutes: number, withOptional = false): Outline {
+  const b = planning.plannedLessons.find(l => l.lessonId === lessonId);
+  if (!b || b.islandId !== 'kubernetes-reliability') throw new Error(`${lessonId} is not a Kubernetes and reliability lesson of the blueprint`);
+  const s = KUB_SHAPES[lessonId];
+  if (!s || s.blueprint !== b.activity) throw new Error(`${lessonId}: no kubernetes-reliability lesson shape for the blueprint activity ${b.activity}`);
+  if (!(LESSON_ACTIVITIES as readonly string[]).includes(s.activity)) throw new Error(`${lessonId}: the ${s.activity} activity is not registered yet`);
+  const engine = s.stages.filter(x => KUBE_RANGE.test(x) && !KUBE_STAGES_BUILT.includes(x));
+  if (engine.length) throw new Error(`${lessonId}: the terminal engine stage ${engine.join(', ')} is not built yet (the lesson needs ${s.stages.filter(x => KUBE_RANGE.test(x)).join(', ')})`);
+  const devops = s.stages.filter(x => /^D\d$/.test(x) && !DEVOPS_STAGES_BUILT.includes(x));
+  if (devops.length) throw new Error(`${lessonId}: the devops-explorer stage ${devops.join(', ')} is not built yet (the lesson needs ${s.stages.filter(x => /^D\d$/.test(x)).join(', ')})`);
+  if (withOptional && !s.optional) throw new Error(`${lessonId} has no optional capability`);
+  return { slug: b.slug, title: b.title, summary, objectives: b.learningObjectives, concepts: b.concepts, difficulty: b.difficulty as Difficulty,
+    minutes, prerequisites: b.prerequisites as LessonId[], recommended: b.recommended as AnyLessonId[], apcs: ['none'], visualization: s.visualization,
+    status: 'complete', version: '1.0.0', activity: s.activity as LessonActivity,
+    capabilities: withOptional ? [...s.capabilities, ...s.optional!] : [...s.capabilities], blueprintId: lessonId };
+}
+/**
  * WEB-0 (2026-11-23): a web foundations lesson written from its blueprint outline (slug, title, objectives, concepts,
  * difficulty, prerequisites). Its body is the web-code capability: pages in a sandboxed frame beside the DOM the browser
  * built, and exercises checked on that page. dom-explorer is that activity. The island's other blueprint activities
@@ -731,6 +781,14 @@ const devopsCicd: Outline[] = [
   cicdFromBlueprint('CICD15', '為虛構咖啡店的點餐服務建立從 commit 到上線的完整流程：以分支保護要求 PR、核准與 lint、test 兩個必要檢查並讓 CI 在 PR 上執行，經由 PR 修好失敗的測試；main 的每個 commit 只建置一次 Image，以 env 與 --password-stdin 推送 sha-<commit> 並快取 npm 的下載；依環境設定 variable 與 secret、刪除人人讀得到的儲存庫層級金鑰、以審核者與受保護分支保護 production；修好部署管線的權限、digest 與 environment，以同一個 digest 從 staging 晉升到 production；在部署模擬器選一個閘門在足夠樣本上擋下壞版本的金絲雀計畫，在儀表板寫一條及時又沒有誤報的症狀告警；最後在演練中從部署紀錄找到上一個 digest、經由 rollback.yml 回滾並算出偵測、確認、止血與恢復時間。', 90),
 ];
 
+/** KUB-1 (2026-11-24): the kubernetes-reliability island's first lessons, on the terminal with a simulated cluster (engine stages E32 cluster, E33 probes, E34 workloads; KUB0_KUBERNETES_CAPABILITY.md, KUBERNETES_RELIABILITY_ISLAND.md); KUB02 pairs the terminal with network-protocol scenes. */
+const kubernetesReliability: Outline[] = [
+  kubeFromBlueprint('KUB01', '從單機 Compose 的極限（一台主機就是一個故障域、restart: always 只在同一台重新啟動、手動放置、--scale 與寫死的主機埠、只在一台主機有效的服務名稱）說明容器編排要解決的問題，比較命令式指令與宣告式的期望狀態（kubectl apply 的 unchanged 與 configured）並和 DKR09 的 Compose 對照，說明控制器的調和迴圈與排程，在模擬叢集上刪掉 Deployment 的 Pod 看 ReplicaSet 以新名稱、新節點與新 IP 補回而 bare pod 不會回來，以 drain --ignore-daemonsets 排空節點並看 uncordon 不會重新平衡，觀察節點失聯 50 秒後 NotReady、300 秒後驅逐並在其他節點重建，說明 Pod 會換所以需要服務發現，並以團隊、流量、服務數量與維運能力判斷何時不需要編排、改用一台 VM 加 Compose 或託管平台。', 30),
+  kubeFromBlueprint('KUB02', '分辨控制平面（kube-apiserver、etcd、kube-scheduler、kube-controller-manager）與工作節點（kubelet、kube-proxy、containerd）的職責，從 kubeconfig、節點與 kube-system 的 static pod 讀出一個 kubeadm 叢集的組成，把一次 kubectl apply 從 API server 的檢查與 etcd 的寫入、scheduler 的 binding、kubelet 的 watch 到 CRI 啟動容器逐步追蹤，以 kubectl wait 等到 Pod 就緒，並說明 watch 與調和迴圈、etcd 為什麼是唯一的真實來源、quorum 的容錯與備份。', 30),
+  kubeFromBlueprint('KUB03', '以 YAML manifest 描述 Pod（apiVersion、kind、metadata、spec、containers、ports 與 resources），理解同一個 Pod 的容器共用 IP 與 localhost、一起排程到同一個節點，用 init container 與 sidecar 組成多容器 Pod 並以 logs -c、exec -c 檢查各個容器，從 phase、STATUS、restartPolicy 與退避讀懂 Completed 與 CrashLoopBackOff，以存活、就緒與啟動探針判斷容器是否該重啟或接工作，修好探針寫錯與初始化失敗的 Pod，並說明不可變的 spec 與 SIGTERM、寬限期的優雅終止。', 35),
+  kubeFromBlueprint('KUB04', '以 Deployment 維持指定數量的 Pod，沿著 ownerReferences 與 pod-template-hash 看懂 Deployment、ReplicaSet 與 Pod 三層物件，用等號、集合與存在的 Label 選擇器篩選資源並以 kubectl label --overwrite 修改標籤，理解選擇器必須符合範本而且不可修改，以 kubectl scale 或修改 manifest 再 apply 調整副本數並避開命令式改動造成的漂移，知道縮減時先刪哪些 Pod，並觀察刪除 Pod、把 Pod 移出選擇器之後 ReplicaSet 如何自動補上。', 40),
+];
+
 /** RWD-1 (2026-11-23): the responsive design island's first lessons, on the web-code capability with the resize step and preview widths (WEB0_WEB_CODE_CAPABILITY.md, RESPONSIVE_DESIGN_ISLAND.md); RWD-2 adds RWD05–RWD08, RWD-3 RWD09–RWD12 (the capstone): the island is complete. */
 const responsiveDesign: Outline[] = [
   responsiveFromBlueprint('RWD01', '從寫死 960px 的頁面在窄視窗得橫向捲動出發，說明響應式設計如何以同一份 HTML 依寬度調整版面，用 max-width 加 margin: 0 auto、圖片的 max-width: 100% 與一條 min-width 媒體查詢寫出行動優先的頁面，並以內容優先決定原始碼順序與斷點、以漸進增強確保頁面始終可用。', 45),
@@ -780,7 +838,7 @@ function idAt(islandId: (typeof ISLAND_IDS)[number], index: number, blueprintId?
 /** F, D and A are taught in the program languages: every lesson there declares program-code. */
 const program = (list: Omit<Outline, 'capabilities'>[]): Outline[] => list.map(o => ({ ...o, capabilities: ['program-code'] }));
 const outlines: Record<(typeof ISLAND_IDS)[number], Outline[]> = {
-  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages, networks, 'ai-foundations': aiFoundations, 'large-language-models': largeLanguageModels, 'generative-ai': generativeAi, 'web-foundations': webFoundations, 'responsive-design': responsiveDesign, 'mobile-apps': mobileApps, 'linux-systems': linuxSystems, 'docker-containers': dockerContainers, 'network-servers': networkServers, 'devops-cicd': devopsCicd };
+  foundations: program(foundations), structures: program(structures), algorithms: program(algorithms), databases, 'programming-languages': programmingLanguages, networks, 'ai-foundations': aiFoundations, 'large-language-models': largeLanguageModels, 'generative-ai': generativeAi, 'web-foundations': webFoundations, 'responsive-design': responsiveDesign, 'mobile-apps': mobileApps, 'linux-systems': linuxSystems, 'docker-containers': dockerContainers, 'network-servers': networkServers, 'devops-cicd': devopsCicd, 'kubernetes-reliability': kubernetesReliability };
 
 /** Every lesson the blueprint outlines, written or not (validateCurriculum's recommended-lesson check). */
 export const outlinedLessonIds: readonly string[] = planning.plannedLessons.map(l => l.lessonId);

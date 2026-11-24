@@ -32,13 +32,13 @@ const DB_PLANNED = lessonsOfIsland('databases').filter(l => l.lessonStatus === '
 const PLANNED = catalogLessons.filter(l => l.lessonStatus === 'planned').length;
 const plannedEntries = (page: Page) => page.locator('main ol').getByText('規劃中', { exact: true });
 
-test('課綱目錄：十六座島，F／D／A／PL／DB／CN／AIF 各 20 堂、Linux 系統島 15 堂、網路與伺服器島 14 堂、網頁基礎島 15 堂、響應式設計島 12 堂、行動應用島 13 堂、Docker 容器島 15 堂全部可點，大型語言模型島 25 堂、生成式 AI 島 20 堂與 DevOps 與 CI/CD 島 15 堂中已開放的可點、其餘標示規劃中', async ({ page }) => {
+test('課綱目錄：十七座島，F／D／A／PL／DB／CN／AIF 各 20 堂、Linux 系統島 15 堂、網路與伺服器島 14 堂、網頁基礎島 15 堂、響應式設計島 12 堂、行動應用島 13 堂、Docker 容器島 15 堂、DevOps 與 CI/CD 島 15 堂全部可點，大型語言模型島 25 堂、生成式 AI 島 20 堂與 Kubernetes 與可靠性工程島 15 堂中已開放的可點、其餘標示規劃中', async ({ page }) => {
   await page.goto('/curriculum');
   // Course production added 程式語言島 in five batches (PL01–PL20, all written by batch 5), 計算機網路島 from CN-1 and
   // AI 基礎島 from AIF-1, Linux 系統島 from LNX-1, 網路與伺服器島 from SRV-1, 大型語言模型島 from LLM-1, 生成式 AI 島 from
-  // GEN-1, 網頁基礎島 from WEB-1, 響應式設計島 from RWD-1, 行動應用島 from MOB-1 (all 13 written since MOB-3), Docker 容器島 from DKR-1 (all 15 written since DKR-6) and DevOps 與 CI/CD 島
-  // from CICD-1 (unwritten lessons are listed 規劃中).
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(`${lessons.length} 堂課，十六座島。`);
+  // GEN-1, 網頁基礎島 from WEB-1, 響應式設計島 from RWD-1, 行動應用島 from MOB-1 (all 13 written since MOB-3), Docker 容器島 from DKR-1 (all 15 written since DKR-6), DevOps 與 CI/CD 島
+  // from CICD-1 (all 15 written since CICD-7) and Kubernetes 與可靠性工程島 from KUB-1 (unwritten lessons are listed 規劃中).
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(`${lessons.length} 堂課，十七座島。`);
   for (const island of ['基礎程式島', '資料結構島', '演算法島', '程式語言島', '資料庫應用島', '計算機網路島', 'AI 基礎島']) {
     const list = page.getByRole('region', { name: new RegExp(island) }).getByRole('listitem');
     await expect(list, island).toHaveCount(20);
@@ -71,6 +71,12 @@ test('課綱目錄：十六座島，F／D／A／PL／DB／CN／AIF 各 20 堂、
   await expect(cicd.locator('ol a')).toHaveCount(15);
   for (const l of lessons.filter(l => l.islandId === 'devops-cicd')) await expect(cicd.locator(`ol a[href="/curriculum/${l.slug}"]`), l.lessonId).toHaveCount(1);
   await expect(cicd.locator('ol').getByText('規劃中', { exact: true })).toHaveCount(0);
+  // KUB-1: Kubernetes 與可靠性工程島 lists its 15 lessons: KUB01–KUB04 are links, the other 11 are marked 規劃中 and not linked.
+  const kub = page.getByRole('region', { name: /Kubernetes 與可靠性工程島/ });
+  await expect(kub.getByRole('listitem')).toHaveCount(15);
+  await expect(kub.locator('ol a')).toHaveCount(4);
+  for (const l of lessons.filter(l => l.islandId === 'kubernetes-reliability')) await expect(kub.locator(`ol a[href="/curriculum/${l.slug}"]`), l.lessonId).toHaveCount(1);
+  await expect(kub.locator('ol').getByText('規劃中', { exact: true })).toHaveCount(11);
   // MOB-1 to MOB-3: 行動應用島 lists its 13 lessons, all written since MOB-3.
   await expect(page.getByRole('region', { name: /行動應用島/ }).getByRole('listitem')).toHaveCount(13);
   await expect(page.getByRole('region', { name: /行動應用島/ }).locator('ol a')).toHaveCount(13);

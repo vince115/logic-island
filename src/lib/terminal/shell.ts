@@ -30,6 +30,7 @@ import { docker } from './docker';
 import { tar } from './tar';
 import { git } from './git-cli';
 import { gh } from './gh';
+import { kubectl } from './kubectl';
 
 /*
  * P7 Linux Terminal Simulator: the command interpreter. A fixed table of commands works on the virtual file system in
@@ -123,14 +124,16 @@ export const E22_COMMANDS = ['tar'] as const;
 export const E25_COMMANDS = ['git'] as const;
 /** E26: gh, the GitHub CLI against github.example (FORGE_PROFILE only). */
 export const E26_COMMANDS = ['gh'] as const;
+/** E32: kubectl against the lesson's simulated cluster (CLUSTER_PROFILE only), so every lower profile's command list stays. */
+export const E32_COMMANDS = ['kubectl'] as const;
 /** The commands of the files profile (the manual of E1 covers exactly these). */
 export type FilesCommand = typeof COMMANDS[number] | typeof E1_COMMANDS[number];
 export type CommandName = FilesCommand | typeof E2_COMMANDS[number] | typeof E3_COMMANDS[number] | typeof E4_COMMANDS[number] | typeof E5_COMMANDS[number] | typeof E6_COMMANDS[number]
   | typeof E7_COMMANDS[number] | typeof E8_COMMANDS[number] | typeof E9_COMMANDS[number] | typeof E10_COMMANDS[number] | typeof E11_COMMANDS[number]
-  | typeof E12_COMMANDS[number] | typeof E13_COMMANDS[number] | typeof E14_COMMANDS[number] | typeof E16_COMMANDS[number] | typeof E19_COMMANDS[number] | typeof E20_COMMANDS[number] | typeof E22_COMMANDS[number] | typeof E25_COMMANDS[number] | typeof E26_COMMANDS[number];
+  | typeof E12_COMMANDS[number] | typeof E13_COMMANDS[number] | typeof E14_COMMANDS[number] | typeof E16_COMMANDS[number] | typeof E19_COMMANDS[number] | typeof E20_COMMANDS[number] | typeof E22_COMMANDS[number] | typeof E25_COMMANDS[number] | typeof E26_COMMANDS[number] | typeof E32_COMMANDS[number];
 /** Every command any profile may list. */
 export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS, ...E2_COMMANDS, ...E3_COMMANDS, ...E4_COMMANDS, ...E5_COMMANDS, ...E6_COMMANDS,
-  ...E7_COMMANDS, ...E8_COMMANDS, ...E9_COMMANDS, ...E10_COMMANDS, ...E11_COMMANDS, ...E12_COMMANDS, ...E13_COMMANDS, ...E14_COMMANDS, ...E16_COMMANDS, ...E19_COMMANDS, ...E20_COMMANDS, ...E22_COMMANDS, ...E25_COMMANDS, ...E26_COMMANDS];
+  ...E7_COMMANDS, ...E8_COMMANDS, ...E9_COMMANDS, ...E10_COMMANDS, ...E11_COMMANDS, ...E12_COMMANDS, ...E13_COMMANDS, ...E14_COMMANDS, ...E16_COMMANDS, ...E19_COMMANDS, ...E20_COMMANDS, ...E22_COMMANDS, ...E25_COMMANDS, ...E26_COMMANDS, ...E32_COMMANDS];
 
 /**
  * Behaviour a profile switches on besides its commands. E1: glob (* ? [...] and ~), help-option (指令 --help, long
@@ -153,10 +156,14 @@ export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS
  * secrets and variables with masking, the GITHUB_TOKEN's effects; artifacts*.ts, actions-cache.ts, gh-secret.ts …). E30: environments
  * (deployment environments with protection rules, pending deployments, concurrency groups, deployment records;
  * environments*.ts, gh-environments.ts). E31: deploy-hosts (remote machines with a Docker daemon, reachable with ssh from the learner's
- * machine and from runners; run effects on those hosts; deploy-*.ts).
+ * machine and from runners; run effects on those hosts; deploy-*.ts). E32: cluster (kubectl and a simulated Kubernetes
+ * cluster: nodes, the API store, the scheduler and the kubelet's pod lifecycle; kube-*.ts, kubectl*.ts). E33: probes (liveness,
+ * readiness and startup probes, preStop hooks and graceful termination of pods; kube-probe*.ts, kube-health.ts, kube-stop.ts). E34:
+ * workloads (ReplicaSet and Deployment controllers, rollouts, cordon and drain, node failures; kube-replicaset.ts,
+ * kube-deployment.ts, kube-controllers.ts, kubectl-workload.ts, kubectl-rollout.ts, kubectl-node.ts).
  */
 export type ShellFeature = 'glob' | 'help-option' | 'multi-source' | 'ls-extra' | 'pipes' | 'accounts' | 'processes' | 'packages' | 'services' | 'remote' | 'scripting' | 'scheduling'
-  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers' | 'images' | 'storage-net' | 'compose' | 'runtime' | 'git' | 'forge' | 'workflows' | 'actions' | 'artifacts' | 'environments' | 'deploy-hosts';
+  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers' | 'images' | 'storage-net' | 'compose' | 'runtime' | 'git' | 'forge' | 'workflows' | 'actions' | 'artifacts' | 'environments' | 'deploy-hosts' | 'cluster' | 'probes' | 'workloads';
 
 /** LNX-0: the commands a session may run (E1: and the features it switches on; none by default). */
 export interface ShellProfile { readonly id: string; readonly commands: readonly CommandName[]; readonly features?: readonly ShellFeature[] }
@@ -246,6 +253,12 @@ export const ENVIRONMENTS_PROFILE: ShellProfile = { id: 'environments', commands
 /** E31 (docs/curriculum/CICD0_E31_DEPLOY_HOSTS.md): the environments profile plus remote Docker daemons reachable from the learner and the runners; no new commands. */
 export const DEPLOY_HOSTS_PROFILE: ShellProfile = { id: 'deploy-hosts', commands: above(ENVIRONMENTS_PROFILE, []), features: [...ENVIRONMENTS_PROFILE.features!, 'deploy-hosts'] };
 /** E31: a deploy-hosts machine's runner shell — the artifacts runner's commands, and ssh and curl reach the hosts the lesson lets runners reach; not a lesson profile. */
+/** E32 (docs/curriculum/KUB0_E32_CLUSTER.md): the deploy-hosts profile plus kubectl and the lesson's simulated Kubernetes cluster. */
+export const CLUSTER_PROFILE: ShellProfile = { id: 'cluster', commands: above(DEPLOY_HOSTS_PROFILE, E32_COMMANDS), features: [...DEPLOY_HOSTS_PROFILE.features!, 'cluster'] };
+/** E33 (docs/curriculum/KUB0_E33_PROBES.md): the cluster profile plus probes, lifecycle hooks and graceful termination; no new commands. */
+export const PROBES_PROFILE: ShellProfile = { id: 'probes', commands: above(CLUSTER_PROFILE, []), features: [...CLUSTER_PROFILE.features!, 'probes'] };
+/** E34 (docs/curriculum/KUB0_E34_WORKLOADS.md): the probes profile plus Deployments, ReplicaSets, rollouts and node drains; no new commands. */
+export const WORKLOADS_PROFILE: ShellProfile = { id: 'workloads', commands: above(PROBES_PROFILE, []), features: [...PROBES_PROFILE.features!, 'workloads'] };
 export const RUNNER_DEPLOY_PROFILE: ShellProfile = { id: 'runner', commands: FORGE_PROFILE.commands, features: [...GIT_PROFILE.features!, 'deploy-hosts'] };
 /** The profiles a lesson machine may name (TerminalMachine.profile), from the narrowest. */
 export const PROFILES = {
@@ -253,7 +266,7 @@ export const PROFILES = {
   remote: REMOTE_PROFILE, scripting: SCRIPTING_PROFILE, scheduling: SCHEDULING_PROFILE, sockets: SOCKETS_PROFILE, dns: DNS_PROFILE, http: HTTP_PROFILE,
   tls: TLS_PROFILE, nginx: NGINX_PROFILE, proxy: PROXY_PROFILE, firewall: FIREWALL_PROFILE, tunnels: TUNNELS_PROFILE, edge: EDGE_PROFILE, diagnostics: DIAGNOSTICS_PROFILE,
   containers: CONTAINERS_PROFILE, images: IMAGES_PROFILE, 'storage-net': STORAGE_NET_PROFILE, compose: COMPOSE_PROFILE, runtime: RUNTIME_PROFILE, git: GIT_PROFILE, forge: FORGE_PROFILE, workflows: WORKFLOWS_PROFILE, actions: ACTIONS_PROFILE, artifacts: ARTIFACTS_PROFILE,
-  environments: ENVIRONMENTS_PROFILE, 'deploy-hosts': DEPLOY_HOSTS_PROFILE,
+  environments: ENVIRONMENTS_PROFILE, 'deploy-hosts': DEPLOY_HOSTS_PROFILE, cluster: CLUSTER_PROFILE, probes: PROBES_PROFILE, workloads: WORKLOADS_PROFILE,
 } as const;
 export type ProfileId = keyof typeof PROFILES;
 
@@ -356,6 +369,7 @@ const HELP: [CommandName | null, string][] = [
   ['tar', '  tar czf 封存檔 [-C 目錄] 路徑… | tzf 封存檔 | xzf 封存檔 [-C 目錄]  建立、列出與解開 tar（.tgz）封存檔'],
   ['git', '  git init|clone|status|add|commit|log|diff|branch|switch|merge|rebase|push|pull …  版本控制（遠端是模擬的 github.example）'],
   ['gh', '  gh auth status | repo view | pr create|list|view|diff|checkout|review|merge|checks|close | api …  GitHub CLI（github.example）'],
+  ['kubectl', '  kubectl get|describe|apply|create|delete|label|annotate|taint|run|logs|exec|events|wait|config …  操作模擬的 Kubernetes 叢集'],
   ['man', '  man 指令                顯示指令的說明頁（也可以用 指令 --help）'],
 ];
 /** The lines that change when a profile has the feature (the lab keeps its own lines). */
@@ -1716,6 +1730,12 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
       code = r.status;
       const after = features.has('actions') ? actionsAfter(before, r.state) : r.state;
       return done(r.advance ? advanceClock(after, r.advance) : after);
+    }
+    case 'kubectl': {
+      // E32 (kubectl.ts): the cluster in state.kube, settled to the clock first; kubectl wait moves the clock like sleep.
+      const r = kubectl(cur(), args, { out: print, raw: write, err: fail, stdin: ctx.stdin, read: name => { const x = readPath(cur(), name); return 'error' in x ? { error: x.error } : { text: x.text }; } });
+      code = r.status;
+      return done(r.advance ? advanceClock(r.state, r.advance) : r.state);
     }
     case 'tar': {
       // E22 (tar.ts): GNU tar's create, list and extract with gzip, as the session's user.

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { curriculum, lessons } from '../src/content/curriculum';
 import { UNITS } from '../src/content/curriculum/units';
-import { CICD_SHAPES } from '../src/content/curriculum/lessons';
+import { CICD_SHAPES, KUB_SHAPES } from '../src/content/curriculum/lessons';
 import { DATABASE_VISUALIZATIONS, branchTaken, hasCapability, validateContent, validateCurriculum, type Curriculum, type LessonMeta, type VisualizationConfig } from '../src/content/curriculum/schema';
 import { validateTerminalLessonsFirst } from './support/terminal-replays';
 
@@ -46,7 +46,9 @@ const RWD_DONE = lessons.filter(l => l.islandId === 'responsive-design').length;
 const MOB_DONE = lessons.filter(l => l.islandId === 'mobile-apps').length;
 // CICD-1 (2026-11-23): the devops-cicd island is written in batches with the devops-explorer capability (and the terminal), after the server island.
 const CICD_DONE = lessons.filter(l => l.islandId === 'devops-cicd').length;
-const COMPLETE = [...ids('F', 20), ...ids('D', 20), ...ids('A', ALGORITHMS_DONE), ...ids('PL', PL_DONE), ...ids('DB', DATABASES_DONE), ...ids('CN', NETWORKS_DONE), ...ids('AIF', AIF_DONE), ...ids('LLM', LLM_DONE), ...ids('GEN', GEN_DONE), ...ids('WEB', WEB_DONE), ...ids('RWD', RWD_DONE), ...ids('MOB', MOB_DONE), ...ids('LNX', LNX_DONE), ...ids('DKR', DKR_DONE), ...ids('SRV', SRV_DONE), ...ids('CICD', CICD_DONE)];
+// KUB-1 (2026-11-24): the kubernetes-reliability island is written in batches on the terminal with a simulated cluster (kubectl), after the DevOps island.
+const KUB_DONE = lessons.filter(l => l.islandId === 'kubernetes-reliability').length;
+const COMPLETE = [...ids('F', 20), ...ids('D', 20), ...ids('A', ALGORITHMS_DONE), ...ids('PL', PL_DONE), ...ids('DB', DATABASES_DONE), ...ids('CN', NETWORKS_DONE), ...ids('AIF', AIF_DONE), ...ids('LLM', LLM_DONE), ...ids('GEN', GEN_DONE), ...ids('WEB', WEB_DONE), ...ids('RWD', RWD_DONE), ...ids('MOB', MOB_DONE), ...ids('LNX', LNX_DONE), ...ids('DKR', DKR_DONE), ...ids('SRV', SRV_DONE), ...ids('CICD', CICD_DONE), ...ids('KUB', KUB_DONE)];
 // F.1b: lessons are told apart by the capabilities they declare, never by a missing field.
 const programLessons = lessons.filter(l => hasCapability(l, 'program-code'));
 type TraceConfig = Extract<VisualizationConfig, { steps: unknown }>;
@@ -89,7 +91,9 @@ describe('curriculum (E.1)', () => {
     expect(lessons.filter(l => l.islandId === 'mobile-apps').map(l => l.lessonId)).toEqual(ids('MOB', MOB_DONE));
     expect(CICD_DONE).toBeGreaterThanOrEqual(1);
     expect(lessons.filter(l => l.islandId === 'devops-cicd').map(l => l.lessonId)).toEqual(ids('CICD', CICD_DONE));
-    expect(lessons).toHaveLength(60 + PL_DONE + DATABASES_DONE + NETWORKS_DONE + AIF_DONE + LNX_DONE + DKR_DONE + SRV_DONE + CICD_DONE + LLM_DONE + GEN_DONE + WEB_DONE + RWD_DONE + MOB_DONE);
+    expect(KUB_DONE).toBeGreaterThanOrEqual(4);
+    expect(lessons.filter(l => l.islandId === 'kubernetes-reliability').map(l => l.lessonId)).toEqual(ids('KUB', KUB_DONE));
+    expect(lessons).toHaveLength(60 + PL_DONE + DATABASES_DONE + NETWORKS_DONE + AIF_DONE + LNX_DONE + DKR_DONE + SRV_DONE + CICD_DONE + KUB_DONE + LLM_DONE + GEN_DONE + WEB_DONE + RWD_DONE + MOB_DONE);
     expect(new Set(lessons.map(l => l.lessonId)).size).toBe(lessons.length);
     expect(new Set(lessons.map(l => l.slug)).size).toBe(lessons.length);
   });
@@ -109,7 +113,7 @@ describe('curriculum (E.1)', () => {
 
   it('capabilities (F.1b): F, D and A are program-code; database lessons declare what they use; the blueprint\'s activity fits', () => {
     const blueprint = new Map(planning.plannedLessons.map(l => [l.lessonId, l.activity]));
-    expect(programLessons.map(l => l.lessonId)).toEqual(lessons.filter(l => l.islandId !== 'databases' && l.islandId !== 'ai-foundations' && l.islandId !== 'linux-systems' && l.islandId !== 'network-servers' && l.islandId !== 'docker-containers' && l.islandId !== 'large-language-models' && l.islandId !== 'generative-ai' && l.islandId !== 'web-foundations' && l.islandId !== 'responsive-design' && l.islandId !== 'mobile-apps' && l.islandId !== 'devops-cicd' && (l.islandId !== 'networks' || NETWORK_PROGRAMS.includes(l.lessonId))).map(l => l.lessonId));
+    expect(programLessons.map(l => l.lessonId)).toEqual(lessons.filter(l => l.islandId !== 'databases' && l.islandId !== 'ai-foundations' && l.islandId !== 'linux-systems' && l.islandId !== 'network-servers' && l.islandId !== 'docker-containers' && l.islandId !== 'large-language-models' && l.islandId !== 'generative-ai' && l.islandId !== 'web-foundations' && l.islandId !== 'responsive-design' && l.islandId !== 'mobile-apps' && l.islandId !== 'devops-cicd' && l.islandId !== 'kubernetes-reliability' && (l.islandId !== 'networks' || NETWORK_PROGRAMS.includes(l.lessonId))).map(l => l.lessonId));
     // AIF-1: the AI foundations lessons are Python-only program lessons (python-code), never four-language ones.
     for (const l of lessons.filter(l => l.islandId === 'ai-foundations')) expect([l.capabilities, l.supportedLanguages, l.activity], l.lessonId).toEqual([['python-code'], ['Python'], undefined]);
     // WEB-1: the web lessons are pages in a sandboxed frame (web-code); the blueprint's unbuilt activities use them too (dom-explorer).
@@ -141,6 +145,13 @@ describe('curriculum (E.1)', () => {
       expect([l.capabilities, l.activity, !!curriculum.contents[l.lessonId]?.devops], l.lessonId).toEqual([shape.capabilities, shape.activity, shape.capabilities.includes('devops-explorer')]);
     }
     expect(lessons.filter(l => hasCapability(l, 'devops-explorer')).every(l => l.islandId === 'devops-cicd')).toBe(true);
+    // KUB-1: the Kubernetes lessons follow kubeFromBlueprint's per-lesson table (KUB_SHAPES); KUB01, KUB03 and KUB04 are
+    // the terminal with a simulated cluster (terminal-sim), KUB02 pairs it with a network-protocol scene (network-sequence).
+    for (const l of lessons.filter(l => l.islandId === 'kubernetes-reliability')) {
+      const shape = KUB_SHAPES[l.lessonId];
+      expect([l.capabilities, l.activity, !!curriculum.contents[l.lessonId]?.terminal, !!curriculum.contents[l.lessonId]?.network, !!curriculum.contents[l.lessonId]?.devops], l.lessonId)
+        .toEqual([shape.capabilities, shape.activity, shape.capabilities.includes('terminal'), shape.capabilities.includes('network-protocol'), shape.capabilities.includes('devops-explorer')]);
+    }
     // LLM-1: the language-model lessons are taught with the llm-explorer capability (its explorer is the blueprint's
     // activity), with Python beside it only where the blueprint's exercise is code-python; no other lesson declares it.
     // GEN-1: the generative-ai lessons follow the same mapping (GEN02's exercise is code-python).
@@ -250,6 +261,8 @@ describe('curriculum (E.1)', () => {
     for (const l of lessons.filter(l => l.islandId === 'mobile-apps')) expect(mob, l.lessonId).toContain(`| ${l.lessonId} |`);
     const cicd = readFileSync('docs/curriculum/DEVOPS_CICD_ISLAND.md', 'utf8');
     for (const l of lessons.filter(l => l.islandId === 'devops-cicd')) expect(cicd, l.lessonId).toContain(`| ${l.lessonId} |`);
+    const kub = readFileSync('docs/curriculum/KUBERNETES_RELIABILITY_ISLAND.md', 'utf8');
+    for (const l of lessons.filter(l => l.islandId === 'kubernetes-reliability')) expect(kub, l.lessonId).toContain(`| ${l.lessonId} |`);
   });
 });
 

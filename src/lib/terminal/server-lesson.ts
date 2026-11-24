@@ -28,6 +28,9 @@ import { environmentsProblems, environmentsState } from './environments-lesson';
 import { describeEnvironmentsCheck, environmentsCheckProblems, environmentsFailure, type EnvironmentsCheck } from './environments-checks';
 import { deployProblems, deployState } from './deploy-lesson';
 import { deployCheckFailure, deployCheckProblems, describeDeployCheck, isDeployCheck } from './deploy-checks';
+import { expandKube, kubeProblems, kubeState } from './kube-lesson';
+import { describeKubeCheck, kubeCheckProblems, kubeFailure, type KubeCheck } from './kube-checks';
+import { describeWorkloadCheck, workloadCheckProblems, workloadFailure, type WorkloadCheck } from './kube-workload-checks';
 
 /*
  * Engine stages E10–E12 as lesson data (docs/curriculum/SRV0_SERVER_CAPABILITY.md §9). A machine of the sockets profile is
@@ -49,7 +52,7 @@ export interface TerminalZone { zone: string; text: string }
 export type TerminalListen = Listen;
 export type TerminalResponder = Responder;
 /** Which of the stages a machine's profile has. */
-export interface ServerLevels { sockets: boolean; dns: boolean; http: boolean; tls: boolean; nginx: boolean; proxy: boolean; firewall: boolean; tunnels: boolean; edge: boolean; diagnostics: boolean; containers: boolean; images: boolean; storageNet: boolean; compose?: boolean; runtime?: boolean; git?: boolean; forge?: boolean; workflows?: boolean; actions?: boolean; artifacts?: boolean; environments?: boolean; deployHosts?: boolean }
+export interface ServerLevels { sockets: boolean; dns: boolean; http: boolean; tls: boolean; nginx: boolean; proxy: boolean; firewall: boolean; tunnels: boolean; edge: boolean; diagnostics: boolean; containers: boolean; images: boolean; storageNet: boolean; compose?: boolean; runtime?: boolean; git?: boolean; forge?: boolean; workflows?: boolean; actions?: boolean; artifacts?: boolean; environments?: boolean; deployHosts?: boolean; cluster?: boolean; probes?: boolean; workloads?: boolean }
 
 /** E10–E12 (lesson checks). */
 export type ServerCheck =
@@ -81,7 +84,9 @@ export type ServerCheck =
   /** E29: secret and variable (artifacts-checks.ts). */
   | ArtifactsCheck
   /** E30: environment and deployment (environments-checks.ts). */
-  | EnvironmentsCheck;
+  | EnvironmentsCheck
+  /** E32: kube-object and kube-pod (kube-checks.ts). E34: kube-workload and kube-rollout (kube-workload-checks.ts). */
+  | KubeCheck | WorkloadCheck;
 
 export const RESOLV_CONF = '# This is /run/systemd/resolve/stub-resolv.conf managed by man:systemd-resolved(8).\n# Do not edit.\n\nnameserver 127.0.0.53\noptions edns0 trust-ad\nsearch .\n';
 const NAMED_CONF = '// This is the primary configuration file for the BIND DNS server named.\n\ninclude "/etc/bind/named.conf.options";\ninclude "/etc/bind/named.conf.local";\n';
@@ -178,6 +183,8 @@ export function expandServer(m: TerminalMachine, lv: ServerLevels): TerminalMach
   expandDocker(m, lv, { file: add, dir }, procs, programs, services, pidFrom, groups);
   // E25: the repositories' worktrees and .git folders, ~/.gitconfig.
   expandGit(m, !!lv.git, { file: add });
+  // E32: ~/.kube/config (the cluster's admin kubeconfig).
+  expandKube(m, !!lv.cluster, { file: add });
   files.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
   return { ...m, files, processes: procs, programs, services, ...users.length || groups.length ? { accounts: { ...m.accounts, users, groups } } : {} };
 }
@@ -201,7 +208,7 @@ export function serverState(m: TerminalMachine, state: FsState, lv: ServerLevels
     if (m.named !== undefined) next = { ...next, dns: { ...next.dns!, named: loadNamed(next).zones } };
   }
   if (lv.http) next = { ...next, http: { responders: (m.responders ?? []).map(r => ({ ...r, routes: r.routes.map(x => ({ ...x })) })) } };
-  return deployState(m, environmentsState(m, artifactsState(m, actionsState(m, workflowState(m, forgeState(m, gitState(m, dockerState(m, edgeState(m, netState(m, webState(m, next, lv), lv), lv), lv), !!lv.git), !!lv.forge), !!lv.workflows), !!lv.actions, !!lv.artifacts, !!lv.deployHosts), !!lv.artifacts), !!lv.environments), !!lv.deployHosts);
+  return kubeState(m, deployState(m, environmentsState(m, artifactsState(m, actionsState(m, workflowState(m, forgeState(m, gitState(m, dockerState(m, edgeState(m, netState(m, webState(m, next, lv), lv), lv), lv), !!lv.git), !!lv.forge), !!lv.workflows), !!lv.actions, !!lv.artifacts, !!lv.deployHosts), !!lv.artifacts), !!lv.environments), !!lv.deployHosts), !!lv.cluster, !!lv.probes, !!lv.workloads);
 }
 
 const LINE = (max: number) => (t: unknown) => typeof t === 'string' && t.length >= 1 && t.length <= max && !t.includes('\n');
@@ -210,7 +217,7 @@ const HEADER_NAME = /^[A-Za-z0-9!#$%&'*+.^_`|~-]{1,64}$/;
 
 /** E10–E12: the problems of a machine's (expanded) server data; `own` is whether listen addresses are checked against it. */
 export function serverProblems(m: TerminalMachine, lv: ServerLevels, names?: readonly string[]): string[] {
-  const problems: string[] = [...webProblems(m, lv), ...netProblems(m, lv, () => machineState(m)), ...edgeProblems(m, lv, names), ...dockerProblems(m, lv), ...gitProblems(m, !!lv.git), ...forgeProblems(m, !!lv.forge), ...workflowProblems(m, !!lv.workflows), ...actionsProblems(m, !!lv.actions), ...artifactsProblems(m, !!lv.artifacts), ...environmentsProblems(m, !!lv.environments), ...deployProblems(m, !!lv.deployHosts)], fail = (what: string) => problems.push(what);
+  const problems: string[] = [...webProblems(m, lv), ...netProblems(m, lv, () => machineState(m)), ...edgeProblems(m, lv, names), ...dockerProblems(m, lv), ...gitProblems(m, !!lv.git), ...forgeProblems(m, !!lv.forge), ...workflowProblems(m, !!lv.workflows), ...actionsProblems(m, !!lv.actions), ...artifactsProblems(m, !!lv.artifacts), ...environmentsProblems(m, !!lv.environments), ...deployProblems(m, !!lv.deployHosts), ...kubeProblems(m, !!lv.cluster, !!lv.probes, !!lv.workloads)], fail = (what: string) => problems.push(what);
   const listens = [...(m.processes ?? []).flatMap(p => p.listen ?? []), ...(m.programs ?? []).flatMap(p => p.listen ?? [])];
   if (!lv.sockets && (m.interfaces !== undefined || m.gateway !== undefined || m.connections !== undefined || m.resolved !== undefined || listens.length))
     fail('interfaces, gateway, connections, resolved and listen need the sockets profile (engine stage E10)');
@@ -331,6 +338,8 @@ export function serverCheckProblems(c: ServerCheck, lv: ServerLevels, known: (ho
     case 'workflow': return workflowCheckProblems(c, !!lv.workflows);
     case 'run': return runCheckProblems(c, !!lv.actions, !!lv.artifacts, !!lv.environments);
     case 'environment': case 'deployment': return environmentsCheckProblems(c, !!lv.environments);
+    case 'kube-object': case 'kube-pod': return kubeCheckProblems(c, !!lv.cluster);
+    case 'kube-workload': case 'kube-rollout': return workloadCheckProblems(c, !!lv.workloads);
     case 'secret': case 'variable': return artifactsCheckProblems(c, !!lv.artifacts);
     // E22: a reach check from a container is the daemon's (docker-lesson.ts).
     case 'reach': return 'container' in c ? dockerCheckProblems(c, lv) : netCheckProblems(c, lv, known);
@@ -363,6 +372,8 @@ export function describeServerCheck(c: ServerCheck): string {
     case 'run': return describeRunCheck(c);
     case 'secret': case 'variable': return describeArtifactsCheck(c);
     case 'environment': case 'deployment': return describeEnvironmentsCheck(c);
+    case 'kube-object': case 'kube-pod': return describeKubeCheck(c);
+    case 'kube-workload': case 'kube-rollout': return describeWorkloadCheck(c);
     case 'reach': return 'container' in c ? describeDockerCheck(c) : describeNetCheck(c);
     case 'firewall': case 'tunnel': return describeNetCheck(c);
   }
@@ -405,6 +416,8 @@ export function serverFailure(c: ServerCheck, end: FsState, hostState: (host: st
     case 'run': return runFailure(c, end);
     case 'secret': case 'variable': return artifactsFailure(c, end);
     case 'environment': case 'deployment': return environmentsFailure(c, end);
+    case 'kube-object': case 'kube-pod': return kubeFailure(c, end);
+    case 'kube-workload': case 'kube-rollout': return workloadFailure(c, end);
     case 'reach': return 'container' in c ? dockerFailure(c, end) : netFailure(c, end);
     case 'firewall': case 'tunnel': return netFailure(c, end);
     case 'cache': return edgeFailure(c, end, resolve, h => h === undefined ? end : end.firewall ? viewOfHost(end, h) : hostState(h));

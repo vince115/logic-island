@@ -44,6 +44,7 @@ import type { EdgeState } from './cache';
 import type { LinkState } from './diag';
 import type { DockerState } from './docker';
 import type { GitState } from './git-state';
+import type { KubeState } from './kube-model';
 
 export interface FsNode {
   /** E1: 'link' is a symbolic link (the lab never has one). */
@@ -176,6 +177,8 @@ export interface FsState {
   git?: GitState;
   /** E28: the CI tools the lesson declares (npm test, pytest), and on the learner's machine the runner image and the run and job counters. */
   ci?: CiState;
+  /** E32: the simulated Kubernetes cluster kubectl talks to (only the local machine of the cluster profile has one). */
+  kube?: KubeState;
 }
 /** E13: what certbot keeps (the simulated CA's certificate lifetime in days, its order counter). */
 export interface TlsState { lifetime: number; orders: number }
