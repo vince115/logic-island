@@ -13,6 +13,7 @@ import { systemWorkloads } from './kube-controllers';
 import { rootCa, rootCas } from './kube-config-spec';
 import { installNginx, type NginxLesson } from './kube-ingress';
 import { seedFiles, storageProblems, type StorageLesson } from './kube-storage-lesson';
+import { bootReleases, helmFiles, helmProblems, helmState, type HelmLesson } from './helm-lesson';
 
 /*
  * Engine stage E32 as lesson data (docs/curriculum/KUB0_E32_CLUSTER.md §14). A machine of the cluster profile with `kube`
@@ -61,6 +62,11 @@ export interface TerminalKube {
    * network disks attached to one node at a time) and the files already on the boot manifests' PersistentVolumes.
    */
   storage?: StorageLesson;
+  /**
+   * E39 (helm profile): the charts the fictional repository https://charts.example.test serves (published at a time),
+   * repositories already added, and releases installed at boot (helm-lesson.ts).
+   */
+  helm?: HelmLesson;
 }
 export const GATEWAY_CONTROLLER = 'example.com/gateway-controller';
 /** E35: the pool's addresses in order (null: not a pool of at most 32 IPv4 addresses). */
@@ -81,17 +87,22 @@ const homeOf = (m: TerminalMachine) => m.home ?? (m.user === 'root' ? '/root' : 
 const nowOf = (m: TerminalMachine, state?: FsState) => state ? clockOf(state).now : parseTime(m.now ?? '') ?? clockOf({}).now;
 
 /** E32: ~/.kube and its config (kubeadm's admin.conf copied for the user, 0600). */
-export function expandKube(m: TerminalMachine, cluster: boolean, add: { file(f: TerminalFile): void }): void {
+export function expandKube(m: TerminalMachine, cluster: boolean, add: { file(f: TerminalFile): void }, helm = false): void {
   if (!cluster || !m.kube) return;
   const home = homeOf(m), base = home === '/' ? '' : home;
   const parts = home.split('/').filter(Boolean);
   for (let k = 1; k <= parts.length; k++) { const d = `/${parts.slice(0, k).join('/')}`; add.file({ path: d, kind: 'dir', mode: 0o755, owner: d === home ? m.user : 'root' }); }
   add.file({ path: `${base}/.kube`, kind: 'dir', mode: 0o755, owner: m.user });
   add.file({ path: `${base}/.kube/config`, kind: 'file', mode: 0o600, owner: m.user, content: kubeconfigText(m.kube.namespace) });
+  // E39: the repositories the lesson added (repositories.yaml, each index cached as at the start).
+  if (!helm || !m.kube.helm?.repos?.length) return;
+  const now = nowOf(m), created = parseTime(m.kube.created ?? '') ?? now - 30 * DAY;
+  for (const d of ['.config', '.config/helm', '.cache', '.cache/helm', '.cache/helm/repository']) add.file({ path: `${base}/${d}`, kind: 'dir', mode: 0o755, owner: m.user });
+  for (const [path, content] of helmFiles(m.kube.helm, home, created, now)) add.file({ path, kind: 'file', mode: path.endsWith('repositories.yaml') ? 0o600 : 0o644, owner: m.user, content });
 }
 
 /** The cluster at the machine's start: its nodes and system objects, then the boot manifests in order. */
-export function buildKube(m: TerminalMachine, now: Seconds, probes = false, workloads = false, net = false, config = false, ingress = false, storage = false): { k: KubeState; problems: string[] } {
+export function buildKube(m: TerminalMachine, now: Seconds, probes = false, workloads = false, net = false, config = false, ingress = false, storage = false, helm = false): { k: KubeState; problems: string[] } {
   const kube = m.kube!, created = parseTime(kube.created ?? '') ?? now - 30 * DAY;
   const nodes = nodesOf(kube.nodes ?? [{ name: 'cp-01', control: true }, { name: 'node-01' }, { name: 'node-02' }], created, t => cpuMilli(t) ?? 0, t => bytesOf(t) ?? 0);
   const boot = bootstrap(nodes, created), pull: Record<string, number> = {}, cache: Record<string, string[]> = Object.fromEntries(Object.entries(boot.cache).map(([n, l]) => [n, [...l]]));
@@ -112,6 +123,8 @@ export function buildKube(m: TerminalMachine, now: Seconds, probes = false, work
   if (ingress && kube.ingressController) { k = installNginx(k, kube.ingressController, created); if (config) k = rootCa(k, 'ingress-nginx', created); }
   // E38: StorageClasses, PVs, PVCs and StatefulSets; the lesson's provisioners.
   if (storage) k = { ...k, storage: { provisioners: (kube.storage?.provisioners ?? []).map(p => ({ name: p.name, local: p.local === true })), data: {} } };
+  // E39: the repository's charts (releases are installed on the state, kubeState).
+  if (helm) k = { ...k, helm: helmState(kube.helm, created) };
   const problems: string[] = [];
   (kube.manifests ?? []).forEach((mf, i) => {
     const at = parseTime(mf.at ?? '') ?? now, file = mf.file ?? `manifest-${i + 1}.yaml`;
@@ -129,15 +142,17 @@ export function buildKube(m: TerminalMachine, now: Seconds, probes = false, work
 }
 
 /** E32: the state's cluster (the local machine of the cluster profile only). */
-export function kubeState(m: TerminalMachine, state: FsState, cluster: boolean, probes = false, workloads = false, net = false, config = false, ingress = false, storage = false): FsState {
-  if (!cluster || !m.kube || kubeProblems(m, cluster, probes, workloads, net, config, ingress, storage).length) return state;
-  return { ...state, kube: buildKube(m, nowOf(m, state), probes, workloads, net, config, ingress, storage).k };
+export function kubeState(m: TerminalMachine, state: FsState, cluster: boolean, probes = false, workloads = false, net = false, config = false, ingress = false, storage = false, helm = false): FsState {
+  if (!cluster || !m.kube || kubeProblems(m, cluster, probes, workloads, net, config, ingress, storage, helm).length) return state;
+  const next = { ...state, kube: buildKube(m, nowOf(m, state), probes, workloads, net, config, ingress, storage, helm).k };
+  // E39: the boot releases, installed in time order.
+  return helm && m.kube.helm?.releases?.length ? bootReleases(next, m.kube.helm, nowOf(m, state), []) : next;
 }
 
 
 const LINE = (t: unknown, max = 64) => typeof t === 'string' && t.length >= 1 && t.length <= max && !t.includes('\n');
 /** E32: the problems of a machine's cluster data. */
-export function kubeProblems(m: TerminalMachine, cluster: boolean, probes = false, workloads = false, net = false, config = false, ingress = false, storage = false): string[] {
+export function kubeProblems(m: TerminalMachine, cluster: boolean, probes = false, workloads = false, net = false, config = false, ingress = false, storage = false, helm = false): string[] {
   if (m.kube === undefined) return [];
   if (!cluster) return ['kube needs the cluster profile (engine stage E32)'];
   const out: string[] = [], kube = m.kube, now = nowOf(m), fail = (s: string) => out.push(`kube: ${s}`);
@@ -199,8 +214,11 @@ export function kubeProblems(m: TerminalMachine, cluster: boolean, probes = fals
   out.push(...ingressProblems(kube, ingress));
   // E38: the provisioners and the PVs' files.
   if (kube.storage !== undefined) out.push(...storage ? storageProblems(kube.storage) : ['kube: storage needs the kube-storage profile (engine stage E38)']);
+  // E39: the charts, repositories and boot releases.
+  if (kube.helm !== undefined) out.push(...helm ? helmProblems(kube.helm, created ?? now, now) : ['kube: helm needs the helm profile (engine stage E39)']);
   if (out.length) return out;
-  const built = buildKube(m, now, probes, workloads, net, config, ingress, storage);
+  const built = buildKube(m, now, probes, workloads, net, config, ingress, storage, helm);
+  if (helm && kube.helm?.releases?.length) { const p: string[] = []; bootReleases({ kube: built.k } as FsState, kube.helm, now, p); built.problems.push(...p); }
   if (built.k.objects.filter(o => o.kind === 'Pod' && nsOf(o) !== 'kube-system').length > KUBE_LIMITS.pods) out.push(`kube: at most ${KUBE_LIMITS.pods} pods`);
   return [...out, ...built.problems.map(p => `kube: ${p}`)];
 }

@@ -591,13 +591,29 @@ export const KUBE_MANUAL: Record<'kubectl', ManualEntry> = {
   },
 };
 
+/** E39: helm (docs/curriculum/KUB0_E39_HELM.md). */
+export const HELM_MANUAL: Record<'helm', ManualEntry> = {
+  helm: {
+    usage: 'helm install|upgrade|list|status|history|rollback|uninstall|get|template|lint|show|repo|search|pull|create|package|version [選項] [參數…]',
+    summary: 'Kubernetes 的套件管理工具（Helm v3.16 的子集，叢集與 chart 儲存庫是模擬的）',
+    description: [
+      'chart 是一個資料夾：Chart.yaml、values.yaml 與 templates/（Go template 寫的 manifest、_helpers.tpl、NOTES.txt）；helm create 名稱 建立範本，helm lint、helm template 在本機檢查與算出 manifest。',
+      'helm install 名稱 chart [-n 命名空間] [-f 檔案] [--set 鍵=值] [--wait] [--atomic] 安裝一個 release；helm upgrade、rollback、uninstall 管理它，helm list、status、history、get values|manifest|notes 查看它。release 存成命名空間裡的 Secret（sh.helm.release.v1.名稱.v版本）。',
+      'values 的優先順序：chart 的 values.yaml < -f 檔案（依序）< --set／--set-string。',
+      'helm repo add 名稱 https://charts.example.test 加入模擬的儲存庫，helm repo update 更新索引，helm search repo、helm pull [--untar]、helm show values|chart 讀取它的 chart。',
+      '模擬環境的時間只在 sleep、kubectl wait 與 helm --wait 時前進；Helm 的 hook、測試、外掛、OCI 儲存庫與相依的 chart 只在課文說明。',
+    ],
+    options: [['-n 命名空間', '指定命名空間'], ['-f 檔案', 'values 檔案'], ['--set 鍵=值', '覆寫 values'], ['--wait、--timeout 時間', '等待物件就緒'], ['--atomic', '失敗時復原'], ['-A', 'list：全部的命名空間']],
+  },
+};
+
 /** The manual of a command in a profile with these features. */
 export function manualEntry(cmd: CommandName, features: Iterable<ShellFeature> = []): ManualEntry {
   const have = new Set(features);
   const special = FEATURE_MANUAL.find(([f, c]) => c === cmd && have.has(f));
   if (special) return special[2];
   return (MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd] ?? (STREAM_MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd] ?? (USER_MANUAL as Partial<Record<CommandName, ManualEntry>>)[cmd]
-    ?? (SYSTEM_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (LATER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (SERVER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (DIAG_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (STORAGE_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (GIT_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (GH_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (KUBE_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (BASE64_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (CONTAINER_MANUAL as Record<string, ManualEntry>)[cmd];
+    ?? (SYSTEM_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (LATER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (SERVER_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (DIAG_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (STORAGE_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (GIT_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (GH_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (KUBE_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (HELM_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (BASE64_MANUAL as Partial<Record<string, ManualEntry>>)[cmd] ?? (CONTAINER_MANUAL as Record<string, ManualEntry>)[cmd];
 }
 
 const optionLines = (options: [string, string][], indent: string, width: number) => options.map(([flag, text]) => `${indent}${flag.padEnd(width)}${text}`);

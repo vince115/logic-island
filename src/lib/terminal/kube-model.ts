@@ -3,6 +3,7 @@ import { hex } from './docker';
 import type { LogLine, LogSeed } from './docker';
 import type { FsNode } from './fs';
 import type { StorageState } from './kube-storage-model';
+import type { HelmState } from './helm-lesson';
 
 /*
  * Engine stage E32 (docs/curriculum/KUB0_E32_CLUSTER.md): the shared model of the simulated Kubernetes cluster. The
@@ -117,6 +118,8 @@ export interface KubeState {
   ingress?: { nginx?: 'LoadBalancer' | 'NodePort'; gateway?: { controller?: string }; seen?: Readonly<Record<string, number>> };
   /** E38 (the kube-storage profile): StorageClasses, PVs, PVCs, StatefulSets; volume contents and provisioners (kube-storage-model.ts). */
   storage?: StorageState;
+  /** E39 (the helm profile): the charts the lesson's repository https://charts.example.test serves (helm-lesson.ts); releases are Secrets. */
+  helm?: HelmState;
 }
 /** E35: a kubectl port-forward job: its process, the local port and the pod port it forwards to. */
 export interface KubeForward { pid: number; local: number; ns: string; pod: string; port: number }

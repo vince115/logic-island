@@ -119,17 +119,22 @@ export function createDoc(k0: KubeState, doc0: JObj, ns: string, t: Seconds, fil
   return { k, line: `${lineName(kind)}/${nameOf(doc)} created` };
 }
 
-export function applyDoc(k0: KubeState, doc0: JObj, ns: string, t: Seconds, file: string): Written {
+/**
+ * E39: Helm updates an object with the three-way merge of the release's previous manifest (helm.last, not the
+ * last-applied annotation), the live object and the new manifest, and writes no annotation of kubectl's.
+ */
+export function applyDoc(k0: KubeState, doc0: JObj, ns: string, t: Seconds, file: string, helm?: { last: J | undefined }): Written {
   const why = checkDoc(k0, doc0, ns, file);
   if (why) return { error: why };
   const kind = kindOf(doc0), doc = cleaned(doc0, ns), space = NAMESPACED[kind] ? ns : undefined, live = find(k0, kind, space, nameOf(doc));
-  if (!live) return createDoc(k0, doc0, ns, t, file, true);
+  if (!live) return createDoc(k0, doc0, ns, t, file, !helm);
   const lastText = str(obj(meta(live).annotations)[LAST_APPLIED]);
-  const warn = lastText ? undefined : `Warning: resource ${plural(kind)}/${nameOf(doc)} is missing the ${LAST_APPLIED} annotation which is required by kubectl apply. kubectl apply should only be used on resources created declaratively by either kubectl create --save-config or kubectl apply. The missing annotation will be patched automatically.`;
+  const warn = lastText || helm ? undefined : `Warning: resource ${plural(kind)}/${nameOf(doc)} is missing the ${LAST_APPLIED} annotation which is required by kubectl apply. kubectl apply should only be used on resources created declaratively by either kubectl create --save-config or kubectl apply. The missing annotation will be patched automatically.`;
   let last: J | undefined;
-  try { last = lastText ? JSON.parse(lastText) as J : undefined; } catch { last = undefined; }
+  if (helm) last = helm.last === undefined ? undefined : cleaned(obj(helm.last), ns);
+  else try { last = lastText ? JSON.parse(lastText) as J : undefined; } catch { last = undefined; }
   const annotations = { ...obj(meta(doc).annotations) }, newLast = `${goJson(sortJ({ ...doc, metadata: { ...meta(doc), annotations } }), false)}\n`;
-  const want: JObj = { ...doc, metadata: { ...meta(doc), annotations: { ...annotations, [LAST_APPLIED]: newLast } } };
+  const want: JObj = helm ? doc : { ...doc, metadata: { ...meta(doc), annotations: { ...annotations, [LAST_APPLIED]: newLast } } };
   const { status, ...liveRest } = live;
   let merged = merge3(last, liveRest, want) as JObj;
   if (kind === 'Pod') merged = defaultPod(merged);

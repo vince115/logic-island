@@ -35,6 +35,7 @@ import { afterCluster, clusterView, kubeConnect } from './kube-net';
 import { kubeResolver } from './kube-dns';
 import { settleKube } from './kube-settle';
 import { base64Command } from './base64';
+import { helm } from './helm';
 import { portForwardJob } from './kubectl-forward';
 
 /*
@@ -133,14 +134,16 @@ export const E26_COMMANDS = ['gh'] as const;
 export const E32_COMMANDS = ['kubectl'] as const;
 /** E36: base64 (GNU coreutils) for Secrets' data (KUBE_CONFIG_PROFILE and above only), so every lower profile's command list stays. */
 export const E36_COMMANDS = ['base64'] as const;
+/** E39: helm against the lesson's cluster and the repository charts.example.test (HELM_PROFILE only), so every lower profile's command list stays. */
+export const E39_COMMANDS = ['helm'] as const;
 /** The commands of the files profile (the manual of E1 covers exactly these). */
 export type FilesCommand = typeof COMMANDS[number] | typeof E1_COMMANDS[number];
 export type CommandName = FilesCommand | typeof E2_COMMANDS[number] | typeof E3_COMMANDS[number] | typeof E4_COMMANDS[number] | typeof E5_COMMANDS[number] | typeof E6_COMMANDS[number]
   | typeof E7_COMMANDS[number] | typeof E8_COMMANDS[number] | typeof E9_COMMANDS[number] | typeof E10_COMMANDS[number] | typeof E11_COMMANDS[number]
-  | typeof E12_COMMANDS[number] | typeof E13_COMMANDS[number] | typeof E14_COMMANDS[number] | typeof E16_COMMANDS[number] | typeof E19_COMMANDS[number] | typeof E20_COMMANDS[number] | typeof E22_COMMANDS[number] | typeof E25_COMMANDS[number] | typeof E26_COMMANDS[number] | typeof E32_COMMANDS[number] | typeof E36_COMMANDS[number];
+  | typeof E12_COMMANDS[number] | typeof E13_COMMANDS[number] | typeof E14_COMMANDS[number] | typeof E16_COMMANDS[number] | typeof E19_COMMANDS[number] | typeof E20_COMMANDS[number] | typeof E22_COMMANDS[number] | typeof E25_COMMANDS[number] | typeof E26_COMMANDS[number] | typeof E32_COMMANDS[number] | typeof E36_COMMANDS[number] | typeof E39_COMMANDS[number];
 /** Every command any profile may list. */
 export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS, ...E2_COMMANDS, ...E3_COMMANDS, ...E4_COMMANDS, ...E5_COMMANDS, ...E6_COMMANDS,
-  ...E7_COMMANDS, ...E8_COMMANDS, ...E9_COMMANDS, ...E10_COMMANDS, ...E11_COMMANDS, ...E12_COMMANDS, ...E13_COMMANDS, ...E14_COMMANDS, ...E16_COMMANDS, ...E19_COMMANDS, ...E20_COMMANDS, ...E22_COMMANDS, ...E25_COMMANDS, ...E26_COMMANDS, ...E32_COMMANDS, ...E36_COMMANDS];
+  ...E7_COMMANDS, ...E8_COMMANDS, ...E9_COMMANDS, ...E10_COMMANDS, ...E11_COMMANDS, ...E12_COMMANDS, ...E13_COMMANDS, ...E14_COMMANDS, ...E16_COMMANDS, ...E19_COMMANDS, ...E20_COMMANDS, ...E22_COMMANDS, ...E25_COMMANDS, ...E26_COMMANDS, ...E32_COMMANDS, ...E36_COMMANDS, ...E39_COMMANDS];
 
 /**
  * Behaviour a profile switches on besides its commands. E1: glob (* ? [...] and ~), help-option (指令 --help, long
@@ -172,10 +175,11 @@ export const ALL_COMMANDS: readonly CommandName[] = [...COMMANDS, ...E1_COMMANDS
  * E36: kube-config (ConfigMaps, Secrets, env and volumes from them, imagePullSecrets, base64; kube-config-spec.ts, kube-env.ts,
  * kube-volumes.ts, kubectl-create-config.ts, base64.ts). E37: ingress (Ingress, ingress-nginx, the Gateway API; kube-ingress*.ts,
  * kube-gateway*.ts, kube-route*.ts, kubectl-ingress.ts). E38: kube-storage (StorageClasses, PVs, PVCs, StatefulSets, volume data,
- * kubectl cp; kube-storage*.ts, kube-statefulset*.ts, kubectl-storage.ts).
+ * kubectl cp; kube-storage*.ts, kube-statefulset*.ts, kubectl-storage.ts). E39: helm (charts, a Go template engine, releases
+ * stored as Secrets, repositories; helm*.ts).
  */
 export type ShellFeature = 'glob' | 'help-option' | 'multi-source' | 'ls-extra' | 'pipes' | 'accounts' | 'processes' | 'packages' | 'services' | 'remote' | 'scripting' | 'scheduling'
-  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers' | 'images' | 'storage-net' | 'compose' | 'runtime' | 'git' | 'forge' | 'workflows' | 'actions' | 'artifacts' | 'environments' | 'deploy-hosts' | 'cluster' | 'probes' | 'workloads' | 'kube-net' | 'kube-config' | 'ingress' | 'kube-storage';
+  | 'sockets' | 'dns' | 'http' | 'tls' | 'nginx' | 'proxy' | 'firewall' | 'tunnels' | 'edge' | 'diagnostics' | 'containers' | 'images' | 'storage-net' | 'compose' | 'runtime' | 'git' | 'forge' | 'workflows' | 'actions' | 'artifacts' | 'environments' | 'deploy-hosts' | 'cluster' | 'probes' | 'workloads' | 'kube-net' | 'kube-config' | 'ingress' | 'kube-storage' | 'helm';
 
 /** LNX-0: the commands a session may run (E1: and the features it switches on; none by default). */
 export interface ShellProfile { readonly id: string; readonly commands: readonly CommandName[]; readonly features?: readonly ShellFeature[] }
@@ -279,6 +283,8 @@ export const KUBE_CONFIG_PROFILE: ShellProfile = { id: 'kube-config', commands: 
 export const INGRESS_PROFILE: ShellProfile = { id: 'ingress', commands: above(KUBE_CONFIG_PROFILE, []), features: [...KUBE_CONFIG_PROFILE.features!, 'ingress'] };
 /** E38 (docs/curriculum/KUB0_E38_KUBE_STORAGE.md): the ingress profile plus StorageClasses, PersistentVolumes and claims, StatefulSets and kubectl cp; no new commands. */
 export const KUBE_STORAGE_PROFILE: ShellProfile = { id: 'kube-storage', commands: above(INGRESS_PROFILE, []), features: [...INGRESS_PROFILE.features!, 'kube-storage'] };
+/** E39 (docs/curriculum/KUB0_E39_HELM.md): the kube-storage profile plus helm — charts, releases and the repository charts.example.test. */
+export const HELM_PROFILE: ShellProfile = { id: 'helm', commands: above(KUBE_STORAGE_PROFILE, E39_COMMANDS), features: [...KUBE_STORAGE_PROFILE.features!, 'helm'] };
 export const RUNNER_DEPLOY_PROFILE: ShellProfile = { id: 'runner', commands: FORGE_PROFILE.commands, features: [...GIT_PROFILE.features!, 'deploy-hosts'] };
 /** The profiles a lesson machine may name (TerminalMachine.profile), from the narrowest. */
 export const PROFILES = {
@@ -286,7 +292,7 @@ export const PROFILES = {
   remote: REMOTE_PROFILE, scripting: SCRIPTING_PROFILE, scheduling: SCHEDULING_PROFILE, sockets: SOCKETS_PROFILE, dns: DNS_PROFILE, http: HTTP_PROFILE,
   tls: TLS_PROFILE, nginx: NGINX_PROFILE, proxy: PROXY_PROFILE, firewall: FIREWALL_PROFILE, tunnels: TUNNELS_PROFILE, edge: EDGE_PROFILE, diagnostics: DIAGNOSTICS_PROFILE,
   containers: CONTAINERS_PROFILE, images: IMAGES_PROFILE, 'storage-net': STORAGE_NET_PROFILE, compose: COMPOSE_PROFILE, runtime: RUNTIME_PROFILE, git: GIT_PROFILE, forge: FORGE_PROFILE, workflows: WORKFLOWS_PROFILE, actions: ACTIONS_PROFILE, artifacts: ARTIFACTS_PROFILE,
-  environments: ENVIRONMENTS_PROFILE, 'deploy-hosts': DEPLOY_HOSTS_PROFILE, cluster: CLUSTER_PROFILE, probes: PROBES_PROFILE, workloads: WORKLOADS_PROFILE, 'kube-net': KUBE_NET_PROFILE, 'kube-config': KUBE_CONFIG_PROFILE, ingress: INGRESS_PROFILE, 'kube-storage': KUBE_STORAGE_PROFILE,
+  environments: ENVIRONMENTS_PROFILE, 'deploy-hosts': DEPLOY_HOSTS_PROFILE, cluster: CLUSTER_PROFILE, probes: PROBES_PROFILE, workloads: WORKLOADS_PROFILE, 'kube-net': KUBE_NET_PROFILE, 'kube-config': KUBE_CONFIG_PROFILE, ingress: INGRESS_PROFILE, 'kube-storage': KUBE_STORAGE_PROFILE, helm: HELM_PROFILE,
 } as const;
 export type ProfileId = keyof typeof PROFILES;
 
@@ -391,6 +397,7 @@ const HELP: [CommandName | null, string][] = [
   ['gh', '  gh auth status | repo view | pr create|list|view|diff|checkout|review|merge|checks|close | api …  GitHub CLI（github.example）'],
   ['kubectl', '  kubectl get|describe|apply|create|delete|label|annotate|taint|run|logs|exec|events|wait|config …  操作模擬的 Kubernetes 叢集'],
   ['base64', '  base64 [-d] [-w 欄數] [檔案]   以 base64 編碼或解碼（-d），預設每 76 個字元換行'],
+  ['helm', '  helm install|upgrade|list|status|history|rollback|uninstall|get|template|lint|show|repo|search|pull|create|package …  以 Helm 管理 chart 與 release'],
   ['man', '  man 指令                顯示指令的說明頁（也可以用 指令 --help）'],
 ];
 /** The lines that change when a profile has the feature (the lab keeps its own lines). */
@@ -1761,6 +1768,12 @@ function exec(state: FsState, words: readonly string[], ctx: Ctx): Exec {
       const r = kubectl(cur(), args, { out: print, raw: write, err: fail, stdin: ctx.stdin, read: name => { const x = readPath(cur(), name); return 'error' in x ? { error: x.error } : { text: x.text }; } });
       code = r.status;
       return done(r.advance ? advanceClock(r.state, r.advance) : r.state);
+    }
+    case 'helm': {
+      // E39 (helm.ts): charts on the workstation and in the repository, releases as Secrets of the cluster in state.kube.
+      const r = helm(cur(), args, { out: print, err: fail });
+      code = r.status;
+      return done(r.state);
     }
     case 'base64': {
       // E36 (base64.ts): GNU coreutils' base64 (encode wrapped at 76, -w, -d, -i), for Secrets' data.

@@ -140,9 +140,9 @@ function flow(s: string, i0: number, no: number, base: number): { v: Y; end: num
 
 /**
  * Parses the subset; throws YamlError with yaml.v3's message (or the subset's own sentence). E29: workflow files pass
- * keep, so |+ and >+ keep their trailing empty lines as YAML says (compose files keep E23's behaviour: one newline).
+ * keep, so |+ and >+ keep their trailing empty lines as YAML says (compose files keep E23's behaviour: one newline). E39: Helm passes flowNext (resources:\n  {}).
  */
-export function parseYaml(text: string, opts: { keep?: boolean } = {}): Y {
+export function parseYaml(text: string, opts: { keep?: boolean; flowNext?: boolean } = {}): Y {
   const raw = text.split('\n').map(l => l.replace(/\r$/, ''));
   const lines: Line[] = [];
   let started = false;
@@ -168,7 +168,7 @@ export function parseYaml(text: string, opts: { keep?: boolean } = {}): Y {
     p++;
     const next = cur();
     if (rest === '') {
-      if (next && next.indent > ind) return block();
+      if (next && next.indent > ind) return opts.flowNext && /^[[{]/.test(next.body) && !(lines[p + 1] && lines[p + 1].indent > ind) ? (p++, inline(next.body, next.no, at(next))) : block();
       if (next && next.indent === ind && isDash(next.body) && !isDash(l.body)) return seq(ind);
       return { t: 'null', line: l.no, col };
     }
