@@ -14,7 +14,7 @@ import { netSig, netTimes, syncNet } from './kube-endpoints';
 import { mountPod, syncVolume, volumeTimes } from './kube-volumes';
 import { claimNode, volumeNeeds } from './kube-storage-sched';
 import { WAIT } from './kube-storage-model';
-import { createdOf, kindOf, obj, sameJ, str, uidOf, type JObj, type KubeState } from './kube-model';
+import { createdOf, kindOf, obj, sameJ, str, uidOf, type JObj, type KubeState, type KubeNode } from './kube-model';
 
 /*
  * Engine stage E32 (docs/curriculum/KUB0_E32_CLUSTER.md §8): settleKube plays the controllers up to the machine's clock,
@@ -127,7 +127,9 @@ function bind(k0: KubeState, id: string, t: Seconds): KubeState {
   if (named !== undefined && !target) return { ...k, unscheduled: { ...k.unscheduled, [id]: { t, message: '', n: k.retry?.n ?? 0 } } };
   // E38: a claim that is missing, being deleted or unbound fails before any node; the volumes filter the nodes.
   const vol = k.storage && !target ? volumeNeeds(k, pod, t) : null, all = k.nodes.length;
-  const r = vol && 'message' in vol ? { message: `0/${all} nodes are available: ${vol.message}. preemption: 0/${all} nodes are available: ${all} Preemption is not helpful for scheduling.` }
+  // Typed explicitly: object literals in a conditional are normalised to a union where message may be undefined, and
+  // next build's type check (with a restored incremental cache) failed on it.
+  const r: { node: KubeNode } | { message: string } = vol && 'message' in vol ? { message: `0/${all} nodes are available: ${vol.message}. preemption: 0/${all} nodes are available: ${all} Preemption is not helpful for scheduling.` }
     : target ? { node: target } : schedule(k, pod, vol?.fits);
   if ('message' in r) {
     k = record(k, t, about(pod), 'Warning', 'FailedScheduling', r.message, 'default-scheduler');
