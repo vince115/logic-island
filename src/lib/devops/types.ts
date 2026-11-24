@@ -5,12 +5,15 @@ import type { IncidentMetric } from './incident';
 import type { LogFilter } from './log-query';
 import type { LogSet } from './logs';
 import type { Gate, RolloutScenario, Strategy } from './rollout';
+import type { SamplingPolicy } from './sampling';
+import type { BurnCondition, SloScenario } from './slo';
+import type { TraceSet } from './traces';
 
 /*
  * CICD-0 (docs/curriculum/CICD0_DEVOPS_CAPABILITY.md): the shape of `content.devops`, the devops-explorer capability's
  * part of a lesson. Explorers are shown in the lesson's sections by id, like any example; exercises name what they ask
  * (a query on the lesson's explorers) and never write the answer: src/lib/devops/check.ts computes it from the data.
- * D1 (histories), D2 (rollouts), D3 (dashboards) and D4 (logs) are built.
+ * D1 (histories), D2 (rollouts), D3 (dashboards), D4 (logs), D5 (traces) and D6 (SLOs) are built.
  */
 
 /** D1: a service's deployment history, with its DORA metrics computed in the browser. 示意資料. */
@@ -24,6 +27,23 @@ export interface DashboardExplorer { id: string; title: string; description: str
  * `masking` are the rules the editor starts with; `checks` (optional) are values the editor reports as still seen or lost.
  */
 export interface LogsExplorer { id: string; title: string; description: string; logs: LogSet; masking?: string[]; checks?: { mustHide: string[]; mustKeep: string[] } }
+/**
+ * D5 (monitoring-dashboard): distributed traces with a waterfall, self time and the critical path, sampling and
+ * cardinality. `links.logs` names a logs explorer of the lesson whose records carry trace ids (in `links.field`, default
+ * its correlation field); `links.dashboard` a dashboard whose series the set's exemplars name. `labels` are the labels
+ * the cardinality calculator starts with (default service, name, status).
+ */
+export interface TracesExplorer {
+  id: string; title: string; description: string; traces: TraceSet;
+  links?: { logs?: string; field?: string; dashboard?: string };
+  labels?: string[];
+}
+
+/**
+ * D6 (monitoring-dashboard): an SLO on bucketed good and total events, its error budget, burn rates, multi-window
+ * burn-rate alerts (the scenario's `alerts`; the explorer starts from the first) and an optional SLA credit table.
+ */
+export interface SloExplorer { id: string; title: string; description: string; slo: SloScenario }
 
 export const DORA_METRICS = ['deployments', 'deploy-days', 'per-week', 'changes', 'lead-time-median', 'failed', 'change-fail-rate', 'recovery-median', 'detect-median'] as const;
 export type DoraMetric = typeof DORA_METRICS[number];
@@ -43,6 +63,15 @@ export const CORRELATE_METRICS = ['services', 'elapsed', 'records', 'first-error
 export type CorrelateMetric = typeof CORRELATE_METRICS[number];
 export const RETENTION_METRICS = ['avg-bytes', 'bytes-per-day', 'total-bytes', 'total-mb', 'total-gb'] as const;
 export type RetentionMetric = typeof RETENTION_METRICS[number];
+export const TRACE_METRICS = ['spans', 'duration', 'self-time', 'critical-services', 'bottleneck', 'bottleneck-time', 'error-spans', 'percentile', 'slowest', 'log-records', 'exemplar'] as const;
+export type TraceMetric = typeof TRACE_METRICS[number];
+export const SAMPLING_METRICS = ['traces', 'error-traces', 'slow-traces', 'kept', 'kept-errors', 'kept-slow', 'spans', 'kept-spans', 'spans-per-day', 'kept-spans-per-day'] as const;
+export type SamplingMetric = typeof SAMPLING_METRICS[number];
+export const SLO_METRICS = ['sli', 'slo-met', 'total-events', 'bad-events', 'budget-events', 'consumed', 'consumed-pct', 'remaining', 'remaining-pct',
+  'burn-rate-at', 'exhausted-at', 'hours-left', 'sla-credit'] as const;
+export type SloMetric = typeof SLO_METRICS[number];
+export const BURN_METRICS = ['first-firing', 'first-resolved', 'notifications', 'false-alerts', 'missed', 'detected', 'detection-delay', 'firing-minutes', 'state-at'] as const;
+export type BurnMetric = typeof BURN_METRICS[number];
 export const ROLLOUT_RANKED = ['errors', 'dropped', 'affected', 'peak-instances', 'extra-instance-minutes', 'completed-at'] as const satisfies readonly RolloutMetric[];
 
 /** Where an answer comes from: a question about the lesson's explorers, computed by check.ts. */
@@ -77,7 +106,34 @@ export type DevopsQuery =
   /** D4: retention sizing; perDay and avgBytes come from the query, or else from the log set (perDay, its records' average). */
   | { task: 'retention'; logs?: string; perDay?: number; avgBytes?: number; days: number; metric: RetentionMetric }
   /** D4: whether a raw line is structured (JSON or key=value) or unstructured text, or how many fields it has. */
-  | { task: 'log-format'; logs: string; line: string; metric: 'format' | 'fields' };
+  | { task: 'log-format'; logs: string; line: string; metric: 'format' | 'fields' }
+  /**
+   * D5: a number or word from a trace (`trace`, its id): spans, duration, the self time of `span` (its id, or its name
+   * when unique), the critical path's services, the bottleneck service and its time on the path, error spans, the log
+   * records that carry its id (log-records, through the explorer's links). Of all traces: the `p`-th percentile (default
+   * 95) of the durations, the slowest trace's id, the trace of an exemplar (`series`, `minute`).
+   */
+  | { task: 'trace'; traces: string; metric: TraceMetric; trace?: string; span?: string; p?: number; series?: string; minute?: number }
+  /** D5: counts after sampling with `policy` (default: keep everything); slow-traces and kept-slow need `slowerThan`. */
+  | { task: 'sampling'; traces: string; metric: SamplingMetric; policy?: SamplingPolicy; slowerThan?: number }
+  /**
+   * D5: the most series of a metric with these labels (series), or one label's distinct values (distinct). A label is
+   * named (its distinct values counted in the traces' spans) or given with its count ({ name: 'user_id', values: 50000 }).
+   */
+  | { task: 'cardinality'; traces?: string; labels: (string | { name: string; values: number })[]; metric: 'series' | 'distinct' }
+  /**
+   * D6: a number or word from an SLO scenario (`slo`, its explorer's id). Buckets are indices (bucket t covers minutes
+   * [t × B, (t + 1) × B)); answers about time are in minutes. sli, slo-met, total-events, bad-events and sla-credit are
+   * over buckets [from, to) (default all); consumed, consumed-pct, remaining and remaining-pct after bucket `at` (default
+   * the last); burn-rate-at and hours-left need `at` and `window` (minutes); exhausted-at is the first bucket's start
+   * minute after which the budget is used up.
+   */
+  | { task: 'slo'; slo: string; metric: SloMetric; from?: number; to?: number; at?: number; window?: number }
+  /**
+   * D6: a number or state from a burn-rate alert's evaluation: one of the scenario's alerts by id, or a condition written
+   * in the query. Times are in minutes; detection-delay needs `incident`, state-at needs `at` (a bucket).
+   */
+  | { task: 'burn'; slo: string; rule: string | BurnCondition; metric: BurnMetric; incident?: string; at?: number };
 
 export interface DevopsBlank { id: string; label: string; query: DevopsQuery }
 /** What a rollout plan must achieve (each limit inclusive); completeBy also needs the rollout to complete. */
@@ -107,6 +163,21 @@ export interface AlertPlanTask { dashboard: string; constraints: AlertConstraint
  */
 export interface RedactTask { logs: string; mustHide: string[]; mustKeep: string[]; reference: string[] }
 
+/** What a sampling policy must achieve (keepSlowerThan: every trace slower than X ms; maxSpansPerDay inclusive). */
+export interface SamplingConstraints { keepAllErrors?: true; keepSlowerThan?: number; maxSpansPerDay?: number }
+/**
+ * sampling-plan (D5): the learner sets the head ratio and the tail rules; the checker samples the traces with them and
+ * checks the constraints (any policy that meets them passes). `reference` is one policy that does.
+ */
+export interface SamplingPlanTask { traces: string; constraints: SamplingConstraints; reference: SamplingPolicy }
+
+/**
+ * burn-alert (D6): the learner sets a burn-rate alert (long window, short window, factor); the checker evaluates it on
+ * the scenario, bucket by bucket, and checks the constraints (detectWithin in minutes; any condition that meets them
+ * passes). `reference` is one condition that does.
+ */
+export interface BurnAlertTask { slo: string; constraints: AlertConstraints; reference: BurnCondition }
+
 export type DevopsExercise = {
   id: string; title: string; statement: string; hints: string[]; explanation: string;
   /** Typical wrong answers, in the shape of the learner's (see answerKeys); each must fail the check. */
@@ -120,6 +191,8 @@ export type DevopsExercise = {
   | { kind: 'rollout-plan'; plan: RolloutPlanTask }
   | { kind: 'alert-rule'; plan: AlertPlanTask }
   | { kind: 'redact'; redact: RedactTask }
+  | { kind: 'sampling-plan'; sampling: SamplingPlanTask }
+  | { kind: 'burn-alert'; burn: BurnAlertTask }
 );
 
 export interface DevopsLessonContent {
@@ -127,6 +200,8 @@ export interface DevopsLessonContent {
   rollouts?: RolloutExplorer[];
   dashboards?: DashboardExplorer[];
   logs?: LogsExplorer[];
+  traces?: TracesExplorer[];
+  slos?: SloExplorer[];
   exercises: DevopsExercise[];
 }
-export const devopsExplorers = (c: DevopsLessonContent) => [...c.histories ?? [], ...c.rollouts ?? [], ...c.dashboards ?? [], ...c.logs ?? []];
+export const devopsExplorers = (c: DevopsLessonContent) => [...c.histories ?? [], ...c.rollouts ?? [], ...c.dashboards ?? [], ...c.logs ?? [], ...c.traces ?? [], ...c.slos ?? []];

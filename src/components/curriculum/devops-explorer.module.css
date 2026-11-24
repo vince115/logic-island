@@ -1,4 +1,4 @@
-/* CICD-0 devops-explorer: the deployment history (D1), the rollout simulator (D2), the monitoring dashboard (D3) and the log viewer (D4). Charts are inline SVG that scale to
+/* CICD-0 devops-explorer: the deployment history (D1), the rollout simulator (D2), the monitoring dashboard (D3), the log viewer (D4) and the traces (D5). Charts are inline SVG that scale to
    the column; every chart has a table with the same numbers, and every table scrolls inside its own box on a phone. */
 .illustrative {
   margin: 0 0 10px;
@@ -395,8 +395,107 @@ g[data-selected] .deploy {
   white-space: pre;
 }
 
+/* D5 traces: a waterfall of CSS bars on one time axis (label buttons on the left, bars on the right; stacked on a phone). */
+.waterfall {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.wfRow {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  align-items: center;
+  gap: 2px 8px;
+  padding: 2px 6px;
+  border-bottom: 1px solid var(--border);
+}
+.wfRow:last-child {
+  border-bottom: 0;
+}
+.wfRow[data-selected] {
+  background: var(--soft);
+}
+.wfLabel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 6px;
+  align-items: baseline;
+  min-width: 0;
+  min-height: 32px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-xs);
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.wfLabel small {
+  color: var(--muted);
+}
+.wfLabel[aria-pressed='true'] {
+  font-weight: 700;
+}
+.track {
+  position: relative;
+  display: block;
+  height: 14px;
+  border-radius: 3px;
+  background: var(--soft);
+}
+.bar,
+.pathSeg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 3px;
+}
+.bar {
+  background: var(--accent);
+  opacity: 0.55;
+}
+.bar[data-error] {
+  background: var(--cur-bad);
+  opacity: 0.8;
+}
+.pathSeg {
+  top: 4px;
+  bottom: 4px;
+  background: var(--text);
+}
+.swatch.pathSwatch {
+  background: var(--text);
+}
+.wfAxis {
+  display: flex;
+  justify-content: space-between;
+  margin: 2px 0 8px;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.linkButton {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--accent-ink, var(--accent));
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.linkButton[aria-pressed='true'] {
+  font-weight: 700;
+}
+
 @media (max-width: 560px) {
   .controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .wfRow {
     grid-template-columns: minmax(0, 1fr);
   }
 }

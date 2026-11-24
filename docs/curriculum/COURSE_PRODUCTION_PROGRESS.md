@@ -6,11 +6,11 @@
 
 | 項目 | 數量 |
 |---|---|
-| 已發布課程 | 254 |
-| 規劃中課程 | 266 |
+| 已發布課程 | 258 |
+| 規劃中課程 | 262 |
 | 課程總數 | 520 |
-| 整體覆蓋率 | 48.8% |
-| 最近一批（第 54 批）完成 | 3 堂（KUB08、KUB09、KUB10） |
+| 整體覆蓋率 | 49.6% |
+| 最近一批（第 55 批）完成 | 4 堂（KUB11、KUB12、KUB13、KUB14） |
 | 可完整學完的學習路線 | 2 條（APCS／資訊科學基礎、網路與系統）／12 條 |
 
 ## 批次
@@ -70,7 +70,8 @@
 | 51 | 2026-11-24 | CICD15 | `TBD` | #97 | `5550c3e` | TBD |
 | 52 | 2026-11-24 | KUB01、KUB02、KUB03、KUB04 | `TBD` | #98 | `c4a42e4` | TBD |
 | 53 | 2026-11-24 | KUB05、KUB06、KUB07 | `TBD` | #100 | `94ac2bf` | TBD |
-| 54 | 2026-11-24 | KUB08、KUB09、KUB10 | `TBD` | — | 未合併 | TBD |
+| 54 | 2026-11-24 | KUB08、KUB09、KUB10 | `TBD` | #101 | `d453dcf` | TBD |
+| 55 | 2026-11-24 | KUB11、KUB12、KUB13、KUB14 | `TBD` | — | 未合併 | TBD |
 
 ## 各區域與島嶼
 
@@ -104,7 +105,7 @@
 | 系統與雲端工程群島 | 網路與伺服器島 | SRV | 14 | 0 | 100.0% |
 | 系統與雲端工程群島 | 雲端基礎設施島 | CLD | 0 | 15 | 0.0% |
 | 系統與雲端工程群島 | DevOps 與 CI/CD 島 | CICD | 15 | 0 | 100.0% |
-| 系統與雲端工程群島 | Kubernetes 與可靠性工程島 | KUB | 10 | 5 | 66.7% |
+| 系統與雲端工程群島 | Kubernetes 與可靠性工程島 | KUB | 14 | 1 | 93.3% |
 
 ## 各課程
 
@@ -485,11 +486,11 @@
 | KUB05 | Service 與服務發現 | 完成 | 100% | 活動 terminal-sim | 通過 | `TBD` | 已發布 |
 | KUB06 | ConfigMap 與 Secret | 完成 | 100% | 活動 terminal-sim | 通過 | `TBD` | 已發布 |
 | KUB07 | Ingress 與 Gateway API | 完成 | 100% | 活動 network-sequence | 通過 | `TBD` | 已發布 |
-| KUB08 | Persistent Volume 與有狀態應用 | 完成 | 100% | 活動 terminal-sim | 通過 | `TBD` | 已完成（待合併） |
-| KUB09 | Helm 套件管理 | 完成 | 100% | 活動 terminal-sim | 通過 | `TBD` | 已完成（待合併） |
-| KUB10 | 自動擴展 | 完成 | 100% | 活動 terminal-sim | 通過 | `TBD` | 已完成（待合併） |
-| KUB11 | 滾動更新與回滾 | 規劃中 | 大綱 | — | — | — | 規劃中 |
-| KUB12 | 叢集監控 | 規劃中 | 大綱 | — | — | — | 規劃中 |
-| KUB13 | 可觀測性：指標、日誌與追蹤 | 規劃中 | 大綱 | — | — | — | 規劃中 |
-| KUB14 | SLI、SLO 與 SLA | 規劃中 | 大綱 | — | — | — | 規劃中 |
+| KUB08 | Persistent Volume 與有狀態應用 | 完成 | 100% | 活動 terminal-sim | 通過 | `TBD` | 已發布 |
+| KUB09 | Helm 套件管理 | 完成 | 100% | 活動 terminal-sim | 通過 | `TBD` | 已發布 |
+| KUB10 | 自動擴展 | 完成 | 100% | 活動 terminal-sim | 通過 | `TBD` | 已發布 |
+| KUB11 | 滾動更新與回滾 | 完成 | 100% | 活動 terminal-sim | 通過 | `TBD` | 已完成（待合併） |
+| KUB12 | 叢集監控 | 完成 | 100% | 活動 monitoring-dashboard | 通過 | `TBD` | 已完成（待合併） |
+| KUB13 | 可觀測性：指標、日誌與追蹤 | 完成 | 100% | 活動 monitoring-dashboard | 通過 | `TBD` | 已完成（待合併） |
+| KUB14 | SLI、SLO 與 SLA | 完成 | 100% | 活動 monitoring-dashboard | 通過 | `TBD` | 已完成（待合併） |
 | KUB15 | Kubernetes 與可靠性工程島綜合專題：SRE 實務演練 | 規劃中 | 大綱 | — | — | — | 規劃中 |

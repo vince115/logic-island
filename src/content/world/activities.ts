@@ -163,7 +163,7 @@ const IMPLEMENTED_TEXT: Record<string, string> = {
   // CICD-0: the devops-explorer's deployment histories (D1) and rollout simulator (D2), src/components/curriculum/devops-explorer.tsx.
   // Shown once a complete lesson uses the activity (until then it is planned and carries the requirement, like every planned one).
   // CICD-0 D3: the monitoring dashboard (src/components/curriculum/dashboard-view.tsx), implemented once a complete lesson uses it.
-  'monitoring-dashboard': '每條時間序列的圖都有等效的表格（每列 10 分鐘），事故期間與告警門檻以文字寫出；告警規則的每段狀態（未觸發、等待中、觸發中、已恢復）、每個事故的偵測延遲與每次通知是否為誤報都以表格呈現，總計與目前這一分鐘的說明以 aria-live 宣告；事故時間線與嚴重等級矩陣是表格；日誌以分頁的表格列出（篩選是有標籤的表單控制項），分組計數、以關聯 ID 追蹤的請求（含相差的秒數）與遮蔽後的日誌都是文字',
+  'monitoring-dashboard': '每條時間序列的圖都有等效的表格（每列 10 分鐘），事故期間與告警門檻以文字寫出；告警規則的每段狀態（未觸發、等待中、觸發中、已恢復）、每個事故的偵測延遲與每次通知是否為誤報都以表格呈現，總計與目前這一分鐘的說明以 aria-live 宣告；事故時間線與嚴重等級矩陣是表格；日誌以分頁的表格列出（篩選是有標籤的表單控制項），分組計數、以關聯 ID 追蹤的請求（含相差的秒數）與遮蔽後的日誌都是文字；分散式追蹤的瀑布圖有等效的表格（每個 span 的服務、開始、持續、自身時間與是否在關鍵路徑上），所選 span 與關鍵路徑以 aria-live 說明，取樣的結果與基數的乘積都是表格；SLO 的每個時段的 SLI 與剩下的錯誤預算有等效的表格（事件、SLI、累計的壞事件與剩下的預算），錯誤預算與算式以文字寫出，各視窗的消耗率、消耗率告警的狀態與偵測、SLA 的補償表（標出落在的區間）都是表格，目前這個時段的說明以 aria-live 宣告',
   'deployment-simulator': '每張圖都有等效的表格：部署紀錄逐筆列出（變更數、前置時間、是否失敗、偵測與復原時間），DORA 指標與其算式以文字寫出；部署模擬逐分鐘列出各版本的執行個體、承接的請求、錯誤與丟棄，閘門的判定與總計以表格呈現，目前這一分鐘的說明以 aria-live 宣告',
 };
 /** The requirement a planned activity carries instead of a description of its text equivalent. */

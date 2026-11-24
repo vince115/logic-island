@@ -54,7 +54,7 @@
 - `docs/curriculum/data/island-capabilities.json`：`kubernetes-reliability` 由 `missing` 改為 `prepared`；`AUTONOMOUS_CURRICULUM_PROGRESS.md` 以 `scripts/curriculum-queue.ts` 重新產生（下一批成為 KUB01–KUB05），`COURSE_PRODUCTION_PROGRESS.md` 以 `scripts/course-progress.ts` 檢查（沒有變動），兩者的 `--check` 都通過。
 
 **活動登錄的影響**（`src/content/world/activities.ts` 由目錄課程的藍圖活動產生 planned 項目）：
-- `cluster-sim`：沒有實驗室（`P7_SYSTEMS_LABS` 說它只是課程活動），只有 KUB 用；隨著課寫好，它的島嶼清單會縮小，**KUB11 寫好後這個項目會從 `/learn` 的活動登錄消失**（已決定，不另加實驗室）。目前仍是 planned。
+- `cluster-sim`：沒有實驗室（`P7_SYSTEMS_LABS` 說它只是課程活動），只有 KUB 用；隨著課寫好，它的島嶼清單會縮小，**KUB11 寫好後這個項目會從 `/learn` 的活動登錄消失**（已決定，不另加實驗室）。KUB-4 寫好 KUB11，這個項目已從活動登錄消失。
 - `request-path`：仍列出（規劃中的 `network-request` 實驗室保留它，DKR-5 的規則）。
 - `architecture-diagram`：經由 DB19 維持 implemented，島嶼清單之後少了 `kubernetes-reliability`。
 - `metric-explorer`：只為 ML 維持 planned。
@@ -76,6 +76,7 @@
 - **KUB-1 已發布（2026-11-24）**：KUB01–KUB04 依 §2 的對應發布（[KUBERNETES_RELIABILITY_ISLAND](KUBERNETES_RELIABILITY_ISLAND.md)），島嶼移入 `ISLAND_IDS`（`devops-cicd` 之後），`PREPARED_ISLAND_IDS` 成為空的；單元「編排的觀念與叢集架構」（KUB01–KUB02）與「Pod 與工作負載」（KUB03–KUB04）。活動登錄依 §3：`terminal-sim`、`network-sequence` 的島嶼清單加上本島，`architecture-diagram` 的少了本島，`cluster-sim` 仍是規劃中。課文避開的引擎差異（故障節點上的 `kubectl delete pod` 立即返回、`get events --field-selector involvedObject.kind` 不支援、原生 sidecar／共用 Volume／Pod 內 localhost 沒有模擬、manifest 的 `sh -c` 字串含 `'` 無法解析）記在島嶼文件。
 - **KUB-2 已發布（2026-11-24）**：KUB05–KUB07 依 §2 的對應發布，階段 E35 `kube-net`、E36 `kube-config`、E37 `ingress` 建好；單元「服務、設定與入口」（KUB05–KUB07）。KUB05、KUB06 是 `terminal-sim`，KUB07 是 `network-sequence`（藍圖的 request-path，終端機旁加上一個 HTTPS 請求進入叢集的網路情境）。活動登錄依 §3：島嶼清單沒有變動；`request-path` 仍是規劃中，已沒有目錄課程使用它，島嶼清單改由藍圖大綱列出（`network-servers` 與本島）。課文避開的引擎差異（後面的開機 manifest 改過的 ConfigMap 在 Pod 第一次啟動時已是新版本、後端收到的 X-Real-IP／X-Forwarded-For 是 controller Pod 的位址、`api-resources` 不列出 endpointslices、kube-proxy 依端點順序輪流）記在島嶼文件。
 - **KUB-3 已發布（2026-11-24）**：KUB08–KUB10 依 §2 的對應發布，階段 E38 `kube-storage`、E39 `helm`、E40 `autoscaling` 建好（`KUBE_STAGES_BUILT` 是 E32–E40 全部）；單元「儲存、套件與擴展」（KUB08–KUB10），三課都是 `terminal-sim`。活動登錄依 §3：島嶼清單沒有變動；`cluster-sim` 仍是規劃中，只剩 KUB11 使用它，KUB-4 之後從活動登錄消失。課文避開的引擎差異（只被 Pending 的 Pod 使用的 PVC 刪除後停在 Terminating、`kubectl patch`／`kubectl exec deploy/x`／`ls -R` 沒有模擬、控制器不在兩份開機 manifest 之間執行、開機的 Helm 升級只留下最後一個 revision 的 ReplicaSet、`--wait` 的升級只改副本數或設定時在同一秒返回、新的 Pod 一就緒就分到負載、節點擴展只在課文說明）記在島嶼文件。
+- **KUB-4 已發布（2026-11-24）**：KUB11–KUB14 依 §2 的對應發布，`devops-explorer` 階段 D5（追蹤、取樣、基數）與 D6（SLO、錯誤預算、消耗率告警）建好（`DEVOPS_STAGES_BUILT` 是 D1–D6 全部，見 [CICD0_DEVOPS_CAPABILITY](CICD0_DEVOPS_CAPABILITY.md) §10.5、§10.6）；單元「發布、監控與可靠性」（KUB11–KUB14）。KUB11 是 `terminal-sim`（沒有加上可選的 devops-explorer），KUB12 是 `monitoring-dashboard` 加上終端機（D3 的叢集儀表板旁是 E40 的 `kubectl top`、`describe node` 與 Warning 事件，§11 的疑問以這個形狀解決），KUB13（D3、D4、D5）與 KUB14（D6）是只有 devops-explorer 的 `monitoring-dashboard`；它們是 `devops-cicd` 以外第一批宣告 devops-explorer 的課。活動登錄依 §3：`cluster-sim` 從活動登錄消失（活動 89 → 88），`metric-explorer` 仍是規劃中、只剩 `machine-learning`，`monitoring-dashboard` 的島嶼清單不變。課文避開的引擎差異（開機時 Deployment 沒有 revision 歷史、`get events --field-selector type=Warning` 與 `kubectl set resources` 沒有模擬、事件不會過期、一行 500 個字元的輸入上限、D3 儀表板最多 360 分鐘）記在島嶼文件。剩下 KUB-5（KUB15 綜合專題）。
 
 D5、D6 只在 `src/lib/devops` 與 `src/components/curriculum`，可以和任何 E 階段平行。KUB-2 或 KUB-3 太大時，在階段的邊界分批（同 CICD-1 的調整）。
 

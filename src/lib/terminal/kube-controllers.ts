@@ -9,7 +9,7 @@ import { STORAGE_KINDS } from './kube-storage-model';
 import { tolerates } from './kube-sched';
 import { hpaTimes, syncHpas } from './kube-hpa';
 import { DESIRED, HASH, MAX_REPLICAS, REVISION } from './kube-workload-spec';
-import { arr, clone, createdOf, systemNs, kindOf, meta, nameOf, nsOf, obj, stamp, str, uid, uidOf, type J, type JObj, type KubeState, type Taint } from './kube-model';
+import { arr, clone, createdOf, systemNs, kindOf, meta, nameOf, nsOf, obj, stamp, str, uid, uidOf, type J, type JObj, type KubeState, type Taint, objectByUid } from './kube-model';
 
 /*
  * Engine stage E34 (docs/curriculum/KUB0_E34_WORKLOADS.md §5): when the controllers run. They run at a time t after a
@@ -63,8 +63,8 @@ export function runControllers(d: DockerState | undefined, k0: KubeState, t: Sec
   for (let i = 0; i < 8; i++) {
     const before = k;
     k = collectGarbage(d, k, t);
-    for (const rs of visible(k, 'ReplicaSet', undefined, t)) { const live = k.objects.find(o => uidOf(o) === uidOf(rs)); if (live && !meta(live).deletionTimestamp) k = syncReplicaSet(d, k, live, t); }
-    for (const dep of visible(k, 'Deployment', undefined, t)) { const live = k.objects.find(o => uidOf(o) === uidOf(dep)); if (live) k = syncDeployment(k, live, t); }
+    for (const rs of visible(k, 'ReplicaSet', undefined, t)) { const live = objectByUid(k, uidOf(rs)); if (live && !meta(live).deletionTimestamp) k = syncReplicaSet(d, k, live, t); }
+    for (const dep of visible(k, 'Deployment', undefined, t)) { const live = objectByUid(k, uidOf(dep)); if (live) k = syncDeployment(k, live, t); }
     // E38: the StatefulSet controller, then the PersistentVolume controller (and the attach/detach retries).
     if (k.storage) {
       for (const set of visible(k, 'StatefulSet', undefined, t)) { const live = k.objects.find(o => uidOf(o) === uidOf(set)); if (live) k = syncStatefulSet(d, k, live, t); }

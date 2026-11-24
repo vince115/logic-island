@@ -4,7 +4,7 @@ import { ownedBy, ownerRef, podFacts, visible } from './kube-replicaset';
 import {
   CHANGE_CAUSE, defaultWorkload, DESIRED, fenceposts, HASH, HISTORY, MAX_REPLICAS, replicasOf, REVISION, templateHash, withoutHash,
 } from './kube-workload-spec';
-import { arr, clone, createdOf, kindOf, meta, nameOf, nsOf, obj, parseStamp, sameJ, stamp, str, uidOf, type J, type JObj, type KubeState } from './kube-model';
+import { arr, clone, createdOf, kindOf, meta, nameOf, nsOf, obj, parseStamp, sameJ, stamp, str, uidOf, type J, type JObj, type KubeState, objectByUid } from './kube-model';
 import { LAST_APPLIED } from './kube-write';
 
 /*
@@ -19,7 +19,7 @@ import { LAST_APPLIED } from './kube-write';
  */
 
 export const revisionOf = (o: JObj) => Number(str(obj(meta(o).annotations)[REVISION]) ?? 0);
-const live = (k: KubeState, o: JObj) => k.objects.find(x => uidOf(x) === uidOf(o)) ?? o;
+const live = (k: KubeState, o: JObj) => objectByUid(k, uidOf(o)) ?? o;
 const specReplicas = (rs: JObj) => Number(obj(rs.spec).replicas ?? 0);
 const st = (rs: JObj, key: string) => Number(obj(rs.status)[key] ?? 0);
 const byCreation = (a: JObj, b: JObj) => (createdOf(a) ?? 0) - (createdOf(b) ?? 0) || (nameOf(a) < nameOf(b) ? -1 : 1);

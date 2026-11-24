@@ -1,6 +1,10 @@
 import { dashboardProblems } from './dashboard';
 import { ALERT_FIELDS, alertPlanAnswer, alertPlanProblems, checkAlertPlan, dashboardQueryValue } from './dashboard-check';
 import { checkRedact, logsExplorerProblems, logsQueryValue, REDACT_FIELD, redactAnswer, redactTaskProblems } from './logs-check';
+import { checkSamplingPlan, SAMPLING_FIELDS, samplingAnswer, samplingPlanProblems } from './sampling-check';
+import { tracesExplorerProblems, tracesQueryValue } from './traces-check';
+import { burnAlertProblems, burnAnswer, BURN_FIELDS, checkBurnAlert, sloQueryValue } from './slo-check';
+import { sloProblems } from './slo';
 import { doraMetrics, historyProblems, type DoraMetrics } from './history';
 import { rolloutProblems, simulateRollout, strategyIssues, strategyProblems, strategyText, type InstanceAmount, type RolloutResult, type RolloutScenario, type Strategy } from './rollout';
 import { DORA_METRICS, DORA_RANKED, devopsExplorers, ROLLOUT_METRICS, ROLLOUT_RANKED, type DevopsBlank, type DevopsExercise, type DevopsLessonContent, type DevopsQuery, type DoraMetric, type PlanConstraints, type RolloutPlanTask } from './types';
@@ -11,7 +15,8 @@ import { DORA_METRICS, DORA_RANKED, devopsExplorers, ROLLOUT_METRICS, ROLLOUT_RA
  * and the learner's answer is compared with it: numbers exactly (at the decimals the value has), words without regard
  * to case and spaces, with their Chinese aliases. A rollout-plan exercise simulates the learner's own parameters and
  * checks the constraints. D3's dashboard queries and alert-rule task are in dashboard-check.ts, D4's log queries and
- * redact task in logs-check.ts, dispatched from here.
+ * redact task in logs-check.ts, D5's trace, sampling and cardinality queries in traces-check.ts and its sampling-plan
+ * task in sampling-check.ts, D6's slo and burn queries and burn-alert task in slo-check.ts, dispatched from here.
  * devopsContentProblems is what validateContent runs on `content.devops`.
  */
 
@@ -133,11 +138,13 @@ export function devopsQueryValue(q: DevopsQuery, c: DevopsLessonContent): Devops
     }
     case 'series': case 'alert': case 'incident': return dashboardQueryValue(q, c);
     case 'logs': case 'correlate': case 'retention': case 'log-format': return logsQueryValue(q, c);
+    case 'trace': case 'sampling': case 'cardinality': return tracesQueryValue(q, c);
+    case 'slo': case 'burn': return sloQueryValue(q, c);
   }
 }
 
 // ---- checking -----------------------------------------------------------------------------------------------------
-const UNIT = /(執行個體分鐘|分鐘|小時|次／週|次\/週|次|個|步|天|分|毫秒|ms|%|‰|秒|筆|位元組|bytes|MB|GB)$/i;
+const UNIT = /(執行個體分鐘|分鐘|小時|次／週|次\/週|次|個?事件|個|步|天|分|毫秒|ms|%|‰|秒|筆|位元組|bytes|MB|GB|條|個span|spans?|倍|×|x)$/i;
 /** A number as the learner may type it: full-width digits, thousands commas, a unit after it (分鐘, %, ‰…). */
 export function parseDevopsNumber(text: string): number | undefined {
   const t = text.normalize('NFKC').replace(/\s+/g, '').replace(/[,，]/g, '').replace(UNIT, '');
@@ -168,7 +175,7 @@ export const PLAN_FIELDS: Record<RolloutPlanTask['strategy'], Record<string, str
 /** The keys of a learner's answer: `value` (number, field), `choice` (an option's index), each blank's id, or the plan's fields. */
 export const answerKeys = (e: DevopsExercise): string[] => e.kind === 'table' ? e.blanks.map(b => b.id) : e.kind === 'choice' ? ['choice']
   : e.kind === 'rollout-plan' ? Object.keys(PLAN_FIELDS[e.plan.strategy]) : e.kind === 'alert-rule' ? Object.keys(ALERT_FIELDS)
-  : e.kind === 'redact' ? Object.keys(REDACT_FIELD) : ['value'];
+  : e.kind === 'redact' ? Object.keys(REDACT_FIELD) : e.kind === 'sampling-plan' ? Object.keys(SAMPLING_FIELDS) : e.kind === 'burn-alert' ? Object.keys(BURN_FIELDS) : ['value'];
 
 /** A plan's parameters as the learner types them. */
 export function planAnswer(st: Strategy): Record<string, string> {
@@ -264,6 +271,8 @@ export function checkDevopsAnswer(e: DevopsExercise, c: DevopsLessonContent, ans
   if (e.kind === 'rollout-plan') return checkPlan(e.plan, c, answer);
   if (e.kind === 'alert-rule') return checkAlertPlan(e.plan, c, answer);
   if (e.kind === 'redact') return checkRedact(e.redact, c, answer);
+  if (e.kind === 'sampling-plan') return checkSamplingPlan(e.sampling, c, answer);
+  if (e.kind === 'burn-alert') return checkBurnAlert(e.burn, c, answer);
   const messages: string[] = [];
   if (e.kind === 'choice') {
     const chosen = answer.choice?.trim();
@@ -291,6 +300,8 @@ export function referenceAnswer(e: DevopsExercise, c: DevopsLessonContent): Reco
   if (e.kind === 'rollout-plan') return planAnswer(e.plan.reference);
   if (e.kind === 'alert-rule') return alertPlanAnswer(e.plan.reference);
   if (e.kind === 'redact') return redactAnswer(e.redact.reference);
+  if (e.kind === 'sampling-plan') return samplingAnswer(e.sampling.reference);
+  if (e.kind === 'burn-alert') return burnAnswer(e.burn.reference);
   const shown = (b: DevopsBlank) => { const v = devopsQueryValue(b.query, c); return v.type === 'text' ? v.shown : v.value.toFixed(v.decimals); };
   return e.kind === 'table' ? Object.fromEntries(e.blanks.map(b => [b.id, shown(b)])) : { value: shown(e.blank) };
 }
@@ -306,7 +317,7 @@ export function devopsContentProblems(c: DevopsLessonContent): string[] {
   const ids = new Set<string>();
   const unique = (id: string) => { if (ids.has(id)) problems.push(`duplicate id ${id}`); ids.add(id); };
   const explorers = devopsExplorers(c);
-  if (!explorers.length) problems.push('a devops-explorer lesson needs at least one explorer (a history, a rollout, a dashboard or logs)');
+  if (!explorers.length) problems.push('a devops-explorer lesson needs at least one explorer (a history, a rollout, a dashboard, logs, traces or an SLO)');
   for (const x of explorers) {
     unique(x.id);
     if (!x.title?.trim() || !x.description?.trim()) problems.push(`explorer ${x.id} needs a title and a description`);
@@ -315,6 +326,8 @@ export function devopsContentProblems(c: DevopsLessonContent): string[] {
   for (const r of c.rollouts ?? []) problems.push(...rolloutProblems(r.scenario).map(p => `rollout ${r.id}: ${p}`));
   for (const d of c.dashboards ?? []) problems.push(...dashboardProblems(d.dashboard).map(p => `dashboard ${d.id}: ${p}`));
   for (const l of c.logs ?? []) problems.push(...logsExplorerProblems(l).map(p => `logs ${l.id}: ${p}`));
+  for (const t of c.traces ?? []) problems.push(...tracesExplorerProblems(t, c).map(p => `traces ${t.id}: ${p}`));
+  for (const x of c.slos ?? []) problems.push(...sloProblems(x.slo).map(p => `slo ${x.id}: ${p}`));
   if (problems.length) return problems;
 
   for (const e of c.exercises) {
@@ -377,6 +390,18 @@ export function devopsContentProblems(c: DevopsLessonContent): string[] {
     if (e.kind === 'redact') {
       try {
         const bad = redactTaskProblems(e.redact, c);
+        if (bad.length) { for (const b of bad) fail(b); sound = false; }
+      } catch (err) { fail((err as Error).message); sound = false; }
+    }
+    if (e.kind === 'sampling-plan') {
+      try {
+        const bad = samplingPlanProblems(e.sampling, c);
+        if (bad.length) { for (const b of bad) fail(b); sound = false; }
+      } catch (err) { fail((err as Error).message); sound = false; }
+    }
+    if (e.kind === 'burn-alert') {
+      try {
+        const bad = burnAlertProblems(e.burn, c);
         if (bad.length) { for (const b of bad) fail(b); sound = false; }
       } catch (err) { fail((err as Error).message); sound = false; }
     }

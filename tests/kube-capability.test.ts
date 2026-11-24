@@ -17,7 +17,8 @@ import { validateTerminalLessonsFirst } from './support/terminal-replays';
  * devops-cicd; it dropped the test that a synthetic KUB02 was refused while the island was prepared: no island is prepared
  * any more, so it cannot be built; network-capability.test.ts keeps the refusal of a lesson outside the curriculum islands.
  * KUB-2 adds KUB05–KUB07 (E35 kube-net, E36 kube-config, E37 ingress) in a third unit; KUB-3 adds KUB08–KUB10
- * (E38 kube-storage, E39 helm, E40 autoscaling) in a fourth.
+ * (E38 kube-storage, E39 helm, E40 autoscaling) in a fourth; KUB-4 adds KUB11 (rollouts, terminal) and KUB12–KUB14
+ * (monitoring-dashboard on the devops-explorer; KUB12 with the terminal, KUB13 on D5 traces, KUB14 on D6 SLOs) in a fifth.
  */
 const outline = (id: string) => kubeFromBlueprint(id, 's', 50);
 
@@ -48,9 +49,9 @@ describe('kubeFromBlueprint (KUB_SHAPES)', () => {
     expect(row('KUB14')).toEqual(['metric-explorer', 'monitoring-dashboard', ['devops-explorer'], [], 'none', 'D6']);
     expect(row('KUB15')).toEqual(['challenge-stages', 'challenge-stages', ['terminal', 'devops-explorer', 'visualization'], [], 'challenge-stages', 'E32 E33 E34 E35 E36 E37 E38 E39 E40 D3 D5 D6']);
   });
-  it('builds only the lessons whose stages exist: E32–E40 are built, D5–D6 are not', () => {
+  it('builds every lesson: E32–E40 and D1–D6 are built', () => {
     expect(KUBE_STAGES_BUILT).toEqual(['E32', 'E33', 'E34', 'E35', 'E36', 'E37', 'E38', 'E39', 'E40']);
-    expect(DEVOPS_STAGES_BUILT).toEqual(['D1', 'D2', 'D3', 'D4']);
+    expect(DEVOPS_STAGES_BUILT).toEqual(['D1', 'D2', 'D3', 'D4', 'D5', 'D6']);
     const b = planning.plannedLessons.find(l => l.lessonId === 'KUB02')!;
     expect(outline('KUB02')).toMatchObject({ slug: b.slug, title: b.title, objectives: b.learningObjectives, concepts: b.concepts, prerequisites: b.prerequisites, activity: 'network-sequence',
       capabilities: ['terminal', 'network-protocol'], visualization: 'none', blueprintId: 'KUB02' });
@@ -62,8 +63,8 @@ describe('kubeFromBlueprint (KUB_SHAPES)', () => {
     expect(outline('KUB08')).toMatchObject({ activity: 'terminal-sim', capabilities: ['terminal'], visualization: 'none', blueprintId: 'KUB08' });
     // E39 (KUB-3): KUB09 is a terminal lesson of Helm charts, values and releases.
     expect(outline('KUB09')).toMatchObject({ activity: 'terminal-sim', capabilities: ['terminal'], visualization: 'none', blueprintId: 'KUB09' });
-    expect(() => outline('KUB13')).toThrow('KUB13: the devops-explorer stage D5 is not built yet (the lesson needs D3, D4, D5)');
-    expect(() => outline('KUB14')).toThrow('KUB14: the devops-explorer stage D6 is not built yet (the lesson needs D6)');
+    // D5 and D6 (KUB-4): KUB13 (traces) and KUB14 (SLOs) are monitoring-dashboard lessons on the devops-explorer.
+    for (const id of ['KUB13', 'KUB14']) expect(outline(id)).toMatchObject({ activity: 'monitoring-dashboard', capabilities: ['devops-explorer'], visualization: 'none', blueprintId: id });
     // E40 (KUB-3): KUB10 is a terminal lesson of requests, limits, metrics-server and the HPA; KUB12 (D3, D4 and E40) can be built too.
     expect(outline('KUB10')).toMatchObject({ activity: 'terminal-sim', capabilities: ['terminal'], visualization: 'none', blueprintId: 'KUB10' });
     expect(outline('KUB12')).toMatchObject({ activity: 'monitoring-dashboard', blueprintId: 'KUB12' });
@@ -87,26 +88,33 @@ describe('the kubernetes-reliability island: prepared in KUB-0, published from K
     expect(ISLAND_PREFIX['kubernetes-reliability']).toBe('KUB');
     const written = lessons.filter(l => l.islandId === 'kubernetes-reliability');
     expect(written.map(l => l.lessonId)).toEqual(written.map((_, i) => `KUB${String(i + 1).padStart(2, '0')}`));
-    expect(written.length).toBeGreaterThanOrEqual(10);
-    // KUB-1: two units, KUB01–KUB02 and KUB03–KUB04; KUB-2: a third, KUB05–KUB07; KUB-3: a fourth, KUB08–KUB10.
-    expect(UNITS['kubernetes-reliability'].slice(0, 4)).toMatchObject([{ title: '編排的觀念與叢集架構', lessonIds: ['KUB01', 'KUB02'] }, { title: 'Pod 與工作負載', lessonIds: ['KUB03', 'KUB04'] },
-      { title: '服務、設定與入口', lessonIds: ['KUB05', 'KUB06', 'KUB07'] }, { title: '儲存、套件與擴展', lessonIds: ['KUB08', 'KUB09', 'KUB10'] }]);
+    expect(written.length).toBeGreaterThanOrEqual(14);
+    // KUB-1: two units, KUB01–KUB02 and KUB03–KUB04; KUB-2: a third, KUB05–KUB07; KUB-3: a fourth, KUB08–KUB10; KUB-4: a fifth, KUB11–KUB14.
+    expect(UNITS['kubernetes-reliability'].slice(0, 5)).toMatchObject([{ title: '編排的觀念與叢集架構', lessonIds: ['KUB01', 'KUB02'] }, { title: 'Pod 與工作負載', lessonIds: ['KUB03', 'KUB04'] },
+      { title: '服務、設定與入口', lessonIds: ['KUB05', 'KUB06', 'KUB07'] }, { title: '儲存、套件與擴展', lessonIds: ['KUB08', 'KUB09', 'KUB10'] },
+      { title: '發布、監控與可靠性', lessonIds: ['KUB11', 'KUB12', 'KUB13', 'KUB14'] }]);
     expect(UNITS['kubernetes-reliability'].flatMap(u => u.lessonIds)).toEqual(written.map(l => l.lessonId));
     // Every written lesson has its page and follows its KUB_SHAPES row: KUB01, KUB03 and KUB04 are the terminal with a
     // simulated cluster, KUB02 adds a network-protocol scene; KUB-2: KUB05 and KUB06 are cluster lessons too, KUB07 (the
-    // blueprint's request-path) adds a network-protocol scene like KUB02; KUB-3: KUB08–KUB10 are cluster lessons.
+    // blueprint's request-path) adds a network-protocol scene like KUB02; KUB-3: KUB08–KUB10 are cluster lessons; KUB-4:
+    // KUB11 is a cluster lesson, KUB12 the devops-explorer's dashboards beside the terminal (like CICD12), KUB13 and KUB14
+    // the devops-explorer alone (like CICD11).
     for (const l of written) expect(getLessonBySlug(l.slug)?.lessonId, l.slug).toBe(l.lessonId);
-    expect(written.slice(0, 10).map(l => [l.lessonId, l.capabilities, l.activity, !!curriculum.contents[l.lessonId]?.terminal, !!curriculum.contents[l.lessonId]?.network])).toEqual([
-      ['KUB01', ['terminal'], 'terminal-sim', true, false],
-      ['KUB02', ['terminal', 'network-protocol'], 'network-sequence', true, true],
-      ['KUB03', ['terminal'], 'terminal-sim', true, false],
-      ['KUB04', ['terminal'], 'terminal-sim', true, false],
-      ['KUB05', ['terminal'], 'terminal-sim', true, false],
-      ['KUB06', ['terminal'], 'terminal-sim', true, false],
-      ['KUB07', ['terminal', 'network-protocol'], 'network-sequence', true, true],
-      ['KUB08', ['terminal'], 'terminal-sim', true, false],
-      ['KUB09', ['terminal'], 'terminal-sim', true, false],
-      ['KUB10', ['terminal'], 'terminal-sim', true, false],
+    expect(written.slice(0, 14).map(l => [l.lessonId, l.capabilities, l.activity, !!curriculum.contents[l.lessonId]?.terminal, !!curriculum.contents[l.lessonId]?.network, !!curriculum.contents[l.lessonId]?.devops])).toEqual([
+      ['KUB01', ['terminal'], 'terminal-sim', true, false, false],
+      ['KUB02', ['terminal', 'network-protocol'], 'network-sequence', true, true, false],
+      ['KUB03', ['terminal'], 'terminal-sim', true, false, false],
+      ['KUB04', ['terminal'], 'terminal-sim', true, false, false],
+      ['KUB05', ['terminal'], 'terminal-sim', true, false, false],
+      ['KUB06', ['terminal'], 'terminal-sim', true, false, false],
+      ['KUB07', ['terminal', 'network-protocol'], 'network-sequence', true, true, false],
+      ['KUB08', ['terminal'], 'terminal-sim', true, false, false],
+      ['KUB09', ['terminal'], 'terminal-sim', true, false, false],
+      ['KUB10', ['terminal'], 'terminal-sim', true, false, false],
+      ['KUB11', ['terminal'], 'terminal-sim', true, false, false],
+      ['KUB12', ['devops-explorer', 'terminal'], 'monitoring-dashboard', true, false, true],
+      ['KUB13', ['devops-explorer'], 'monitoring-dashboard', false, false, true],
+      ['KUB14', ['devops-explorer'], 'monitoring-dashboard', false, false, true],
     ]);
     const planned = lessonsOfIsland('kubernetes-reliability');
     expect(planned.map(l => l.lessonId)).toEqual(Array.from({ length: 15 }, (_, i) => `KUB${String(i + 1).padStart(2, '0')}`));
@@ -121,12 +129,15 @@ describe('the kubernetes-reliability island: prepared in KUB-0, published from K
   });
   it('registers no new activity: cluster-sim and metric-explorer stay blueprint names', () => {
     for (const a of ['cluster-sim', 'metric-explorer']) expect(LESSON_ACTIVITIES, a).not.toContain(a);
-    expect(getActivity('cluster-sim')).toMatchObject({ availability: 'planned' });
-    // KUB-1 (KUB0 §3, effects on the activity registry): cluster-sim keeps the island while KUB05–KUB11 are planned with it
-    // (KUB-3: KUB11 is the last unwritten cluster-sim lesson, so the island stays until KUB-4);
+    // KUB-1 (KUB0 §3, effects on the activity registry): cluster-sim kept the island while KUB05–KUB11 were planned with it;
+    // KUB-4 wrote KUB11, the last cluster-sim lesson, as terminal-sim: no catalog lesson and no lab names cluster-sim any
+    // more, so it leaves the activity registry. metric-explorer stays planned for machine-learning's ML19–ML22 alone:
+    // KUB13 and KUB14, outlined with it, are written as monitoring-dashboard.
+    expect(getActivity('cluster-sim')).toBeUndefined();
+    expect(getActivity('metric-explorer')).toMatchObject({ availability: 'planned', subjects: ['machine-learning'] });
+    expect(getActivity('monitoring-dashboard')!.subjects).toContain('kubernetes-reliability');
     // KUB02, written as network-sequence, takes kubernetes-reliability off architecture-diagram (still implemented by DB19)
     // and onto network-sequence; KUB01, KUB03 and KUB04 put it on terminal-sim.
-    expect(getActivity('cluster-sim')!.subjects).toEqual(['kubernetes-reliability']);
     expect(getActivity('architecture-diagram')).toMatchObject({ availability: 'implemented' });
     expect(getActivity('architecture-diagram')!.subjects).not.toContain('kubernetes-reliability');
     expect(getActivity('network-sequence')!.subjects).toContain('kubernetes-reliability');

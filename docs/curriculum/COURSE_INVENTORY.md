@@ -4,6 +4,8 @@
 
 > **第一批之後（2026-11-20）**：PL01–PL05 發布，已發布 **85**、規劃中 **435**（CS 85／160；PL 5/20，程式語言島從「規劃中」變成「部分開放」）。
 > **第二批之後（2026-11-20）**：PL06–PL10 發布，已發布 **90**、規劃中 **430**（CS 90／160；PL 10/20，地景仍為規劃中）。
+> **KUB-4 之後（2026-11-24）**：Kubernetes 與可靠性工程島 KUB11–KUB14 發布（KUB11 滾動更新與回滾在終端機的模擬叢集；KUB12 叢集監控、KUB13 可觀測性：指標、日誌與追蹤、KUB14 SLI、SLO 與 SLA 是 `devops-explorer` 的 `monitoring-dashboard`，新階段 D5 traces 與 D6 slo，KUB12 加上終端機）；已發布 **258**、規劃中 **262**。
+>
 > **KUB-3 之後（2026-11-24）**：Kubernetes 與可靠性工程島 KUB08–KUB10 發布（終端機引擎階段 E38 kube-storage、E39 helm 與 E40 autoscaling：Persistent Volume 與有狀態應用、Helm 套件管理、自動擴展）；已發布 **254**、規劃中 **266**。
 >
 > **KUB-2 之後（2026-11-24）**：Kubernetes 與可靠性工程島 KUB05–KUB07 發布（終端機引擎階段 E35 kube-net、E36 kube-config 與 E37 ingress：Service 與叢集 DNS、ConfigMap 與 Secret、Ingress 與 Gateway API；KUB07 加上 `network-protocol` 情境）；已發布 **251**、規劃中 **269**。

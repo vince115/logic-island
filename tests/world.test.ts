@@ -128,7 +128,7 @@ describe('world registry (F.0)', () => {
     // LLM-1 published LLM01–LLM03 of 25 and GEN-1 GEN01–GEN02 of 20: both islands are open (available); their maps stay planned.
     // WEB-5 published WEB15, the last of 15: the web foundations island is complete; its map stays planned too.
     // CICD-1 published CICD01 of 15: the DevOps and CI/CD island is open (available) in the systems region; its map stays planned.
-    // KUB-1 published KUB01–KUB04 of 15: the Kubernetes and reliability island is open (available) in the systems region; its map stays planned (KUB-2: KUB05–KUB07, 7 of 15; KUB-3: KUB08–KUB10, 10 of 15).
+    // KUB-1 published KUB01–KUB04 of 15: the Kubernetes and reliability island is open (available) in the systems region; its map stays planned (KUB-2: KUB05–KUB07, 7 of 15; KUB-3: KUB08–KUB10, 10 of 15; KUB-4: KUB11–KUB14, 14 of 15).
     expect(subjectIslands.filter(i => i.status === 'available').map(i => i.id)).toEqual(['large-language-models', 'generative-ai', 'kubernetes-reliability']);
     expect(getIsland('kubernetes-reliability')).toMatchObject({ status: 'available', mapState: 'planned' });
     // CICD-7 published CICD15, the last of 15: the DevOps and CI/CD island is complete; its map stays planned too.
