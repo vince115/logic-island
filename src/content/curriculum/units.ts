@@ -87,13 +87,15 @@ export const UNITS: Record<IslandId, CurriculumUnit[]> = {
   ],
   // KUB-1 (2026-11-24): KUB01–KUB04 on the terminal with a simulated cluster (E32 cluster, E33 probes, E34 workloads),
   // KUB02 beside a network-protocol scene; KUB-2: KUB05–KUB07 on E35 kube-net, E36 kube-config and E37 ingress, KUB07
-  // beside a network-protocol scene too; KUB-3: KUB08–KUB10 on E38 kube-storage, E39 helm and E40 autoscaling; the later
-  // lessons need the devops-explorer's D5–D6.
+  // beside a network-protocol scene too; KUB-3: KUB08–KUB10 on E38 kube-storage, E39 helm and E40 autoscaling; KUB-4:
+  // KUB11 on the terminal (rollouts), KUB12–KUB14 on the devops-explorer's dashboards (KUB12 with the terminal), D5
+  // traces (KUB13) and D6 SLOs (KUB14).
   'kubernetes-reliability': [
     { title: '編排的觀念與叢集架構', summary: '單機 Compose 的極限、宣告式的期望狀態與調和迴圈、排程、自我修復、排空節點與節點失聯，何時不需要編排；控制平面與工作節點的元件、kubeconfig 與 static pod，一次 kubectl apply 從 API server、etcd、scheduler 到 kubelet 的路徑', lessonIds: ['KUB01', 'KUB02'] },
     { title: 'Pod 與工作負載', summary: '以 YAML manifest 描述 Pod、多容器 Pod、init container 與 sidecar，phase、重啟策略與 CrashLoopBackOff，存活、就緒與啟動探針與優雅終止；Deployment、ReplicaSet 與 Pod 三層物件、Label 與選擇器、調整副本數與自動補回的 Pod', lessonIds: ['KUB03', 'KUB04'] },
     { title: '服務、設定與入口', summary: 'Service 的穩定名稱與 ClusterIP、ClusterIP／NodePort／LoadBalancer／headless，port、targetPort 與 nodePort，只收就緒 Pod 的 Endpoints 與 EndpointSlice，叢集 DNS 與 port-forward；設定與機密離開 Image，ConfigMap 與 Secret 以環境變數或掛載檔案交給 Pod、改了設定之後什麼會跟著變，Secret 只是編碼、imagePullSecrets 與 immutable；Ingress 與 Ingress Controller、主機與路徑路由、在入口終止 TLS、一個 HTTPS 請求從 DNS 到 Pod 的路徑，Gateway API 與加權的金絲雀分流', lessonIds: ['KUB05', 'KUB06', 'KUB07'] },
     { title: '儲存、套件與擴展', summary: '資料為什麼要離開 Pod，PersistentVolume、PersistentVolumeClaim 與 StorageClass，靜態與動態佈建、綁定時機與卡在 Pending 的 PVC，存取模式、Delete 與 Retain，StatefulSet 的固定名稱與每個 Pod 一個 PVC，備份與還原、資料庫放在叢集內還是用託管服務；Helm chart 的 Chart.yaml、values 與樣板，helm template 與 lint、各環境的 values 檔，install、upgrade、history、rollback 與 --atomic；requests、limits 與 QoS class，metrics-server 與 kubectl top，HPA 的公式、容忍度與縮減的穩定視窗、指標來源，以及節點擴展與 VPA', lessonIds: ['KUB08', 'KUB09', 'KUB10'] },
+    { title: '發布、監控與可靠性', summary: '以 maxSurge、maxUnavailable 與就緒探針不中斷地滾動更新，progressDeadlineSeconds 與卡住的更新，rollout history、undo、pause 與 restart，Recreate、回滾回不去的設定與資料庫，金絲雀與藍綠部署；叢集的 USE 與 RED、metrics-server 與 Prometheus，重啟次數、OOMKilled 與 logs --previous，Warning 事件，requests 與實際用量的容量規劃與告警規則；監控與可觀測性，指標、日誌與追蹤，瀑布圖、自身時間與關鍵路徑，trace_id 的關聯，OpenTelemetry，頭部與尾端取樣、高基數標籤；從使用者角度定義的 SLI、SLO 與錯誤預算、錯誤預算政策，消耗率與多視窗的依 SLO 告警，SLA 與每多一個 9 的代價', lessonIds: ['KUB11', 'KUB12', 'KUB13', 'KUB14'] },
   ],
   'network-servers': [
     { title: '位址、名稱與請求', summary: '公有與私有 IP、介面與路由、監聽埠與 socket、ss、lsof 與 nc；DNS 區域、A／CNAME／MX／TXT、TTL 與快取、dig；用 curl 讀懂 HTTP 請求、回應、狀態碼與重新導向', lessonIds: range('SRV', 1, 3) },

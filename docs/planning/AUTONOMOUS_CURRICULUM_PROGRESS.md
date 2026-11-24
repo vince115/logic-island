@@ -13,7 +13,7 @@
 
 ## 總覽
 
-已發布 **254／520**（48.8%）；規劃中 266。
+已發布 **258／520**（49.6%）；規劃中 262。
 
 | 區域 | 已發布 | 規劃中 | 覆蓋率 |
 |---|---|---|---|
@@ -21,11 +21,11 @@
 | AI 人工智慧群島 | 25 | 135 | 15.6% |
 | 數位設計群島 | 0 | 56 | 0.0% |
 | 網頁與應用開發群島 | 40 | 15 | 72.7% |
-| 系統與雲端工程群島 | 69 | 20 | 77.5% |
+| 系統與雲端工程群島 | 73 | 16 | 82.0% |
 
 ## 下一批（自動選擇）
 
-**Kubernetes 與可靠性工程島（KUB）**：KUB11 滾動更新與回滾、KUB12 叢集監控、KUB13 可觀測性：指標、日誌與追蹤、KUB14 SLI、SLO 與 SLA、KUB15 Kubernetes 與可靠性工程島綜合專題：SRE 實務演練。島嶼能力：已備妥（可開始撰寫）；這幾堂解鎖其他島的 0 堂。
+**Kubernetes 與可靠性工程島（KUB）**：KUB15 Kubernetes 與可靠性工程島綜合專題：SRE 實務演練。島嶼能力：已備妥（可開始撰寫）；這幾堂解鎖其他島的 0 堂。
 
 能力缺口中最優先的是 **機器學習島（ML）**：需要 python-code + data-explorer (fixed datasets, metrics computed in the browser)；先修已滿足、可依序撰寫的有 25 堂，前 5 堂解鎖其他島的 39 堂。
 
@@ -63,7 +63,7 @@
 | 系統與雲端工程群島 | 網路與伺服器島（SRV） | 14／14 | terminal (engine stages E10 sockets, E11 dns, E12 http, then E13-E19) + network-protocol scenes; request-path and architecture-diagram map to network-sequence | 可用 | 全島完成 | — |
 | 系統與雲端工程群島 | 雲端基礎設施島（CLD） | 0／15 | architecture simulation | 缺少 | CLD01–CLD15（15 堂） | 缺少課程能力 |
 | 系統與雲端工程群島 | DevOps 與 CI/CD 島（CICD） | 15／15 | devops-explorer (D1 deployment histories and DORA metrics, D2 the deployment-simulator: rollouts, gates, migrations, feature flags; then D3 dashboards, D4 logs) + terminal (engine stages E25 git, E26 forge, E27 workflows, E28 actions, E29 artifacts, E30 environments, E31 deploy-hosts); a per-lesson mapping (CICD_SHAPES) | 已備妥（可開始撰寫） | 全島完成 | — |
-| 系統與雲端工程群島 | Kubernetes 與可靠性工程島（KUB） | 10／15 | terminal (engine stages E32 cluster, E33 probes, E34 workloads, E35 kube-net, E36 kube-config, E37 ingress, E38 kube-storage, E39 helm, E40 autoscaling: a simulated cluster driven with kubectl and helm) + network-protocol (KUB02, KUB07) + devops-explorer (monitoring-dashboard with D3-D6 for KUB12-KUB14); a per-lesson mapping (KUB_SHAPES) | 已備妥（可開始撰寫） | KUB11–KUB15（5 堂） | — |
+| 系統與雲端工程群島 | Kubernetes 與可靠性工程島（KUB） | 14／15 | terminal (engine stages E32 cluster, E33 probes, E34 workloads, E35 kube-net, E36 kube-config, E37 ingress, E38 kube-storage, E39 helm, E40 autoscaling: a simulated cluster driven with kubectl and helm) + network-protocol (KUB02, KUB07) + devops-explorer (monitoring-dashboard with D3-D6 for KUB12-KUB14); a per-lesson mapping (KUB_SHAPES) | 已備妥（可開始撰寫） | KUB15–KUB15（1 堂） | — |
 
 ## 能力缺口
 
@@ -95,8 +95,8 @@
 | 產品設計 | 0／56 | 否 |
 | AI 架構 | 23／66 | 否 |
 | 全端部署 | 55／62 | 否 |
-| AI 基礎設施 | 50／60 | 否 |
-| 雲端與 DevOps 基礎 | 41／48 | 否 |
+| AI 基礎設施 | 52／60 | 否 |
+| 雲端與 DevOps 基礎 | 42／48 | 否 |
 
 ## 先修依賴檢查
 
@@ -765,8 +765,8 @@
 | KUB08 | Persistent Volume 與有狀態應用 | 已發布（閘門通過） | KUB04、DKR07 | terminal-sim | — |
 | KUB09 | Helm 套件管理 | 已發布（閘門通過） | KUB06 | terminal-sim | — |
 | KUB10 | 自動擴展 | 已發布（閘門通過） | KUB04 | terminal-sim | — |
-| KUB11 | 滾動更新與回滾 | 大綱 | KUB04、CICD10 | cluster-sim | — |
-| KUB12 | 叢集監控 | 大綱 | KUB05、CICD11 | monitoring-dashboard | — |
-| KUB13 | 可觀測性：指標、日誌與追蹤 | 待先修 | KUB12、CICD12 | metric-explorer | 先修 KUB12 |
-| KUB14 | SLI、SLO 與 SLA | 待先修 | KUB13 | metric-explorer | 先修 KUB13 |
-| KUB15 | Kubernetes 與可靠性工程島綜合專題：SRE 實務演練 | 待先修 | KUB07、KUB08、KUB09、KUB10、KUB11、KUB14、CICD14 | challenge-stages | 先修 KUB11、KUB14 |
+| KUB11 | 滾動更新與回滾 | 已發布（閘門通過） | KUB04、CICD10 | terminal-sim | — |
+| KUB12 | 叢集監控 | 已發布（閘門通過） | KUB05、CICD11 | monitoring-dashboard | — |
+| KUB13 | 可觀測性：指標、日誌與追蹤 | 已發布（閘門通過） | KUB12、CICD12 | monitoring-dashboard | — |
+| KUB14 | SLI、SLO 與 SLA | 已發布（閘門通過） | KUB13 | monitoring-dashboard | — |
+| KUB15 | Kubernetes 與可靠性工程島綜合專題：SRE 實務演練 | 大綱 | KUB07、KUB08、KUB09、KUB10、KUB11、KUB14、CICD14 | challenge-stages | — |

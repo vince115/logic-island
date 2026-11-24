@@ -41,6 +41,7 @@
 - **CICD11、CICD12** 對應到 `monitoring-dashboard`，這個活動在 D3（CICD-4）登錄（§10.3）；登錄之前 `cicdFromBlueprint` 拋出「the monitoring-dashboard activity is not registered yet (it is built with D3)」。D3 之後 CICD11 可以建立；CICD12 另外需要 D4，D3 時 `DEVOPS_STAGES_BUILT` 還沒有 D4，所以拋出「CICD12: the devops-explorer stage D4 is not built yet (the monitoring-dashboard activity needs D3 and D4)」。**D4（CICD-5）之後** `DEVOPS_STAGES_BUILT = ['D1', 'D2', 'D3', 'D4']`，CICD12 可以建立：活動 `monitoring-dashboard`、能力照對應是 `devops-explorer` 與 `terminal`（終端機的部分由寫課的人用既有的 E2、E7 指令對 JSON Lines 檔案撰寫）。
 - `pipeline-sim`、`case-study-board`、`decision-simulation` 只是藍圖的名稱，**不加入** `LESSON_ACTIVITIES`（登錄它們會被當成已實作的活動）。`/learn` 上規劃中的 `cicd-pipeline` 實驗室（活動 `pipeline-sim`）保持規劃中。
 - 其他島的 `deployment-simulator` 課（SA18、DL24、OPS03／06／07／08、CLD03／10／11）與 `monitoring-dashboard` 課（OPS13／14／19、KUB12）之後會沿用同一個模型，所以模型保持通用（版本、執行個體、流量），不為本島過度設計。
+- **KUB-4（2026-11-24）**：KUB12–KUB14 是 `devops-cicd` 以外第一批宣告 `devops-explorer` 的課，都是 `monitoring-dashboard`（`kubeFromBlueprint` 的 `KUB_SHAPES`）：KUB12 加上終端機（D3，同 CICD12 的形狀），KUB13（D3、D4、D5 的追蹤）與 KUB14（D6 的 SLO）只有 devops-explorer（同 CICD11）。已發布的 `monitoring-dashboard` 課因此是 CICD11、CICD12、KUB12–KUB14；`tests/curriculum.test.ts` 原本斷言只有本島宣告 devops-explorer，改為本島與 `kubernetes-reliability`。
 - `cicdFromBlueprint` 對其他島的課回報「not a DevOps and CI/CD lesson」；標題、目標、概念、難度、先修取自藍圖。
 
 ## 3. 島嶼與活動的登錄

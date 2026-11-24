@@ -2,7 +2,7 @@
 
 > 2026-11-24 起分批撰寫（自主課程生產，見 [AUTONOMOUS_CURRICULUM_PROGRESS](../planning/AUTONOMOUS_CURRICULUM_PROGRESS.md)）。大綱（標題、目標、概念、難度、先修）取自藍圖，由 `lessons.ts` 的 `kubeFromBlueprint` 讀入；每一課的活動與能力由逐課的 `KUB_SHAPES` 決定（[KUB0_KUBERNETES_CAPABILITY](KUB0_KUBERNETES_CAPABILITY.md) §2）。
 
-教學方式沿用 `terminal` 能力：工作站上以 `kubectl`（KUB09 加上 `helm`）操作一個**虛構的 kubeadm 叢集**（終端機引擎階段 E32 `cluster`、E33 `probes`、E34 `workloads`、E35 `kube-net`、E36 `kube-config`、E37 `ingress`、E38 `kube-storage`、E39 `helm`、E40 `autoscaling`，見 [KUB0_E32_CLUSTER](KUB0_E32_CLUSTER.md)、[KUB0_E33_PROBES](KUB0_E33_PROBES.md)、[KUB0_E34_WORKLOADS](KUB0_E34_WORKLOADS.md)、[KUB0_E35_KUBE_NET](KUB0_E35_KUBE_NET.md)、[KUB0_E36_KUBE_CONFIG](KUB0_E36_KUBE_CONFIG.md)、[KUB0_E37_INGRESS](KUB0_E37_INGRESS.md)、[KUB0_E38_KUBE_STORAGE](KUB0_E38_KUBE_STORAGE.md)、[KUB0_E39_HELM](KUB0_E39_HELM.md)、[KUB0_E40_AUTOSCALING](KUB0_E40_AUTOSCALING.md)）。範例是在模擬叢集上重新執行後輸出完全一致的終端機紀錄，練習以重新執行學習者的指令、再檢查叢集的物件與 Pod 狀態評分。輸出依 kubectl v1.32 的格式撰寫（版本見 KUB0 §8，標記「待核對」）；Pod 與 ReplicaSet 的名稱是引擎算出的雜湊，課文的指令以 `kubectl get` 讀出，不寫死。藍圖為 architecture-diagram 的 KUB02 與 request-path 的 KUB07 另有一段網路情境（`network-protocol`，同 DKR01、DKR02、SRV05、SRV07）。控制平面的內部（etcd 的 Raft、scheduler 的評分、CRI 與 CNI）只在課文中以文字說明，不假裝成指令輸出。
+教學方式沿用 `terminal` 能力：工作站上以 `kubectl`（KUB09 加上 `helm`）操作一個**虛構的 kubeadm 叢集**（終端機引擎階段 E32 `cluster`、E33 `probes`、E34 `workloads`、E35 `kube-net`、E36 `kube-config`、E37 `ingress`、E38 `kube-storage`、E39 `helm`、E40 `autoscaling`，見 [KUB0_E32_CLUSTER](KUB0_E32_CLUSTER.md)、[KUB0_E33_PROBES](KUB0_E33_PROBES.md)、[KUB0_E34_WORKLOADS](KUB0_E34_WORKLOADS.md)、[KUB0_E35_KUBE_NET](KUB0_E35_KUBE_NET.md)、[KUB0_E36_KUBE_CONFIG](KUB0_E36_KUBE_CONFIG.md)、[KUB0_E37_INGRESS](KUB0_E37_INGRESS.md)、[KUB0_E38_KUBE_STORAGE](KUB0_E38_KUBE_STORAGE.md)、[KUB0_E39_HELM](KUB0_E39_HELM.md)、[KUB0_E40_AUTOSCALING](KUB0_E40_AUTOSCALING.md)）。範例是在模擬叢集上重新執行後輸出完全一致的終端機紀錄，練習以重新執行學習者的指令、再檢查叢集的物件與 Pod 狀態評分。輸出依 kubectl v1.32 的格式撰寫（版本見 KUB0 §8，標記「待核對」）；Pod 與 ReplicaSet 的名稱是引擎算出的雜湊，課文的指令以 `kubectl get` 讀出，不寫死。藍圖為 architecture-diagram 的 KUB02 與 request-path 的 KUB07 另有一段網路情境（`network-protocol`，同 DKR01、DKR02、SRV05、SRV07）。控制平面的內部（etcd 的 Raft、scheduler 的評分、CRI 與 CNI）只在課文中以文字說明，不假裝成指令輸出。KUB12–KUB14 是 `devops-explorer` 的 `monitoring-dashboard` 課（藍圖的 monitoring-dashboard 與 metric-explorer，見 [CICD0_DEVOPS_CAPABILITY](CICD0_DEVOPS_CAPABILITY.md) §10.3–§10.6）：儀表板與告警規則（D3）、日誌（D4）、分散式追蹤（D5）與 SLO（D6）的數字都是示意資料，練習的答案由 `src/lib/devops` 算出；KUB12 另有終端機的叢集（同 CICD12 的形狀），KUB13、KUB14 沒有終端機（同 CICD11）。這是 `devops-cicd` 以外第一批使用 `devops-explorer` 的課。
 
 ## 已撰寫的課
 
@@ -18,8 +18,12 @@
 | KUB08 | Persistent Volume 與有狀態應用<br>`persistent-volumes` | 進階 | 45 分 | KUB04、DKR07 | 5 台（kube-storage：shop 團隊的工作站 ops-ws 與三個節點的叢集，兩個虛構的 provisioner：節點本機的預設 class local-path（WaitForFirstConsumer、Delete）與可掛載網路磁碟的 fast（Immediate、可擴充），管理員建立的 NFS PV pv-media；另 4 台給練習：把上傳檔案放在 emptyDir 的 uploads、PVC 一直 Pending 的 reports、只有 1 個副本的 stockdb、資料在 node-02 本機磁碟上的 stockdb-0） | 6 段、5 段終端機紀錄、4 個終端機練習（讓 uploads 的檔案撐過 Pod 的刪除、修好卡在 Pending 的 PVC、把 stockdb 擴充成 3 個副本、把 stockdb-0 備份到工作站再還原到新的 PVC）、8 題 | **完整 v1.0.0** |
 | KUB09 | Helm 套件管理<br>`helm-charts` | 中級 | 40 分 | KUB06 | 6 台（helm：shop 團隊的工作站 ops-ws，~/shop/catalog 是團隊的 chart（0.4.0、appVersion 2.2）與 staging、prod 的 values 檔，平台組虛構的 chart 儲存庫 https://charts.example.test；另 1 台的 prod 有上週以 chart 0.3.0 安裝的 release，4 台給練習：還沒部署到 staging 的 catalog、同事改過的 cart chart、要從 2.2 升到 2.3 的 prod、prod 與 staging 各有歷史的 catalog） | 7 段、5 段終端機紀錄、4 個終端機練習（用 values-staging.yaml 把 catalog 裝進 staging、修好 cart chart 的樣板再安裝、失敗就自動退回的正式環境升級、查出 prod 目前部署的 revision）、8 題 | **完整 v1.0.0** |
 | KUB10 | 自動擴展<br>`kubernetes-autoscaling` | 進階 | 40 分 | KUB04 | 5 台（autoscaling：shop 團隊的工作站 ops-ws 與三個節點（各 2 個 CPU）的叢集與 metrics-server，特賣讓 catalog 的流量上升；另 4 台給練習：HPA 一直顯示 &lt;unknown&gt; 的 cart、仍固定 2 個副本的 catalog、副本數每分鐘上上下下的 catalog、值班時讀出 catalog 此刻的使用率） | 6 段、5 段終端機紀錄、4 個終端機練習（讓 cart 的 HPA 算得出使用率、特賣開始時替 catalog 建立 HPA、讓 catalog 的副本數不再忽大忽小、HPA 此刻算出的使用率）、8 題 | **完整 v1.0.0** |
+| KUB11 | 滾動更新與回滾<br>`rolling-updates-and-rollbacks` | 中級 | 40 分 | KUB04、CICD10 | 4 台（kube-net：shop 團隊的工作站 ops-ws 與三個節點的叢集，catalog 2.2 有 4 個副本、以 /healthz 的就緒探針把關，report 用 Recreate；另 3 台給練習：要上線 2.3 而先調整滾動更新的 catalog、要更新到永遠不就緒的 2.4 的 catalog、回滾演練） | 6 段、5 段終端機紀錄、3 個終端機練習（把 catalog 調成不中斷的更新再上線 2.3、2.4 卡住了：判斷之後回滾到上一個 revision、回滾之後的 revision 用哪個 Image）、7 題 | **完整 v1.0.0** |
+| KUB12 | 叢集監控<br>`cluster-monitoring` | 中級 | 40 分 | KUB05、CICD11 | 1 台（autoscaling：shop 團隊的工作站 ops-ws 與三個節點的叢集與 metrics-server，14:00 時 cart 因 OOMKilled 反覆重啟、mailer 缺少 SMTP_HOST 而 Error、recommend 因 Insufficient cpu 而 Pending，catalog 提供 Prometheus 的 /metrics）＋devops-explorer（D3）的 2 個儀表板（08:00–14:00 的節點 CPU、Pending 的 Pod、重啟次數與結帳） | 6 段、5 段終端機紀錄、3 個終端機練習（重啟最多的 Pod 與原因、先調整 requests 而不急著加節點、從 /metrics 找出錯誤的計數）與 3 個儀表板練習（節點 CPU 持續 10 分鐘的規則、重啟次數的兩條規則、寫一條容量警告）、8 題 | **完整 v1.0.0** |
+| KUB13 | 可觀測性：指標、日誌與追蹤<br>`observability-metrics-logs-traces` | 進階 | 40 分 | KUB12、CICD12 | devops-explorer（D3、D4、D5）：shop 團隊在 Kubernetes 上的結帳服務一小時的儀表板（p95 附範例追蹤）、帶 trace_id 的 18 筆日誌、4 個課程寫的追蹤與 200 次產生的結帳、一天 500 次結帳的取樣與基數樣本 | 6 段、7 個練習（最慢的請求慢在哪裡、從儀表板的尖峰到瀑布圖、N+1 迴圈裡的自身時間、從客訴的日誌追到追蹤、只用頭部取樣 10%、留下該留的追蹤、修好一個高基數的指標）、7 題 | **完整 v1.0.0** |
+| KUB14 | SLI、SLO 與 SLA<br>`sli-slo-sla` | 進階 | 40 分 | KUB13 | devops-explorer（D6）：虛構的市立圖書館線上借閱服務 loan-api 的 3 個 SLO 情境（這個月 30 天每小時、一天每 5 分鐘的消耗率告警、上個月的資料庫故障與 SLA 補償） | 6 段、6 個練習（壞版本用掉多少預算、消耗率與還能撐多久、快速與緩慢兩條告警、設計會呼叫人的消耗率告警、上個月的預算、SLA 的補償）、8 題 | **完整 v1.0.0** |
 
-（機器、叢集、映像檔、使用者與 IP 都是虛構的；練習的答案由引擎重播算出，不寫在課程資料裡。）
+（機器、叢集、映像檔、使用者、IP 與儀表板、日誌、追蹤、SLO 的數字都是虛構的；練習的答案由引擎重播或 `src/lib/devops` 算出，不寫在課程資料裡。）
 
 ## 單元
 
@@ -29,6 +33,7 @@
 | Pod 與工作負載 | KUB03–KUB04 |
 | 服務、設定與入口 | KUB05–KUB07 |
 | 儲存、套件與擴展 | KUB08–KUB10 |
+| 發布、監控與可靠性 | KUB11–KUB14 |
 
 ## 模擬器的已知差異（課文已說明或避開）
 
@@ -49,6 +54,11 @@
 - **加上 `--wait` 的升級只改了副本數或設定時，在同一秒返回**（KUB-3，E39）：沒有要等的新 Pod 時，模擬環境的就緒檢查立刻成立；課文與練習不依賴 `--wait` 花掉的秒數。
 - **新的 Pod 一就緒就分到負載，即使它還沒有指標**（KUB-3，E40）：宣告在 Service 的負載依就緒的端點平均分配，而新 Pod 要過兩次刮取（最多 30 秒）才有指標，這段時間 HPA 的使用率只由已有指標的 Pod 算出。
 - **節點的自動擴展只在課文說明**（KUB-3，E40）：Cluster Autoscaler、Karpenter 這類節點擴展與 VPA 沒有模擬；KUB10 在終端機只呈現 HPA 擴出、叢集放不下而 Pending（Insufficient cpu）的 Pod。
+- **開機時 Deployment 沒有 revision 歷史**（KUB-4，E34）：機器的開機 manifest 在控制器執行之前套用，所以 Deployment 開機時只有一個 revision；KUB11 的 `rollout history`、`undo` 與 `--to-revision` 都由課文與練習在提示字元下的指令建立。
+- **`kubectl get events --field-selector type=Warning` 與 `kubectl set resources` 沒有模擬**（KUB-4）：`get events` 的 `--field-selector` 只接受 `metadata.*` 欄位，KUB12 改以 `kubectl events --types=Warning` 篩選，`--field-selector type=Warning` 只在課文提到；調整 requests 以 `sed` 修改 YAML 再 `kubectl apply`。
+- **事件在模擬環境裡不會過期**（KUB-4）：真實叢集的事件預設一小時後刪除（kube-apiserver 的 `--event-ttl`），KUB12 在課文說明這一點，沒有練習依賴事件消失。
+- **一行輸入最多 500 個字元**（KUB-4）：長的 manifest 不以 heredoc 打進去，而是以 `sed` 修改工作站上已有的 YAML 檔。
+- **D3 的儀表板最多 360 分鐘**（KUB-4，D3）：KUB12 的叢集儀表板是 08:00–14:00 的六個小時；更長的期間只在課文說明。
 
 ## 批次
 
@@ -56,7 +66,8 @@ KUB-0（登錄、`KUB_SHAPES`、E32 `cluster`，沒有課）之後：
 
 - **KUB-1**（2026-11-24）：KUB01–KUB04，終端機引擎階段 E33 `probes` 與 E34 `workloads`（`KUBE_STAGES_BUILT = ['E32', 'E33', 'E34']`），島嶼移入 `ISLAND_IDS`（`devops-cicd` 之後），沒有預備中的島嶼。KUB01、KUB03、KUB04 是 `terminal-sim`，KUB02 是 `network-sequence`；活動登錄裡 `terminal-sim` 與 `network-sequence` 的島嶼清單加上本島，`architecture-diagram` 的島嶼清單少了本島（仍經由 DB19 維持已實作），`cluster-sim` 仍是規劃中（KUB05–KUB11 的藍圖活動）。
 - **KUB-2**（2026-11-24）：KUB05–KUB07，終端機引擎階段 E35 `kube-net`（Service、Endpoints 與 EndpointSlice、叢集 DNS、NodePort、LoadBalancer 與位址池、port-forward）、E36 `kube-config`（ConfigMap、Secret、env／envFrom／Volume 與 subPath、imagePullSecrets、immutable）與 E37 `ingress`（ingress-nginx、Ingress 的 TLS、Gateway API；`KUBE_STAGES_BUILT = ['E32', 'E33', 'E34', 'E35', 'E36', 'E37']`），單元「服務、設定與入口」。KUB05、KUB06 是 `terminal-sim`，KUB07 是 `network-sequence`（藍圖的 request-path）；活動登錄的島嶼清單不變（`terminal-sim`、`network-sequence` 已有本島，`cluster-sim` 仍是規劃中，KUB08–KUB11 的藍圖活動），`request-path` 仍是規劃中（規劃中的 `network-request` 實驗室保留它，DKR-5 的規則），已沒有目錄課程使用它，島嶼清單改由藍圖大綱列出：`network-servers` 與本島。
-- **KUB-3**（本批，2026-11-24）：KUB08–KUB10，終端機引擎階段 E38 `kube-storage`（PersistentVolume、PersistentVolumeClaim、StorageClass 與虛構的 provisioner、存取模式與回收策略、StatefulSet、以 `kubectl exec … tar` 與 `kubectl cp` 備份與還原）、E39 `helm`（Helm v3.16 的子集：Go 樣板引擎、chart 與 values、release 與 revision、install／upgrade／rollback 與 `--wait`、`--atomic`、虛構的 chart 儲存庫）與 E40 `autoscaling`（requests 與 limits、QoS、metrics-server 與 `kubectl top`、HorizontalPodAutoscaler 與宣告的負載；`KUBE_STAGES_BUILT = ['E32', 'E33', 'E34', 'E35', 'E36', 'E37', 'E38', 'E39', 'E40']`），單元「儲存、套件與擴展」。三課都是 `terminal-sim`；活動登錄的島嶼清單不變：`cluster-sim` 仍是規劃中，KUB11 是最後一堂還沒寫的 cluster-sim 課，KUB-4 寫好 KUB11 之後這個項目從活動登錄消失（KUB0 §3）。
-- 之後依 KUB0 §4：KUB11–14（D5、D6）、KUB15 綜合專題（單獨一批）。每一批先完成它需要的階段，再寫課；課程編號即位置，依序連續發布。
+- **KUB-3**（2026-11-24）：KUB08–KUB10，終端機引擎階段 E38 `kube-storage`（PersistentVolume、PersistentVolumeClaim、StorageClass 與虛構的 provisioner、存取模式與回收策略、StatefulSet、以 `kubectl exec … tar` 與 `kubectl cp` 備份與還原）、E39 `helm`（Helm v3.16 的子集：Go 樣板引擎、chart 與 values、release 與 revision、install／upgrade／rollback 與 `--wait`、`--atomic`、虛構的 chart 儲存庫）與 E40 `autoscaling`（requests 與 limits、QoS、metrics-server 與 `kubectl top`、HorizontalPodAutoscaler 與宣告的負載；`KUBE_STAGES_BUILT = ['E32', 'E33', 'E34', 'E35', 'E36', 'E37', 'E38', 'E39', 'E40']`），單元「儲存、套件與擴展」。三課都是 `terminal-sim`；活動登錄的島嶼清單不變：`cluster-sim` 仍是規劃中，KUB11 是最後一堂還沒寫的 cluster-sim 課，KUB-4 寫好 KUB11 之後這個項目從活動登錄消失（KUB0 §3）。
+- **KUB-4**（本批，2026-11-24）：KUB11–KUB14，`devops-explorer` 階段 D5 `traces`（分散式追蹤：span 的樹與產生器、自身時間、關鍵路徑與瓶頸、日誌與範例追蹤的連結、頭部與尾端取樣、每天的 span、基數）與 D6 `slo`（SLI、錯誤預算、消耗率、預算用完的時刻、SLA 的補償表、長短兩個視窗的消耗率告警；`DEVOPS_STAGES_BUILT = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6']`），單元「發布、監控與可靠性」。KUB11 是 `terminal-sim`（kube-net，不加可選的 devops-explorer），KUB12 是 `monitoring-dashboard` 加上終端機（autoscaling，同 CICD12），KUB13、KUB14 是只有 devops-explorer 的 `monitoring-dashboard`（同 CICD11）。活動登錄：KUB11 是最後一堂藍圖為 cluster-sim 的課，`cluster-sim` 沒有實驗室，因此從活動登錄消失（KUB0 §3，活動 89 → 88）；`metric-explorer` 仍是規劃中，只剩 `machine-learning`（ML19–ML22）；`monitoring-dashboard` 的島嶼清單不變（`ai-engineering`、`devops-cicd`、本島），已發布的課是 CICD11、CICD12 與 KUB12–KUB14。
+- 之後依 KUB0 §4：KUB-5 是 KUB15 綜合專題（單獨一批，E32–E40、D3、D5、D6 都已建好）。課程編號即位置，依序連續發布。
 
 課程狀態與 3D 地景分離：Kubernetes 與可靠性工程島的 `mapState` 仍是 `'planned'`。

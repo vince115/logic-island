@@ -71,12 +71,12 @@ test('課綱目錄：十七座島，F／D／A／PL／DB／CN／AIF 各 20 堂、
   await expect(cicd.locator('ol a')).toHaveCount(15);
   for (const l of lessons.filter(l => l.islandId === 'devops-cicd')) await expect(cicd.locator(`ol a[href="/curriculum/${l.slug}"]`), l.lessonId).toHaveCount(1);
   await expect(cicd.locator('ol').getByText('規劃中', { exact: true })).toHaveCount(0);
-  // KUB-1 to KUB-3: Kubernetes 與可靠性工程島 lists its 15 lessons: KUB01–KUB10 are links, the other 5 are marked 規劃中 and not linked.
+  // KUB-1 to KUB-4: Kubernetes 與可靠性工程島 lists its 15 lessons: KUB01–KUB14 are links, the other 1 is marked 規劃中 and not linked.
   const kub = page.getByRole('region', { name: /Kubernetes 與可靠性工程島/ });
   await expect(kub.getByRole('listitem')).toHaveCount(15);
-  await expect(kub.locator('ol a')).toHaveCount(10);
+  await expect(kub.locator('ol a')).toHaveCount(14);
   for (const l of lessons.filter(l => l.islandId === 'kubernetes-reliability')) await expect(kub.locator(`ol a[href="/curriculum/${l.slug}"]`), l.lessonId).toHaveCount(1);
-  await expect(kub.locator('ol').getByText('規劃中', { exact: true })).toHaveCount(5);
+  await expect(kub.locator('ol').getByText('規劃中', { exact: true })).toHaveCount(1);
   // MOB-1 to MOB-3: 行動應用島 lists its 13 lessons, all written since MOB-3.
   await expect(page.getByRole('region', { name: /行動應用島/ }).getByRole('listitem')).toHaveCount(13);
   await expect(page.getByRole('region', { name: /行動應用島/ }).locator('ol a')).toHaveCount(13);

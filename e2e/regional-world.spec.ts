@@ -116,12 +116,12 @@ test.describe('regional world: flag on', () => {
     await expect(subjects.locator('a[href^="/curriculum/"]')).toHaveCount(15);
   });
 
-  test('KUB-1: Kubernetes 與可靠性工程島 is open (KUB-2: KUB01–KUB07; KUB-3: KUB01–KUB10): its subjects panel lists its written lessons, no planned outline link', async ({ page }) => {
+  test('KUB-1: Kubernetes 與可靠性工程島 is open (KUB-2: KUB01–KUB07; KUB-3: KUB01–KUB10; KUB-4: KUB01–KUB14): its subjects panel lists its written lessons, no planned outline link', async ({ page }) => {
     await openRegion(page, '/world/sys?island=kubernetes-reliability');
     await expect(page.getByRole('region', { name: 'Kubernetes 與可靠性工程島教材入口' }).getByRole('link', { name: '查看課程大綱' })).toHaveCount(0);
     const subjects = page.getByRole('complementary', { name: 'Kubernetes 與可靠性工程島科目清單' });
-    await expect(subjects.getByText('Kubernetes 與可靠性工程島：已完成 0／10 堂')).toBeVisible();
-    await expect(subjects.locator('a[href^="/curriculum/"]')).toHaveCount(10);
+    await expect(subjects.getByText('Kubernetes 與可靠性工程島：已完成 0／14 堂')).toBeVisible();
+    await expect(subjects.locator('a[href^="/curriculum/"]')).toHaveCount(14);
   });
 
   /* P1-37: `?stress=glb` is a review tool. What the map holds once it has stopped changing (the GLB arrives late). */

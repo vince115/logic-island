@@ -149,7 +149,8 @@ describe('the devops-cicd island: prepared in CICD-0, published from CICD-1', ()
     for (const a of activities.filter(x => x.type === 'activity' && x.availability === 'planned')) expect(a.accessibility.textAlternative, a.id).toBe('必要：實作時提供與畫面等效的文字說明');
   });
   it('makes monitoring-dashboard implemented once a complete lesson uses it (CICD-5: CICD11 on D3)', () => {
-    expect(lessons.filter(l => l.activity === 'monitoring-dashboard').map(l => l.lessonId)).toEqual(['CICD11', 'CICD12']); // CICD-6: CICD12 on D4
+    // CICD-6: CICD12 on D4; KUB-4: KUB12 (D3, D4 and the terminal), KUB13 (D5 traces) and KUB14 (D6 SLOs).
+    expect(lessons.filter(l => l.activity === 'monitoring-dashboard').map(l => l.lessonId)).toEqual(['CICD11', 'CICD12', 'KUB12', 'KUB13', 'KUB14']);
     expect(getActivity('monitoring-dashboard')).toMatchObject({ availability: 'implemented', version: '1.0.0' });
     expect(getActivity('monitoring-dashboard')!.accessibility.textAlternative).not.toMatch(/^必要/);
     expect(getActivity('monitoring-dashboard')!.accessibility.textAlternative).toContain('分散式追蹤的瀑布圖有等效的表格'); // D5
@@ -1190,7 +1191,7 @@ describe('D5: the sampling-plan task, validation and a synthetic lesson with tra
     const twice = buildTrace(tf.T_OK, [{ id: 'a000000000000001', service: 's', name: 'GET', start: 0, duration: 5 }, { id: 'a000000000000002', parent: 'a000000000000001', service: 's', name: 'GET', start: 1, duration: 1 }]);
     expect([findSpan(twice, 'GET'), findSpan(twice, 'a000000000000002')?.start]).toEqual([undefined, 1]);
   });
-  // KUB13 will use traces under monitoring-dashboard; until KUB is written, the CICD11 outline (monitoring-dashboard,
+  // KUB13 uses traces under monitoring-dashboard (written in KUB-4); the CICD11 outline (monitoring-dashboard,
   // devops-explorer only) carries a synthetic lesson whose devops content is traces (with the logs and dashboard they link).
   const m11 = { ...metaOf('CICD11', cicdFromBlueprint('CICD11', '用追蹤找出時間花在哪裡（測試用大綱）。', 50)),
     title: '可觀測性：指標、日誌與追蹤', concepts: ['三大支柱', '分散式追蹤', 'OpenTelemetry', '取樣', '高基數'] } as LessonMeta; // KUB13's concepts
@@ -1405,7 +1406,7 @@ describe('D6: the burn-alert task, the exercises and a synthetic lesson with SLO
     expect(devopsContentProblems(withTask({ slo: 'nope' }))).toEqual(['exercise s-plan: no slo nope']);
     expect(devopsContentProblems({ ...c, slos: [{ ...c.slos![0], slo: { ...sf.tiny(), buckets: 0 } }, ...c.slos!.slice(1)] })).toEqual(['slo checkout-slo: buckets is 1…720']);
   });
-  // KUB14 will use SLOs under monitoring-dashboard; until KUB is written, the CICD11 outline (monitoring-dashboard,
+  // KUB14 uses SLOs under monitoring-dashboard (written in KUB-4); the CICD11 outline (monitoring-dashboard,
   // devops-explorer only) carries a synthetic lesson whose devops content is SLOs alone.
   const m11 = { ...metaOf('CICD11', cicdFromBlueprint('CICD11', '用 SLO 與錯誤預算決定何時該停下來修可靠度（測試用大綱）。', 50)),
     title: 'SLI、SLO 與 SLA', concepts: ['SLI', 'SLO', 'SLA', '錯誤預算', '以 SLO 為基礎的告警'] } as LessonMeta; // KUB14's concepts
@@ -1417,8 +1418,8 @@ describe('D6: the burn-alert task, the exercises and a synthetic lesson with SLO
     const none = sf.sloLesson(); none.devops = { exercises: [] };
     expect(validateContent(m11, none, curriculum.visualizations)).toContain('CICD11: the monitoring-dashboard activity needs at least one of content.devops.dashboards, content.devops.logs, content.devops.traces or content.devops.slos');
     expect(getActivity('monitoring-dashboard')!.accessibility.textAlternative).toContain('SLO 的每個時段的 SLI 與剩下的錯誤預算有等效的表格');
-    // Published lessons keep their content: CICD11 and CICD12 have no SLOs.
-    expect(lessons.filter(l => l.activity === 'monitoring-dashboard').map(l => [l.lessonId, !!curriculum.contents[l.lessonId]?.devops, curriculum.contents[l.lessonId]?.devops?.slos]))
-      .toEqual([['CICD11', true, undefined], ['CICD12', true, undefined]]);
+    // Published lessons keep their content: CICD11, CICD12, KUB12 and KUB13 have no SLOs; KUB14 (KUB-4) is the lesson of SLOs.
+    expect(lessons.filter(l => l.activity === 'monitoring-dashboard').map(l => [l.lessonId, !!curriculum.contents[l.lessonId]?.devops, !!curriculum.contents[l.lessonId]?.devops?.slos]))
+      .toEqual([['CICD11', true, false], ['CICD12', true, false], ['KUB12', true, false], ['KUB13', true, false], ['KUB14', true, true]]);
   });
 });
