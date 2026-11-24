@@ -127,6 +127,7 @@ kube: {
 - `kubectl events --for` 接受 kubectl 的類型名稱（`deploy/web`、`rs/…`、`no/node-01`），原本只認單複數的 kind。
 - `get … -o wide` 的 SELECTOR 依鍵排序（kubectl 的 selector 字串）。
 - KUB-1 整合時：類型名稱接受 apps 群組的限定寫法（`replicaset.apps/solo`、`deployment.apps/web`、`rs.apps`），也就是 `-o name` 印出的形式，所以 `kubectl scale $(kubectl get deploy web -o name) --replicas=1` 可以用；核心類型加群組（`pods.apps`）仍是 `doesn't have a resource type`。
+- KUB-1 上線後（main 的 CI 有一個長時間測試逾時）：`sameJ` 改為直接比較結構（結果與排序後的 JSON 文字相同，有測試對照），時間戳的轉換有快取；`kubectl rollout status` 與 `kubectl wait` 不再一秒一秒前進，而是直接跳到叢集下一個步驟的時間（兩步之間叢集不會改變），輸出與前進的秒數都不變。一週的 CrashLoop 加上暫停的 rollout status 從約 1.8 秒降到約 0.7 秒。
 
 ## 13. 測試
 
