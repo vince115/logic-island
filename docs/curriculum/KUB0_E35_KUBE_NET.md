@@ -99,6 +99,8 @@ kube: {
 - API server（`kubernetes` Service、10.0.0.50:6443）在 Pod 裡連不到（被拒絕）。kube-dns 的 CoreDNS Pod 沒有模擬聆聽，DNS 由解析器直接回答。
 - `api-resources` 的清單不變（E32 的子集，沒有 endpointslices）。
 
+- KUB-3 整合時修正：Pod 與 kube-proxy 位址所代表的主機原本沒有時鐘，回應的 `Date` 標頭固定是預設的 2026-11-22 10:00:00（`kubectl exec` 裡的 `curl localhost` 也是）；現在用叢集所在的學習者機器的時鐘，會隨 `sleep` 前進。E37 的 ingress／Gateway 在 KUB-2 已經修正。
+
 ## 11. 課程作者要知道的事
 
 - 機器寫 `profile: 'kube-net'`；LoadBalancer 要有位址時寫 `kube.lbPool`，否則 EXTERNAL-IP 一直是 `<pending>`（這本身就是可以教的真實行為）。

@@ -170,3 +170,13 @@ describe('variants and determinism', () => {
     expect(machineState(netLab).kube!.net).toBe(true);
   });
 });
+
+describe('the cluster machine\'s clock (KUB-4)', () => {
+  it('responses from pods carry the Date of the machine the cluster runs on, and it moves with sleep', () => {
+    const s = go(...UP, 'date', ex('curl -sI who'), 'sleep 60', ex('curl -sI who'));
+    const date = (out: string[]) => out.find(l => l.startsWith('Date: '));
+    expect(s.log[2].out[0]).toMatch(/^Tue Nov 24 /);
+    expect(date(s.log[3].out)).toMatch(/^Date: Tue, 24 Nov 2026 \d\d:\d\d:\d\d GMT$/);
+    expect(date(s.log[5].out)).not.toBe(date(s.log[3].out));
+  });
+});
