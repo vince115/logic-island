@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { checkTerminalExercise, describeCheck, machineState, terminalContentProblems, variantMachine, type TerminalCheck, type TerminalMachine } from '@/lib/terminal/lesson';
-import { settleKube } from '@/lib/terminal/kube-settle';
+import { nextKubeTime, settleKube, waitStep } from '@/lib/terminal/kube-settle';
+import { sameJ, sortJ, type J } from '@/lib/terminal/kube-model';
 import { probesLab } from './support/probes-fixture';
 import { deployment, withFiles, workloadsLab, workOn } from './support/workloads-fixture';
 
@@ -116,5 +117,23 @@ describe('the checks kube-workload and kube-rollout', () => {
     expect(content([{ kind: 'kube-workload', name: 'web', condition: { type: 'Ready', status: 'True' } }])).toContain('exercise w: a kube-workload check\'s condition is { type: Available|Progressing|ReplicaFailure, status: True|False|Unknown, reason? }');
     expect(content([{ kind: 'kube-workload', name: 'web', replicas: 3 }], { ...probesLab, files: lab.files })).toContain('exercise w: a kube-workload check needs a workloads machine (engine stage E34)');
     expect(content([{ kind: 'kube-workload', name: 'web', replicas: 3 }, { kind: 'kube-rollout', name: 'web', complete: true }])).toEqual([]);
+  });
+});
+
+describe('the settle loop\'s speed-ups (KUB-1)', () => {
+  it('sameJ answers as the sorted JSON text did (key order, undefined keys and items, non-finite numbers)', () => {
+    const old = (a: J | undefined, b: J | undefined) => JSON.stringify(sortJ(a ?? null)) === JSON.stringify(sortJ(b ?? null));
+    const u = undefined as unknown as J;
+    const cases: [J | undefined, J | undefined][] = [[{ a: 1, b: [1, { c: 2, d: 'x' }] }, { b: [1, { d: 'x', c: 2 }], a: 1 }], [{ a: 1, b: u }, { a: 1 }], [{ a: 1 }, { a: 1, b: 2 }],
+      [[1, u], [1, null]], [[1, 2], [2, 1]], [NaN, null], [Infinity, null], [0, -0], ['1', 1], [null, undefined], [{}, []], [[], []], [{ a: [] }, { a: {} }], [{ a: null }, {}], [true, 'true']];
+    for (const [a, b] of cases) expect([sameJ(a, b), sameJ(b, a)], JSON.stringify([a, b])).toEqual([old(a, b), old(b, a)]);
+  });
+  it('a waiting command moves to the next step of the cluster, at least 1 s and never past what is left', () => {
+    const s = settleKube(workOn(lab, 'kubectl create deployment c --image=team/crash:1.0 --replicas=1', 'sleep 30').state);
+    const next = nextKubeTime(s)!, now = s.clock!.now;
+    expect(next).toBeGreaterThan(now);
+    expect(waitStep(s, 10_000)).toBe(next - now);
+    expect(waitStep(s, 1)).toBe(1);
+    expect(nextKubeTime({ ...s, kube: undefined })).toBeUndefined();
   });
 });

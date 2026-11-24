@@ -2,7 +2,7 @@ import { find } from './kube-api';
 import { imageNodes, runIn } from './docker';
 import { podContainer, podEnv, resolveImage } from './kube-image';
 import { cOf, specOf, type Ref } from './kube-kubelet';
-import { settleKube } from './kube-settle';
+import { settleKube, waitStep } from './kube-settle';
 import { advanceClock } from './shell';
 import { evalPath, parseTemplate, runTemplate } from './kube-jsonpath';
 import { kindOfWord, pick, targets } from './kubectl-get';
@@ -108,12 +108,15 @@ export function waitCommand(x: Kx): KubeResult {
   if ('error' in first) return fail(x, first.error);
   if (first.errors.length && cond !== 'delete') return fail(x, first.errors[0]);
   const names = ts[0].names.length ? ts[0].names : first.items.map(nameOf), plural = ts[0].plural;
-  for (let waited = 0; waited <= limit; waited++) {
+  // KUB-1: the clock moves from step to step of the cluster (nothing changes in between), never past the limit.
+  for (let waited = 0; waited <= limit;) {
     const s = waited ? settleKube(advanceClock(x.state, waited)) : x.state, k = s.kube!;
     if (names.every(n => holds(find(k, ts[0].kind, x.ns, n)))) {
       names.forEach(n => x.io.out(`${plural.replace(/s(\.apps)?$/, '$1')}/${n} condition met`));
       return { state: x.state, status: 0, advance: waited };
     }
+    if (waited >= limit) break;
+    waited += waitStep(s, limit - waited);
   }
   const pending = names.find(n => !holds(find(settleKube(advanceClock(x.state, limit)).kube!, ts[0].kind, x.ns, n)));
   x.io.err(`error: timed out waiting for the condition on ${plural}/${pending}`);

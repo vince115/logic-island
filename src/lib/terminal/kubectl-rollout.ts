@@ -1,5 +1,5 @@
 import { find, put } from './kube-api';
-import { settleKube } from './kube-settle';
+import { settleKube, waitStep } from './kube-settle';
 import { advanceClock } from './shell';
 import { resourceName } from './kube-output';
 import { changeCauseOf, historyOf, revisionOf, rolloutStatus } from './kube-deployment';
@@ -60,8 +60,7 @@ function statusCommand(x: Kx, d0: JObj): KubeResult {
   if (t !== undefined && !m) return fail(x, `error: invalid argument "${t}" for "--timeout" flag: time: invalid duration "${t}"`);
   const limit = m && Number(m[1]) > 0 ? Number(m[1]) * (m[2] === 'm' ? 60 : 1) : STATUS_CAP, once = x.flags.off?.has('watch');
   let s = x.state, last = '';
-  for (let waited = 0; ; waited++) {
-    if (waited) s = settleKube(advanceClock(s, 1));
+  for (let waited = 0; ;) {
     const d = find(s.kube!, 'Deployment', nsOf(d0), nameOf(d0));
     if (!d) { x.io.err(`error: deployment "${nameOf(d0)}" was deleted`); return { state: x.state, status: 1, advance: waited }; }
     const v = rolloutStatus(d);
@@ -73,6 +72,10 @@ function statusCommand(x: Kx, d0: JObj): KubeResult {
       x.io.err(m && Number(m[1]) > 0 ? 'error: timed out waiting for the condition' : `（模擬環境：kubectl rollout status 最多等待 ${STATUS_CAP} 秒；請加上 --timeout）`);
       return { state: x.state, status: 1, advance: waited };
     }
+    // KUB-1: straight to the cluster's next step (nothing changes in between), never past the limit.
+    const step = waitStep(s, limit - waited);
+    s = settleKube(advanceClock(s, step));
+    waited += step;
   }
 }
 

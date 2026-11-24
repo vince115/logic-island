@@ -118,10 +118,20 @@ export const labelsOf = (o: JObj): Record<string, string> => Object.fromEntries(
 export const createdOf = (o: JObj) => parseStamp(str(meta(o).creationTimestamp));
 
 /** RFC 3339 as the API server writes it (2026-11-24T10:00:00Z), and back. */
-export const stamp = (t: Seconds) => `${isoText(Math.floor(t)).replace(' ', 'T')}Z`;
+// Both are pure and called for every object on every settle step, so their results are kept (a bounded cache).
+const stamps = new Map<number, string>(), parsed = new Map<string, Seconds | undefined>();
+const kept = <K, V>(cache: Map<K, V>, key: K, make: () => V): V => {
+  if (cache.has(key)) return cache.get(key) as V;
+  if (cache.size >= 4096) cache.clear();
+  const v = make(); cache.set(key, v); return v;
+};
+export const stamp = (t: Seconds) => kept(stamps, Math.floor(t), () => `${isoText(Math.floor(t)).replace(' ', 'T')}Z`);
 export function parseStamp(text: string | undefined): Seconds | undefined {
-  const m = text ? /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)Z$/.exec(text) : null;
-  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) / 1000 : undefined;
+  if (!text) return undefined;
+  return kept(parsed, text, () => {
+    const m = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)Z$/.exec(text);
+    return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) / 1000 : undefined;
+  });
 }
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 /** Go's RFC1123Z in UTC (describe's Start Time: Tue, 24 Nov 2026 10:00:00 +0000). */
@@ -204,7 +214,32 @@ export function bytesOf(text: string): number | null {
 /** A quantity as JSON may hold it (a number or a string). */
 export const quantityText = (v: J | undefined) => typeof v === 'number' ? String(v) : str(v);
 
-export const sameJ = (a: J | undefined, b: J | undefined): boolean => JSON.stringify(sortJ(a ?? null)) === JSON.stringify(sortJ(b ?? null));
+/**
+ * Whether two values encode to the same JSON once every object's keys are sorted (key order ignored, an undefined key
+ * absent, an undefined array item or a non-finite number null) — compared in place: the settle loop calls this for every
+ * step, and building the sorted copies and their text was most of a long run's time (KUB-1).
+ */
+export const sameJ = (a: J | undefined, b: J | undefined): boolean => eqJ(a ?? null, b ?? null);
+const jsonLeaf = (v: unknown): unknown => v === undefined || (typeof v === 'number' && !Number.isFinite(v)) ? null : v;
+function eqJ(a0: unknown, b0: unknown): boolean {
+  const a = jsonLeaf(a0), b = jsonLeaf(b0);
+  if (a === b) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (!eqJ(a[i], b[i])) return false;
+    return true;
+  }
+  const x = a as Record<string, unknown>, y = b as Record<string, unknown>;
+  let n = 0;
+  for (const key in x) {
+    if (x[key] === undefined) continue;
+    n++;
+    if (!(key in y) || y[key] === undefined || !eqJ(x[key], y[key])) return false;
+  }
+  for (const key in y) if (y[key] !== undefined) n--;
+  return n === 0;
+}
 /** A copy with every object's keys sorted (Go's encoding of a map). */
 export function sortJ(v: J): J {
   if (Array.isArray(v)) return v.map(sortJ);

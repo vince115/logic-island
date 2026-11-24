@@ -39,6 +39,20 @@ export function settleKube(state: FsState): FsState {
   return { ...state, kube: writeStatuses({ ...k, settled: now }) };
 }
 
+/**
+ * KUB-1: the time of the cluster's next step after a settle (undefined: nothing is pending). Nothing in the cluster
+ * changes between two steps, so a command that waits for a state (rollout status, wait) moves the clock straight to it
+ * instead of one second at a time.
+ */
+export function nextKubeTime(state: FsState): Seconds | undefined {
+  return state.kube ? nextStep(state.kube, Infinity, state.docker)?.t : undefined;
+}
+/** How far a waiting command moves the clock from its state: to the next step, at least 1 s, at most what is left. */
+export function waitStep(state: FsState, left: Seconds): Seconds {
+  const next = nextKubeTime(state);
+  return next === undefined ? left : Math.max(1, Math.min(next - clockOf(state).now, left));
+}
+
 type Step = { t: Seconds; run: (k: KubeState) => KubeState; ctl?: true };
 function nextStep(k: KubeState, now: Seconds, d: DockerState | undefined): Step | null {
   let best: Step | null = null;
