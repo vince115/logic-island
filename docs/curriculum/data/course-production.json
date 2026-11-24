@@ -748,6 +748,20 @@
       "commit": "TBD",
       "tests": "TBD",
       "notes": "KUB-2：終端機引擎階段 E35 kube-net（Service、Endpoints 與 EndpointSlice、叢集 DNS、NodePort、LoadBalancer 與位址池、port-forward）、E36 kube-config（ConfigMap、Secret、env／envFrom／Volume 與 subPath、imagePullSecrets、immutable）與 E37 ingress（ingress-nginx、Ingress TLS、Gateway API；KUB07 加上 network-protocol 情境）；Service 與服務發現、ConfigMap 與 Secret、Ingress 與 Gateway API 三課",
+      "pr": "#100",
+      "merged": "94ac2bf"
+    },
+    {
+      "id": 54,
+      "date": "2026-11-24",
+      "lessons": [
+        "KUB08",
+        "KUB09",
+        "KUB10"
+      ],
+      "commit": "TBD",
+      "tests": "TBD",
+      "notes": "KUB-3：終端機引擎階段 E38 kube-storage（PersistentVolume、PersistentVolumeClaim、StorageClass 與 provisioner、存取模式與回收策略、StatefulSet、備份與還原）、E39 helm（Go 樣板引擎、chart 與 values、release、install／upgrade／rollback、--wait 與 --atomic、chart 儲存庫）與 E40 autoscaling（requests 與 limits、QoS、metrics-server 與 kubectl top、HorizontalPodAutoscaler）；Persistent Volume 與有狀態應用、Helm 套件管理、自動擴展三課",
       "pr": null
     }
   ]
